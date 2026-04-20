@@ -58,23 +58,46 @@ impl GrindrClient {
         path: &str,
         body: Option<Vec<u8>>,
     ) -> Result<RawResponse, AppError> {
-        let authorization = self
-            .authorization_header()
-            .await
-            .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?;
+        let is_public_path = path.starts_with("/public/");
 
-        let mut request = self
-            .http
-            .request(method, format!("{BASE_URL}{path}"))
-            .header("Authorization", authorization);
+        let mut authorization = if is_public_path {
+            self.authorization_header().await
+        } else {
+            Some(
+                self
+                    .authorization_header()
+                    .await
+                    .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?,
+            )
+        };
 
-        if let Some(body) = body {
-            request = request
-                .header("Content-Type", "application/json")
-                .body(body);
+        let make_request = |authorization: Option<&str>| {
+            let mut request = self.http.request(method.clone(), format!("{BASE_URL}{path}"));
+
+            if let Some(authorization) = authorization {
+                request = request.header("Authorization", authorization);
+            }
+
+            if let Some(body) = body.as_ref() {
+                request = request
+                    .header("Content-Type", "application/json")
+                    .body(body.clone());
+            }
+
+            request
+        };
+
+        let mut response = make_request(authorization.as_deref()).send().await?;
+
+        if response.status().as_u16() == 401 && !is_public_path {
+            if self.refresh_token().await.is_ok() {
+                authorization = self.authorization_header().await;
+                if authorization.is_some() {
+                    response = make_request(authorization.as_deref()).send().await?;
+                }
+            }
         }
 
-        let response = request.send().await?;
         let status = response.status().as_u16();
         let body = response.bytes().await?.to_vec();
 
