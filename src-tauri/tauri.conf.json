@@ -1,0 +1,40 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Open Grind",
+	"version": "0.1.0",
+	"identifier": "dev.hloth.open-grind",
+	"build": {
+		"beforeDevCommand": "bun run dev:web",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "bun run build",
+		"frontendDist": "../build"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Open Grind",
+				"width": 1000,
+				"height": 800,
+				"theme": "Dark",
+				"userAgent": "OpenGrind/0.1.0 (+https://opengrind.hloth.dev/; contact: hi@hloth.dev)"
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"macOS": {
+			"signingIdentity": "tauri-dev"
+		}
+	}
+}

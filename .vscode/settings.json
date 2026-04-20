@@ -1,0 +1,40 @@
+{
+	"editor.tabCompletion": "on",
+	"eslint.validate": ["javascript", "typescript"],
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[svelte]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[rust]": {
+		"editor.defaultFormatter": "rust-lang.rust-analyzer"
+	},
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": "explicit"
+	},
+	"editor.indentSize": "tabSize",
+	"editor.detectIndentation": false,
+	"json.schemaDownload.trustedDomains": {
+		"https://schema.tauri.app/config/2": true
+	},
+	"[markdown]": {
+		"editor.indentSize": 2,
+		"editor.detectIndentation": false,
+		"editor.insertSpaces": true
+	},
+	"[xml]": {
+		"editor.defaultFormatter": "redhat.vscode-xml"
+	},
+	"files.associations": {
+		"layout.css": "tailwindcss"
+	},
+	"editor.quickSuggestions": {
+		"strings": "on"
+	}
+}

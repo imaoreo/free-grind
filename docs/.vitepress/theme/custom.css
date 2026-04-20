@@ -1,0 +1,18 @@
+:root {
+	--vp-c-brand-1: #926e04;
+	--vp-c-brand-2: #926e04;
+	--vp-home-hero-name-color: #b49000;
+	--vp-button-brand-bg: #ffcc01;
+	--vp-button-brand-hover-bg: #fac800;
+	--vp-button-brand-active-bg: #f4c300;
+	--vp-button-brand-hover-text: #000000;
+	--vp-button-brand-active-text: #000000;
+	--vp-button-brand-text: #000000;
+}
+:root.dark {
+	--vp-c-brand-1: #ffcc01;
+	--vp-c-brand-2: #ffe434;
+	--vp-home-hero-name-color: #ffcc01;
+	--vp-button-brand-hover-bg: #ffd500;
+	--vp-button-brand-active-bg: #ffe433;
+}
