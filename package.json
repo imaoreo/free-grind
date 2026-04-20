@@ -7,8 +7,8 @@
 	"scripts": {
 		"docs": "bun run --cwd docs start",
 		"build": "vite build",
-		"sync": "svelte-kit sync",
-		"postinstall": "svelte-kit sync",
+		"sync": "svelte-kit sync || bunx --bun svelte-kit sync",
+		"postinstall": "bun run sync",
 		"check": "bun run sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "bun run sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"dev": "bun dev:desktop",
