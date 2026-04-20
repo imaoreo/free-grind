@@ -2,7 +2,10 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
 import { grindrApiReference } from "../lib";
 
-const base = process.env.VITEPRESS_BASE || "/";
+const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1];
+const base =
+	process.env.VITEPRESS_BASE ||
+	(process.env.GITHUB_ACTIONS && repositoryName ? `/${repositoryName}/` : "/");
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
