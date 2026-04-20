@@ -12,7 +12,7 @@ hero:
       link: /guide/download
     - theme: alt
       text: Source code
-      link: https://git.hloth.dev/hloth/open-grind
+      link: https://github.com/kezza2k7/open-grind
 
 features:
   - title: Feature A
