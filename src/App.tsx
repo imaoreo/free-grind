@@ -7,12 +7,13 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SignInPage } from "./pages/auth/SignInPage";
 import { SignUpPage } from "./pages/auth/SignUpPage";
 import { PasswordResetPage } from "./pages/auth/PasswordResetPage";
-import { GridPage } from "./pages/app/GridPage";
+import { GridPage } from "./pages/app/GridPage.tsx";
 import { RightNowPage } from "./pages/app/RightNowPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
 import { SettingsPage } from "./pages/app/SettingsPage.tsx";
 import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
+import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 
 function ErrorPage() {
 	return (
@@ -51,6 +52,7 @@ export default function App() {
 							<Route path="/right-now" element={<RightNowPage />} />
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
+							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
 							<Route
 								path="/settings/profile-editor"

@@ -22,6 +22,16 @@ import {
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
 import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPanel";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
+import {
+	getCachedBrowseCards,
+	getCachedGenderOptions,
+	getCachedProfileDetail,
+	getCachedPronounOptions,
+	setCachedBrowseCards,
+	setCachedGenderOptions,
+	setCachedProfileDetail,
+	setCachedPronounOptions,
+} from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 
 export function GridPage() {
@@ -59,9 +69,26 @@ export function GridPage() {
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
+			const cachedGenders = getCachedGenderOptions();
+			const cachedPronouns = getCachedPronounOptions();
+
+			if (cachedGenders) {
+				setGenderOptions(cachedGenders);
+			}
+
+			if (cachedPronouns) {
+				setPronounOptions(cachedPronouns);
+			}
+
+			if (cachedGenders && cachedPronouns) {
+				return;
+			}
+
 			try {
-				const gendersResponse = await fetchRest("/public/v2/genders");
-				const pronounsResponse = await fetchRest("/v1/pronouns");
+				const [gendersResponse, pronounsResponse] = await Promise.all([
+					fetchRest("/public/v2/genders"),
+					fetchRest("/v1/pronouns"),
+				]);
 
 				if (gendersResponse.status >= 200 && gendersResponse.status < 300) {
 					const parsed = z
@@ -72,12 +99,12 @@ export function GridPage() {
 							}),
 						)
 						.parse(gendersResponse.json());
-					setGenderOptions(
-						parsed.map((item) => ({
-							value: item.genderId,
-							label: item.gender,
-						})),
-					);
+					const nextGenderOptions = parsed.map((item) => ({
+						value: item.genderId,
+						label: item.gender,
+					}));
+					setGenderOptions(nextGenderOptions);
+					setCachedGenderOptions(nextGenderOptions);
 				}
 
 				if (
@@ -93,16 +120,20 @@ export function GridPage() {
 							}),
 						)
 						.parse(pronounsResponse.json());
-					setPronounOptions(
-						parsed.map((item) => ({
-							value: item.pronounId,
-							label: item.pronoun,
-						})),
-					);
+					const nextPronounOptions = parsed.map((item) => ({
+						value: item.pronounId,
+						label: item.pronoun,
+					}));
+					setPronounOptions(nextPronounOptions);
+					setCachedPronounOptions(nextPronounOptions);
 				}
 			} catch {
-				setGenderOptions([]);
-				setPronounOptions([]);
+				if (!cachedGenders) {
+					setGenderOptions([]);
+				}
+				if (!cachedPronouns) {
+					setPronounOptions([]);
+				}
 			}
 		};
 
@@ -164,11 +195,9 @@ export function GridPage() {
 				return;
 			}
 
-			setIsLoadingCards(true);
-			setCardsError(null);
-
 			if (!geohash) {
 				if (!cancelled) {
+					setIsLoadingCards(true);
 					setCards([]);
 					setCardsError(
 						"Location is not set yet. Set your location first to load nearby profiles.",
@@ -176,6 +205,18 @@ export function GridPage() {
 					setIsLoadingCards(false);
 				}
 				return;
+			}
+
+			const cachedCards = getCachedBrowseCards(geohash);
+			setCardsError(null);
+
+			if (cachedCards) {
+				if (!cancelled) {
+					setCards(cachedCards);
+					setIsLoadingCards(false);
+				}
+			} else {
+				setIsLoadingCards(true);
 			}
 
 			try {
@@ -208,15 +249,18 @@ export function GridPage() {
 
 				if (!cancelled) {
 					setCards(nextCards);
+					setCachedBrowseCards(geohash, nextCards);
 				}
 			} catch (error) {
 				if (!cancelled) {
-					setCards([]);
-					setCardsError(
-						error instanceof Error
-							? error.message
-							: "Failed to load browse profiles",
-					);
+					if (!cachedCards) {
+						setCards([]);
+						setCardsError(
+							error instanceof Error
+								? error.message
+								: "Failed to load browse profiles",
+						);
+					}
 				}
 			} finally {
 				if (!cancelled) {
@@ -243,7 +287,15 @@ export function GridPage() {
 		let cancelled = false;
 
 		const loadProfileDetails = async () => {
-			setIsLoadingActiveProfile(true);
+			const cachedProfile = getCachedProfileDetail(activeProfileId);
+
+			if (cachedProfile) {
+				setActiveProfile(cachedProfile);
+				setIsLoadingActiveProfile(false);
+			} else {
+				setIsLoadingActiveProfile(true);
+			}
+
 			setActiveProfileError(null);
 
 			try {
@@ -259,15 +311,18 @@ export function GridPage() {
 
 				if (!cancelled) {
 					setActiveProfile(parsed.profiles[0]);
+					setCachedProfileDetail(activeProfileId, parsed.profiles[0]);
 				}
 			} catch (error) {
 				if (!cancelled) {
-					setActiveProfile(null);
-					setActiveProfileError(
-						error instanceof Error
-							? error.message
-							: "Failed to load profile details",
-					);
+					if (!cachedProfile) {
+						setActiveProfile(null);
+						setActiveProfileError(
+							error instanceof Error
+								? error.message
+								: "Failed to load profile details",
+						);
+					}
 				}
 			} finally {
 				if (!cancelled) {
@@ -408,6 +463,15 @@ export function GridPage() {
 		return hashes;
 	}, [activeProfile]);
 
+	const handleSelectProfile = (profileId: string) => {
+		if (window.matchMedia("(max-width: 639px)").matches) {
+			navigate(`/profile/${profileId}`);
+			return;
+		}
+
+		setActiveProfileId(profileId);
+	};
+
 	return (
 		<section className="app-screen">
 			<div className="mx-auto w-full max-w-6xl">
@@ -515,7 +579,7 @@ export function GridPage() {
 					isLoadingCards={isLoadingCards}
 					cardsError={cardsError}
 					cards={cards}
-					onSelectProfile={setActiveProfileId}
+					onSelectProfile={handleSelectProfile}
 				/>
 
 				<ProfileDetailsModal
