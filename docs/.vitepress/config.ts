@@ -2,9 +2,12 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitepress";
 import { grindrApiReference } from "../lib";
 
+const base = process.env.VITEPRESS_BASE || "/";
+
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
 	srcDir: "content",
+	base,
 
 	vite: {
 		resolve: {
