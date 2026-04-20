@@ -50,10 +50,16 @@ export function useApi() {
 			options: {
 				method?: string;
 				body?: unknown;
+				rawBody?: Uint8Array;
+				contentType?: string;
 				abortController?: AbortController;
 			} = { method: "GET" },
 		) => {
 			try {
+				if (options.body != null && options.rawBody != null) {
+					throw new Error("Cannot provide both body and rawBody in fetchRest");
+				}
+
 				const packed = await invoke("request", {
 					method: options.method || "GET",
 					path,
@@ -62,6 +68,10 @@ export function useApi() {
 							new TextEncoder().encode(JSON.stringify(options.body)),
 						),
 					}),
+					...(options.rawBody != null && {
+						body: Array.from(options.rawBody),
+					}),
+					...(options.contentType && { contentType: options.contentType }),
 				}).then((res) => z.instanceof(ArrayBuffer).parse(res));
 
 				const decoded = decode(packed);

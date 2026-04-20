@@ -57,6 +57,7 @@ impl GrindrClient {
         method: Method,
         path: &str,
         body: Option<Vec<u8>>,
+        content_type: Option<&str>,
     ) -> Result<RawResponse, AppError> {
         let is_public_path = path.starts_with("/public/");
 
@@ -80,9 +81,13 @@ impl GrindrClient {
             }
 
             if let Some(body) = body.as_ref() {
-                request = request
-                    .header("Content-Type", "application/json")
-                    .body(body.clone());
+                request = request.body(body.clone());
+
+                if let Some(content_type) = content_type {
+                    request = request.header("Content-Type", content_type);
+                } else {
+                    request = request.header("Content-Type", "application/json");
+                }
             }
 
             request
@@ -112,6 +117,7 @@ pub async fn request(
     method: String,
     path: String,
     body: Option<Vec<u8>>,
+    content_type: Option<String>,
 ) -> Result<Response, AppError> {
     println!(
         "Received request: {method} {path} with body of length {}",
@@ -122,7 +128,10 @@ pub async fn request(
         message: format!("Invalid method: {method}"),
     })?;
 
-    let raw = state.client()?.request_raw(method, &path, body).await;
+    let raw = state
+        .client()?
+        .request_raw(method, &path, body, content_type.as_deref())
+        .await;
 
     let raw = raw?;
 

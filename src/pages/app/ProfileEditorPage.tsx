@@ -2,20 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
 	AtSign,
 	BadgeInfo,
-	Check,
+	Camera,
 	ImageOff,
 	RefreshCw,
 	Ruler,
 	Save,
 	ShieldPlus,
 	Sparkles,
-	UserRound,
+	Star,
+	Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApi } from "../../hooks/useApi";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+
+const MAX_PROFILE_PHOTOS = 5;
 
 const lookingForLabels: Record<number, string> = {
 	2: "Chat",
@@ -202,6 +206,7 @@ const profileSchema = z.object({
 	profileTags: z.array(z.string()).optional().default([]),
 	onlineUntil: z.number().nullable().optional(),
 	rightNowText: z.string().nullable().optional(),
+	profileImageMediaHash: z.string().nullable().optional(),
 	isRoaming: z.boolean().optional(),
 	isTeleporting: z.boolean().optional(),
 	medias: z
@@ -322,6 +327,20 @@ function normalizeTagList(value: string): string[] {
 		.split(",")
 		.map((item) => item.trim())
 		.filter(Boolean);
+}
+
+async function buildSquareThumbCoords(file: File): Promise<string> {
+	const bitmap = await createImageBitmap(file);
+	const side = Math.min(bitmap.width, bitmap.height);
+	const x1 = (bitmap.width - side) / 2;
+	const y1 = (bitmap.height - side) / 2;
+	const x2 = x1 + side;
+	const y2 = y1 + side;
+
+	bitmap.close();
+
+	// RectF query format is: y2,x1,x2,y1.
+	return `${y2},${x1},${x2},${y1}`;
 }
 
 function profileToDraft(
@@ -480,6 +499,8 @@ export function ProfileEditorPage() {
 	const [profileError, setProfileError] = useState<string | null>(null);
 	const [draft, setDraft] = useState<ProfileDraft>(emptyDraft);
 	const [isSaving, setIsSaving] = useState(false);
+	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
+	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 	const [genderOptions, setGenderOptions] = useState<
 		Array<{ value: number; label: string }>
 	>([]);
@@ -588,6 +609,33 @@ export function ProfileEditorPage() {
 	const tagList = useMemo(
 		() => normalizeTagList(draft.profileTagsText),
 		[draft.profileTagsText],
+	);
+
+	const profilePhotoHashes = useMemo(() => {
+		const fromMedias = (profile?.medias ?? [])
+			.map((item) => item.mediaHash ?? "")
+			.filter((hash): hash is string => validateMediaHash(hash));
+
+		const hashes = [...fromMedias];
+
+		if (
+			profile?.profileImageMediaHash &&
+			validateMediaHash(profile.profileImageMediaHash) &&
+			!hashes.includes(profile.profileImageMediaHash)
+		) {
+			hashes.unshift(profile.profileImageMediaHash);
+		}
+
+		return hashes.slice(0, MAX_PROFILE_PHOTOS);
+	}, [profile?.medias, profile?.profileImageMediaHash]);
+
+	const photoSlots = useMemo(
+		() =>
+			Array.from(
+				{ length: MAX_PROFILE_PHOTOS },
+				(_, index) => profilePhotoHashes[index] ?? null,
+			),
+		[profilePhotoHashes],
 	);
 
 	const selectedRelationshipLabel = useMemo(() => {
@@ -750,6 +798,195 @@ export function ProfileEditorPage() {
 		}
 	};
 
+	const persistProfilePhotos = useCallback(
+		async (
+			nextHashes: string[],
+			options?: {
+				deletedHashes?: string[];
+				successMessage?: string;
+			},
+		) => {
+			if (!userId) {
+				return;
+			}
+
+			const sanitized = Array.from(
+				new Set(nextHashes.filter((hash) => validateMediaHash(hash))),
+			).slice(0, MAX_PROFILE_PHOTOS);
+
+			const [primaryImageHash, ...secondaryImageHashes] = sanitized;
+
+			setIsSavingPhotos(true);
+
+			try {
+				const updateResponse = await fetchRest("/v3/me/profile/images", {
+					method: "PUT",
+					body: {
+						primaryImageHash: primaryImageHash ?? null,
+						secondaryImageHashes,
+					},
+				});
+
+				if (updateResponse.status < 200 || updateResponse.status >= 300) {
+					throw new Error(
+						`Failed to update profile photos (${updateResponse.status})`,
+					);
+				}
+
+				const deletedHashes =
+					options?.deletedHashes?.filter((hash) => validateMediaHash(hash)) ??
+					[];
+
+				if (deletedHashes.length > 0) {
+					const deleteResponse = await fetchRest("/v3/me/profile/images", {
+						method: "DELETE",
+						body: { media_hashes: deletedHashes },
+					});
+
+					if (deleteResponse.status < 200 || deleteResponse.status >= 300) {
+						throw new Error(
+							`Failed to delete profile photos (${deleteResponse.status})`,
+						);
+					}
+				}
+
+				await loadProfile();
+				toast.success(options?.successMessage ?? "Profile photos updated");
+			} catch (error) {
+				const message =
+					error instanceof Error
+						? error.message
+						: "Failed to update profile photos";
+				toast.error(message);
+			} finally {
+				setIsSavingPhotos(false);
+			}
+		},
+		[fetchRest, loadProfile, userId],
+	);
+
+	const handleUploadPhoto = async (
+		event: React.ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.currentTarget.files?.[0];
+		event.currentTarget.value = "";
+
+		if (!file) {
+			return;
+		}
+
+		if (!file.type.startsWith("image/")) {
+			toast.error("Choose an image file to upload");
+			return;
+		}
+
+		if (profilePhotoHashes.length >= MAX_PROFILE_PHOTOS) {
+			toast.error("Remove a photo before adding another one");
+			return;
+		}
+
+		setIsUploadingPhoto(true);
+
+		try {
+			const body = new Uint8Array(await file.arrayBuffer());
+			const thumbCoords = await buildSquareThumbCoords(file);
+
+			const uploadPaths = [
+				`/v4/media/upload?thumbCoords=${encodeURIComponent(thumbCoords)}&takenOnGrindr=false`,
+				"/v3/me/profile/images",
+			];
+
+			let uploadResponse: Awaited<ReturnType<typeof fetchRest>> | null = null;
+			const failedStatuses: number[] = [];
+
+			for (const path of uploadPaths) {
+				const candidate = await fetchRest(path, {
+					method: "POST",
+					rawBody: body,
+					contentType: file.type || "application/octet-stream",
+				});
+
+				if (candidate.status >= 200 && candidate.status < 300) {
+					uploadResponse = candidate;
+					break;
+				}
+
+				failedStatuses.push(candidate.status);
+			}
+
+			if (!uploadResponse) {
+				throw new Error(
+					`Failed to upload image (${failedStatuses.join(" -> ")})`,
+				);
+			}
+
+			const uploaded = z
+				.object({
+					hash: z.string().optional(),
+					mediaHash: z.string().optional(),
+					imageSizes: z
+						.array(z.object({ mediaHash: z.string().optional() }))
+						.optional(),
+				})
+				.passthrough()
+				.parse(uploadResponse.json());
+
+			const uploadedHash =
+				uploaded.hash ??
+				uploaded.mediaHash ??
+				uploaded.imageSizes?.find((item) => item.mediaHash)?.mediaHash;
+
+			if (!uploadedHash || !validateMediaHash(uploadedHash)) {
+				throw new Error(
+					"Upload completed but no valid media hash was returned",
+				);
+			}
+
+			await persistProfilePhotos([...profilePhotoHashes, uploadedHash], {
+				successMessage: "Photo uploaded",
+			});
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Failed to upload image";
+			toast.error(message);
+		} finally {
+			setIsUploadingPhoto(false);
+		}
+	};
+
+	const handleSetPrimaryPhoto = async (hash: string) => {
+		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
+			return;
+		}
+
+		if (profilePhotoHashes[0] === hash) {
+			return;
+		}
+
+		const reordered = [
+			hash,
+			...profilePhotoHashes.filter((currentHash) => currentHash !== hash),
+		];
+
+		await persistProfilePhotos(reordered, {
+			successMessage: "Primary photo updated",
+		});
+	};
+
+	const handleRemovePhoto = async (hash: string) => {
+		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
+			return;
+		}
+
+		await persistProfilePhotos(
+			profilePhotoHashes.filter((currentHash) => currentHash !== hash),
+			{
+				deletedHashes: [hash],
+				successMessage: "Photo removed",
+			},
+		);
+	};
+
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
 	};
@@ -854,16 +1091,107 @@ export function ProfileEditorPage() {
 										description="Photo slots"
 										icon={ImageOff}
 									/>
-									<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-										<p className="text-sm font-medium">
-											Pictures are not implemented yet.
-										</p>
-										<p className="mt-1 text-sm text-[var(--text-muted)]">
-											Your profile currently has {profile?.medias?.length ?? 0}{" "}
-											picture
-											{(profile?.medias?.length ?? 0) === 1 ? "" : "s"}. Photo
-											editing will plug into the dedicated media endpoints
-											later.
+									<div className="grid gap-4">
+										<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 sm:p-4">
+											<p className="text-sm text-[var(--text-muted)]">
+												{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS} photos
+												used
+											</p>
+											<label
+												htmlFor="profile-photo-upload"
+												className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors hover:border-[var(--text-muted)]"
+											>
+												<Camera className="h-4 w-4" />
+												{isUploadingPhoto ? "Uploading..." : "Add photo"}
+											</label>
+											<input
+												id="profile-photo-upload"
+												type="file"
+												accept="image/*"
+												onChange={handleUploadPhoto}
+												disabled={isUploadingPhoto || isSavingPhotos}
+												className="hidden"
+											/>
+										</div>
+
+										<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+											{photoSlots.map((hash, index) => {
+												const isPrimary = index === 0;
+
+												return (
+													<div
+														key={`${hash ?? "empty"}-${index}`}
+														className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-2"
+													>
+														<div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--surface)]">
+															{hash ? (
+																<img
+																	src={getThumbImageUrl(hash, "320x320")}
+																	alt={`Profile photo ${index + 1}`}
+																	className="h-full w-full object-cover"
+																/>
+															) : (
+																<div className="flex h-full items-center justify-center text-[var(--text-muted)]">
+																	<ImageOff className="h-5 w-5" />
+																</div>
+															)}
+														</div>
+
+														<div className="mt-2 space-y-2">
+															<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+																{isPrimary ? "Primary" : `Photo ${index + 1}`}
+															</p>
+
+															{hash ? (
+																<div className="grid gap-1.5">
+																	<button
+																		type="button"
+																		onClick={() =>
+																			void handleSetPrimaryPhoto(hash)
+																		}
+																		disabled={
+																			isPrimary ||
+																			isSavingPhotos ||
+																			isUploadingPhoto
+																		}
+																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
+																	>
+																		<Star className="h-3.5 w-3.5" />
+																		Set primary
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => void handleRemovePhoto(hash)}
+																		disabled={
+																			isSavingPhotos || isUploadingPhoto
+																		}
+																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
+																	>
+																		<Trash2 className="h-3.5 w-3.5" />
+																		Remove
+																	</button>
+																</div>
+															) : (
+																<label
+																	htmlFor="profile-photo-upload"
+																	className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)]"
+																>
+																	Add
+																</label>
+															)}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+
+										{isSavingPhotos ? (
+											<p className="text-xs text-[var(--text-muted)]">
+												Saving photo changes...
+											</p>
+										) : null}
+										<p className="text-xs leading-relaxed text-[var(--text-muted)]">
+											First slot is your primary profile photo shown in browse.
 										</p>
 									</div>
 								</div>
