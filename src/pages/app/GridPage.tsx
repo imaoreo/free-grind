@@ -505,7 +505,10 @@ export function GridPage() {
 						)
 						.parse(gendersResponse.json());
 					setGenderOptions(
-						parsed.map((item) => ({ value: item.genderId, label: item.gender })),
+						parsed.map((item) => ({
+							value: item.genderId,
+							label: item.gender,
+						})),
 					);
 				}
 
@@ -879,25 +882,29 @@ export function GridPage() {
 	const hasExpectationsFields = useMemo(() => {
 		if (!activeProfile) return false;
 		return (
-			!shouldHideField(formatEnumArray(activeProfile.lookingFor, lookingForLabels)) ||
+			!shouldHideField(
+				formatEnumArray(activeProfile.lookingFor, lookingForLabels),
+			) ||
 			!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels)) ||
-			!shouldHideField(formatEnumArray(activeProfile.grindrTribes, tribeLabels)) ||
+			!shouldHideField(
+				formatEnumArray(activeProfile.grindrTribes, tribeLabels),
+			) ||
 			!shouldHideField(formattedActiveGenders) ||
 			!shouldHideField(formattedActivePronouns) ||
 			!shouldHideField(activeProfile.rightNowText?.trim())
 		);
-	}, [
-		activeProfile,
-		formattedActiveGenders,
-		formattedActivePronouns,
-	]);
+	}, [activeProfile, formattedActiveGenders, formattedActivePronouns]);
 
 	const hasHealthFields = useMemo(() => {
 		if (!activeProfile) return false;
 		return (
-			!shouldHideField(formatEnumValue(activeProfile.hivStatus, hivStatusLabels)) ||
+			!shouldHideField(
+				formatEnumValue(activeProfile.hivStatus, hivStatusLabels),
+			) ||
 			Boolean(activeProfile.lastTestedDate) ||
-			!shouldHideField(formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels)) ||
+			!shouldHideField(
+				formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels),
+			) ||
 			!shouldHideField(formatEnumArray(activeProfile.vaccines, vaccineLabels))
 		);
 	}, [activeProfile]);
@@ -912,9 +919,18 @@ export function GridPage() {
 			!shouldHideField(positionFormatted) ||
 			!shouldHideField(formatHeightCm(activeProfile.height)) ||
 			!shouldHideField(formatWeightKg(activeProfile.weight)) ||
-			!shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels)) ||
-			!shouldHideField(formatEnumValue(activeProfile.ethnicity, ethnicityLabels)) ||
-			!shouldHideField(formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels))
+			!shouldHideField(
+				formatEnumValue(activeProfile.bodyType, bodyTypeLabels),
+			) ||
+			!shouldHideField(
+				formatEnumValue(activeProfile.ethnicity, ethnicityLabels),
+			) ||
+			!shouldHideField(
+				formatEnumValue(
+					activeProfile.relationshipStatus,
+					relationshipStatusLabels,
+				),
+			)
 		);
 	}, [activeProfile]);
 
@@ -923,7 +939,7 @@ export function GridPage() {
 		return Boolean(
 			activeProfile.socialNetworks?.instagram?.userId ||
 			activeProfile.socialNetworks?.twitter?.userId ||
-			activeProfile.socialNetworks?.facebook?.userId
+			activeProfile.socialNetworks?.facebook?.userId,
 		);
 	}, [activeProfile]);
 
@@ -1364,14 +1380,47 @@ export function GridPage() {
 															Expectations
 														</p>
 														<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
-															{!shouldHideField(formatEnumArray(activeProfile.lookingFor, lookingForLabels)) && (
-																<p>Looking for: {formatEnumArray(activeProfile.lookingFor, lookingForLabels)}</p>
+															{!shouldHideField(
+																formatEnumArray(
+																	activeProfile.lookingFor,
+																	lookingForLabels,
+																),
+															) && (
+																<p>
+																	Looking for:{" "}
+																	{formatEnumArray(
+																		activeProfile.lookingFor,
+																		lookingForLabels,
+																	)}
+																</p>
 															)}
-															{!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels)) && (
-																<p>Meet at: {formatEnumArray(activeProfile.meetAt, meetAtLabels)}</p>
+															{!shouldHideField(
+																formatEnumArray(
+																	activeProfile.meetAt,
+																	meetAtLabels,
+																),
+															) && (
+																<p>
+																	Meet at:{" "}
+																	{formatEnumArray(
+																		activeProfile.meetAt,
+																		meetAtLabels,
+																	)}
+																</p>
 															)}
-															{!shouldHideField(formatEnumArray(activeProfile.grindrTribes, tribeLabels)) && (
-																<p>Tribes: {formatEnumArray(activeProfile.grindrTribes, tribeLabels)}</p>
+															{!shouldHideField(
+																formatEnumArray(
+																	activeProfile.grindrTribes,
+																	tribeLabels,
+																),
+															) && (
+																<p>
+																	Tribes:{" "}
+																	{formatEnumArray(
+																		activeProfile.grindrTribes,
+																		tribeLabels,
+																	)}
+																</p>
 															)}
 															{!shouldHideField(formattedActiveGenders) && (
 																<p>Genders: {formattedActiveGenders}</p>
@@ -1379,8 +1428,13 @@ export function GridPage() {
 															{!shouldHideField(formattedActivePronouns) && (
 																<p>Pronouns: {formattedActivePronouns}</p>
 															)}
-															{!shouldHideField(activeProfile.rightNowText?.trim()) && (
-																<p>Right now: {activeProfile.rightNowText?.trim()}</p>
+															{!shouldHideField(
+																activeProfile.rightNowText?.trim(),
+															) && (
+																<p>
+																	Right now:{" "}
+																	{activeProfile.rightNowText?.trim()}
+																</p>
 															)}
 														</div>
 													</div>
@@ -1392,17 +1446,53 @@ export function GridPage() {
 															Health
 														</p>
 														<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
-															{!shouldHideField(formatEnumValue(activeProfile.hivStatus, hivStatusLabels)) && (
-																<p>HIV status: {formatEnumValue(activeProfile.hivStatus, hivStatusLabels)}</p>
+															{!shouldHideField(
+																formatEnumValue(
+																	activeProfile.hivStatus,
+																	hivStatusLabels,
+																),
+															) && (
+																<p>
+																	HIV status:{" "}
+																	{formatEnumValue(
+																		activeProfile.hivStatus,
+																		hivStatusLabels,
+																	)}
+																</p>
 															)}
 															{activeProfile.lastTestedDate && (
-																<p>Last tested: {formatTimeAgo(activeProfile.lastTestedDate)}</p>
+																<p>
+																	Last tested:{" "}
+																	{formatTimeAgo(activeProfile.lastTestedDate)}
+																</p>
 															)}
-															{!shouldHideField(formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels)) && (
-																<p>Sexual health: {formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels)}</p>
+															{!shouldHideField(
+																formatEnumArray(
+																	activeProfile.sexualHealth,
+																	sexualHealthLabels,
+																),
+															) && (
+																<p>
+																	Sexual health:{" "}
+																	{formatEnumArray(
+																		activeProfile.sexualHealth,
+																		sexualHealthLabels,
+																	)}
+																</p>
 															)}
-															{!shouldHideField(formatEnumArray(activeProfile.vaccines, vaccineLabels)) && (
-																<p>Vaccines: {formatEnumArray(activeProfile.vaccines, vaccineLabels)}</p>
+															{!shouldHideField(
+																formatEnumArray(
+																	activeProfile.vaccines,
+																	vaccineLabels,
+																),
+															) && (
+																<p>
+																	Vaccines:{" "}
+																	{formatEnumArray(
+																		activeProfile.vaccines,
+																		vaccineLabels,
+																	)}
+																</p>
 															)}
 														</div>
 													</div>
@@ -1416,44 +1506,110 @@ export function GridPage() {
 															Stats
 														</p>
 														<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
-															{!shouldHideField(activeProfile.positions.length > 0 ? formatEnumArray(activeProfile.positions, sexualPositionLabels) : formatEnumValue(activeProfile.position, sexualPositionLabels)) && (
+															{!shouldHideField(
+																activeProfile.positions.length > 0
+																	? formatEnumArray(
+																			activeProfile.positions,
+																			sexualPositionLabels,
+																		)
+																	: formatEnumValue(
+																			activeProfile.position,
+																			sexualPositionLabels,
+																		),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Position</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Position
+																	</p>
 																	<p className="mt-1 font-medium text-[var(--text)]">
 																		{activeProfile.positions.length > 0
-																			? formatEnumArray(activeProfile.positions, sexualPositionLabels)
-																			: formatEnumValue(activeProfile.position, sexualPositionLabels)}
+																			? formatEnumArray(
+																					activeProfile.positions,
+																					sexualPositionLabels,
+																				)
+																			: formatEnumValue(
+																					activeProfile.position,
+																					sexualPositionLabels,
+																				)}
 																	</p>
 																</div>
 															)}
-															{!shouldHideField(formatHeightCm(activeProfile.height)) && (
+															{!shouldHideField(
+																formatHeightCm(activeProfile.height),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Height</p>
-																	<p className="mt-1 font-medium text-[var(--text)]">{formatHeightCm(activeProfile.height)}</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Height
+																	</p>
+																	<p className="mt-1 font-medium text-[var(--text)]">
+																		{formatHeightCm(activeProfile.height)}
+																	</p>
 																</div>
 															)}
-															{!shouldHideField(formatWeightKg(activeProfile.weight)) && (
+															{!shouldHideField(
+																formatWeightKg(activeProfile.weight),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Weight</p>
-																	<p className="mt-1 font-medium text-[var(--text)]">{formatWeightKg(activeProfile.weight)}</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Weight
+																	</p>
+																	<p className="mt-1 font-medium text-[var(--text)]">
+																		{formatWeightKg(activeProfile.weight)}
+																	</p>
 																</div>
 															)}
-															{!shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels)) && (
+															{!shouldHideField(
+																formatEnumValue(
+																	activeProfile.bodyType,
+																	bodyTypeLabels,
+																),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Body type</p>
-																	<p className="mt-1 font-medium text-[var(--text)]">{formatEnumValue(activeProfile.bodyType, bodyTypeLabels)}</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Body type
+																	</p>
+																	<p className="mt-1 font-medium text-[var(--text)]">
+																		{formatEnumValue(
+																			activeProfile.bodyType,
+																			bodyTypeLabels,
+																		)}
+																	</p>
 																</div>
 															)}
-															{!shouldHideField(formatEnumValue(activeProfile.ethnicity, ethnicityLabels)) && (
+															{!shouldHideField(
+																formatEnumValue(
+																	activeProfile.ethnicity,
+																	ethnicityLabels,
+																),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Ethnicity</p>
-																	<p className="mt-1 font-medium text-[var(--text)]">{formatEnumValue(activeProfile.ethnicity, ethnicityLabels)}</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Ethnicity
+																	</p>
+																	<p className="mt-1 font-medium text-[var(--text)]">
+																		{formatEnumValue(
+																			activeProfile.ethnicity,
+																			ethnicityLabels,
+																		)}
+																	</p>
 																</div>
 															)}
-															{!shouldHideField(formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels)) && (
+															{!shouldHideField(
+																formatEnumValue(
+																	activeProfile.relationshipStatus,
+																	relationshipStatusLabels,
+																),
+															) && (
 																<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-																	<p className="text-[10px] uppercase tracking-[0.08em]">Relationship</p>
-																	<p className="mt-1 font-medium text-[var(--text)]">{formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels)}</p>
+																	<p className="text-[10px] uppercase tracking-[0.08em]">
+																		Relationship
+																	</p>
+																	<p className="mt-1 font-medium text-[var(--text)]">
+																		{formatEnumValue(
+																			activeProfile.relationshipStatus,
+																			relationshipStatusLabels,
+																		)}
+																	</p>
 																</div>
 															)}
 														</div>
@@ -1466,14 +1622,29 @@ export function GridPage() {
 															Social
 														</p>
 														<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
-															{activeProfile.socialNetworks?.instagram?.userId && (
-																<p>Instagram: {activeProfile.socialNetworks.instagram.userId}</p>
+															{activeProfile.socialNetworks?.instagram
+																?.userId && (
+																<p>
+																	Instagram:{" "}
+																	{
+																		activeProfile.socialNetworks.instagram
+																			.userId
+																	}
+																</p>
 															)}
-															{activeProfile.socialNetworks?.twitter?.userId && (
-																<p>X: {activeProfile.socialNetworks.twitter.userId}</p>
+															{activeProfile.socialNetworks?.twitter
+																?.userId && (
+																<p>
+																	X:{" "}
+																	{activeProfile.socialNetworks.twitter.userId}
+																</p>
 															)}
-															{activeProfile.socialNetworks?.facebook?.userId && (
-																<p>Facebook: {activeProfile.socialNetworks.facebook.userId}</p>
+															{activeProfile.socialNetworks?.facebook
+																?.userId && (
+																<p>
+																	Facebook:{" "}
+																	{activeProfile.socialNetworks.facebook.userId}
+																</p>
 															)}
 														</div>
 													</div>
