@@ -275,13 +275,15 @@ export function GridPage() {
 		setIsDetectingLocation(true);
 
 		try {
-			const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-				navigator.geolocation.getCurrentPosition(resolve, reject, {
-					enableHighAccuracy: true,
-					timeout: 12000,
-					maximumAge: 20000,
-				});
-			});
+			const position = await new Promise<GeolocationPosition>(
+				(resolve, reject) => {
+					navigator.geolocation.getCurrentPosition(resolve, reject, {
+						enableHighAccuracy: true,
+						timeout: 12000,
+						maximumAge: 20000,
+					});
+				},
+			);
 
 			await updateLocationPreference(
 				position.coords.latitude,
@@ -405,7 +407,9 @@ export function GridPage() {
 					<div className="surface-card mb-4 rounded-2xl p-4 sm:p-5">
 						<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
 							<div>
-								<p className="text-sm font-semibold">Set your browse location</p>
+								<p className="text-sm font-semibold">
+									Set your browse location
+								</p>
 								<p className="text-xs text-[var(--text-muted)]">
 									Search a place, or use GPS on mobile devices.
 								</p>
@@ -422,78 +426,78 @@ export function GridPage() {
 						</div>
 
 						<div className="grid gap-3">
-								<button
-									type="button"
-									onClick={handleUseCurrentLocation}
-									disabled={isDetectingLocation}
-									className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 md:hidden"
-								>
-									{isDetectingLocation ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										<Crosshair className="h-4 w-4" />
-									)}
-									{isDetectingLocation
-										? "Detecting location..."
-										: "Use current location"}
-								</button>
-
-								<form onSubmit={handleSearchLocation} className="grid gap-2">
-									<label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Search by city or area
-									</label>
-									<div className="flex gap-2">
-										<input
-											type="text"
-											value={locationQuery}
-											onChange={(event) => setLocationQuery(event.target.value)}
-											placeholder="e.g. Berlin, London, Manila"
-											className="input-field"
-										/>
-										<button
-											type="submit"
-											disabled={isSearchingLocation}
-											className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 disabled:cursor-not-allowed disabled:opacity-60"
-										>
-											{isSearchingLocation ? (
-												<Loader2 className="h-4 w-4 animate-spin" />
-											) : (
-												<Search className="h-4 w-4" />
-											)}
-										</button>
-									</div>
-								</form>
-
-								{locationResults.length > 0 && (
-									<div className="grid max-h-52 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] p-2">
-										{locationResults.map((result) => (
-											<button
-												key={`${result.lat}:${result.lon}:${result.display_name}`}
-												type="button"
-												onClick={() =>
-													void updateLocationPreference(
-														Number(result.lat),
-														Number(result.lon),
-														result.display_name,
-													)
-												}
-												className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-left text-xs text-[var(--text-muted)]"
-											>
-												{result.display_name}
-											</button>
-										))}
-									</div>
+							<button
+								type="button"
+								onClick={handleUseCurrentLocation}
+								disabled={isDetectingLocation}
+								className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 md:hidden"
+							>
+								{isDetectingLocation ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Crosshair className="h-4 w-4" />
 								)}
+								{isDetectingLocation
+									? "Detecting location..."
+									: "Use current location"}
+							</button>
 
-								{selectedLocation ? (
-									<p className="text-xs text-[var(--text-muted)]">
-										Selected: {selectedLocation.label}
-									</p>
-								) : null}
+							<form onSubmit={handleSearchLocation} className="grid gap-2">
+								<label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+									Search by city or area
+								</label>
+								<div className="flex gap-2">
+									<input
+										type="text"
+										value={locationQuery}
+										onChange={(event) => setLocationQuery(event.target.value)}
+										placeholder="e.g. Berlin, London, Manila"
+										className="input-field"
+									/>
+									<button
+										type="submit"
+										disabled={isSearchingLocation}
+										className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										{isSearchingLocation ? (
+											<Loader2 className="h-4 w-4 animate-spin" />
+										) : (
+											<Search className="h-4 w-4" />
+										)}
+									</button>
+								</div>
+							</form>
+
+							{locationResults.length > 0 && (
+								<div className="grid max-h-52 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] p-2">
+									{locationResults.map((result) => (
+										<button
+											key={`${result.lat}:${result.lon}:${result.display_name}`}
+											type="button"
+											onClick={() =>
+												void updateLocationPreference(
+													Number(result.lat),
+													Number(result.lon),
+													result.display_name,
+												)
+											}
+											className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-left text-xs text-[var(--text-muted)]"
+										>
+											{result.display_name}
+										</button>
+									))}
+								</div>
+							)}
+
+							{selectedLocation ? (
+								<p className="text-xs text-[var(--text-muted)]">
+									Selected: {selectedLocation.label}
+								</p>
+							) : null}
 
 							<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text-muted)]">
-								Map picker is temporarily unavailable. Use location search above,
-								or use current location on mobile.
+								Map picker is temporarily unavailable. Use location search
+								above, or use current location on mobile.
 							</div>
 						</div>
 					</div>
