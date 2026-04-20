@@ -6,14 +6,126 @@
 
 @layer base {
 	:root {
-		color-scheme: dark;
-		--background: oklch(0.145 0 0);
-		background-color: var(--background);
+		color-scheme: light dark;
+		--accent: #ffcc01;
+		--accent-contrast: #1a1a1a;
+		--bg: #f5f7fa;
+		--surface: #ffffff;
+		--surface-2: #eceff4;
+		--text: #131821;
+		--text-muted: #606a79;
+		--border: #d7dce3;
+		background-color: var(--bg);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:root {
+			--bg: #0f131a;
+			--surface: #161d27;
+			--surface-2: #1f2835;
+			--text: #f3f5f8;
+			--text-muted: #96a2b6;
+			--border: #2b3646;
+		}
+	}
+
+	html,
+	body,
+	#app {
+		width: 100%;
+		min-height: 100%;
 	}
 
 	body {
+		margin: 0;
+		background: var(--bg);
+		color: var(--text);
+		font-family: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
 		font-feature-settings:
 			"rlig" 1,
 			"calt" 1;
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizeLegibility;
+	}
+
+	* {
+		box-sizing: border-box;
+	}
+
+	a {
+		text-decoration: none;
+		color: inherit;
+	}
+
+	button,
+	input,
+	textarea,
+	select {
+		font: inherit;
+		color: inherit;
+	}
+}
+
+@layer components {
+	.app-shell {
+		min-height: 100dvh;
+		background: radial-gradient(
+			circle at top,
+			color-mix(in srgb, var(--accent) 9%, var(--bg) 91%) 0%,
+			var(--bg) 42%
+		);
+		color: var(--text);
+	}
+
+	.app-screen {
+		min-height: 100dvh;
+		padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px
+			calc(env(safe-area-inset-bottom, 0px) + 92px);
+	}
+
+	.surface-card {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 18px;
+		box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+	}
+
+	.input-field {
+		width: 100%;
+		padding: 12px 14px;
+		border-radius: 12px;
+		border: 1px solid var(--border);
+		background: var(--surface-2);
+		color: var(--text);
+	}
+
+	.input-field:focus {
+		outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
+		outline-offset: 1px;
+	}
+
+	.btn-accent {
+		background: var(--accent);
+		color: var(--accent-contrast);
+		border: 0;
+		border-radius: 12px;
+		font-weight: 700;
+	}
+
+	.btn-accent:disabled {
+		opacity: 0.5;
+	}
+
+	.app-title {
+		font-size: clamp(1.6rem, 4.2vw, 2.05rem);
+		line-height: 1.1;
+		font-weight: 760;
+		letter-spacing: -0.02em;
+	}
+
+	.app-subtitle {
+		font-size: 0.98rem;
+		line-height: 1.5;
+		color: var(--text-muted);
 	}
 }

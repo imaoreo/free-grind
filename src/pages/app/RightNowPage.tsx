@@ -1,10 +1,10 @@
 export function RightNowPage() {
 	return (
-		<div className="min-h-screen bg-gray-900 p-4 pb-24">
-			<div className="max-w-4xl mx-auto">
-				<h1 className="text-3xl font-bold text-white">Right Now</h1>
-				<p className="text-gray-400 mt-4">Right Now page - Coming soon</p>
+		<section className="app-screen">
+			<div className="mx-auto w-full max-w-4xl">
+				<h1 className="app-title">Right Now</h1>
+				<p className="app-subtitle mt-3">Right Now page - Coming soon</p>
 			</div>
-		</div>
+		</section>
 	);
 }
