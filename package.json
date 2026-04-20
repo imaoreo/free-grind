@@ -7,9 +7,10 @@
 	"scripts": {
 		"docs": "bun run --cwd docs start",
 		"build": "vite build",
+		"sync": "svelte-kit sync",
 		"postinstall": "svelte-kit sync",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"check": "bun run sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "bun run sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"dev": "bun dev:desktop",
 		"dev:web": "vite dev",
 		"dev:desktop": "tauri dev",
