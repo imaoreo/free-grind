@@ -1,5 +1,5 @@
-import { ArrowLeft, X } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type {
 	BrowseCard,
 	ManagedOption,
@@ -17,7 +17,7 @@ import {
 	tribeLabels,
 	vaccineLabels,
 } from "../../GridPage.types";
-import { getThumbImageUrl } from "../../../../utils/media";
+import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import {
 	formatDistance,
 	formatEnumArray,
@@ -169,6 +169,127 @@ export function ProfileDetailsModal({
 		return Boolean(activeProfile.aboutMe?.trim());
 	}, [activeProfile?.aboutMe]);
 
+	const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
+		null,
+	);
+
+	useEffect(() => {
+		if (!isOpen) {
+			setSelectedPhotoIndex(null);
+		}
+	}, [isOpen]);
+
+	const selectedPhotoHash =
+		selectedPhotoIndex === null
+			? null
+			: (activeProfilePhotoHashes[selectedPhotoIndex] ?? null);
+
+	const openPhotoViewer = (index: number) => {
+		setSelectedPhotoIndex(index);
+	};
+
+	const closePhotoViewer = () => {
+		setSelectedPhotoIndex(null);
+	};
+
+	const showPreviousPhoto = () => {
+		if (!activeProfilePhotoHashes.length || selectedPhotoIndex === null) {
+			return;
+		}
+
+		setSelectedPhotoIndex(
+			(selectedPhotoIndex - 1 + activeProfilePhotoHashes.length) %
+				activeProfilePhotoHashes.length,
+		);
+	};
+
+	const showNextPhoto = () => {
+		if (!activeProfilePhotoHashes.length || selectedPhotoIndex === null) {
+			return;
+		}
+
+		setSelectedPhotoIndex(
+			(selectedPhotoIndex + 1) % activeProfilePhotoHashes.length,
+		);
+	};
+
+	useEffect(() => {
+		if (selectedPhotoIndex === null) {
+			return;
+		}
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				closePhotoViewer();
+				return;
+			}
+
+			if (event.key === "ArrowLeft") {
+				showPreviousPhoto();
+				return;
+			}
+
+			if (event.key === "ArrowRight") {
+				showNextPhoto();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [selectedPhotoIndex]);
+
+	const photoViewerOverlay = selectedPhotoHash ? (
+		<div
+			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
+			onClick={closePhotoViewer}
+		>
+			<button
+				type="button"
+				onClick={(event) => {
+					event.stopPropagation();
+					closePhotoViewer();
+				}}
+				className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+				aria-label="Close photo viewer"
+			>
+				<X className="h-5 w-5" />
+			</button>
+
+			<div
+				className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
+				onClick={(event) => event.stopPropagation()}
+			>
+				<button
+					type="button"
+					onClick={showPreviousPhoto}
+					className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
+					aria-label="Previous photo"
+				>
+					<ChevronLeft className="h-5 w-5" />
+				</button>
+				<button
+					type="button"
+					onClick={showNextPhoto}
+					className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
+					aria-label="Next photo"
+				>
+					<ChevronRight className="h-5 w-5" />
+				</button>
+				<img
+					src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
+					alt={`${activeProfileName} photo`}
+					className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+				/>
+				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+					{(selectedPhotoIndex ?? 0) + 1} / {activeProfilePhotoHashes.length}
+				</p>
+			</div>
+		</div>
+	) : null;
+
 	if (!isOpen) {
 		return null;
 	}
@@ -213,13 +334,20 @@ export function ProfileDetailsModal({
 									</p>
 									{activeProfilePhotoHashes.length > 0 ? (
 										<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-											{activeProfilePhotoHashes.map((hash) => (
-												<img
+											{activeProfilePhotoHashes.map((hash, index) => (
+												<button
+													type="button"
 													key={hash}
-													src={getThumbImageUrl(hash, "320x320")}
-													alt={`${activeProfileName} photo`}
-													className="aspect-square w-full rounded-xl border border-[var(--border)] object-cover"
-												/>
+													onClick={() => openPhotoViewer(index)}
+													className="overflow-hidden rounded-xl border border-[var(--border)]"
+													aria-label={`Open photo ${index + 1}`}
+												>
+													<img
+														src={getThumbImageUrl(hash, "320x320")}
+														alt={`${activeProfileName} photo`}
+														className="aspect-square w-full object-cover"
+													/>
+												</button>
 											))}
 										</div>
 									) : (
@@ -555,13 +683,20 @@ export function ProfileDetailsModal({
 						) : null}
 					</div>
 				</div>
+				{photoViewerOverlay}
 			</section>
 		);
 	}
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6">
-			<div className="surface-card max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl">
+		<div
+			className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6"
+			onClick={onClose}
+		>
+			<div
+				className="surface-card max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl"
+				onClick={(event) => event.stopPropagation()}
+			>
 				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
@@ -596,13 +731,20 @@ export function ProfileDetailsModal({
 								</p>
 								{activeProfilePhotoHashes.length > 0 ? (
 									<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-										{activeProfilePhotoHashes.map((hash) => (
-											<img
+										{activeProfilePhotoHashes.map((hash, index) => (
+											<button
+												type="button"
 												key={hash}
-												src={getThumbImageUrl(hash, "320x320")}
-												alt={`${activeProfileName} photo`}
-												className="aspect-square w-full rounded-xl border border-[var(--border)] object-cover"
-											/>
+												onClick={() => openPhotoViewer(index)}
+												className="overflow-hidden rounded-xl border border-[var(--border)]"
+												aria-label={`Open photo ${index + 1}`}
+											>
+												<img
+													src={getThumbImageUrl(hash, "320x320")}
+													alt={`${activeProfileName} photo`}
+													className="aspect-square w-full object-cover"
+												/>
+											</button>
 										))}
 									</div>
 								) : (
@@ -936,6 +1078,7 @@ export function ProfileDetailsModal({
 					) : null}
 				</div>
 			</div>
+			{photoViewerOverlay}
 		</div>
 	);
 }
