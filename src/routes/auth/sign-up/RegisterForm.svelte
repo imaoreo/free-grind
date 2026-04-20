@@ -9,11 +9,11 @@
 	<Alert.Title>Unimplemented</Alert.Title>
 	<Alert.Description>
 		Registration is not implemented yet, track <a
-			href="https://git.hloth.dev/hloth/open-grind/issues/21"
+			href="https://github.com/kezza2k7/open-grind/issues/2"
 			target="_blank"
 			rel="noopener noreferrer"
 		>
-			#21
+			#2
 		</a>.
 		<Button
 			variant="link"
