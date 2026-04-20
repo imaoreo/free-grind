@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { BadgeInfo, ChevronRight, Info, LogOut } from "lucide-react";
+import { BadgeInfo, ChevronRight, Images, Info, LogOut } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function SettingsPage() {
@@ -55,6 +55,25 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">About Open Grind</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								Project goals, credits, licence, and documentation links.
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/albums")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Images className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">Albums</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								Create, rename, and delete private albums.
 							</p>
 						</div>
 					</div>
