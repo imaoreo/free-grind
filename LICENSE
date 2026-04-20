@@ -1,21 +1,80 @@
-MIT License
+OPEN-GRIND PERSONAL USE LICENCE (NON-COMMERCIAL)
+Version 1.0
 
-Copyright (c) 2026 Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)
+Copyright (c) 2026 Estopia Engineering Ltd (SC874827, UK)
+All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Definitions
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+"Software" means this project, including source code, binaries, assets,
+documentation, and any included files.
+
+"Personal Use" means private, non-commercial use by an individual for
+learning, testing, or personal projects, with no direct or indirect monetary
+benefit.
+
+"Commercial Use" includes, without limitation:
+- use by or for a business, company, organisation, or public body;
+- selling, licensing, or otherwise monetising the Software or derivative works;
+- hosting the Software or derivative works as a paid service;
+- use in any product, service, or content that is sold or monetised.
+
+2. Grant of licence
+
+Subject to compliance with this licence, you are granted a limited,
+non-exclusive, non-transferable, revocable licence to use, copy, modify, and
+redistribute the Software for Personal Use only.
+
+3. Attribution and credit requirements
+
+You must keep the original credits intact and clearly visible.
+At minimum, the following credit must be preserved:
+
+"Credits: Estopia Engineering Ltd (SC874827, UK)"
+
+This credit must be retained in:
+- source code distributions;
+- any "About" or equivalent in-app credits section;
+- accompanying documentation when documentation is provided.
+
+You must not remove, alter, obscure, or misrepresent ownership notices,
+copyright notices, or attribution text.
+
+4. Commercial rights reserved
+
+All Commercial Use is prohibited unless you have prior written permission from
+the copyright holder.
+
+To request commercial rights, contact: support@estopia.net
+
+5. Restrictions
+
+You must not, without prior written permission:
+- use the Software in or for any business context;
+- sell, sublicense, lease, rent, or commercially distribute the Software;
+- provide the Software as a paid hosted service;
+- use the Software in monetised products, services, or channels.
+
+6. Termination
+
+This licence terminates automatically if you breach any term of this licence.
+Upon termination, you must immediately stop all use and distribution of the
+Software and destroy all copies in your possession or control.
+
+7. No warranty
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+8. Limitation of liability
+
+IN NO EVENT SHALL ESTOPIA ENGINEERING LTD, ITS DIRECTORS, OFFICERS, EMPLOYEES,
+OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+9. Entire agreement
+
+This licence constitutes the entire agreement governing your use of the
+Software for Personal Use.

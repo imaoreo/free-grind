@@ -2,7 +2,7 @@
 	"name": "open-grind",
 	"version": "0.1.0",
 	"license": "MIT",
-	"author": "Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)",
+	"author": "Jay Brammeld <jay@estopia.net> (https://jay.estopia.net)",
 	"type": "module",
 	"scripts": {
 		"docs": "bun run --cwd docs start",
