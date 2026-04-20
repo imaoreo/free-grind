@@ -11,7 +11,8 @@ import { GridPage } from "./pages/app/GridPage";
 import { RightNowPage } from "./pages/app/RightNowPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
-import { SettingsPage } from "./pages/app/SettingsPage";
+import { SettingsPage } from "./pages/app/SettingsPage.tsx";
+import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 
 function ErrorPage() {
 	return (
@@ -51,6 +52,10 @@ export default function App() {
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
 							<Route path="/settings" element={<SettingsPage />} />
+							<Route
+								path="/settings/profile-editor"
+								element={<ProfileEditorPage />}
+							/>
 						</Route>
 
 						{/* Error Route */}
