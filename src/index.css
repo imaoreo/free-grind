@@ -1,0 +1,19 @@
+@import "@fontsource-variable/ibm-plex-sans";
+@import "tailwindcss";
+
+@source "./**/*.{ts,tsx}";
+@source "../index.html";
+
+@layer base {
+	:root {
+		color-scheme: dark;
+		--background: oklch(0.145 0 0);
+		background-color: var(--background);
+	}
+
+	body {
+		font-feature-settings:
+			"rlig" 1,
+			"calt" 1;
+	}
+}
