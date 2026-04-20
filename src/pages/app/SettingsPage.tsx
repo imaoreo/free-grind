@@ -508,9 +508,7 @@ export function SettingsPage() {
 	const loadManagedOptions = useCallback(async () => {
 		try {
 			const gendersResponse = await fetchRest("/public/v2/genders");
-			const pronounsResponse = userId
-				? await fetchRest("/v1/pronouns")
-				: null;
+			const pronounsResponse = userId ? await fetchRest("/v1/pronouns") : null;
 
 			if (gendersResponse.status >= 200 && gendersResponse.status < 300) {
 				const parsed = z

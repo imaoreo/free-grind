@@ -64,15 +64,16 @@ impl GrindrClient {
             self.authorization_header().await
         } else {
             Some(
-                self
-                    .authorization_header()
+                self.authorization_header()
                     .await
                     .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?,
             )
         };
 
         let make_request = |authorization: Option<&str>| {
-            let mut request = self.http.request(method.clone(), format!("{BASE_URL}{path}"));
+            let mut request = self
+                .http
+                .request(method.clone(), format!("{BASE_URL}{path}"));
 
             if let Some(authorization) = authorization {
                 request = request.header("Authorization", authorization);
