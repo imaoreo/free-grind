@@ -14,6 +14,7 @@ import { ChatPage } from "./pages/app/ChatPage";
 import { SettingsPage } from "./pages/app/SettingsPage.tsx";
 import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
+import { AboutPage } from "./pages/app/AboutPage.tsx";
 
 function ErrorPage() {
 	return (
@@ -54,6 +55,7 @@ export default function App() {
 							<Route path="/chat" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
+							<Route path="/settings/about" element={<AboutPage />} />
 							<Route
 								path="/settings/profile-editor"
 								element={<ProfileEditorPage />}
