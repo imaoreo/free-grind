@@ -57,10 +57,7 @@ export default function App() {
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
-							<Route
-								path="/settings/albums"
-								element={<SettingsAlbumsPage />}
-							/>
+							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 							<Route
 								path="/settings/profile-editor"
 								element={<ProfileEditorPage />}

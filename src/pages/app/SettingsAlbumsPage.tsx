@@ -9,14 +9,22 @@ import {
 	Trash2,
 	Upload,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+	type ChangeEvent,
+} from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useApi } from "../../hooks/useApi";
 
 const albumSchema = z.object({
-	albumId: z.union([z.string(), z.number()]).transform((value) => String(value)),
+	albumId: z
+		.union([z.string(), z.number()])
+		.transform((value) => String(value)),
 	albumName: z.string().nullable().optional(),
 	createdAt: z.string().optional(),
 	updatedAt: z.string().optional(),
@@ -44,7 +52,9 @@ const albumMediaSchema = z.object({
 });
 
 const albumDetailSchema = z.object({
-	albumId: z.union([z.string(), z.number()]).transform((value) => String(value)),
+	albumId: z
+		.union([z.string(), z.number()])
+		.transform((value) => String(value)),
 	albumName: z.string().nullable().optional(),
 	content: z.array(albumMediaSchema).optional().default([]),
 });
@@ -107,19 +117,25 @@ export function SettingsAlbumsPage() {
 	const [isSavingEdit, setIsSavingEdit] = useState(false);
 	const [deletingAlbumId, setDeletingAlbumId] = useState<string | null>(null);
 	const [openAlbumId, setOpenAlbumId] = useState<string | null>(null);
-	const [albumDetails, setAlbumDetails] = useState<Record<string, AlbumDetail>>({});
-	const [loadingAlbumDetailsId, setLoadingAlbumDetailsId] = useState<string | null>(
-		null,
+	const [albumDetails, setAlbumDetails] = useState<Record<string, AlbumDetail>>(
+		{},
 	);
+	const [loadingAlbumDetailsId, setLoadingAlbumDetailsId] = useState<
+		string | null
+	>(null);
 	const [uploadingAlbumId, setUploadingAlbumId] = useState<string | null>(null);
-	const [reorderingAlbumId, setReorderingAlbumId] = useState<string | null>(null);
-	const [deletingContentKey, setDeletingContentKey] = useState<string | null>(null);
-	const [confirmDeleteAlbumId, setConfirmDeleteAlbumId] = useState<string | null>(
+	const [reorderingAlbumId, setReorderingAlbumId] = useState<string | null>(
 		null,
 	);
-	const [confirmDeleteContentKey, setConfirmDeleteContentKey] = useState<string | null>(
+	const [deletingContentKey, setDeletingContentKey] = useState<string | null>(
 		null,
 	);
+	const [confirmDeleteAlbumId, setConfirmDeleteAlbumId] = useState<
+		string | null
+	>(null);
+	const [confirmDeleteContentKey, setConfirmDeleteContentKey] = useState<
+		string | null
+	>(null);
 
 	const loadAlbumsAndLimits = useCallback(async () => {
 		setIsLoading(true);
@@ -148,7 +164,9 @@ export function SettingsAlbumsPage() {
 			}
 		} catch (loadError) {
 			setError(
-				loadError instanceof Error ? loadError.message : "Failed to load albums",
+				loadError instanceof Error
+					? loadError.message
+					: "Failed to load albums",
 			);
 		} finally {
 			setIsLoading(false);
@@ -251,7 +269,9 @@ export function SettingsAlbumsPage() {
 			cancelEditing();
 		} catch (saveError) {
 			toast.error(
-				saveError instanceof Error ? saveError.message : "Failed to rename album",
+				saveError instanceof Error
+					? saveError.message
+					: "Failed to rename album",
 			);
 		} finally {
 			setIsSavingEdit(false);
@@ -398,7 +418,9 @@ export function SettingsAlbumsPage() {
 		const [movedItem] = reordered.splice(fromIndex, 1);
 		reordered.splice(toIndex, 0, movedItem);
 
-		const contentIds = reordered.map((item) => Number.parseInt(item.contentId, 10));
+		const contentIds = reordered.map((item) =>
+			Number.parseInt(item.contentId, 10),
+		);
 		if (contentIds.some((value) => Number.isNaN(value))) {
 			toast.error("Cannot reorder this album due to unsupported media IDs");
 			return;
@@ -436,8 +458,7 @@ export function SettingsAlbumsPage() {
 					? reorderError.message
 					: "Failed to reorder pictures",
 			);
-		}
-		finally {
+		} finally {
 			setReorderingAlbumId(null);
 		}
 	};
@@ -451,9 +472,12 @@ export function SettingsAlbumsPage() {
 		setDeletingContentKey(deleteKey);
 
 		try {
-			const response = await fetchRest(`/v1/albums/${albumId}/content/${contentId}`, {
-				method: "DELETE",
-			});
+			const response = await fetchRest(
+				`/v1/albums/${albumId}/content/${contentId}`,
+				{
+					method: "DELETE",
+				},
+			);
 
 			if (response.status < 200 || response.status >= 300) {
 				throw new Error(`Failed to delete picture (${response.status})`);
@@ -469,7 +493,9 @@ export function SettingsAlbumsPage() {
 					...previous,
 					[albumId]: {
 						...detail,
-						content: detail.content.filter((item) => item.contentId !== contentId),
+						content: detail.content.filter(
+							(item) => item.contentId !== contentId,
+						),
 					},
 				};
 			});
@@ -554,7 +580,9 @@ export function SettingsAlbumsPage() {
 					</div>
 
 					{isLoading ? (
-						<p className="text-sm text-[var(--text-muted)]">Loading albums...</p>
+						<p className="text-sm text-[var(--text-muted)]">
+							Loading albums...
+						</p>
 					) : error ? (
 						<div className="grid gap-3">
 							<p className="text-sm text-[var(--text-muted)]">{error}</p>
@@ -576,10 +604,11 @@ export function SettingsAlbumsPage() {
 								const isEditing = editingAlbumId === album.albumId;
 								const isOpen = openAlbumId === album.albumId;
 								const detail = albumDetails[album.albumId];
-								const isLoadingDetails = loadingAlbumDetailsId === album.albumId;
+								const isLoadingDetails =
+									loadingAlbumDetailsId === album.albumId;
 								const uploadInputId = `album-upload-${album.albumId}`;
-									const isConfirmingAlbumDelete =
-										confirmDeleteAlbumId === album.albumId;
+								const isConfirmingAlbumDelete =
+									confirmDeleteAlbumId === album.albumId;
 
 								return (
 									<div
@@ -591,7 +620,9 @@ export function SettingsAlbumsPage() {
 												<input
 													type="text"
 													value={editingName}
-													onChange={(event) => setEditingName(event.target.value)}
+													onChange={(event) =>
+														setEditingName(event.target.value)
+													}
 													className="input-field max-w-md"
 													maxLength={255}
 												/>
@@ -611,7 +642,9 @@ export function SettingsAlbumsPage() {
 													<>
 														<button
 															type="button"
-															onClick={() => void saveEditingAlbum(album.albumId)}
+															onClick={() =>
+																void saveEditingAlbum(album.albumId)
+															}
 															disabled={isSavingEdit}
 															className="btn-accent rounded-xl px-3 py-2 text-sm"
 														>
@@ -682,7 +715,8 @@ export function SettingsAlbumsPage() {
 													<div>
 														<p className="text-sm font-semibold">Album media</p>
 														<p className="text-xs text-[var(--text-muted)]">
-															Add pictures, remove them, or reorder display order.
+															Add pictures, remove them, or reorder display
+															order.
 														</p>
 													</div>
 
@@ -693,7 +727,10 @@ export function SettingsAlbumsPage() {
 															accept="image/*"
 															multiple
 															onChange={(event) =>
-																void handleUploadInputChange(album.albumId, event)
+																void handleUploadInputChange(
+																	album.albumId,
+																	event,
+																)
 															}
 															className="hidden"
 														/>
@@ -708,7 +745,9 @@ export function SettingsAlbumsPage() {
 														</label>
 														<button
 															type="button"
-															onClick={() => void loadAlbumDetails(album.albumId, true)}
+															onClick={() =>
+																void loadAlbumDetails(album.albumId, true)
+															}
 															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 														>
 															Refresh
@@ -728,9 +767,13 @@ export function SettingsAlbumsPage() {
 													<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
 														{detail.content.map((item, index) => {
 															const imageUrl =
-																item.thumbUrl || item.url || item.coverUrl || "";
+																item.thumbUrl ||
+																item.url ||
+																item.coverUrl ||
+																"";
 															const canMoveUp = index > 0;
-															const canMoveDown = index < detail.content.length - 1;
+															const canMoveDown =
+																index < detail.content.length - 1;
 															const deleteKey = `${album.albumId}:${item.contentId}`;
 															const isConfirmingContentDelete =
 																confirmDeleteContentKey === deleteKey;
@@ -761,7 +804,10 @@ export function SettingsAlbumsPage() {
 																					index - 1,
 																				)
 																			}
-																			disabled={!canMoveUp || reorderingAlbumId === album.albumId}
+																			disabled={
+																				!canMoveUp ||
+																				reorderingAlbumId === album.albumId
+																			}
 																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
 																		>
 																			<ArrowUp className="h-3.5 w-3.5" />
@@ -776,7 +822,10 @@ export function SettingsAlbumsPage() {
 																					index + 1,
 																				)
 																			}
-																			disabled={!canMoveDown || reorderingAlbumId === album.albumId}
+																			disabled={
+																				!canMoveDown ||
+																				reorderingAlbumId === album.albumId
+																			}
 																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
 																		>
 																			<ArrowDown className="h-3.5 w-3.5" />
@@ -785,13 +834,18 @@ export function SettingsAlbumsPage() {
 																			type="button"
 																			onClick={() => {
 																				if (isConfirmingContentDelete) {
-																					void deleteAlbumPicture(album.albumId, item.contentId);
+																					void deleteAlbumPicture(
+																						album.albumId,
+																						item.contentId,
+																					);
 																					return;
 																				}
 
 																				setConfirmDeleteContentKey(deleteKey);
 																			}}
-																			disabled={deletingContentKey === deleteKey}
+																			disabled={
+																				deletingContentKey === deleteKey
+																			}
 																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
 																		>
 																			<Trash2 className="h-3.5 w-3.5" />
@@ -799,7 +853,9 @@ export function SettingsAlbumsPage() {
 																		{isConfirmingContentDelete && (
 																			<button
 																				type="button"
-																				onClick={() => setConfirmDeleteContentKey(null)}
+																				onClick={() =>
+																					setConfirmDeleteContentKey(null)
+																				}
 																				className="col-span-3 rounded-md border border-[var(--border)] py-1 text-xs"
 																			>
 																				Cancel delete
