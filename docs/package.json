@@ -10,12 +10,10 @@
 		"prepreview": "bun run --cwd .. sync",
 		"build": "vitepress build",
 		"preview": "vitepress preview",
-		"start": "vitepress dev",
-		"deploy": "VITEPRESS_BASE=/open-grind/ bun run build && bun gh-pages -d .vitepress/dist"
+		"start": "vitepress dev"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"gh-pages": "^6.3.0",
 		"vitepress": "^2.0.0-alpha.17"
 	},
 	"peerDependencies": {
