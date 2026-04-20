@@ -1,7 +1,10 @@
 pub fn init_keyring() {
     #[cfg(target_os = "ios")]
-    keyring::use_apple_protected_store(&std::collections::HashMap::new())
-        .expect("failed to init iOS keyring");
+    if keyring::use_apple_protected_store(&std::collections::HashMap::new()).is_err() {
+        // Protected store is unavailable on the iOS simulator; fall back to the
+        // standard keychain store so the app can still run during development.
+        let _ = keyring::use_apple_keychain_store(&std::collections::HashMap::new());
+    }
 
     #[cfg(target_os = "android")]
     keyring::use_android_native_store(&std::collections::HashMap::new())
