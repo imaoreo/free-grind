@@ -1,6 +1,10 @@
 import { X } from "lucide-react";
 import { useMemo } from "react";
-import type { BrowseCard, ManagedOption, ProfileDetail } from "../../GridPage.types";
+import type {
+	BrowseCard,
+	ManagedOption,
+	ProfileDetail,
+} from "../../GridPage.types";
 import {
 	bodyTypeLabels,
 	ethnicityLabels,
@@ -96,7 +100,9 @@ export function ProfileDetailsModal({
 				formatEnumArray(activeProfile.lookingFor, lookingForLabels),
 			) ||
 			!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels)) ||
-			!shouldHideField(formatEnumArray(activeProfile.grindrTribes, tribeLabels)) ||
+			!shouldHideField(
+				formatEnumArray(activeProfile.grindrTribes, tribeLabels),
+			) ||
 			!shouldHideField(formattedActiveGenders) ||
 			!shouldHideField(formattedActivePronouns) ||
 			!shouldHideField(activeProfile.rightNowText?.trim())
@@ -127,7 +133,9 @@ export function ProfileDetailsModal({
 			!shouldHideField(positionFormatted) ||
 			!shouldHideField(formatHeightCm(activeProfile.height)) ||
 			!shouldHideField(formatWeightKg(activeProfile.weight)) ||
-			!shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels)) ||
+			!shouldHideField(
+				formatEnumValue(activeProfile.bodyType, bodyTypeLabels),
+			) ||
 			!shouldHideField(
 				formatEnumValue(activeProfile.ethnicity, ethnicityLabels),
 			) ||
@@ -144,8 +152,8 @@ export function ProfileDetailsModal({
 		if (!activeProfile) return false;
 		return Boolean(
 			activeProfile.socialNetworks?.instagram?.userId ||
-				activeProfile.socialNetworks?.twitter?.userId ||
-				activeProfile.socialNetworks?.facebook?.userId,
+			activeProfile.socialNetworks?.twitter?.userId ||
+			activeProfile.socialNetworks?.facebook?.userId,
 		);
 	}, [activeProfile]);
 
@@ -189,7 +197,9 @@ export function ProfileDetailsModal({
 							Loading profile details...
 						</p>
 					) : activeProfileError ? (
-						<p className="text-sm text-[var(--text-muted)]">{activeProfileError}</p>
+						<p className="text-sm text-[var(--text-muted)]">
+							{activeProfileError}
+						</p>
 					) : activeProfile ? (
 						<div className="grid gap-6">
 							<div>
@@ -277,24 +287,42 @@ export function ProfileDetailsModal({
 											</p>
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
-													formatEnumArray(activeProfile.lookingFor, lookingForLabels),
+													formatEnumArray(
+														activeProfile.lookingFor,
+														lookingForLabels,
+													),
 												) && (
 													<p>
 														Looking for:{" "}
-														{formatEnumArray(activeProfile.lookingFor, lookingForLabels)}
-													</p>
-												)}
-												{!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels)) && (
-													<p>
-														Meet at: {formatEnumArray(activeProfile.meetAt, meetAtLabels)}
+														{formatEnumArray(
+															activeProfile.lookingFor,
+															lookingForLabels,
+														)}
 													</p>
 												)}
 												{!shouldHideField(
-													formatEnumArray(activeProfile.grindrTribes, tribeLabels),
+													formatEnumArray(activeProfile.meetAt, meetAtLabels),
+												) && (
+													<p>
+														Meet at:{" "}
+														{formatEnumArray(
+															activeProfile.meetAt,
+															meetAtLabels,
+														)}
+													</p>
+												)}
+												{!shouldHideField(
+													formatEnumArray(
+														activeProfile.grindrTribes,
+														tribeLabels,
+													),
 												) && (
 													<p>
 														Tribes:{" "}
-														{formatEnumArray(activeProfile.grindrTribes, tribeLabels)}
+														{formatEnumArray(
+															activeProfile.grindrTribes,
+															tribeLabels,
+														)}
 													</p>
 												)}
 												{!shouldHideField(formattedActiveGenders) && (
@@ -303,7 +331,9 @@ export function ProfileDetailsModal({
 												{!shouldHideField(formattedActivePronouns) && (
 													<p>Pronouns: {formattedActivePronouns}</p>
 												)}
-												{!shouldHideField(activeProfile.rightNowText?.trim()) && (
+												{!shouldHideField(
+													activeProfile.rightNowText?.trim(),
+												) && (
 													<p>Right now: {activeProfile.rightNowText?.trim()}</p>
 												)}
 											</div>
@@ -317,31 +347,51 @@ export function ProfileDetailsModal({
 											</p>
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
-													formatEnumValue(activeProfile.hivStatus, hivStatusLabels),
+													formatEnumValue(
+														activeProfile.hivStatus,
+														hivStatusLabels,
+													),
 												) && (
 													<p>
 														HIV status:{" "}
-														{formatEnumValue(activeProfile.hivStatus, hivStatusLabels)}
+														{formatEnumValue(
+															activeProfile.hivStatus,
+															hivStatusLabels,
+														)}
 													</p>
 												)}
 												{activeProfile.lastTestedDate && (
 													<p>
-														Last tested: {formatTimeAgo(activeProfile.lastTestedDate)}
+														Last tested:{" "}
+														{formatTimeAgo(activeProfile.lastTestedDate)}
 													</p>
 												)}
 												{!shouldHideField(
-													formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels),
+													formatEnumArray(
+														activeProfile.sexualHealth,
+														sexualHealthLabels,
+													),
 												) && (
 													<p>
 														Sexual health:{" "}
-														{formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels)}
+														{formatEnumArray(
+															activeProfile.sexualHealth,
+															sexualHealthLabels,
+														)}
 													</p>
 												)}
 												{!shouldHideField(
-													formatEnumArray(activeProfile.vaccines, vaccineLabels),
+													formatEnumArray(
+														activeProfile.vaccines,
+														vaccineLabels,
+													),
 												) && (
 													<p>
-														Vaccines: {formatEnumArray(activeProfile.vaccines, vaccineLabels)}
+														Vaccines:{" "}
+														{formatEnumArray(
+															activeProfile.vaccines,
+															vaccineLabels,
+														)}
 													</p>
 												)}
 											</div>
@@ -358,51 +408,89 @@ export function ProfileDetailsModal({
 											<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
 													activeProfile.positions.length > 0
-														? formatEnumArray(activeProfile.positions, sexualPositionLabels)
-														: formatEnumValue(activeProfile.position, sexualPositionLabels),
+														? formatEnumArray(
+																activeProfile.positions,
+																sexualPositionLabels,
+															)
+														: formatEnumValue(
+																activeProfile.position,
+																sexualPositionLabels,
+															),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Position</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Position
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{activeProfile.positions.length > 0
-																? formatEnumArray(activeProfile.positions, sexualPositionLabels)
-																: formatEnumValue(activeProfile.position, sexualPositionLabels)}
+																? formatEnumArray(
+																		activeProfile.positions,
+																		sexualPositionLabels,
+																	)
+																: formatEnumValue(
+																		activeProfile.position,
+																		sexualPositionLabels,
+																	)}
 														</p>
 													</div>
 												)}
-												{!shouldHideField(formatHeightCm(activeProfile.height)) && (
+												{!shouldHideField(
+													formatHeightCm(activeProfile.height),
+												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Height</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Height
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatHeightCm(activeProfile.height)}
 														</p>
 													</div>
 												)}
-												{!shouldHideField(formatWeightKg(activeProfile.weight)) && (
+												{!shouldHideField(
+													formatWeightKg(activeProfile.weight),
+												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Weight</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Weight
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatWeightKg(activeProfile.weight)}
 														</p>
 													</div>
 												)}
 												{!shouldHideField(
-													formatEnumValue(activeProfile.bodyType, bodyTypeLabels),
+													formatEnumValue(
+														activeProfile.bodyType,
+														bodyTypeLabels,
+													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Body type</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Body type
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
-															{formatEnumValue(activeProfile.bodyType, bodyTypeLabels)}
+															{formatEnumValue(
+																activeProfile.bodyType,
+																bodyTypeLabels,
+															)}
 														</p>
 													</div>
 												)}
 												{!shouldHideField(
-													formatEnumValue(activeProfile.ethnicity, ethnicityLabels),
+													formatEnumValue(
+														activeProfile.ethnicity,
+														ethnicityLabels,
+													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Ethnicity</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Ethnicity
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
-															{formatEnumValue(activeProfile.ethnicity, ethnicityLabels)}
+															{formatEnumValue(
+																activeProfile.ethnicity,
+																ethnicityLabels,
+															)}
 														</p>
 													</div>
 												)}
@@ -413,7 +501,9 @@ export function ProfileDetailsModal({
 													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
-														<p className="text-[10px] uppercase tracking-[0.08em]">Relationship</p>
+														<p className="text-[10px] uppercase tracking-[0.08em]">
+															Relationship
+														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatEnumValue(
 																activeProfile.relationshipStatus,
@@ -434,14 +524,20 @@ export function ProfileDetailsModal({
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{activeProfile.socialNetworks?.instagram?.userId && (
 													<p>
-														Instagram: {activeProfile.socialNetworks.instagram.userId}
+														Instagram:{" "}
+														{activeProfile.socialNetworks.instagram.userId}
 													</p>
 												)}
 												{activeProfile.socialNetworks?.twitter?.userId && (
-													<p>X: {activeProfile.socialNetworks.twitter.userId}</p>
+													<p>
+														X: {activeProfile.socialNetworks.twitter.userId}
+													</p>
 												)}
 												{activeProfile.socialNetworks?.facebook?.userId && (
-													<p>Facebook: {activeProfile.socialNetworks.facebook.userId}</p>
+													<p>
+														Facebook:{" "}
+														{activeProfile.socialNetworks.facebook.userId}
+													</p>
 												)}
 											</div>
 										</div>

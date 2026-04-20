@@ -80,7 +80,9 @@ export function LocationSettingsPanel({
 					) : (
 						<Crosshair className="h-4 w-4" />
 					)}
-					{isDetectingLocation ? "Detecting location..." : "Use current location"}
+					{isDetectingLocation
+						? "Detecting location..."
+						: "Use current location"}
 				</button>
 
 				<form onSubmit={onSearchLocation} className="grid gap-2">
@@ -169,7 +171,9 @@ export function LocationSettingsPanel({
 					)}
 
 					<div className="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface)] p-2.5">
-						<p className="text-xs text-[var(--text-muted)]">Tap map to place pin.</p>
+						<p className="text-xs text-[var(--text-muted)]">
+							Tap map to place pin.
+						</p>
 						<button
 							type="button"
 							disabled={!selectedLocation}

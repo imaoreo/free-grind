@@ -54,9 +54,7 @@ export function BrowseCardTile({ card, onSelectProfile }: BrowseCardTileProps) {
 						{formatDistance(card.distanceMeters)}
 					</span>
 					<span className="font-medium text-[var(--text)]">
-						{typeof card.age === "number" && card.age > 0
-							? `${card.age}`
-							: "-"}
+						{typeof card.age === "number" && card.age > 0 ? `${card.age}` : "-"}
 					</span>
 				</div>
 				<div className="flex items-center justify-between gap-2">

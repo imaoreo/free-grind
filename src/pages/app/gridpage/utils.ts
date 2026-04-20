@@ -1,6 +1,8 @@
 import type { BrowseCard, ManagedOption } from "../GridPage.types";
 
-export function formatDistance(distanceMeters: number | null | undefined): string {
+export function formatDistance(
+	distanceMeters: number | null | undefined,
+): string {
 	if (distanceMeters == null || !Number.isFinite(distanceMeters)) {
 		return "Distance hidden";
 	}
@@ -69,9 +71,7 @@ export function formatTimeAgo(timestamp: number | null | undefined): string {
 	return `${days}d ago`;
 }
 
-export function formatOptionalNumber(
-	value: number | null | undefined,
-): string {
+export function formatOptionalNumber(value: number | null | undefined): string {
 	if (value == null || !Number.isFinite(value)) {
 		return "Not set";
 	}
