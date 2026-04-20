@@ -11,7 +11,7 @@ import {
 	Shield,
 } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import z from "zod";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -64,6 +64,116 @@ const geocodeResultSchema = z.object({
 });
 
 type GeocodeResult = z.infer<typeof geocodeResultSchema>;
+
+function LeafletLocationPicker({
+	selectedLocation,
+	onPick,
+	onError,
+}: {
+	selectedLocation: { lat: number; lon: number } | null;
+	onPick: (lat: number, lon: number) => void;
+	onError: (message: string) => void;
+}) {
+	const mapContainerRef = useRef<HTMLDivElement | null>(null);
+	const mapRef = useRef<any>(null);
+	const markerRef = useRef<any>(null);
+	const leafletRef = useRef<any>(null);
+
+	useEffect(() => {
+		let mounted = true;
+
+		const initMap = async () => {
+			try {
+				const L = await import("leaflet");
+				await import("leaflet/dist/leaflet.css");
+
+				if (!mounted || !mapContainerRef.current || mapRef.current) {
+					return;
+				}
+
+				leafletRef.current = L;
+
+				const map = L.map(mapContainerRef.current, {
+					zoomControl: true,
+				}).setView(
+					selectedLocation
+						? [selectedLocation.lat, selectedLocation.lon]
+						: [20, 0],
+					selectedLocation ? 11 : 2,
+				);
+
+				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+					attribution:
+						'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+				}).addTo(map);
+
+				map.on("click", (event: any) => {
+					onPick(event.latlng.lat, event.latlng.lng);
+				});
+
+				mapRef.current = map;
+
+				if (selectedLocation) {
+					markerRef.current = L.circleMarker(
+						[selectedLocation.lat, selectedLocation.lon],
+						{
+							radius: 9,
+							color: "#131821",
+							fillColor: "#ffcc01",
+							fillOpacity: 0.95,
+						},
+					).addTo(map);
+				}
+			} catch {
+				onError(
+					"Map picker failed to load on this device. Use location search or current location.",
+				);
+			}
+		};
+
+		void initMap();
+
+		return () => {
+			mounted = false;
+			if (mapRef.current) {
+				mapRef.current.off();
+				mapRef.current.remove();
+				mapRef.current = null;
+				markerRef.current = null;
+			}
+		};
+	}, [onError, onPick, selectedLocation]);
+
+	useEffect(() => {
+		const map = mapRef.current;
+		const L = leafletRef.current;
+
+		if (!map || !L || !selectedLocation) {
+			return;
+		}
+
+		if (markerRef.current) {
+			markerRef.current.setLatLng([selectedLocation.lat, selectedLocation.lon]);
+		} else {
+			markerRef.current = L.circleMarker(
+				[selectedLocation.lat, selectedLocation.lon],
+				{
+					radius: 9,
+					color: "#131821",
+					fillColor: "#ffcc01",
+					fillOpacity: 0.95,
+				},
+			).addTo(map);
+		}
+
+		map.setView(
+			[selectedLocation.lat, selectedLocation.lon],
+			Math.max(11, map.getZoom()),
+		);
+	}, [selectedLocation]);
+
+	return <div ref={mapContainerRef} className="h-72 w-full" />;
+}
 
 function formatDistance(distanceMeters: number | null | undefined): string {
 	if (distanceMeters == null || !Number.isFinite(distanceMeters)) {
@@ -122,6 +232,8 @@ export function GridPage() {
 	const [locationQuery, setLocationQuery] = useState("");
 	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
 	const [locationResults, setLocationResults] = useState<GeocodeResult[]>([]);
+	const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+	const [mapPickerError, setMapPickerError] = useState<string | null>(null);
 	const [selectedLocation, setSelectedLocation] = useState<{
 		lat: number;
 		lon: number;
@@ -264,6 +376,8 @@ export function GridPage() {
 			label: label ?? `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
 		});
 		setIsSettingLocation(false);
+		setIsMapPickerOpen(false);
+		setMapPickerError(null);
 	};
 
 	const handleUseCurrentLocation = async () => {
@@ -495,9 +609,67 @@ export function GridPage() {
 								</p>
 							) : null}
 
-							<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text-muted)]">
-								Map picker is temporarily unavailable. Use location search
-								above, or use current location on mobile.
+							<div className="overflow-hidden rounded-xl border border-[var(--border)]">
+								<div className="flex items-center justify-between gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] p-2.5">
+									<p className="text-xs font-semibold text-[var(--text-muted)]">
+										Map picker
+									</p>
+									<button
+										type="button"
+										onClick={() => {
+											setMapPickerError(null);
+											setIsMapPickerOpen((current) => !current);
+										}}
+										className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-medium"
+									>
+										{isMapPickerOpen ? "Hide" : "Open"}
+									</button>
+								</div>
+
+								{isMapPickerOpen ? (
+									mapPickerError ? (
+										<div className="p-3 text-xs text-[var(--text-muted)]">
+											{mapPickerError}
+										</div>
+									) : (
+										<LeafletLocationPicker
+											selectedLocation={selectedLocation}
+											onPick={(lat, lon) => {
+												setSelectedLocation({
+													lat,
+													lon,
+													label: `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
+												});
+											}}
+											onError={setMapPickerError}
+										/>
+									)
+								) : (
+									<div className="p-3 text-xs text-[var(--text-muted)]">
+										Open the map to drop a pin and then save that location.
+									</div>
+								)}
+
+								<div className="flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--surface)] p-2.5">
+									<p className="text-xs text-[var(--text-muted)]">
+										Tap map to place pin.
+									</p>
+									<button
+										type="button"
+										disabled={!selectedLocation}
+										onClick={() =>
+											selectedLocation &&
+											void updateLocationPreference(
+												selectedLocation.lat,
+												selectedLocation.lon,
+												selectedLocation.label,
+											)
+										}
+										className="btn-accent rounded-xl px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+									>
+										Use this location
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>
