@@ -1,4 +1,6 @@
 import {
+	ChevronLeft,
+	ChevronRight,
 	ChevronDown,
 	ChevronUp,
 	Ellipsis,
@@ -447,6 +449,9 @@ export function ChatPage() {
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
 	const [albumViewer, setAlbumViewer] = useState<AlbumViewerState | null>(null);
+	const [albumViewerMediaIndex, setAlbumViewerMediaIndex] = useState<
+		number | null
+	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
 		null,
@@ -1729,6 +1734,7 @@ export function ChatPage() {
 					albumName: details.albumName,
 					content: details.content,
 				});
+				setAlbumViewerMediaIndex(null);
 			} catch (error) {
 				toast.error(
 					error instanceof Error ? error.message : "Failed to open album",
@@ -1739,6 +1745,81 @@ export function ChatPage() {
 		},
 		[service],
 	);
+
+	const closeAlbumMediaViewer = useCallback(() => {
+		setAlbumViewerMediaIndex(null);
+	}, []);
+
+	const openAlbumMediaViewer = useCallback(
+		(index: number) => {
+			if (!albumViewer || index < 0 || index >= albumViewer.content.length) {
+				return;
+			}
+
+			const item = albumViewer.content[index];
+			const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
+			if (!mediaUrl) {
+				return;
+			}
+
+			setAlbumViewerMediaIndex(index);
+		},
+		[albumViewer],
+	);
+
+	const showPreviousAlbumMedia = useCallback(() => {
+		if (!albumViewer || albumViewerMediaIndex === null) {
+			return;
+		}
+
+		setAlbumViewerMediaIndex(
+			(albumViewerMediaIndex - 1 + albumViewer.content.length) %
+				albumViewer.content.length,
+		);
+	}, [albumViewer, albumViewerMediaIndex]);
+
+	const showNextAlbumMedia = useCallback(() => {
+		if (!albumViewer || albumViewerMediaIndex === null) {
+			return;
+		}
+
+		setAlbumViewerMediaIndex(
+			(albumViewerMediaIndex + 1) % albumViewer.content.length,
+		);
+	}, [albumViewer, albumViewerMediaIndex]);
+
+	useEffect(() => {
+		if (albumViewerMediaIndex === null) {
+			return;
+		}
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				closeAlbumMediaViewer();
+				return;
+			}
+
+			if (event.key === "ArrowLeft") {
+				showPreviousAlbumMedia();
+				return;
+			}
+
+			if (event.key === "ArrowRight") {
+				showNextAlbumMedia();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+		};
+	}, [
+		albumViewerMediaIndex,
+		closeAlbumMediaViewer,
+		showNextAlbumMedia,
+		showPreviousAlbumMedia,
+	]);
 
 	const toggleAlbumPicker = () => {
 		const next = !isAlbumPickerOpen;
@@ -2572,14 +2653,17 @@ export function ChatPage() {
 							</p>
 							<button
 								type="button"
-								onClick={() => setAlbumViewer(null)}
+								onClick={() => {
+									setAlbumViewerMediaIndex(null);
+									setAlbumViewer(null);
+								}}
 								className="rounded-lg border border-[var(--border)] p-2"
 							>
 								<X className="h-4 w-4" />
 							</button>
 						</div>
 						<div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-							{albumViewer.content.map((item) => {
+							{albumViewer.content.map((item, index) => {
 								const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
 								if (!mediaUrl) {
 									return (
@@ -2592,35 +2676,102 @@ export function ChatPage() {
 									);
 								}
 
-								if (item.contentType?.startsWith("video/")) {
-									return (
-										<video
-											key={item.contentId}
-											src={mediaUrl}
-											controls
-											className="h-32 w-full rounded-lg object-cover"
-										/>
-									);
-								}
-
 								return (
 									<button
 										type="button"
 										key={item.contentId}
-										onClick={() => setFullScreenImageUrl(mediaUrl)}
-										className="overflow-hidden rounded-lg"
+										onClick={() => openAlbumMediaViewer(index)}
+										className="relative overflow-hidden rounded-lg"
 									>
 										<img
 											src={mediaUrl}
 											alt="Album content"
 											className="h-32 w-full object-cover"
 										/>
+										{item.contentType?.startsWith("video/") ? (
+											<span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+												Video
+											</span>
+										) : null}
 									</button>
 								);
 							})}
 						</div>
 					</div>
 				</div>
+			) : null}
+
+			{albumViewer && albumViewerMediaIndex !== null ? (
+				(() => {
+					const selected = albumViewer.content[albumViewerMediaIndex] ?? null;
+					if (!selected) {
+						return null;
+					}
+					const mediaUrl = selected.url || selected.thumbUrl || selected.coverUrl;
+					if (!mediaUrl) {
+						return null;
+					}
+
+					const isVideo = selected.contentType?.startsWith("video/");
+					return (
+						<div
+							className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
+							onClick={closeAlbumMediaViewer}
+						>
+							<button
+								type="button"
+								onClick={(event) => {
+									event.stopPropagation();
+									closeAlbumMediaViewer();
+								}}
+								className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+								aria-label="Close album media viewer"
+							>
+								<X className="h-5 w-5" />
+							</button>
+
+							<div
+								className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
+								onClick={(event) => event.stopPropagation()}
+							>
+								<button
+									type="button"
+									onClick={showPreviousAlbumMedia}
+									className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
+									aria-label="Previous album media"
+								>
+									<ChevronLeft className="h-5 w-5" />
+								</button>
+								<button
+									type="button"
+									onClick={showNextAlbumMedia}
+									className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
+									aria-label="Next album media"
+								>
+									<ChevronRight className="h-5 w-5" />
+								</button>
+
+								{isVideo ? (
+									<video
+										src={mediaUrl}
+										controls
+										className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+									/>
+								) : (
+									<img
+										src={mediaUrl}
+										alt="Album content"
+										className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+									/>
+								)}
+
+								<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+									{albumViewerMediaIndex + 1} / {albumViewer.content.length}
+								</p>
+							</div>
+						</div>
+					);
+				})()
 			) : null}
 
 			{fullScreenImageUrl ? (
