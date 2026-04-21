@@ -2701,78 +2701,79 @@ export function ChatPage() {
 				</div>
 			) : null}
 
-			{albumViewer && albumViewerMediaIndex !== null ? (
-				(() => {
-					const selected = albumViewer.content[albumViewerMediaIndex] ?? null;
-					if (!selected) {
-						return null;
-					}
-					const mediaUrl = selected.url || selected.thumbUrl || selected.coverUrl;
-					if (!mediaUrl) {
-						return null;
-					}
+			{albumViewer && albumViewerMediaIndex !== null
+				? (() => {
+						const selected = albumViewer.content[albumViewerMediaIndex] ?? null;
+						if (!selected) {
+							return null;
+						}
+						const mediaUrl =
+							selected.url || selected.thumbUrl || selected.coverUrl;
+						if (!mediaUrl) {
+							return null;
+						}
 
-					const isVideo = selected.contentType?.startsWith("video/");
-					return (
-						<div
-							className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
-							onClick={closeAlbumMediaViewer}
-						>
-							<button
-								type="button"
-								onClick={(event) => {
-									event.stopPropagation();
-									closeAlbumMediaViewer();
-								}}
-								className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
-								aria-label="Close album media viewer"
-							>
-								<X className="h-5 w-5" />
-							</button>
-
+						const isVideo = selected.contentType?.startsWith("video/");
+						return (
 							<div
-								className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
-								onClick={(event) => event.stopPropagation()}
+								className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
+								onClick={closeAlbumMediaViewer}
 							>
 								<button
 									type="button"
-									onClick={showPreviousAlbumMedia}
-									className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
-									aria-label="Previous album media"
+									onClick={(event) => {
+										event.stopPropagation();
+										closeAlbumMediaViewer();
+									}}
+									className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+									aria-label="Close album media viewer"
 								>
-									<ChevronLeft className="h-5 w-5" />
-								</button>
-								<button
-									type="button"
-									onClick={showNextAlbumMedia}
-									className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
-									aria-label="Next album media"
-								>
-									<ChevronRight className="h-5 w-5" />
+									<X className="h-5 w-5" />
 								</button>
 
-								{isVideo ? (
-									<video
-										src={mediaUrl}
-										controls
-										className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-									/>
-								) : (
-									<img
-										src={mediaUrl}
-										alt="Album content"
-										className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-									/>
-								)}
+								<div
+									className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
+									onClick={(event) => event.stopPropagation()}
+								>
+									<button
+										type="button"
+										onClick={showPreviousAlbumMedia}
+										className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
+										aria-label="Previous album media"
+									>
+										<ChevronLeft className="h-5 w-5" />
+									</button>
+									<button
+										type="button"
+										onClick={showNextAlbumMedia}
+										className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
+										aria-label="Next album media"
+									>
+										<ChevronRight className="h-5 w-5" />
+									</button>
 
-								<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
-									{albumViewerMediaIndex + 1} / {albumViewer.content.length}
-								</p>
+									{isVideo ? (
+										<video
+											src={mediaUrl}
+											controls
+											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+										/>
+									) : (
+										<img
+											src={mediaUrl}
+											alt="Album content"
+											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
+										/>
+									)}
+
+									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+										{albumViewerMediaIndex + 1} / {albumViewer.content.length}
+									</p>
+								</div>
 							</div>
-						</div>
-					);
-				})()
-			) : null}
+						);
+					})()
+				: null}
 
 			{fullScreenImageUrl ? (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
