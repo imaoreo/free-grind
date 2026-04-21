@@ -96,7 +96,7 @@ Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get 
 
 All contributions must be aligned with [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) — contributions to reverse engineering and documentation are especially valued.
+The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://opengrind.estopia.net/](https://opengrind.estopia.net/) — contributions to reverse engineering and documentation are especially valued.
 
 ## FAQ & Troubleshooting
 

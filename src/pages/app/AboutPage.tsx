@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom";
 const resourceLinks = [
 	{
 		title: "Documentation",
-		href: "https://github.com/kezza2k7/open-grind/tree/main/docs/content",
+		href: "https://opengrind.estopia.net",
 		description: "Reverse-engineered API notes and developer-facing reference.",
 		icon: BookOpen,
 		external: true,
