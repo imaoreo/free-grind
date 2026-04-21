@@ -224,6 +224,8 @@ function getPreviewText(conversation: ConversationEntry): string {
 		case "Image":
 			return "Sent an image";
 		case "Album":
+		case "ExpiringAlbum":
+		case "ExpiringAlbumV2":
 			return "Shared an album";
 		case "Audio":
 			return "Sent an audio message";
@@ -247,6 +249,8 @@ function getMessagePreviewLabel(message: Message): string {
 		case "Image":
 			return "Sent an image";
 		case "Album":
+		case "ExpiringAlbum":
+		case "ExpiringAlbumV2":
 			return "Shared an album";
 		case "Audio":
 			return "Sent an audio message";
@@ -278,7 +282,11 @@ function getMessageText(message: UiMessage): string {
 		return body.text;
 	}
 
-	if (message.type === "Album") {
+	if (
+		message.type === "Album" ||
+		message.type === "ExpiringAlbum" ||
+		message.type === "ExpiringAlbumV2"
+	) {
 		return "Shared an album";
 	}
 
@@ -2391,7 +2399,9 @@ export function ChatPage() {
 												</div>
 											) : null}
 
-											{message.type === "Album" ? (
+											{message.type === "Album" ||
+											message.type === "ExpiringAlbum" ||
+											message.type === "ExpiringAlbumV2" ? (
 												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
 													{albumCover ? (
 														<img
