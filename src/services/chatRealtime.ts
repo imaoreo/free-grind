@@ -181,17 +181,20 @@ export class ChatRealtimeManager {
 		this.clearLiveness();
 		const silenceMs = this.options.maxSilenceMs ?? 180_000;
 		const heartbeatMs = this.options.heartbeatMs ?? 25_000;
-		this.livenessTimer = window.setInterval(() => {
-			if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-				return;
-			}
-			if (this.lastActivityAt <= 0) {
-				return;
-			}
-			if (Date.now() - this.lastActivityAt > silenceMs) {
-				this.socket.close();
-			}
-		}, Math.max(heartbeatMs, 10_000));
+		this.livenessTimer = window.setInterval(
+			() => {
+				if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+					return;
+				}
+				if (this.lastActivityAt <= 0) {
+					return;
+				}
+				if (Date.now() - this.lastActivityAt > silenceMs) {
+					this.socket.close();
+				}
+			},
+			Math.max(heartbeatMs, 10_000),
+		);
 	}
 
 	private async connect() {
