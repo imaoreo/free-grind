@@ -40,6 +40,7 @@ import {
 import {
 	messageSchema,
 	type ConversationEntry,
+	type InboxFilters,
 	type Message,
 } from "../../types/chat";
 import { getProfileImageUrl } from "../../utils/media";
@@ -76,6 +77,21 @@ type AlbumViewerState = {
 };
 
 type SearchMode = "conversations" | "messages" | "profiles";
+
+type InboxFilterKey =
+	| "unreadOnly"
+	| "favoritesOnly"
+	| "chemistryOnly"
+	| "rightNowOnly"
+	| "onlineNowOnly";
+
+const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
+	{ key: "unreadOnly", label: "Unread" },
+	{ key: "favoritesOnly", label: "Favorites" },
+	{ key: "chemistryOnly", label: "Chemistry" },
+	{ key: "rightNowOnly", label: "Right now" },
+	{ key: "onlineNowOnly", label: "Online" },
+];
 
 type ProfileSearchResult = {
 	profileId: number;
@@ -428,9 +444,33 @@ export function ChatPage() {
 	const [isLoadingInbox, setIsLoadingInbox] = useState(true);
 	const [isLoadingMoreInbox, setIsLoadingMoreInbox] = useState(false);
 	const [inboxError, setInboxError] = useState<string | null>(null);
-	const [unreadOnly, setUnreadOnly] = useState(false);
+	const [inboxFilters, setInboxFilters] = useState<InboxFilters>({});
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
+
+	const activeInboxFilters = useMemo(() => {
+		const next: InboxFilters = {};
+		for (const { key } of inboxFilterOptions) {
+			if (inboxFilters[key]) {
+				next[key] = true;
+			}
+		}
+		return next;
+	}, [inboxFilters]);
+
+	const hasActiveInboxFilters =
+		Object.keys(activeInboxFilters).length > 0;
+
+	const toggleInboxFilter = useCallback((key: InboxFilterKey) => {
+		setInboxFilters((previous) => ({
+			...previous,
+			[key]: !previous[key],
+		}));
+	}, []);
+
+	const clearInboxFilters = useCallback(() => {
+		setInboxFilters({});
+	}, []);
 
 	const [threadConversationId, setThreadConversationId] = useState<
 		string | null
@@ -789,7 +829,8 @@ export function ChatPage() {
 			try {
 				const response = await service.listConversations({
 					page,
-					filters: unreadOnly ? { unreadOnly: true } : undefined,
+					// Apply filters client-side to avoid API failures with filter payloads.
+					filters: undefined,
 				});
 
 				setConversations((previous) => {
@@ -840,7 +881,7 @@ export function ChatPage() {
 				setIsLoadingMoreInbox(false);
 			}
 		},
-		[service, targetProfileId, unreadOnly],
+		[service, targetProfileId],
 	);
 
 	const loadThread = useCallback(
@@ -1200,6 +1241,48 @@ export function ChatPage() {
 			),
 		[conversations],
 	);
+
+	const filteredConversations = useMemo(() => {
+		const now = Date.now();
+		return conversations.filter((conversation) => {
+			if (inboxFilters.unreadOnly && conversation.data.unreadCount <= 0) {
+				return false;
+			}
+
+			if (inboxFilters.favoritesOnly && !conversation.data.favorite) {
+				return false;
+			}
+
+			if (
+				inboxFilters.chemistryOnly &&
+				!conversation.data.participants.some(
+					(participant) => participant.hasDatingPotential,
+				)
+			) {
+				return false;
+			}
+
+			if (
+				inboxFilters.rightNowOnly &&
+				(!conversation.data.rightNow || conversation.data.rightNow === "NOT_ACTIVE")
+			) {
+				return false;
+			}
+
+			if (
+				inboxFilters.onlineNowOnly &&
+				!conversation.data.participants.some(
+					(participant) =>
+						typeof participant.onlineUntil === "number" &&
+						participant.onlineUntil > now,
+				)
+			) {
+				return false;
+			}
+
+			return true;
+		});
+	}, [conversations, inboxFilters]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -1929,13 +2012,35 @@ export function ChatPage() {
 						Realtime: {realtimeStatus}
 					</p>
 				</div>
-				<button
-					type="button"
-					onClick={() => setUnreadOnly((previous) => !previous)}
-					className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-				>
-					{unreadOnly ? "Show all" : "Unread only"}
-				</button>
+				{hasActiveInboxFilters ? (
+					<button
+						type="button"
+						onClick={clearInboxFilters}
+						className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+					>
+						Clear filters
+					</button>
+				) : null}
+			</div>
+
+			<div className="mb-3 flex flex-wrap gap-2">
+				{inboxFilterOptions.map((filter) => {
+					const active = Boolean(inboxFilters[filter.key]);
+					return (
+						<button
+							key={filter.key}
+							type="button"
+							onClick={() => toggleInboxFilter(filter.key)}
+							className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+								active
+									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+							}`}
+						>
+							{filter.label}
+						</button>
+					);
+				})}
 			</div>
 
 			<div className="mb-3">
@@ -1981,10 +2086,14 @@ export function ChatPage() {
 						Retry
 					</button>
 				</div>
-			) : conversations.length === 0 ? (
+			) : filteredConversations.length === 0 ? (
 				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
 					<MessageCircle className="h-8 w-8" />
-					<p className="text-sm">No conversations yet.</p>
+					<p className="text-sm">
+						{hasActiveInboxFilters
+							? "No conversations match your filters."
+							: "No conversations yet."}
+					</p>
 				</div>
 			) : searchQuery.trim().length >= 2 ? (
 				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
@@ -2141,7 +2250,7 @@ export function ChatPage() {
 				</div>
 			) : (
 				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
-					{conversations.map((conversation) => {
+					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
 						const isSelected =
 							conversation.data.conversationId === selectedConversationId;
