@@ -459,59 +459,40 @@ export function createChatService(fetchRest: RestFetcher) {
 
 		async uploadChatMedia(params: {
 			multipart: MultipartUpload;
+			options: { looping: boolean; takenOnGrindr: boolean };
 		}): Promise<{
 			mediaId: number;
 			mediaHash: string | null;
 			url: string | null;
 		}> {
-			const response = await fetchRest("/v5/chat/media/upload", {
-				method: "POST",
-				rawBody: params.multipart.body,
-				contentType: params.multipart.contentType,
+			const query = new URLSearchParams({
+				looping: String(params.options.looping),
+				takenOnGrindr: String(params.options.takenOnGrindr),
 			});
+
+			const response = await fetchRest(
+				`/v5/chat/media/upload?${query.toString()}`,
+				{
+					method: "POST",
+					rawBody: params.multipart.body,
+					contentType: params.multipart.contentType,
+				},
+			);
+
 			await assertSuccess(response, "Failed to upload chat media");
 
-			const payload = await parseJsonSafe(response);
-			const itemSchema = z
+			const parsed = z
 				.object({
-					mediaId: z.coerce.number().int().optional(),
-					id: z.coerce.number().int().optional(),
-					mediaHash: z.string().nullable().optional(),
-					hash: z.string().nullable().optional(),
-					url: z.string().nullable().optional(),
-					urlPath: z.string().nullable().optional(),
-					signedUrl: z.string().nullable().optional(),
+					mediaId: z.coerce.number().int(),
+					mediaHash: z.string().nullable().optional().default(null),
+					url: z.string().nullable().optional().default(null),
 				})
-				.passthrough();
-
-			const direct = itemSchema.safeParse(payload);
-			const nested = z
-				.object({
-					data: itemSchema.optional(),
-					media: itemSchema.optional(),
-					result: itemSchema.optional(),
-				})
-				.safeParse(payload);
-
-			const source = direct.success
-				? direct.data
-				: nested.success
-					? (nested.data.data ?? nested.data.media ?? nested.data.result)
-					: undefined;
-
-			if (!source) {
-				throw new Error("Unexpected upload response shape");
-			}
-
-			const mediaId = source.mediaId ?? source.id;
-			if (typeof mediaId !== "number" || !Number.isFinite(mediaId)) {
-				throw new Error("Upload response missing mediaId");
-			}
+				.parse(await parseJsonSafe(response));
 
 			return {
-				mediaId,
-				mediaHash: source.mediaHash ?? source.hash ?? null,
-				url: source.url ?? source.urlPath ?? source.signedUrl ?? null,
+				mediaId: parsed.mediaId,
+				mediaHash: parsed.mediaHash,
+				url: parsed.url,
 			};
 		},
 

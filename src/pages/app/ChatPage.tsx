@@ -268,6 +268,9 @@ function getMessageText(message: UiMessage): string {
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			return "[image]";
 		}
+		if (message.type === "Video") {
+			return "[video]";
+		}
 		if (message.type === "Audio") {
 			return "[audio]";
 		}
@@ -289,6 +292,10 @@ function getMessageText(message: UiMessage): string {
 
 	if (message.type === "Image" || message.type === "ExpiringImage") {
 		return "Shared an image";
+	}
+
+	if (message.type === "Video") {
+		return "Shared a video";
 	}
 
 	if (message.type === "Audio") {
@@ -395,6 +402,7 @@ function getMessageImageUrl(message: UiMessage): string | null {
 		if (typeof candidate === "string" && candidate.length > 0) {
 			const normalized = normalizeUrlCandidate(candidate);
 			if (normalized) {
+				console.log("Found image URL candidate:", { candidate, normalized });
 				return normalized;
 			}
 		}
@@ -500,6 +508,36 @@ function getMessageAudioUrl(message: UiMessage): string | null {
 
 	for (const candidate of candidates) {
 		if (typeof candidate === "string" && candidate.length > 0) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
+function getMessageVideoUrl(message: UiMessage): string | null {
+	const mediaType = message.chat1Type?.toLowerCase();
+	const isVideoMessage = message.type === "Video" || mediaType === "video";
+	if (!isVideoMessage) {
+		return null;
+	}
+
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	const candidates: unknown[] = [
+		body.videoUrl,
+		body.url,
+		body.mediaUrl,
+		body.signedUrl,
+		(body.video as Record<string, unknown> | null)?.url,
+	];
+
+	for (const candidate of candidates) {
+		if (typeof candidate === "string" && candidate.length > 0) {
+			console.log("Found video URL candidate:", { candidate });
 			return candidate;
 		}
 	}
@@ -657,6 +695,10 @@ export function ChatPage() {
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
+	const [pendingAttachmentFile, setPendingAttachmentFile] =
+		useState<File | null>(null);
+	const [attachmentLooping, setAttachmentLooping] = useState(false);
+	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const [searchQuery, setSearchQuery] = useState("");
 	const [startChatProfileIdDraft, setStartChatProfileIdDraft] = useState("");
@@ -1919,8 +1961,11 @@ export function ChatPage() {
 		],
 	);
 
-	const sendImageAttachment = useCallback(
-		async (file: File) => {
+	const sendMediaAttachment = useCallback(
+		async (
+			file: File,
+			options: { looping: boolean; takenOnGrindr: boolean },
+		) => {
 			if (!userId) {
 				return;
 			}
@@ -1933,18 +1978,24 @@ export function ChatPage() {
 				return;
 			}
 
-			if (!file.type.startsWith("image/")) {
-				toast.error("Only image attachments are supported right now.");
+			const isImage = file.type.startsWith("image/");
+			const isVideo = file.type.startsWith("video/");
+			if (!isImage && !isVideo) {
+				toast.error("Only image and video attachments are supported.");
 				return;
 			}
 
 			if (file.size > 12 * 1024 * 1024) {
-				toast.error("Image is too large. Limit is 12MB.");
+				toast.error("Attachment is too large. Limit is 12MB.");
 				return;
 			}
 
 			setIsUploadingAttachment(true);
 			setUploadProgress(5);
+
+			if (!selectedConversation?.data.conversationId) {
+				return;
+			}
 
 			const localMessageId = `local-upload:${Date.now()}:${Math.random()}`;
 			const objectUrl = URL.createObjectURL(file);
@@ -1952,15 +2003,13 @@ export function ChatPage() {
 				...previous,
 				{
 					messageId: localMessageId,
-					conversationId:
-						selectedConversation?.data.conversationId ??
-						`direct:${targetProfileIdValue}`,
+					conversationId: selectedConversation.data.conversationId,
 					senderId: userId,
 					timestamp: Date.now(),
 					unsent: false,
 					reactions: [],
-					type: "Image",
-					chat1Type: "image",
+					type: isVideo ? "Video" : "Image",
+					chat1Type: isVideo ? "video" : "image",
 					body: { url: objectUrl },
 					replyToMessage: null,
 					replyPreview: null,
@@ -1977,6 +2026,10 @@ export function ChatPage() {
 				const binaryUpload = await buildBinaryUpload(file);
 				const uploaded = await service.uploadChatMedia({
 					multipart: binaryUpload,
+					options: {
+						looping: options.looping,
+						takenOnGrindr: options.takenOnGrindr,
+					},
 				});
 				setUploadProgress(96);
 
@@ -1984,8 +2037,9 @@ export function ChatPage() {
 				const imageHash = imageUrl
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
+				const messageType = isVideo ? "Video" : "Image";
 				const sentMessage = await service.sendMessage({
-					type: "Image",
+					type: messageType,
 					target: {
 						type: "Direct",
 						targetId: targetProfileIdValue,
@@ -1995,7 +2049,7 @@ export function ChatPage() {
 						width: null,
 						height: null,
 						...(imageUrl ? { url: imageUrl } : {}),
-						...(imageHash ? { imageHash } : {}),
+						...(isImage && imageHash ? { imageHash } : {}),
 					},
 				});
 
@@ -2023,7 +2077,8 @@ export function ChatPage() {
 								messageId: sentMessage.messageId,
 								senderId: sentMessage.senderId,
 								type: sentMessage.type,
-								chat1Type: sentMessage.chat1Type ?? "image",
+								chat1Type:
+									sentMessage.chat1Type ?? (isVideo ? "video" : "image"),
 								text: null,
 								albumId: null,
 								imageHash: null,
@@ -2046,7 +2101,9 @@ export function ChatPage() {
 					),
 				);
 				toast.error(
-					error instanceof Error ? error.message : "Image upload/send failed",
+					error instanceof Error
+						? error.message
+						: "Attachment upload/send failed",
 				);
 			} finally {
 				window.clearInterval(progressId);
@@ -2068,6 +2125,31 @@ export function ChatPage() {
 			userId,
 		],
 	);
+
+	const cancelPendingAttachment = useCallback(() => {
+		setPendingAttachmentFile(null);
+		setAttachmentLooping(false);
+		setAttachmentTakenOnGrindr(false);
+	}, []);
+
+	const confirmPendingAttachment = useCallback(() => {
+		if (!pendingAttachmentFile) {
+			return;
+		}
+
+		void sendMediaAttachment(pendingAttachmentFile, {
+			looping: attachmentLooping,
+			takenOnGrindr: attachmentTakenOnGrindr,
+		});
+		setPendingAttachmentFile(null);
+		setAttachmentLooping(false);
+		setAttachmentTakenOnGrindr(false);
+	}, [
+		attachmentLooping,
+		attachmentTakenOnGrindr,
+		pendingAttachmentFile,
+		sendMediaAttachment,
+	]);
 
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -2368,7 +2450,15 @@ export function ChatPage() {
 		if (!file) {
 			return;
 		}
-		void sendImageAttachment(file);
+
+		if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+			toast.error("Only image and video attachments are supported.");
+			return;
+		}
+
+		setPendingAttachmentFile(file);
+		setAttachmentLooping(false);
+		setAttachmentTakenOnGrindr(false);
 	};
 
 	const renderInbox = (
@@ -2901,6 +2991,7 @@ export function ChatPage() {
 								const pending = message.clientState === "pending";
 								const localOnly = message._localOnly === true;
 								const imageUrl = getMessageImageUrl(message);
+								const videoUrl = getMessageVideoUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
@@ -2948,6 +3039,17 @@ export function ChatPage() {
 														className="max-h-64 w-full object-cover"
 													/>
 												</button>
+											) : null}
+
+											{videoUrl ? (
+												<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
+													<video
+														controls
+														preload="metadata"
+														src={videoUrl}
+														className="max-h-72 w-full"
+													/>
+												</div>
 											) : null}
 
 											{audioUrl ? (
@@ -3099,13 +3201,13 @@ export function ChatPage() {
 								disabled={isUploadingAttachment}
 								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 							>
-								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach image
+								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
 							</button>
 							<input
 								type="file"
 								ref={attachmentInputRef}
 								onChange={onAttachmentInput}
-								accept="image/*"
+								accept="image/*,video/*"
 								className="hidden"
 							/>
 							<button
@@ -3116,6 +3218,54 @@ export function ChatPage() {
 								Manage albums
 							</button>
 						</div>
+
+						{pendingAttachmentFile ? (
+							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+								<p className="text-xs font-medium text-[var(--text)]">
+									Ready to send: {pendingAttachmentFile.name}
+								</p>
+								<div className="mt-2 grid gap-2">
+									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+										<input
+											type="checkbox"
+											checked={attachmentLooping}
+											onChange={(event) =>
+												setAttachmentLooping(event.target.checked)
+											}
+										/>
+										<span>looping</span>
+									</label>
+									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+										<input
+											type="checkbox"
+											checked={attachmentTakenOnGrindr}
+											onChange={(event) =>
+												setAttachmentTakenOnGrindr(event.target.checked)
+											}
+										/>
+										<span>takenOnGrindr</span>
+									</label>
+								</div>
+								<div className="mt-3 flex gap-2">
+									<button
+										type="button"
+										onClick={confirmPendingAttachment}
+										disabled={isUploadingAttachment}
+										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
+									>
+										Send attachment
+									</button>
+									<button
+										type="button"
+										onClick={cancelPendingAttachment}
+										disabled={isUploadingAttachment}
+										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+									>
+										Cancel
+									</button>
+								</div>
+							</div>
+						) : null}
 
 						{isAlbumPickerOpen ? (
 							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
@@ -3158,7 +3308,7 @@ export function ChatPage() {
 						{isUploadingAttachment || uploadProgress > 0 ? (
 							<div className="mb-2">
 								<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-									<span>Uploading image</span>
+									<span>Uploading attachment</span>
 									<span>{Math.round(uploadProgress)}%</span>
 								</div>
 								<div className="h-2 rounded-full bg-[var(--surface-2)]">
@@ -3215,21 +3365,69 @@ export function ChatPage() {
 						disabled={isUploadingAttachment}
 						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
-						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach image
+						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
 					</button>
 					<input
 						type="file"
 						ref={attachmentInputRef}
 						onChange={onAttachmentInput}
-						accept="image/*"
+						accept="image/*,video/*"
 						className="hidden"
 					/>
 				</div>
 
+				{pendingAttachmentFile ? (
+					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+						<p className="text-xs font-medium text-[var(--text)]">
+							Ready to send: {pendingAttachmentFile.name}
+						</p>
+						<div className="mt-2 grid gap-2">
+							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+								<input
+									type="checkbox"
+									checked={attachmentLooping}
+									onChange={(event) =>
+										setAttachmentLooping(event.target.checked)
+									}
+								/>
+								<span>looping</span>
+							</label>
+							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+								<input
+									type="checkbox"
+									checked={attachmentTakenOnGrindr}
+									onChange={(event) =>
+										setAttachmentTakenOnGrindr(event.target.checked)
+									}
+								/>
+								<span>takenOnGrindr</span>
+							</label>
+						</div>
+						<div className="mt-3 flex gap-2">
+							<button
+								type="button"
+								onClick={confirmPendingAttachment}
+								disabled={isUploadingAttachment}
+								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
+							>
+								Send attachment
+							</button>
+							<button
+								type="button"
+								onClick={cancelPendingAttachment}
+								disabled={isUploadingAttachment}
+								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+							>
+								Cancel
+							</button>
+						</div>
+					</div>
+				) : null}
+
 				{isUploadingAttachment || uploadProgress > 0 ? (
 					<div className="mb-2">
 						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-							<span>Uploading image</span>
+							<span>Uploading attachment</span>
 							<span>{Math.round(uploadProgress)}%</span>
 						</div>
 						<div className="h-2 rounded-full bg-[var(--surface-2)]">
