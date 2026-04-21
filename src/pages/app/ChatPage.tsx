@@ -235,7 +235,9 @@ function getPreviewText(conversation: ConversationEntry): string {
 }
 
 function getMessagePreviewLabel(message: Message): string {
-	if (typeof (message.body as Record<string, unknown> | null)?.text === "string") {
+	if (
+		typeof (message.body as Record<string, unknown> | null)?.text === "string"
+	) {
 		return String((message.body as Record<string, unknown>).text);
 	}
 
@@ -2234,7 +2236,12 @@ export function ChatPage() {
 
 											{audioUrl ? (
 												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-													<audio controls preload="none" src={audioUrl} className="w-full" />
+													<audio
+														controls
+														preload="none"
+														src={audioUrl}
+														className="w-full"
+													/>
 												</div>
 											) : null}
 
