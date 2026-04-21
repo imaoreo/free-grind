@@ -223,6 +223,31 @@ function getPreviewText(conversation: ConversationEntry): string {
 			return "Sent an image";
 		case "Album":
 			return "Shared an album";
+		case "Audio":
+			return "Sent an audio message";
+		case "AlbumContentReaction":
+			return "Reacted to album content";
+		case "Video":
+			return "Sent a video";
+		default:
+			return "Sent a message";
+	}
+}
+
+function getMessagePreviewLabel(message: Message): string {
+	if (typeof (message.body as Record<string, unknown> | null)?.text === "string") {
+		return String((message.body as Record<string, unknown>).text);
+	}
+
+	switch (message.type) {
+		case "Image":
+			return "Sent an image";
+		case "Album":
+			return "Shared an album";
+		case "Audio":
+			return "Sent an audio message";
+		case "AlbumContentReaction":
+			return "Reacted to album content";
 		case "Video":
 			return "Sent a video";
 		default:
@@ -235,7 +260,13 @@ function getMessageText(message: UiMessage): string {
 		if (message.unsent) {
 			return "This message was unsent";
 		}
-		return message.type === "Image" ? "[image]" : "[unsupported message]";
+		if (message.type === "Image") {
+			return "[image]";
+		}
+		if (message.type === "Audio") {
+			return "[audio]";
+		}
+		return "[unsupported message]";
 	}
 
 	const body = message.body as Record<string, unknown>;
@@ -251,15 +282,56 @@ function getMessageText(message: UiMessage): string {
 		return "Shared an image";
 	}
 
+	if (message.type === "Audio") {
+		return "Shared an audio message";
+	}
+
+	if (message.type === "AlbumContentReaction") {
+		return "Reacted to album content";
+	}
+
 	return `[${message.type}]`;
 }
 
 function getMessageImageUrl(message: UiMessage): string | null {
+	if (message.type !== "Image") {
+		return null;
+	}
+
 	if (!message.body || typeof message.body !== "object") {
 		return null;
 	}
+
 	const body = message.body as Record<string, unknown>;
 	return typeof body.url === "string" && body.url.length > 0 ? body.url : null;
+}
+
+function getMessageAudioUrl(message: UiMessage): string | null {
+	const isAudioMessage =
+		message.type === "Audio" || message.chat1Type?.toLowerCase() === "audio";
+	if (!isAudioMessage) {
+		return null;
+	}
+
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	const candidates: unknown[] = [
+		body.audioUrl,
+		body.url,
+		body.mediaUrl,
+		(body.audio as Record<string, unknown> | null)?.url,
+	];
+
+	for (const candidate of candidates) {
+		if (typeof candidate === "string" && candidate.length > 0) {
+			return candidate;
+		}
+	}
+
+	return null;
 }
 
 function getMessageAlbumId(message: UiMessage): number | null {
@@ -515,15 +587,7 @@ export function ChatPage() {
 					return conversation;
 				}
 
-				const text =
-					typeof (latestMessage.body as Record<string, unknown> | null)
-						?.text === "string"
-						? String((latestMessage.body as Record<string, unknown>).text)
-						: latestMessage.type === "Image"
-							? "Sent an image"
-							: latestMessage.type === "Album"
-								? "Shared an album"
-								: "Sent a message";
+				const text = getMessagePreviewLabel(latestMessage);
 
 				return {
 					...conversation,
@@ -764,15 +828,7 @@ export function ChatPage() {
 				if (!older) {
 					const newest = response.messages[response.messages.length - 1];
 					if (newest) {
-						const previewText =
-							typeof (newest.body as Record<string, unknown> | null)?.text ===
-							"string"
-								? String((newest.body as Record<string, unknown>).text)
-								: newest.type === "Image"
-									? "Sent an image"
-									: newest.type === "Album"
-										? "Shared an album"
-										: "Sent a message";
+						const previewText = getMessagePreviewLabel(newest);
 
 						syncConversation((conversation) => ({
 							...conversation,
@@ -2132,6 +2188,7 @@ export function ChatPage() {
 								const failed = message.clientState === "failed";
 								const pending = message.clientState === "pending";
 								const imageUrl = getMessageImageUrl(message);
+								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const isActiveSearchMatch =
@@ -2173,6 +2230,12 @@ export function ChatPage() {
 														className="max-h-64 w-full object-cover"
 													/>
 												</button>
+											) : null}
+
+											{audioUrl ? (
+												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
+													<audio controls preload="none" src={audioUrl} className="w-full" />
+												</div>
 											) : null}
 
 											{message.type === "Album" ? (

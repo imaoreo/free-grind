@@ -63,6 +63,23 @@ type Album = z.infer<typeof albumSchema>;
 type AlbumDetail = z.infer<typeof albumDetailSchema>;
 type AlbumMedia = z.infer<typeof albumMediaSchema>;
 
+function countAlbumMedia(detail: AlbumDetail | undefined): {
+	total: number;
+	images: number;
+	nonImages: number;
+} {
+	const content = detail?.content ?? [];
+	const images = content.filter((item) =>
+		(item.contentType ?? "").toLowerCase().startsWith("image/"),
+	).length;
+	const total = content.length;
+	return {
+		total,
+		images,
+		nonImages: Math.max(0, total - images),
+	};
+}
+
 function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
 	const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
 	const output = new Uint8Array(totalBytes);
@@ -456,7 +473,7 @@ export function SettingsAlbumsPage() {
 			toast.error(
 				reorderError instanceof Error
 					? reorderError.message
-					: "Failed to reorder pictures",
+					: "Failed to reorder media",
 			);
 		} finally {
 			setReorderingAlbumId(null);
@@ -507,7 +524,7 @@ export function SettingsAlbumsPage() {
 			toast.error(
 				deleteError instanceof Error
 					? deleteError.message
-					: "Failed to delete picture",
+					: "Failed to delete media",
 			);
 		} finally {
 			setDeletingContentKey(null);
@@ -607,6 +624,7 @@ export function SettingsAlbumsPage() {
 								const isLoadingDetails =
 									loadingAlbumDetailsId === album.albumId;
 								const uploadInputId = `album-upload-${album.albumId}`;
+								const mediaCounts = countAlbumMedia(detail);
 								const isConfirmingAlbumDelete =
 									confirmDeleteAlbumId === album.albumId;
 
@@ -715,7 +733,11 @@ export function SettingsAlbumsPage() {
 													<div>
 														<p className="text-sm font-semibold">Album media</p>
 														<p className="text-xs text-[var(--text-muted)]">
-															Add pictures, remove them, or reorder display
+															{mediaCounts.images} images
+															{mediaCounts.nonImages > 0
+																? ` · ${mediaCounts.total} total media`
+																: ""}
+															. Add images, remove them, or reorder display
 															order.
 														</p>
 													</div>
@@ -741,7 +763,7 @@ export function SettingsAlbumsPage() {
 															<Upload className="h-3.5 w-3.5" />
 															{uploadingAlbumId === album.albumId
 																? "Uploading..."
-																: "Add pictures"}
+																: "Add images"}
 														</label>
 														<button
 															type="button"
@@ -761,7 +783,7 @@ export function SettingsAlbumsPage() {
 													</p>
 												) : !detail || detail.content.length === 0 ? (
 													<p className="text-sm text-[var(--text-muted)]">
-														No pictures in this album yet.
+														No media in this album yet.
 													</p>
 												) : (
 													<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
