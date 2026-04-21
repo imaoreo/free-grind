@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import z from "zod";
 import { useApi } from "../../hooks/useApi";
 import { validateMediaHash } from "../../utils/media";
@@ -24,7 +24,9 @@ const profileRouteParamsSchema = z.object({
 
 export function GridProfilePage() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const params = useParams();
+	const [searchParams] = useSearchParams();
 	const { fetchRest } = useApi();
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
 		null,
@@ -38,6 +40,13 @@ export function GridProfilePage() {
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+	const returnToFromState =
+		typeof (location.state as { returnTo?: unknown } | null)?.returnTo ===
+		"string"
+			? ((location.state as { returnTo?: string }).returnTo ?? null)
+			: null;
+	const returnToFromQuery = searchParams.get("returnTo");
+	const returnTo = returnToFromState ?? returnToFromQuery;
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
@@ -200,7 +209,13 @@ export function GridProfilePage() {
 		<ProfileDetailsModal
 			variant="page"
 			isOpen
-			onClose={() => navigate(-1)}
+			onClose={() => {
+				if (returnTo && returnTo.startsWith("/chat")) {
+					navigate(returnTo, { replace: true });
+					return;
+				}
+				navigate("/chat", { replace: true });
+			}}
 			activeProfile={activeProfile}
 			selectedBrowseCard={null}
 			isLoadingActiveProfile={isLoadingActiveProfile}

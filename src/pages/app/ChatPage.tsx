@@ -663,6 +663,7 @@ export function ChatPage() {
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const [searchQuery, setSearchQuery] = useState("");
+	const [startChatProfileIdDraft, setStartChatProfileIdDraft] = useState("");
 	const [searchMode, setSearchMode] = useState<SearchMode>("messages");
 	const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>(
 		[],
@@ -689,9 +690,11 @@ export function ChatPage() {
 		return Number.isFinite(parsed) ? parsed : null;
 	}, [searchParams]);
 
-	const selectedConversationId = isDesktop
-		? selectedDesktopConversationId
-		: (routeConversationId ?? null);
+	const selectedConversationId = targetProfileId
+		? null
+		: isDesktop
+			? selectedDesktopConversationId
+			: (routeConversationId ?? null);
 
 	// Keep selection in sync when the layout breakpoint flips (e.g. fullscreen toggle).
 	const prevIsDesktopRef = useRef(isDesktop);
@@ -714,6 +717,29 @@ export function ChatPage() {
 			}
 		}
 	}, [isDesktop, routeConversationId, selectedDesktopConversationId, navigate]);
+
+	// On desktop, initialize selection from route when landing on /chat/:id
+	// (e.g. returning from profile). Do not keep forcing it afterward.
+	useEffect(() => {
+		if (!isDesktop || targetProfileId) {
+			return;
+		}
+
+		if (!routeConversationId) {
+			return;
+		}
+
+		if (selectedDesktopConversationId !== null) {
+			return;
+		}
+
+		setSelectedDesktopConversationId(routeConversationId);
+	}, [
+		isDesktop,
+		routeConversationId,
+		selectedDesktopConversationId,
+		targetProfileId,
+	]);
 
 	const selectedConversation = useMemo(
 		() =>
@@ -1590,6 +1616,26 @@ export function ChatPage() {
 		navigate(`/chat/${encodeURIComponent(nextId)}`);
 	};
 
+	const startChatByProfileId = useCallback(
+		(rawProfileId: string) => {
+			const parsed = Number(rawProfileId.trim());
+			if (!Number.isInteger(parsed) || parsed <= 0) {
+				toast.error("Enter a valid profile ID");
+				return;
+			}
+
+			if (isDesktop) {
+				setSelectedDesktopConversationId(null);
+			}
+
+			const nextParams = new URLSearchParams();
+			nextParams.set("targetProfileId", String(parsed));
+			navigate(`/chat?${nextParams.toString()}`);
+			setStartChatProfileIdDraft("");
+		},
+		[isDesktop, navigate],
+	);
+
 	const openConversationById = useCallback(
 		(conversationId: string) => {
 			if (targetProfileId) {
@@ -1606,6 +1652,19 @@ export function ChatPage() {
 			navigate(`/chat/${encodeURIComponent(conversationId)}`);
 		},
 		[isDesktop, navigate, searchParams, setSearchParams, targetProfileId],
+	);
+
+	const getProfileReturnToChatPath = useCallback(
+		(profileId: number) => {
+			if (selectedConversationId) {
+				return `/chat/${encodeURIComponent(selectedConversationId)}`;
+			}
+
+			const nextParams = new URLSearchParams();
+			nextParams.set("targetProfileId", String(profileId));
+			return `/chat?${nextParams.toString()}`;
+		},
+		[selectedConversationId],
 	);
 
 	useEffect(() => {
@@ -2344,6 +2403,28 @@ export function ChatPage() {
 						className="input-field pl-9"
 					/>
 				</div>
+				<form
+					onSubmit={(event) => {
+						event.preventDefault();
+						startChatByProfileId(startChatProfileIdDraft);
+					}}
+					className="mt-2 flex items-center gap-2"
+				>
+					<input
+						type="text"
+						inputMode="numeric"
+						value={startChatProfileIdDraft}
+						onChange={(event) => setStartChatProfileIdDraft(event.target.value)}
+						placeholder="Start chat by profile ID"
+						className="input-field h-9 text-sm"
+					/>
+					<button
+						type="submit"
+						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+					>
+						Start
+					</button>
+				</form>
 				<div className="mt-2 flex flex-wrap gap-2">
 					{(["messages", "conversations", "profiles"] as const).map((mode) => (
 						<button
@@ -2457,7 +2538,16 @@ export function ChatPage() {
 								<button
 									key={profile.profileId}
 									type="button"
-									onClick={() => navigate(`/profile/${profile.profileId}`)}
+									onClick={() => {
+										const returnTo = getProfileReturnToChatPath(
+											profile.profileId,
+										);
+										const nextParams = new URLSearchParams();
+										nextParams.set("returnTo", returnTo);
+										navigate(`/profile/${profile.profileId}?${nextParams.toString()}`, {
+											state: { returnTo },
+										});
+									}}
 									className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 								>
 									<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
@@ -2633,6 +2723,9 @@ export function ChatPage() {
 				isDesktop ? "surface-card" : ""
 			}`}
 		>
+			{(() => {
+				const otherParticipant = getOtherParticipant(selectedConversation, userId);
+				return (
 			<div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
 				<div className="min-w-0">
 					<p className="truncate text-lg font-semibold">
@@ -2675,6 +2768,27 @@ export function ChatPage() {
 
 					<button
 						type="button"
+						onClick={() => {
+							if (!otherParticipant) {
+								return;
+							}
+							const returnTo = getProfileReturnToChatPath(
+								otherParticipant.profileId,
+							);
+							const nextParams = new URLSearchParams();
+							nextParams.set("returnTo", returnTo);
+							navigate(
+								`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+								{ state: { returnTo } },
+							);
+						}}
+						disabled={!otherParticipant}
+						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+					>
+						View profile
+					</button>
+					<button
+						type="button"
 						disabled={isUpdatingConversationState}
 						onClick={togglePin}
 						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
@@ -2697,6 +2811,8 @@ export function ChatPage() {
 					</button>
 				</div>
 			</div>
+				);
+			})()}
 
 			{isLoadingThread &&
 			threadConversationId !== selectedConversation.data.conversationId ? (
@@ -3126,8 +3242,17 @@ export function ChatPage() {
 			) : null}
 
 			{albumViewer ? (
-				<div className="fixed inset-0 z-40 bg-black/65 p-4">
-					<div className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
+				<div
+					className="fixed inset-0 z-40 bg-black/65 p-4"
+					onClick={() => {
+						setAlbumViewerMediaIndex(null);
+						setAlbumViewer(null);
+					}}
+				>
+					<div
+						className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className="mb-3 flex items-center justify-between">
 							<p className="font-semibold">
 								{albumViewer.albumName || "Album"}
