@@ -2,44 +2,68 @@
 
 ## Features
 
-- [ ] Authentication
-  - [ ] Password-based
+- [x] Authentication
+  - [x] Password-based
   - [ ] Sign-in with Google
-- [ ] Geo service
-  - [ ] Location self-reporting
-- [ ] Messaging
-  - [ ] Text messages
-  - [ ] Replies
-  - [ ] Read indicators
-  - [ ] Media
-    - [ ] Images
-    - [ ] Videos
-    - [ ] GIF
-  - [ ] Location
+- [x] Geo service
+  - [x] Location self-reporting
+  - [x] Manual location picker (map + search)
+  - [x] Current device location detection (mobile)
+- [x] Messaging
+  - [x] Text messages
+  - [x] Read indicators
+  - [x] Media
+    - [x] Images (send & receive)
+    - [x] Videos (send & receive)
+    - [x] Audio messages (receive/playback)
+    - [ ] Audio message recording
+    - [x] Albums (view, share, manage)
+    - [ ] GIF / Gaymoji
+  - [ ] Location messages
   - [ ] Saved phrases
-  - [ ] Voice messages
-  - [ ] Reactions
-- [ ] Profiles
-  - [ ] Fetching
-  - [ ] Favoring/unfavoring
+  - [ ] Voice message recording
+  - [x] Reactions (send & receive)
+  - [x] Unsend messages
+  - [x] Delete messages (local)
+  - [x] Pin / unpin conversations
+  - [x] Mute / unmute conversations
+  - [x] Inbox filters (unread, favorites, chemistry, right now, online)
+  - [x] Conversation search (local)
+  - [x] Message search (local)
+  - [x] Profile search from chat
+  - [ ] Replies (UI)
+- [x] Profiles
+  - [x] Fetching & viewing
+  - [x] Full profile detail modal (stats, health, tribes, tags, photos)
+  - [ ] Favoriting/unfavoriting
   - [ ] Blocking/unblocking
   - [ ] Taps
   - [ ] Reports
-- [ ] Grid
-  - [ ] Limit bypass
+- [x] Grid
+  - [x] Cascade profile grid
+  - [x] Profile detail from grid
+  - [x] Limit bypass
   - [ ] Filtering
+- [x] Albums
+  - [x] View own albums
+  - [x] Create albums
+  - [x] Upload media to albums
+  - [x] Reorder album content
+  - [x] Delete album content
+  - [x] Delete albums
+  - [x] Share albums in chat
 - [ ] Interest section
   - [ ] Views history
   - [ ] Profile view self-reporting
   - [ ] Taps history
-- [ ] Albums
 - [ ] "Right now"
   - [ ] Fetching
   - [ ] Filtering
   - [ ] Sorting
   - [ ] Posting
-- [ ] Account
-  - [ ] Profile editing
+- [x] Account
+  - [x] Profile editing (bio, stats, health, tribes, tags, social links)
+  - [x] Manage profile photos (upload, reorder, delete)
   - [ ] Settings management (email, password, privacy)
 - [ ] Push notifications
 
