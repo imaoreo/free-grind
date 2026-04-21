@@ -115,7 +115,9 @@ export function NavBar() {
 								>
 									<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
 									<div className="relative">
-										<span className="text-xs md:text-[0.8rem]">{item.label}</span>
+										<span className="text-xs md:text-[0.8rem]">
+											{item.label}
+										</span>
 										{item.value === "inbox" && unreadCount > 0 ? (
 											<span className="absolute -right-5 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold text-[var(--accent-contrast)] md:-right-6">
 												{Math.min(99, unreadCount)}
