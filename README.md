@@ -4,7 +4,7 @@ Unofficial Grindr client. Crossplatform, free (for personal use), libre, ad-free
 
 ## 🚧 There's nothing there just yet! 🚧
 
-Come back in a couple of weeks when the API specification for developers at 'gh-pages in progress' is finished 🤓
+Come back in a couple of weeks when the API specification for developers at `https://opengrind.estopia.net` is finished 🤓
 
 <!-- Work in progress. See [ROADMAP.md](./ROADMAP.md).
 
