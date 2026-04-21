@@ -13,24 +13,22 @@ export default defineConfig(async () => ({
 		emptyOutDir: true,
 		rollupOptions: {
 			output: {
-				manualChunks: {
-					"vendor-react": ["react", "react-dom", "react-router-dom"],
-					"vendor-ui": [
-						"@radix-ui/react-tabs",
-						"lucide-react",
-						"clsx",
-						"tailwind-merge",
-						"react-hot-toast",
-					],
-					"vendor-map": ["leaflet", "react-leaflet"],
-					"vendor-tauri": [
-						"@tauri-apps/api",
-						"@tauri-apps/plugin-fs",
-						"@tauri-apps/plugin-geolocation",
-						"@tauri-apps/plugin-opener",
-						"@tauri-apps/plugin-os",
-					],
-					"vendor-data": ["zod", "@msgpack/msgpack"],
+				manualChunks(id) {
+					if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/") || id.includes("/node_modules/scheduler/")) {
+						return "vendor-react";
+					}
+					if (id.includes("/node_modules/react-router") || id.includes("/node_modules/@remix-run/")) {
+						return "vendor-router";
+					}
+					if (id.includes("/node_modules/leaflet/") || id.includes("/node_modules/react-leaflet/")) {
+						return "vendor-map";
+					}
+					if (id.includes("/node_modules/@tauri-apps/")) {
+						return "vendor-tauri";
+					}
+					if (id.includes("/node_modules/zod/") || id.includes("/node_modules/@msgpack/")) {
+						return "vendor-data";
+					}
 				},
 			},
 		},
