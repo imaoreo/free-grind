@@ -459,7 +459,11 @@ export function createChatService(fetchRest: RestFetcher) {
 
 		async uploadChatMedia(params: {
 			multipart: MultipartUpload;
-		}): Promise<{ mediaId: number; mediaHash: string | null; url: string | null }> {
+		}): Promise<{
+			mediaId: number;
+			mediaHash: string | null;
+			url: string | null;
+		}> {
 			const response = await fetchRest("/v5/chat/media/upload", {
 				method: "POST",
 				rawBody: params.multipart.body,
@@ -492,7 +496,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			const source = direct.success
 				? direct.data
 				: nested.success
-					? nested.data.data ?? nested.data.media ?? nested.data.result
+					? (nested.data.data ?? nested.data.media ?? nested.data.result)
 					: undefined;
 
 			if (!source) {

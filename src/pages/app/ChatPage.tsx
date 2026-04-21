@@ -1930,7 +1930,9 @@ export function ChatPage() {
 
 			try {
 				const binaryUpload = await buildBinaryUpload(file);
-				const uploaded = await service.uploadChatMedia({ multipart: binaryUpload });
+				const uploaded = await service.uploadChatMedia({
+					multipart: binaryUpload,
+				});
 				setUploadProgress(96);
 
 				const imageUrl = uploaded.url;
