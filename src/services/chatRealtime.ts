@@ -22,6 +22,7 @@ export interface ChatRealtimeManagerOptions {
 	onEvent: (event: RealtimeEnvelope) => void;
 	onStatusChange?: (status: RealtimeStatus) => void;
 	heartbeatMs?: number;
+	maxSilenceMs?: number;
 	maxBackoffMs?: number;
 	buildSocket?: (url: string) => WebSocket;
 }
@@ -31,13 +32,33 @@ export class ChatRealtimeManager {
 	private socket: WebSocket | null = null;
 	private reconnectTimer: number | null = null;
 	private heartbeatTimer: number | null = null;
+	private livenessTimer: number | null = null;
 	private reconnectAttempts = 0;
 	private stopped = true;
 	private suppressDisconnectStatus = false;
+	private lastActivityAt = 0;
+	private readonly handleOnline = () => {
+		if (this.stopped) {
+			return;
+		}
+		if (!this.socket) {
+			void this.connect();
+		}
+	};
+	private readonly handleOffline = () => {
+		if (this.stopped) {
+			return;
+		}
+		this.setStatus("disconnected");
+		if (this.socket) {
+			this.socket.close();
+		}
+	};
 
 	constructor(options: ChatRealtimeManagerOptions) {
 		this.options = {
 			heartbeatMs: 25_000,
+			maxSilenceMs: 180_000,
 			maxBackoffMs: 25_000,
 			...options,
 		};
@@ -49,14 +70,19 @@ export class ChatRealtimeManager {
 		}
 		this.stopped = false;
 		this.suppressDisconnectStatus = false;
+		window.addEventListener("online", this.handleOnline);
+		window.addEventListener("offline", this.handleOffline);
 		void this.connect();
 	}
 
 	stop(options?: { suppressStatus?: boolean }) {
 		this.stopped = true;
 		this.suppressDisconnectStatus = options?.suppressStatus ?? false;
+		window.removeEventListener("online", this.handleOnline);
+		window.removeEventListener("offline", this.handleOffline);
 		this.clearReconnect();
 		this.clearHeartbeat();
+		this.clearLiveness();
 		if (this.socket) {
 			this.socket.close();
 			this.socket = null;
@@ -86,6 +112,17 @@ export class ChatRealtimeManager {
 		}
 	}
 
+	private clearLiveness() {
+		if (this.livenessTimer != null) {
+			window.clearInterval(this.livenessTimer);
+			this.livenessTimer = null;
+		}
+	}
+
+	private markActivity() {
+		this.lastActivityAt = Date.now();
+	}
+
 	private buildUrlWithToken(baseUrl: string, token: string | null): string {
 		if (!token) {
 			return baseUrl;
@@ -110,12 +147,13 @@ export class ChatRealtimeManager {
 			this.options.maxBackoffMs ?? 25_000,
 			1000 * Math.pow(2, exp),
 		);
+		const jitter = Math.floor(Math.random() * 300);
 
 		this.setStatus("reconnecting");
 		this.clearReconnect();
 		this.reconnectTimer = window.setTimeout(() => {
 			void this.connect();
-		}, delay);
+		}, delay + jitter);
 	}
 
 	private startHeartbeat() {
@@ -126,17 +164,44 @@ export class ChatRealtimeManager {
 				return;
 			}
 
-			this.socket.send(
-				JSON.stringify({
-					type: "ws.ping",
-					timestamp: Date.now(),
-				}),
-			);
+			try {
+				this.socket.send(
+					JSON.stringify({
+						type: "ws.ping",
+						timestamp: Date.now(),
+					}),
+				);
+			} catch {
+				this.socket.close();
+			}
 		}, heartbeatMs);
+	}
+
+	private startLivenessWatchdog() {
+		this.clearLiveness();
+		const silenceMs = this.options.maxSilenceMs ?? 180_000;
+		const heartbeatMs = this.options.heartbeatMs ?? 25_000;
+		this.livenessTimer = window.setInterval(() => {
+			if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+				return;
+			}
+			if (this.lastActivityAt <= 0) {
+				return;
+			}
+			if (Date.now() - this.lastActivityAt > silenceMs) {
+				this.socket.close();
+			}
+		}, Math.max(heartbeatMs, 10_000));
 	}
 
 	private async connect() {
 		if (this.stopped) {
+			return;
+		}
+
+		if (typeof navigator !== "undefined" && !navigator.onLine) {
+			this.setStatus("disconnected");
+			this.scheduleReconnect();
 			return;
 		}
 
@@ -156,13 +221,16 @@ export class ChatRealtimeManager {
 
 			socket.onopen = () => {
 				this.reconnectAttempts = 0;
+				this.markActivity();
 				this.setStatus("connected");
 				this.startHeartbeat();
+				this.startLivenessWatchdog();
 			};
 
 			socket.onmessage = (event) => {
 				try {
 					const parsed = JSON.parse(String(event.data)) as RealtimeEnvelope;
+					this.markActivity();
 					this.options.onEvent(parsed);
 				} catch {
 					// Ignore malformed frames.
@@ -175,6 +243,7 @@ export class ChatRealtimeManager {
 
 			socket.onclose = () => {
 				this.clearHeartbeat();
+				this.clearLiveness();
 				this.socket = null;
 				if (this.stopped) {
 					if (!this.suppressDisconnectStatus) {

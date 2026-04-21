@@ -887,6 +887,16 @@ export function ChatPage() {
 	}, [applyRealtimeEnvelope, websocketToken]);
 
 	useEffect(() => {
+		const baseIntervalMs =
+			realtimeStatus === "connected"
+				? 60_000
+				: realtimeStatus === "reconnecting" || realtimeStatus === "error"
+					? 12_000
+					: 20_000;
+		const intervalMs = document.hidden
+			? Math.max(baseIntervalMs * 2, 30_000)
+			: baseIntervalMs;
+
 		const intervalId = window.setInterval(() => {
 			void loadInbox({ page: 1, replace: true });
 			if (selectedConversationId) {
@@ -895,12 +905,12 @@ export function ChatPage() {
 					older: false,
 				});
 			}
-		}, 20_000);
+		}, intervalMs);
 
 		return () => {
 			window.clearInterval(intervalId);
 		};
-	}, [loadInbox, loadThread, selectedConversationId]);
+	}, [loadInbox, loadThread, realtimeStatus, selectedConversationId]);
 
 	useEffect(() => {
 		if (!selectedConversationId) {
