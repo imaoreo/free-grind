@@ -6,6 +6,7 @@ type BrowseGridProps = {
 	cardsError: string | null;
 	cards: BrowseCard[];
 	onSelectProfile: (profileId: string) => void;
+	onMessageProfile: (profileId: string) => void;
 };
 
 export function BrowseGrid({
@@ -13,6 +14,7 @@ export function BrowseGrid({
 	cardsError,
 	cards,
 	onSelectProfile,
+	onMessageProfile,
 }: BrowseGridProps) {
 	if (isLoadingCards) {
 		return (
@@ -51,6 +53,7 @@ export function BrowseGrid({
 					key={card.profileId}
 					card={card}
 					onSelectProfile={onSelectProfile}
+					onMessageProfile={onMessageProfile}
 				/>
 			))}
 		</div>

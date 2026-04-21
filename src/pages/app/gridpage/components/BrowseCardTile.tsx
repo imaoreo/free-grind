@@ -10,9 +10,14 @@ import {
 type BrowseCardTileProps = {
 	card: BrowseCard;
 	onSelectProfile: (profileId: string) => void;
+	onMessageProfile: (profileId: string) => void;
 };
 
-export function BrowseCardTile({ card, onSelectProfile }: BrowseCardTileProps) {
+export function BrowseCardTile({
+	card,
+	onSelectProfile,
+	onMessageProfile,
+}: BrowseCardTileProps) {
 	const name = getDisplayName(card);
 	const online = isCurrentlyOnline(card.onlineUntil);
 
@@ -48,6 +53,19 @@ export function BrowseCardTile({ card, onSelectProfile }: BrowseCardTileProps) {
 			</div>
 
 			<div className="grid gap-2 p-3 text-xs text-[var(--text-muted)]">
+				<div>
+					<button
+						type="button"
+						onClick={(event) => {
+							event.stopPropagation();
+							onMessageProfile(card.profileId);
+						}}
+						className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)]"
+					>
+						<MessageCircle className="h-3.5 w-3.5" />
+						Message
+					</button>
+				</div>
 				<div className="flex items-center justify-between gap-2">
 					<span className="inline-flex items-center gap-1">
 						<MapPin className="h-3.5 w-3.5" />

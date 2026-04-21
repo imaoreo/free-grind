@@ -21,7 +21,7 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useAuth } from "../../contexts/AuthContext";
@@ -325,6 +325,7 @@ function useDesktopBreakpoint() {
 export function ChatPage() {
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const { fetchRest, callMethod } = useApi();
 	const { userId } = useAuth();
 	const { geohash } = usePreferences();
@@ -394,6 +395,15 @@ export function ChatPage() {
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
 	const [websocketToken, setWebsocketToken] = useState<string | null>(null);
+
+	const targetProfileId = useMemo(() => {
+		const raw = searchParams.get("targetProfileId");
+		if (!raw) {
+			return null;
+		}
+		const parsed = Number(raw);
+		return Number.isFinite(parsed) ? parsed : null;
+	}, [searchParams]);
 
 	const selectedConversationId = isDesktop
 		? selectedDesktopConversationId
@@ -674,7 +684,9 @@ export function ChatPage() {
 							(conversation) => conversation.data.conversationId === previous,
 						)
 							? previous
-							: (response.entries[0]?.data.conversationId ?? null),
+							: targetProfileId
+								? null
+								: (response.entries[0]?.data.conversationId ?? null),
 					);
 				}
 			} catch (error) {
@@ -686,7 +698,7 @@ export function ChatPage() {
 				setIsLoadingMoreInbox(false);
 			}
 		},
-		[service, unreadOnly],
+		[service, targetProfileId, unreadOnly],
 	);
 
 	const loadThread = useCallback(
@@ -1034,6 +1046,11 @@ export function ChatPage() {
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
+		if (targetProfileId) {
+			const nextParams = new URLSearchParams(searchParams);
+			nextParams.delete("targetProfileId");
+			setSearchParams(nextParams, { replace: true });
+		}
 		if (isDesktop) {
 			setSelectedDesktopConversationId(nextId);
 			return;
@@ -1044,6 +1061,12 @@ export function ChatPage() {
 
 	const openConversationById = useCallback(
 		(conversationId: string) => {
+			if (targetProfileId) {
+				const nextParams = new URLSearchParams(searchParams);
+				nextParams.delete("targetProfileId");
+				setSearchParams(nextParams, { replace: true });
+			}
+
 			if (isDesktop) {
 				setSelectedDesktopConversationId(conversationId);
 				return;
@@ -1051,8 +1074,35 @@ export function ChatPage() {
 
 			navigate(`/chat/${encodeURIComponent(conversationId)}`);
 		},
-		[isDesktop, navigate],
+		[isDesktop, navigate, searchParams, setSearchParams, targetProfileId],
 	);
+
+	useEffect(() => {
+		if (!targetProfileId) {
+			return;
+		}
+
+		const existingConversation = conversations.find((conversation) =>
+			conversation.data.participants.some(
+				(participant) => participant.profileId === targetProfileId,
+			),
+		);
+
+		if (!existingConversation) {
+			return;
+		}
+
+		if (selectedConversationId === existingConversation.data.conversationId) {
+			return;
+		}
+
+		openConversationById(existingConversation.data.conversationId);
+	}, [
+		conversations,
+		openConversationById,
+		selectedConversationId,
+		targetProfileId,
+	]);
 
 	const openMessageSearchResult = useCallback(
 		(result: { conversationId: string; messageId: string }) => {
@@ -1152,12 +1202,15 @@ export function ChatPage() {
 
 	const sendTextMessage = useCallback(
 		async (text: string, retryMessageId?: string) => {
-			if (!selectedConversation || !userId) {
+			if (!userId) {
 				return;
 			}
 
-			const targetProfile = getOtherParticipant(selectedConversation, userId);
-			if (!targetProfile?.profileId) {
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
 				toast.error("Unable to determine message recipient");
 				return;
 			}
@@ -1175,7 +1228,9 @@ export function ChatPage() {
 					...previous,
 					{
 						messageId: localMessageId,
-						conversationId: selectedConversation.data.conversationId,
+						conversationId:
+							selectedConversation?.data.conversationId ??
+							`direct:${targetProfileIdValue}`,
 						senderId: userId,
 						timestamp: Date.now(),
 						unsent: false,
@@ -1201,7 +1256,7 @@ export function ChatPage() {
 
 			try {
 				const sentMessage = await service.sendText({
-					targetProfileId: targetProfile.profileId,
+					targetProfileId: targetProfileIdValue,
 					text: trimmed,
 				});
 
@@ -1216,25 +1271,30 @@ export function ChatPage() {
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 
-				syncConversation((conversation) => ({
-					...conversation,
-					data: {
-						...conversation.data,
-						lastActivityTimestamp: sentMessage.timestamp,
-						preview: {
-							conversationId: {
-								value: conversation.data.conversationId,
+				if (selectedConversation) {
+					syncConversation((conversation) => ({
+						...conversation,
+						data: {
+							...conversation.data,
+							lastActivityTimestamp: sentMessage.timestamp,
+							preview: {
+								conversationId: {
+									value: conversation.data.conversationId,
+								},
+								messageId: sentMessage.messageId,
+								senderId: sentMessage.senderId,
+								type: sentMessage.type,
+								chat1Type: sentMessage.chat1Type ?? "text",
+								text: trimmed,
+								albumId: null,
+								imageHash: null,
 							},
-							messageId: sentMessage.messageId,
-							senderId: sentMessage.senderId,
-							type: sentMessage.type,
-							chat1Type: sentMessage.chat1Type ?? "text",
-							text: trimmed,
-							albumId: null,
-							imageHash: null,
 						},
-					},
-				}));
+					}));
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
 
 				setDraft("");
 			} catch (error) {
@@ -1258,7 +1318,15 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[selectedConversation, service, syncConversation, userId],
+		[
+			loadInbox,
+			openConversationById,
+			selectedConversation,
+			service,
+			syncConversation,
+			targetProfileId,
+			userId,
+		],
 	);
 
 	const sendImageAttachment = useCallback(
@@ -2313,6 +2381,42 @@ export function ChatPage() {
 					</form>
 				</>
 			)}
+		</div>
+	) : targetProfileId ? (
+		<div
+			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+				isDesktop ? "surface-card" : ""
+			}`}
+		>
+			<div className="mb-3 border-b border-[var(--border)] pb-3">
+				<p className="text-lg font-semibold">New conversation</p>
+				<p className="text-sm text-[var(--text-muted)]">
+					Message profile #{targetProfileId} to start chatting.
+				</p>
+			</div>
+			<div className="flex-1" />
+			<form
+				onSubmit={handleSend}
+				className="border-t border-[var(--border)] pt-3"
+			>
+				<div className="flex items-end gap-2">
+					<textarea
+						value={draft}
+						onChange={(event) => setDraft(event.target.value)}
+						rows={2}
+						maxLength={5000}
+						placeholder="Write your first message..."
+						className="input-field min-h-[56px] resize-none"
+					/>
+					<button
+						type="submit"
+						disabled={isSending || draft.trim().length === 0}
+						className="btn-accent h-11 shrink-0 px-4 text-sm"
+					>
+						{isSending ? "Sending" : "Send"}
+					</button>
+				</div>
+			</form>
 		</div>
 	) : (
 		<div
