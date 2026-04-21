@@ -1,6 +1,6 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { CircleUserRound, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useApi } from "../../hooks/useApi";
 import { useEffect, useMemo, useState } from "react";
 import z from "zod";
@@ -33,6 +33,9 @@ import {
 	setCachedPronounOptions,
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
+import { Avatar } from "../../components/ui/avatar";
+import { Button } from "../../components/ui/button";
+import { Card } from "../../components/ui/card";
 
 export function GridPage() {
 	const { userId } = useAuth();
@@ -526,19 +529,11 @@ export function GridPage() {
 						<button
 							type="button"
 							onClick={() => navigate("/settings")}
-							className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] transition-all hover:scale-[1.03]"
+							className="rounded-full transition-all hover:scale-[1.03]"
 							aria-label="Open settings"
 							title="Settings"
 						>
-							{profilePhotoUrl ? (
-								<img
-									src={profilePhotoUrl}
-									alt="Your profile photo"
-									className="h-full w-full rounded-full object-cover"
-								/>
-							) : (
-								<CircleUserRound className="h-6 w-6" />
-							)}
+							<Avatar src={profilePhotoUrl} alt="Your profile photo" className="h-11 w-11" />
 						</button>
 					</div>
 					<p className="app-subtitle">
@@ -547,28 +542,28 @@ export function GridPage() {
 				</header>
 
 				<div className="mb-4 grid gap-3 sm:grid-cols-3">
-					<div className="surface-card rounded-2xl p-4">
+					<Card className="rounded-2xl p-4">
 						<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
 							Profiles in feed
 						</p>
 						<p className="mt-2 text-2xl font-semibold">{cards.length}</p>
-					</div>
-					<div className="surface-card rounded-2xl p-4">
+					</Card>
+					<Card className="rounded-2xl p-4">
 						<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
 							Online now
 						</p>
 						<p className="mt-2 text-2xl font-semibold">{onlineCount}</p>
-					</div>
-					<div className="surface-card rounded-2xl p-4">
-						<button
+					</Card>
+					<Card className="rounded-2xl p-4">
+						<Button
 							type="button"
 							onClick={() => setIsSettingLocation((current) => !current)}
-							className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-medium"
+							className="w-full"
 						>
 							<MapPin className="h-4 w-4" />
 							{geohash ? "Change location" : "Set location"}
-						</button>
-					</div>
+						</Button>
+					</Card>
 				</div>
 
 				<LocationSettingsPanel

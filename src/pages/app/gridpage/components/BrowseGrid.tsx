@@ -1,5 +1,12 @@
 import type { BrowseCard } from "../../GridPage.types";
 import { BrowseCardTile } from "./BrowseCardTile";
+import {
+	EmptyState,
+	ErrorState,
+	LoadingState,
+} from "../../../../components/ui/states";
+import { LoadMoreButton } from "../../../../components/ui/load-more-button";
+import { getAsyncState } from "../../../../hooks/useAsyncViewState";
 
 type BrowseGridProps = {
 	isLoadingCards: boolean;
@@ -22,33 +29,35 @@ export function BrowseGrid({
 	isLoadingMore,
 	onLoadMore,
 }: BrowseGridProps) {
-	if (isLoadingCards) {
+	const viewState = getAsyncState(
+		{ isLoading: isLoadingCards, error: cardsError, data: cards },
+		cards.length === 0,
+	);
+
+	if (viewState === "loading") {
 		return (
-			<div className="surface-card rounded-2xl p-5 sm:p-6">
-				<p className="text-sm text-[var(--text-muted)]">
-					Loading nearby profiles...
-				</p>
-			</div>
+			<LoadingState
+				title="Loading nearby profiles"
+				description="Fetching your local browse feed."
+			/>
 		);
 	}
 
-	if (cardsError) {
+	if (viewState === "error") {
 		return (
-			<div className="surface-card rounded-2xl p-5 sm:p-6">
-				<p className="text-sm font-semibold">Could not load browse feed.</p>
-				<p className="mt-2 text-sm text-[var(--text-muted)]">{cardsError}</p>
-			</div>
+			<ErrorState
+				title="Could not load browse feed"
+				description={cardsError ?? undefined}
+			/>
 		);
 	}
 
-	if (cards.length === 0) {
+	if (viewState === "empty") {
 		return (
-			<div className="surface-card rounded-2xl p-5 sm:p-6">
-				<p className="text-sm font-semibold">No nearby profiles returned.</p>
-				<p className="mt-2 text-sm text-[var(--text-muted)]">
-					Try refreshing the feed after updating location in your account.
-				</p>
-			</div>
+			<EmptyState
+				title="No nearby profiles returned"
+				description="Try refreshing the feed after updating your location."
+			/>
 		);
 	}
 
@@ -66,14 +75,11 @@ export function BrowseGrid({
 			</div>
 			{hasMore && (
 				<div className="flex justify-center">
-					<button
-						type="button"
+					<LoadMoreButton
 						onClick={onLoadMore}
-						disabled={isLoadingMore}
-						className="rounded-xl px-6 py-2 text-sm font-medium bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] disabled:opacity-50 transition-colors"
-					>
-						{isLoadingMore ? "Loading..." : "Load more"}
-					</button>
+						loading={isLoadingMore}
+						loadingLabel="Loading"
+					/>
 				</div>
 			)}
 		</div>

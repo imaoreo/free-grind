@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
+import { AuthShell } from "../../components/ui/auth-shell";
+import { Button } from "../../components/ui/button";
 
 export function SignInPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
-	const { login } = useAuth();
+	const { login, error } = useAuth();
 	const navigate = useNavigate();
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -24,11 +26,19 @@ export function SignInPage() {
 	};
 
 	return (
-		<section className="app-screen flex items-center justify-center">
-			<div className="surface-card w-full max-w-md p-6 sm:p-8">
-				<h1 className="app-title mb-2">Sign In</h1>
-				<p className="app-subtitle mb-6">Welcome back to Open Grind.</p>
-				<form onSubmit={handleSubmit} className="space-y-4">
+		<AuthShell
+			title="Sign In"
+			subtitle="Welcome back to Open Grind."
+			footer={
+				<Link
+					to="/auth/sign-up"
+					className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+				>
+					Don&apos;t have an account? Sign up
+				</Link>
+			}
+		>
+			<form onSubmit={handleSubmit} className="space-y-4">
 					<div>
 						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
 							Email
@@ -55,23 +65,13 @@ export function SignInPage() {
 							placeholder="••••••••"
 						/>
 					</div>
-					<button
-						type="submit"
-						disabled={isLoading}
-						className="btn-accent w-full px-4 py-3"
-					>
+					{error ? (
+						<p className="text-sm text-[var(--text-muted)]">{error}</p>
+					) : null}
+					<Button type="submit" variant="primary" loading={isLoading} className="w-full">
 						{isLoading ? "Signing in..." : "Sign In"}
-					</button>
+					</Button>
 				</form>
-				<div className="mt-4 text-center">
-					<Link
-						to="/auth/sign-up"
-						className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
-					>
-						Don't have an account? Sign up
-					</Link>
-				</div>
-			</div>
-		</section>
+		</AuthShell>
 	);
 }

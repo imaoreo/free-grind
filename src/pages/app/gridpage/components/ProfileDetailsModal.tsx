@@ -1,5 +1,9 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import {
+	createBackdropCloseHandler,
+	useModalClose,
+} from "../../../../hooks/useModalClose";
 import type {
 	BrowseCard,
 	ManagedOption,
@@ -171,6 +175,11 @@ export function ProfileDetailsModal({
 
 	const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
 		null,
+	);
+	useModalClose({ isOpen, onClose });
+	const handleBackdropClose = useMemo(
+		() => createBackdropCloseHandler(onClose),
+		[onClose],
 	);
 
 	useEffect(() => {
@@ -681,7 +690,7 @@ export function ProfileDetailsModal({
 	return (
 		<div
 			className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-3 sm:items-center sm:p-6"
-			onClick={onClose}
+			onClick={handleBackdropClose}
 		>
 			<div
 				className="surface-card max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl"

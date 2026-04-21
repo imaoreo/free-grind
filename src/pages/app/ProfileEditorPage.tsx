@@ -18,6 +18,7 @@ import z from "zod";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApi } from "../../hooks/useApi";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { Chip } from "../../components/ui/chip";
 
 const MAX_PROFILE_PHOTOS = 5;
 
@@ -470,18 +471,14 @@ function ChipGroup({
 				const active = selected.includes(option.value);
 
 				return (
-					<button
+					<Chip
 						key={option.value}
-						type="button"
+						selected={active}
 						onClick={() => onToggle(option.value)}
-						className={
-							active
-								? "min-h-10 rounded-full border border-transparent bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition-transform hover:scale-[1.01]"
-								: "min-h-10 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3.5 py-2 text-sm font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--text-muted)] hover:text-[var(--text)]"
-						}
+						className={active ? "hover:brightness-[1.02]" : undefined}
 					>
 						{option.label}
-					</button>
+					</Chip>
 				);
 			})}
 		</div>

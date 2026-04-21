@@ -9,6 +9,15 @@
 		color-scheme: light dark;
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
+		--radius-sm: 12px;
+		--radius-md: 16px;
+		--radius-lg: 18px;
+		--space-1: 4px;
+		--space-2: 8px;
+		--space-3: 12px;
+		--space-4: 16px;
+		--space-5: 24px;
+		--space-6: 32px;
 		--bg: #f5f7fa;
 		--surface: #ffffff;
 		--surface-2: #eceff4;
@@ -92,11 +101,13 @@
 
 	.input-field {
 		width: 100%;
+		min-height: 44px;
 		padding: 12px 14px;
-		border-radius: 12px;
+		border-radius: var(--radius-sm);
 		border: 1px solid var(--border);
 		background: var(--surface-2);
 		color: var(--text);
+		transition: border-color 140ms ease;
 	}
 
 	.input-field:focus {
@@ -108,8 +119,21 @@
 		background: var(--accent);
 		color: var(--accent-contrast);
 		border: 0;
-		border-radius: 12px;
+		min-height: 44px;
+		padding: 10px 14px;
+		border-radius: var(--radius-sm);
 		font-weight: 700;
+		transition:
+			transform 160ms ease,
+			filter 160ms ease;
+	}
+
+	.btn-accent:hover:not(:disabled) {
+		filter: brightness(1.03);
+	}
+
+	.btn-accent:active:not(:disabled) {
+		transform: translateY(1px);
 	}
 
 	.btn-accent:disabled {

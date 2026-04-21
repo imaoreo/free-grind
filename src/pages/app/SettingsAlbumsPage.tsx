@@ -20,6 +20,8 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useApi } from "../../hooks/useApi";
+import { Button } from "../../components/ui/button";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 
 const albumSchema = z.object({
 	albumId: z
@@ -572,15 +574,15 @@ export function SettingsAlbumsPage() {
 							className="input-field max-w-md"
 							maxLength={255}
 						/>
-						<button
+						<Button
 							type="button"
 							onClick={handleCreateAlbum}
 							disabled={!canCreateAlbum || isCreating}
-							className="btn-accent inline-flex items-center gap-2 px-4 py-2.5"
+							variant="primary"
 						>
 							<Plus className="h-4 w-4" />
 							{isCreating ? "Creating..." : "Create album"}
-						</button>
+						</Button>
 					</div>
 
 					{!canCreateAlbum && (
@@ -597,24 +599,24 @@ export function SettingsAlbumsPage() {
 					</div>
 
 					{isLoading ? (
-						<p className="text-sm text-[var(--text-muted)]">
-							Loading albums...
-						</p>
+						<LoadingState
+							title="Loading albums"
+							description="Fetching your album collection and plan limits."
+							compact
+						/>
 					) : error ? (
-						<div className="grid gap-3">
-							<p className="text-sm text-[var(--text-muted)]">{error}</p>
-							<button
-								type="button"
-								onClick={() => void loadAlbumsAndLimits()}
-								className="w-fit rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-medium"
-							>
-								Retry
-							</button>
-						</div>
+						<ErrorState
+							title="Could not load albums"
+							description={error}
+							onRetry={() => {
+								void loadAlbumsAndLimits();
+							}}
+						/>
 					) : albums.length === 0 ? (
-						<p className="text-sm text-[var(--text-muted)]">
-							No albums yet. Create your first one above.
-						</p>
+						<EmptyState
+							title="No albums yet"
+							description="Create your first private album using the form above."
+						/>
 					) : (
 						<div className="grid gap-3">
 							{albums.map((album) => {

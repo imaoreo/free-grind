@@ -10,6 +10,7 @@ import {
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { exportAllLogs } from "../../services/chatLog";
+import { Button } from "../../components/ui/button";
 
 export function SettingsPage() {
 	const { logout } = useAuth();
@@ -57,7 +58,7 @@ export function SettingsPage() {
 				<button
 					type="button"
 					onClick={() => navigate("/settings/profile-editor")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5"
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
 				>
 					<div className="flex items-center gap-3">
 						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
@@ -76,7 +77,7 @@ export function SettingsPage() {
 				<button
 					type="button"
 					onClick={() => navigate("/settings/about")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5"
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
 				>
 					<div className="flex items-center gap-3">
 						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
@@ -95,7 +96,7 @@ export function SettingsPage() {
 				<button
 					type="button"
 					onClick={() => navigate("/settings/albums")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5"
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
 				>
 					<div className="flex items-center gap-3">
 						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
@@ -115,7 +116,7 @@ export function SettingsPage() {
 					type="button"
 					onClick={() => void handleExport()}
 					disabled={isExporting}
-					className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5 disabled:opacity-60"
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:p-5"
 				>
 					<div className="flex items-center gap-3">
 						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
@@ -136,21 +137,13 @@ export function SettingsPage() {
 				</button>
 
 				<div className="mt-2 flex flex-wrap items-center gap-3">
-					<button
-						type="button"
-						onClick={() => navigate("/")}
-						className="rounded-xl border border-[var(--border)] px-4 py-2.5 font-medium"
-					>
+					<Button type="button" onClick={() => navigate("/")}>
 						Back to Browse
-					</button>
-					<button
-						type="button"
-						onClick={handleLogout}
-						className="btn-accent inline-flex items-center gap-2 px-4 py-2.5"
-					>
+					</Button>
+					<Button type="button" variant="primary" onClick={handleLogout}>
 						<LogOut className="h-4 w-4" />
 						Logout
-					</button>
+					</Button>
 				</div>
 			</div>
 		</section>

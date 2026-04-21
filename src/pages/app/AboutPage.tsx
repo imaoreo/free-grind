@@ -7,6 +7,9 @@ import {
 	Shield,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Card } from "../../components/ui/card";
+import { Badge } from "../../components/ui/chip";
+import { Button } from "../../components/ui/button";
 
 const resourceLinks = [
 	{
@@ -47,16 +50,12 @@ export function AboutPage() {
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-5xl gap-6">
 				<header className="grid gap-4">
-					<button
-						type="button"
-						onClick={() => navigate("/settings")}
-						className="inline-flex w-fit items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
-					>
+					<Button type="button" onClick={() => navigate("/settings")} className="w-fit">
 						<ArrowLeft className="h-4 w-4" />
 						Back to Settings
-					</button>
+					</Button>
 
-					<div className="surface-card overflow-hidden p-5 sm:p-7">
+					<Card className="overflow-hidden p-5 sm:p-7">
 						<div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
 							<div className="grid gap-4">
 								<p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -102,9 +101,7 @@ export function AboutPage() {
 							</div>
 
 							<div className="rounded-[28px] bg-[var(--surface-2)] p-5 sm:p-6">
-								<div className="inline-flex rounded-full bg-[var(--accent)]/90 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-contrast)]">
-									Credits
-								</div>
+								<Badge>Credits</Badge>
 								<p className="mt-4 text-lg font-semibold leading-snug">
 									Credits: Estopia Engineering Ltd (SC874827, UK)
 								</p>
@@ -124,11 +121,11 @@ export function AboutPage() {
 								</div>
 							</div>
 						</div>
-					</div>
+					</Card>
 				</header>
 
 				<div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-					<section className="surface-card p-5 sm:p-6">
+					<Card className="p-5 sm:p-6">
 						<h2 className="text-lg font-semibold">What this project is for</h2>
 						<div className="mt-4 grid gap-4 text-sm leading-6 text-[var(--text-muted)]">
 							<p>
@@ -142,9 +139,9 @@ export function AboutPage() {
 								and interest history.
 							</p>
 						</div>
-					</section>
+					</Card>
 
-					<section className="surface-card p-5 sm:p-6">
+					<Card className="p-5 sm:p-6">
 						<h2 className="text-lg font-semibold">Support the project</h2>
 						<div className="mt-4 grid gap-3 text-sm text-[var(--text-muted)]">
 							<p>Donation links currently listed by the project:</p>
@@ -165,7 +162,7 @@ export function AboutPage() {
 								hloth.dev/donate
 							</a>
 						</div>
-					</section>
+					</Card>
 				</div>
 
 				<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
