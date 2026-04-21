@@ -590,7 +590,6 @@ export function ChatPage() {
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const selectedConversationUnreadCountRef = useRef(0);
-	const attemptedImageMessageRefreshRef = useRef(new Set<string>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -1051,8 +1050,6 @@ export function ChatPage() {
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
-				// Allow a fresh media-url refresh attempt each time the thread is reloaded.
-				attemptedImageMessageRefreshRef.current.clear();
 				setIsLoadingThread(true);
 				setThreadError(null);
 				setThreadConversationId(conversationId);
@@ -1065,117 +1062,55 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
-				const unresolvedImageMessages = response.messages.filter((message) => {
-					const imageType = message.chat1Type?.toLowerCase();
-					const isImageLike =
-						message.type === "Image" ||
-						message.type === "ExpiringImage" ||
-						imageType === "image" ||
-						imageType === "expiring_image";
+				if (!older) {
+					const mediaIdImageMessages = response.messages.filter((message) => {
+						const imageType = message.chat1Type?.toLowerCase();
+						const isImageLike =
+							message.type === "Image" ||
+							message.type === "ExpiringImage" ||
+							imageType === "image" ||
+							imageType === "expiring_image";
 
-					if (!isImageLike) {
-						return false;
-					}
+						if (!isImageLike) return false;
+						if (getMessageImageUrl(message as UiMessage)) return false;
+						return getMessageMediaId(message as UiMessage) !== null;
+					});
 
-					return !getMessageImageUrl(message as UiMessage);
-				});
-
-				const refreshCandidates = unresolvedImageMessages
-					.filter((message) => {
-						if (attemptedImageMessageRefreshRef.current.has(message.messageId)) {
-							return false;
-						}
-
-						return true;
-					})
-					.slice(0, 8);
-
-				if (refreshCandidates.length > 0) {
-					for (const candidate of refreshCandidates) {
-						attemptedImageMessageRefreshRef.current.add(candidate.messageId);
-					}
-
-					void service
-						.refreshMessagesByIds({
-							conversationId,
-							messageIds: refreshCandidates.map((candidate) => candidate.messageId),
-						})
-						.then(async (messages) => {
-							const directlyResolvedMessages = messages.filter((message) =>
-								Boolean(getMessageImageUrl(message as UiMessage)),
-							);
-							const mediaIdCandidates = messages.filter((message) => {
-								if (getMessageImageUrl(message as UiMessage)) {
-									return false;
-								}
-
-								return getMessageMediaId(message as UiMessage) !== null;
-							});
-
-							let sharedMediaResolvedMessages: Message[] = [];
-							if (mediaIdCandidates.length > 0) {
-								const sharedImages = await service.getSharedConversationImages(
-									conversationId,
-								);
+					if (mediaIdImageMessages.length > 0) {
+						void service
+							.getSharedConversationImages(conversationId)
+							.then((sharedImages) => {
 								const sharedImageMap = new Map<number, string>();
 								for (const item of sharedImages) {
-									if (item.url) {
-										sharedImageMap.set(item.mediaId, item.url);
-									}
+									if (item.url) sharedImageMap.set(item.mediaId, item.url);
 								}
 
-								const hydratedFromSharedMedia: Array<Message | null> = mediaIdCandidates.map(
-									(message) => {
-										const mediaId = getMessageMediaId(message as UiMessage);
-										if (mediaId == null) {
-											return null;
-										}
-										const url = sharedImageMap.get(mediaId);
-										if (!url || !message.body || typeof message.body !== "object") {
-											return null;
-										}
-
-										return {
-											...message,
-											body: {
-												...(message.body as Record<string, unknown>),
-												url,
-											},
-										};
-									},
-								);
-
-								sharedMediaResolvedMessages = hydratedFromSharedMedia
-									.filter((message): message is Message => message !== null)
-									.filter((message) => Boolean(getMessageImageUrl(message as UiMessage)));
-							}
-
-							const refreshedMessages = [
-								...directlyResolvedMessages,
-								...sharedMediaResolvedMessages,
-							].filter(
-								(message, index, all) =>
-									all.findIndex((entry) => entry.messageId === message.messageId) === index,
-							);
-
-							if (!refreshedMessages.length) {
-								return;
-							}
-
-							setThreadMessages((previous) => {
-								const map = new Map<string, UiMessage>();
-								for (const message of previous) {
-									map.set(message.messageId, message);
+								const hydratedMessages: UiMessage[] = [];
+								for (const message of mediaIdImageMessages) {
+									const mediaId = getMessageMediaId(message as UiMessage);
+									if (mediaId == null) continue;
+									const url = sharedImageMap.get(mediaId);
+									if (!url || !message.body || typeof message.body !== "object") continue;
+									const hydrated = {
+										...message,
+										body: { ...(message.body as Record<string, unknown>), url },
+									} as UiMessage;
+									if (getMessageImageUrl(hydrated)) hydratedMessages.push(hydrated);
 								}
-								for (const message of refreshedMessages) {
-									map.set(message.messageId, message);
-								}
-								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+
+								if (!hydratedMessages.length) return;
+
+								setThreadMessages((previous) => {
+									const map = new Map<string, UiMessage>();
+									for (const message of previous) map.set(message.messageId, message);
+									for (const message of hydratedMessages) map.set(message.messageId, message);
+									return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+								});
+							})
+							.catch(() => {
+								// Best effort only.
 							});
-						})
-						.catch(() => {
-							// Best effort only.
-						});
+					}
 				}
 
 				setThreadMessages((previous) => {
