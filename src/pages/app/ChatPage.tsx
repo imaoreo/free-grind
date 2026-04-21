@@ -1150,9 +1150,15 @@ export function ChatPage() {
 							map.set(message.messageId, message);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load: preserve already-surfaced local-only messages.
+						// Fresh load: preserve already-surfaced local-only messages
+						// only for this conversation.
 						for (const message of previous) {
-							if (message._localOnly) map.set(message.messageId, message);
+							if (
+								message._localOnly &&
+								message.conversationId === conversationId
+							) {
+								map.set(message.messageId, message);
+							}
 						}
 						for (const message of response.messages)
 							map.set(message.messageId, message);
@@ -1167,24 +1173,47 @@ export function ChatPage() {
 					const windowEnd =
 						response.messages[response.messages.length - 1].timestamp;
 					const apiIds = new Set(response.messages.map((m) => m.messageId));
-					void chatLog.readLog(conversationId).then((localMessages) => {
-						const localOnly = localMessages
-							.filter(
-								(m) =>
-									!apiIds.has(m.messageId) &&
-									m.timestamp >= windowStart &&
-									m.timestamp <= windowEnd,
-							)
-							.map((m) => ({ ...m, _localOnly: true }) as UiMessage);
+					void chatLog.readLog(conversationId).then(async (localMessages) => {
+						const localCandidates = localMessages.filter(
+							(m) =>
+								!apiIds.has(m.messageId) &&
+								m.timestamp >= windowStart &&
+								m.timestamp <= windowEnd,
+						);
+						if (!localCandidates.length) return;
+
+						// Verify candidates are truly absent from API before surfacing
+						// them as local-history messages.
+						const checks = await Promise.allSettled(
+							localCandidates.map((candidate) =>
+								service.getMessage({
+									conversationId,
+									messageId: candidate.messageId,
+								}),
+							),
+						);
+
+						const localOnly: UiMessage[] = [];
+						for (let i = 0; i < localCandidates.length; i += 1) {
+							const check = checks[i];
+							if (check.status === "fulfilled") {
+								continue;
+							}
+							localOnly.push({
+								...localCandidates[i],
+								_localOnly: true,
+							} as UiMessage);
+						}
+
 						if (!localOnly.length) return;
 						setThreadMessages((previous) => {
 							const map = new Map<string, UiMessage>();
 							for (const message of previous)
 								map.set(message.messageId, message);
 							for (const message of localOnly) {
-								// Never override an authoritative API message.
-								if (!map.has(message.messageId))
+								if (!map.has(message.messageId)) {
 									map.set(message.messageId, message);
+								}
 							}
 							return [...map.values()].sort(
 								(a, b) => a.timestamp - b.timestamp,
@@ -1744,6 +1773,22 @@ export function ChatPage() {
 			setIsUpdatingConversationState(false);
 		}
 	};
+
+	const clearLocalHistory = useCallback(async () => {
+		if (!selectedConversation) {
+			return;
+		}
+
+		const conversationId = selectedConversation.data.conversationId;
+		await chatLog.clearLog(conversationId);
+		setThreadMessages((previous) =>
+			previous.filter(
+				(message) =>
+					!(message._localOnly && message.conversationId === conversationId),
+			),
+		);
+		toast.success("Cleared local history for this chat");
+	}, [selectedConversation]);
 
 	const sendTextMessage = useCallback(
 		async (text: string, retryMessageId?: string) => {
@@ -2797,6 +2842,13 @@ export function ChatPage() {
 								)}
 								{selectedConversation.data.muted ? "Unmute" : "Mute"}
 							</button>
+							<button
+								type="button"
+								onClick={() => void clearLocalHistory()}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								Clear local history
+							</button>
 						</div>
 					</div>
 				);
@@ -2881,7 +2933,7 @@ export function ChatPage() {
 										>
 											{localOnly ? (
 												<p className="mb-1 text-xs opacity-60">
-													Removed from API
+													From local history
 												</p>
 											) : null}
 											{imageUrl ? (

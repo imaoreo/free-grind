@@ -12,6 +12,7 @@ import {
 	mkdir,
 	readDir,
 	readTextFile,
+	remove,
 	writeTextFile,
 } from "@tauri-apps/plugin-fs";
 import type { Message } from "../types/chat";
@@ -140,4 +141,20 @@ export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 	}
 
 	return result;
+}
+
+/**
+ * Remove local history for one conversation.
+ */
+export async function clearLog(conversationId: string): Promise<void> {
+	try {
+		const path = logPath(conversationId);
+		const fileExists = await exists(path, { baseDir: BaseDirectory.AppData });
+		if (!fileExists) {
+			return;
+		}
+		await remove(path, { baseDir: BaseDirectory.AppData });
+	} catch {
+		// Best effort only.
+	}
 }

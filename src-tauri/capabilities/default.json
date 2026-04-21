@@ -59,6 +59,14 @@
 				}
 			]
 		},
+		{
+			"identifier": "fs:allow-remove",
+			"allow": [
+				{
+					"path": "$APPDATA/chat-log/**"
+				}
+			]
+		},
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
