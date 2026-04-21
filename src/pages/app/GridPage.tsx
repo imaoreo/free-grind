@@ -472,6 +472,10 @@ export function GridPage() {
 		setActiveProfileId(profileId);
 	};
 
+	const handleMessageProfile = (profileId: string) => {
+		navigate(`/chat?targetProfileId=${encodeURIComponent(profileId)}`);
+	};
+
 	return (
 		<section className="app-screen">
 			<div className="mx-auto w-full max-w-6xl">
@@ -580,6 +584,7 @@ export function GridPage() {
 					cardsError={cardsError}
 					cards={cards}
 					onSelectProfile={handleSelectProfile}
+					onMessageProfile={handleMessageProfile}
 				/>
 
 				<ProfileDetailsModal

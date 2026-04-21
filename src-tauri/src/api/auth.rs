@@ -219,3 +219,16 @@ pub async fn auth_state(state: tauri::State<'_, AppState>) -> Result<Option<u64>
         .as_ref()
         .and_then(|s| s.profile_id.parse::<u64>().ok()))
 }
+
+#[tauri::command]
+pub async fn websocket_token(
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<String>, AppError> {
+    let client = state.client()?;
+
+    // Triggers refresh flow when needed before exposing token.
+    let _ = client.authorization_header().await;
+
+    let session = client.session.read().await;
+    Ok(session.as_ref().map(|s| s.session_id.clone()))
+}

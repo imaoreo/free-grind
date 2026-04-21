@@ -2,18 +2,33 @@
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
 	"description": "Capability for the main window",
-	"windows": [
-		"main"
-	],
+	"windows": ["main"],
 	"permissions": [
 		"core:default",
 		"opener:default",
 		"fs:default",
 		{
+			"identifier": "fs:allow-exists",
+			"allow": [
+				{
+					"path": "$APPDATA/preferences.json"
+				},
+				{
+					"path": "$APPDATA/chat-log"
+				},
+				{
+					"path": "$APPDATA/chat-log/**"
+				}
+			]
+		},
+		{
 			"identifier": "fs:allow-app-read",
 			"allow": [
 				{
 					"path": "$APPDATA/preferences.json"
+				},
+				{
+					"path": "$APPDATA/chat-log/**"
 				}
 			]
 		},
@@ -22,14 +37,25 @@
 			"allow": [
 				{
 					"path": "$APPDATA/preferences.json"
+				},
+				{
+					"path": "$APPDATA/chat-log/**"
 				}
 			]
 		},
 		{
-			"identifier": "fs:allow-exists",
+			"identifier": "fs:allow-mkdir",
 			"allow": [
 				{
-					"path": "$APPDATA/preferences.json"
+					"path": "$APPDATA/chat-log"
+				}
+			]
+		},
+		{
+			"identifier": "fs:allow-read-dir",
+			"allow": [
+				{
+					"path": "$APPDATA/chat-log"
 				}
 			]
 		},

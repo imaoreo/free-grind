@@ -1,7 +1,9 @@
 import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useApi } from "../hooks/useApi";
+import { createChatService } from "../services/chatService";
 
 const navItems = [
 	{
@@ -33,17 +35,56 @@ const navItems = [
 export function NavBar() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { fetchRest } = useApi();
+	const chatService = useMemo(() => createChatService(fetchRest), [fetchRest]);
 	const [activeTab, setActiveTab] = useState("browse");
+	const [unreadCount, setUnreadCount] = useState(0);
 
 	// Update active tab based on current path
 	useEffect(() => {
 		const currentItem = navItems.find(
-			(item) => item.path === location.pathname,
+			(item) =>
+				location.pathname === item.path ||
+				(item.path !== "/" && location.pathname.startsWith(`${item.path}/`)),
 		);
 		if (currentItem) {
 			setActiveTab(currentItem.value);
 		}
 	}, [location.pathname]);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const loadUnreadCount = async () => {
+			try {
+				const response = await chatService.listConversations({
+					page: 1,
+					filters: { unreadOnly: true },
+				});
+				const total = response.entries.reduce(
+					(sum, entry) => sum + entry.data.unreadCount,
+					0,
+				);
+				if (!cancelled) {
+					setUnreadCount(total);
+				}
+			} catch {
+				if (!cancelled) {
+					setUnreadCount(0);
+				}
+			}
+		};
+
+		void loadUnreadCount();
+		const intervalId = window.setInterval(() => {
+			void loadUnreadCount();
+		}, 45000);
+
+		return () => {
+			cancelled = true;
+			window.clearInterval(intervalId);
+		};
+	}, [chatService]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);
@@ -73,7 +114,14 @@ export function NavBar() {
 									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
 								>
 									<Icon className="h-5 w-5" />
-									<span className="text-xs">{item.label}</span>
+									<div className="relative">
+										<span className="text-xs">{item.label}</span>
+										{item.value === "inbox" && unreadCount > 0 ? (
+											<span className="absolute -right-5 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+												{Math.min(99, unreadCount)}
+											</span>
+										) : null}
+									</div>
 								</TabsTrigger>
 							);
 						})}
