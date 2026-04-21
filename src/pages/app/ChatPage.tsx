@@ -1,10 +1,13 @@
 import {
+	ChevronDown,
+	ChevronUp,
 	Ellipsis,
 	Flame,
 	ImagePlus,
 	Loader2,
 	MessageCircle,
 	Pin,
+	Search,
 	Share2,
 	Volume2,
 	VolumeX,
@@ -22,12 +25,19 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import {
 	createChatService,
 	type ChatApiError,
 } from "../../services/chatService";
 import type { ConversationEntry, Message } from "../../types/chat";
 import { getProfileImageUrl } from "../../utils/media";
+import {
+	indexConversations,
+	indexMessages,
+	searchConversationsLocal,
+	searchMessagesLocal,
+} from "./chat/cache";
 
 type UiMessage = Message & {
 	clientState?: "pending" | "failed";
@@ -52,6 +62,18 @@ type AlbumViewerState = {
 	albumId: number;
 	albumName: string | null;
 	content: AlbumContentItem[];
+};
+
+type SearchMode = "conversations" | "messages" | "profiles";
+
+type ProfileSearchResult = {
+	profileId: number;
+	displayName: string;
+	age: number | null;
+	distance: number | null;
+	profileImageMediaHash: string | null;
+	hasAlbum: boolean;
+	showDistance: boolean;
 };
 
 const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
@@ -140,6 +162,35 @@ function formatMessageTime(timestamp: number, now: number): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+function highlightMatch(text: string, query: string): Array<{ text: string; match: boolean }> {
+	const needle = query.trim().toLowerCase();
+	if (!needle) {
+		return [{ text, match: false }];
+	}
+
+	const source = text;
+	const lower = source.toLowerCase();
+	const parts: Array<{ text: string; match: boolean }> = [];
+	let cursor = 0;
+
+	while (cursor < source.length) {
+		const found = lower.indexOf(needle, cursor);
+		if (found < 0) {
+			parts.push({ text: source.slice(cursor), match: false });
+			break;
+		}
+
+		if (found > cursor) {
+			parts.push({ text: source.slice(cursor, found), match: false });
+		}
+
+		parts.push({ text: source.slice(found, found + needle.length), match: true });
+		cursor = found + needle.length;
+	}
+
+	return parts.length > 0 ? parts : [{ text: source, match: false }];
 }
 
 function getPreviewText(conversation: ConversationEntry): string {
@@ -261,10 +312,12 @@ export function ChatPage() {
 	const { conversationId: routeConversationId } = useParams();
 	const { fetchRest } = useApi();
 	const { userId } = useAuth();
+	const { geohash } = usePreferences();
 	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -308,6 +361,20 @@ export function ChatPage() {
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
+	const [searchQuery, setSearchQuery] = useState("");
+	const [searchMode, setSearchMode] = useState<SearchMode>("messages");
+	const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>([]);
+	const [isSearchingProfiles, setIsSearchingProfiles] = useState(false);
+	const [profileSearchAfterDistance, setProfileSearchAfterDistance] = useState<
+		string | null
+	>(null);
+	const [profileSearchAfterProfileId, setProfileSearchAfterProfileId] = useState<
+		string | null
+	>(null);
+	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<string | null>(
+		null,
+	);
+	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 
 	const selectedConversationId = isDesktop
 		? selectedDesktopConversationId
@@ -320,6 +387,24 @@ export function ChatPage() {
 					conversation.data.conversationId === selectedConversationId,
 			) ?? null,
 		[conversations, selectedConversationId],
+	);
+
+	const conversationSearchResults = useMemo(
+		() => searchConversationsLocal(searchQuery, 30),
+		[searchQuery],
+	);
+
+	const messageSearchResults = useMemo(
+		() => searchMessagesLocal(searchQuery, { limit: 80 }),
+		[searchQuery],
+	);
+
+	const selectedThreadMessageMatches = useMemo(
+		() =>
+			messageSearchResults.filter(
+				(result) => result.conversationId === selectedConversationId,
+			),
+		[messageSearchResults, selectedConversationId],
 	);
 
 	const syncConversation = useCallback(
@@ -575,6 +660,28 @@ export function ChatPage() {
 	}, [threadMessages.length]);
 
 	useEffect(() => {
+		indexConversations(conversations);
+	}, [conversations]);
+
+	useEffect(() => {
+		indexMessages(threadMessages);
+	}, [threadMessages]);
+
+	useEffect(() => {
+		if (!pendingMessageScrollId) {
+			return;
+		}
+
+		const target = messageElementRefs.current.get(pendingMessageScrollId);
+		if (!target) {
+			return;
+		}
+
+		target.scrollIntoView({ block: "center", behavior: "smooth" });
+		setPendingMessageScrollId(null);
+	}, [pendingMessageScrollId, threadMessages]);
+
+	useEffect(() => {
 		const intervalId = window.setInterval(() => {
 			setNowTimestamp(Date.now());
 		}, 30_000);
@@ -583,6 +690,93 @@ export function ChatPage() {
 			window.clearInterval(intervalId);
 		};
 	}, []);
+
+	const runProfileSearch = useCallback(
+		async ({ loadMore }: { loadMore: boolean }) => {
+			if (!geohash || searchQuery.trim().length < 2) {
+				if (!loadMore) {
+					setProfileResults([]);
+					setProfileSearchAfterDistance(null);
+					setProfileSearchAfterProfileId(null);
+				}
+				return;
+			}
+
+			setIsSearchingProfiles(true);
+			try {
+				const response = await service.searchProfiles({
+					nearbyGeoHash: geohash,
+					searchAfterDistance: loadMore
+						? (profileSearchAfterDistance ?? undefined)
+						: undefined,
+					searchAfterProfileId: loadMore
+						? (profileSearchAfterProfileId ?? undefined)
+						: undefined,
+				});
+
+				const needle = searchQuery.trim().toLowerCase();
+				const filtered = response.profiles.filter((profile) =>
+					profile.displayName.toLowerCase().includes(needle),
+				);
+
+				setProfileResults((previous) => {
+					const merged = loadMore ? [...previous, ...filtered] : filtered;
+					const map = new Map<number, ProfileSearchResult>();
+					for (const profile of merged) {
+						map.set(profile.profileId, profile);
+					}
+					return [...map.values()];
+				});
+
+				setProfileSearchAfterDistance(
+					response.lastDistanceInKm != null
+						? String(response.lastDistanceInKm)
+						: null,
+				);
+				setProfileSearchAfterProfileId(
+					response.lastProfileId != null ? String(response.lastProfileId) : null,
+				);
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : "Failed to search profiles",
+				);
+			} finally {
+				setIsSearchingProfiles(false);
+			}
+		},
+		[
+			geohash,
+			profileSearchAfterDistance,
+			profileSearchAfterProfileId,
+			searchQuery,
+			service,
+		],
+	);
+
+	useEffect(() => {
+		if (searchMode !== "profiles") {
+			return;
+		}
+
+		if (searchQuery.trim().length < 2) {
+			setProfileResults([]);
+			setProfileSearchAfterDistance(null);
+			setProfileSearchAfterProfileId(null);
+			return;
+		}
+
+		const timeoutId = window.setTimeout(() => {
+			void runProfileSearch({ loadMore: false });
+		}, 280);
+
+		return () => {
+			window.clearTimeout(timeoutId);
+		};
+	}, [runProfileSearch, searchMode, searchQuery]);
+
+	useEffect(() => {
+		setActiveThreadSearchIndex(0);
+	}, [selectedThreadMessageMatches.length, selectedConversationId, searchQuery]);
 
 	const unreadTotal = useMemo(
 		() =>
@@ -602,6 +796,42 @@ export function ChatPage() {
 
 		navigate(`/chat/${encodeURIComponent(nextId)}`);
 	};
+
+	const openConversationById = useCallback(
+		(conversationId: string) => {
+			if (isDesktop) {
+				setSelectedDesktopConversationId(conversationId);
+				return;
+			}
+
+			navigate(`/chat/${encodeURIComponent(conversationId)}`);
+		},
+		[isDesktop, navigate],
+	);
+
+	const openMessageSearchResult = useCallback(
+		(result: { conversationId: string; messageId: string }) => {
+			openConversationById(result.conversationId);
+			setPendingMessageScrollId(result.messageId);
+		},
+		[openConversationById],
+	);
+
+	const moveThreadSearchMatch = useCallback(
+		(direction: "prev" | "next") => {
+			if (!selectedThreadMessageMatches.length) {
+				return;
+			}
+
+			const delta = direction === "next" ? 1 : -1;
+			const nextIndex =
+				(activeThreadSearchIndex + delta + selectedThreadMessageMatches.length) %
+				selectedThreadMessageMatches.length;
+			setActiveThreadSearchIndex(nextIndex);
+			setPendingMessageScrollId(selectedThreadMessageMatches[nextIndex].messageId);
+		},
+		[activeThreadSearchIndex, selectedThreadMessageMatches],
+	);
 
 	const handleLoadMoreInbox = () => {
 		if (!nextPage || isLoadingMoreInbox) {
@@ -1151,6 +1381,34 @@ export function ChatPage() {
 				</button>
 			</div>
 
+			<div className="mb-3">
+				<div className="relative">
+					<Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-[var(--text-muted)]" />
+					<input
+						value={searchQuery}
+						onChange={(event) => setSearchQuery(event.target.value)}
+						placeholder="Search conversations, messages, profiles"
+						className="input-field pl-9"
+					/>
+				</div>
+				<div className="mt-2 flex flex-wrap gap-2">
+					{(["messages", "conversations", "profiles"] as const).map((mode) => (
+						<button
+							key={mode}
+							type="button"
+							onClick={() => setSearchMode(mode)}
+							className={`rounded-lg border px-2 py-1 text-xs capitalize transition ${
+								searchMode === mode
+									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)]"
+							}`}
+						>
+							{mode}
+						</button>
+					))}
+				</div>
+			</div>
+
 			{isLoadingInbox ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
 					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading inbox...
@@ -1170,6 +1428,133 @@ export function ChatPage() {
 				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
 					<MessageCircle className="h-8 w-8" />
 					<p className="text-sm">No conversations yet.</p>
+				</div>
+			) : searchQuery.trim().length >= 2 ? (
+				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+					{searchMode === "conversations"
+						? conversationSearchResults.map((result) => (
+								<button
+									key={result.conversationId}
+									type="button"
+									onClick={() => openConversationById(result.conversationId)}
+									className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
+								>
+									<p className="truncate text-sm font-semibold">
+										{highlightMatch(result.name, searchQuery).map((part, index) =>
+											part.match ? (
+												<mark key={`${result.conversationId}-name-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
+													{part.text}
+												</mark>
+											) : (
+												<span key={`${result.conversationId}-name-${index}`}>{part.text}</span>
+											),
+										)}
+									</p>
+									<p className="mt-1 truncate text-xs text-[var(--text-muted)]">
+										{result.preview || "No preview"}
+									</p>
+								</button>
+							))
+						: null}
+
+					{searchMode === "messages"
+						? messageSearchResults.map((result) => (
+								<button
+									key={result.messageId}
+									type="button"
+									onClick={() => openMessageSearchResult(result)}
+									className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
+								>
+									<p className="truncate text-xs text-[var(--text-muted)]">
+										{result.conversationId}
+									</p>
+									<p className="mt-1 text-sm">
+										{highlightMatch(result.text, searchQuery).map((part, index) =>
+											part.match ? (
+												<mark key={`${result.messageId}-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
+													{part.text}
+												</mark>
+											) : (
+												<span key={`${result.messageId}-${index}`}>{part.text}</span>
+											),
+										)}
+									</p>
+								</button>
+							))
+						: null}
+
+					{searchMode === "profiles"
+						? profileResults.map((profile) => (
+								<button
+									key={profile.profileId}
+									type="button"
+									onClick={() => navigate(`/profile/${profile.profileId}`)}
+									className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
+								>
+									<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+										{profile.profileImageMediaHash ? (
+											<img
+												src={getProfileImageUrl(profile.profileImageMediaHash)}
+												alt=""
+												className="h-full w-full object-cover"
+											/>
+										) : null}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-sm font-semibold">
+											{highlightMatch(profile.displayName, searchQuery).map(
+												(part, index) =>
+													part.match ? (
+														<mark key={`${profile.profileId}-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
+															{part.text}
+														</mark>
+													) : (
+														<span key={`${profile.profileId}-${index}`}>{part.text}</span>
+													),
+											)}
+										</p>
+										<p className="text-xs text-[var(--text-muted)]">
+											{profile.distance != null
+												? `${profile.distance.toFixed(1)} km`
+												: "Distance unavailable"}
+										</p>
+									</div>
+								</button>
+							))
+						: null}
+
+					{searchMode === "profiles" ? (
+						<div className="mt-2 flex items-center gap-2">
+							<button
+								type="button"
+								disabled={isSearchingProfiles}
+								onClick={() => void runProfileSearch({ loadMore: false })}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
+							>
+								{isSearchingProfiles ? "Searching..." : "Refresh"}
+							</button>
+							{profileSearchAfterDistance && profileSearchAfterProfileId ? (
+								<button
+									type="button"
+									disabled={isSearchingProfiles}
+									onClick={() => void runProfileSearch({ loadMore: true })}
+									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
+								>
+									Load more profiles
+								</button>
+							) : null}
+						</div>
+					) : null}
+
+					{searchMode === "conversations" && conversationSearchResults.length === 0 ? (
+						<p className="text-xs text-[var(--text-muted)]">No conversation matches found.</p>
+					) : null}
+					{searchMode === "messages" && messageSearchResults.length === 0 ? (
+						<p className="text-xs text-[var(--text-muted)]">No message matches found in indexed cache.</p>
+					) : null}
+					{searchMode === "profiles" && !isSearchingProfiles && profileResults.length === 0 ? (
+						<p className="text-xs text-[var(--text-muted)]">No profile matches found.</p>
+					) : null}
 				</div>
 			) : (
 				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
@@ -1271,8 +1656,36 @@ export function ChatPage() {
 							? "Notifications muted"
 							: "Notifications enabled"}
 					</p>
+					{searchMode === "messages" && searchQuery.trim().length >= 2 ? (
+						<p className="mt-1 text-xs text-[var(--text-muted)]">
+							{selectedThreadMessageMatches.length > 0
+								? `${activeThreadSearchIndex + 1}/${selectedThreadMessageMatches.length} matches in this thread`
+								: "No matches in this thread"}
+						</p>
+					) : null}
 				</div>
 				<div className="flex items-center gap-2">
+					{searchMode === "messages" &&
+					searchQuery.trim().length >= 2 &&
+					selectedThreadMessageMatches.length > 0 ? (
+						<>
+							<button
+								type="button"
+								onClick={() => moveThreadSearchMatch("prev")}
+								className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								<ChevronUp className="h-3.5 w-3.5" />
+							</button>
+							<button
+								type="button"
+								onClick={() => moveThreadSearchMatch("next")}
+								className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								<ChevronDown className="h-3.5 w-3.5" />
+							</button>
+						</>
+					) : null}
+
 					<button
 						type="button"
 						disabled={isUpdatingConversationState}
@@ -1346,10 +1759,21 @@ export function ChatPage() {
 								const imageUrl = getMessageImageUrl(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
+								const isActiveSearchMatch =
+									selectedThreadMessageMatches[activeThreadSearchIndex]?.messageId ===
+									message.messageId;
 
 								return (
 									<div
 										key={message.messageId}
+										data-message-id={message.messageId}
+										ref={(element) => {
+											if (element) {
+												messageElementRefs.current.set(message.messageId, element);
+											} else {
+												messageElementRefs.current.delete(message.messageId);
+											}
+										}}
 										className={`flex ${mine ? "justify-end" : "justify-start"}`}
 									>
 										<div
@@ -1357,7 +1781,7 @@ export function ChatPage() {
 												mine
 													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "bg-[var(--surface-2)] text-[var(--text)]"
-											}`}
+											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""}`}
 										>
 											{imageUrl ? (
 												<button

@@ -105,6 +105,86 @@ function sortMessages(messages: Message[]): Message[] {
 
 export function createChatService(fetchRest: RestFetcher) {
 	return {
+		async searchProfiles(params: {
+			nearbyGeoHash: string;
+			searchAfterDistance?: string;
+			searchAfterProfileId?: string;
+			online?: boolean;
+			hasAlbum?: boolean;
+		}): Promise<{
+			profiles: Array<{
+				profileId: number;
+				displayName: string;
+				age: number | null;
+				distance: number | null;
+				profileImageMediaHash: string | null;
+				hasAlbum: boolean;
+				showDistance: boolean;
+			}>;
+			lastDistanceInKm: number | null;
+			lastProfileId: number | null;
+		}> {
+			const query = new URLSearchParams({
+				nearbyGeoHash: params.nearbyGeoHash,
+			});
+
+			if (params.searchAfterDistance) {
+				query.set("searchAfterDistance", params.searchAfterDistance);
+			}
+			if (params.searchAfterProfileId) {
+				query.set("searchAfterProfileId", params.searchAfterProfileId);
+			}
+			if (params.online !== undefined) {
+				query.set("online", String(params.online));
+			}
+			if (params.hasAlbum !== undefined) {
+				query.set("hasAlbum", String(params.hasAlbum));
+			}
+
+			const response = await fetchRest(`/v7/search?${query.toString()}`);
+			await assertSuccess(response, "Failed to search profiles");
+
+			return z
+				.object({
+					profiles: z
+						.array(
+							z.object({
+								profileId: z.coerce.number().int(),
+								displayName: z
+									.string()
+									.nullable()
+									.optional()
+									.transform((value) => (value ?? "").trim()),
+								age: z.coerce.number().nullable().optional().default(null),
+								distance: z.coerce.number().nullable().optional().default(null),
+								profileImageMediaHash: z
+									.string()
+									.nullable()
+									.optional()
+									.default(null),
+								hasAlbum: z.boolean().optional().default(false),
+								showDistance: z.boolean().optional().default(false),
+							}),
+						)
+						.optional()
+						.default([]),
+					lastDistanceInKm: z
+						.coerce
+						.number()
+						.nullable()
+						.optional()
+						.default(null),
+					lastProfileId: z
+						.coerce
+						.number()
+						.int()
+						.nullable()
+						.optional()
+						.default(null),
+				})
+				.parse(await parseJsonSafe(response));
+		},
+
 		async listConversations(params?: {
 			page?: number;
 			filters?: InboxFilters;
