@@ -1534,7 +1534,11 @@ export function ChatPage() {
 	};
 
 	const renderInbox = (
-		<div className="surface-card flex h-full flex-col overflow-hidden p-3 sm:p-4">
+		<div
+			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+				isDesktop ? "surface-card" : ""
+			}`}
+		>
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div>
 					<h1 className="app-title">Inbox</h1>
@@ -1846,7 +1850,11 @@ export function ChatPage() {
 	);
 
 	const renderThread = selectedConversation ? (
-		<div className="surface-card flex h-full flex-col overflow-hidden p-3 sm:p-4">
+		<div
+			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+				isDesktop ? "surface-card" : ""
+			}`}
+		>
 			<div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
 				<div className="min-w-0">
 					<p className="truncate text-lg font-semibold">
@@ -2230,16 +2238,23 @@ export function ChatPage() {
 			)}
 		</div>
 	) : (
-		<div className="surface-card flex h-full overflow-hidden items-center justify-center p-6 text-center text-[var(--text-muted)]">
+		<div
+			className={`flex h-full overflow-hidden items-center justify-center p-6 text-center text-[var(--text-muted)] ${
+				isDesktop ? "surface-card" : ""
+			}`}
+		>
 			Select a conversation to view messages.
 		</div>
 	);
 
 	return (
-		<section className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}>
-			<div className="mx-auto w-full max-w-6xl">
+		<section
+			className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}
+			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
+		>
+			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
 				{!isDesktop && selectedConversation ? (
-					<div className="mb-3 flex items-center justify-between">
+					<div className="mb-3 flex items-center justify-between px-3">
 						<button
 							type="button"
 							onClick={() => navigate("/chat")}
