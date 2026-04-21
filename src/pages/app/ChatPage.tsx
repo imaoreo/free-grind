@@ -621,7 +621,35 @@ export function ChatPage() {
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
+			// chat.v1.conversation.delete — remove blocked/deleted conversations
+			if (
+				envelope.type === "chat.v1.conversation.delete" &&
+				envelope.payload &&
+				typeof envelope.payload === "object"
+			) {
+				const record = envelope.payload as Record<string, unknown>;
+				const ids = Array.isArray(record.conversationIds)
+					? (record.conversationIds as unknown[]).filter(
+							(id): id is string => typeof id === "string",
+						)
+					: [];
+				if (ids.length > 0) {
+					setConversations((previous) =>
+						previous.filter(
+							(c) => !ids.includes(c.data.conversationId),
+						),
+					);
+				}
+				return;
+			}
+
 			const candidates: Message[] = [];
+
+			// Try envelope.payload directly as a Message (chat.v1.message_sent payload IS the message)
+			const directPayload = messageSchema.safeParse(envelope.payload);
+			if (directPayload.success) {
+				candidates.push(directPayload.data);
+			}
 
 			const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
 			for (const payload of payloads) {
@@ -647,12 +675,33 @@ export function ChatPage() {
 				}
 			}
 
-			if (candidates.length > 0) {
-				mergeIncomingMessages(candidates);
+			// Deduplicate by messageId before merging
+			const seen = new Set<string>();
+			const unique = candidates.filter((m) => {
+				if (seen.has(m.messageId)) return false;
+				seen.add(m.messageId);
+				return true;
+			});
+
+			if (unique.length > 0) {
+				mergeIncomingMessages(unique);
 			}
 		},
 		[mergeIncomingMessages],
 	);
+
+	const handleRealtimeEvent = useCallback(
+		(envelope: RealtimeEnvelope) => {
+			console.log("[chat-ws:event]", envelope);
+			applyRealtimeEnvelope(envelope);
+		},
+		[applyRealtimeEnvelope],
+	);
+
+	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
+		console.log("[chat-ws:status]", status);
+		setRealtimeStatus(status);
+	}, []);
 
 	const loadAlbums = useCallback(async () => {
 		setIsLoadingAlbums(true);
@@ -902,6 +951,7 @@ export function ChatPage() {
 		if (!userId) {
 			setWebsocketToken(null);
 			setRealtimeStatus("idle");
+			console.log("[chat-ws:token] skipped (no user)");
 			return;
 		}
 
@@ -912,6 +962,10 @@ export function ChatPage() {
 					return;
 				}
 				setWebsocketToken(token ?? null);
+				console.log("[chat-ws:token]", {
+					hasToken: Boolean(token),
+					tokenLength: token?.length ?? 0,
+				});
 				if (!token) {
 					setRealtimeStatus("polling");
 				}
@@ -922,6 +976,7 @@ export function ChatPage() {
 				}
 				setWebsocketToken(null);
 				setRealtimeStatus("polling");
+				console.warn("[chat-ws:token] failed to fetch websocket token");
 			});
 
 		return () => {
@@ -932,22 +987,34 @@ export function ChatPage() {
 	useEffect(() => {
 		if (!websocketToken) {
 			setRealtimeStatus("polling");
+			console.log(
+				"[chat-ws:lifecycle] websocket disabled, using polling fallback",
+			);
 			return;
 		}
+
+		console.log("[chat-ws:lifecycle] starting websocket manager");
 
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
 			getToken: () => websocketToken,
-			onEvent: applyRealtimeEnvelope,
-			onStatusChange: setRealtimeStatus,
+			onEvent: handleRealtimeEvent,
+			onStatusChange: handleRealtimeStatus,
+			onRawMessage: (raw) => {
+				console.log("[chat-ws:raw]", raw);
+			},
+			onParseError: (raw, error) => {
+				console.warn("[chat-ws:parse-error]", { raw, error });
+			},
 		});
 
 		manager.start();
 
 		return () => {
+			console.log("[chat-ws:lifecycle] stopping websocket manager");
 			manager.stop({ suppressStatus: true });
 		};
-	}, [applyRealtimeEnvelope, websocketToken]);
+	}, [handleRealtimeEvent, handleRealtimeStatus, websocketToken]);
 
 	useEffect(() => {
 		const baseIntervalMs =

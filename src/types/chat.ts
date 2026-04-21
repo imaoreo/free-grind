@@ -32,7 +32,7 @@ export const messagePreviewSchema = z.object({
 	messageId: z.string().optional(),
 	senderId: z.coerce.number().int().optional(),
 	type: z.string().optional(),
-	chat1Type: z.string().optional(),
+	chat1Type: z.string().nullable().optional(),
 	text: z.string().nullable().optional(),
 	albumId: z.coerce.number().nullable().optional(),
 	imageHash: z.string().nullable().optional(),
@@ -91,6 +91,7 @@ export const messagesResponseSchema = z.object({
 			hasSharedAlbums: z.boolean().optional(),
 			isInAList: z.boolean().optional(),
 		})
+		.nullable()
 		.optional(),
 	profile: z
 		.object({

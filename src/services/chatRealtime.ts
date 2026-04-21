@@ -1,3 +1,5 @@
+import { decode } from "@msgpack/msgpack";
+
 export type RealtimeStatus =
 	| "idle"
 	| "polling"
@@ -21,10 +23,63 @@ export interface ChatRealtimeManagerOptions {
 	getToken?: () => Promise<string | null> | string | null;
 	onEvent: (event: RealtimeEnvelope) => void;
 	onStatusChange?: (status: RealtimeStatus) => void;
+	onRawMessage?: (raw: unknown) => void;
+	onParseError?: (raw: unknown, error: unknown) => void;
 	heartbeatMs?: number;
 	maxSilenceMs?: number;
 	maxBackoffMs?: number;
 	buildSocket?: (url: string) => WebSocket;
+}
+
+async function normalizeSocketData(data: unknown): Promise<{
+	kind: "text" | "blob" | "arraybuffer" | "unknown";
+	size: number | null;
+	text: string | null;
+	bytes: Uint8Array | null;
+	raw: unknown;
+}> {
+	if (typeof data === "string") {
+		return {
+			kind: "text",
+			size: data.length,
+			text: data,
+			bytes: null,
+			raw: data,
+		};
+	}
+
+	if (data instanceof Blob) {
+		const buffer = await data.arrayBuffer();
+		const bytes = new Uint8Array(buffer);
+		const text = new TextDecoder().decode(bytes);
+		return {
+			kind: "blob",
+			size: data.size,
+			text,
+			bytes,
+			raw: data,
+		};
+	}
+
+	if (data instanceof ArrayBuffer) {
+		const bytes = new Uint8Array(data);
+		const text = new TextDecoder().decode(bytes);
+		return {
+			kind: "arraybuffer",
+			size: data.byteLength,
+			text,
+			bytes,
+			raw: data,
+		};
+	}
+
+	return {
+		kind: "unknown",
+		size: null,
+		text: null,
+		bytes: null,
+		raw: data,
+	};
 }
 
 export class ChatRealtimeManager {
@@ -231,13 +286,36 @@ export class ChatRealtimeManager {
 			};
 
 			socket.onmessage = (event) => {
-				try {
-					const parsed = JSON.parse(String(event.data)) as RealtimeEnvelope;
+				void (async () => {
+					const normalized = await normalizeSocketData(event.data);
 					this.markActivity();
-					this.options.onEvent(parsed);
-				} catch {
-					// Ignore malformed frames.
-				}
+					this.options.onRawMessage?.(normalized);
+
+					// Prefer JSON text decoding; fallback to msgpack for binary frames.
+					if (normalized.text) {
+						try {
+							const parsed = JSON.parse(normalized.text) as RealtimeEnvelope;
+							this.options.onEvent(parsed);
+							return;
+						} catch {
+							// Continue to msgpack fallback.
+						}
+					}
+
+					if (normalized.bytes) {
+						try {
+							const decoded = decode(normalized.bytes);
+							if (decoded && typeof decoded === "object") {
+								this.options.onEvent(decoded as RealtimeEnvelope);
+								return;
+							}
+						} catch {
+							// Will report below.
+						}
+					}
+
+					this.options.onParseError?.(normalized, "Unable to decode frame");
+				})();
 			};
 
 			socket.onerror = () => {
