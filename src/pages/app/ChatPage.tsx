@@ -325,7 +325,7 @@ function useDesktopBreakpoint() {
 export function ChatPage() {
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
-	const { fetchRest } = useApi();
+	const { fetchRest, callMethod } = useApi();
 	const { userId } = useAuth();
 	const { geohash } = usePreferences();
 	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
@@ -333,6 +333,7 @@ export function ChatPage() {
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
+	const selectedConversationIdRef = useRef<string | null>(null);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -392,6 +393,7 @@ export function ChatPage() {
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
+	const [websocketToken, setWebsocketToken] = useState<string | null>(null);
 
 	const selectedConversationId = isDesktop
 		? selectedDesktopConversationId
@@ -405,6 +407,10 @@ export function ChatPage() {
 			) ?? null,
 		[conversations, selectedConversationId],
 	);
+
+	useEffect(() => {
+		selectedConversationIdRef.current = selectedConversationId;
+	}, [selectedConversationId]);
 
 	const conversationSearchResults = useMemo(
 		() => searchConversationsLocal(searchQuery, 30),
@@ -437,21 +443,21 @@ export function ChatPage() {
 		[selectedConversationId],
 	);
 
-	const mergeIncomingMessages = useCallback(
-		(messages: Message[]) => {
+	const mergeIncomingMessages = useCallback((messages: Message[]) => {
 			if (!messages.length) {
 				return;
 			}
 
 			setThreadMessages((previous) => {
+				const activeConversationId = selectedConversationIdRef.current;
 				const map = new Map<string, UiMessage>();
 				for (const message of previous) {
 					map.set(message.messageId, message);
 				}
 				for (const message of messages) {
 					if (
-						selectedConversationId &&
-						message.conversationId !== selectedConversationId
+						activeConversationId &&
+						message.conversationId !== activeConversationId
 					) {
 						continue;
 					}
@@ -464,7 +470,12 @@ export function ChatPage() {
 			const byConversation = new Map<string, Message>();
 			for (const message of messages) {
 				const previous = byConversation.get(message.conversationId);
-				if (!previous || previous.timestamp < message.timestamp) {
+				if (
+					!previous ||
+					previous.timestamp < message.timestamp ||
+					(previous.timestamp === message.timestamp &&
+						previous.messageId < message.messageId)
+				) {
 					byConversation.set(message.conversationId, message);
 				}
 			}
@@ -509,9 +520,7 @@ export function ChatPage() {
 					};
 				}),
 			);
-		},
-		[selectedConversationId],
-	);
+		}, []);
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
@@ -720,6 +729,41 @@ export function ChatPage() {
 				const firstMessage = response.messages[0];
 				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
 
+				if (!older) {
+					const newest = response.messages[response.messages.length - 1];
+					if (newest) {
+						const previewText =
+							typeof (newest.body as Record<string, unknown> | null)?.text ===
+							"string"
+								? String((newest.body as Record<string, unknown>).text)
+								: newest.type === "Image"
+									? "Sent an image"
+									: newest.type === "Album"
+										? "Shared an album"
+										: "Sent a message";
+
+						syncConversation((conversation) => ({
+							...conversation,
+							data: {
+								...conversation.data,
+								lastActivityTimestamp: newest.timestamp,
+								preview: {
+									conversationId: {
+										value: newest.conversationId,
+									},
+									messageId: newest.messageId,
+									senderId: newest.senderId,
+									type: newest.type,
+									chat1Type: newest.chat1Type ?? "text",
+									text: previewText,
+									albumId: null,
+									imageHash: null,
+								},
+							},
+						}));
+					}
+				}
+
 				if (
 					!older &&
 					selectedConversation &&
@@ -769,22 +813,55 @@ export function ChatPage() {
 	}, [isDesktop]);
 
 	useEffect(() => {
+		if (!userId) {
+			setWebsocketToken(null);
+			setRealtimeStatus("idle");
+			return;
+		}
+
+		let active = true;
+		void callMethod("websocket_token")
+			.then((token) => {
+				if (!active) {
+					return;
+				}
+				setWebsocketToken(token ?? null);
+				if (!token) {
+					setRealtimeStatus("polling");
+				}
+			})
+			.catch(() => {
+				if (!active) {
+					return;
+				}
+				setWebsocketToken(null);
+				setRealtimeStatus("polling");
+			});
+
+		return () => {
+			active = false;
+		};
+	}, [callMethod, userId]);
+
+	useEffect(() => {
+		if (!websocketToken) {
+			setRealtimeStatus("polling");
+			return;
+		}
+
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => localStorage.getItem("open_grind_ws_token"),
+			getToken: () => websocketToken,
 			onEvent: applyRealtimeEnvelope,
 			onStatusChange: setRealtimeStatus,
 		});
 
-		const hasToken = Boolean(localStorage.getItem("open_grind_ws_token"));
-		if (hasToken) {
-			manager.start();
-		}
+		manager.start();
 
 		return () => {
-			manager.stop();
+			manager.stop({ suppressStatus: true });
 		};
-	}, [applyRealtimeEnvelope]);
+	}, [applyRealtimeEnvelope, websocketToken]);
 
 	useEffect(() => {
 		const intervalId = window.setInterval(() => {

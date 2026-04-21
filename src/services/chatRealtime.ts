@@ -1,5 +1,6 @@
 export type RealtimeStatus =
 	| "idle"
+	| "polling"
 	| "connecting"
 	| "connected"
 	| "reconnecting"
@@ -32,6 +33,7 @@ export class ChatRealtimeManager {
 	private heartbeatTimer: number | null = null;
 	private reconnectAttempts = 0;
 	private stopped = true;
+	private suppressDisconnectStatus = false;
 
 	constructor(options: ChatRealtimeManagerOptions) {
 		this.options = {
@@ -46,18 +48,24 @@ export class ChatRealtimeManager {
 			return;
 		}
 		this.stopped = false;
+		this.suppressDisconnectStatus = false;
 		void this.connect();
 	}
 
-	stop() {
+	stop(options?: { suppressStatus?: boolean }) {
 		this.stopped = true;
+		this.suppressDisconnectStatus = options?.suppressStatus ?? false;
 		this.clearReconnect();
 		this.clearHeartbeat();
 		if (this.socket) {
 			this.socket.close();
 			this.socket = null;
+			return;
 		}
-		this.setStatus("disconnected");
+
+		if (!this.suppressDisconnectStatus) {
+			this.setStatus("disconnected");
+		}
 	}
 
 	private setStatus(next: RealtimeStatus) {
@@ -169,7 +177,10 @@ export class ChatRealtimeManager {
 				this.clearHeartbeat();
 				this.socket = null;
 				if (this.stopped) {
-					this.setStatus("disconnected");
+					if (!this.suppressDisconnectStatus) {
+						this.setStatus("disconnected");
+					}
+					this.suppressDisconnectStatus = false;
 					return;
 				}
 				this.reconnectAttempts += 1;

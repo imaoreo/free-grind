@@ -23,6 +23,7 @@ pub fn run() {
             api::auth::refresh_token,
             api::auth::logout,
             api::auth::auth_state,
+            api::auth::websocket_token,
             api::rest::request,
         ])
         .run(tauri::generate_context!())

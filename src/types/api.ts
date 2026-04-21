@@ -14,6 +14,10 @@ export const methodSchemas = {
 		request: z.undefined(),
 		response: z.number().int().nonnegative().nullable(),
 	},
+	websocket_token: {
+		request: z.undefined(),
+		response: z.string().min(1).nullable(),
+	},
 	logout: {
 		request: z.undefined(),
 		response: z.undefined(),
