@@ -32,8 +32,6 @@
 			"icons/icon.icns",
 			"icons/icon.ico"
 		],
-		"macOS": {
-			"signingIdentity": "tauri-dev"
-		}
+		"macOS": {}
 	}
 }
