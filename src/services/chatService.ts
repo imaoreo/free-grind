@@ -118,7 +118,11 @@ export function createChatService(fetchRest: RestFetcher) {
 				age: number | null;
 				distance: number | null;
 				profileImageMediaHash: string | null;
-				medias: Array<{ mediaHash?: string; type?: number; state?: number }> | null;
+				medias: Array<{
+					mediaHash?: string;
+					type?: number;
+					state?: number;
+				}> | null;
 				profileTags: string[];
 				hasAlbum: boolean;
 				showDistance: boolean;
@@ -194,9 +198,21 @@ export function createChatService(fetchRest: RestFetcher) {
 								boosting: z.boolean().optional().default(false),
 								isFavorite: z.boolean().optional().default(false),
 								new: z.boolean().optional().default(false),
-								lastChatTimestamp: z.coerce.number().nullable().optional().default(null),
-								lastUpdatedTime: z.coerce.number().nullable().optional().default(null),
-								lastViewed: z.coerce.number().nullable().optional().default(null),
+								lastChatTimestamp: z.coerce
+									.number()
+									.nullable()
+									.optional()
+									.default(null),
+								lastUpdatedTime: z.coerce
+									.number()
+									.nullable()
+									.optional()
+									.default(null),
+								lastViewed: z.coerce
+									.number()
+									.nullable()
+									.optional()
+									.default(null),
 								seen: z.coerce.number().nullable().optional().default(null),
 								hasFaceRecognition: z.boolean().optional().default(false),
 								gender: z.array(z.number()).optional().default([]),

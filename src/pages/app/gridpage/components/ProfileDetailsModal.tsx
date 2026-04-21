@@ -541,7 +541,7 @@ export function ProfileDetailsModal({
 													Stats
 												</p>
 												<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
-																										{!shouldHideField(
+													{!shouldHideField(
 														formatEnumValue(
 															activeProfile.sexualPosition,
 															sexualPositionLabels,
@@ -926,7 +926,7 @@ export function ProfileDetailsModal({
 												Stats
 											</p>
 											<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
-																								{!shouldHideField(
+												{!shouldHideField(
 													formatEnumValue(
 														activeProfile.sexualPosition,
 														sexualPositionLabels,
