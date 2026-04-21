@@ -635,9 +635,7 @@ export function ChatPage() {
 					: [];
 				if (ids.length > 0) {
 					setConversations((previous) =>
-						previous.filter(
-							(c) => !ids.includes(c.data.conversationId),
-						),
+						previous.filter((c) => !ids.includes(c.data.conversationId)),
 					);
 				}
 				return;
