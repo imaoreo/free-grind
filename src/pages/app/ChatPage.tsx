@@ -54,9 +54,12 @@ import {
 	searchConversationsLocal,
 	searchMessagesLocal,
 } from "./chat/cache";
+import * as chatLog from "../../services/chatLog";
 
 type UiMessage = Message & {
 	clientState?: "pending" | "failed";
+	/** True when the message was only found in the local log, not in the API response. */
+	_localOnly?: boolean;
 };
 
 type AlbumListItem = {
@@ -752,6 +755,17 @@ export function ChatPage() {
 			return;
 		}
 
+		// Persist incoming realtime messages so they survive deletions/blocks.
+		const byConv = new Map<string, Message[]>();
+		for (const m of messages) {
+			const list = byConv.get(m.conversationId) ?? [];
+			list.push(m);
+			byConv.set(m.conversationId, list);
+		}
+		for (const [cid, msgs] of byConv) {
+			void chatLog.appendMessages(cid, msgs);
+		}
+
 		setThreadMessages((previous) => {
 			const activeConversationId = selectedConversationIdRef.current;
 			const map = new Map<string, UiMessage>();
@@ -1062,6 +1076,9 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
+				// Persist API messages to the local log.
+				void chatLog.appendMessages(conversationId, response.messages);
+
 				if (!older) {
 					const mediaIdImageMessages = response.messages.filter((message) => {
 						const imageType = message.chat1Type?.toLowerCase();
@@ -1090,21 +1107,30 @@ export function ChatPage() {
 									const mediaId = getMessageMediaId(message as UiMessage);
 									if (mediaId == null) continue;
 									const url = sharedImageMap.get(mediaId);
-									if (!url || !message.body || typeof message.body !== "object") continue;
+									if (!url || !message.body || typeof message.body !== "object")
+										continue;
 									const hydrated = {
 										...message,
 										body: { ...(message.body as Record<string, unknown>), url },
 									} as UiMessage;
-									if (getMessageImageUrl(hydrated)) hydratedMessages.push(hydrated);
+									if (getMessageImageUrl(hydrated))
+										hydratedMessages.push(hydrated);
 								}
 
 								if (!hydratedMessages.length) return;
 
+								// Persist resolved image URLs so they survive CloudFront expiry.
+								void chatLog.appendMessages(conversationId, hydratedMessages);
+
 								setThreadMessages((previous) => {
 									const map = new Map<string, UiMessage>();
-									for (const message of previous) map.set(message.messageId, message);
-									for (const message of hydratedMessages) map.set(message.messageId, message);
-									return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+									for (const message of previous)
+										map.set(message.messageId, message);
+									for (const message of hydratedMessages)
+										map.set(message.messageId, message);
+									return [...map.values()].sort(
+										(a, b) => a.timestamp - b.timestamp,
+									);
 								});
 							})
 							.catch(() => {
@@ -1114,15 +1140,55 @@ export function ChatPage() {
 				}
 
 				setThreadMessages((previous) => {
-					const next = older
-						? [...response.messages, ...previous]
-						: response.messages;
 					const map = new Map<string, UiMessage>();
-					for (const message of next) {
-						map.set(message.messageId, message);
+					if (older) {
+						// Older messages prepended; keep existing (including any local-only).
+						for (const message of response.messages)
+							map.set(message.messageId, message);
+						for (const message of previous) map.set(message.messageId, message);
+					} else {
+						// Fresh load: preserve already-surfaced local-only messages.
+						for (const message of previous) {
+							if (message._localOnly) map.set(message.messageId, message);
+						}
+						for (const message of response.messages)
+							map.set(message.messageId, message);
 					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
+
+				// Surface messages from the local log that don't appear in this API page
+				// (e.g. unsent by the sender, conversation disappeared after a block).
+				if (!older && response.messages.length > 0) {
+					const windowStart = response.messages[0].timestamp;
+					const windowEnd =
+						response.messages[response.messages.length - 1].timestamp;
+					const apiIds = new Set(response.messages.map((m) => m.messageId));
+					void chatLog.readLog(conversationId).then((localMessages) => {
+						const localOnly = localMessages
+							.filter(
+								(m) =>
+									!apiIds.has(m.messageId) &&
+									m.timestamp >= windowStart &&
+									m.timestamp <= windowEnd,
+							)
+							.map((m) => ({ ...m, _localOnly: true }) as UiMessage);
+						if (!localOnly.length) return;
+						setThreadMessages((previous) => {
+							const map = new Map<string, UiMessage>();
+							for (const message of previous)
+								map.set(message.messageId, message);
+							for (const message of localOnly) {
+								// Never override an authoritative API message.
+								if (!map.has(message.messageId))
+									map.set(message.messageId, message);
+							}
+							return [...map.values()].sort(
+								(a, b) => a.timestamp - b.timestamp,
+							);
+						});
+					});
+				}
 
 				const firstMessage = response.messages[0];
 				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
@@ -2655,6 +2721,7 @@ export function ChatPage() {
 								const mine = message.senderId === userId;
 								const failed = message.clientState === "failed";
 								const pending = message.clientState === "pending";
+								const localOnly = message._localOnly === true;
 								const imageUrl = getMessageImageUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
@@ -2684,8 +2751,13 @@ export function ChatPage() {
 												mine
 													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "bg-[var(--surface-2)] text-[var(--text)]"
-											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""}`}
+											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
 										>
+											{localOnly ? (
+												<p className="mb-1 text-xs opacity-60">
+													Removed from API
+												</p>
+											) : null}
 											{imageUrl ? (
 												<button
 													type="button"
