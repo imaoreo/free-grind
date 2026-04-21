@@ -2544,9 +2544,12 @@ export function ChatPage() {
 										);
 										const nextParams = new URLSearchParams();
 										nextParams.set("returnTo", returnTo);
-										navigate(`/profile/${profile.profileId}?${nextParams.toString()}`, {
-											state: { returnTo },
-										});
+										navigate(
+											`/profile/${profile.profileId}?${nextParams.toString()}`,
+											{
+												state: { returnTo },
+											},
+										);
 									}}
 									className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 								>
@@ -2724,93 +2727,96 @@ export function ChatPage() {
 			}`}
 		>
 			{(() => {
-				const otherParticipant = getOtherParticipant(selectedConversation, userId);
+				const otherParticipant = getOtherParticipant(
+					selectedConversation,
+					userId,
+				);
 				return (
-			<div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
-				<div className="min-w-0">
-					<p className="truncate text-lg font-semibold">
-						{selectedConversation.data.name || "Conversation"}
-					</p>
-					<p className="text-sm text-[var(--text-muted)]">
-						{selectedConversation.data.muted
-							? "Notifications muted"
-							: "Notifications enabled"}
-					</p>
-					{searchMode === "messages" && searchQuery.trim().length >= 2 ? (
-						<p className="mt-1 text-xs text-[var(--text-muted)]">
-							{selectedThreadMessageMatches.length > 0
-								? `${activeThreadSearchIndex + 1}/${selectedThreadMessageMatches.length} matches in this thread`
-								: "No matches in this thread"}
-						</p>
-					) : null}
-				</div>
-				<div className="flex items-center gap-2">
-					{searchMode === "messages" &&
-					searchQuery.trim().length >= 2 &&
-					selectedThreadMessageMatches.length > 0 ? (
-						<>
-							<button
-								type="button"
-								onClick={() => moveThreadSearchMatch("prev")}
-								className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								<ChevronUp className="h-3.5 w-3.5" />
-							</button>
-							<button
-								type="button"
-								onClick={() => moveThreadSearchMatch("next")}
-								className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								<ChevronDown className="h-3.5 w-3.5" />
-							</button>
-						</>
-					) : null}
+					<div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+						<div className="min-w-0">
+							<p className="truncate text-lg font-semibold">
+								{selectedConversation.data.name || "Conversation"}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{selectedConversation.data.muted
+									? "Notifications muted"
+									: "Notifications enabled"}
+							</p>
+							{searchMode === "messages" && searchQuery.trim().length >= 2 ? (
+								<p className="mt-1 text-xs text-[var(--text-muted)]">
+									{selectedThreadMessageMatches.length > 0
+										? `${activeThreadSearchIndex + 1}/${selectedThreadMessageMatches.length} matches in this thread`
+										: "No matches in this thread"}
+								</p>
+							) : null}
+						</div>
+						<div className="flex items-center gap-2">
+							{searchMode === "messages" &&
+							searchQuery.trim().length >= 2 &&
+							selectedThreadMessageMatches.length > 0 ? (
+								<>
+									<button
+										type="button"
+										onClick={() => moveThreadSearchMatch("prev")}
+										className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									>
+										<ChevronUp className="h-3.5 w-3.5" />
+									</button>
+									<button
+										type="button"
+										onClick={() => moveThreadSearchMatch("next")}
+										className="rounded-xl border border-[var(--border)] px-2 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									>
+										<ChevronDown className="h-3.5 w-3.5" />
+									</button>
+								</>
+							) : null}
 
-					<button
-						type="button"
-						onClick={() => {
-							if (!otherParticipant) {
-								return;
-							}
-							const returnTo = getProfileReturnToChatPath(
-								otherParticipant.profileId,
-							);
-							const nextParams = new URLSearchParams();
-							nextParams.set("returnTo", returnTo);
-							navigate(
-								`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-								{ state: { returnTo } },
-							);
-						}}
-						disabled={!otherParticipant}
-						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-						View profile
-					</button>
-					<button
-						type="button"
-						disabled={isUpdatingConversationState}
-						onClick={togglePin}
-						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-						<Pin className="mr-1 inline h-3.5 w-3.5" />
-						{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-					</button>
-					<button
-						type="button"
-						disabled={isUpdatingConversationState}
-						onClick={toggleMute}
-						className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-						{selectedConversation.data.muted ? (
-							<Volume2 className="mr-1 inline h-3.5 w-3.5" />
-						) : (
-							<VolumeX className="mr-1 inline h-3.5 w-3.5" />
-						)}
-						{selectedConversation.data.muted ? "Unmute" : "Mute"}
-					</button>
-				</div>
-			</div>
+							<button
+								type="button"
+								onClick={() => {
+									if (!otherParticipant) {
+										return;
+									}
+									const returnTo = getProfileReturnToChatPath(
+										otherParticipant.profileId,
+									);
+									const nextParams = new URLSearchParams();
+									nextParams.set("returnTo", returnTo);
+									navigate(
+										`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+										{ state: { returnTo } },
+									);
+								}}
+								disabled={!otherParticipant}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+							>
+								View profile
+							</button>
+							<button
+								type="button"
+								disabled={isUpdatingConversationState}
+								onClick={togglePin}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+							>
+								<Pin className="mr-1 inline h-3.5 w-3.5" />
+								{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+							</button>
+							<button
+								type="button"
+								disabled={isUpdatingConversationState}
+								onClick={toggleMute}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+							>
+								{selectedConversation.data.muted ? (
+									<Volume2 className="mr-1 inline h-3.5 w-3.5" />
+								) : (
+									<VolumeX className="mr-1 inline h-3.5 w-3.5" />
+								)}
+								{selectedConversation.data.muted ? "Unmute" : "Mute"}
+							</button>
+						</div>
+					</div>
 				);
 			})()}
 

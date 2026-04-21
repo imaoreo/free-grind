@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+	useLocation,
+	useNavigate,
+	useParams,
+	useSearchParams,
+} from "react-router-dom";
 import z from "zod";
 import { useApi } from "../../hooks/useApi";
 import { validateMediaHash } from "../../utils/media";
