@@ -30,12 +30,20 @@ export const messagePreviewSchema = z.object({
 		})
 		.optional(),
 	messageId: z.string().optional(),
+	chat1MessageId: z.string().optional(),
 	senderId: z.coerce.number().int().optional(),
 	type: z.string().optional(),
 	chat1Type: z.string().nullable().optional(),
 	text: z.string().nullable().optional(),
+	url: z.unknown().nullable().optional(),
+	lat: z.unknown().nullable().optional(),
+	lon: z.unknown().nullable().optional(),
 	albumId: z.coerce.number().nullable().optional(),
+	albumContentId: z.unknown().nullable().optional(),
+	albumContentReply: z.unknown().nullable().optional(),
+	duration: z.unknown().nullable().optional(),
 	imageHash: z.string().nullable().optional(),
+	photoContentReply: z.unknown().nullable().optional(),
 });
 
 export const conversationEntrySchema = z.object({
@@ -50,6 +58,8 @@ export const conversationEntrySchema = z.object({
 		muted: z.boolean().optional().default(false),
 		pinned: z.boolean().optional().default(false),
 		favorite: z.boolean().optional().default(false),
+		context: z.unknown().nullable().optional(),
+		translatable: z.boolean().optional(),
 		rightNow: z.string().nullable().optional(),
 		hasUnreadThrob: z.boolean().optional(),
 	}),
@@ -57,6 +67,8 @@ export const conversationEntrySchema = z.object({
 
 export const inboxResponseSchema = z.object({
 	entries: z.array(conversationEntrySchema).optional().default([]),
+	showsFreeHeaderLabel: z.boolean().optional(),
+	maxDisplayLockCount: z.number().optional(),
 	nextPage: z.coerce.number().int().nullable().optional(),
 	totalFullConversations: z.coerce.number().optional(),
 	totalPartialConversations: z.coerce.number().optional(),

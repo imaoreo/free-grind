@@ -118,8 +118,21 @@ export function createChatService(fetchRest: RestFetcher) {
 				age: number | null;
 				distance: number | null;
 				profileImageMediaHash: string | null;
+				medias: Array<{ mediaHash?: string; type?: number; state?: number }> | null;
+				profileTags: string[];
 				hasAlbum: boolean;
 				showDistance: boolean;
+				showAge: boolean;
+				approximateDistance: boolean;
+				boosting: boolean;
+				isFavorite: boolean;
+				new: boolean;
+				lastChatTimestamp: number | null;
+				lastUpdatedTime: number | null;
+				lastViewed: number | null;
+				seen: number | null;
+				hasFaceRecognition: boolean;
+				gender: number[];
 			}>;
 			lastDistanceInKm: number | null;
 			lastProfileId: number | null;
@@ -162,8 +175,31 @@ export function createChatService(fetchRest: RestFetcher) {
 									.nullable()
 									.optional()
 									.default(null),
+								medias: z
+									.array(
+										z.object({
+											mediaHash: z.string().optional(),
+											type: z.number().optional(),
+											state: z.number().optional(),
+										}),
+									)
+									.nullable()
+									.optional()
+									.default([]),
+								profileTags: z.array(z.string()).optional().default([]),
 								hasAlbum: z.boolean().optional().default(false),
 								showDistance: z.boolean().optional().default(false),
+								showAge: z.boolean().optional().default(false),
+								approximateDistance: z.boolean().optional().default(false),
+								boosting: z.boolean().optional().default(false),
+								isFavorite: z.boolean().optional().default(false),
+								new: z.boolean().optional().default(false),
+								lastChatTimestamp: z.coerce.number().nullable().optional().default(null),
+								lastUpdatedTime: z.coerce.number().nullable().optional().default(null),
+								lastViewed: z.coerce.number().nullable().optional().default(null),
+								seen: z.coerce.number().nullable().optional().default(null),
+								hasFaceRecognition: z.boolean().optional().default(false),
+								gender: z.array(z.number()).optional().default([]),
 							}),
 						)
 						.optional()

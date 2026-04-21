@@ -70,10 +70,10 @@ export function ProfileDetailsModal({
 	}, [activeProfile]);
 
 	const profileDistance =
-		activeProfile?.distanceMeters ?? selectedBrowseCard?.distanceMeters ?? null;
+		activeProfile?.distance ?? selectedBrowseCard?.distanceMeters ?? null;
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
-	const profileLastSeen = activeProfile?.lastSeen ?? null;
+	const profileLastSeen = activeProfile?.seen ?? null;
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -127,10 +127,10 @@ export function ProfileDetailsModal({
 
 	const hasStatsFields = useMemo(() => {
 		if (!activeProfile) return false;
-		const positionFormatted =
-			activeProfile.positions.length > 0
-				? formatEnumArray(activeProfile.positions, sexualPositionLabels)
-				: formatEnumValue(activeProfile.position, sexualPositionLabels);
+		const positionFormatted = formatEnumValue(
+			activeProfile.sexualPosition,
+			sexualPositionLabels,
+		);
 		return (
 			!shouldHideField(positionFormatted) ||
 			!shouldHideField(formatHeightCm(activeProfile.height)) ||
@@ -541,31 +541,21 @@ export function ProfileDetailsModal({
 													Stats
 												</p>
 												<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
-													{!shouldHideField(
-														activeProfile.positions.length > 0
-															? formatEnumArray(
-																	activeProfile.positions,
-																	sexualPositionLabels,
-																)
-															: formatEnumValue(
-																	activeProfile.position,
-																	sexualPositionLabels,
-																),
+																										{!shouldHideField(
+														formatEnumValue(
+															activeProfile.sexualPosition,
+															sexualPositionLabels,
+														),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
 																Position
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
-																{activeProfile.positions.length > 0
-																	? formatEnumArray(
-																			activeProfile.positions,
-																			sexualPositionLabels,
-																		)
-																	: formatEnumValue(
-																			activeProfile.position,
-																			sexualPositionLabels,
-																		)}
+																{formatEnumValue(
+																	activeProfile.sexualPosition,
+																	sexualPositionLabels,
+																)}
 															</p>
 														</div>
 													)}
@@ -936,31 +926,21 @@ export function ProfileDetailsModal({
 												Stats
 											</p>
 											<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
-												{!shouldHideField(
-													activeProfile.positions.length > 0
-														? formatEnumArray(
-																activeProfile.positions,
-																sexualPositionLabels,
-															)
-														: formatEnumValue(
-																activeProfile.position,
-																sexualPositionLabels,
-															),
+																								{!shouldHideField(
+													formatEnumValue(
+														activeProfile.sexualPosition,
+														sexualPositionLabels,
+													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
 															Position
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
-															{activeProfile.positions.length > 0
-																? formatEnumArray(
-																		activeProfile.positions,
-																		sexualPositionLabels,
-																	)
-																: formatEnumValue(
-																		activeProfile.position,
-																		sexualPositionLabels,
-																	)}
+															{formatEnumValue(
+																activeProfile.sexualPosition,
+																sexualPositionLabels,
+															)}
 														</p>
 													</div>
 												)}
