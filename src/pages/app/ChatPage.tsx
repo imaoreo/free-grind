@@ -114,42 +114,14 @@ const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
 	numeric: "auto",
 });
 
-function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
-	const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-	const output = new Uint8Array(totalBytes);
-	let offset = 0;
-
-	for (const chunk of chunks) {
-		output.set(chunk, offset);
-		offset += chunk.length;
-	}
-
-	return output;
-}
-
-async function buildMultipartBody(file: File): Promise<{
+async function buildBinaryUpload(file: File): Promise<{
 	body: Uint8Array;
 	contentType: string;
 }> {
-	const encoder = new TextEncoder();
-	const boundary = `----opengrind-chat-${crypto.randomUUID?.() ?? Date.now().toString(16)}`;
-	const safeFilename = file.name.replace(/"/g, "_");
-	const header =
-		`--${boundary}\r\n` +
-		`Content-Disposition: form-data; name="content"; filename="${safeFilename}"\r\n` +
-		`Content-Type: ${file.type || "application/octet-stream"}\r\n\r\n`;
-	const footer = `\r\n--${boundary}--\r\n`;
-
 	const fileBytes = new Uint8Array(await file.arrayBuffer());
-	const body = concatUint8Arrays([
-		encoder.encode(header),
-		fileBytes,
-		encoder.encode(footer),
-	]);
-
 	return {
-		body,
-		contentType: `multipart/form-data; boundary=${boundary}`,
+		body: fileBytes,
+		contentType: file.type || "application/octet-stream",
 	};
 }
 
@@ -489,6 +461,24 @@ function getMessageMediaId(message: UiMessage): number | null {
 	return null;
 }
 
+function extractImageHashFromSignedUrl(url: string): string | null {
+	try {
+		const parsed = new URL(url);
+		const pathParts = parsed.pathname.split("/").filter(Boolean);
+		// Chat media URL format is typically /{uploaderProfileId}/{mediaHash}
+		const hashCandidate = pathParts[pathParts.length - 1] ?? "";
+		if (!hashCandidate) {
+			return null;
+		}
+		if (validateMediaHash(hashCandidate)) {
+			return hashCandidate;
+		}
+		return /^[a-z0-9_-]{16,}$/i.test(hashCandidate) ? hashCandidate : null;
+	} catch {
+		return null;
+	}
+}
+
 function getMessageAudioUrl(message: UiMessage): string | null {
 	const isAudioMessage =
 		message.type === "Audio" || message.chat1Type?.toLowerCase() === "audio";
@@ -515,6 +505,12 @@ function getMessageAudioUrl(message: UiMessage): string | null {
 	}
 
 	return null;
+}
+
+function isLocalClientMessageId(messageId: string): boolean {
+	return (
+		messageId.startsWith("local:") || messageId.startsWith("local-upload:")
+	);
 }
 
 function getMessageAlbumId(message: UiMessage): number | null {
@@ -988,47 +984,6 @@ export function ChatPage() {
 			setIsLoadingAlbums(false);
 		}
 	}, [service]);
-
-	const ensureUploadAlbum = useCallback(async (): Promise<number> => {
-		let albums = shareableAlbums;
-		if (!albums.length) {
-			const items = await service.listAlbums();
-			albums = items
-				.map((item) => ({
-					albumId:
-						typeof item.albumId === "number"
-							? item.albumId
-							: Number(item.albumId),
-					albumName: item.albumName ?? null,
-					isShareable: item.isShareable !== false,
-				}))
-				.filter((item) => Number.isFinite(item.albumId));
-			setShareableAlbums(albums);
-		}
-
-		const namedAlbum = albums.find(
-			(album) => album.albumName?.toLowerCase() === "chat uploads",
-		);
-		if (namedAlbum) {
-			return namedAlbum.albumId;
-		}
-
-		if (albums.length > 0) {
-			return albums[0].albumId;
-		}
-
-		const created = await service.createAlbum("Chat Uploads");
-		const nextAlbums = [
-			...albums,
-			{
-				albumId: created.albumId,
-				albumName: "Chat Uploads",
-				isShareable: true,
-			},
-		];
-		setShareableAlbums(nextAlbums);
-		return created.albumId;
-	}, [service, shareableAlbums]);
 
 	const loadInbox = useCallback(
 		async ({ page, replace }: { page: number; replace: boolean }) => {
@@ -1921,12 +1876,14 @@ export function ChatPage() {
 
 	const sendImageAttachment = useCallback(
 		async (file: File) => {
-			if (!selectedConversation || !userId) {
+			if (!userId) {
 				return;
 			}
 
-			const targetProfile = getOtherParticipant(selectedConversation, userId);
-			if (!targetProfile?.profileId) {
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+			if (!targetProfileIdValue) {
 				toast.error("Unable to determine message recipient");
 				return;
 			}
@@ -1950,7 +1907,9 @@ export function ChatPage() {
 				...previous,
 				{
 					messageId: localMessageId,
-					conversationId: selectedConversation.data.conversationId,
+					conversationId:
+						selectedConversation?.data.conversationId ??
+						`direct:${targetProfileIdValue}`,
 					senderId: userId,
 					timestamp: Date.now(),
 					unsent: false,
@@ -1970,36 +1929,26 @@ export function ChatPage() {
 			}, 260);
 
 			try {
-				const uploadAlbumId = await ensureUploadAlbum();
-				const multipart = await buildMultipartBody(file);
-				const uploaded = await service.uploadAlbumContent({
-					albumId: uploadAlbumId,
-					multipart,
-				});
+				const binaryUpload = await buildBinaryUpload(file);
+				const uploaded = await service.uploadChatMedia({ multipart: binaryUpload });
 				setUploadProgress(96);
 
-				const albumDetails = await service.getAlbum(uploadAlbumId);
-				const uploadedMedia = albumDetails.content.find(
-					(item) => item.contentId === uploaded.contentId,
-				);
-
-				if (!uploadedMedia?.url && !uploadedMedia?.thumbUrl) {
-					throw new Error("Upload succeeded but media URL is not ready yet.");
-				}
-
-				const imageUrl = uploadedMedia.url ?? uploadedMedia.thumbUrl ?? "";
+				const imageUrl = uploaded.url;
+				const imageHash = imageUrl
+					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
+					: uploaded.mediaHash;
 				const sentMessage = await service.sendMessage({
 					type: "Image",
 					target: {
 						type: "Direct",
-						targetId: targetProfile.profileId,
+						targetId: targetProfileIdValue,
 					},
 					body: {
-						mediaId: uploadedMedia.contentId,
-						url: imageUrl,
+						mediaId: uploaded.mediaId,
 						width: null,
 						height: null,
-						imageHash: "",
+						...(imageUrl ? { url: imageUrl } : {}),
+						...(imageHash ? { imageHash } : {}),
 					},
 				});
 
@@ -2014,25 +1963,30 @@ export function ChatPage() {
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 
-				syncConversation((conversation) => ({
-					...conversation,
-					data: {
-						...conversation.data,
-						lastActivityTimestamp: sentMessage.timestamp,
-						preview: {
-							conversationId: {
-								value: conversation.data.conversationId,
+				if (selectedConversation) {
+					syncConversation((conversation) => ({
+						...conversation,
+						data: {
+							...conversation.data,
+							lastActivityTimestamp: sentMessage.timestamp,
+							preview: {
+								conversationId: {
+									value: conversation.data.conversationId,
+								},
+								messageId: sentMessage.messageId,
+								senderId: sentMessage.senderId,
+								type: sentMessage.type,
+								chat1Type: sentMessage.chat1Type ?? "image",
+								text: null,
+								albumId: null,
+								imageHash: null,
 							},
-							messageId: sentMessage.messageId,
-							senderId: sentMessage.senderId,
-							type: sentMessage.type,
-							chat1Type: sentMessage.chat1Type ?? "image",
-							text: null,
-							albumId: null,
-							imageHash: null,
 						},
-					},
-				}));
+					}));
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
 
 				setUploadProgress(100);
 				window.setTimeout(() => setUploadProgress(0), 240);
@@ -2057,10 +2011,12 @@ export function ChatPage() {
 			}
 		},
 		[
-			ensureUploadAlbum,
+			loadInbox,
+			openConversationById,
 			selectedConversation,
 			service,
 			syncConversation,
+			targetProfileId,
 			uploadProgress,
 			userId,
 		],
@@ -2133,7 +2089,19 @@ export function ChatPage() {
 	};
 
 	const handleUnsend = async (message: UiMessage) => {
-		if (!selectedConversation || isMutatingMessageId) {
+		if (isMutatingMessageId) {
+			return;
+		}
+
+		if (isLocalClientMessageId(message.messageId)) {
+			setOpenMessageActionId(null);
+			setThreadMessages((current) =>
+				current.filter((item) => item.messageId !== message.messageId),
+			);
+			return;
+		}
+
+		if (!selectedConversation) {
 			return;
 		}
 
@@ -2167,7 +2135,19 @@ export function ChatPage() {
 	};
 
 	const handleDelete = async (message: UiMessage) => {
-		if (!selectedConversation || isMutatingMessageId) {
+		if (isMutatingMessageId) {
+			return;
+		}
+
+		if (isLocalClientMessageId(message.messageId)) {
+			setOpenMessageActionId(null);
+			setThreadMessages((current) =>
+				current.filter((item) => item.messageId !== message.messageId),
+			);
+			return;
+		}
+
+		if (!selectedConversation) {
 			return;
 		}
 
@@ -2979,7 +2959,7 @@ export function ChatPage() {
 														{formatMessageTime(message.timestamp, nowTimestamp)}
 													</span>
 													{!pending &&
-													!message.messageId.startsWith("local:") ? (
+													!isLocalClientMessageId(message.messageId) ? (
 														<button
 															type="button"
 															onClick={() =>
@@ -3174,6 +3154,39 @@ export function ChatPage() {
 				onSubmit={handleSend}
 				className="border-t border-[var(--border)] pt-3"
 			>
+				<div className="mb-2 flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						onClick={() => attachmentInputRef.current?.click()}
+						disabled={isUploadingAttachment}
+						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+					>
+						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach image
+					</button>
+					<input
+						type="file"
+						ref={attachmentInputRef}
+						onChange={onAttachmentInput}
+						accept="image/*"
+						className="hidden"
+					/>
+				</div>
+
+				{isUploadingAttachment || uploadProgress > 0 ? (
+					<div className="mb-2">
+						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
+							<span>Uploading image</span>
+							<span>{Math.round(uploadProgress)}%</span>
+						</div>
+						<div className="h-2 rounded-full bg-[var(--surface-2)]">
+							<div
+								className="h-2 rounded-full bg-[var(--accent)] transition-all"
+								style={{ width: `${Math.min(100, uploadProgress)}%` }}
+							/>
+						</div>
+					</div>
+				) : null}
+
 				<div className="flex items-end gap-2">
 					<textarea
 						value={draft}
