@@ -79,6 +79,7 @@
 @layer components {
 	.app-shell {
 		min-height: 100dvh;
+		background: var(--bg);
 		background:
 			radial-gradient(
 				circle at 14% -10%,
@@ -113,6 +114,7 @@
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: 18px;
+		box-shadow: 0 16px 34px rgba(0, 0, 0, 0.17);
 		box-shadow:
 			0 16px 34px color-mix(in srgb, #000 17%, transparent),
 			0 1px 0 color-mix(in srgb, var(--surface) 74%, transparent) inset;
@@ -130,6 +132,7 @@
 	}
 
 	.input-field:focus {
+		outline: 2px solid rgba(255, 204, 1, 0.58);
 		outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
 		outline-offset: 1px;
 	}
