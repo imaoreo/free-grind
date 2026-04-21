@@ -96,7 +96,7 @@ export const messagesResponseSchema = z.object({
 	profile: z
 		.object({
 			profileId: z.coerce.number().int(),
-			name: z.string().optional(),
+			name: z.string().nullable().optional(),
 			mediaHash: z.string().nullable().optional(),
 			onlineUntil: z.coerce.number().nullable().optional(),
 			distance: z.coerce.number().nullable().optional(),
