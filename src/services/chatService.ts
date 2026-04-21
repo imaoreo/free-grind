@@ -228,6 +228,71 @@ export function createChatService(fetchRest: RestFetcher) {
 			};
 		},
 
+		async getMessage(params: {
+			conversationId: string;
+			messageId: string;
+		}): Promise<Message> {
+			const response = await fetchRest(
+				`/v4/chat/conversation/${params.conversationId}/message/${params.messageId}`,
+			);
+			await assertSuccess(response, "Failed to load message");
+			return z
+				.object({ message: messageSchema })
+				.parse(await parseJsonSafe(response)).message;
+		},
+
+		async refreshMessagesByIds(params: {
+			conversationId: string;
+			messageIds: string[];
+		}): Promise<Message[]> {
+			const messageIds = z.array(z.string().min(1)).min(1).parse(params.messageIds);
+			const response = await fetchRest(
+				`/v4/chat/conversation/${params.conversationId}/message-by-id`,
+				{
+					method: "POST",
+					body: { messageIds },
+				},
+			);
+			await assertSuccess(response, "Failed to refresh messages by id");
+			const payload = await parseJsonSafe(response);
+			const direct = z
+				.object({
+					messages: z.array(messageSchema).optional().default([]),
+				})
+				.safeParse(payload);
+
+			let messages: Message[] = [];
+			if (direct.success) {
+				messages = direct.data.messages;
+			} else {
+				const nested = z
+					.object({
+						data: z
+							.object({
+								messages: z.array(messageSchema).optional().default([]),
+							})
+							.optional(),
+						conversation: z
+							.object({
+								messages: z.array(messageSchema).optional().default([]),
+							})
+							.optional(),
+					})
+					.safeParse(payload);
+
+				if (nested.success) {
+					messages =
+						nested.data.data?.messages ?? nested.data.conversation?.messages ?? [];
+				} else {
+					const asArray = z.array(messageSchema).safeParse(payload);
+					if (asArray.success) {
+						messages = asArray.data;
+					}
+				}
+			}
+			return sortMessages(messages);
+		},
+
 		async sendMessage(payload: SendMessagePayload): Promise<Message> {
 			const safePayload = sendMessagePayloadSchema.parse(payload);
 			const response = await fetchRest("/v4/chat/message/send", {
@@ -335,6 +400,36 @@ export function createChatService(fetchRest: RestFetcher) {
 				body: safePayload,
 			});
 			await assertSuccess(response, "Failed to react to message");
+		},
+
+		async getSharedConversationImages(conversationId: string): Promise<
+			Array<{
+				mediaId: number;
+				url: string | null;
+				expiresAt: number | null;
+			}>
+		> {
+			const response = await fetchRest(
+				`/v5/chat/media/shared/images/with-me/${conversationId}`,
+			);
+			await assertSuccess(response, "Failed to load shared conversation images");
+			const payload = await parseJsonSafe(response);
+			const itemSchema = z.object({
+				mediaId: z.coerce.number().int(),
+				url: z.string().nullable().optional().default(null),
+				expiresAt: z.coerce.number().nullable().optional().default(null),
+			});
+			const direct = z
+				.object({ images: z.array(itemSchema).optional().default([]) })
+				.safeParse(payload);
+			const nested = z.array(itemSchema).safeParse(payload);
+			const parsed = direct.success
+				? direct.data.images
+				: nested.success
+					? nested.data
+					: [];
+
+			return parsed;
 		},
 
 		async listAlbums(): Promise<

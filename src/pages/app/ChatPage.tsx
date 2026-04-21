@@ -43,7 +43,11 @@ import {
 	type InboxFilters,
 	type Message,
 } from "../../types/chat";
-import { getProfileImageUrl } from "../../utils/media";
+import {
+	getProfileImageUrl,
+	getThumbImageUrl,
+	validateMediaHash,
+} from "../../utils/media";
 import {
 	indexConversations,
 	indexMessages,
@@ -238,6 +242,7 @@ function getPreviewText(conversation: ConversationEntry): string {
 
 	switch (preview.type) {
 		case "Image":
+		case "ExpiringImage":
 			return "Sent an image";
 		case "Album":
 		case "ExpiringAlbum":
@@ -263,6 +268,7 @@ function getMessagePreviewLabel(message: Message): string {
 
 	switch (message.type) {
 		case "Image":
+		case "ExpiringImage":
 			return "Sent an image";
 		case "Album":
 		case "ExpiringAlbum":
@@ -284,7 +290,7 @@ function getMessageText(message: UiMessage): string {
 		if (message.unsent) {
 			return "This message was unsent";
 		}
-		if (message.type === "Image") {
+		if (message.type === "Image" || message.type === "ExpiringImage") {
 			return "[image]";
 		}
 		if (message.type === "Audio") {
@@ -306,7 +312,7 @@ function getMessageText(message: UiMessage): string {
 		return "Shared an album";
 	}
 
-	if (message.type === "Image") {
+	if (message.type === "Image" || message.type === "ExpiringImage") {
 		return "Shared an image";
 	}
 
@@ -322,7 +328,14 @@ function getMessageText(message: UiMessage): string {
 }
 
 function getMessageImageUrl(message: UiMessage): string | null {
-	if (message.type !== "Image") {
+	const imageType = message.chat1Type?.toLowerCase();
+	const isImageMessage =
+		message.type === "Image" ||
+		message.type === "ExpiringImage" ||
+		imageType === "image" ||
+		imageType === "expiring_image";
+
+	if (!isImageMessage) {
 		return null;
 	}
 
@@ -331,7 +344,146 @@ function getMessageImageUrl(message: UiMessage): string | null {
 	}
 
 	const body = message.body as Record<string, unknown>;
-	return typeof body.url === "string" && body.url.length > 0 ? body.url : null;
+	const imageRecord =
+		typeof body.image === "object" && body.image
+			? (body.image as Record<string, unknown>)
+			: null;
+
+	const collectStringValues = (
+		value: unknown,
+		depth: number,
+		out: string[],
+	): void => {
+		if (depth > 3) {
+			return;
+		}
+
+		if (typeof value === "string") {
+			const trimmed = value.trim();
+			if (trimmed.length > 0) {
+				out.push(trimmed);
+			}
+			return;
+		}
+
+		if (!value || typeof value !== "object") {
+			return;
+		}
+
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				collectStringValues(item, depth + 1, out);
+			}
+			return;
+		}
+
+		for (const nested of Object.values(value)) {
+			collectStringValues(nested, depth + 1, out);
+		}
+	};
+
+	const normalizeUrlCandidate = (candidate: string): string | null => {
+		if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+			return candidate;
+		}
+
+		if (candidate.startsWith("/")) {
+			return `https://cdns.grindr.com${candidate}`;
+		}
+
+		// Some payloads return CloudFront path without scheme.
+		if (candidate.startsWith("d2wxe7lth7kp8g.cloudfront.net/")) {
+			return `https://${candidate}`;
+		}
+
+		return null;
+	};
+	const urlCandidates: unknown[] = [
+		body.url,
+		body.imageUrl,
+		body.mediaUrl,
+		body.previewUrl,
+		body.thumbUrl,
+		body.signedUrl,
+		body.cdnUrl,
+		body.urlPath,
+		imageRecord?.url,
+		imageRecord?.imageUrl,
+		imageRecord?.mediaUrl,
+		imageRecord?.thumbUrl,
+		imageRecord?.previewUrl,
+		imageRecord?.signedUrl,
+		imageRecord?.cdnUrl,
+	];
+
+	for (const candidate of urlCandidates) {
+		if (typeof candidate === "string" && candidate.length > 0) {
+			const normalized = normalizeUrlCandidate(candidate);
+			if (normalized) {
+				return normalized;
+			}
+		}
+	}
+
+	const discoveredStrings: string[] = [];
+	collectStringValues(body, 0, discoveredStrings);
+	for (const value of discoveredStrings) {
+		const normalized = normalizeUrlCandidate(value);
+		if (normalized) {
+			return normalized;
+		}
+	}
+
+	const hashCandidates: unknown[] = [
+		body.imageHash,
+		body.mediaHash,
+		body.hash,
+		body.fileCacheKey,
+		imageRecord?.imageHash,
+		imageRecord?.mediaHash,
+		imageRecord?.hash,
+		imageRecord?.fileCacheKey,
+	];
+
+	for (const hashCandidate of hashCandidates) {
+		if (typeof hashCandidate !== "string") {
+			continue;
+		}
+
+		const normalized = hashCandidate.trim();
+		if (!normalized) {
+			continue;
+		}
+
+		if (validateMediaHash(normalized)) {
+			return getThumbImageUrl(normalized, "480x480");
+		}
+
+		// Fallback: some payloads send non-canonical hash-like values.
+		if (/^[a-z0-9_-]{16,}$/i.test(normalized)) {
+			return getThumbImageUrl(normalized, "480x480");
+		}
+	}
+
+	return null;
+}
+
+function getMessageMediaId(message: UiMessage): number | null {
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	const candidate = body.mediaId;
+	if (typeof candidate === "number" && Number.isFinite(candidate)) {
+		return candidate;
+	}
+	if (typeof candidate === "string" && candidate.trim().length > 0) {
+		const parsed = Number(candidate);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+
+	return null;
 }
 
 function getMessageAudioUrl(message: UiMessage): string | null {
@@ -438,6 +590,7 @@ export function ChatPage() {
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const selectedConversationUnreadCountRef = useRef(0);
+	const attemptedImageMessageRefreshRef = useRef(new Set<string>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -458,8 +611,7 @@ export function ChatPage() {
 		return next;
 	}, [inboxFilters]);
 
-	const hasActiveInboxFilters =
-		Object.keys(activeInboxFilters).length > 0;
+	const hasActiveInboxFilters = Object.keys(activeInboxFilters).length > 0;
 
 	const toggleInboxFilter = useCallback((key: InboxFilterKey) => {
 		setInboxFilters((previous) => ({
@@ -899,6 +1051,8 @@ export function ChatPage() {
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
+				// Allow a fresh media-url refresh attempt each time the thread is reloaded.
+				attemptedImageMessageRefreshRef.current.clear();
 				setIsLoadingThread(true);
 				setThreadError(null);
 				setThreadConversationId(conversationId);
@@ -910,6 +1064,119 @@ export function ChatPage() {
 					pageKey: older ? (messagePageKeyRef.current ?? undefined) : undefined,
 					includeProfile: true,
 				});
+
+				const unresolvedImageMessages = response.messages.filter((message) => {
+					const imageType = message.chat1Type?.toLowerCase();
+					const isImageLike =
+						message.type === "Image" ||
+						message.type === "ExpiringImage" ||
+						imageType === "image" ||
+						imageType === "expiring_image";
+
+					if (!isImageLike) {
+						return false;
+					}
+
+					return !getMessageImageUrl(message as UiMessage);
+				});
+
+				const refreshCandidates = unresolvedImageMessages
+					.filter((message) => {
+						if (attemptedImageMessageRefreshRef.current.has(message.messageId)) {
+							return false;
+						}
+
+						return true;
+					})
+					.slice(0, 8);
+
+				if (refreshCandidates.length > 0) {
+					for (const candidate of refreshCandidates) {
+						attemptedImageMessageRefreshRef.current.add(candidate.messageId);
+					}
+
+					void service
+						.refreshMessagesByIds({
+							conversationId,
+							messageIds: refreshCandidates.map((candidate) => candidate.messageId),
+						})
+						.then(async (messages) => {
+							const directlyResolvedMessages = messages.filter((message) =>
+								Boolean(getMessageImageUrl(message as UiMessage)),
+							);
+							const mediaIdCandidates = messages.filter((message) => {
+								if (getMessageImageUrl(message as UiMessage)) {
+									return false;
+								}
+
+								return getMessageMediaId(message as UiMessage) !== null;
+							});
+
+							let sharedMediaResolvedMessages: Message[] = [];
+							if (mediaIdCandidates.length > 0) {
+								const sharedImages = await service.getSharedConversationImages(
+									conversationId,
+								);
+								const sharedImageMap = new Map<number, string>();
+								for (const item of sharedImages) {
+									if (item.url) {
+										sharedImageMap.set(item.mediaId, item.url);
+									}
+								}
+
+								const hydratedFromSharedMedia: Array<Message | null> = mediaIdCandidates.map(
+									(message) => {
+										const mediaId = getMessageMediaId(message as UiMessage);
+										if (mediaId == null) {
+											return null;
+										}
+										const url = sharedImageMap.get(mediaId);
+										if (!url || !message.body || typeof message.body !== "object") {
+											return null;
+										}
+
+										return {
+											...message,
+											body: {
+												...(message.body as Record<string, unknown>),
+												url,
+											},
+										};
+									},
+								);
+
+								sharedMediaResolvedMessages = hydratedFromSharedMedia
+									.filter((message): message is Message => message !== null)
+									.filter((message) => Boolean(getMessageImageUrl(message as UiMessage)));
+							}
+
+							const refreshedMessages = [
+								...directlyResolvedMessages,
+								...sharedMediaResolvedMessages,
+							].filter(
+								(message, index, all) =>
+									all.findIndex((entry) => entry.messageId === message.messageId) === index,
+							);
+
+							if (!refreshedMessages.length) {
+								return;
+							}
+
+							setThreadMessages((previous) => {
+								const map = new Map<string, UiMessage>();
+								for (const message of previous) {
+									map.set(message.messageId, message);
+								}
+								for (const message of refreshedMessages) {
+									map.set(message.messageId, message);
+								}
+								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+							});
+						})
+						.catch(() => {
+							// Best effort only.
+						});
+				}
 
 				setThreadMessages((previous) => {
 					const next = older
@@ -1264,7 +1531,8 @@ export function ChatPage() {
 
 			if (
 				inboxFilters.rightNowOnly &&
-				(!conversation.data.rightNow || conversation.data.rightNow === "NOT_ACTIVE")
+				(!conversation.data.rightNow ||
+					conversation.data.rightNow === "NOT_ACTIVE")
 			) {
 				return false;
 			}
@@ -1726,7 +1994,7 @@ export function ChatPage() {
 			return;
 		}
 
-		if (message.type === "Image") {
+		if (message.type === "Image" || message.type === "ExpiringImage") {
 			toast.error("Please re-upload this image.");
 			return;
 		}
