@@ -14,19 +14,32 @@ export default defineConfig(async () => ({
 		rollupOptions: {
 			output: {
 				manualChunks(id) {
-					if (id.includes("/node_modules/react/") || id.includes("/node_modules/react-dom/") || id.includes("/node_modules/scheduler/")) {
+					if (
+						id.includes("/node_modules/react/") ||
+						id.includes("/node_modules/react-dom/") ||
+						id.includes("/node_modules/scheduler/")
+					) {
 						return "vendor-react";
 					}
-					if (id.includes("/node_modules/react-router") || id.includes("/node_modules/@remix-run/")) {
+					if (
+						id.includes("/node_modules/react-router") ||
+						id.includes("/node_modules/@remix-run/")
+					) {
 						return "vendor-router";
 					}
-					if (id.includes("/node_modules/leaflet/") || id.includes("/node_modules/react-leaflet/")) {
+					if (
+						id.includes("/node_modules/leaflet/") ||
+						id.includes("/node_modules/react-leaflet/")
+					) {
 						return "vendor-map";
 					}
 					if (id.includes("/node_modules/@tauri-apps/")) {
 						return "vendor-tauri";
 					}
-					if (id.includes("/node_modules/zod/") || id.includes("/node_modules/@msgpack/")) {
+					if (
+						id.includes("/node_modules/zod/") ||
+						id.includes("/node_modules/@msgpack/")
+					) {
 						return "vendor-data";
 					}
 				},
