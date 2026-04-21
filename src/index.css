@@ -9,6 +9,7 @@
 		color-scheme: light dark;
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
+		--content-max: 1200px;
 		--radius-sm: 12px;
 		--radius-md: 16px;
 		--radius-lg: 18px;
@@ -78,25 +79,43 @@
 @layer components {
 	.app-shell {
 		min-height: 100dvh;
-		background: radial-gradient(
-			circle at top,
-			color-mix(in srgb, var(--accent) 9%, var(--bg) 91%) 0%,
-			var(--bg) 42%
-		);
+		background:
+			radial-gradient(
+				circle at 14% -10%,
+				color-mix(in srgb, var(--accent) 12%, var(--bg) 88%) 0%,
+				transparent 46%
+			),
+			radial-gradient(
+				circle at 90% -20%,
+				color-mix(in srgb, var(--surface-2) 46%, transparent) 0%,
+				transparent 55%
+			),
+			var(--bg);
 		color: var(--text);
 	}
 
 	.app-screen {
 		min-height: 100dvh;
-		padding: calc(env(safe-area-inset-top, 0px) + 16px) 16px
-			calc(env(safe-area-inset-bottom, 0px) + 92px);
+		width: min(100%, var(--content-max));
+		margin-inline: auto;
+		padding: calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))
+			clamp(12px, 2.6vw, 28px)
+			calc(env(safe-area-inset-bottom, 0px) + clamp(92px, 10vw, 114px));
+	}
+
+	@media (min-width: 1024px) {
+		.app-screen {
+			padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 104px);
+		}
 	}
 
 	.surface-card {
 		background: var(--surface);
 		border: 1px solid var(--border);
 		border-radius: 18px;
-		box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+		box-shadow:
+			0 16px 34px color-mix(in srgb, #000 17%, transparent),
+			0 1px 0 color-mix(in srgb, var(--surface) 74%, transparent) inset;
 	}
 
 	.input-field {

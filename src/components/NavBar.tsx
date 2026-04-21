@@ -95,29 +95,29 @@ export function NavBar() {
 	};
 
 	return (
-		<nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+		<nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] md:px-4 md:pb-[calc(env(safe-area-inset-bottom,0px)+14px)]">
 			<div
-				className="mx-auto w-full max-w-3xl rounded-2xl border border-[var(--border)] p-1"
+				className="mx-auto w-full max-w-4xl rounded-2xl border border-[var(--border)] p-1.5"
 				style={{
-					background: "color-mix(in srgb, var(--surface) 88%, transparent)",
-					backdropFilter: "blur(12px)",
+					background: "color-mix(in srgb, var(--surface) 90%, transparent)",
+					backdropFilter: "blur(16px)",
 				}}
 			>
 				<Tabs value={activeTab} onValueChange={handleTabChange}>
-					<TabsList className="grid h-16 w-full grid-cols-4 bg-transparent p-0">
+					<TabsList className="grid h-16 w-full grid-cols-4 bg-transparent p-0 md:h-[4.1rem]">
 						{navItems.map((item) => {
 							const Icon = item.icon;
 							return (
 								<TabsTrigger
 									key={item.value}
 									value={item.value}
-									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
+									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)] md:gap-1.5"
 								>
-									<Icon className="h-5 w-5" />
+									<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
 									<div className="relative">
-										<span className="text-xs">{item.label}</span>
+										<span className="text-xs md:text-[0.8rem]">{item.label}</span>
 										{item.value === "inbox" && unreadCount > 0 ? (
-											<span className="absolute -right-5 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+											<span className="absolute -right-5 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold text-[var(--accent-contrast)] md:-right-6">
 												{Math.min(99, unreadCount)}
 											</span>
 										) : null}
