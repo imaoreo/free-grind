@@ -444,83 +444,83 @@ export function ChatPage() {
 	);
 
 	const mergeIncomingMessages = useCallback((messages: Message[]) => {
-			if (!messages.length) {
-				return;
+		if (!messages.length) {
+			return;
+		}
+
+		setThreadMessages((previous) => {
+			const activeConversationId = selectedConversationIdRef.current;
+			const map = new Map<string, UiMessage>();
+			for (const message of previous) {
+				map.set(message.messageId, message);
 			}
-
-			setThreadMessages((previous) => {
-				const activeConversationId = selectedConversationIdRef.current;
-				const map = new Map<string, UiMessage>();
-				for (const message of previous) {
-					map.set(message.messageId, message);
-				}
-				for (const message of messages) {
-					if (
-						activeConversationId &&
-						message.conversationId !== activeConversationId
-					) {
-						continue;
-					}
-					map.set(message.messageId, message);
-				}
-
-				return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-			});
-
-			const byConversation = new Map<string, Message>();
 			for (const message of messages) {
-				const previous = byConversation.get(message.conversationId);
 				if (
-					!previous ||
-					previous.timestamp < message.timestamp ||
-					(previous.timestamp === message.timestamp &&
-						previous.messageId < message.messageId)
+					activeConversationId &&
+					message.conversationId !== activeConversationId
 				) {
-					byConversation.set(message.conversationId, message);
+					continue;
 				}
+				map.set(message.messageId, message);
 			}
 
-			setConversations((previous) =>
-				previous.map((conversation) => {
-					const latestMessage = byConversation.get(
-						conversation.data.conversationId,
-					);
-					if (!latestMessage) {
-						return conversation;
-					}
+			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+		});
 
-					const text =
-						typeof (latestMessage.body as Record<string, unknown> | null)
-							?.text === "string"
-							? String((latestMessage.body as Record<string, unknown>).text)
-							: latestMessage.type === "Image"
-								? "Sent an image"
-								: latestMessage.type === "Album"
-									? "Shared an album"
-									: "Sent a message";
+		const byConversation = new Map<string, Message>();
+		for (const message of messages) {
+			const previous = byConversation.get(message.conversationId);
+			if (
+				!previous ||
+				previous.timestamp < message.timestamp ||
+				(previous.timestamp === message.timestamp &&
+					previous.messageId < message.messageId)
+			) {
+				byConversation.set(message.conversationId, message);
+			}
+		}
 
-					return {
-						...conversation,
-						data: {
-							...conversation.data,
-							lastActivityTimestamp: latestMessage.timestamp,
-							preview: {
-								conversationId: {
-									value: latestMessage.conversationId,
-								},
-								messageId: latestMessage.messageId,
-								senderId: latestMessage.senderId,
-								type: latestMessage.type,
-								chat1Type: latestMessage.chat1Type ?? "text",
-								text,
-								albumId: null,
-								imageHash: null,
+		setConversations((previous) =>
+			previous.map((conversation) => {
+				const latestMessage = byConversation.get(
+					conversation.data.conversationId,
+				);
+				if (!latestMessage) {
+					return conversation;
+				}
+
+				const text =
+					typeof (latestMessage.body as Record<string, unknown> | null)
+						?.text === "string"
+						? String((latestMessage.body as Record<string, unknown>).text)
+						: latestMessage.type === "Image"
+							? "Sent an image"
+							: latestMessage.type === "Album"
+								? "Shared an album"
+								: "Sent a message";
+
+				return {
+					...conversation,
+					data: {
+						...conversation.data,
+						lastActivityTimestamp: latestMessage.timestamp,
+						preview: {
+							conversationId: {
+								value: latestMessage.conversationId,
 							},
+							messageId: latestMessage.messageId,
+							senderId: latestMessage.senderId,
+							type: latestMessage.type,
+							chat1Type: latestMessage.chat1Type ?? "text",
+							text,
+							albumId: null,
+							imageHash: null,
 						},
-					};
-				}),
-			);
-		}, []);
+					},
+				};
+			}),
+		);
+	}, []);
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {

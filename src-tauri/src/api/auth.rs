@@ -221,7 +221,9 @@ pub async fn auth_state(state: tauri::State<'_, AppState>) -> Result<Option<u64>
 }
 
 #[tauri::command]
-pub async fn websocket_token(state: tauri::State<'_, AppState>) -> Result<Option<String>, AppError> {
+pub async fn websocket_token(
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<String>, AppError> {
     let client = state.client()?;
 
     // Triggers refresh flow when needed before exposing token.
