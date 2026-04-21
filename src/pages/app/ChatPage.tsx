@@ -621,11 +621,14 @@ export function ChatPage() {
 	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
+	const threadScrollContainerRef = useRef<HTMLDivElement | null>(null);
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const selectedConversationIdRef = useRef<string | null>(null);
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
+	const preserveThreadScrollRef = useRef(false);
+	const olderLoadSnapshotRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
 	const selectedConversationUnreadCountRef = useRef(0);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
@@ -1106,6 +1109,14 @@ export function ChatPage() {
 				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
 					return;
 				}
+				const container = threadScrollContainerRef.current;
+				if (container) {
+					preserveThreadScrollRef.current = true;
+					olderLoadSnapshotRef.current = {
+						scrollTop: container.scrollTop,
+						scrollHeight: container.scrollHeight,
+					};
+				}
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
@@ -1326,6 +1337,20 @@ export function ChatPage() {
 		[service, syncConversation],
 	);
 
+	const handleThreadScroll = useCallback(() => {
+		const container = threadScrollContainerRef.current;
+		if (!container || isLoadingOlderMessagesRef.current || !messagePageKeyRef.current) {
+			return;
+		}
+
+		if (container.scrollTop <= 40 && selectedConversationIdRef.current) {
+			void loadThread({
+				conversationId: selectedConversationIdRef.current,
+				older: true,
+			});
+		}
+	}, [loadThread]);
+
 	useEffect(() => {
 		void loadInbox({ page: 1, replace: true });
 	}, [loadInbox]);
@@ -1444,6 +1469,18 @@ export function ChatPage() {
 
 	useEffect(() => {
 		if (!threadMessages.length) {
+			return;
+		}
+
+		if (preserveThreadScrollRef.current) {
+			const container = threadScrollContainerRef.current;
+			const snapshot = olderLoadSnapshotRef.current;
+			if (container && snapshot) {
+				const heightDelta = container.scrollHeight - snapshot.scrollHeight;
+				container.scrollTop = snapshot.scrollTop + heightDelta;
+			}
+			olderLoadSnapshotRef.current = null;
+			preserveThreadScrollRef.current = false;
 			return;
 		}
 
@@ -2967,7 +3004,11 @@ export function ChatPage() {
 				</div>
 			) : (
 				<>
-					<div className="flex flex-1 flex-col overflow-y-auto">
+					<div
+						ref={threadScrollContainerRef}
+						onScroll={handleThreadScroll}
+						className="flex flex-1 flex-col overflow-y-auto"
+					>
 						{messagePageKey ? (
 							<button
 								type="button"
