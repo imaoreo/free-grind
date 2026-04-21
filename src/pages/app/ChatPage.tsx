@@ -628,7 +628,10 @@ export function ChatPage() {
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const preserveThreadScrollRef = useRef(false);
-	const olderLoadSnapshotRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
+	const olderLoadSnapshotRef = useRef<{
+		scrollTop: number;
+		scrollHeight: number;
+	} | null>(null);
 	const selectedConversationUnreadCountRef = useRef(0);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
@@ -1339,7 +1342,11 @@ export function ChatPage() {
 
 	const handleThreadScroll = useCallback(() => {
 		const container = threadScrollContainerRef.current;
-		if (!container || isLoadingOlderMessagesRef.current || !messagePageKeyRef.current) {
+		if (
+			!container ||
+			isLoadingOlderMessagesRef.current ||
+			!messagePageKeyRef.current
+		) {
 			return;
 		}
 
@@ -3694,10 +3701,16 @@ export function ChatPage() {
 				: null}
 
 			{fullScreenImageUrl ? (
-				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+					onClick={() => setFullScreenImageUrl(null)}
+				>
 					<button
 						type="button"
-						onClick={() => setFullScreenImageUrl(null)}
+						onClick={(event) => {
+							event.stopPropagation();
+							setFullScreenImageUrl(null);
+						}}
 						className="absolute right-4 top-4 rounded-lg border border-white/40 p-2 text-white"
 					>
 						<X className="h-4 w-4" />
@@ -3706,6 +3719,7 @@ export function ChatPage() {
 						src={fullScreenImageUrl}
 						alt="Media"
 						className="max-h-full max-w-full rounded-xl object-contain"
+						onClick={(event) => event.stopPropagation()}
 					/>
 				</div>
 			) : null}
