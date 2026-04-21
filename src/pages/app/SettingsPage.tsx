@@ -1,5 +1,12 @@
 import { useNavigate } from "react-router-dom";
-import { BadgeInfo, ChevronRight, Download, Images, Info, LogOut } from "lucide-react";
+import {
+	BadgeInfo,
+	ChevronRight,
+	Download,
+	Images,
+	Info,
+	LogOut,
+} from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { exportAllLogs } from "../../services/chatLog";

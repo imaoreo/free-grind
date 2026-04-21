@@ -107,9 +107,7 @@ export async function appendMessages(
  * Returns an object keyed by conversationId, each value being the array of
  * stored messages. Conversations with empty logs are omitted.
  */
-export async function exportAllLogs(): Promise<
-	Record<string, Message[]>
-> {
+export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 	const result: Record<string, Message[]> = {};
 
 	try {
