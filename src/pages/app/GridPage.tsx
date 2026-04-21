@@ -45,6 +45,8 @@ export function GridPage() {
 	const navigate = useNavigate();
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
+	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
+	const [nextPage, setNextPage] = useState<number | null>(null);
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
 	const [isSettingLocation, setIsSettingLocation] = useState(false);
@@ -190,7 +192,7 @@ export function GridPage() {
 	useEffect(() => {
 		let cancelled = false;
 
-		const loadBrowseCards = async () => {
+		const loadBrowseCards = async (page?: number) => {
 			if (isLoadingPreferences) {
 				return;
 			}
@@ -220,9 +222,10 @@ export function GridPage() {
 			}
 
 			try {
-				const response = await fetchRest(
-					`/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}`,
-				);
+				const url = page
+					? `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}&pageNumber=${page}`
+					: `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}`;
+				const response = await fetchRest(url);
 
 				if (response.status < 200 || response.status >= 300) {
 					throw new Error(
@@ -231,7 +234,7 @@ export function GridPage() {
 				}
 
 				const parsed = cascadeResponseSchema.parse(response.json());
-				const nextCards: BrowseCard[] = [];
+				const newCards: BrowseCard[] = [];
 
 				for (const item of parsed.items) {
 					if (
@@ -243,13 +246,14 @@ export function GridPage() {
 
 					const candidate = browseCardSchema.safeParse(item.data);
 					if (candidate.success) {
-						nextCards.push(candidate.data);
+						newCards.push(candidate.data);
 					}
 				}
 
 				if (!cancelled) {
-					setCards(nextCards);
-					setCachedBrowseCards(geohash, nextCards);
+					setCards(newCards);
+					setCachedBrowseCards(geohash, newCards);
+					setNextPage(parsed.nextPage ?? null);
 				}
 			} catch (error) {
 				if (!cancelled) {
@@ -275,6 +279,38 @@ export function GridPage() {
 			cancelled = true;
 		};
 	}, [fetchRest, geohash, isLoadingPreferences]);
+
+	const handleLoadMoreCards = async () => {
+		if (!geohash || !nextPage || isLoadingMoreCards) return;
+		setIsLoadingMoreCards(true);
+		let cancelled = false;
+		try {
+			const url = `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}&pageNumber=${nextPage}`;
+			const response = await fetchRest(url);
+			if (response.status < 200 || response.status >= 300) {
+				throw new Error(`Failed to load more profiles (${response.status})`);
+			}
+			const parsed = cascadeResponseSchema.parse(response.json());
+			const newCards: BrowseCard[] = [];
+			for (const item of parsed.items) {
+				if (
+					item.type !== "full_profile_v1" &&
+					item.type !== "partial_profile_v1"
+				)
+					continue;
+				const candidate = browseCardSchema.safeParse(item.data);
+				if (candidate.success) newCards.push(candidate.data);
+			}
+			if (!cancelled) {
+				setCards((prev) => [...prev, ...newCards]);
+				setNextPage(parsed.nextPage ?? null);
+			}
+		} catch {
+			// silently fail — existing cards remain
+		} finally {
+			if (!cancelled) setIsLoadingMoreCards(false);
+		}
+	};
 
 	useEffect(() => {
 		if (!activeProfileId) {
@@ -585,6 +621,11 @@ export function GridPage() {
 					cards={cards}
 					onSelectProfile={handleSelectProfile}
 					onMessageProfile={handleMessageProfile}
+					hasMore={nextPage !== null}
+					isLoadingMore={isLoadingMoreCards}
+					onLoadMore={() => {
+						void handleLoadMoreCards();
+					}}
 				/>
 
 				<ProfileDetailsModal

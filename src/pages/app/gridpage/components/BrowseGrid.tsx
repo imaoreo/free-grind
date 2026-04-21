@@ -7,6 +7,9 @@ type BrowseGridProps = {
 	cards: BrowseCard[];
 	onSelectProfile: (profileId: string) => void;
 	onMessageProfile: (profileId: string) => void;
+	hasMore?: boolean;
+	isLoadingMore?: boolean;
+	onLoadMore?: () => void;
 };
 
 export function BrowseGrid({
@@ -15,6 +18,9 @@ export function BrowseGrid({
 	cards,
 	onSelectProfile,
 	onMessageProfile,
+	hasMore,
+	isLoadingMore,
+	onLoadMore,
 }: BrowseGridProps) {
 	if (isLoadingCards) {
 		return (
@@ -47,15 +53,29 @@ export function BrowseGrid({
 	}
 
 	return (
-		<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-			{cards.map((card) => (
-				<BrowseCardTile
-					key={card.profileId}
-					card={card}
-					onSelectProfile={onSelectProfile}
-					onMessageProfile={onMessageProfile}
-				/>
-			))}
+		<div className="flex flex-col gap-4">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+				{cards.map((card) => (
+					<BrowseCardTile
+						key={card.profileId}
+						card={card}
+						onSelectProfile={onSelectProfile}
+						onMessageProfile={onMessageProfile}
+					/>
+				))}
+			</div>
+			{hasMore && (
+				<div className="flex justify-center">
+					<button
+						type="button"
+						onClick={onLoadMore}
+						disabled={isLoadingMore}
+						className="rounded-xl px-6 py-2 text-sm font-medium bg-[var(--surface-card)] hover:bg-[var(--surface-hover)] text-[var(--text-primary)] disabled:opacity-50 transition-colors"
+					>
+						{isLoadingMore ? "Loading..." : "Load more"}
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }
