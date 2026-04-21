@@ -25,6 +25,7 @@ export default defineConfig({
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
 			{ text: "Home", link: "/" },
+			{ text: "Guides", link: "/guide/" },
 			{ text: "Grindr API", link: "/grindr-api" },
 		],
 
@@ -36,7 +37,15 @@ export default defineConfig({
 			"/guide/": [
 				{
 					text: "User guide",
-					items: [{ text: "Download", link: "/guide/download" }],
+					items: [
+						{ text: "Overview", link: "/guide/" },
+						{ text: "Why Open Grind", link: "/guide/why-open-grind" },
+						{ text: "Download", link: "/guide/download" },
+						{ text: "Getting Started", link: "/guide/getting-started" },
+						{ text: "Chats and Media", link: "/guide/chats-and-media" },
+						{ text: "Privacy and Safety", link: "/guide/privacy-and-safety" },
+						{ text: "Troubleshooting", link: "/guide/troubleshooting" },
+					],
 				},
 			],
 			"/grindr-api/": [

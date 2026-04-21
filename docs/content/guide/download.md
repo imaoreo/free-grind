@@ -1,10 +1,30 @@
 ---
-prev: false
-next: false
+title: Download
 ---
 
 # Download Open Grind
 
-As of April 7th, 2026, we're still actively working on it!
+Open Grind is actively under development.
 
-Follow or contibute to the [git repository](https://github.com/kezza2k7/open-grind/) and check back in a couple of weeks :smile:
+## Current status
+
+- Desktop and mobile work is in progress.
+- Packaging and release channels are still being finalized.
+
+[picture: release status board showing planned desktop and mobile builds]
+
+## How to get updates
+
+- Watch the repository for release announcements.
+- Follow project discussions for milestone updates.
+
+[picture: GitHub repository watch menu]
+
+Project repository: [Open Grind on GitHub](https://github.com/kezza2k7/open-grind/)
+
+## After download
+
+Continue with:
+
+- [Getting Started](/guide/getting-started)
+- [Chats and Media](/guide/chats-and-media)
