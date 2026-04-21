@@ -335,6 +335,9 @@ export function ChatPage() {
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const selectedConversationIdRef = useRef<string | null>(null);
+	const messagePageKeyRef = useRef<string | null>(null);
+	const isLoadingOlderMessagesRef = useRef(false);
+	const selectedConversationUnreadCountRef = useRef(0);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -421,6 +424,19 @@ export function ChatPage() {
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
 	}, [selectedConversationId]);
+
+	useEffect(() => {
+		messagePageKeyRef.current = messagePageKey;
+	}, [messagePageKey]);
+
+	useEffect(() => {
+		isLoadingOlderMessagesRef.current = isLoadingOlderMessages;
+	}, [isLoadingOlderMessages]);
+
+	useEffect(() => {
+		selectedConversationUnreadCountRef.current =
+			selectedConversation?.data.unreadCount ?? 0;
+	}, [selectedConversation]);
 
 	const conversationSearchResults = useMemo(
 		() => searchConversationsLocal(searchQuery, 30),
@@ -710,9 +726,10 @@ export function ChatPage() {
 			older: boolean;
 		}) => {
 			if (older) {
-				if (!messagePageKey || isLoadingOlderMessages) {
+				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
 					return;
 				}
+				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
 				setIsLoadingThread(true);
@@ -723,7 +740,7 @@ export function ChatPage() {
 			try {
 				const response = await service.listMessages({
 					conversationId,
-					pageKey: older ? (messagePageKey ?? undefined) : undefined,
+					pageKey: older ? (messagePageKeyRef.current ?? undefined) : undefined,
 					includeProfile: true,
 				});
 
@@ -740,6 +757,9 @@ export function ChatPage() {
 
 				const firstMessage = response.messages[0];
 				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
+				messagePageKeyRef.current = firstMessage
+					? firstMessage.messageId
+					: null;
 
 				if (!older) {
 					const newest = response.messages[response.messages.length - 1];
@@ -776,11 +796,7 @@ export function ChatPage() {
 					}
 				}
 
-				if (
-					!older &&
-					selectedConversation &&
-					selectedConversation.data.unreadCount > 0
-				) {
+				if (!older && selectedConversationUnreadCountRef.current > 0) {
 					const newest = response.messages[response.messages.length - 1];
 					if (newest?.messageId) {
 						void service
@@ -803,15 +819,10 @@ export function ChatPage() {
 			} finally {
 				setIsLoadingThread(false);
 				setIsLoadingOlderMessages(false);
+				isLoadingOlderMessagesRef.current = false;
 			}
 		},
-		[
-			isLoadingOlderMessages,
-			messagePageKey,
-			selectedConversation,
-			service,
-			syncConversation,
-		],
+		[service, syncConversation],
 	);
 
 	useEffect(() => {
