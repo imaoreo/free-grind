@@ -54,6 +54,7 @@ export default function App() {
 							<Route path="/right-now" element={<RightNowPage />} />
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
+							<Route path="/chat/:conversationId" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
