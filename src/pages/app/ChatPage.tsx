@@ -30,7 +30,16 @@ import {
 	createChatService,
 	type ChatApiError,
 } from "../../services/chatService";
-import type { ConversationEntry, Message } from "../../types/chat";
+import {
+	ChatRealtimeManager,
+	type RealtimeStatus,
+	type RealtimeEnvelope,
+} from "../../services/chatRealtime";
+import {
+	messageSchema,
+	type ConversationEntry,
+	type Message,
+} from "../../types/chat";
 import { getProfileImageUrl } from "../../utils/media";
 import {
 	indexConversations,
@@ -164,7 +173,10 @@ function formatMessageTime(timestamp: number, now: number): string {
 	});
 }
 
-function highlightMatch(text: string, query: string): Array<{ text: string; match: boolean }> {
+function highlightMatch(
+	text: string,
+	query: string,
+): Array<{ text: string; match: boolean }> {
 	const needle = query.trim().toLowerCase();
 	if (!needle) {
 		return [{ text, match: false }];
@@ -186,7 +198,10 @@ function highlightMatch(text: string, query: string): Array<{ text: string; matc
 			parts.push({ text: source.slice(cursor, found), match: false });
 		}
 
-		parts.push({ text: source.slice(found, found + needle.length), match: true });
+		parts.push({
+			text: source.slice(found, found + needle.length),
+			match: true,
+		});
 		cursor = found + needle.length;
 	}
 
@@ -363,18 +378,20 @@ export function ChatPage() {
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchMode, setSearchMode] = useState<SearchMode>("messages");
-	const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>([]);
+	const [profileResults, setProfileResults] = useState<ProfileSearchResult[]>(
+		[],
+	);
 	const [isSearchingProfiles, setIsSearchingProfiles] = useState(false);
 	const [profileSearchAfterDistance, setProfileSearchAfterDistance] = useState<
 		string | null
 	>(null);
-	const [profileSearchAfterProfileId, setProfileSearchAfterProfileId] = useState<
+	const [profileSearchAfterProfileId, setProfileSearchAfterProfileId] =
+		useState<string | null>(null);
+	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
 	>(null);
-	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<string | null>(
-		null,
-	);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
+	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
 
 	const selectedConversationId = isDesktop
 		? selectedDesktopConversationId
@@ -418,6 +435,117 @@ export function ChatPage() {
 			);
 		},
 		[selectedConversationId],
+	);
+
+	const mergeIncomingMessages = useCallback(
+		(messages: Message[]) => {
+			if (!messages.length) {
+				return;
+			}
+
+			setThreadMessages((previous) => {
+				const map = new Map<string, UiMessage>();
+				for (const message of previous) {
+					map.set(message.messageId, message);
+				}
+				for (const message of messages) {
+					if (
+						selectedConversationId &&
+						message.conversationId !== selectedConversationId
+					) {
+						continue;
+					}
+					map.set(message.messageId, message);
+				}
+
+				return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+			});
+
+			const byConversation = new Map<string, Message>();
+			for (const message of messages) {
+				const previous = byConversation.get(message.conversationId);
+				if (!previous || previous.timestamp < message.timestamp) {
+					byConversation.set(message.conversationId, message);
+				}
+			}
+
+			setConversations((previous) =>
+				previous.map((conversation) => {
+					const latestMessage = byConversation.get(
+						conversation.data.conversationId,
+					);
+					if (!latestMessage) {
+						return conversation;
+					}
+
+					const text =
+						typeof (latestMessage.body as Record<string, unknown> | null)
+							?.text === "string"
+							? String((latestMessage.body as Record<string, unknown>).text)
+							: latestMessage.type === "Image"
+								? "Sent an image"
+								: latestMessage.type === "Album"
+									? "Shared an album"
+									: "Sent a message";
+
+					return {
+						...conversation,
+						data: {
+							...conversation.data,
+							lastActivityTimestamp: latestMessage.timestamp,
+							preview: {
+								conversationId: {
+									value: latestMessage.conversationId,
+								},
+								messageId: latestMessage.messageId,
+								senderId: latestMessage.senderId,
+								type: latestMessage.type,
+								chat1Type: latestMessage.chat1Type ?? "text",
+								text,
+								albumId: null,
+								imageHash: null,
+							},
+						},
+					};
+				}),
+			);
+		},
+		[selectedConversationId],
+	);
+
+	const applyRealtimeEnvelope = useCallback(
+		(envelope: RealtimeEnvelope) => {
+			const candidates: Message[] = [];
+
+			const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
+			for (const payload of payloads) {
+				if (!payload || typeof payload !== "object") {
+					continue;
+				}
+
+				const record = payload as Record<string, unknown>;
+				if (record.message) {
+					const parsed = messageSchema.safeParse(record.message);
+					if (parsed.success) {
+						candidates.push(parsed.data);
+					}
+				}
+
+				if (Array.isArray(record.messages)) {
+					for (const candidate of record.messages) {
+						const parsed = messageSchema.safeParse(candidate);
+						if (parsed.success) {
+							candidates.push(parsed.data);
+						}
+					}
+				}
+			}
+
+			if (candidates.length > 0) {
+				mergeIncomingMessages(candidates);
+			}
+		},
+		[mergeIncomingMessages],
 	);
 
 	const loadAlbums = useCallback(async () => {
@@ -641,6 +769,40 @@ export function ChatPage() {
 	}, [isDesktop]);
 
 	useEffect(() => {
+		const manager = new ChatRealtimeManager({
+			url: "wss://grindr.mobi/v1/ws",
+			getToken: () => localStorage.getItem("open_grind_ws_token"),
+			onEvent: applyRealtimeEnvelope,
+			onStatusChange: setRealtimeStatus,
+		});
+
+		const hasToken = Boolean(localStorage.getItem("open_grind_ws_token"));
+		if (hasToken) {
+			manager.start();
+		}
+
+		return () => {
+			manager.stop();
+		};
+	}, [applyRealtimeEnvelope]);
+
+	useEffect(() => {
+		const intervalId = window.setInterval(() => {
+			void loadInbox({ page: 1, replace: true });
+			if (selectedConversationId) {
+				void loadThread({
+					conversationId: selectedConversationId,
+					older: false,
+				});
+			}
+		}, 20_000);
+
+		return () => {
+			window.clearInterval(intervalId);
+		};
+	}, [loadInbox, loadThread, selectedConversationId]);
+
+	useEffect(() => {
 		if (!selectedConversationId) {
 			setThreadConversationId(null);
 			setThreadMessages([]);
@@ -734,7 +896,9 @@ export function ChatPage() {
 						: null,
 				);
 				setProfileSearchAfterProfileId(
-					response.lastProfileId != null ? String(response.lastProfileId) : null,
+					response.lastProfileId != null
+						? String(response.lastProfileId)
+						: null,
 				);
 			} catch (error) {
 				toast.error(
@@ -776,7 +940,11 @@ export function ChatPage() {
 
 	useEffect(() => {
 		setActiveThreadSearchIndex(0);
-	}, [selectedThreadMessageMatches.length, selectedConversationId, searchQuery]);
+	}, [
+		selectedThreadMessageMatches.length,
+		selectedConversationId,
+		searchQuery,
+	]);
 
 	const unreadTotal = useMemo(
 		() =>
@@ -825,10 +993,14 @@ export function ChatPage() {
 
 			const delta = direction === "next" ? 1 : -1;
 			const nextIndex =
-				(activeThreadSearchIndex + delta + selectedThreadMessageMatches.length) %
+				(activeThreadSearchIndex +
+					delta +
+					selectedThreadMessageMatches.length) %
 				selectedThreadMessageMatches.length;
 			setActiveThreadSearchIndex(nextIndex);
-			setPendingMessageScrollId(selectedThreadMessageMatches[nextIndex].messageId);
+			setPendingMessageScrollId(
+				selectedThreadMessageMatches[nextIndex].messageId,
+			);
 		},
 		[activeThreadSearchIndex, selectedThreadMessageMatches],
 	);
@@ -1371,6 +1543,9 @@ export function ChatPage() {
 							? `${unreadTotal} unread message${unreadTotal === 1 ? "" : "s"}`
 							: "All caught up"}
 					</p>
+					<p className="mt-1 text-xs text-[var(--text-muted)]">
+						Realtime: {realtimeStatus}
+					</p>
 				</div>
 				<button
 					type="button"
@@ -1440,14 +1615,20 @@ export function ChatPage() {
 									className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 								>
 									<p className="truncate text-sm font-semibold">
-										{highlightMatch(result.name, searchQuery).map((part, index) =>
-											part.match ? (
-												<mark key={`${result.conversationId}-name-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
-													{part.text}
-												</mark>
-											) : (
-												<span key={`${result.conversationId}-name-${index}`}>{part.text}</span>
-											),
+										{highlightMatch(result.name, searchQuery).map(
+											(part, index) =>
+												part.match ? (
+													<mark
+														key={`${result.conversationId}-name-${index}`}
+														className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
+													>
+														{part.text}
+													</mark>
+												) : (
+													<span key={`${result.conversationId}-name-${index}`}>
+														{part.text}
+													</span>
+												),
 										)}
 									</p>
 									<p className="mt-1 truncate text-xs text-[var(--text-muted)]">
@@ -1469,14 +1650,20 @@ export function ChatPage() {
 										{result.conversationId}
 									</p>
 									<p className="mt-1 text-sm">
-										{highlightMatch(result.text, searchQuery).map((part, index) =>
-											part.match ? (
-												<mark key={`${result.messageId}-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
-													{part.text}
-												</mark>
-											) : (
-												<span key={`${result.messageId}-${index}`}>{part.text}</span>
-											),
+										{highlightMatch(result.text, searchQuery).map(
+											(part, index) =>
+												part.match ? (
+													<mark
+														key={`${result.messageId}-${index}`}
+														className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
+													>
+														{part.text}
+													</mark>
+												) : (
+													<span key={`${result.messageId}-${index}`}>
+														{part.text}
+													</span>
+												),
 										)}
 									</p>
 								</button>
@@ -1505,11 +1692,16 @@ export function ChatPage() {
 											{highlightMatch(profile.displayName, searchQuery).map(
 												(part, index) =>
 													part.match ? (
-														<mark key={`${profile.profileId}-${index}`} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
+														<mark
+															key={`${profile.profileId}-${index}`}
+															className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
+														>
 															{part.text}
 														</mark>
 													) : (
-														<span key={`${profile.profileId}-${index}`}>{part.text}</span>
+														<span key={`${profile.profileId}-${index}`}>
+															{part.text}
+														</span>
 													),
 											)}
 										</p>
@@ -1546,14 +1738,23 @@ export function ChatPage() {
 						</div>
 					) : null}
 
-					{searchMode === "conversations" && conversationSearchResults.length === 0 ? (
-						<p className="text-xs text-[var(--text-muted)]">No conversation matches found.</p>
+					{searchMode === "conversations" &&
+					conversationSearchResults.length === 0 ? (
+						<p className="text-xs text-[var(--text-muted)]">
+							No conversation matches found.
+						</p>
 					) : null}
 					{searchMode === "messages" && messageSearchResults.length === 0 ? (
-						<p className="text-xs text-[var(--text-muted)]">No message matches found in indexed cache.</p>
+						<p className="text-xs text-[var(--text-muted)]">
+							No message matches found in indexed cache.
+						</p>
 					) : null}
-					{searchMode === "profiles" && !isSearchingProfiles && profileResults.length === 0 ? (
-						<p className="text-xs text-[var(--text-muted)]">No profile matches found.</p>
+					{searchMode === "profiles" &&
+					!isSearchingProfiles &&
+					profileResults.length === 0 ? (
+						<p className="text-xs text-[var(--text-muted)]">
+							No profile matches found.
+						</p>
 					) : null}
 				</div>
 			) : (
@@ -1760,8 +1961,8 @@ export function ChatPage() {
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const isActiveSearchMatch =
-									selectedThreadMessageMatches[activeThreadSearchIndex]?.messageId ===
-									message.messageId;
+									selectedThreadMessageMatches[activeThreadSearchIndex]
+										?.messageId === message.messageId;
 
 								return (
 									<div
@@ -1769,7 +1970,10 @@ export function ChatPage() {
 										data-message-id={message.messageId}
 										ref={(element) => {
 											if (element) {
-												messageElementRefs.current.set(message.messageId, element);
+												messageElementRefs.current.set(
+													message.messageId,
+													element,
+												);
 											} else {
 												messageElementRefs.current.delete(message.messageId);
 											}

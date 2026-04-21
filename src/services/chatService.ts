@@ -168,14 +168,12 @@ export function createChatService(fetchRest: RestFetcher) {
 						)
 						.optional()
 						.default([]),
-					lastDistanceInKm: z
-						.coerce
+					lastDistanceInKm: z.coerce
 						.number()
 						.nullable()
 						.optional()
 						.default(null),
-					lastProfileId: z
-						.coerce
+					lastProfileId: z.coerce
 						.number()
 						.int()
 						.nullable()
