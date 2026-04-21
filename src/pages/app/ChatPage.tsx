@@ -693,6 +693,28 @@ export function ChatPage() {
 		? selectedDesktopConversationId
 		: (routeConversationId ?? null);
 
+	// Keep selection in sync when the layout breakpoint flips (e.g. fullscreen toggle).
+	const prevIsDesktopRef = useRef(isDesktop);
+	useEffect(() => {
+		const wasDesktop = prevIsDesktopRef.current;
+		prevIsDesktopRef.current = isDesktop;
+		if (wasDesktop === isDesktop) return;
+
+		if (isDesktop) {
+			// Switched to desktop: pull the active route conversation into state.
+			if (routeConversationId) {
+				setSelectedDesktopConversationId(routeConversationId);
+			}
+		} else {
+			// Switched to mobile: push the desktop selection into the URL.
+			if (selectedDesktopConversationId) {
+				navigate(`/chat/${encodeURIComponent(selectedDesktopConversationId)}`, {
+					replace: true,
+				});
+			}
+		}
+	}, [isDesktop, routeConversationId, selectedDesktopConversationId, navigate]);
+
 	const selectedConversation = useMemo(
 		() =>
 			conversations.find(
