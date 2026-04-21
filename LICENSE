@@ -22,8 +22,17 @@ benefit.
 2. Grant of licence
 
 Subject to compliance with this licence, you are granted a limited,
-non-exclusive, non-transferable, revocable licence to use, copy, modify, and
-redistribute the Software for Personal Use only.
+non-exclusive, non-transferable, revocable licence to:
+
+- use the Software for Personal Use;
+- copy the Software for Personal Use;
+- modify the Software for Personal Use.
+
+You may redistribute the Software in its original, unmodified form
+for Personal Use only, provided that all copyright and attribution
+notices are retained.
+
+Redistribution of modified versions is not permitted.
 
 3. Attribution and credit requirements
 
@@ -59,7 +68,7 @@ You must not, without prior written permission:
 
 This licence terminates automatically if you breach any term of this licence.
 Upon termination, you must immediately stop all use and distribution of the
-Software and destroy all copies in your possession or control.
+Software and destroy all copies in your possession or control including any modified or partial copies.
 
 7. No warranty
 
@@ -67,14 +76,46 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-8. Limitation of liability
+8. No forks, derivative distribution, or competing versions
+
+You may not create, publish, or make publicly available any copies
+or forks of the Software.
+
+You may not distribute, share, or make available any modified or derivative
+version of the Software to any third party.
+
+All modifications are strictly limited to Personal Use. If you wish to share
+changes, you must do so solely by submitting contributions (e.g. pull requests)
+to the original repository controlled by the copyright holder.
+
+You may not maintain, distribute, or make available any alternative,
+derivative, or competing version of the Software.
+
+You may not use the Software, in whole or in part, as the basis for
+developing or promoting a competing product or service where any part
+of the Software is reused, derived, or incorporated.
+
+9. Limitation of liability
 
 IN NO EVENT SHALL ESTOPIA ENGINEERING LTD, ITS DIRECTORS, OFFICERS, EMPLOYEES,
 OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-9. Entire agreement
+10. Entire agreement
 
 This licence constitutes the entire agreement governing your use of the
 Software for Personal Use.
+
+11. Governing law
+
+This licence shall be governed by and construed in accordance with
+the laws of Scotland. Any disputes arising under or in connection
+with this licence shall be subject to the exclusive jurisdiction of
+the Scottish courts.
+
+12. Trademarks
+"Open Grind" and any associated logos or branding are trademarks of Estopia Engineering Ltd. You may not use these trademarks without prior written permission. 
+
+13. Grindr
+Grindr is a registered trademark of Grindr LLC. This project is an independent, unofficial client and is not affiliated with or endorsed by Grindr LLC in any way.
