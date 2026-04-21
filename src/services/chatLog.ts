@@ -10,6 +10,7 @@ import {
 	BaseDirectory,
 	exists,
 	mkdir,
+	readDir,
 	readTextFile,
 	writeTextFile,
 } from "@tauri-apps/plugin-fs";
@@ -98,4 +99,47 @@ export async function appendMessages(
 	} catch {
 		// Best effort only — never block the UI.
 	}
+}
+
+/**
+ * Export all locally stored messages across all conversations.
+ *
+ * Returns an object keyed by conversationId, each value being the array of
+ * stored messages. Conversations with empty logs are omitted.
+ */
+export async function exportAllLogs(): Promise<
+	Record<string, Message[]>
+> {
+	const result: Record<string, Message[]> = {};
+
+	try {
+		const dirExists = await exists(LOG_DIR, { baseDir: BaseDirectory.AppData });
+		if (!dirExists) return result;
+
+		const entries = await readDir(LOG_DIR, { baseDir: BaseDirectory.AppData });
+
+		await Promise.all(
+			entries
+				.filter((entry) => entry.name?.endsWith(".json"))
+				.map(async (entry) => {
+					const name = entry.name!;
+					const conversationId = name.slice(0, -5); // strip .json
+					try {
+						const text = await readTextFile(`${LOG_DIR}/${name}`, {
+							baseDir: BaseDirectory.AppData,
+						});
+						const parsed: unknown = JSON.parse(text);
+						if (Array.isArray(parsed) && parsed.length > 0) {
+							result[conversationId] = parsed as Message[];
+						}
+					} catch {
+						// Skip unreadable files.
+					}
+				}),
+		);
+	} catch {
+		// Return whatever was collected.
+	}
+
+	return result;
 }
