@@ -21,7 +21,11 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useApi } from "../../hooks/useApi";
 import { Button } from "../../components/ui/button";
-import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
+import {
+	EmptyState,
+	ErrorState,
+	LoadingState,
+} from "../../components/ui/states";
 
 const albumSchema = z.object({
 	albumId: z

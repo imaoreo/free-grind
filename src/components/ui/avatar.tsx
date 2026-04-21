@@ -28,7 +28,12 @@ export function Avatar({
 			{...props}
 		>
 			{src ? (
-				<img src={src} alt={alt} className="h-full w-full object-cover" {...imageProps} />
+				<img
+					src={src}
+					alt={alt}
+					className="h-full w-full object-cover"
+					{...imageProps}
+				/>
 			) : initials ? (
 				<span>{initials}</span>
 			) : (

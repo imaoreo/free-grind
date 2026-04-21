@@ -533,7 +533,11 @@ export function GridPage() {
 							aria-label="Open settings"
 							title="Settings"
 						>
-							<Avatar src={profilePhotoUrl} alt="Your profile photo" className="h-11 w-11" />
+							<Avatar
+								src={profilePhotoUrl}
+								alt="Your profile photo"
+								className="h-11 w-11"
+							/>
 						</button>
 					</div>
 					<p className="app-subtitle">

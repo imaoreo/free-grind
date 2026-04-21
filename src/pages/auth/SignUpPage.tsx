@@ -38,9 +38,14 @@ export function SignUpPage() {
 			}
 		>
 			<form onSubmit={handleSubmit} className="space-y-4">
-					<Button type="submit" variant="primary" loading={isLoading} className="w-full">
-						{isLoading ? "Opening issue..." : "Open Issue #2"}
-					</Button>
+				<Button
+					type="submit"
+					variant="primary"
+					loading={isLoading}
+					className="w-full"
+				>
+					{isLoading ? "Opening issue..." : "Open Issue #2"}
+				</Button>
 			</form>
 		</AuthShell>
 	);

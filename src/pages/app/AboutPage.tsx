@@ -50,7 +50,11 @@ export function AboutPage() {
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-5xl gap-6">
 				<header className="grid gap-4">
-					<Button type="button" onClick={() => navigate("/settings")} className="w-fit">
+					<Button
+						type="button"
+						onClick={() => navigate("/settings")}
+						className="w-fit"
+					>
 						<ArrowLeft className="h-4 w-4" />
 						Back to Settings
 					</Button>

@@ -39,39 +39,44 @@ export function SignInPage() {
 			}
 		>
 			<form onSubmit={handleSubmit} className="space-y-4">
-					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-							Email
-						</label>
-						<input
-							type="email"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-							className="input-field"
-							placeholder="your@email.com"
-						/>
-					</div>
-					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-							Password
-						</label>
-						<input
-							type="password"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-							className="input-field"
-							placeholder="••••••••"
-						/>
-					</div>
-					{error ? (
-						<p className="text-sm text-[var(--text-muted)]">{error}</p>
-					) : null}
-					<Button type="submit" variant="primary" loading={isLoading} className="w-full">
-						{isLoading ? "Signing in..." : "Sign In"}
-					</Button>
-				</form>
+				<div>
+					<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						Email
+					</label>
+					<input
+						type="email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						required
+						className="input-field"
+						placeholder="your@email.com"
+					/>
+				</div>
+				<div>
+					<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						Password
+					</label>
+					<input
+						type="password"
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						required
+						className="input-field"
+						placeholder="••••••••"
+					/>
+				</div>
+				{error ? (
+					<p className="text-sm text-[var(--text-muted)]">{error}</p>
+				) : null}
+				<Button
+					type="submit"
+					variant="primary"
+					loading={isLoading}
+					className="w-full"
+				>
+					{isLoading ? "Signing in..." : "Sign In"}
+				</Button>
+			</form>
 		</AuthShell>
 	);
 }
