@@ -11,6 +11,29 @@ export default defineConfig(async () => ({
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					"vendor-react": ["react", "react-dom", "react-router-dom"],
+					"vendor-ui": [
+						"@radix-ui/react-tabs",
+						"lucide-react",
+						"clsx",
+						"tailwind-merge",
+						"react-hot-toast",
+					],
+					"vendor-map": ["leaflet", "react-leaflet"],
+					"vendor-tauri": [
+						"@tauri-apps/api",
+						"@tauri-apps/plugin-fs",
+						"@tauri-apps/plugin-geolocation",
+						"@tauri-apps/plugin-opener",
+						"@tauri-apps/plugin-os",
+					],
+					"vendor-data": ["zod", "@msgpack/msgpack"],
+				},
+			},
+		},
 	},
 
 	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
