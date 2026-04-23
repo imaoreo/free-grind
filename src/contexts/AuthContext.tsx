@@ -22,6 +22,7 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
 	login: (email: string, password: string) => Promise<void>;
+	loginWithGoogle: (accessToken: string, idToken?: string) => Promise<void>;
 	logout: () => Promise<void>;
 	checkAuth: () => Promise<void>;
 }
@@ -95,6 +96,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	};
 
+	const loginWithGoogle = async (accessToken: string, idToken?: string) => {
+		try {
+			dispatch({ type: "SET_LOADING", payload: true });
+			dispatch({ type: "SET_ERROR", payload: null });
+
+			const result = await callMethod("login_with_google", {
+				accessToken,
+				...(idToken ? { idToken } : {}),
+			});
+			dispatch({ type: "SET_USER", payload: result.profileId });
+			toast.success("Google login successful");
+		} catch (error) {
+			const appError = asAppError(error);
+			const message = appError?.prettyMessage || "Google login failed";
+			dispatch({ type: "SET_ERROR", payload: message });
+			toast.error(message);
+			throw error;
+		} finally {
+			dispatch({ type: "SET_LOADING", payload: false });
+		}
+	};
+
 	const logout = async () => {
 		try {
 			dispatch({ type: "SET_LOADING", payload: true });
@@ -119,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const value: AuthContextType = {
 		...state,
 		login,
+		loginWithGoogle,
 		logout,
 		checkAuth,
 	};

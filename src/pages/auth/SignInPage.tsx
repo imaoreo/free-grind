@@ -4,24 +4,26 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
+import { googleClientId, startGoogleOAuthRedirect } from "../../utils/googleOAuth";
 
 export function SignInPage() {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
+	const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+	const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 	const { login, error } = useAuth();
 	const navigate = useNavigate();
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		setIsLoading(true);
+		setIsPasswordLoading(true);
 		try {
 			await login(email, password);
 			navigate("/");
 		} catch (error) {
 			console.error("Login failed:", error);
 		} finally {
-			setIsLoading(false);
+			setIsPasswordLoading(false);
 		}
 	};
 
@@ -39,6 +41,27 @@ export function SignInPage() {
 			}
 		>
 			<form onSubmit={handleSubmit} className="space-y-4">
+				<Button
+					type="button"
+					variant="secondary"
+					loading={isGoogleLoading}
+					onClick={() => {
+						setIsGoogleLoading(true);
+						startGoogleOAuthRedirect();
+					}}
+					disabled={!googleClientId}
+					className="w-full"
+				>
+					{isGoogleLoading ? "Connecting to Google..." : "Continue with Google"}
+				</Button>
+				<div className="relative">
+					<div className="absolute inset-0 flex items-center">
+						<div className="w-full border-t border-[var(--border)]" />
+					</div>
+					<div className="relative flex justify-center text-xs uppercase tracking-wide text-[var(--text-muted)]">
+						<span className="bg-[var(--bg)] px-2">or</span>
+					</div>
+				</div>
 				<div>
 					<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
 						Email
@@ -71,10 +94,10 @@ export function SignInPage() {
 				<Button
 					type="submit"
 					variant="primary"
-					loading={isLoading}
+					loading={isPasswordLoading}
 					className="w-full"
 				>
-					{isLoading ? "Signing in..." : "Sign In"}
+					{isPasswordLoading ? "Signing in..." : "Sign In"}
 				</Button>
 			</form>
 		</AuthShell>

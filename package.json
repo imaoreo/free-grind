@@ -11,6 +11,7 @@
 		"dev:web": "vite dev",
 		"dev:desktop": "tauri dev",
 		"dev:ios": "echo 15 | tauri ios dev",
+		"dev:android": "tauri android dev",
 		"preview": "vite preview",
 		"tauri": "tauri",
 		"type-check": "tsc --noEmit"

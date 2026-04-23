@@ -20,6 +20,7 @@ pub fn run() {
         .manage(AppState { client })
         .invoke_handler(tauri::generate_handler![
             api::auth::login,
+            api::auth::login_with_google,
             api::auth::refresh_token,
             api::auth::logout,
             api::auth::auth_state,
