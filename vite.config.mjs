@@ -11,6 +11,8 @@ export default defineConfig(async () => ({
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,
+		target: "chrome71",
+		cssTarget: "chrome71",
 		rollupOptions: {
 			output: {
 				manualChunks(id) {
