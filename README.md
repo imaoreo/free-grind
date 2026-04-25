@@ -96,7 +96,7 @@ Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get 
 
 All contributions must be aligned with [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://opengrind.estopia.net/](https://opengrind.estopia.net/) — contributions to reverse engineering and documentation are especially valued.
+The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://opengrind.imaoreo.dev/](https://opengrind.imaoreo.dev/) — contributions to reverse engineering and documentation are especially valued.
 
 ## FAQ & Troubleshooting
 
@@ -121,7 +121,7 @@ The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) a
 <details>
   <summary>Where is the API documentation?</summary>
 
-  The Grindr API reference is maintained in this repo under [`docs/content/grindr-api/`](./docs/content/grindr-api/) and hosted at [opengrind.estopia.net](https://opengrind.estopia.net).
+  The Grindr API reference is maintained in this repo under [`docs/content/grindr-api/`](./docs/content/grindr-api/) and hosted at [opengrind.imaoreo.dev](https://opengrind.imaoreo.dev).
 </details>
 
 ## Contributing

@@ -2,7 +2,7 @@
 	"name": "open-grind",
 	"version": "0.1.0",
 	"license": "Personal Use License",
-	"author": "Jay Brammeld <jay@estopia.net> (https://jay.estopia.net)",
+	"author": "Jay Brammeld <jay@imaoreo.dev> (https://imaoreo.dev)",
 	"type": "module",
 	"scripts": {
 		"docs": "bun run --cwd docs start",

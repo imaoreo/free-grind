@@ -14,7 +14,7 @@ import { Button } from "../../components/ui/button";
 const resourceLinks = [
 	{
 		title: "Documentation",
-		href: "https://opengrind.estopia.net",
+		href: "https://opengrind.imaoreo.dev",
 		description: "Reverse-engineered API notes and developer-facing reference.",
 		icon: BookOpen,
 		external: true,
