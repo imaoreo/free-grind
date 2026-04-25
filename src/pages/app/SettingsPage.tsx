@@ -75,24 +75,27 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
 
-				<button
-					type="button"
-					onClick={() => navigate("/settings/age-verification")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<ScanFace className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">Age Verification</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								Verify your age to unlock all features.
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
+                {/* 
+                    <button
+                        type="button"
+                        onClick={() => navigate("/settings/age-verification")}
+                        className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+                                <ScanFace className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-base font-semibold">Age Verification</p>
+                                <p className="text-sm text-[var(--text-muted)]">
+                                    Verify your age to unlock all features.
+                                </p>
+                            </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+                    </button>
+                */}
+
 
 				<button
 					type="button"
