@@ -107,7 +107,7 @@ export function AboutPage() {
 							<div className="rounded-[28px] bg-[var(--surface-2)] p-5 sm:p-6">
 								<Badge>Credits</Badge>
 								<p className="mt-4 text-lg font-semibold leading-snug">
-									Credits: Estopia Engineering Ltd (SC874827, UK)
+									Credits: Jay Brammeld
 								</p>
 								<p className="mt-3 text-sm leading-6 text-[var(--text-muted)]">
 									The in-app credit is preserved here to satisfy the personal

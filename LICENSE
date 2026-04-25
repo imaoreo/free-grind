@@ -1,7 +1,7 @@
 OPEN-GRIND PERSONAL USE LICENCE (NON-COMMERCIAL)
 Version 1.0
 
-Copyright (c) 2026 Estopia Engineering Ltd (SC874827, UK)
+Copyright (c) 2026 Jay Brammeld
 All rights reserved.
 
 1. Definitions
@@ -39,7 +39,7 @@ Redistribution of modified versions is not permitted.
 You must keep the original credits intact and clearly visible.
 At minimum, the following credit must be preserved:
 
-"Credits: Estopia Engineering Ltd (SC874827, UK)"
+"Credits: Jay Brammeld"
 
 This credit must be retained in:
 - source code distributions;
@@ -54,7 +54,7 @@ copyright notices, or attribution text.
 All Commercial Use is prohibited unless you have prior written permission from
 the copyright holder.
 
-To request commercial rights, contact: support@estopia.net
+To request commercial rights, contact: jay@estopia.net
 
 5. Restrictions
 
@@ -97,8 +97,8 @@ of the Software is reused, derived, or incorporated.
 
 9. Limitation of liability
 
-IN NO EVENT SHALL ESTOPIA ENGINEERING LTD, ITS DIRECTORS, OFFICERS, EMPLOYEES,
-OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER
+IN NO EVENT SHALL JAY BRAMMELD OR CONTRIBUTORS BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
@@ -115,7 +115,7 @@ with this licence shall be subject to the exclusive jurisdiction of
 the Scottish courts.
 
 12. Trademarks
-"Open Grind" and any associated logos or branding are trademarks of Estopia Engineering Ltd. You may not use these trademarks without prior written permission. 
+"Open Grind" and any associated logos or branding are trademarks of Jay Brammeld. You may not use these trademarks without prior written permission. 
 
 13. Grindr
 Grindr is a registered trademark of Grindr LLC. This project is an independent, unofficial client and is not affiliated with or endorsed by Grindr LLC in any way.
