@@ -22,6 +22,7 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
 	login: (email: string, password: string) => Promise<void>;
+	loginWithJwt: (token: string) => Promise<void>;
 	logout: () => Promise<void>;
 	checkAuth: () => Promise<void>;
 }
@@ -95,6 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	};
 
+	const loginWithJwt = async (token: string) => {
+		try {
+			dispatch({ type: "SET_LOADING", payload: true });
+			dispatch({ type: "SET_ERROR", payload: null });
+
+			const result = await callMethod("login_with_jwt", { token });
+			dispatch({ type: "SET_USER", payload: result.profileId });
+			toast.success("Token login successful");
+		} catch (error) {
+			const appError = asAppError(error);
+			const message = appError?.prettyMessage || "Token login failed";
+			dispatch({ type: "SET_ERROR", payload: message });
+			toast.error(message);
+			throw error;
+		} finally {
+			dispatch({ type: "SET_LOADING", payload: false });
+		}
+	};
+
 	const logout = async () => {
 		try {
 			dispatch({ type: "SET_LOADING", payload: true });
@@ -119,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const value: AuthContextType = {
 		...state,
 		login,
+		loginWithJwt,
 		logout,
 		checkAuth,
 	};

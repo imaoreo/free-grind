@@ -16,6 +16,7 @@ import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 import { AboutPage } from "./pages/app/AboutPage.tsx";
 import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
+import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 
 function ErrorPage() {
 	return (
@@ -59,6 +60,7 @@ export default function App() {
 							<Route path="/settings" element={<SettingsPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
+						<Route path="/settings/age-verification" element={<AgeVerificationPage />} />
 							<Route
 								path="/settings/profile-editor"
 								element={<ProfileEditorPage />}

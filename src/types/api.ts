@@ -10,6 +10,14 @@ export const methodSchemas = {
 			profileId: z.coerce.number().int().nonnegative(),
 		}),
 	},
+	login_with_jwt: {
+		request: z.object({
+			token: z.string().min(1),
+		}),
+		response: z.object({
+			profileId: z.coerce.number().int().nonnegative(),
+		}),
+	},
 	auth_state: {
 		request: z.undefined(),
 		response: z.number().int().nonnegative().nullable(),

@@ -64,8 +64,10 @@ pub struct LoginResult {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct JwtClaims {
     exp: u64,
+    profile_id: String,
 }
 
 impl LoginRequest {
@@ -152,6 +154,25 @@ impl GrindrClient {
         Ok(LoginResult { profile_id })
     }
 
+    pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
+        let claims = decode_session_jwt(token)?;
+
+        let session = Session {
+            email: String::new(),
+            profile_id: claims.profile_id.clone(),
+            session_id: token.to_owned(),
+            auth_token: String::new(),
+            expires_at: claims.exp,
+        };
+
+        AuthStorage::set_session(&session)?;
+        *self.session.write().await = Some(session);
+
+        Ok(LoginResult {
+            profile_id: claims.profile_id,
+        })
+    }
+
     pub async fn refresh_token(&self) -> Result<LoginResult, AppError> {
         let current = self.session.read().await;
         let session = current
@@ -193,6 +214,14 @@ pub async fn login(
     password: String,
 ) -> Result<LoginResult, AppError> {
     state.client()?.login(&email, &password).await
+}
+
+#[tauri::command]
+pub async fn login_with_jwt(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<LoginResult, AppError> {
+    state.client()?.login_with_jwt(&token).await
 }
 
 #[tauri::command]
