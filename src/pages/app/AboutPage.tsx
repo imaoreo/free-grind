@@ -150,12 +150,12 @@ export function AboutPage() {
 						<div className="mt-4 grid gap-3 text-sm text-[var(--text-muted)]">
 							<p>Donation links currently listed by the project:</p>
 							<a
-								href="https://estopia.net/donate"
+								href="https://imaoreo.dev/donate"
 								target="_blank"
 								rel="noreferrer"
 								className="rounded-2xl bg-[var(--surface-2)] px-4 py-3 font-medium text-[var(--text)]"
 							>
-								estopia.net/donate
+								imaoreo.dev/donate
 							</a>
 							<a
 								href="https://hloth.dev/donate"
