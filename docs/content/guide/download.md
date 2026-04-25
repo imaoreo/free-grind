@@ -11,14 +11,11 @@ Open Grind is actively under development.
 - Desktop and mobile work is in progress.
 - Packaging and release channels are still being finalized.
 
-[picture: release status board showing planned desktop and mobile builds]
-
 ## How to get updates
 
+- Download the latest release from the [Releases page](https://github.com/kezza2k7/open-grind/releases).
 - Watch the repository for release announcements.
 - Follow project discussions for milestone updates.
-
-[picture: GitHub repository watch menu]
 
 Project repository: [Open Grind on GitHub](https://github.com/kezza2k7/open-grind/)
 

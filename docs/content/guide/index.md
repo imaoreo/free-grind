@@ -8,8 +8,6 @@ Welcome to the Open Grind user guides.
 
 Use these guides to get set up, send messages, share media, and troubleshoot common issues.
 
-[picture: docs hero screenshot of Open Grind app on desktop and mobile]
-
 ## Start here
 
 - [Why Open Grind](/guide/why-open-grind)

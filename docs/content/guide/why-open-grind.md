@@ -6,8 +6,6 @@ title: Why Open Grind
 
 Open Grind focuses on control, visibility, and quality-of-life features that are hard to get in the standard app flow.
 
-[picture: side-by-side comparison graphic, Open Grind features vs standard app]
-
 ## Core benefits
 
 - Media retention controls: keep media available longer instead of relying only on expiring behavior.
@@ -24,8 +22,6 @@ Open Grind focuses on control, visibility, and quality-of-life features that are
 - Better productivity: faster message retrieval and navigation.
 - Better focus: less noise from ads and clutter.
 - Better control: more options for how you browse and communicate.
-
-[picture: annotated screenshot showing chat search, teleport controls, and desktop layout]
 
 ## Related guides
 

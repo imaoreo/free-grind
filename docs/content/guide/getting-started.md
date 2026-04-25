@@ -12,7 +12,8 @@ This guide walks you through your first Open Grind session.
 - Follow the [Login guide](/guide/login) to get your token and sign in.
 - Wait for the first sync to finish.
 
-[picture: sign in screen with highlighted fields]
+![Sign in with email](images/mobile/sign_in_email.jpg)
+![Sign in with token](images/mobile/sign_in_token.jpg)
 
 ## 2. Open your inbox
 
@@ -20,7 +21,7 @@ This guide walks you through your first Open Grind session.
 - Select a conversation from the list.
 - If no conversation is selected, choose one to load message history.
 
-[picture: inbox sidebar with selected conversation]
+![Conversation inbox](images/mobile/convo.jpg)
 
 ## 3. Start a chat by profile ID
 
@@ -28,14 +29,12 @@ This guide walks you through your first Open Grind session.
 - Click Start.
 - Send your first message to create/open the conversation.
 
-[picture: start chat by profile ID input and button]
+![Start chat by profile ID](images/mobile/convo_start_chat_by_id.jpg)
 
 ## 4. Open profile from chat
 
 - Inside a chat thread, use View profile.
 - When you leave the profile page, you should return to that chat.
-
-[picture: chat header with View profile action]
 
 ## Next steps
 

@@ -12,15 +12,11 @@ Open Grind is designed for privacy-first usage.
 - Lock your device with biometrics or passcode.
 - Avoid sharing sensitive screenshots.
 
-[picture: app settings and device lock illustration]
-
 ## Account hygiene
 
 - Use a strong, unique password.
 - Rotate credentials if you suspect compromise.
 - Sign out on shared devices.
-
-[picture: account security checklist graphic]
 
 ## Messaging safety
 
@@ -28,11 +24,7 @@ Open Grind is designed for privacy-first usage.
 - Avoid opening suspicious links.
 - Report abusive behavior in-app where available.
 
-[picture: chat message safety warning callout]
-
 ## Local history controls
 
 - Export local data from Settings when needed.
 - Clear local history for specific chats when desired.
-
-[picture: export chat data settings card]
