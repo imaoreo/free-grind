@@ -57,25 +57,6 @@ pub struct RefreshRequest {
     pub geohash: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GoogleExchangeRequest {
-    pub access_token: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub google_access_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id_token: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GoogleExchangeResponse {
-    pub profile_id: String,
-    pub session_id: String,
-    pub auth_token: String,
-    pub email: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginResult {
@@ -83,8 +64,10 @@ pub struct LoginResult {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct JwtClaims {
     exp: u64,
+    profile_id: String,
 }
 
 impl LoginRequest {
@@ -105,16 +88,6 @@ impl RefreshRequest {
             auth_token,
             token: None,
             geohash: None,
-        }
-    }
-}
-
-impl GoogleExchangeRequest {
-    pub fn new(access_token: String, id_token: Option<String>) -> Self {
-        Self {
-            google_access_token: Some(access_token.clone()),
-            access_token,
-            id_token,
         }
     }
 }
@@ -181,26 +154,14 @@ impl GrindrClient {
         Ok(LoginResult { profile_id })
     }
 
-    pub async fn login_with_google(
-        &self,
-        access_token: &str,
-        id_token: Option<String>,
-    ) -> Result<LoginResult, AppError> {
-        let body = GoogleExchangeRequest::new(access_token.to_owned(), id_token);
-        let session_resp: GoogleExchangeResponse = self
-            .request_json(
-                reqwest::Method::POST,
-                "/v3/users/thirdparty/exchange",
-                Some(&body),
-            )
-            .await?;
+    pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
+        let claims = decode_session_jwt(token)?;
 
-        let claims = decode_session_jwt(&session_resp.session_id)?;
         let session = Session {
-            email: session_resp.email.unwrap_or_default(),
-            profile_id: session_resp.profile_id.clone(),
-            session_id: session_resp.session_id,
-            auth_token: session_resp.auth_token,
+            email: String::new(),
+            profile_id: claims.profile_id.clone(),
+            session_id: token.to_owned(),
+            auth_token: String::new(),
             expires_at: claims.exp,
         };
 
@@ -208,7 +169,7 @@ impl GrindrClient {
         *self.session.write().await = Some(session);
 
         Ok(LoginResult {
-            profile_id: session_resp.profile_id,
+            profile_id: claims.profile_id,
         })
     }
 
@@ -256,15 +217,11 @@ pub async fn login(
 }
 
 #[tauri::command]
-pub async fn login_with_google(
+pub async fn login_with_jwt(
     state: tauri::State<'_, AppState>,
-    access_token: String,
-    id_token: Option<String>,
+    token: String,
 ) -> Result<LoginResult, AppError> {
-    state
-        .client()?
-        .login_with_google(&access_token, id_token)
-        .await
+    state.client()?.login_with_jwt(&token).await
 }
 
 #[tauri::command]

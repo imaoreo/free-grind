@@ -22,7 +22,7 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
 	login: (email: string, password: string) => Promise<void>;
-	loginWithGoogle: (accessToken: string, idToken?: string) => Promise<void>;
+	loginWithJwt: (token: string) => Promise<void>;
 	logout: () => Promise<void>;
 	checkAuth: () => Promise<void>;
 }
@@ -96,20 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	};
 
-	const loginWithGoogle = async (accessToken: string, idToken?: string) => {
+	const loginWithJwt = async (token: string) => {
 		try {
 			dispatch({ type: "SET_LOADING", payload: true });
 			dispatch({ type: "SET_ERROR", payload: null });
 
-			const result = await callMethod("login_with_google", {
-				accessToken,
-				...(idToken ? { idToken } : {}),
-			});
+			const result = await callMethod("login_with_jwt", { token });
 			dispatch({ type: "SET_USER", payload: result.profileId });
-			toast.success("Google login successful");
+			toast.success("Token login successful");
 		} catch (error) {
 			const appError = asAppError(error);
-			const message = appError?.prettyMessage || "Google login failed";
+			const message = appError?.prettyMessage || "Token login failed";
 			dispatch({ type: "SET_ERROR", payload: message });
 			toast.error(message);
 			throw error;
@@ -142,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const value: AuthContextType = {
 		...state,
 		login,
-		loginWithGoogle,
+		loginWithJwt,
 		logout,
 		checkAuth,
 	};

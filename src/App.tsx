@@ -5,7 +5,6 @@ import { RootLayout } from "./layouts/RootLayout";
 import { ProtectedLayout } from "./layouts/ProtectedLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { SignInPage } from "./pages/auth/SignInPage";
-import { GoogleCallbackPage } from "./pages/auth/GoogleCallbackPage";
 import { SignUpPage } from "./pages/auth/SignUpPage";
 import { PasswordResetPage } from "./pages/auth/PasswordResetPage";
 import { GridPage } from "./pages/app/GridPage.tsx";
@@ -38,7 +37,6 @@ export default function App() {
 					<Route element={<RootLayout />}>
 						{/* Auth Routes */}
 						<Route path="/auth/sign-in" element={<SignInPage />} />
-						<Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
 						<Route path="/auth/sign-up" element={<SignUpPage />} />
 						<Route
 							path="/auth/password-reset"

@@ -10,10 +10,9 @@ export const methodSchemas = {
 			profileId: z.coerce.number().int().nonnegative(),
 		}),
 	},
-	login_with_google: {
+	login_with_jwt: {
 		request: z.object({
-			accessToken: z.string().min(1),
-			idToken: z.string().min(1).optional(),
+			token: z.string().min(1),
 		}),
 		response: z.object({
 			profileId: z.coerce.number().int().nonnegative(),
