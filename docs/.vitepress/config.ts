@@ -41,6 +41,7 @@ export default defineConfig({
 						{ text: "Overview", link: "/guide/" },
 						{ text: "Why Open Grind", link: "/guide/why-open-grind" },
 						{ text: "Download", link: "/guide/download" },
+						{ text: "Login", link: "/guide/login" },
 						{ text: "Getting Started", link: "/guide/getting-started" },
 						{ text: "Chats and Media", link: "/guide/chats-and-media" },
 						{ text: "Privacy and Safety", link: "/guide/privacy-and-safety" },

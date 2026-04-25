@@ -9,7 +9,7 @@ This guide walks you through your first Open Grind session.
 ## 1. Sign in
 
 - Open the app.
-- Use your account credentials.
+- Follow the [Login guide](/guide/login) to get your token and sign in.
 - Wait for the first sync to finish.
 
 [picture: sign in screen with highlighted fields]
