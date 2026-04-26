@@ -6,10 +6,9 @@ import { Card } from "../../components/ui/card";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { createChatService } from "../../services/chatService";
 import type { ConversationEntry } from "../../types/chat";
-import { sharedAlbumsResponseSchema } from "../../types/albums";
-import type { SharedAlbum } from "../../types/albums";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 
 function getCounterparty(
@@ -41,6 +40,7 @@ export function SharedAlbumsPage() {
 	const navigate = useNavigate();
 	const { userId } = useAuth();
 	const { fetchRest } = useApi();
+	const apiFunctions = useApiFunctions();
 	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -93,18 +93,10 @@ export function SharedAlbumsPage() {
 
 			const responses = await Promise.allSettled(
 				profileIds.map(async (profileId) => {
-					const response = await fetchRest(`/v2/albums/shares/${profileId}`);
-					if (response.status === 404) {
-						return { profileId, albums: [] as SharedAlbum[] };
-					}
-					if (response.status < 200 || response.status >= 300) {
-						throw new Error(
-							`Failed to load shared albums for ${profileId} (${response.status})`,
-						);
-					}
-
-					const parsed = sharedAlbumsResponseSchema.parse(response.json());
-					return { profileId, albums: parsed.albums };
+					const albums = await apiFunctions.getSharedAlbumsForProfile({
+						profileId,
+					});
+					return { profileId, albums };
 				}),
 			);
 
@@ -148,7 +140,7 @@ export function SharedAlbumsPage() {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [fetchRest, service, userId]);
+	}, [apiFunctions, service, userId]);
 
 	useEffect(() => {
 		void loadSharedAlbums();
@@ -175,13 +167,7 @@ export function SharedAlbumsPage() {
 			setOpenAlbumError(null);
 			setIsOpeningAlbum(true);
 			try {
-				const viewResponse = await fetchRest(`/v3/albums/${albumId}/view`);
-				if (
-					viewResponse.status !== 403 &&
-					(viewResponse.status < 200 || viewResponse.status >= 300)
-				) {
-					throw new Error(`Failed to open album (${viewResponse.status})`);
-				}
+				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await service.getAlbum(albumId);
 				setViewer({
@@ -199,7 +185,7 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[fetchRest, isOpeningAlbum, service],
+		[apiFunctions, isOpeningAlbum, service],
 	);
 
 	return (
