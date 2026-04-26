@@ -3,6 +3,14 @@ import { decode } from "@msgpack/msgpack";
 import z from "zod";
 import { useCallback } from "react";
 import { methodSchemas, type MethodName, type AppError } from "../types/api";
+import {
+	addApiTraceEntry,
+	toTracePreview,
+} from "../services/apiTrace";
+
+function traceId(): string {
+	return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export function useApi() {
 	const callMethod = useCallback(async function <T extends MethodName>(
@@ -11,7 +19,39 @@ export function useApi() {
 			? []
 			: [data: z.infer<(typeof methodSchemas)[T]["request"]>]
 	): Promise<z.infer<(typeof methodSchemas)[T]["response"]>> {
-		return await invoke(method, args[0]);
+		const startedAt = Date.now();
+		try {
+			const result = await invoke(method, args[0]);
+			addApiTraceEntry({
+				id: traceId(),
+				kind: "command",
+				timestamp: startedAt,
+				durationMs: Date.now() - startedAt,
+				method: "INVOKE",
+				path: String(method),
+				status: 200,
+				success: true,
+				requestBody: toTracePreview(args[0]),
+				responseBody: toTracePreview(result),
+				error: null,
+			});
+			return result as z.infer<(typeof methodSchemas)[T]["response"]>;
+		} catch (error) {
+			addApiTraceEntry({
+				id: traceId(),
+				kind: "command",
+				timestamp: startedAt,
+				durationMs: Date.now() - startedAt,
+				method: "INVOKE",
+				path: String(method),
+				status: null,
+				success: false,
+				requestBody: toTracePreview(args[0]),
+				responseBody: null,
+				error: toTracePreview(error),
+			});
+			throw error;
+		}
 	}, []);
 
 	const asAppError = useCallback((error: unknown): AppError | null => {
@@ -55,6 +95,13 @@ export function useApi() {
 				abortController?: AbortController;
 			} = { method: "GET" },
 		) => {
+			const startedAt = Date.now();
+			const method = options.method || "GET";
+			const requestPreview =
+				toTracePreview(options.body) ??
+				toTracePreview(options.rawBody) ??
+				null;
+
 			try {
 				if (options.body != null && options.rawBody != null) {
 					throw new Error("Cannot provide both body and rawBody in fetchRest");
@@ -79,6 +126,20 @@ export function useApi() {
 					.object({ status: z.number(), body: z.instanceof(Uint8Array) })
 					.parse(decoded);
 
+				addApiTraceEntry({
+					id: traceId(),
+					kind: "rest",
+					timestamp: startedAt,
+					durationMs: Date.now() - startedAt,
+					method,
+					path,
+					status,
+					success: status >= 200 && status < 300,
+					requestBody: requestPreview,
+					responseBody: toTracePreview(body),
+					error: null,
+				});
+
 				return {
 					status,
 					bytes() {
@@ -93,6 +154,20 @@ export function useApi() {
 				};
 			} catch (error) {
 				const appError = asAppError(error);
+				addApiTraceEntry({
+					id: traceId(),
+					kind: "rest",
+					timestamp: startedAt,
+					durationMs: Date.now() - startedAt,
+					method,
+					path,
+					status: null,
+					success: false,
+					requestBody: requestPreview,
+					responseBody: null,
+					error: toTracePreview(appError ?? error),
+				});
+
 				if (appError) {
 					throw appError;
 				}

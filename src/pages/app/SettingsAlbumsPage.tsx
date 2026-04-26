@@ -18,7 +18,6 @@ import {
 } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import z from "zod";
 import { useApi } from "../../hooks/useApi";
 import { Button } from "../../components/ui/button";
 import {
@@ -26,48 +25,14 @@ import {
 	ErrorState,
 	LoadingState,
 } from "../../components/ui/states";
-
-const albumSchema = z.object({
-	albumId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	albumName: z.string().nullable().optional(),
-	createdAt: z.string().optional(),
-	updatedAt: z.string().optional(),
-	isShareable: z.boolean().optional(),
-});
-
-const albumsResponseSchema = z.object({
-	albums: z.array(albumSchema).optional().default([]),
-});
-
-const albumLimitsSchema = z.object({
-	subscriptionType: z.string().optional(),
-	maxAlbums: z.number().int().positive().optional(),
-});
-
-const albumMediaSchema = z.object({
-	contentId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	contentType: z.string().optional(),
-	thumbUrl: z.string().nullable().optional(),
-	url: z.string().nullable().optional(),
-	coverUrl: z.string().nullable().optional(),
-	processing: z.boolean().optional(),
-});
-
-const albumDetailSchema = z.object({
-	albumId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	albumName: z.string().nullable().optional(),
-	content: z.array(albumMediaSchema).optional().default([]),
-});
-
-type Album = z.infer<typeof albumSchema>;
-type AlbumDetail = z.infer<typeof albumDetailSchema>;
-type AlbumMedia = z.infer<typeof albumMediaSchema>;
+import {
+	albumDetailSchema,
+	albumLimitsSchema,
+	albumsResponseSchema,
+	type Album,
+	type AlbumDetail,
+	type AlbumMedia,
+} from "../../types/albums";
 
 function countAlbumMedia(detail: AlbumDetail | undefined): {
 	total: number;

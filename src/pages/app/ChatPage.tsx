@@ -32,17 +32,22 @@ import {
 	createChatService,
 	type ChatApiError,
 } from "../../services/chatService";
-import {
-	ChatRealtimeManager,
-	type RealtimeStatus,
-	type RealtimeEnvelope,
-} from "../../services/chatRealtime";
+import { ChatRealtimeManager } from "../../services/chatRealtime";
 import {
 	messageSchema,
 	type ConversationEntry,
 	type InboxFilters,
 	type Message,
-} from "../../types/chat";
+} from "../../types/messages";
+import type { RealtimeEnvelope, RealtimeStatus } from "../../types/chat-realtime";
+import type {
+	AlbumListItem,
+	AlbumViewerState,
+	InboxFilterKey,
+	ProfileSearchResult,
+	SearchMode,
+	UiMessage,
+} from "../../types/chat-page";
 import {
 	getProfileImageUrl,
 	getThumbImageUrl,
@@ -56,42 +61,6 @@ import {
 } from "./chat/cache";
 import * as chatLog from "../../services/chatLog";
 
-type UiMessage = Message & {
-	clientState?: "pending" | "failed";
-	/** True when the message was only found in the local log, not in the API response. */
-	_localOnly?: boolean;
-};
-
-type AlbumListItem = {
-	albumId: number;
-	albumName: string | null;
-	isShareable: boolean;
-};
-
-type AlbumContentItem = {
-	contentId: number;
-	contentType: string | null;
-	thumbUrl: string | null;
-	url: string | null;
-	coverUrl: string | null;
-	processing: boolean;
-};
-
-type AlbumViewerState = {
-	albumId: number;
-	albumName: string | null;
-	content: AlbumContentItem[];
-};
-
-type SearchMode = "conversations" | "messages" | "profiles";
-
-type InboxFilterKey =
-	| "unreadOnly"
-	| "favoritesOnly"
-	| "chemistryOnly"
-	| "rightNowOnly"
-	| "onlineNowOnly";
-
 const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
 	{ key: "unreadOnly", label: "Unread" },
 	{ key: "favoritesOnly", label: "Favorites" },
@@ -99,16 +68,6 @@ const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
 	{ key: "rightNowOnly", label: "Right now" },
 	{ key: "onlineNowOnly", label: "Online" },
 ];
-
-type ProfileSearchResult = {
-	profileId: number;
-	displayName: string;
-	age: number | null;
-	distance: number | null;
-	profileImageMediaHash: string | null;
-	hasAlbum: boolean;
-	showDistance: boolean;
-};
 
 const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
 	numeric: "auto",

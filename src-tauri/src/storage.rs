@@ -20,14 +20,27 @@ pub fn init_keyring() {
     #[cfg(target_os = "macos")]
     {
         let cfg = std::collections::HashMap::new();
-        if let Ok(store) =
-            apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
+
+        #[cfg(debug_assertions)]
         {
-            set_default_store(store);
-        } else {
+            // Dev mode on macOS commonly lacks protected-keychain entitlements.
             let store = apple_native_keyring_store::keychain::Store::new_with_configuration(&cfg)
-                .expect("failed to init macOS keyring store");
+                .expect("failed to init macOS keychain store");
             set_default_store(store);
+        }
+
+        #[cfg(not(debug_assertions))]
+        {
+            if let Ok(store) =
+                apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
+            {
+                set_default_store(store);
+            } else {
+                let store =
+                    apple_native_keyring_store::keychain::Store::new_with_configuration(&cfg)
+                        .expect("failed to init macOS keychain store");
+                set_default_store(store);
+            }
         }
     }
 

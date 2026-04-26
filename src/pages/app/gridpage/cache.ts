@@ -3,11 +3,7 @@ import type {
 	ManagedOption,
 	ProfileDetail,
 } from "../GridPage.types";
-
-type CacheEntry<T> = {
-	value: T;
-	expiresAt: number;
-};
+import type { CacheEntry } from "../../../types/grid-cache";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const BROWSE_CACHE_TTL_MS = 60 * 1000;

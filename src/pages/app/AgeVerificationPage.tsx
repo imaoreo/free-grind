@@ -1,23 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Fingerprint, ScanFace, ShieldCheck, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Fingerprint, ScanFace, ShieldCheck } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { LoadingState, ErrorState } from "../../components/ui/states";
-import {
-	useAgeVerificationService,
-	type AgeVerificationOptions,
-	type AgeVerificationFaceTecResponse,
-} from "../../services/ageVerification";
-
-type VerificationStep =
-	| "loading-options"
-	| "select-method"
-	| "starting-session"
-	| "face-scan"
-	| "submitting"
-	| "success"
-	| "error";
+import { useAgeVerificationService } from "../../services/ageVerification";
+import type {
+	AgeVerificationFaceTecResponse,
+	AgeVerificationOptions,
+	VerificationStep,
+} from "../../types/age-verification";
 
 const METHOD_LABELS: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
 	liveness3d: {

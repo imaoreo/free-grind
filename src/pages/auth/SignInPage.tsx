@@ -4,8 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
-
-type SignInMethod = "token" | "password";
+import type { SignInMethod } from "../../types/auth";
 
 export function SignInPage() {
 	const [method, setMethod] = useState<SignInMethod>("token");
