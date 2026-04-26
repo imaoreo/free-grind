@@ -2259,6 +2259,24 @@ export function ChatPage() {
 		}
 	};
 
+	const doubleTapTimeoutRef = useRef<Record<string, number>>({});
+	const handleMessageTap = useCallback(
+		(message: UiMessage) => {
+			const messageId = message.messageId;
+			if (doubleTapTimeoutRef.current[messageId]) {
+				window.clearTimeout(doubleTapTimeoutRef.current[messageId]);
+				delete doubleTapTimeoutRef.current[messageId];
+				void handleReact(message);
+			} else {
+				doubleTapTimeoutRef.current[messageId] = window.setTimeout(() => {
+					delete doubleTapTimeoutRef.current[messageId];
+				}, 300);
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[],
+	);
+
 	const handleUnsend = async (message: UiMessage) => {
 		if (isMutatingMessageId) {
 			return;
@@ -3062,6 +3080,7 @@ export function ChatPage() {
 										className={`flex ${mine ? "justify-end" : "justify-start"}`}
 									>
 										<div
+											onDoubleClick={() => void handleMessageTap(message)}
 											className={`relative group/bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
 												mine
 													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
