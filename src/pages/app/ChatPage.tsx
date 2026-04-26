@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
 	type FormEvent,
+	type TouchEvent,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -648,6 +649,7 @@ export function ChatPage() {
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
+	const inboxTouchStartXRef = useRef<number | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
 	>(null);
@@ -724,6 +726,32 @@ export function ChatPage() {
 					conversation.data.conversationId === selectedConversationId,
 			) ?? null,
 		[conversations, selectedConversationId],
+	);
+
+	const handleInboxTouchStart = useCallback(
+		(event: TouchEvent<HTMLDivElement>) => {
+			inboxTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+		},
+		[],
+	);
+
+	const handleInboxTouchEnd = useCallback(
+		(event: TouchEvent<HTMLDivElement>) => {
+			const startX = inboxTouchStartXRef.current;
+			if (startX == null) {
+				return;
+			}
+
+			const endX = event.changedTouches[0]?.clientX ?? startX;
+			const deltaX = startX - endX;
+
+			if (deltaX > 70) {
+				navigate("/settings/shared-albums");
+			}
+
+			inboxTouchStartXRef.current = null;
+		},
+		[navigate],
 	);
 
 	useEffect(() => {
@@ -2405,11 +2433,31 @@ export function ChatPage() {
 			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
 				isDesktop ? "surface-card" : ""
 			}`}
+			onTouchStart={handleInboxTouchStart}
+			onTouchEnd={handleInboxTouchEnd}
 		>
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div>
 					<div className="flex items-center gap-2">
-						<h1 className="app-title">Inbox</h1>
+						<button
+							type="button"
+							onClick={() => navigate("/chat")}
+							className="text-left"
+							aria-current="page"
+						>
+							<span className="text-2xl font-bold leading-none sm:text-3xl">
+								Inbox
+							</span>
+						</button>
+						<button
+							type="button"
+							onClick={() => navigate("/settings/shared-albums")}
+							className="text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
+						>
+							<span className="text-lg font-semibold leading-none sm:text-xl">
+								Albums
+							</span>
+						</button>
 						<span
 							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
 						>

@@ -8,7 +8,14 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type TouchEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
@@ -58,6 +65,7 @@ export function SharedAlbumsPage() {
 	const [viewerIndex, setViewerIndex] = useState(0);
 	const [fullScreenIndex, setFullScreenIndex] = useState<number | null>(null);
 	const viewerTouchStartX = useRef<number | null>(null);
+	const pageTouchStartXRef = useRef<number | null>(null);
 
 	const loadSharedAlbums = useCallback(async () => {
 		setError(null);
@@ -157,6 +165,32 @@ export function SharedAlbumsPage() {
 		setIsRefreshing(true);
 		void loadSharedAlbums();
 	};
+
+	const handlePageTouchStart = useCallback(
+		(event: TouchEvent<HTMLElement>) => {
+			pageTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+		},
+		[],
+	);
+
+	const handlePageTouchEnd = useCallback(
+		(event: TouchEvent<HTMLElement>) => {
+			const startX = pageTouchStartXRef.current;
+			if (startX == null) {
+				return;
+			}
+
+			const endX = event.changedTouches[0]?.clientX ?? startX;
+			const deltaX = startX - endX;
+
+			if (deltaX < -70) {
+				navigate("/chat");
+			}
+
+			pageTouchStartXRef.current = null;
+		},
+		[navigate],
+	);
 
 	const openViewer = useCallback(
 		async (albumId: number) => {
@@ -334,15 +368,35 @@ export function SharedAlbumsPage() {
 	]);
 
 	return (
-		<section className="app-screen">
+		<section
+			className="app-screen"
+			onTouchStart={handlePageTouchStart}
+			onTouchEnd={handlePageTouchEnd}
+		>
 			<div className="mx-auto grid w-full max-w-6xl gap-5">
 				<header className="grid gap-4 sm:flex sm:items-end sm:justify-between">
 					<div className="grid gap-2">
-						<Button type="button" onClick={() => navigate("/settings")} className="w-fit">
-							<ArrowLeft className="h-4 w-4" />
-							Back to Settings
-						</Button>
-						<h1 className="app-title">Albums Shared With You</h1>
+						<div className="flex items-end gap-3">
+							<button
+								type="button"
+								onClick={() => navigate("/chat")}
+								className="text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
+							>
+								<span className="text-lg font-semibold leading-none sm:text-xl">
+									Inbox
+								</span>
+							</button>
+							<button
+								type="button"
+								onClick={() => navigate("/settings/shared-albums")}
+								className="text-left"
+								aria-current="page"
+							>
+								<span className="text-2xl font-bold leading-none sm:text-3xl">
+									Albums
+								</span>
+							</button>
+						</div>
 						<p className="app-subtitle max-w-[68ch]">
 							Browse all albums shared by people in your chats.
 						</p>
