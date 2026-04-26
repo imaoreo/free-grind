@@ -1,32 +1,46 @@
 pub fn init_keyring() {
+    use keyring_core::set_default_store;
+
     #[cfg(target_os = "ios")]
-    if keyring::use_apple_protected_store(&std::collections::HashMap::new()).is_err() {
-        // Protected store is unavailable on the iOS simulator; fall back to the
-        // standard keychain store so the app can still run during development.
-        let _ = keyring::use_apple_keychain_store(&std::collections::HashMap::new());
+    {
+        let cfg = std::collections::HashMap::new();
+        let store = apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
+            .expect("failed to init iOS protected keyring store");
+        set_default_store(store);
     }
 
     #[cfg(target_os = "android")]
-    keyring::use_android_native_store(&std::collections::HashMap::new())
-        .expect("failed to init Android keyring");
+    {
+        let cfg = std::collections::HashMap::new();
+        let store = android_native_keyring_store::Store::new_with_configuration(&cfg)
+            .expect("failed to init Android keyring store");
+        set_default_store(store);
+    }
 
     #[cfg(target_os = "macos")]
     {
         let cfg = std::collections::HashMap::new();
-        #[cfg(debug_assertions)]
-        keyring::use_sqlite_store(&cfg).expect("failed to init macOS sqlite keyring");
-        #[cfg(not(debug_assertions))]
+        if let Ok(store) = apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
         {
-            if keyring::use_apple_protected_store(&cfg).is_err() {
-                keyring::use_apple_keychain_store(&cfg).expect("failed to init macOS keyring");
-            }
+            set_default_store(store);
+        } else {
+            let store = apple_native_keyring_store::keychain::Store::new_with_configuration(&cfg)
+                .expect("failed to init macOS keyring store");
+            set_default_store(store);
         }
     }
 
     #[cfg(target_os = "windows")]
-    keyring::use_windows_native_store(&std::collections::HashMap::new())
-        .expect("failed to init Windows keyring");
+    {
+        let store = windows_native_keyring_store::Store::new()
+            .expect("failed to init Windows keyring store");
+        set_default_store(store);
+    }
 
     #[cfg(target_os = "linux")]
-    keyring::use_native_store(true).expect("failed to init Linux keyring");
+    {
+        let store = linux_keyutils_keyring_store::Store::new()
+            .expect("failed to init Linux keyring store");
+        set_default_store(store);
+    }
 }
