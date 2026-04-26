@@ -1,4 +1,10 @@
-import type { Album, AlbumDetail, AlbumLimits, SharedAlbum } from "./albums";
+import type {
+	Album,
+	AlbumDetail,
+	AlbumLimits,
+	SharedAlbum,
+	SharedAlbumView,
+} from "./albums";
 import type { MultipartUpload } from "./chat-service";
 
 export type ApiFunctionName =
@@ -11,6 +17,7 @@ export type ApiFunctionName =
 	| "uploadOwnAlbumContent"
 	| "reorderOwnAlbumContent"
 	| "deleteOwnAlbumContent"
+	| "getSharedAlbums"
 	| "getSharedAlbumsForProfile"
 	| "openSharedAlbum";
 
@@ -68,6 +75,7 @@ export interface ApiFunctionResultMap {
 	uploadOwnAlbumContent: { contentId: number };
 	reorderOwnAlbumContent: ApiFunctionVoidResult;
 	deleteOwnAlbumContent: ApiFunctionVoidResult;
+	getSharedAlbums: SharedAlbumView;
 	getSharedAlbumsForProfile: SharedAlbum[];
 	openSharedAlbum: OpenSharedAlbumResult;
 }
@@ -94,4 +102,11 @@ export interface ProfileImageUploadResult {
 	hash?: string;
 	mediaHash?: string;
 	imageSizes?: Array<{ mediaHash?: string }>;
+}
+
+export interface GetSharedAlbumsInput {
+    isFavorite?: boolean;
+    isOnline?: boolean;
+    onlyVideo?: boolean;
+    blur?: boolean;
 }

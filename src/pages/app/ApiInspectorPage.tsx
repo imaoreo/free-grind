@@ -3,6 +3,7 @@ import { ArrowLeft, Copy, Download, RotateCcw, Search, Trash2 } from "lucide-rea
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
+import { useApi } from "../../hooks/useApi";
 import {
 	clearApiTraceEntries,
 	exportApiTraceEntries,
@@ -31,12 +32,21 @@ function statusClass(status: number | null, success: boolean): string {
 
 export function ApiInspectorPage() {
 	const navigate = useNavigate();
+	const { fetchRest, asAppError } = useApi();
 	const [entries, setEntries] = useState<ApiTraceEntry[]>(() =>
 		getApiTraceEntries(),
 	);
 	const [query, setQuery] = useState("");
 	const [kind, setKind] = useState<"all" | "rest" | "command">("all");
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [composerMethod, setComposerMethod] = useState<
+		"GET" | "POST" | "PUT" | "PATCH" | "DELETE"
+	>("POST");
+	const [composerPath, setComposerPath] = useState("/v1/albums");
+	const [composerPayload, setComposerPayload] = useState("{\n  \"albumName\": \"My Album\"\n}");
+	const [composerResponse, setComposerResponse] = useState<string>("");
+	const [composerError, setComposerError] = useState<string>("");
+	const [composerBusy, setComposerBusy] = useState(false);
 
 	useEffect(() => {
 		return subscribeApiTraceEntries(setEntries);
@@ -89,6 +99,60 @@ export function ApiInspectorPage() {
 		URL.revokeObjectURL(url);
 	};
 
+	const handleSendRequest = async () => {
+		const path = composerPath.trim();
+		if (!path.startsWith("/")) {
+			setComposerError("Path must start with '/'. Example: /v1/albums");
+			setComposerResponse("");
+			return;
+		}
+
+		let parsedBody: unknown = undefined;
+		const hasPayload = composerPayload.trim().length > 0;
+		if (hasPayload) {
+			try {
+				parsedBody = JSON.parse(composerPayload);
+			} catch {
+				setComposerError(
+					"Payload is not valid JSON. Fix syntax first (missing quotes/comma/braces).",
+				);
+				setComposerResponse("");
+				return;
+			}
+		}
+
+		setComposerBusy(true);
+		setComposerError("");
+		setComposerResponse("");
+
+		try {
+			const response = await fetchRest(path, {
+				method: composerMethod,
+				...(hasPayload ? { body: parsedBody } : {}),
+			});
+
+			let prettyBody = "";
+			try {
+				prettyBody = JSON.stringify(response.json(), null, 2);
+			} catch {
+				prettyBody = response.text();
+			}
+
+			setComposerResponse(
+				`Status ${response.status}\n\n${prettyBody || "(empty response body)"}`,
+			);
+		} catch (error) {
+			const appError = asAppError(error);
+			const message = appError?.prettyMessage ??
+				(error instanceof Error ? error.message : String(error));
+			setComposerError(
+				`${message}\n\nIf payload fields don't match the API schema, compare your JSON keys/types with endpoint docs and captured successful requests in the trace list.`,
+			);
+		} finally {
+			setComposerBusy(false);
+		}
+	};
+
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-7xl gap-4">
@@ -122,6 +186,82 @@ export function ApiInspectorPage() {
 						</Button>
 					</div>
 				</header>
+
+				<Card className="p-4">
+					<div className="mb-3 grid gap-1">
+						<h2 className="text-sm font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							Request Composer
+						</h2>
+						<p className="text-sm text-[var(--text-muted)]">
+							Send manual REST calls (including POST) and validate JSON payloads before sending.
+						</p>
+					</div>
+
+					<div className="grid gap-3 lg:grid-cols-[130px_1fr]">
+						<select
+							value={composerMethod}
+							onChange={(event) =>
+								setComposerMethod(
+									event.target.value as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+								)
+							}
+							className="input-field"
+						>
+							<option value="GET">GET</option>
+							<option value="POST">POST</option>
+							<option value="PUT">PUT</option>
+							<option value="PATCH">PATCH</option>
+							<option value="DELETE">DELETE</option>
+						</select>
+						<input
+							type="text"
+							value={composerPath}
+							onChange={(event) => setComposerPath(event.target.value)}
+							placeholder="/v1/albums"
+							className="input-field"
+						/>
+					</div>
+
+					<div className="mt-3 grid gap-2">
+						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							JSON Payload (optional)
+						</p>
+						<textarea
+							value={composerPayload}
+							onChange={(event) => setComposerPayload(event.target.value)}
+							rows={8}
+							className="input-field min-h-[170px] font-mono text-xs"
+							placeholder='{"key":"value"}'
+						/>
+						<div className="flex flex-wrap gap-2">
+							<Button type="button" onClick={handleSendRequest} disabled={composerBusy}>
+								{composerBusy ? "Sending..." : "Send Request"}
+							</Button>
+							<Button
+								type="button"
+								onClick={() => {
+									setComposerPayload("");
+									setComposerResponse("");
+									setComposerError("");
+								}}
+							>
+								Clear Payload
+							</Button>
+						</div>
+					</div>
+
+					{composerError ? (
+						<pre className="mt-3 overflow-x-auto rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
+							{composerError}
+						</pre>
+					) : null}
+
+					{composerResponse ? (
+						<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text)]">
+							{composerResponse}
+						</pre>
+					) : null}
+				</Card>
 
 				<Card className="p-4">
 					<div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">

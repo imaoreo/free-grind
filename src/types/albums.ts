@@ -69,6 +69,66 @@ export const sharedAlbumsResponseSchema = z.object({
 	albums: z.array(sharedAlbumSchema).optional().default([]),
 });
 
+export const sharedAlbumViewSchema = z.object({
+  profileFeeds: z
+    .array(
+      z.object({
+        profileId: z.number(),
+        seen: z.boolean(),
+        paywallStatus: z.string(),
+        profile: z.object({
+          profileId: z.number(),
+          name: z.string().nullable(),
+          profileUrl: z.string().url().nullable(),
+          onlineUntil: z.number().nullable(),
+          distanceKm: z.number().nullable(),
+        }),
+        content: z.object({
+          contentId: z.number(),
+          contentType: z.string(),
+          coverUrl: z.string().url(),
+        }),
+      })
+    )
+    .optional()
+    .default([]),
+
+  sharedAlbums: z
+    .array(
+      z.object({
+        albumId: z.number(),
+        albumNumber: z.number(),
+        albumVersion: z.number(),
+        albumViewable: z.boolean(),
+        imageCount: z.coerce.number().int().default(0),
+        videoCount: z.coerce.number().int().default(0),
+        ownerProfileId: z.number(),
+        hasUnseenContent: z.boolean(),
+        name: z.string().nullable(),
+        expiresAt: z.number().nullable(),
+        totalAlbumsShared: z.number().optional(),
+        profile: z.object({
+          profileId: z.number(),
+          name: z.string().nullable(),
+          profileUrl: z.string().url().nullable(),
+          onlineUntil: z.number().nullable(),
+          distanceKm: z.number().nullable(),
+        }),
+        coverContent: z.object({
+          id: z.number(),
+          contentType: z.string(),
+          location: z.string().url(),
+          status: z.string(),
+        }),
+      })
+    )
+    .optional()
+    .default([]),
+  experimentStatus: z.number().optional(),
+  nonEmptyPersonalAlbumCount: z.number().optional(),
+  emptyAlbumId: z.number().nullable().optional(),
+});
+
 export type Album = z.infer<typeof albumSchema>;
 export type AlbumsResponse = z.infer<typeof albumsResponseSchema>;
 export type AlbumLimits = z.infer<typeof albumLimitsSchema>;
@@ -77,3 +137,4 @@ export type AlbumDetail = z.infer<typeof albumDetailSchema>;
 export type SharedAlbum = z.infer<typeof sharedAlbumSchema>;
 export type SharedAlbumsResponse = z.infer<typeof sharedAlbumsResponseSchema>;
 export type AlbumExpirationType = z.infer<typeof albumExpirationTypeSchema>;
+export type SharedAlbumView = z.infer<typeof sharedAlbumViewSchema>;

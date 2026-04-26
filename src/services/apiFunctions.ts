@@ -2,10 +2,12 @@ import {
 	albumDetailSchema,
 	albumLimitsSchema,
 	albumsResponseSchema,
+	sharedAlbumViewSchema,
 	sharedAlbumsResponseSchema,
 	type Album,
 	type AlbumDetail,
 	type AlbumLimits,
+	type SharedAlbumView,
 	type SharedAlbum,
 } from "../types/albums";
 import {
@@ -29,6 +31,7 @@ import type {
 	ReorderOwnAlbumContentInput,
 	RenameOwnAlbumInput,
 	UploadOwnAlbumContentInput,
+	GetSharedAlbumsInput,
 } from "../types/api-functions";
 import type { RestFetcher, RestResponse } from "../types/chat-service";
 
@@ -183,6 +186,17 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			);
 			await assertSuccess(response, "Failed to delete own album content");
 			return { ok: true };
+		},
+
+		async getSharedAlbums(
+			input: GetSharedAlbumsInput,
+		): Promise<SharedAlbumView> {
+			const response = await fetchRest("/v3/pressie-albums/feed", {
+				method: "POST",
+				body: input,
+			});
+			await assertSuccess(response, "Failed to load shared albums");
+			return sharedAlbumViewSchema.parse(await parseJsonSafe(response));
 		},
 
 		async getSharedAlbumsForProfile(
