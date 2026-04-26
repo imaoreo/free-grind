@@ -13,7 +13,7 @@ import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPan
 
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
-	const { geohash, setPreferences } = usePreferences();
+	const { setPreferences } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
 	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -137,12 +137,10 @@ export function BrowseLocationPage() {
 
 				<LocationSettingsPanel
 					isVisible={true}
-					hasGeohash={Boolean(geohash)}
 					isDetectingLocation={isDetectingLocation}
 					onUseCurrentLocation={() => {
 						void handleUseCurrentLocation();
 					}}
-					onDone={() => navigate("/")}
 					locationQuery={locationQuery}
 					onLocationQueryChange={setLocationQuery}
 					isSearchingLocation={isSearchingLocation}

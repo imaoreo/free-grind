@@ -5,10 +5,8 @@ import { LeafletLocationPicker } from "./LeafletLocationPicker";
 
 type LocationSettingsPanelProps = {
 	isVisible: boolean;
-	hasGeohash: boolean;
 	isDetectingLocation: boolean;
 	onUseCurrentLocation: () => void;
-	onDone: () => void;
 	locationQuery: string;
 	onLocationQueryChange: (value: string) => void;
 	isSearchingLocation: boolean;
@@ -25,10 +23,8 @@ type LocationSettingsPanelProps = {
 
 export function LocationSettingsPanel({
 	isVisible,
-	hasGeohash,
 	isDetectingLocation,
 	onUseCurrentLocation,
-	onDone,
 	locationQuery,
 	onLocationQueryChange,
 	isSearchingLocation,
@@ -48,22 +44,11 @@ export function LocationSettingsPanel({
 
 	return (
 		<div className="surface-card mb-4 rounded-2xl p-4 sm:p-5">
-			<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-				<div>
-					<p className="text-sm font-semibold">Set your browse location</p>
-					<p className="text-xs text-[var(--text-muted)]">
-						Search a place, or use GPS on mobile devices.
-					</p>
-				</div>
-				{hasGeohash ? (
-					<button
-						type="button"
-						onClick={onDone}
-						className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-medium"
-					>
-						Done
-					</button>
-				) : null}
+			<div className="mb-4">
+				<p className="text-sm font-semibold">Set your browse location</p>
+				<p className="text-xs text-[var(--text-muted)]">
+					Search a place, or use GPS on mobile devices.
+				</p>
 			</div>
 
 			<div className="grid gap-3">
