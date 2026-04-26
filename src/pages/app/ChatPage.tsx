@@ -714,8 +714,9 @@ export function ChatPage() {
 		const parsed = Number(raw);
 		return Number.isFinite(parsed) ? parsed : null;
 	}, [searchParams]);
+	const isSearchRoute = routeConversationId === "search";
 
-	const selectedConversationId = targetProfileId
+	const selectedConversationId = targetProfileId || isSearchRoute
 		? null
 		: isDesktop
 			? selectedDesktopConversationId
@@ -730,7 +731,7 @@ export function ChatPage() {
 
 		if (isDesktop) {
 			// Switched to desktop: pull the active route conversation into state.
-			if (routeConversationId) {
+			if (routeConversationId && routeConversationId !== "search") {
 				setSelectedDesktopConversationId(routeConversationId);
 			}
 		} else {
@@ -750,7 +751,7 @@ export function ChatPage() {
 			return;
 		}
 
-		if (!routeConversationId) {
+		if (!routeConversationId || routeConversationId === "search") {
 			return;
 		}
 
@@ -764,6 +765,7 @@ export function ChatPage() {
 		routeConversationId,
 		selectedDesktopConversationId,
 		targetProfileId,
+		isSearchRoute,
 	]);
 
 	const selectedConversation = useMemo(
@@ -1600,14 +1602,46 @@ export function ChatPage() {
 		searchQuery,
 	]);
 
-	const unreadTotal = useMemo(
-		() =>
-			conversations.reduce(
-				(sum, conversation) => sum + conversation.data.unreadCount,
-				0,
-			),
-		[conversations],
-	);
+	const realtimeStatusMeta = useMemo(() => {
+		switch (realtimeStatus) {
+			case "connected":
+				return {
+					label: "Connected",
+					symbol: "✓",
+					className:
+						"border-emerald-500/40 bg-emerald-500/15 text-emerald-700",
+				};
+			case "disconnected":
+			case "error":
+				return {
+					label: realtimeStatus === "error" ? "Error" : "Offline",
+					symbol: "•",
+					className: "border-red-500/40 bg-red-500/15 text-red-700",
+				};
+			default:
+				return {
+					label:
+						realtimeStatus === "reconnecting"
+							? "Reconnecting"
+							: realtimeStatus === "connecting"
+								? "Connecting"
+								: realtimeStatus === "polling"
+									? "Polling"
+									: "Idle",
+					symbol: "•",
+					className:
+						"border-amber-500/40 bg-amber-500/15 text-amber-700",
+				};
+		}
+	}, [realtimeStatus]);
+
+	const searchedProfileId = useMemo(() => {
+		const parsed = Number(searchQuery.trim());
+		if (!Number.isInteger(parsed) || parsed <= 0) {
+			return null;
+		}
+		return parsed;
+	}, [searchQuery]);
 
 	const filteredConversations = useMemo(() => {
 		const now = Date.now();
@@ -2529,28 +2563,39 @@ export function ChatPage() {
 		>
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div>
-					<h1 className="app-title">Inbox</h1>
-					<p className="app-subtitle mt-1">
-						{unreadTotal > 0
-							? `${unreadTotal} unread message${unreadTotal === 1 ? "" : "s"}`
-							: "All caught up"}
-					</p>
-					<p className="mt-1 text-xs text-[var(--text-muted)]">
-						Realtime: {realtimeStatus}
-					</p>
+					<div className="flex items-center gap-2">
+						<h1 className="app-title">Inbox</h1>
+						<span
+							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
+						>
+							<span className="leading-none">{realtimeStatusMeta.symbol}</span>
+							<span>{realtimeStatusMeta.label}</span>
+						</span>
+					</div>
+					<p className="app-subtitle mt-1">Your conversations</p>
 				</div>
-				{hasActiveInboxFilters ? (
+				<div className="flex items-center gap-2">
 					<button
 						type="button"
-						onClick={clearInboxFilters}
-						className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						onClick={() => navigate("/chat/search")}
+						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						aria-label="Open search"
 					>
-						Clear filters
+						<Search className="h-4 w-4" />
 					</button>
-				) : null}
+					{hasActiveInboxFilters ? (
+						<button
+							type="button"
+							onClick={clearInboxFilters}
+							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						>
+							Clear filters
+						</button>
+					) : null}
+				</div>
 			</div>
 
-			<div className="mb-3 flex flex-wrap gap-2">
+			<div className="mb-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 				{inboxFilterOptions.map((filter) => {
 					const active = Boolean(inboxFilters[filter.key]);
 					return (
@@ -2558,7 +2603,7 @@ export function ChatPage() {
 							key={filter.key}
 							type="button"
 							onClick={() => toggleInboxFilter(filter.key)}
-							className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+							className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
 								active
 									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
@@ -2568,6 +2613,136 @@ export function ChatPage() {
 						</button>
 					);
 				})}
+			</div>
+
+
+
+			{isLoadingInbox ? (
+				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
+					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading inbox...
+				</div>
+			) : inboxError ? (
+				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+					<p className="text-sm text-[var(--text-muted)]">{inboxError}</p>
+					<button
+						type="button"
+						onClick={() => void loadInbox({ page: 1, replace: true })}
+						className="btn-accent px-4 py-2 text-sm"
+					>
+						Retry
+					</button>
+				</div>
+			) : filteredConversations.length === 0 ? (
+				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
+					<MessageCircle className="h-8 w-8" />
+					<p className="text-sm">
+						{hasActiveInboxFilters
+							? "No conversations match your filters."
+							: "No conversations yet."}
+					</p>
+				</div>
+			) : (
+				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+					{filteredConversations.map((conversation) => {
+						const otherParticipant = getOtherParticipant(conversation, userId);
+						const isSelected =
+							conversation.data.conversationId === selectedConversationId;
+
+						return (
+							<button
+								type="button"
+								key={conversation.data.conversationId}
+								onClick={() => handleSelectConversation(conversation)}
+								className={`w-full rounded-2xl border p-3 text-left transition ${
+									isSelected
+										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
+										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
+								}`}
+							>
+								<div className="flex items-start gap-3">
+									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+										{otherParticipant?.primaryMediaHash ? (
+											<img
+												src={getProfileImageUrl(
+													otherParticipant.primaryMediaHash,
+												)}
+												alt=""
+												className="h-full w-full object-cover"
+											/>
+										) : (
+											<div className="flex h-full w-full items-center justify-center text-xs text-[var(--text-muted)]">
+												{(conversation.data.name || "?")
+													.slice(0, 1)
+													.toUpperCase()}
+											</div>
+										)}
+									</div>
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center justify-between gap-2">
+											<p className="truncate font-semibold">
+												{conversation.data.name || "Unknown"}
+											</p>
+											<span className="text-xs text-[var(--text-muted)]">
+												{formatConversationTime(
+													conversation.data.lastActivityTimestamp,
+												)}
+											</span>
+										</div>
+										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
+											{getPreviewText(conversation)}
+										</p>
+										<div className="mt-2 flex items-center gap-2">
+											{conversation.data.pinned ? (
+												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
+													Pinned
+												</span>
+											) : null}
+											{conversation.data.muted ? (
+												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
+													Muted
+												</span>
+											) : null}
+										</div>
+									</div>
+
+								</div>
+							</button>
+						);
+					})}
+
+					{nextPage ? (
+						<button
+							type="button"
+							onClick={handleLoadMoreInbox}
+							disabled={isLoadingMoreInbox}
+							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
+						>
+							{isLoadingMoreInbox ? "Loading..." : "Load more"}
+						</button>
+					) : null}
+				</div>
+			)}
+		</div>
+	);
+
+	const renderSearch = (
+		<div
+			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+				isDesktop ? "surface-card" : ""
+			}`}
+		>
+			<div className="mb-3 flex items-center justify-between gap-3">
+				<div>
+					<h1 className="app-title">Search</h1>
+					<p className="app-subtitle mt-1">Find conversations, messages, and profiles</p>
+				</div>
+				<button
+					type="button"
+					onClick={() => navigate("/chat")}
+					className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+				>
+					Back to Inbox
+				</button>
 			</div>
 
 			<div className="mb-3">
@@ -2592,7 +2767,7 @@ export function ChatPage() {
 						inputMode="numeric"
 						value={startChatProfileIdDraft}
 						onChange={(event) => setStartChatProfileIdDraft(event.target.value)}
-						placeholder="Start chat by profile ID"
+						placeholder="Quick start by profile ID"
 						className="input-field h-9 text-sm"
 					/>
 					<button
@@ -2620,31 +2795,11 @@ export function ChatPage() {
 				</div>
 			</div>
 
-			{isLoadingInbox ? (
-				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading inbox...
+			{searchQuery.trim().length < 2 ? (
+				<div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
+					Type at least 2 characters to search.
 				</div>
-			) : inboxError ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-					<p className="text-sm text-[var(--text-muted)]">{inboxError}</p>
-					<button
-						type="button"
-						onClick={() => void loadInbox({ page: 1, replace: true })}
-						className="btn-accent px-4 py-2 text-sm"
-					>
-						Retry
-					</button>
-				</div>
-			) : filteredConversations.length === 0 ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
-					<MessageCircle className="h-8 w-8" />
-					<p className="text-sm">
-						{hasActiveInboxFilters
-							? "No conversations match your filters."
-							: "No conversations yet."}
-					</p>
-				</div>
-			) : searchQuery.trim().length >= 2 ? (
+			) : (
 				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
 					{searchMode === "conversations"
 						? conversationSearchResults.map((result) => (
@@ -2709,6 +2864,26 @@ export function ChatPage() {
 								</button>
 							))
 						: null}
+
+					{searchMode === "profiles" && searchedProfileId ? (
+						<button
+							type="button"
+							onClick={() => startChatByProfileId(String(searchedProfileId))}
+							className="flex w-full items-center justify-between rounded-xl border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface))] p-3 text-left transition hover:border-[var(--accent)]"
+						>
+							<div>
+								<p className="text-sm font-semibold">
+									Start chat with profile #{searchedProfileId}
+								</p>
+								<p className="text-xs text-[var(--text-muted)]">
+									Use searched profile ID
+								</p>
+							</div>
+							<span className="text-xs font-semibold text-[var(--accent)]">
+								Start
+							</span>
+						</button>
+					) : null}
 
 					{searchMode === "profiles"
 						? profileResults.map((profile) => (
@@ -2807,90 +2982,6 @@ export function ChatPage() {
 						<p className="text-xs text-[var(--text-muted)]">
 							No profile matches found.
 						</p>
-					) : null}
-				</div>
-			) : (
-				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
-					{filteredConversations.map((conversation) => {
-						const otherParticipant = getOtherParticipant(conversation, userId);
-						const isSelected =
-							conversation.data.conversationId === selectedConversationId;
-
-						return (
-							<button
-								type="button"
-								key={conversation.data.conversationId}
-								onClick={() => handleSelectConversation(conversation)}
-								className={`w-full rounded-2xl border p-3 text-left transition ${
-									isSelected
-										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
-										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
-								}`}
-							>
-								<div className="flex items-start gap-3">
-									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-										{otherParticipant?.primaryMediaHash ? (
-											<img
-												src={getProfileImageUrl(
-													otherParticipant.primaryMediaHash,
-												)}
-												alt=""
-												className="h-full w-full object-cover"
-											/>
-										) : (
-											<div className="flex h-full w-full items-center justify-center text-xs text-[var(--text-muted)]">
-												{(conversation.data.name || "?")
-													.slice(0, 1)
-													.toUpperCase()}
-											</div>
-										)}
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-2">
-											<p className="truncate font-semibold">
-												{conversation.data.name || "Unknown"}
-											</p>
-											<span className="text-xs text-[var(--text-muted)]">
-												{formatConversationTime(
-													conversation.data.lastActivityTimestamp,
-												)}
-											</span>
-										</div>
-										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
-											{getPreviewText(conversation)}
-										</p>
-										<div className="mt-2 flex items-center gap-2">
-											{conversation.data.pinned ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Pinned
-												</span>
-											) : null}
-											{conversation.data.muted ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Muted
-												</span>
-											) : null}
-										</div>
-									</div>
-									{conversation.data.unreadCount > 0 ? (
-										<span className="ml-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[var(--accent)] px-2 text-xs font-semibold text-[var(--accent-contrast)]">
-											{Math.min(99, conversation.data.unreadCount)}
-										</span>
-									) : null}
-								</div>
-							</button>
-						);
-					})}
-
-					{nextPage ? (
-						<button
-							type="button"
-							onClick={handleLoadMoreInbox}
-							disabled={isLoadingMoreInbox}
-							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-						>
-							{isLoadingMoreInbox ? "Loading..." : "Load more"}
-						</button>
 					) : null}
 				</div>
 			)}
@@ -3556,7 +3647,9 @@ export function ChatPage() {
 					</div>
 				) : null}
 
-				{isDesktop ? (
+				{isSearchRoute ? (
+					renderSearch
+				) : isDesktop ? (
 					<div
 						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
 						style={{
