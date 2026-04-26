@@ -77,6 +77,89 @@
 }
 
 @layer components {
+	.chat-reaction-pill {
+		will-change: transform;
+		transition:
+			transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+			background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+	}
+
+	.chat-reaction-pill--burst {
+		animation: fire-pill-pop 420ms cubic-bezier(0.16, 1, 0.3, 1);
+		background: color-mix(in srgb, var(--accent) 20%, transparent);
+	}
+
+	.chat-reaction-flame {
+		transform-origin: 50% 85%;
+	}
+
+	.chat-reaction-flame--burst {
+		animation: fire-flame-flicker 520ms cubic-bezier(0.16, 1, 0.3, 1);
+	}
+
+	.chat-reaction-flame--burst::after {
+		content: "";
+		position: absolute;
+		inset: -5px;
+		border-radius: 9999px;
+		border: 1px solid color-mix(in srgb, var(--accent) 62%, transparent);
+		opacity: 0;
+		animation: fire-ring 520ms cubic-bezier(0.16, 1, 0.3, 1);
+		pointer-events: none;
+	}
+
+	@keyframes fire-pill-pop {
+		0% {
+			transform: translateY(1px) scale(0.92);
+		}
+		55% {
+			transform: translateY(-1px) scale(1.08);
+		}
+		100% {
+			transform: translateY(0) scale(1);
+		}
+	}
+
+	@keyframes fire-flame-flicker {
+		0% {
+			transform: rotate(-14deg) scale(0.82);
+			filter: saturate(1.1);
+		}
+		40% {
+			transform: rotate(10deg) scale(1.2);
+			filter: saturate(1.45);
+		}
+		70% {
+			transform: rotate(-4deg) scale(1.02);
+		}
+		100% {
+			transform: rotate(0deg) scale(1);
+			filter: saturate(1);
+		}
+	}
+
+	@keyframes fire-ring {
+		0% {
+			transform: scale(0.55);
+			opacity: 0.78;
+		}
+		100% {
+			transform: scale(1.45);
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.chat-reaction-pill,
+		.chat-reaction-pill--burst,
+		.chat-reaction-flame,
+		.chat-reaction-flame--burst,
+		.chat-reaction-flame--burst::after {
+			animation: none !important;
+			transition: none !important;
+		}
+	}
+
 	.app-shell {
 		min-height: 100dvh;
 		background: var(--bg);

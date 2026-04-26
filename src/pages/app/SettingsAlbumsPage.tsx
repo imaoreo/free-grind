@@ -18,56 +18,19 @@ import {
 } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import z from "zod";
-import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { Button } from "../../components/ui/button";
 import {
 	EmptyState,
 	ErrorState,
 	LoadingState,
 } from "../../components/ui/states";
-
-const albumSchema = z.object({
-	albumId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	albumName: z.string().nullable().optional(),
-	createdAt: z.string().optional(),
-	updatedAt: z.string().optional(),
-	isShareable: z.boolean().optional(),
-});
-
-const albumsResponseSchema = z.object({
-	albums: z.array(albumSchema).optional().default([]),
-});
-
-const albumLimitsSchema = z.object({
-	subscriptionType: z.string().optional(),
-	maxAlbums: z.number().int().positive().optional(),
-});
-
-const albumMediaSchema = z.object({
-	contentId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	contentType: z.string().optional(),
-	thumbUrl: z.string().nullable().optional(),
-	url: z.string().nullable().optional(),
-	coverUrl: z.string().nullable().optional(),
-	processing: z.boolean().optional(),
-});
-
-const albumDetailSchema = z.object({
-	albumId: z
-		.union([z.string(), z.number()])
-		.transform((value) => String(value)),
-	albumName: z.string().nullable().optional(),
-	content: z.array(albumMediaSchema).optional().default([]),
-});
-
-type Album = z.infer<typeof albumSchema>;
-type AlbumDetail = z.infer<typeof albumDetailSchema>;
-type AlbumMedia = z.infer<typeof albumMediaSchema>;
+import { ApiFunctionError } from "../../services/apiFunctions";
+import {
+	type Album,
+	type AlbumDetail,
+	type AlbumMedia,
+} from "../../types/albums";
 
 function countAlbumMedia(detail: AlbumDetail | undefined): {
 	total: number;
@@ -127,7 +90,7 @@ async function buildMultipartBody(file: File): Promise<{
 
 export function SettingsAlbumsPage() {
 	const navigate = useNavigate();
-	const { fetchRest } = useApi();
+	const apiFunctions = useApiFunctions();
 	const [albums, setAlbums] = useState<Album[]>([]);
 	const [maxAlbums, setMaxAlbums] = useState<number>(1);
 	const [subscriptionType, setSubscriptionType] = useState<string | null>(null);
@@ -165,26 +128,14 @@ export function SettingsAlbumsPage() {
 		setError(null);
 
 		try {
-			const [albumsResponse, limitsResponse] = await Promise.all([
-				fetchRest("/v1/albums"),
-				fetchRest("/v1/albums/storage"),
+			const [ownAlbums, ownStorage] = await Promise.all([
+				apiFunctions.getOwnAlbums(),
+				apiFunctions.getOwnAlbumStorage(),
 			]);
 
-			if (albumsResponse.status < 200 || albumsResponse.status >= 300) {
-				throw new Error(`Failed to load albums (${albumsResponse.status})`);
-			}
-
-			const parsedAlbums = albumsResponseSchema.parse(albumsResponse.json());
-			setAlbums(parsedAlbums.albums);
-
-			if (limitsResponse.status >= 200 && limitsResponse.status < 300) {
-				const parsedLimits = albumLimitsSchema.parse(limitsResponse.json());
-				setMaxAlbums(parsedLimits.maxAlbums ?? 1);
-				setSubscriptionType(parsedLimits.subscriptionType ?? null);
-			} else {
-				setMaxAlbums(1);
-				setSubscriptionType(null);
-			}
+			setAlbums(ownAlbums);
+			setMaxAlbums(ownStorage.maxAlbums ?? 1);
+			setSubscriptionType(ownStorage.subscriptionType ?? null);
 		} catch (loadError) {
 			setError(
 				loadError instanceof Error
@@ -194,7 +145,7 @@ export function SettingsAlbumsPage() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [fetchRest]);
+	}, [apiFunctions]);
 
 	useEffect(() => {
 		void loadAlbumsAndLimits();
@@ -224,26 +175,19 @@ export function SettingsAlbumsPage() {
 		const albumName = createName.trim() || `Album ${albums.length + 1}`;
 
 		try {
-			const response = await fetchRest("/v2/albums", {
-				method: "POST",
-				body: { albumName },
-			});
+			await apiFunctions.createOwnAlbum({ albumName });
 
-			if (response.status === 402) {
+			setCreateName("");
+			toast.success("Album created");
+			await loadAlbumsAndLimits();
+		} catch (createError) {
+			if (createError instanceof ApiFunctionError && createError.status === 402) {
 				toast.error(
 					"You reached your current album limit. Upgrade to create more albums.",
 				);
 				return;
 			}
 
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to create album (${response.status})`);
-			}
-
-			setCreateName("");
-			toast.success("Album created");
-			await loadAlbumsAndLimits();
-		} catch (createError) {
 			toast.error(
 				createError instanceof Error
 					? createError.message
@@ -272,14 +216,10 @@ export function SettingsAlbumsPage() {
 		setIsSavingEdit(true);
 
 		try {
-			const response = await fetchRest(`/v2/albums/${albumId}`, {
-				method: "PUT",
-				body: { albumName: editingName.trim() },
+			await apiFunctions.renameOwnAlbum({
+				albumId,
+				albumName: editingName.trim(),
 			});
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to rename album (${response.status})`);
-			}
 
 			setAlbums((previous) =>
 				previous.map((album) =>
@@ -309,13 +249,7 @@ export function SettingsAlbumsPage() {
 		setDeletingAlbumId(albumId);
 
 		try {
-			const response = await fetchRest(`/v1/albums/${albumId}`, {
-				method: "DELETE",
-			});
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to delete album (${response.status})`);
-			}
+			await apiFunctions.deleteOwnAlbum({ albumId });
 
 			setAlbums((previous) =>
 				previous.filter((album) => album.albumId !== albumId),
@@ -344,13 +278,7 @@ export function SettingsAlbumsPage() {
 			setLoadingAlbumDetailsId(albumId);
 
 			try {
-				const response = await fetchRest(`/v2/albums/${albumId}`);
-
-				if (response.status < 200 || response.status >= 300) {
-					throw new Error(`Failed to load album details (${response.status})`);
-				}
-
-				const parsed = albumDetailSchema.parse(response.json());
+				const parsed = await apiFunctions.getOwnAlbumDetails(albumId);
 				setAlbumDetails((previous) => ({
 					...previous,
 					[albumId]: parsed,
@@ -367,7 +295,7 @@ export function SettingsAlbumsPage() {
 				);
 			}
 		},
-		[albumDetails, fetchRest],
+			[albumDetails, apiFunctions],
 	);
 
 	const toggleAlbumOpen = (albumId: string) => {
@@ -390,15 +318,7 @@ export function SettingsAlbumsPage() {
 		try {
 			for (const file of files) {
 				const multipart = await buildMultipartBody(file);
-				const response = await fetchRest(`/v1/albums/${albumId}/content`, {
-					method: "POST",
-					rawBody: multipart.body,
-					contentType: multipart.contentType,
-				});
-
-				if (response.status < 200 || response.status >= 300) {
-					throw new Error(`Failed to upload image (${response.status})`);
-				}
+				await apiFunctions.uploadOwnAlbumContent({ albumId, multipart });
 			}
 
 			toast.success(files.length === 1 ? "Picture added" : "Pictures added");
@@ -452,14 +372,7 @@ export function SettingsAlbumsPage() {
 		setReorderingAlbumId(albumId);
 
 		try {
-			const response = await fetchRest(`/v1/albums/${albumId}/content/order`, {
-				method: "POST",
-				body: { contentIds },
-			});
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to reorder pictures (${response.status})`);
-			}
+			await apiFunctions.reorderOwnAlbumContent({ albumId, contentIds });
 
 			setAlbumDetails((previous) => {
 				const detail = previous[albumId];
@@ -495,16 +408,7 @@ export function SettingsAlbumsPage() {
 		setDeletingContentKey(deleteKey);
 
 		try {
-			const response = await fetchRest(
-				`/v1/albums/${albumId}/content/${contentId}`,
-				{
-					method: "DELETE",
-				},
-			);
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to delete picture (${response.status})`);
-			}
+			await apiFunctions.deleteOwnAlbumContent({ albumId, contentId });
 
 			setAlbumDetails((previous) => {
 				const detail = previous[albumId];

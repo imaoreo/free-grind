@@ -1,25 +1,9 @@
-import type { ConversationEntry, Message } from "../../../types/chat";
-
-type IndexedConversation = {
-	conversationId: string;
-	name: string;
-	preview: string;
-	searchText: string;
-};
-
-type IndexedMessage = {
-	messageId: string;
-	conversationId: string;
-	senderId: number;
-	timestamp: number;
-	text: string;
-	searchText: string;
-};
-
-type ScoredResult<T> = {
-	score: number;
-	item: T;
-};
+import type { ConversationEntry, Message } from "../../../types/messages";
+import type {
+	IndexedConversation,
+	IndexedMessage,
+	ScoredResult,
+} from "../../../types/chat-cache";
 
 const conversationIndex = new Map<string, IndexedConversation>();
 const messageIndex = new Map<string, IndexedMessage>();

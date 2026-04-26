@@ -15,7 +15,7 @@ import {
 	remove,
 	writeTextFile,
 } from "@tauri-apps/plugin-fs";
-import type { Message } from "../types/chat";
+import type { Message } from "../types/messages";
 
 const LOG_DIR = "chat-log";
 

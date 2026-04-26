@@ -16,7 +16,7 @@ import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/AuthContext";
-import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { Chip } from "../../components/ui/chip";
 
@@ -231,16 +231,6 @@ const profileSchema = z.object({
 
 const profileResponseSchema = z.object({
 	profiles: z.array(profileSchema).length(1),
-});
-
-const pronounOptionSchema = z.object({
-	pronounId: z.number(),
-	pronoun: z.string(),
-});
-
-const genderOptionSchema = z.object({
-	genderId: z.number(),
-	gender: z.string(),
 });
 
 interface ProfileDraft {
@@ -487,7 +477,7 @@ function ChipGroup({
 
 export function ProfileEditorPage() {
 	const { userId, logout } = useAuth();
-	const { fetchRest } = useApi();
+	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
 	const [profile, setProfile] = useState<z.infer<typeof profileSchema> | null>(
 		null,
@@ -515,13 +505,9 @@ export function ProfileEditorPage() {
 		try {
 			setIsLoadingProfile(true);
 			setProfileError(null);
-			const response = await fetchRest(`/v7/profiles/${userId}`);
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to load profile (${response.status})`);
-			}
-
-			const parsed = profileResponseSchema.parse(response.json());
+			const parsed = profileResponseSchema.parse(
+				await apiFunctions.getRawProfile(userId),
+			);
 			setProfile(parsed.profiles[0]);
 		} catch (error) {
 			setProfile(null);
@@ -531,44 +517,31 @@ export function ProfileEditorPage() {
 		} finally {
 			setIsLoadingProfile(false);
 		}
-	}, [fetchRest, userId]);
+	}, [apiFunctions, userId]);
 
 	const loadManagedOptions = useCallback(async () => {
 		try {
-			const gendersResponse = await fetchRest("/public/v2/genders");
-			const pronounsResponse = userId ? await fetchRest("/v1/pronouns") : null;
+			const genders = await apiFunctions.getManagedGenders();
+			setGenderOptions(
+				genders.map((item) => ({ value: item.genderId, label: item.gender })),
+			);
 
-			if (gendersResponse.status >= 200 && gendersResponse.status < 300) {
-				const parsed = z
-					.array(genderOptionSchema)
-					.parse(gendersResponse.json());
-				setGenderOptions(
-					parsed.map((item) => ({ value: item.genderId, label: item.gender })),
-				);
-			}
-
-			if (
-				pronounsResponse &&
-				pronounsResponse.status >= 200 &&
-				pronounsResponse.status < 300
-			) {
-				const parsed = z
-					.array(pronounOptionSchema)
-					.parse(pronounsResponse.json());
+			if (userId) {
+				const pronouns = await apiFunctions.getManagedPronouns();
 				setPronounOptions(
-					parsed.map((item) => ({
+					pronouns.map((item) => ({
 						value: item.pronounId,
 						label: item.pronoun,
 					})),
 				);
-			} else if (!userId) {
+			} else {
 				setPronounOptions([]);
 			}
 		} catch {
 			setGenderOptions([]);
 			setPronounOptions([]);
 		}
-	}, [fetchRest, userId]);
+	}, [apiFunctions, userId]);
 
 	useEffect(() => {
 		void loadProfile();
@@ -746,43 +719,36 @@ export function ProfileEditorPage() {
 		setIsSaving(true);
 
 		try {
-			const response = await fetchRest("/v4/me/profile", {
-				method: "PATCH",
-				body: {
-					displayName: draft.displayName.trim() || null,
-					aboutMe: draft.aboutMe.trim() || null,
-					profileTags: tagList,
-					showAge: draft.showAge,
-					age: parseNullableInteger(draft.age),
-					height: parseNullableNumber(draft.height),
-					weight: parseNullableNumber(draft.weight),
-					ethnicity: parseNullableInteger(draft.ethnicity),
-					bodyType: parseNullableInteger(draft.bodyType),
-					showPosition: draft.showPosition,
-					sexualPosition: parseNullableInteger(draft.sexualPosition),
-					showTribes: draft.showTribes,
-					grindrTribes: draft.grindrTribes,
-					relationshipStatus: parseNullableInteger(draft.relationshipStatus),
-					lookingFor: draft.lookingFor,
-					meetAt: draft.meetAt,
-					nsfw: parseNullableInteger(draft.nsfw),
-					genders: draft.genders,
-					pronouns: draft.pronouns,
-					hivStatus: parseNullableInteger(draft.hivStatus),
-					lastTestedDate: parseDateInput(draft.lastTestedDate),
-					sexualHealth: draft.sexualHealth,
-					vaccines: draft.vaccines,
-					socialNetworks: {
-						instagram: { userId: draft.instagram.trim() || null },
-						twitter: { userId: draft.twitter.trim() || null },
-						facebook: { userId: draft.facebook.trim() || null },
-					},
+			await apiFunctions.updateMyProfile({
+				displayName: draft.displayName.trim() || null,
+				aboutMe: draft.aboutMe.trim() || null,
+				profileTags: tagList,
+				showAge: draft.showAge,
+				age: parseNullableInteger(draft.age),
+				height: parseNullableNumber(draft.height),
+				weight: parseNullableNumber(draft.weight),
+				ethnicity: parseNullableInteger(draft.ethnicity),
+				bodyType: parseNullableInteger(draft.bodyType),
+				showPosition: draft.showPosition,
+				sexualPosition: parseNullableInteger(draft.sexualPosition),
+				showTribes: draft.showTribes,
+				grindrTribes: draft.grindrTribes,
+				relationshipStatus: parseNullableInteger(draft.relationshipStatus),
+				lookingFor: draft.lookingFor,
+				meetAt: draft.meetAt,
+				nsfw: parseNullableInteger(draft.nsfw),
+				genders: draft.genders,
+				pronouns: draft.pronouns,
+				hivStatus: parseNullableInteger(draft.hivStatus),
+				lastTestedDate: parseDateInput(draft.lastTestedDate),
+				sexualHealth: draft.sexualHealth,
+				vaccines: draft.vaccines,
+				socialNetworks: {
+					instagram: { userId: draft.instagram.trim() || null },
+					twitter: { userId: draft.twitter.trim() || null },
+					facebook: { userId: draft.facebook.trim() || null },
 				},
 			});
-
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to save profile (${response.status})`);
-			}
 
 			toast.success("Profile updated");
 			await loadProfile();
@@ -816,35 +782,17 @@ export function ProfileEditorPage() {
 			setIsSavingPhotos(true);
 
 			try {
-				const updateResponse = await fetchRest("/v3/me/profile/images", {
-					method: "PUT",
-					body: {
-						primaryImageHash: primaryImageHash ?? null,
-						secondaryImageHashes,
-					},
+				await apiFunctions.updateMyProfileImages({
+					primaryImageHash: primaryImageHash ?? null,
+					secondaryImageHashes,
 				});
-
-				if (updateResponse.status < 200 || updateResponse.status >= 300) {
-					throw new Error(
-						`Failed to update profile photos (${updateResponse.status})`,
-					);
-				}
 
 				const deletedHashes =
 					options?.deletedHashes?.filter((hash) => validateMediaHash(hash)) ??
 					[];
 
 				if (deletedHashes.length > 0) {
-					const deleteResponse = await fetchRest("/v3/me/profile/images", {
-						method: "DELETE",
-						body: { media_hashes: deletedHashes },
-					});
-
-					if (deleteResponse.status < 200 || deleteResponse.status >= 300) {
-						throw new Error(
-							`Failed to delete profile photos (${deleteResponse.status})`,
-						);
-					}
+					await apiFunctions.deleteMyProfileImages(deletedHashes);
 				}
 
 				await loadProfile();
@@ -859,7 +807,7 @@ export function ProfileEditorPage() {
 				setIsSavingPhotos(false);
 			}
 		},
-		[fetchRest, loadProfile, userId],
+		[apiFunctions, loadProfile, userId],
 	);
 
 	const handleUploadPhoto = async (
@@ -893,45 +841,36 @@ export function ProfileEditorPage() {
 				"/v3/me/profile/images",
 			];
 
-			let uploadResponse: Awaited<ReturnType<typeof fetchRest>> | null = null;
-			const failedStatuses: number[] = [];
+			let uploadedHash: string | null = null;
+			const failedMessages: string[] = [];
 
 			for (const path of uploadPaths) {
-				const candidate = await fetchRest(path, {
-					method: "POST",
-					rawBody: body,
-					contentType: file.type || "application/octet-stream",
-				});
-
-				if (candidate.status >= 200 && candidate.status < 300) {
-					uploadResponse = candidate;
-					break;
+				try {
+					const uploaded = await apiFunctions.uploadProfileImage({
+						path,
+						body,
+						contentType: file.type || "application/octet-stream",
+					});
+					uploadedHash =
+						uploaded.hash ??
+						uploaded.mediaHash ??
+						uploaded.imageSizes?.find((item) => item.mediaHash)?.mediaHash ??
+						null;
+					if (uploadedHash) {
+						break;
+					}
+				} catch (error) {
+					failedMessages.push(
+						error instanceof Error ? error.message : "upload failed",
+					);
 				}
-
-				failedStatuses.push(candidate.status);
 			}
 
-			if (!uploadResponse) {
+			if (!uploadedHash) {
 				throw new Error(
-					`Failed to upload image (${failedStatuses.join(" -> ")})`,
+					`Failed to upload image (${failedMessages.join(" -> ")})`,
 				);
 			}
-
-			const uploaded = z
-				.object({
-					hash: z.string().optional(),
-					mediaHash: z.string().optional(),
-					imageSizes: z
-						.array(z.object({ mediaHash: z.string().optional() }))
-						.optional(),
-				})
-				.passthrough()
-				.parse(uploadResponse.json());
-
-			const uploadedHash =
-				uploaded.hash ??
-				uploaded.mediaHash ??
-				uploaded.imageSizes?.find((item) => item.mediaHash)?.mediaHash;
 
 			if (!uploadedHash || !validateMediaHash(uploadedHash)) {
 				throw new Error(

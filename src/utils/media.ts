@@ -1,11 +1,9 @@
 import z from "zod";
+import type { ProfileImageSize, ThumbImageSize } from "../types/media";
 
 export const mediaHashSchema = z
 	.string()
 	.regex(/^[a-f0-9]{32}$|^[a-f0-9]{40}$|^[a-f0-9]{64}$/i);
-
-type ProfileImageSize = "320x320" | "480x480" | "1024x1024" | "2048x2048";
-type ThumbImageSize = "75x75" | "320x320" | "480x480";
 
 const PUBLIC_MEDIA_BASE_URL = "https://cdns.grindr.com";
 

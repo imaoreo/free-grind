@@ -4,7 +4,6 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Ellipsis,
-	Flame,
 	ImagePlus,
 	Loader2,
 	MessageCircle,
@@ -26,23 +25,26 @@ import {
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import {
-	createChatService,
-	type ChatApiError,
-} from "../../services/chatService";
-import {
-	ChatRealtimeManager,
-	type RealtimeStatus,
-	type RealtimeEnvelope,
-} from "../../services/chatRealtime";
+import { type ChatApiError } from "../../services/chatService";
+import { ChatRealtimeManager } from "../../services/chatRealtime";
 import {
 	messageSchema,
 	type ConversationEntry,
 	type InboxFilters,
 	type Message,
-} from "../../types/chat";
+} from "../../types/messages";
+import type { RealtimeEnvelope, RealtimeStatus } from "../../types/chat-realtime";
+import type {
+	AlbumListItem,
+	AlbumViewerState,
+	InboxFilterKey,
+	ProfileSearchResult,
+	SearchMode,
+	UiMessage,
+} from "../../types/chat-page";
 import {
 	getProfileImageUrl,
 	getThumbImageUrl,
@@ -56,42 +58,6 @@ import {
 } from "./chat/cache";
 import * as chatLog from "../../services/chatLog";
 
-type UiMessage = Message & {
-	clientState?: "pending" | "failed";
-	/** True when the message was only found in the local log, not in the API response. */
-	_localOnly?: boolean;
-};
-
-type AlbumListItem = {
-	albumId: number;
-	albumName: string | null;
-	isShareable: boolean;
-};
-
-type AlbumContentItem = {
-	contentId: number;
-	contentType: string | null;
-	thumbUrl: string | null;
-	url: string | null;
-	coverUrl: string | null;
-	processing: boolean;
-};
-
-type AlbumViewerState = {
-	albumId: number;
-	albumName: string | null;
-	content: AlbumContentItem[];
-};
-
-type SearchMode = "conversations" | "messages" | "profiles";
-
-type InboxFilterKey =
-	| "unreadOnly"
-	| "favoritesOnly"
-	| "chemistryOnly"
-	| "rightNowOnly"
-	| "onlineNowOnly";
-
 const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
 	{ key: "unreadOnly", label: "Unread" },
 	{ key: "favoritesOnly", label: "Favorites" },
@@ -99,16 +65,6 @@ const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
 	{ key: "rightNowOnly", label: "Right now" },
 	{ key: "onlineNowOnly", label: "Online" },
 ];
-
-type ProfileSearchResult = {
-	profileId: number;
-	displayName: string;
-	age: number | null;
-	distance: number | null;
-	profileImageMediaHash: string | null;
-	hasAlbum: boolean;
-	showDistance: boolean;
-};
 
 const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
 	numeric: "auto",
@@ -615,10 +571,10 @@ export function ChatPage() {
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const { fetchRest, callMethod } = useApi();
+	const { callMethod } = useApi();
+	const service = useApiFunctions();
 	const { userId } = useAuth();
 	const { geohash } = usePreferences();
-	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
 	const threadScrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -685,6 +641,31 @@ export function ChatPage() {
 	const [isMutatingMessageId, setIsMutatingMessageId] = useState<string | null>(
 		null,
 	);
+	const [reactionBurstMessageId, setReactionBurstMessageId] = useState<
+		string | null
+	>(null);
+	const reactionBurstTimeoutRef = useRef<number | null>(null);
+
+	const triggerReactionBurst = useCallback((messageId: string) => {
+		if (reactionBurstTimeoutRef.current != null) {
+			window.clearTimeout(reactionBurstTimeoutRef.current);
+		}
+		setReactionBurstMessageId(messageId);
+		reactionBurstTimeoutRef.current = window.setTimeout(() => {
+			setReactionBurstMessageId((current) =>
+				current === messageId ? null : current,
+			);
+			reactionBurstTimeoutRef.current = null;
+		}, 520);
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (reactionBurstTimeoutRef.current != null) {
+				window.clearTimeout(reactionBurstTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const [isAlbumPickerOpen, setIsAlbumPickerOpen] = useState(false);
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
@@ -2222,6 +2203,9 @@ export function ChatPage() {
 		if (!selectedConversation || !userId || isMutatingMessageId) {
 			return;
 		}
+		const alreadyReactedByUser = message.reactions.some(
+			(reaction) => reaction.profileId === userId && reaction.reactionType === 1,
+		);
 
 		const previous = threadMessages;
 		setIsMutatingMessageId(message.messageId);
@@ -2231,12 +2215,17 @@ export function ChatPage() {
 				if (item.messageId !== message.messageId) {
 					return item;
 				}
-				const alreadyReacted = item.reactions.some(
-					(reaction) => reaction.profileId === userId,
-				);
-				if (alreadyReacted) {
-					return item;
+
+				if (alreadyReactedByUser) {
+					return {
+						...item,
+						reactions: item.reactions.filter(
+							(reaction) =>
+								!(reaction.profileId === userId && reaction.reactionType === 1),
+						),
+					};
 				}
+
 				return {
 					...item,
 					reactions: [
@@ -2246,20 +2235,47 @@ export function ChatPage() {
 				};
 			}),
 		);
+		if (!alreadyReactedByUser) {
+			triggerReactionBurst(message.messageId);
+		}
 
 		try {
 			await service.reactToMessage({
 				conversationId: selectedConversation.data.conversationId,
 				messageId: message.messageId,
-				reactionType: 1,
+				reactionType: alreadyReactedByUser ? 0 : 1,
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to react");
+			toast.error(
+				error instanceof Error
+					? error.message
+					: alreadyReactedByUser
+						? "Failed to remove reaction"
+						: "Failed to react",
+			);
 		} finally {
 			setIsMutatingMessageId(null);
 		}
 	};
+
+	const doubleTapTimeoutRef = useRef<Record<string, number>>({});
+	const handleMessageTap = useCallback(
+		(message: UiMessage) => {
+			const messageId = message.messageId;
+			if (doubleTapTimeoutRef.current[messageId]) {
+				window.clearTimeout(doubleTapTimeoutRef.current[messageId]);
+				delete doubleTapTimeoutRef.current[messageId];
+				void handleReact(message);
+			} else {
+				doubleTapTimeoutRef.current[messageId] = window.setTimeout(() => {
+					delete doubleTapTimeoutRef.current[messageId];
+				}, 300);
+			}
+		},
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[],
+	);
 
 	const handleUnsend = async (message: UiMessage) => {
 		if (isMutatingMessageId) {
@@ -3064,7 +3080,8 @@ export function ChatPage() {
 										className={`flex ${mine ? "justify-end" : "justify-start"}`}
 									>
 										<div
-											className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+											onDoubleClick={() => void handleMessageTap(message)}
+											className={`relative group/bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
 												mine
 													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "bg-[var(--surface-2)] text-[var(--text)]"
@@ -3146,11 +3163,23 @@ export function ChatPage() {
 												{getMessageText(message)}
 											</p>
 
-											{message.reactions.length > 0 ? (
-												<div className="mt-1 inline-flex items-center gap-1 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
-													<Flame className="h-3 w-3" />
-													<span>{message.reactions.length}</span>
-												</div>
+{!isLocalClientMessageId(message.messageId) ? (
+												<button
+													type="button"
+													onClick={() => void handleReact(message)}
+													disabled={isMutatingMessageId === message.messageId}
+													className={`absolute -right-3 -top-2 cursor-pointer transition-opacity ${
+														message.reactions.length > 0
+															? "opacity-100"
+															: "opacity-0 group-hover/bubble:opacity-60"
+													} hover:opacity-80`}
+												>
+													<span className={`chat-reaction-flame text-2xl inline-flex ${
+														reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
+													}`}>
+														🔥
+													</span>
+												</button>
 											) : null}
 
 											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -3183,14 +3212,6 @@ export function ChatPage() {
 
 											{openMessageActionId === message.messageId ? (
 												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
-													<button
-														type="button"
-														onClick={() => void handleReact(message)}
-														disabled={isMutatingMessageId === message.messageId}
-														className="rounded-md border border-black/20 px-2 py-1"
-													>
-														React 🔥
-													</button>
 													{mine && !message.unsent ? (
 														<button
 															type="button"

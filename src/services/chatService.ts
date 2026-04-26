@@ -16,30 +16,24 @@ import {
 	type MessagesResponse,
 	type SendMessagePayload,
 	type SendTextPayload,
+	type ChatReactionPayload,
+	type ChatMessageMutation,
+	type ShareAlbumPayload,
 } from "../types/chat";
-
-export interface RestResponse {
-	status: number;
-	json: () => unknown;
-	text: () => string;
-	bytes: () => Uint8Array;
-}
-
-export type RestFetcher = (
-	path: string,
-	options?: {
-		method?: string;
-		body?: unknown;
-		rawBody?: Uint8Array;
-		contentType?: string;
-		abortController?: AbortController;
-	},
-) => Promise<RestResponse>;
-
-export interface MultipartUpload {
-	body: Uint8Array;
-	contentType: string;
-}
+import { albumsResponseSchema, type Album } from "../types/albums";
+import type {
+	AlbumDetailsResponse,
+	CreateAlbumResponse,
+	RestFetcher,
+	RestResponse,
+	SearchProfilesParams,
+	SearchProfilesResponse,
+	SharedConversationImage,
+	UploadAlbumContentParams,
+	UploadAlbumContentResponse,
+	UploadChatMediaParams,
+	UploadChatMediaResponse,
+} from "../types/chat-service";
 
 export class ChatApiError extends Error {
 	status: number;
@@ -105,42 +99,9 @@ function sortMessages(messages: Message[]): Message[] {
 
 export function createChatService(fetchRest: RestFetcher) {
 	return {
-		async searchProfiles(params: {
-			nearbyGeoHash: string;
-			searchAfterDistance?: string;
-			searchAfterProfileId?: string;
-			online?: boolean;
-			hasAlbum?: boolean;
-		}): Promise<{
-			profiles: Array<{
-				profileId: number;
-				displayName: string;
-				age: number | null;
-				distance: number | null;
-				profileImageMediaHash: string | null;
-				medias: Array<{
-					mediaHash?: string;
-					type?: number;
-					state?: number;
-				}> | null;
-				profileTags: string[];
-				hasAlbum: boolean;
-				showDistance: boolean;
-				showAge: boolean;
-				approximateDistance: boolean;
-				boosting: boolean;
-				isFavorite: boolean;
-				new: boolean;
-				lastChatTimestamp: number | null;
-				lastUpdatedTime: number | null;
-				lastViewed: number | null;
-				seen: number | null;
-				hasFaceRecognition: boolean;
-				gender: number[];
-			}>;
-			lastDistanceInKm: number | null;
-			lastProfileId: number | null;
-		}> {
+		async searchProfiles(
+			params: SearchProfilesParams,
+		): Promise<SearchProfilesResponse> {
 			const query = new URLSearchParams({
 				nearbyGeoHash: params.nearbyGeoHash,
 			});
@@ -365,10 +326,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			await assertSuccess(response, "Failed to mark conversation as read");
 		},
 
-		async unsendMessage(payload: {
-			conversationId: string;
-			messageId: string;
-		}) {
+		async unsendMessage(payload: ChatMessageMutation) {
 			const safePayload = chatMessageMutationSchema.parse(payload);
 			const response = await fetchRest("/v4/chat/message/unsend", {
 				method: "POST",
@@ -377,10 +335,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			await assertSuccess(response, "Failed to unsend message");
 		},
 
-		async deleteMessage(payload: {
-			conversationId: string;
-			messageId: string;
-		}) {
+		async deleteMessage(payload: ChatMessageMutation) {
 			const safePayload = chatMessageMutationSchema.parse(payload);
 			const response = await fetchRest("/v4/chat/message/delete", {
 				method: "POST",
@@ -389,11 +344,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			await assertSuccess(response, "Failed to delete message");
 		},
 
-		async reactToMessage(payload: {
-			conversationId: string;
-			messageId: string;
-			reactionType: number;
-		}) {
+		async reactToMessage(payload: ChatReactionPayload) {
 			const safePayload = chatReactionPayloadSchema.parse(payload);
 			const response = await fetchRest("/v4/chat/message/reaction", {
 				method: "POST",
@@ -402,13 +353,9 @@ export function createChatService(fetchRest: RestFetcher) {
 			await assertSuccess(response, "Failed to react to message");
 		},
 
-		async getSharedConversationImages(conversationId: string): Promise<
-			Array<{
-				mediaId: number;
-				url: string | null;
-				expiresAt: number | null;
-			}>
-		> {
+		async getSharedConversationImages(
+			conversationId: string,
+		): Promise<SharedConversationImage[]> {
 			const response = await fetchRest(
 				`/v5/chat/media/shared/images/with-me/${conversationId}`,
 			);
@@ -435,33 +382,14 @@ export function createChatService(fetchRest: RestFetcher) {
 			return parsed;
 		},
 
-		async listAlbums(): Promise<
-			Array<{
-				albumId: string | number;
-				albumName?: string | null;
-				isShareable?: boolean;
-			}>
-		> {
+		async listAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");
 			await assertSuccess(response, "Failed to load albums");
-			const parsed = z
-				.object({
-					albums: z
-						.array(
-							z.object({
-								albumId: z.union([z.string(), z.number()]),
-								albumName: z.string().nullable().optional(),
-								isShareable: z.boolean().optional(),
-							}),
-						)
-						.optional()
-						.default([]),
-				})
-				.parse(await parseJsonSafe(response));
+			const parsed = albumsResponseSchema.parse(await parseJsonSafe(response));
 			return parsed.albums;
 		},
 
-		async createAlbum(albumName: string): Promise<{ albumId: number }> {
+		async createAlbum(albumName: string): Promise<CreateAlbumResponse> {
 			const response = await fetchRest("/v2/albums", {
 				method: "POST",
 				body: { albumName },
@@ -474,20 +402,10 @@ export function createChatService(fetchRest: RestFetcher) {
 				.parse(await parseJsonSafe(response));
 		},
 
-		async getAlbum(albumId: number | string): Promise<{
-			albumId: number;
-			albumName: string | null;
-			content: Array<{
-				contentId: number;
-				contentType: string | null;
-				thumbUrl: string | null;
-				url: string | null;
-				coverUrl: string | null;
-				processing: boolean;
-			}>;
-		}> {
-			const response = await fetchRest(`/v2/albums/${albumId}`);
+		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
+			const response = await fetchRest(`/v1/albums/${albumId}`);
 			await assertSuccess(response, "Failed to load album");
+            
 			return z
 				.object({
 					albumId: z.coerce.number().int(),
@@ -509,14 +427,9 @@ export function createChatService(fetchRest: RestFetcher) {
 				.parse(await parseJsonSafe(response));
 		},
 
-		async uploadChatMedia(params: {
-			multipart: MultipartUpload;
-			options: { looping: boolean; takenOnGrindr: boolean };
-		}): Promise<{
-			mediaId: number;
-			mediaHash: string | null;
-			url: string | null;
-		}> {
+		async uploadChatMedia(
+			params: UploadChatMediaParams,
+		): Promise<UploadChatMediaResponse> {
 			const query = new URLSearchParams({
 				looping: String(params.options.looping),
 				takenOnGrindr: String(params.options.takenOnGrindr),
@@ -548,10 +461,9 @@ export function createChatService(fetchRest: RestFetcher) {
 			};
 		},
 
-		async uploadAlbumContent(params: {
-			albumId: number | string;
-			multipart: MultipartUpload;
-		}): Promise<{ contentId: number }> {
+		async uploadAlbumContent(
+			params: UploadAlbumContentParams,
+		): Promise<UploadAlbumContentResponse> {
 			const response = await fetchRest(`/v1/albums/${params.albumId}/content`, {
 				method: "POST",
 				rawBody: params.multipart.body,
@@ -565,10 +477,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				.parse(await parseJsonSafe(response));
 		},
 
-		async shareAlbum(payload: {
-			albumId: number;
-			profiles: Array<{ profileId: number; expirationType: string | number }>;
-		}) {
+		async shareAlbum(payload: ShareAlbumPayload) {
 			const safePayload = shareAlbumPayloadSchema.parse(payload);
 			const response = await fetchRest(
 				`/v4/albums/${safePayload.albumId}/shares`,

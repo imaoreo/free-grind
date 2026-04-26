@@ -1,8 +1,4 @@
-export type AsyncViewState<T> = {
-	isLoading: boolean;
-	error: string | null;
-	data: T;
-};
+import type { AsyncViewState } from "../types/async-view-state";
 
 export function getAsyncState<T>(state: AsyncViewState<T>, isEmpty: boolean) {
 	if (state.isLoading) {
