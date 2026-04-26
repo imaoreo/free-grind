@@ -1,18 +1,14 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
-import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useEffect, useMemo, useState } from "react";
 import z from "zod";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash } from "../../utils/geohash";
 import {
-	browseCardSchema,
-	browseProfileSchema,
-	cascadeResponseSchema,
 	geocodeResultSchema,
-	profileDetailResponseSchema,
 	type BrowseCard,
 	type GeocodeResult,
 	type ManagedOption,
@@ -39,7 +35,7 @@ import { Card } from "../../components/ui/card";
 
 export function GridPage() {
 	const { userId } = useAuth();
-	const { fetchRest } = useApi();
+	const apiFunctions = useApiFunctions();
 	const {
 		geohash,
 		setPreferences,
@@ -90,48 +86,24 @@ export function GridPage() {
 			}
 
 			try {
-				const [gendersResponse, pronounsResponse] = await Promise.all([
-					fetchRest("/public/v2/genders"),
-					fetchRest("/v1/pronouns"),
+				const [genders, pronouns] = await Promise.all([
+					apiFunctions.getManagedGenders(),
+					apiFunctions.getManagedPronouns(),
 				]);
 
-				if (gendersResponse.status >= 200 && gendersResponse.status < 300) {
-					const parsed = z
-						.array(
-							z.object({
-								genderId: z.number(),
-								gender: z.string(),
-							}),
-						)
-						.parse(gendersResponse.json());
-					const nextGenderOptions = parsed.map((item) => ({
-						value: item.genderId,
-						label: item.gender,
-					}));
-					setGenderOptions(nextGenderOptions);
-					setCachedGenderOptions(nextGenderOptions);
-				}
+				const nextGenderOptions = genders.map((item) => ({
+					value: item.genderId,
+					label: item.gender,
+				}));
+				setGenderOptions(nextGenderOptions);
+				setCachedGenderOptions(nextGenderOptions);
 
-				if (
-					pronounsResponse &&
-					pronounsResponse.status >= 200 &&
-					pronounsResponse.status < 300
-				) {
-					const parsed = z
-						.array(
-							z.object({
-								pronounId: z.number(),
-								pronoun: z.string(),
-							}),
-						)
-						.parse(pronounsResponse.json());
-					const nextPronounOptions = parsed.map((item) => ({
-						value: item.pronounId,
-						label: item.pronoun,
-					}));
-					setPronounOptions(nextPronounOptions);
-					setCachedPronounOptions(nextPronounOptions);
-				}
+				const nextPronounOptions = pronouns.map((item) => ({
+					value: item.pronounId,
+					label: item.pronoun,
+				}));
+				setPronounOptions(nextPronounOptions);
+				setCachedPronounOptions(nextPronounOptions);
 			} catch {
 				if (!cachedGenders) {
 					setGenderOptions([]);
@@ -143,7 +115,7 @@ export function GridPage() {
 		};
 
 		void loadManagedOptions();
-	}, [fetchRest]);
+	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!userId) {
@@ -155,20 +127,11 @@ export function GridPage() {
 
 		const loadProfilePhoto = async () => {
 			try {
-				const response = await fetchRest(`/v7/profiles/${userId}`);
-
-				if (response.status < 200 || response.status >= 300) {
-					if (!cancelled) {
-						setProfileImageHash(null);
-					}
-					return;
-				}
-
-				const parsed = browseProfileSchema.parse(response.json());
-				const mediaHashFromList = parsed.profiles[0]?.medias
+				const parsed = await apiFunctions.getBrowseProfileMedia(userId);
+				const mediaHashFromList = parsed.medias
 					?.map((item) => item.mediaHash ?? "")
 					.find((hash) => validateMediaHash(hash));
-				const mediaHashFromProfile = parsed.profiles[0]?.profileImageMediaHash;
+				const mediaHashFromProfile = parsed.profileImageMediaHash;
 				const firstHash =
 					mediaHashFromList ??
 					(mediaHashFromProfile && validateMediaHash(mediaHashFromProfile)
@@ -190,7 +153,7 @@ export function GridPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [fetchRest, userId]);
+	}, [apiFunctions, userId]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -225,37 +188,14 @@ export function GridPage() {
 			}
 
 			try {
-				const url = page
-					? `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}&pageNumber=${page}`
-					: `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}`;
-				const response = await fetchRest(url);
-
-				if (response.status < 200 || response.status >= 300) {
-					throw new Error(
-						`Failed to load browse profiles (${response.status})`,
-					);
-				}
-
-				const parsed = cascadeResponseSchema.parse(response.json());
-				const newCards: BrowseCard[] = [];
-
-				for (const item of parsed.items) {
-					if (
-						item.type !== "full_profile_v1" &&
-						item.type !== "partial_profile_v1"
-					) {
-						continue;
-					}
-
-					const candidate = browseCardSchema.safeParse(item.data);
-					if (candidate.success) {
-						newCards.push(candidate.data);
-					}
-				}
+				const parsed = await apiFunctions.getBrowseCards({
+					geohash,
+					page,
+				});
 
 				if (!cancelled) {
-					setCards(newCards);
-					setCachedBrowseCards(geohash, newCards);
+					setCards(parsed.cards);
+					setCachedBrowseCards(geohash, parsed.cards);
 					setNextPage(parsed.nextPage ?? null);
 				}
 			} catch (error) {
@@ -281,31 +221,19 @@ export function GridPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [fetchRest, geohash, isLoadingPreferences]);
+	}, [apiFunctions, geohash, isLoadingPreferences]);
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
-			const url = `/v4/cascade?nearbyGeoHash=${encodeURIComponent(geohash)}&pageNumber=${nextPage}`;
-			const response = await fetchRest(url);
-			if (response.status < 200 || response.status >= 300) {
-				throw new Error(`Failed to load more profiles (${response.status})`);
-			}
-			const parsed = cascadeResponseSchema.parse(response.json());
-			const newCards: BrowseCard[] = [];
-			for (const item of parsed.items) {
-				if (
-					item.type !== "full_profile_v1" &&
-					item.type !== "partial_profile_v1"
-				)
-					continue;
-				const candidate = browseCardSchema.safeParse(item.data);
-				if (candidate.success) newCards.push(candidate.data);
-			}
+			const parsed = await apiFunctions.getBrowseCards({
+				geohash,
+				page: nextPage,
+			});
 			if (!cancelled) {
-				setCards((prev) => [...prev, ...newCards]);
+				setCards((prev) => [...prev, ...parsed.cards]);
 				setNextPage(parsed.nextPage ?? null);
 			}
 		} catch {
@@ -338,19 +266,11 @@ export function GridPage() {
 			setActiveProfileError(null);
 
 			try {
-				const response = await fetchRest(`/v7/profiles/${activeProfileId}`);
-
-				if (response.status < 200 || response.status >= 300) {
-					throw new Error(
-						`Failed to load profile details (${response.status})`,
-					);
-				}
-
-				const parsed = profileDetailResponseSchema.parse(response.json());
+				const parsed = await apiFunctions.getProfileDetail(activeProfileId);
 
 				if (!cancelled) {
-					setActiveProfile(parsed.profiles[0]);
-					setCachedProfileDetail(activeProfileId, parsed.profiles[0]);
+					setActiveProfile(parsed);
+					setCachedProfileDetail(activeProfileId, parsed);
 				}
 			} catch (error) {
 				if (!cancelled) {
@@ -375,7 +295,7 @@ export function GridPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [activeProfileId, fetchRest]);
+	}, [activeProfileId, apiFunctions]);
 
 	const updateLocationPreference = async (
 		lat: number,

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import {
 	clearApiTraceEntries,
 	exportApiTraceEntries,
@@ -32,7 +33,8 @@ function statusClass(status: number | null, success: boolean): string {
 
 export function ApiInspectorPage() {
 	const navigate = useNavigate();
-	const { fetchRest, asAppError } = useApi();
+	const { asAppError } = useApi();
+	const apiFunctions = useApiFunctions();
 	const [entries, setEntries] = useState<ApiTraceEntry[]>(() =>
 		getApiTraceEntries(),
 	);
@@ -126,7 +128,7 @@ export function ApiInspectorPage() {
 		setComposerResponse("");
 
 		try {
-			const response = await fetchRest(path, {
+			const response = await apiFunctions.request(path, {
 				method: composerMethod,
 				...(hasPayload ? { body: parsedBody } : {}),
 			});

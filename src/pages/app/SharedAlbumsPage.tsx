@@ -14,9 +14,7 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/AuthContext";
-import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { createChatService } from "../../services/chatService";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 
@@ -48,9 +46,7 @@ function getCounterparty(
 export function SharedAlbumsPage() {
 	const navigate = useNavigate();
 	const { userId } = useAuth();
-	const { fetchRest } = useApi();
 	const apiFunctions = useApiFunctions();
-	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,7 +71,7 @@ export function SharedAlbumsPage() {
 			let nextPage: number | null = 1;
 
 			while (nextPage != null && page <= 6) {
-				const inbox = await service.listConversations({ page });
+				const inbox = await apiFunctions.listConversations({ page });
 
 				for (const entry of inbox.entries) {
 					const counterparty = getCounterparty(entry, userId);
@@ -144,7 +140,7 @@ export function SharedAlbumsPage() {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [apiFunctions, service, userId]);
+	}, [apiFunctions, userId]);
 
 	useEffect(() => {
 		void loadSharedAlbums();
@@ -173,7 +169,7 @@ export function SharedAlbumsPage() {
 			try {
 				await apiFunctions.openSharedAlbum({ albumId });
 
-				const details = await service.getAlbum(albumId);
+				const details = await apiFunctions.getAlbum(albumId);
 				setViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
@@ -190,7 +186,7 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum, service],
+		[apiFunctions, isOpeningAlbum],
 	);
 
 	const selectedViewerItem =

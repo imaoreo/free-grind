@@ -6,7 +6,7 @@ import {
 	useSearchParams,
 } from "react-router-dom";
 import z from "zod";
-import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { validateMediaHash } from "../../utils/media";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
@@ -18,7 +18,6 @@ import {
 	setCachedPronounOptions,
 } from "./gridpage/cache";
 import {
-	profileDetailResponseSchema,
 	type ManagedOption,
 	type ProfileDetail,
 } from "./GridPage.types";
@@ -32,7 +31,7 @@ export function GridProfilePage() {
 	const location = useLocation();
 	const params = useParams();
 	const [searchParams] = useSearchParams();
-	const { fetchRest } = useApi();
+	const apiFunctions = useApiFunctions();
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
 		null,
 	);
@@ -71,48 +70,24 @@ export function GridProfilePage() {
 			}
 
 			try {
-				const [gendersResponse, pronounsResponse] = await Promise.all([
-					fetchRest("/public/v2/genders"),
-					fetchRest("/v1/pronouns"),
+				const [genders, pronouns] = await Promise.all([
+					apiFunctions.getManagedGenders(),
+					apiFunctions.getManagedPronouns(),
 				]);
 
-				if (gendersResponse.status >= 200 && gendersResponse.status < 300) {
-					const parsed = z
-						.array(
-							z.object({
-								genderId: z.number(),
-								gender: z.string(),
-							}),
-						)
-						.parse(gendersResponse.json());
-					const nextGenderOptions = parsed.map((item) => ({
-						value: item.genderId,
-						label: item.gender,
-					}));
-					setGenderOptions(nextGenderOptions);
-					setCachedGenderOptions(nextGenderOptions);
-				}
+				const nextGenderOptions = genders.map((item) => ({
+					value: item.genderId,
+					label: item.gender,
+				}));
+				setGenderOptions(nextGenderOptions);
+				setCachedGenderOptions(nextGenderOptions);
 
-				if (
-					pronounsResponse &&
-					pronounsResponse.status >= 200 &&
-					pronounsResponse.status < 300
-				) {
-					const parsed = z
-						.array(
-							z.object({
-								pronounId: z.number(),
-								pronoun: z.string(),
-							}),
-						)
-						.parse(pronounsResponse.json());
-					const nextPronounOptions = parsed.map((item) => ({
-						value: item.pronounId,
-						label: item.pronoun,
-					}));
-					setPronounOptions(nextPronounOptions);
-					setCachedPronounOptions(nextPronounOptions);
-				}
+				const nextPronounOptions = pronouns.map((item) => ({
+					value: item.pronounId,
+					label: item.pronoun,
+				}));
+				setPronounOptions(nextPronounOptions);
+				setCachedPronounOptions(nextPronounOptions);
 			} catch {
 				if (!cachedGenders) {
 					setGenderOptions([]);
@@ -124,7 +99,7 @@ export function GridProfilePage() {
 		};
 
 		void loadManagedOptions();
-	}, [fetchRest]);
+	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!profileId) {
@@ -149,19 +124,11 @@ export function GridProfilePage() {
 			setActiveProfileError(null);
 
 			try {
-				const response = await fetchRest(`/v7/profiles/${profileId}`);
-
-				if (response.status < 200 || response.status >= 300) {
-					throw new Error(
-						`Failed to load profile details (${response.status})`,
-					);
-				}
-
-				const parsed = profileDetailResponseSchema.parse(response.json());
+				const parsed = await apiFunctions.getProfileDetail(profileId);
 
 				if (!cancelled) {
-					setActiveProfile(parsed.profiles[0]);
-					setCachedProfileDetail(profileId, parsed.profiles[0]);
+					setActiveProfile(parsed);
+					setCachedProfileDetail(profileId, parsed);
 				}
 			} catch (error) {
 				if (!cancelled) {
@@ -186,7 +153,7 @@ export function GridProfilePage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [fetchRest, profileId]);
+	}, [apiFunctions, profileId]);
 
 	const activeProfilePhotoHashes = useMemo(() => {
 		if (!activeProfile) {

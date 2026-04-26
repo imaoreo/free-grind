@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, Fingerprint, ScanFace, ShieldCheck } from "luc
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { LoadingState, ErrorState } from "../../components/ui/states";
-import { useAgeVerificationService } from "../../services/ageVerification";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import type {
 	AgeVerificationFaceTecResponse,
 	AgeVerificationOptions,
@@ -41,8 +41,12 @@ function buildFaceTecUserAgent(sdkVersion: string): string {
 
 export function AgeVerificationPage() {
 	const navigate = useNavigate();
-	const { getOptions, createSession, verifyLiveness3d, verifyEnrollment } =
-		useAgeVerificationService();
+	const {
+		getAgeVerificationOptions,
+		createAgeVerificationSession,
+		verifyAgeLiveness3d,
+		verifyAgeEnrollment,
+	} = useApiFunctions();
 
 	const [step, setStep] = useState<VerificationStep>("loading-options");
 	const [options, setOptions] = useState<AgeVerificationOptions | null>(null);
@@ -55,14 +59,14 @@ export function AgeVerificationPage() {
 		setStep("loading-options");
 		setErrorMessage(null);
 		try {
-			const opts = await getOptions();
+			const opts = await getAgeVerificationOptions();
 			setOptions(opts);
 			setStep("select-method");
 		} catch (err) {
 			setErrorMessage(err instanceof Error ? err.message : "Failed to load verification options.");
 			setStep("error");
 		}
-	}, [getOptions]);
+	}, [getAgeVerificationOptions]);
 
 	useEffect(() => {
 		void loadOptions();
@@ -72,7 +76,7 @@ export function AgeVerificationPage() {
 		setSelectedMethod(method);
 		setStep("starting-session");
 		try {
-			const session = await createSession();
+			const session = await createAgeVerificationSession();
 			setSessionId(session.sessionId);
 			setStep("face-scan");
 		} catch (err) {
@@ -93,7 +97,7 @@ export function AgeVerificationPage() {
 				// run a session, then pass the blobs below.
 				// See: https://dev.facetec.com/
 				const userAgent = buildFaceTecUserAgent("3.0.0");
-				res = await verifyLiveness3d({
+				res = await verifyAgeLiveness3d({
 					faceTecUserAgent: userAgent,
 					// These would come from a real FaceTec SDK session:
 					faceScan: "",
@@ -101,7 +105,7 @@ export function AgeVerificationPage() {
 					lowQualityAuditTrailImage: "",
 				});
 			} else {
-				res = await verifyEnrollment();
+				res = await verifyAgeEnrollment();
 			}
 
 			setResult(res);

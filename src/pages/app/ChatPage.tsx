@@ -26,12 +26,10 @@ import {
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
+import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import {
-	createChatService,
-	type ChatApiError,
-} from "../../services/chatService";
+import { type ChatApiError } from "../../services/chatService";
 import { ChatRealtimeManager } from "../../services/chatRealtime";
 import {
 	messageSchema,
@@ -574,10 +572,10 @@ export function ChatPage() {
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const { fetchRest, callMethod } = useApi();
+	const { callMethod } = useApi();
+	const service = useApiFunctions();
 	const { userId } = useAuth();
 	const { geohash } = usePreferences();
-	const service = useMemo(() => createChatService(fetchRest), [fetchRest]);
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
 	const threadScrollContainerRef = useRef<HTMLDivElement | null>(null);

@@ -18,6 +18,13 @@ import {
 	type BrowseCard,
 	type ProfileDetail,
 } from "../types/grid";
+import {
+	type AgeVerificationFaceTecResponse,
+	type AgeVerificationOptions,
+	type AgeVerificationSession,
+	type Liveness3dRequest,
+} from "../types/age-verification";
+import { createChatService } from "./chatService";
 import type {
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
@@ -73,7 +80,24 @@ async function assertSuccess(response: RestResponse, fallbackMessage: string) {
 }
 
 export function createApiFunctions(fetchRest: RestFetcher) {
+	const chatService = createChatService(fetchRest);
+
 	return {
+		...chatService,
+
+		async request(
+			path: string,
+			options?: {
+				method?: string;
+				body?: unknown;
+				rawBody?: Uint8Array;
+				contentType?: string;
+				abortController?: AbortController;
+			},
+		) {
+			return fetchRest(path, options);
+		},
+
 		async getOwnAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");
 			await assertSuccess(response, "Failed to load own albums");
@@ -380,6 +404,50 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				);
 			}
 			return payload as ProfileImageUploadResult;
+		},
+
+		async getAgeVerificationOptions(): Promise<AgeVerificationOptions> {
+			const response = await fetchRest("/v1/age-verification/options");
+			await assertSuccess(response, "Failed to fetch age verification options");
+			return response.json() as AgeVerificationOptions;
+		},
+
+		async createAgeVerificationSession(): Promise<AgeVerificationSession> {
+			const response = await fetchRest("/v1/age-verification/session", {
+				method: "POST",
+			});
+			await assertSuccess(response, "Failed to create age verification session");
+			return response.json() as AgeVerificationSession;
+		},
+
+		async verifyAgeLiveness3d(
+			data: Liveness3dRequest,
+		): Promise<AgeVerificationFaceTecResponse> {
+			const response = await fetchRest("/v1/age-verification/verify/liveness3d", {
+				method: "POST",
+				body: data,
+			});
+			await assertSuccess(response, "Liveness3d verification failed");
+			return response.json() as AgeVerificationFaceTecResponse;
+		},
+
+		async verifyAgeEnrollment(): Promise<AgeVerificationFaceTecResponse> {
+			const response = await fetchRest("/v1/age-verification/verify/enrollment", {
+				method: "POST",
+			});
+			await assertSuccess(response, "Enrollment verification failed");
+			return response.json() as AgeVerificationFaceTecResponse;
+		},
+
+		async verifyAgeDocument(
+			photoIdMatchData: Record<string, unknown>,
+		): Promise<AgeVerificationFaceTecResponse> {
+			const response = await fetchRest("/v1/age-verification/verify/document", {
+				method: "POST",
+				body: photoIdMatchData,
+			});
+			await assertSuccess(response, "Document verification failed");
+			return response.json() as AgeVerificationFaceTecResponse;
 		},
 	};
 }

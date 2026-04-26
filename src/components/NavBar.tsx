@@ -1,9 +1,8 @@
 import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useState, useEffect, useMemo } from "react";
-import { useApi } from "../hooks/useApi";
-import { createChatService } from "../services/chatService";
+import { useState, useEffect } from "react";
+import { useApiFunctions } from "../hooks/useApiFunctions";
 
 const navItems = [
 	{
@@ -35,8 +34,7 @@ const navItems = [
 export function NavBar() {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { fetchRest } = useApi();
-	const chatService = useMemo(() => createChatService(fetchRest), [fetchRest]);
+	const apiFunctions = useApiFunctions();
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 
@@ -57,7 +55,7 @@ export function NavBar() {
 
 		const loadUnreadCount = async () => {
 			try {
-				const response = await chatService.listConversations({
+				const response = await apiFunctions.listConversations({
 					page: 1,
 					filters: { unreadOnly: true },
 				});
@@ -84,7 +82,7 @@ export function NavBar() {
 			cancelled = true;
 			window.clearInterval(intervalId);
 		};
-	}, [chatService]);
+	}, [apiFunctions]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);

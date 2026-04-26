@@ -20,7 +20,7 @@ import {
 	type ChatMessageMutation,
 	type ShareAlbumPayload,
 } from "../types/chat";
-import type { Album } from "../types/albums";
+import { albumsResponseSchema, type Album } from "../types/albums";
 import type {
 	AlbumDetailsResponse,
 	CreateAlbumResponse,
@@ -385,20 +385,7 @@ export function createChatService(fetchRest: RestFetcher) {
 		async listAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");
 			await assertSuccess(response, "Failed to load albums");
-			const parsed = z
-				.object({
-					albums: z
-						.array(
-							z.object({
-								albumId: z.union([z.string(), z.number()]),
-								albumName: z.string().nullable().optional(),
-								isShareable: z.boolean().optional(),
-							}),
-						)
-						.optional()
-						.default([]),
-				})
-				.parse(await parseJsonSafe(response));
+			const parsed = albumsResponseSchema.parse(await parseJsonSafe(response));
 			return parsed.albums;
 		},
 
