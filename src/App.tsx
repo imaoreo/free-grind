@@ -19,7 +19,6 @@ import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
-import { ApiFunctionsPage } from "./pages/app/ApiFunctionsPage.tsx";
 
 function ErrorPage() {
 	return (
@@ -66,10 +65,6 @@ export default function App() {
 							<Route
 								path="/settings/api-inspector"
 								element={<ApiInspectorPage />}
-							/>
-							<Route
-								path="/settings/api-functions"
-								element={<ApiFunctionsPage />}
 							/>
 							<Route
 								path="/settings/shared-albums"
