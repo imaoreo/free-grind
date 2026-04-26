@@ -2711,8 +2711,8 @@ export function ChatPage() {
 									selectedThreadMessageMatches[activeThreadSearchIndex]
 										?.messageId === message.messageId;
 								const fireButtonClass = mine
-									? "absolute -left-3 top-1/2 -translate-y-1/2"
-									: "absolute -right-3 top-1/2 -translate-y-1/2";
+									? "absolute -left-3 -top-2"
+									: "absolute -right-3 -top-2";
 
 								return (
 									<div
