@@ -416,8 +416,9 @@ export function createChatService(fetchRest: RestFetcher) {
 		},
 
 		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
-			const response = await fetchRest(`/v2/albums/${albumId}`);
+			const response = await fetchRest(`/v1/albums/${albumId}`);
 			await assertSuccess(response, "Failed to load album");
+            
 			return z
 				.object({
 					albumId: z.coerce.number().int(),

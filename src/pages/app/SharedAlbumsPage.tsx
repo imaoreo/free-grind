@@ -85,41 +85,33 @@ export function SharedAlbumsPage() {
 				page = nextPage;
 			}
 
-			const profileIds = Array.from(profileMap.keys());
-			if (!profileIds.length) {
-				setItems([]);
-				return;
-			}
+			const feed = await apiFunctions.getSharedAlbums({});
+			const nextItems: SharedAlbumItem[] = feed.sharedAlbums.map((sharedAlbum) => {
+				const profileMeta = profileMap.get(sharedAlbum.ownerProfileId);
+				const profileName =
+					profileMeta?.profileName ||
+					sharedAlbum.profile.name?.trim() ||
+					`Profile ${sharedAlbum.ownerProfileId}`;
 
-			const responses = await Promise.allSettled(
-				profileIds.map(async (profileId) => {
-					const albums = await apiFunctions.getSharedAlbumsForProfile({
-						profileId,
-					});
-					return { profileId, albums };
-				}),
-			);
-
-			const nextItems: SharedAlbumItem[] = [];
-			for (const result of responses) {
-				if (result.status !== "fulfilled") {
-					continue;
-				}
-
-				const profileMeta = profileMap.get(result.value.profileId);
-				if (!profileMeta) {
-					continue;
-				}
-
-				for (const album of result.value.albums) {
-					nextItems.push({
-						profileId: result.value.profileId,
-						profileName: profileMeta.profileName,
-						conversationId: profileMeta.conversationId,
-						album,
-					});
-				}
-			}
+				return {
+					profileId: sharedAlbum.ownerProfileId,
+					profileName,
+					conversationId: profileMeta?.conversationId ?? null,
+					album: {
+						albumId: sharedAlbum.albumId,
+						albumName: sharedAlbum.name,
+						content: {
+							thumbUrl: sharedAlbum.coverContent.location,
+							url: sharedAlbum.coverContent.location,
+							coverUrl: sharedAlbum.coverContent.location,
+						},
+						contentCount: {
+							imageCount: sharedAlbum.imageCount,
+							videoCount: sharedAlbum.videoCount,
+						},
+					},
+				};
+			});
 
 			nextItems.sort((a, b) => {
 				const profileCompare = a.profileName.localeCompare(b.profileName);
