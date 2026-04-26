@@ -4,6 +4,8 @@ import {
 	FileText,
 	GitBranch,
 	HeartHandshake,
+	MessageCircle,
+	Send,
 	Shield,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +41,20 @@ const resourceLinks = [
 		href: "https://github.com/kezza2k7/open-grind/blob/main/LICENSE",
 		description: "Personal-use licence and attribution requirements.",
 		icon: FileText,
+		external: true,
+	},
+	{
+		title: "Discord",
+		href: "https://discord.gg/cJqTaWPMFF",
+		description: "Join the community Discord server for support and discussion.",
+		icon: MessageCircle,
+		external: true,
+	},
+	{
+		title: "Telegram",
+		href: "https://t.me/opengrind",
+		description: "Follow updates and announcements on Telegram.",
+		icon: Send,
 		external: true,
 	},
 ];
