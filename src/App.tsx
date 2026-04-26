@@ -11,6 +11,7 @@ import { GridPage } from "./pages/app/GridPage.tsx";
 import { RightNowPage } from "./pages/app/RightNowPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
+import { ChatSearchPage } from "./pages/app/ChatSearchPage";
 import { SettingsPage } from "./pages/app/SettingsPage.tsx";
 import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
@@ -57,7 +58,7 @@ export default function App() {
 							<Route path="/right-now" element={<RightNowPage />} />
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
-							<Route path="/chat/search" element={<ChatPage />} />
+							<Route path="/chat/search" element={<ChatSearchPage />} />
 							<Route path="/chat/:conversationId" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
