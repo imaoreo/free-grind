@@ -1,5 +1,5 @@
-import { Crosshair, Loader2, Search } from "lucide-react";
-import type { FormEvent } from "react";
+import { Crosshair, Loader2 } from "lucide-react";
+
 import type { GeocodeResult, SelectedLocation } from "../../GridPage.types";
 import { LeafletLocationPicker } from "./LeafletLocationPicker";
 
@@ -12,7 +12,6 @@ type LocationSettingsPanelProps = {
 	locationQuery: string;
 	onLocationQueryChange: (value: string) => void;
 	isSearchingLocation: boolean;
-	onSearchLocation: (event: FormEvent<HTMLFormElement>) => void;
 	locationResults: GeocodeResult[];
 	onChooseLocation: (lat: number, lon: number, label: string) => void;
 	selectedLocation: SelectedLocation | null;
@@ -33,7 +32,6 @@ export function LocationSettingsPanel({
 	locationQuery,
 	onLocationQueryChange,
 	isSearchingLocation,
-	onSearchLocation,
 	locationResults,
 	onChooseLocation,
 	selectedLocation,
@@ -85,11 +83,11 @@ export function LocationSettingsPanel({
 						: "Use current location"}
 				</button>
 
-				<form onSubmit={onSearchLocation} className="grid gap-2">
+				<div className="grid gap-2">
 					<label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 						Search by city or area
 					</label>
-					<div className="flex gap-2">
+					<div className="relative">
 						<input
 							type="text"
 							value={locationQuery}
@@ -97,19 +95,13 @@ export function LocationSettingsPanel({
 							placeholder="e.g. Berlin, London, Manila"
 							className="input-field"
 						/>
-						<button
-							type="submit"
-							disabled={isSearchingLocation}
-							className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 disabled:cursor-not-allowed disabled:opacity-60"
-						>
-							{isSearchingLocation ? (
-								<Loader2 className="h-4 w-4 animate-spin" />
-							) : (
-								<Search className="h-4 w-4" />
-							)}
-						</button>
+						{isSearchingLocation && (
+							<div className="absolute right-3 top-1/2 -translate-y-1/2">
+								<Loader2 className="h-4 w-4 animate-spin text-[var(--text-muted)]" />
+							</div>
+						)}
 					</div>
-				</form>
+				</div>
 
 				{locationResults.length > 0 && (
 					<div className="grid max-h-52 gap-2 overflow-y-auto rounded-xl border border-[var(--border)] p-2">

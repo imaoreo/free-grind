@@ -1,22 +1,16 @@
 import { useAuth } from "../../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useEffect, useMemo, useState } from "react";
-import z from "zod";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import { encodeGeohash } from "../../utils/geohash";
 import {
-	geocodeResultSchema,
 	type BrowseCard,
-	type GeocodeResult,
 	type ManagedOption,
 	type ProfileDetail,
-	type SelectedLocation,
 } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
-import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPanel";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
 	getCachedBrowseCards,
@@ -30,15 +24,12 @@ import {
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
-import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
 
 export function GridPage() {
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const {
 		geohash,
-		setPreferences,
 		isLoading: isLoadingPreferences,
 	} = usePreferences();
 	const navigate = useNavigate();
@@ -48,13 +39,6 @@ export function GridPage() {
 	const [nextPage, setNextPage] = useState<number | null>(null);
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
-	const [isSettingLocation, setIsSettingLocation] = useState(false);
-	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
-	const [locationQuery, setLocationQuery] = useState("");
-	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
-	const [locationResults, setLocationResults] = useState<GeocodeResult[]>([]);
-	const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
-	const [mapPickerError, setMapPickerError] = useState<string | null>(null);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
 		null,
@@ -63,8 +47,6 @@ export function GridPage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(
 		null,
 	);
-	const [selectedLocation, setSelectedLocation] =
-		useState<SelectedLocation | null>(null);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 
@@ -168,7 +150,7 @@ export function GridPage() {
 					setIsLoadingCards(true);
 					setCards([]);
 					setCardsError(
-						"Location is not set yet. Set your location first to load nearby profiles.",
+						"Tap the location pin (📍) button above to set your location.",
 					);
 					setIsLoadingCards(false);
 				}
@@ -297,88 +279,6 @@ export function GridPage() {
 		};
 	}, [activeProfileId, apiFunctions]);
 
-	const updateLocationPreference = async (
-		lat: number,
-		lon: number,
-		label?: string,
-	) => {
-		const nextGeohash = encodeGeohash(lat, lon);
-		await setPreferences({ geohash: nextGeohash });
-		setSelectedLocation({
-			lat,
-			lon,
-			label: label ?? `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
-		});
-		setIsSettingLocation(false);
-		setIsMapPickerOpen(false);
-		setMapPickerError(null);
-	};
-
-	const handleUseCurrentLocation = async () => {
-		if (!("geolocation" in navigator)) {
-			setCardsError("Geolocation is unavailable on this device.");
-			return;
-		}
-
-		setIsDetectingLocation(true);
-
-		try {
-			const position = await new Promise<GeolocationPosition>(
-				(resolve, reject) => {
-					navigator.geolocation.getCurrentPosition(resolve, reject, {
-						enableHighAccuracy: true,
-						timeout: 12000,
-						maximumAge: 20000,
-					});
-				},
-			);
-
-			await updateLocationPreference(
-				position.coords.latitude,
-				position.coords.longitude,
-				"Current location",
-			);
-			setCardsError(null);
-		} catch {
-			setCardsError(
-				"Could not access your location. Check location permissions and try again.",
-			);
-		} finally {
-			setIsDetectingLocation(false);
-		}
-	};
-
-	const handleSearchLocation = async (event: React.FormEvent) => {
-		event.preventDefault();
-		const query = locationQuery.trim();
-
-		if (!query) {
-			setLocationResults([]);
-			return;
-		}
-
-		setIsSearchingLocation(true);
-
-		try {
-			const response = await fetch(
-				`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
-					query,
-				)}`,
-			);
-
-			if (!response.ok) {
-				throw new Error("Failed to search location");
-			}
-
-			const parsed = z.array(geocodeResultSchema).parse(await response.json());
-			setLocationResults(parsed);
-		} catch {
-			setCardsError("Location search failed. Try again in a moment.");
-		} finally {
-			setIsSearchingLocation(false);
-		}
-	};
-
 	const profilePhotoUrl = useMemo(() => {
 		if (!profileImageHash) {
 			return null;
@@ -442,97 +342,50 @@ export function GridPage() {
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
 							<h1 className="app-title">Browse Profiles</h1>
-							<p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-								Nearby
-							</p>
+							<div className="mt-2 flex flex-wrap items-center gap-2">
+								<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+									<span
+										className="h-2 w-2 rounded-full bg-zinc-400"
+										aria-hidden="true"
+									/>
+									<span>{cards.length}</span>
+								</div>
+								<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+									<span
+										className="h-2 w-2 rounded-full bg-emerald-500"
+										aria-hidden="true"
+									/>
+									<span>{onlineCount}</span>
+								</div>
+								<button
+									type="button"
+									onClick={() => navigate("/browse/location")}
+									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								>
+									<MapPin className="h-3.5 w-3.5" />
+								</button>
+							</div>
 						</div>
-						<button
-							type="button"
-							onClick={() => navigate("/settings")}
-							className="rounded-full transition-all hover:scale-[1.03]"
-							aria-label="Open settings"
-							title="Settings"
-						>
-							<Avatar
-								src={profilePhotoUrl}
-								alt="Your profile photo"
-								className="h-11 w-11"
-							/>
-						</button>
+						<div className="flex flex-col items-end gap-2">
+							<button
+								type="button"
+								onClick={() => navigate("/settings")}
+								className="rounded-full transition-all hover:scale-[1.03]"
+								aria-label="Open settings"
+								title="Settings"
+							>
+								<Avatar
+									src={profilePhotoUrl}
+									alt="Your profile photo"
+									className="h-11 w-11"
+								/>
+							</button>
+						</div>
 					</div>
 					<p className="app-subtitle">
 						Discover people near you and jump into chats from the main feed.
 					</p>
 				</header>
-
-				<div className="mb-4 grid gap-3 sm:grid-cols-3">
-					<Card className="rounded-2xl p-4">
-						<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-							Profiles in feed
-						</p>
-						<p className="mt-2 text-2xl font-semibold">{cards.length}</p>
-					</Card>
-					<Card className="rounded-2xl p-4">
-						<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-							Online now
-						</p>
-						<p className="mt-2 text-2xl font-semibold">{onlineCount}</p>
-					</Card>
-					<Card className="rounded-2xl p-4">
-						<Button
-							type="button"
-							onClick={() => setIsSettingLocation((current) => !current)}
-							className="w-full"
-						>
-							<MapPin className="h-4 w-4" />
-							{geohash ? "Change location" : "Set location"}
-						</Button>
-					</Card>
-				</div>
-
-				<LocationSettingsPanel
-					isVisible={isSettingLocation || !geohash}
-					hasGeohash={Boolean(geohash)}
-					isDetectingLocation={isDetectingLocation}
-					onUseCurrentLocation={() => {
-						void handleUseCurrentLocation();
-					}}
-					onDone={() => setIsSettingLocation(false)}
-					locationQuery={locationQuery}
-					onLocationQueryChange={setLocationQuery}
-					isSearchingLocation={isSearchingLocation}
-					onSearchLocation={handleSearchLocation}
-					locationResults={locationResults}
-					onChooseLocation={(lat, lon, label) => {
-						void updateLocationPreference(lat, lon, label);
-					}}
-					selectedLocation={selectedLocation}
-					isMapPickerOpen={isMapPickerOpen}
-					mapPickerError={mapPickerError}
-					onToggleMapPicker={() => {
-						setMapPickerError(null);
-						setIsMapPickerOpen((current) => !current);
-					}}
-					onMapPick={(lat, lon) => {
-						setSelectedLocation({
-							lat,
-							lon,
-							label: `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
-						});
-					}}
-					onMapPickerError={setMapPickerError}
-					onUseSelectedLocation={() => {
-						if (!selectedLocation) {
-							return;
-						}
-
-						void updateLocationPreference(
-							selectedLocation.lat,
-							selectedLocation.lon,
-							selectedLocation.label,
-						);
-					}}
-				/>
 
 				<BrowseGrid
 					isLoadingCards={isLoadingCards}

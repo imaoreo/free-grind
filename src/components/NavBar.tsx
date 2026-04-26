@@ -42,6 +42,9 @@ export function NavBar() {
 	useEffect(() => {
 		const currentItem = navItems.find(
 			(item) =>
+				(item.path === "/" &&
+					(location.pathname === "/" ||
+						location.pathname.startsWith("/browse/"))) ||
 				location.pathname === item.path ||
 				(item.path !== "/" && location.pathname.startsWith(`${item.path}/`)),
 		);
