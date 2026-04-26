@@ -20,7 +20,8 @@ pub fn init_keyring() {
     #[cfg(target_os = "macos")]
     {
         let cfg = std::collections::HashMap::new();
-        if let Ok(store) = apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
+        if let Ok(store) =
+            apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
         {
             set_default_store(store);
         } else {
@@ -39,8 +40,8 @@ pub fn init_keyring() {
 
     #[cfg(target_os = "linux")]
     {
-        let store = linux_keyutils_keyring_store::Store::new()
-            .expect("failed to init Linux keyring store");
+        let store =
+            linux_keyutils_keyring_store::Store::new().expect("failed to init Linux keyring store");
         set_default_store(store);
     }
 }
