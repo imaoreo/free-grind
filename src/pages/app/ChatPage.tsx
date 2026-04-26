@@ -4,7 +4,6 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Ellipsis,
-	Flame,
 	ImagePlus,
 	Loader2,
 	MessageCircle,
@@ -642,6 +641,31 @@ export function ChatPage() {
 	const [isMutatingMessageId, setIsMutatingMessageId] = useState<string | null>(
 		null,
 	);
+	const [reactionBurstMessageId, setReactionBurstMessageId] = useState<
+		string | null
+	>(null);
+	const reactionBurstTimeoutRef = useRef<number | null>(null);
+
+	const triggerReactionBurst = useCallback((messageId: string) => {
+		if (reactionBurstTimeoutRef.current != null) {
+			window.clearTimeout(reactionBurstTimeoutRef.current);
+		}
+		setReactionBurstMessageId(messageId);
+		reactionBurstTimeoutRef.current = window.setTimeout(() => {
+			setReactionBurstMessageId((current) =>
+				current === messageId ? null : current,
+			);
+			reactionBurstTimeoutRef.current = null;
+		}, 520);
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (reactionBurstTimeoutRef.current != null) {
+				window.clearTimeout(reactionBurstTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const [isAlbumPickerOpen, setIsAlbumPickerOpen] = useState(false);
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
@@ -2179,6 +2203,9 @@ export function ChatPage() {
 		if (!selectedConversation || !userId || isMutatingMessageId) {
 			return;
 		}
+		const alreadyReactedByUser = message.reactions.some(
+			(reaction) => reaction.profileId === userId && reaction.reactionType === 1,
+		);
 
 		const previous = threadMessages;
 		setIsMutatingMessageId(message.messageId);
@@ -2188,12 +2215,17 @@ export function ChatPage() {
 				if (item.messageId !== message.messageId) {
 					return item;
 				}
-				const alreadyReacted = item.reactions.some(
-					(reaction) => reaction.profileId === userId,
-				);
-				if (alreadyReacted) {
-					return item;
+
+				if (alreadyReactedByUser) {
+					return {
+						...item,
+						reactions: item.reactions.filter(
+							(reaction) =>
+								!(reaction.profileId === userId && reaction.reactionType === 1),
+						),
+					};
 				}
+
 				return {
 					...item,
 					reactions: [
@@ -2203,16 +2235,25 @@ export function ChatPage() {
 				};
 			}),
 		);
+		if (!alreadyReactedByUser) {
+			triggerReactionBurst(message.messageId);
+		}
 
 		try {
 			await service.reactToMessage({
 				conversationId: selectedConversation.data.conversationId,
 				messageId: message.messageId,
-				reactionType: 1,
+				reactionType: alreadyReactedByUser ? 0 : 1,
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to react");
+			toast.error(
+				error instanceof Error
+					? error.message
+					: alreadyReactedByUser
+						? "Failed to remove reaction"
+						: "Failed to react",
+			);
 		} finally {
 			setIsMutatingMessageId(null);
 		}
@@ -3021,7 +3062,7 @@ export function ChatPage() {
 										className={`flex ${mine ? "justify-end" : "justify-start"}`}
 									>
 										<div
-											className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+											className={`relative group/bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
 												mine
 													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "bg-[var(--surface-2)] text-[var(--text)]"
@@ -3103,11 +3144,23 @@ export function ChatPage() {
 												{getMessageText(message)}
 											</p>
 
-											{message.reactions.length > 0 ? (
-												<div className="mt-1 inline-flex items-center gap-1 rounded-full bg-black/10 px-2 py-0.5 text-[10px]">
-													<Flame className="h-3 w-3" />
-													<span>{message.reactions.length}</span>
-												</div>
+{!isLocalClientMessageId(message.messageId) ? (
+												<button
+													type="button"
+													onClick={() => void handleReact(message)}
+													disabled={isMutatingMessageId === message.messageId}
+													className={`absolute -right-3 -top-2 cursor-pointer transition-opacity ${
+														message.reactions.length > 0
+															? "opacity-100"
+															: "opacity-0 group-hover/bubble:opacity-60"
+													} hover:opacity-80`}
+												>
+													<span className={`chat-reaction-flame text-2xl inline-flex ${
+														reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
+													}`}>
+														🔥
+													</span>
+												</button>
 											) : null}
 
 											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -3140,14 +3193,6 @@ export function ChatPage() {
 
 											{openMessageActionId === message.messageId ? (
 												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
-													<button
-														type="button"
-														onClick={() => void handleReact(message)}
-														disabled={isMutatingMessageId === message.messageId}
-														className="rounded-md border border-black/20 px-2 py-1"
-													>
-														React 🔥
-													</button>
 													{mine && !message.unsent ? (
 														<button
 															type="button"
