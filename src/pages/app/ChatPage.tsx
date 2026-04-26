@@ -3050,7 +3050,8 @@ export function ChatPage() {
 
 						<div className="flex flex-col gap-2">
 							{threadMessages.map((message) => {
-								const mine = message.senderId === userId;
+								const mine =
+									userId != null && Number(message.senderId) === Number(userId);
 								const failed = message.clientState === "failed";
 								const pending = message.clientState === "pending";
 								const localOnly = message._localOnly === true;
@@ -3077,7 +3078,7 @@ export function ChatPage() {
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex ${mine ? "justify-end" : "justify-start"}`}
+										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
 									>
 										<div
 											onDoubleClick={() => void handleMessageTap(message)}
