@@ -66,6 +66,8 @@ export function SharedAlbumsPage() {
 	const [fullScreenIndex, setFullScreenIndex] = useState<number | null>(null);
 	const viewerTouchStartX = useRef<number | null>(null);
 	const pageTouchStartXRef = useRef<number | null>(null);
+	const viewerHistoryPushedRef = useRef(false);
+	const fullScreenHistoryPushedRef = useRef(false);
 
 	const loadSharedAlbums = useCallback(async () => {
 		setError(null);
@@ -220,6 +222,10 @@ export function SharedAlbumsPage() {
 					content: details.content,
 				});
 				setViewerIndex(0);
+				if (!viewerHistoryPushedRef.current) {
+					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+					viewerHistoryPushedRef.current = true;
+				}
 			} catch (openError) {
 				setOpenAlbumError(
 					openError instanceof Error
@@ -238,11 +244,32 @@ export function SharedAlbumsPage() {
 			? viewer.content[Math.min(viewerIndex, viewer.content.length - 1)]
 			: null;
 
-	const closeViewer = () => {
+	const closeViewerState = useCallback(() => {
 		setFullScreenIndex(null);
 		setViewer(null);
 		setViewerIndex(0);
-	};
+		fullScreenHistoryPushedRef.current = false;
+		viewerHistoryPushedRef.current = false;
+	}, []);
+
+	const closeFullScreenState = useCallback(() => {
+		setFullScreenIndex(null);
+		fullScreenHistoryPushedRef.current = false;
+	}, []);
+
+	const closeViewer = useCallback(() => {
+		if (fullScreenHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+
+		if (viewerHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+
+		closeViewerState();
+	}, [closeViewerState]);
 
 	const openFullScreen = useCallback(
 		(index: number) => {
@@ -252,13 +279,22 @@ export function SharedAlbumsPage() {
 
 			setViewerIndex(index);
 			setFullScreenIndex(index);
+			if (!fullScreenHistoryPushedRef.current) {
+				window.history.pushState({ sharedAlbumsOverlay: "full-screen" }, "");
+				fullScreenHistoryPushedRef.current = true;
+			}
 		},
 		[viewer],
 	);
 
 	const closeFullScreen = useCallback(() => {
-		setFullScreenIndex(null);
-	}, []);
+		if (fullScreenHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+
+		closeFullScreenState();
+	}, [closeFullScreenState]);
 
 	const showPreviousFullScreenItem = useCallback(() => {
 		setFullScreenIndex((index) => {
@@ -281,6 +317,24 @@ export function SharedAlbumsPage() {
 			return next;
 		});
 	}, [viewer]);
+
+	useEffect(() => {
+		const handlePopState = () => {
+			if (fullScreenHistoryPushedRef.current) {
+				closeFullScreenState();
+				return;
+			}
+
+			if (viewerHistoryPushedRef.current) {
+				closeViewerState();
+			}
+		};
+
+		window.addEventListener("popstate", handlePopState);
+		return () => {
+			window.removeEventListener("popstate", handlePopState);
+		};
+	}, [closeFullScreenState, closeViewerState]);
 
 	const canViewPrevious = fullScreenIndex != null && fullScreenIndex > 0;
 	const canViewNext =
