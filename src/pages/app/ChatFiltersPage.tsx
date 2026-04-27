@@ -72,6 +72,16 @@ export function ChatFiltersPage() {
 		[location.state],
 	);
 	const [filters, setFilters] = useState<ChatFiltersDraft>(initialState.draft);
+	const positionFilterOptions = useMemo(
+		() => [
+			{ value: -1, label: "Not specified" },
+			...Object.entries(sexualPositionLabels).map(([value, label]) => ({
+				value: Number(value),
+				label,
+			})),
+		],
+		[],
+	);
 
 	const toggleFilter = (key: InboxFilterKey) => {
 		setFilters((previous) => ({
@@ -177,8 +187,7 @@ export function ChatFiltersPage() {
 							Sexual position
 						</p>
 						<div className="mt-2 flex flex-wrap gap-2">
-							{Object.entries(sexualPositionLabels).map(([value, label]) => {
-								const positionId = Number(value);
+								{positionFilterOptions.map(({ value: positionId, label }) => {
 								const active = filters.positions.includes(positionId);
 								return (
 									<button

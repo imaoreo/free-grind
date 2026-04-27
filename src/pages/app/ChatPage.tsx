@@ -3264,7 +3264,7 @@ export function ChatPage() {
 			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
 		>
 			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
-				{!isDesktop && selectedConversation ? (
+				{!isDesktop && (selectedConversation ?? targetProfileId) ? (
 					<div className="mb-3 flex items-center justify-between px-3">
 						<button
 							type="button"
@@ -3289,7 +3289,7 @@ export function ChatPage() {
 						{renderInbox}
 						{renderThread}
 					</div>
-				) : selectedConversation ? (
+				) : selectedConversation ?? targetProfileId ? (
 					renderThread
 				) : (
 					renderInbox

@@ -169,7 +169,10 @@ export function BrowseFiltersPage() {
 		[],
 	);
 	const sexualPositionFilterOptions = useMemo(
-		() => buildOptionsFromLabels(sexualPositionLabels),
+		() => [
+			{ value: -1, label: "Not specified" },
+			...buildOptionsFromLabels(sexualPositionLabels),
+		],
 		[],
 	);
 	const meetAtFilterOptions = useMemo(
