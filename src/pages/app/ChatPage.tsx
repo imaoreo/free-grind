@@ -8,6 +8,7 @@ import {
 	Pin,
 	Search,
 	Share2,
+	SlidersHorizontal,
 	Volume2,
 	VolumeX,
 	X,
@@ -21,7 +22,12 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+	useLocation,
+	useNavigate,
+	useParams,
+	useSearchParams,
+} from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -38,7 +44,6 @@ import type { RealtimeEnvelope, RealtimeStatus } from "../../types/chat-realtime
 import type {
 	AlbumListItem,
 	AlbumViewerState,
-	InboxFilterKey,
 	UiMessage,
 } from "../../types/chat-page";
 import {
@@ -46,7 +51,6 @@ import {
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../utils/media";
-import { sexualPositionLabels } from "../../types/grid";
 import {
 	indexConversations,
 	indexMessages,
@@ -56,13 +60,67 @@ import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 import { ChatSearchPage } from "./ChatSearchPage";
 import * as chatLog from "../../services/chatLog";
 
-const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
-	{ key: "unreadOnly", label: "Unread" },
-	{ key: "favoritesOnly", label: "Favorites" },
-	{ key: "chemistryOnly", label: "Chemistry" },
-	{ key: "rightNowOnly", label: "Right now" },
-	{ key: "onlineNowOnly", label: "Online" },
-];
+type ChatFiltersDraft = {
+	unreadOnly: boolean;
+	chemistryOnly: boolean;
+	favoritesOnly: boolean;
+	rightNowOnly: boolean;
+	onlineNowOnly: boolean;
+	distanceMeters: string;
+	positions: number[];
+};
+
+function isNumberArray(value: unknown): value is number[] {
+	return Array.isArray(value) && value.every((item) => typeof item === "number");
+}
+
+function buildChatFiltersDraft(filters: InboxFilters): ChatFiltersDraft {
+	return {
+		unreadOnly: filters.unreadOnly === true,
+		chemistryOnly: filters.chemistryOnly === true,
+		favoritesOnly: filters.favoritesOnly === true,
+		rightNowOnly: filters.rightNowOnly === true,
+		onlineNowOnly: filters.onlineNowOnly === true,
+		distanceMeters:
+			typeof filters.distanceMeters === "number"
+				? String(filters.distanceMeters)
+				: "",
+		positions: filters.positions ?? [],
+	};
+}
+
+function parseChatFiltersFromLocationState(state: unknown): InboxFilters | null {
+	const safe =
+		typeof state === "object" && state !== null
+			? (state as { inboxFiltersDraft?: Partial<ChatFiltersDraft> })
+			: {};
+	const draft = safe.inboxFiltersDraft;
+
+	if (!draft) {
+		return null;
+	}
+
+	const distanceMeters =
+		typeof draft.distanceMeters === "string" && draft.distanceMeters.trim() !== ""
+			? Number(draft.distanceMeters)
+			: undefined;
+
+	return {
+		unreadOnly: draft.unreadOnly === true ? true : undefined,
+		chemistryOnly: draft.chemistryOnly === true ? true : undefined,
+		favoritesOnly: draft.favoritesOnly === true ? true : undefined,
+		rightNowOnly: draft.rightNowOnly === true ? true : undefined,
+		onlineNowOnly: draft.onlineNowOnly === true ? true : undefined,
+		positions:
+			isNumberArray(draft.positions) && draft.positions.length > 0
+				? draft.positions
+				: undefined,
+		distanceMeters:
+			typeof distanceMeters === "number" && Number.isFinite(distanceMeters)
+				? distanceMeters
+				: undefined,
+	};
+}
 
 const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
 	numeric: "auto",
@@ -531,6 +589,7 @@ function useDesktopBreakpoint() {
 }
 
 export function ChatPage() {
+	const location = useLocation();
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -561,6 +620,13 @@ export function ChatPage() {
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
 
+	useEffect(() => {
+		const nextFilters = parseChatFiltersFromLocationState(location.state);
+		if (nextFilters) {
+			setInboxFilters(nextFilters);
+		}
+	}, [location.key, location.state]);
+
 	const activeInboxFilters = useMemo(() => {
 		const next: InboxFilters = {
 			unreadOnly: inboxFilters.unreadOnly ?? false,
@@ -588,34 +654,18 @@ export function ChatPage() {
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
 	activeInboxFiltersRef.current = activeInboxFilters;
 
-	const toggleInboxFilter = useCallback((key: InboxFilterKey) => {
-		setInboxFilters((previous) => ({
-			...previous,
-			[key]: !previous[key],
-		}));
-	}, []);
-
 	const clearInboxFilters = useCallback(() => {
 		setInboxFilters({});
 	}, []);
 
-	const toggleInboxPosition = useCallback((posId: number) => {
-		setInboxFilters((previous) => {
-			const current = previous.positions ?? [];
-			const next = current.includes(posId)
-				? current.filter((id) => id !== posId)
-				: [...current, posId];
-			return { ...previous, positions: next.length ? next : undefined };
-		});
-	}, []);
-
-	const setInboxDistance = useCallback((value: string) => {
-		const trimmed = value.trim();
-		setInboxFilters((previous) => ({
-			...previous,
-			distanceMeters: trimmed === "" ? undefined : Number(trimmed),
-		}));
-	}, []);
+	const activeInboxFilterCount =
+		Number(Boolean(inboxFilters.unreadOnly)) +
+		Number(Boolean(inboxFilters.chemistryOnly)) +
+		Number(Boolean(inboxFilters.favoritesOnly)) +
+		Number(Boolean(inboxFilters.rightNowOnly)) +
+		Number(Boolean(inboxFilters.onlineNowOnly)) +
+		Number((inboxFilters.positions?.length ?? 0) > 0) +
+		Number(inboxFilters.distanceMeters != null);
 
 	const [threadConversationId, setThreadConversationId] = useState<
 		string | null
@@ -2449,6 +2499,21 @@ export function ChatPage() {
 				<div className="flex items-center gap-2">
 					<button
 						type="button"
+						onClick={() => 
+                            navigate("/chat/filters", {
+								state: {
+									inboxFiltersDraft: buildChatFiltersDraft(inboxFilters),
+									returnTo: `${location.pathname}${location.search}`,
+								},
+							})
+                        }
+						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						aria-label="Open search"
+					>
+						<SlidersHorizontal className="h-4 w-4" />
+					</button>
+					<button
+						type="button"
 						onClick={() => navigate("/chat/search")}
 						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						aria-label="Open search"
@@ -2465,61 +2530,6 @@ export function ChatPage() {
 						</button>
 					) : null}
 				</div>
-			</div>
-
-			<div className="mb-3 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-				{inboxFilterOptions.map((filter) => {
-					const active = Boolean(inboxFilters[filter.key]);
-					return (
-						<button
-							key={filter.key}
-							type="button"
-							onClick={() => toggleInboxFilter(filter.key)}
-							className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
-								active
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-							}`}
-						>
-							{filter.label}
-						</button>
-					);
-				})}
-			</div>
-
-			<div className="mb-3 flex items-center gap-2">
-				<span className="shrink-0 text-xs text-[var(--text-muted)]">
-					Max distance (m)
-				</span>
-				<input
-					type="number"
-					min={0}
-					value={inboxFilters.distanceMeters ?? ""}
-					onChange={(e) => setInboxDistance(e.target.value)}
-					placeholder="e.g. 5000"
-					className="w-28 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--text)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
-				/>
-			</div>
-
-			<div className="mb-3 -mx-1 flex flex-wrap gap-1.5 px-1">
-				{Object.entries(sexualPositionLabels).map(([id, label]) => {
-					const posId = Number(id);
-					const active = inboxFilters.positions?.includes(posId) ?? false;
-					return (
-						<button
-							key={posId}
-							type="button"
-							onClick={() => toggleInboxPosition(posId)}
-							className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
-								active
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-							}`}
-						>
-							{label}
-						</button>
-					);
-				})}
 			</div>
 
 			{isLoadingInbox ? (

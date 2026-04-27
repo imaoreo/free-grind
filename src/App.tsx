@@ -12,6 +12,7 @@ import { BrowseFiltersPage } from "./pages/app/BrowseFiltersPage.tsx";
 import { BrowseLocationPage } from "./pages/app/BrowseLocationPage";
 import { RightNowPage } from "./pages/app/RightNowPage";import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
+import { ChatFiltersPage } from "./pages/app/ChatFiltersPage";
 import { ChatSearchPage } from "./pages/app/ChatSearchPage";
 import { SettingsPage } from "./pages/app/SettingsPage.tsx";
 import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
@@ -60,6 +61,7 @@ export default function App() {
 							<Route path="/browse/location" element={<BrowseLocationPage />} />
 							<Route path="/right-now" element={<RightNowPage />} />							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
+							<Route path="/chat/filters" element={<ChatFiltersPage />} />
 							<Route path="/chat/search" element={<ChatSearchPage />} />
 							<Route path="/chat/:conversationId" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
