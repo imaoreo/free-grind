@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Fingerprint, ScanFace, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Fingerprint, ScanFace, ShieldCheck } from "lucide-react";
+import { BackToSettings } from "../../components/BackToSettings";
 import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { LoadingState, ErrorState } from "../../components/ui/states";
@@ -120,19 +121,10 @@ export function AgeVerificationPage() {
 
 	return (
 		<section className="app-screen">
-			<header className="mb-6 flex items-center gap-3">
-				<button
-					type="button"
-					onClick={() => navigate("/settings")}
-					className="rounded-xl p-2 hover:bg-[var(--surface-2)] transition-colors"
-					aria-label="Back to settings"
-				>
-					<ArrowLeft className="h-5 w-5" />
-				</button>
-				<div>
-					<h1 className="app-title">Age Verification</h1>
-					<p className="app-subtitle">Confirm your age to access all features.</p>
-				</div>
+			<header className="mb-6">
+				<BackToSettings />
+				<h1 className="app-title">Age Verification</h1>
+				<p className="app-subtitle">Confirm your age to access all features.</p>
 			</header>
 
 			<div className="grid gap-4">

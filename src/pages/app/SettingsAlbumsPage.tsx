@@ -1,6 +1,5 @@
 import {
 	ArrowDown,
-	ArrowLeft,
 	ArrowUp,
 	FolderOpen,
 	Images,
@@ -9,6 +8,7 @@ import {
 	Trash2,
 	Upload,
 } from "lucide-react";
+import { BackToSettings } from "../../components/BackToSettings";
 import {
 	useCallback,
 	useEffect,
@@ -17,7 +17,6 @@ import {
 	type ChangeEvent,
 } from "react";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { Button } from "../../components/ui/button";
 import {
@@ -89,7 +88,6 @@ async function buildMultipartBody(file: File): Promise<{
 }
 
 export function SettingsAlbumsPage() {
-	const navigate = useNavigate();
 	const apiFunctions = useApiFunctions();
 	const [albums, setAlbums] = useState<Album[]>([]);
 	const [maxAlbums, setMaxAlbums] = useState<number>(1);
@@ -445,14 +443,7 @@ export function SettingsAlbumsPage() {
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-4xl gap-6">
 				<header className="grid gap-4">
-					<button
-						type="button"
-						onClick={() => navigate("/settings")}
-						className="inline-flex w-fit items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to Settings
-					</button>
+					<BackToSettings />
 
 					<div className="surface-card p-5 sm:p-6">
 						<div className="flex flex-wrap items-start justify-between gap-3">

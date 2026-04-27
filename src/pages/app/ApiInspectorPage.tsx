@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Copy, Download, RotateCcw, Search, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Copy, Download, RotateCcw, Search, Trash2 } from "lucide-react";
 import { Button } from "../../components/ui/button";
+import { BackToSettings } from "../../components/BackToSettings";
 import { Card } from "../../components/ui/card";
 import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -32,7 +32,6 @@ function statusClass(status: number | null, success: boolean): string {
 }
 
 export function ApiInspectorPage() {
-	const navigate = useNavigate();
 	const { asAppError } = useApi();
 	const apiFunctions = useApiFunctions();
 	const [entries, setEntries] = useState<ApiTraceEntry[]>(() =>
@@ -160,10 +159,7 @@ export function ApiInspectorPage() {
 			<div className="mx-auto grid w-full max-w-7xl gap-4">
 				<header className="grid gap-3 sm:flex sm:items-end sm:justify-between">
 					<div className="grid gap-2">
-						<Button type="button" onClick={() => navigate("/settings")} className="w-fit">
-							<ArrowLeft className="h-4 w-4" />
-							Back to Settings
-						</Button>
+					<BackToSettings />
 						<h1 className="app-title">API Inspector</h1>
 						<p className="app-subtitle">
 							Inspect recent request and response history for REST and invoke commands.

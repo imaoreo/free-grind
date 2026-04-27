@@ -6,6 +6,7 @@ import {
 	Images,
 	Info,
 	LogOut,
+	Palette,
 	Radar,
 } from "lucide-react";
 import { useState } from "react";
@@ -69,6 +70,25 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">Profile Editor</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								Edit profile details, identity, and preferences.
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/customizability")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Palette className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">Customizability</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								Change color scheme and accent color.
 							</p>
 						</div>
 					</div>

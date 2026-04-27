@@ -22,6 +22,7 @@ import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
+import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 
 function ErrorPage() {
 	return (
@@ -79,6 +80,10 @@ export default function App() {
 							<Route
 								path="/settings/age-verification"
 								element={<AgeVerificationPage />}
+							/>
+							<Route
+								path="/settings/customizability"
+								element={<CustomizabilityPage />}
 							/>
 							<Route
 								path="/settings/profile-editor"

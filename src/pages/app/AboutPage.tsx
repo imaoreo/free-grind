@@ -1,5 +1,4 @@
 import {
-	ArrowLeft,
 	BookOpen,
 	FileText,
 	GitBranch,
@@ -8,10 +7,10 @@ import {
 	Send,
 	Shield,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/chip";
 import { Button } from "../../components/ui/button";
+import { BackToSettings } from "../../components/BackToSettings";
 
 const resourceLinks = [
 	{
@@ -60,20 +59,11 @@ const resourceLinks = [
 ];
 
 export function AboutPage() {
-	const navigate = useNavigate();
-
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-5xl gap-6">
 				<header className="grid gap-4">
-					<Button
-						type="button"
-						onClick={() => navigate("/settings")}
-						className="w-fit"
-					>
-						<ArrowLeft className="h-4 w-4" />
-						Back to Settings
-					</Button>
+					<BackToSettings />
 
 					<Card className="overflow-hidden p-5 sm:p-7">
 						<div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">

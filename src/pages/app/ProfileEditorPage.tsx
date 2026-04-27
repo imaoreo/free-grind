@@ -13,12 +13,13 @@ import {
 	Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { Chip } from "../../components/ui/chip";
+import { BackToSettings } from "../../components/BackToSettings";
 
 const MAX_PROFILE_PHOTOS = 5;
 
@@ -1664,12 +1665,7 @@ export function ProfileEditorPage() {
 				)}
 
 				<div className="mt-1 flex flex-wrap items-center gap-3">
-					<Link
-						to="/settings"
-						className="inline-flex min-h-11 items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2.5 font-medium"
-					>
-						Back to Settings
-					</Link>
+					<BackToSettings />
 					<button
 						onClick={handleLogout}
 						className="btn-accent min-h-11 px-4 py-2.5 font-semibold"
