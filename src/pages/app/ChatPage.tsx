@@ -51,6 +51,7 @@ import {
 	indexMessages,
 	searchMessagesLocal,
 } from "./chat/cache";
+import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 import { ChatSearchPage } from "./ChatSearchPage";
 import * as chatLog from "../../services/chatLog";
 
@@ -2438,33 +2439,19 @@ export function ChatPage() {
 		>
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div>
-					<div className="flex items-center gap-2">
-						<button
-							type="button"
-							onClick={() => navigate("/chat")}
-							className="text-left"
-							aria-current="page"
-						>
-							<span className="text-2xl font-bold leading-none sm:text-3xl">
-								Inbox
+					<InboxAlbumsTabs
+						activeTab="inbox"
+						onInboxClick={() => navigate("/chat")}
+						onAlbumsClick={() => navigate("/settings/shared-albums")}
+						trailing={
+							<span
+								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
+							>
+								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
+								<span>{realtimeStatusMeta.label}</span>
 							</span>
-						</button>
-						<button
-							type="button"
-							onClick={() => navigate("/settings/shared-albums")}
-							className="text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
-						>
-							<span className="text-lg font-semibold leading-none sm:text-xl">
-								Albums
-							</span>
-						</button>
-						<span
-							className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-						>
-							<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-							<span>{realtimeStatusMeta.label}</span>
-						</span>
-					</div>
+						}
+					/>
 					<p className="app-subtitle mt-1">Your conversations</p>
 				</div>
 				<div className="flex items-center gap-2">

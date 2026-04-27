@@ -3,7 +3,6 @@ import {
 	BadgeInfo,
 	ChevronRight,
 	Download,
-	FolderOpen,
 	Images,
 	Info,
 	LogOut,
@@ -130,25 +129,6 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">API Inspector</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								View request and response history for debugging.
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/shared-albums")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<FolderOpen className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">Shared Albums</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								See every album that has been shared with you.
 							</p>
 						</div>
 					</div>

@@ -1,11 +1,11 @@
 import {
-	ArrowLeft,
+	Album,
 	ChevronLeft,
 	ChevronRight,
 	Eye,
-	Images,
 	MessageSquare,
 	RefreshCw,
+	Users,
 	X,
 } from "lucide-react";
 import {
@@ -18,12 +18,12 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
-import { Card } from "../../components/ui/card";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/AuthContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
+import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -154,9 +154,10 @@ export function SharedAlbumsPage() {
 		void loadSharedAlbums();
 	}, [loadSharedAlbums]);
 
-	const profileCount = useMemo(() => {
-		return new Set(items.map((item) => item.profileId)).size;
-	}, [items]);
+	const profileCount = useMemo(
+		() => new Set(items.map((item) => item.profileId)).size,
+		[items],
+	);
 
 	const handleRefresh = () => {
 		if (isRefreshing || isLoading) {
@@ -168,13 +169,22 @@ export function SharedAlbumsPage() {
 
 	const handlePageTouchStart = useCallback(
 		(event: TouchEvent<HTMLElement>) => {
+			if (viewer || fullScreenIndex != null) {
+				pageTouchStartXRef.current = null;
+				return;
+			}
 			pageTouchStartXRef.current = event.touches[0]?.clientX ?? null;
 		},
-		[],
+		[fullScreenIndex, viewer],
 	);
 
 	const handlePageTouchEnd = useCallback(
 		(event: TouchEvent<HTMLElement>) => {
+			if (viewer || fullScreenIndex != null) {
+				pageTouchStartXRef.current = null;
+				return;
+			}
+
 			const startX = pageTouchStartXRef.current;
 			if (startX == null) {
 				return;
@@ -189,7 +199,7 @@ export function SharedAlbumsPage() {
 
 			pageTouchStartXRef.current = null;
 		},
-		[navigate],
+		[fullScreenIndex, navigate, viewer],
 	);
 
 	const openViewer = useCallback(
@@ -374,57 +384,50 @@ export function SharedAlbumsPage() {
 			onTouchEnd={handlePageTouchEnd}
 		>
 			<div className="mx-auto grid w-full max-w-6xl gap-5">
-				<header className="grid gap-4 sm:flex sm:items-end sm:justify-between">
-					<div className="grid gap-2">
-						<div className="flex items-end gap-3">
-							<button
-								type="button"
-								onClick={() => navigate("/chat")}
-								className="text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
-							>
-								<span className="text-lg font-semibold leading-none sm:text-xl">
-									Inbox
-								</span>
-							</button>
-							<button
-								type="button"
-								onClick={() => navigate("/settings/shared-albums")}
-								className="text-left"
-								aria-current="page"
-							>
-								<span className="text-2xl font-bold leading-none sm:text-3xl">
-									Albums
-								</span>
-							</button>
+				<header className="mb-3">
+					<div>
+						<InboxAlbumsTabs
+							activeTab="albums"
+							onInboxClick={() => navigate("/chat")}
+							onAlbumsClick={() => navigate("/settings/shared-albums")}
+						/>
+						<div className="mt-2 flex flex-wrap items-center gap-2">
+							<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+								<span
+									className="h-2 w-2 rounded-full bg-zinc-400"
+									aria-hidden="true"
+								/>
+								<Album className="h-3.5 w-3.5" />
+								<span>{items.length} albums</span>
+							</div>
+							<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+								<span
+									className="h-2 w-2 rounded-full bg-emerald-500"
+									aria-hidden="true"
+								/>
+								<Users className="h-3.5 w-3.5" />
+								<span>{profileCount} people</span>
+							</div>
+                            <button
+                                type="button"
+                                onClick={handleRefresh}
+                                disabled={isRefreshing || isLoading}
+                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label="Refresh shared albums"
+                                title="Refresh"
+                            >
+                                <RefreshCw
+                                    className={
+                                        isRefreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
+                                    }
+                                />
+                            </button>
 						</div>
-						<p className="app-subtitle max-w-[68ch]">
+						<p className="app-subtitle mt-1 max-w-[68ch]">
 							Browse all albums shared by people in your chats.
 						</p>
 					</div>
-					<div className="flex items-center gap-2">
-						<Button type="button" onClick={handleRefresh} disabled={isRefreshing || isLoading}>
-							<RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-							Refresh
-						</Button>
-					</div>
 				</header>
-
-				<Card className="p-5 sm:p-6">
-					<div className="grid gap-4 sm:grid-cols-2">
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-								Total shared albums
-							</p>
-							<p className="mt-2 text-2xl font-semibold">{items.length}</p>
-						</div>
-						<div>
-							<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-								Profiles sharing albums
-							</p>
-							<p className="mt-2 text-2xl font-semibold">{profileCount}</p>
-						</div>
-					</div>
-				</Card>
 
 				{openAlbumError ? (
 					<ErrorState
@@ -471,7 +474,10 @@ export function SharedAlbumsPage() {
 							const videoCount = item.album.contentCount.videoCount;
 
 							return (
-								<Card key={`${item.profileId}:${item.album.albumId}`} className="overflow-hidden p-0">
+								<div
+									key={`${item.profileId}:${item.album.albumId}`}
+									className="surface-card overflow-hidden rounded-2xl"
+								>
 									<div className="relative aspect-[16/9] w-full bg-[var(--surface-2)]">
 										{previewUrl ? (
 											<img
@@ -481,7 +487,7 @@ export function SharedAlbumsPage() {
 											/>
 										) : (
 											<div className="flex h-full w-full items-center justify-center text-[var(--text-muted)]">
-												<Images className="h-8 w-8" />
+												<Album className="h-8 w-8" />
 											</div>
 										)}
 									</div>
@@ -494,17 +500,9 @@ export function SharedAlbumsPage() {
 											<p className="mt-1 text-sm text-[var(--text-muted)]">
 												Shared by {item.profileName}
 											</p>
-											<p className="mt-1 text-xs text-[var(--text-muted)]">
-												Profile ID {item.profileId}
-											</p>
-											{item.conversationId ? (
-												<p className="text-xs text-[var(--text-muted)] break-all">
-													Conversation {item.conversationId}
-												</p>
-											) : null}
 										</div>
 
-										<p className="text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+										<p className="text-xs text-[var(--text-muted)]">
 											{imageCount} image{imageCount === 1 ? "" : "s"} · {videoCount} video
 											{videoCount === 1 ? "" : "s"}
 										</p>
@@ -523,6 +521,7 @@ export function SharedAlbumsPage() {
 												<Button
 													type="button"
 													onClick={() => navigate(`/chat/${item.conversationId}`)}
+													variant="secondary"
 													className="w-full"
 												>
 													<MessageSquare className="h-4 w-4" />
@@ -531,7 +530,7 @@ export function SharedAlbumsPage() {
 											) : null}
 										</div>
 									</div>
-								</Card>
+								</div>
 							);
 						})}
 					</div>
