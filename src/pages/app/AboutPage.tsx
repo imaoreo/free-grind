@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/chip";
-import { Button } from "../../components/ui/button";
 import { BackToSettings } from "../../components/BackToSettings";
 
 const resourceLinks = [
