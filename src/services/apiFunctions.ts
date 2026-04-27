@@ -316,10 +316,85 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 		async getBrowseCards(params: {
 			geohash: string;
 			page?: number;
+			filters?: {
+				onlineOnly?: boolean;
+				photoOnly?: boolean;
+				faceOnly?: boolean;
+				hasAlbum?: boolean;
+				notRecentlyChatted?: boolean;
+				fresh?: boolean;
+				rightNow?: boolean;
+				favorites?: boolean;
+				shuffle?: boolean;
+				hot?: boolean;
+				ageMin?: number;
+				ageMax?: number;
+				heightCmMin?: number;
+				heightCmMax?: number;
+				weightGramsMin?: number;
+				weightGramsMax?: number;
+				tribes?: string;
+				lookingFor?: string;
+				relationshipStatuses?: string;
+				bodyTypes?: string;
+				sexualPositions?: string;
+				meetAt?: string;
+				nsfwPics?: string;
+				tags?: string;
+			};
 		}): Promise<{ cards: BrowseCard[]; nextPage: number | null }> {
-			const url = params.page
-				? `/v4/cascade?nearbyGeoHash=${encodeURIComponent(params.geohash)}&pageNumber=${params.page}`
-				: `/v4/cascade?nearbyGeoHash=${encodeURIComponent(params.geohash)}`;
+			const queryParams = new URLSearchParams({
+				nearbyGeoHash: params.geohash,
+			});
+
+			if (typeof params.page === "number") {
+				queryParams.set("pageNumber", String(params.page));
+			}
+
+			if (params.filters?.onlineOnly) queryParams.set("onlineOnly", "true");
+			if (params.filters?.photoOnly) queryParams.set("photoOnly", "true");
+			if (params.filters?.faceOnly) queryParams.set("faceOnly", "true");
+			if (params.filters?.hasAlbum) queryParams.set("hasAlbum", "true");
+			if (params.filters?.notRecentlyChatted)
+				queryParams.set("notRecentlyChatted", "true");
+			if (params.filters?.fresh) queryParams.set("fresh", "true");
+			if (params.filters?.rightNow) queryParams.set("rightNow", "true");
+			if (params.filters?.favorites) queryParams.set("favorites", "true");
+			if (params.filters?.shuffle) queryParams.set("shuffle", "true");
+			if (params.filters?.hot) queryParams.set("hot", "true");
+			if (typeof params.filters?.ageMin === "number") {
+				queryParams.set("ageMin", String(params.filters.ageMin));
+			}
+			if (typeof params.filters?.ageMax === "number") {
+				queryParams.set("ageMax", String(params.filters.ageMax));
+			}
+			if (typeof params.filters?.heightCmMin === "number") {
+				queryParams.set("heightCmMin", String(params.filters.heightCmMin));
+			}
+			if (typeof params.filters?.heightCmMax === "number") {
+				queryParams.set("heightCmMax", String(params.filters.heightCmMax));
+			}
+			if (typeof params.filters?.weightGramsMin === "number") {
+				queryParams.set("weightGramsMin", String(params.filters.weightGramsMin));
+			}
+			if (typeof params.filters?.weightGramsMax === "number") {
+				queryParams.set("weightGramsMax", String(params.filters.weightGramsMax));
+			}
+			if (params.filters?.tribes) queryParams.set("tribes", params.filters.tribes);
+			if (params.filters?.lookingFor)
+				queryParams.set("lookingFor", params.filters.lookingFor);
+			if (params.filters?.relationshipStatuses)
+				queryParams.set("relationshipStatuses", params.filters.relationshipStatuses);
+			if (params.filters?.bodyTypes)
+				queryParams.set("bodyTypes", params.filters.bodyTypes);
+			if (params.filters?.sexualPositions)
+				queryParams.set("sexualPositions", params.filters.sexualPositions);
+			if (params.filters?.meetAt) queryParams.set("meetAt", params.filters.meetAt);
+			if (params.filters?.nsfwPics)
+				queryParams.set("nsfwPics", params.filters.nsfwPics);
+			if (params.filters?.tags) queryParams.set("tags", params.filters.tags);
+
+			const url = `/v4/cascade?${queryParams.toString()}`;
 			const response = await fetchRest(url);
 			await assertSuccess(response, "Failed to load browse profiles");
 			const parsed = cascadeResponseSchema.parse(await parseJsonSafe(response));

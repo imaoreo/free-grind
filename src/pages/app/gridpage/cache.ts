@@ -56,12 +56,12 @@ export function setCachedProfileDetail(
 	setInCache(profileCache, profileId, profile, PROFILE_CACHE_TTL_MS);
 }
 
-export function getCachedBrowseCards(geohash: string): BrowseCard[] | null {
-	return getFromCache(browseCache, geohash);
+export function getCachedBrowseCards(cacheKey: string): BrowseCard[] | null {
+	return getFromCache(browseCache, cacheKey);
 }
 
-export function setCachedBrowseCards(geohash: string, cards: BrowseCard[]) {
-	setInCache(browseCache, geohash, cards, BROWSE_CACHE_TTL_MS);
+export function setCachedBrowseCards(cacheKey: string, cards: BrowseCard[]) {
+	setInCache(browseCache, cacheKey, cards, BROWSE_CACHE_TTL_MS);
 }
 
 export function getCachedGenderOptions(): ManagedOption[] | null {

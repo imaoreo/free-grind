@@ -113,6 +113,12 @@ export const hivStatusLabels: Record<number, string> = {
 	4: "Positive, undetectable",
 };
 
+export const nsfwLabels: Record<number, string> = {
+	1: "Never",
+	2: "Not At First",
+	3: "Yes Please",
+};
+
 export const sexualHealthLabels: Record<number, string> = {
 	1: "Condoms",
 	2: "I'm on doxyPEP",
