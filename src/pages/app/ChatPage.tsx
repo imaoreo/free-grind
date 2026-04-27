@@ -750,6 +750,13 @@ export function ChatPage() {
 		const parsed = Number(raw);
 		return Number.isFinite(parsed) ? parsed : null;
 	}, [searchParams]);
+	const chatReturnTo = useMemo(() => {
+		const raw = searchParams.get("returnTo");
+		if (!raw || !raw.startsWith("/")) {
+			return null;
+		}
+		return raw;
+	}, [searchParams]);
 	const isSearchRoute = routeConversationId === "search";
 
 	const selectedConversationId = targetProfileId || isSearchRoute
@@ -1618,8 +1625,15 @@ export function ChatPage() {
 			setSelectedDesktopConversationId(nextId);
 			return;
 		}
-
-		navigate(`/chat/${encodeURIComponent(nextId)}`);
+		const nextParams = new URLSearchParams();
+		if (chatReturnTo) {
+			nextParams.set("returnTo", chatReturnTo);
+		}
+		navigate(
+			nextParams.size > 0
+				? `/chat/${encodeURIComponent(nextId)}?${nextParams.toString()}`
+				: `/chat/${encodeURIComponent(nextId)}`,
+		);
 	};
 
 	const openConversationById = useCallback(
@@ -1634,10 +1648,24 @@ export function ChatPage() {
 				setSelectedDesktopConversationId(conversationId);
 				return;
 			}
-
-			navigate(`/chat/${encodeURIComponent(conversationId)}`);
+			const nextParams = new URLSearchParams();
+			if (chatReturnTo) {
+				nextParams.set("returnTo", chatReturnTo);
+			}
+			navigate(
+				nextParams.size > 0
+					? `/chat/${encodeURIComponent(conversationId)}?${nextParams.toString()}`
+					: `/chat/${encodeURIComponent(conversationId)}`,
+			);
 		},
-		[isDesktop, navigate, searchParams, setSearchParams, targetProfileId],
+		[
+			chatReturnTo,
+			isDesktop,
+			navigate,
+			searchParams,
+			setSearchParams,
+			targetProfileId,
+		],
 	);
 
 	const getProfileReturnToChatPath = useCallback(
@@ -3268,7 +3296,13 @@ export function ChatPage() {
 					<div className="mb-3 flex items-center justify-between px-3">
 						<button
 							type="button"
-							onClick={() => navigate("/chat")}
+							onClick={() => {
+								if (chatReturnTo) {
+									navigate(chatReturnTo, { replace: true });
+									return;
+								}
+								navigate("/chat");
+							}}
 							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)]"
 						>
 							Back to inbox

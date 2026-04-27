@@ -592,7 +592,10 @@ export function GridPage() {
 	};
 
 	const handleMessageProfile = (profileId: string) => {
-		navigate(`/chat?targetProfileId=${encodeURIComponent(profileId)}`);
+		const nextParams = new URLSearchParams();
+		nextParams.set("targetProfileId", profileId);
+		nextParams.set("returnTo", `${location.pathname}${location.search}`);
+		navigate(`/chat?${nextParams.toString()}`);
 	};
 
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
