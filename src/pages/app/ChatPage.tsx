@@ -46,6 +46,7 @@ import {
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../utils/media";
+import { sexualPositionLabels } from "../../types/grid";
 import {
 	indexConversations,
 	indexMessages,
@@ -561,16 +562,31 @@ export function ChatPage() {
 		useState<string | null>(null);
 
 	const activeInboxFilters = useMemo(() => {
-		const next: InboxFilters = {};
-		for (const { key } of inboxFilterOptions) {
-			if (inboxFilters[key]) {
-				next[key] = true;
-			}
+		const next: InboxFilters = {
+			unreadOnly: inboxFilters.unreadOnly ?? false,
+			chemistryOnly: inboxFilters.chemistryOnly ?? false,
+			favoritesOnly: inboxFilters.favoritesOnly ?? false,
+			rightNowOnly: inboxFilters.rightNowOnly ?? false,
+			onlineNowOnly: inboxFilters.onlineNowOnly ?? false,
+			positions: inboxFilters.positions ?? [],
+		};
+		if (inboxFilters.distanceMeters != null) {
+			next.distanceMeters = inboxFilters.distanceMeters;
 		}
 		return next;
 	}, [inboxFilters]);
 
-	const hasActiveInboxFilters = Object.keys(activeInboxFilters).length > 0;
+	const hasActiveInboxFilters =
+		Boolean(inboxFilters.unreadOnly) ||
+		Boolean(inboxFilters.chemistryOnly) ||
+		Boolean(inboxFilters.favoritesOnly) ||
+		Boolean(inboxFilters.rightNowOnly) ||
+		Boolean(inboxFilters.onlineNowOnly) ||
+		(inboxFilters.positions?.length ?? 0) > 0 ||
+		inboxFilters.distanceMeters != null;
+
+	const activeInboxFiltersRef = useRef(activeInboxFilters);
+	activeInboxFiltersRef.current = activeInboxFilters;
 
 	const toggleInboxFilter = useCallback((key: InboxFilterKey) => {
 		setInboxFilters((previous) => ({
@@ -581,6 +597,24 @@ export function ChatPage() {
 
 	const clearInboxFilters = useCallback(() => {
 		setInboxFilters({});
+	}, []);
+
+	const toggleInboxPosition = useCallback((posId: number) => {
+		setInboxFilters((previous) => {
+			const current = previous.positions ?? [];
+			const next = current.includes(posId)
+				? current.filter((id) => id !== posId)
+				: [...current, posId];
+			return { ...previous, positions: next.length ? next : undefined };
+		});
+	}, []);
+
+	const setInboxDistance = useCallback((value: string) => {
+		const trimmed = value.trim();
+		setInboxFilters((previous) => ({
+			...previous,
+			distanceMeters: trimmed === "" ? undefined : Number(trimmed),
+		}));
 	}, []);
 
 	const [threadConversationId, setThreadConversationId] = useState<
@@ -1001,8 +1035,7 @@ export function ChatPage() {
 			try {
 				const response = await service.listConversations({
 					page,
-					// Apply filters client-side to avoid API failures with filter payloads.
-					filters: undefined,
+					filters: activeInboxFiltersRef.current,
 				});
 
 				setConversations((previous) => {
@@ -1316,7 +1349,7 @@ export function ChatPage() {
 
 	useEffect(() => {
 		void loadInbox({ page: 1, replace: true });
-	}, [loadInbox]);
+	}, [loadInbox, activeInboxFilters]);
 
 	useEffect(() => {
 		if (!isDesktop) {
@@ -1522,48 +1555,7 @@ export function ChatPage() {
 		}
 	}, [realtimeStatus]);
 
-	const filteredConversations = useMemo(() => {
-		const now = Date.now();
-		return conversations.filter((conversation) => {
-			if (inboxFilters.unreadOnly && conversation.data.unreadCount <= 0) {
-				return false;
-			}
-
-			if (inboxFilters.favoritesOnly && !conversation.data.favorite) {
-				return false;
-			}
-
-			if (
-				inboxFilters.chemistryOnly &&
-				!conversation.data.participants.some(
-					(participant) => participant.hasDatingPotential,
-				)
-			) {
-				return false;
-			}
-
-			if (
-				inboxFilters.rightNowOnly &&
-				(!conversation.data.rightNow ||
-					conversation.data.rightNow === "NOT_ACTIVE")
-			) {
-				return false;
-			}
-
-			if (
-				inboxFilters.onlineNowOnly &&
-				!conversation.data.participants.some(
-					(participant) =>
-						typeof participant.onlineUntil === "number" &&
-						participant.onlineUntil > now,
-				)
-			) {
-				return false;
-			}
-
-			return true;
-		});
-	}, [conversations, inboxFilters]);
+	const filteredConversations = conversations;
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -2495,7 +2487,40 @@ export function ChatPage() {
 				})}
 			</div>
 
+			<div className="mb-3 flex items-center gap-2">
+				<span className="shrink-0 text-xs text-[var(--text-muted)]">
+					Max distance (m)
+				</span>
+				<input
+					type="number"
+					min={0}
+					value={inboxFilters.distanceMeters ?? ""}
+					onChange={(e) => setInboxDistance(e.target.value)}
+					placeholder="e.g. 5000"
+					className="w-28 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--text)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
+				/>
+			</div>
 
+			<div className="mb-3 -mx-1 flex flex-wrap gap-1.5 px-1">
+				{Object.entries(sexualPositionLabels).map(([id, label]) => {
+					const posId = Number(id);
+					const active = inboxFilters.positions?.includes(posId) ?? false;
+					return (
+						<button
+							key={posId}
+							type="button"
+							onClick={() => toggleInboxPosition(posId)}
+							className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-medium transition ${
+								active
+									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+							}`}
+						>
+							{label}
+						</button>
+					);
+				})}
+			</div>
 
 			{isLoadingInbox ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
