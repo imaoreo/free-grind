@@ -10,6 +10,8 @@
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
 		--content-max: 1200px;
+		/* Base horizontal padding for the app, shared across components for visual consistency */
+		--app-px: clamp(12px, 2.6vw, 28px);
 		--radius-sm: 12px;
 		--radius-md: 16px;
 		--radius-lg: 18px;
@@ -202,8 +204,9 @@
 		min-height: 100dvh;
 		width: min(100%, var(--content-max));
 		margin-inline: auto;
+		/* Uses --app-px for consistent horizontal alignment while allowing overrides (like edge-to-edge grids) */
 		padding: calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))
-			clamp(12px, 2.6vw, 28px)
+			var(--app-px)
 			calc(env(safe-area-inset-bottom, 0px) + clamp(92px, 10vw, 114px));
 	}
 
@@ -213,6 +216,8 @@
 		}
 	}
 
+
+	/* Standard card with borders, shadows, and rounded corners used for modals and focused UI elements */
 	.surface-card {
 		background: var(--surface);
 		border: 1px solid var(--border);
@@ -222,6 +227,12 @@
 			0 16px 34px color-mix(in srgb, #000 17%, transparent),
 			0 1px 0 color-mix(in srgb, var(--surface) 74%, transparent) inset;
 	}
+
+	/* Specialized card for the browse grid. We only inherit the surface color
+	   to keep the grid layout clean without the bulky shadows or borders of standard cards. */
+    .surface-card-grid {
+        background: var(--surface);
+    }
 
 	.input-field {
 		width: 100%;

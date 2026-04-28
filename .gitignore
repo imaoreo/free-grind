@@ -9,4 +9,5 @@ node_modules
 !.env.example
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-src-tauri/certs/*.jks
+src-tauri/certs/*.jks.idea/
+.idea/

@@ -345,7 +345,8 @@ export function ProfileDetailsModal({
 		return (
 			<section className="min-h-screen bg-[var(--bg)] pb-24">
 				<div className="w-full">
-					<div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-3 pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:px-4 sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+					{/* Sticky header container using --app-px for consistent horizontal alignment with the main browse page */}
+					<div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
 						<div className="flex items-center gap-2">
 							<button
 								type="button"
@@ -364,7 +365,8 @@ export function ProfileDetailsModal({
 						</div>
 					</div>
 
-					<div className="px-3 pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:px-4 sm:py-5">
+					{/* Main content area using --app-px for consistent padding */}
+					<div className="px-[var(--app-px)] pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:py-5">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								Loading profile details...
@@ -376,9 +378,8 @@ export function ProfileDetailsModal({
 						) : activeProfile ? (
 							<div className="grid gap-6">
 								<div>
-									<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Pictures ({activeProfilePhotoHashes.length})
-									</p>
+									{/* The 'Pictures' label has been removed as the photo count is already implicitly shown
+									   via the carousel pagination dots on mobile, or clearly visible via the grid layout. */}
 									{activeProfilePhotoHashes.length > 0 ? (
 										<>
 											{isDesktopLike ? (
@@ -401,11 +402,15 @@ export function ProfileDetailsModal({
 												</div>
 											) : (
 												<>
-											<div className="sm:hidden">
+											{/* Mobile Carousel View: We use negative margins (-mx and -mt) to break out of the parent padding
+											   and achieve a seamless edge-to-edge look that flushes with the header and screen sides. */}
+											<div className="sm:hidden -mx-[var(--app-px)] -mt-4">
 												<div
 													ref={mobileCarouselRef}
 													onScroll={handleMobileCarouselScroll}
-													className="flex snap-x snap-mandatory overflow-x-auto rounded-xl border border-[var(--border)]"
+													/* Edge-to-edge look: Only border-b is used to avoid a double-border effect with the sticky header's border.
+													   Rounded corners are removed to ensure the images touch the screen edges perfectly. */
+													className="flex snap-x snap-mandatory overflow-x-auto border-b border-[var(--border)]"
 												>
 													{activeProfilePhotoHashes.map((hash, index) => (
 														<button
@@ -416,7 +421,9 @@ export function ProfileDetailsModal({
 															aria-label={`Open photo ${index + 1}`}
 														>
 															<img
-																src={getThumbImageUrl(hash, "320x320")}
+																/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
+																   on high-density mobile screens, as thumbnails (320x320) appear blurry here. */
+																src={getProfileImageUrl(hash, "1024x1024")}
 																alt={`${activeProfileName} photo`}
 																className="h-full w-full object-cover"
 															/>
@@ -834,9 +841,6 @@ export function ProfileDetailsModal({
 					) : activeProfile ? (
 						<div className="grid gap-6">
 							<div>
-								<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-									Pictures ({activeProfilePhotoHashes.length})
-								</p>
 								{activeProfilePhotoHashes.length > 0 ? (
 									<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
 										{activeProfilePhotoHashes.map((hash, index) => (

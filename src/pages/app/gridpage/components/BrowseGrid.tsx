@@ -31,7 +31,17 @@ export function BrowseGrid({
 	onLoadMore,
 }: BrowseGridProps) {
 	const { mobileGridColumns } = usePreferences();
-	const minmaxValue = mobileGridColumns === "2" ? "130px" : "100px";
+	/**
+	 * We use percentages (33.4% for 2 cols, 25.1% for 3 cols) instead of fixed pixels
+	 * to strictly enforce the column count on mobile devices.
+	 *
+	 * Since 3 * 33.4% > 100%, it prevents a 3rd column from appearing.
+	 * Since 4 * 25.1% > 100%, it prevents a 4th column from appearing.
+	 *
+	 * This approach is superior to fixed pixels because it remains consistent across
+	 * all screen sizes and prevents layout shifts when the grid gap is set to 0.
+	 */
+	const minmaxValue = mobileGridColumns === "2" ? "33.4%" : "25.1%";
 
 	const viewState = getAsyncState(
 		{ isLoading: isLoadingCards, error: cardsError, data: cards },
@@ -40,34 +50,43 @@ export function BrowseGrid({
 
 	if (viewState === "loading") {
 		return (
-			<LoadingState
-				title="Loading nearby profiles"
-				description="Fetching your local browse feed."
-			/>
+			/* Padding applied to maintain header alignment for non-grid states */
+			<div className="w-full px-[var(--app-px)]">
+				<LoadingState
+					title="Loading nearby profiles"
+					description="Fetching your local browse feed."
+				/>
+			</div>
 		);
 	}
 
 	if (viewState === "error") {
 		return (
-			<ErrorState
-				title="Could not load browse feed"
-				description={cardsError ?? undefined}
-			/>
+			/* Padding applied to maintain header alignment for non-grid states */
+			<div className="w-full px-[var(--app-px)]">
+				<ErrorState
+					title="Could not load browse feed"
+					description={cardsError ?? undefined}
+				/>
+			</div>
 		);
 	}
 
 	if (viewState === "empty") {
 		return (
-			<EmptyState
-				title="No nearby profiles returned"
-				description="Try refreshing the feed after updating your location."
-			/>
+			/* Padding applied to maintain header alignment for non-grid states */
+			<div className="w-full px-[var(--app-px)]">
+				<EmptyState
+					title="No nearby profiles returned"
+					description="Try refreshing the feed after updating your location."
+				/>
+			</div>
 		);
 	}
 
 	return (
 		<div className="w-full flex flex-col gap-4">
-			<div className="w-full grid gap-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))` }}>
+			<div className="w-full grid gap-0" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))` }}>
 				{cards.map((card) => (
 					<BrowseCardTile
 						key={card.profileId}
@@ -78,7 +97,8 @@ export function BrowseGrid({
 				))}
 			</div>
 			{hasMore && (
-				<div className="flex justify-center">
+				/* Padding applied to prevent the button from touching the screen edges */
+				<div className="flex justify-center px-[var(--app-px)] pb-8">
 					<LoadMoreButton
 						onClick={onLoadMore}
 						loading={isLoadingMore}
