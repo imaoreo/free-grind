@@ -540,6 +540,26 @@ export function GridPage() {
 		void loadBrowseCards();
 	}, [loadBrowseCards]);
 
+	useEffect(() => {
+		if (!isLoadingCards || cardsError || isLoadingPreferences) {
+			return;
+		}
+
+		const timeout = window.setTimeout(() => {
+			if (!isMountedRef.current) {
+				return;
+			}
+			setIsLoadingCards(false);
+			setCardsError(
+				"Loading nearby profiles is taking longer than expected. Try refreshing or updating your location.",
+			);
+		}, BROWSE_LOAD_TIMEOUT_MS + 3000);
+
+		return () => {
+			window.clearTimeout(timeout);
+		};
+	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
+
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
 		setIsLoadingMoreCards(true);
@@ -781,9 +801,142 @@ export function GridPage() {
 				</div>
 			)}
 
-			{/* Re-applying the standard app padding via --app-px only to the header container */}
-			<div className="w-full px-[var(--app-px)]">
-				<header className="mb-6 px-4">
+			<header className="mb-2 px-[var(--app-px)] sm:px-4">
+				<div className="sm:hidden">
+					<div>
+						<div className="mb-1 flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => navigate("/settings")}
+								className="shrink-0 rounded-full transition-all active:scale-95"
+								aria-label="Open settings"
+								title="Settings"
+							>
+								<Avatar
+									src={profilePhotoUrl}
+									alt="Your profile photo"
+									className="h-11 w-11"
+								/>
+							</button>
+
+							<button
+								type="button"
+								onClick={() => navigate("/browse/location")}
+								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99]"
+							>
+								<MapPin className="h-4 w-4" />
+								<span>Current location</span>
+							</button>
+						</div>
+
+						<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
+								<button
+									type="button"
+									onClick={() =>
+										navigate("/browse/filters", {
+											state: {
+												browseFiltersDraft: {
+													browseFilters,
+													ageMin,
+													ageMax,
+													heightCmMin,
+													heightCmMax,
+													weightGramsMin,
+													weightGramsMax,
+													tribes,
+													lookingFor,
+													relationshipStatuses,
+													bodyTypes,
+													sexualPositions,
+													meetAt,
+													nsfwPics,
+													tags,
+												},
+											},
+										})
+									}
+									className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+								>
+									<SlidersHorizontal className="h-4 w-4" />
+									{hasActiveBrowseFilters ? (
+										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+											{activeFilterCount}
+										</span>
+									) : null}
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										setBrowseFilters((prev) => ({
+											...prev,
+											onlineOnly: !prev.onlineOnly,
+										}))
+									}
+									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+								>
+									Online
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										setBrowseFilters((prev) => ({
+											...prev,
+											rightNow: !prev.rightNow,
+										}))
+									}
+									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+								>
+									Right Now
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										navigate("/browse/filters", {
+											state: {
+												browseFiltersDraft: {
+													browseFilters,
+													ageMin,
+													ageMax,
+													heightCmMin,
+													heightCmMax,
+													weightGramsMin,
+													weightGramsMax,
+													tribes,
+													lookingFor,
+													relationshipStatuses,
+													bodyTypes,
+													sexualPositions,
+													meetAt,
+													nsfwPics,
+													tags,
+												},
+											},
+										})
+									}
+									className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+								>
+									Position
+								</button>
+
+								{hasActiveBrowseFilters ? (
+									<button
+										type="button"
+										onClick={clearBrowseFilters}
+										className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+									>
+										Clear
+									</button>
+								) : null}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div className="hidden sm:block">
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
 							<h1 className="app-title">Browse Profiles</h1>
@@ -810,7 +963,7 @@ export function GridPage() {
 									<MapPin className="h-3.5 w-3.5" />
 									<span className="hidden lg:inline">Location</span>
 								</button>
-                                <button
+								<button
 									type="button"
 									onClick={() =>
 										navigate("/browse/filters", {
@@ -875,8 +1028,8 @@ export function GridPage() {
 					<p className="app-subtitle">
 						Discover people near you and jump into chats from the main feed.
 					</p>
-				</header>
-			</div>
+				</div>
+			</header>
 
 			<BrowseGrid
 				isLoadingCards={isLoadingCards}

@@ -31,7 +31,7 @@ export function BrowseCardTile({
 			key={card.profileId}
 			onClick={() => onSelectProfile(card.profileId)}
 			className={cn(
-				"surface-card-grid overflow-hidden text-left transition-transform hover:-translate-y-1 active:scale-95",
+				"surface-card-grid overflow-hidden text-left transition-transform active:scale-95",
 				// Keep mobile square, round only on desktop-like devices.
 				isDesktop && "rounded-xl shadow-sm",
 			)}
