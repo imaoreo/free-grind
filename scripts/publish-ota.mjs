@@ -56,6 +56,7 @@ function run(command, args, options = {}) {
 const backendUrl = requireEnv("OTA_BACKEND_URL").replace(/\/$/, "");
 const backendToken =
   process.env.OTA_BACKEND_TOKEN || process.env.CI_UPLOAD_TOKEN || requireEnv("OTA_BACKEND_TOKEN");
+const keyPassword = process.env.HOTSWAP_PRIVATE_KEY_PASSWORD ?? "";
 const otaChannel = process.env.OTA_CHANNEL || "testingwjay";
 const otaMandatory = process.env.OTA_MANDATORY === "true" ? "true" : "false";
 
@@ -99,7 +100,7 @@ try {
 
   run("npm", ["run", "build"]);
   run("tar", ["-czf", "frontend.tar.gz", "-C", "dist", "."]);
-  run("npx", ["tauri", "signer", "sign", "frontend.tar.gz", "-k", keyValue]);
+  run("npx", ["tauri", "signer", "sign", "frontend.tar.gz", "-k", keyValue, "-p", keyPassword]);
 
   const signature = readFileSync("frontend.tar.gz.sig", "utf8").trim();
 
