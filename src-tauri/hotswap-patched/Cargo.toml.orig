@@ -1,0 +1,67 @@
+[package]
+name = "tauri-plugin-hotswap"
+version = "0.0.4"
+edition = "2021"
+rust-version = "1.77.2"
+license = "MIT OR Apache-2.0"
+description = "Open-source OTA plugin for Tauri v2 — push frontend updates to users without rebuilding the binary. Self-hosted, signed bundles, auto-rollback."
+repository = "https://github.com/denniskribl/tauri-plugin-hotswap"
+documentation = "https://docs.rs/tauri-plugin-hotswap"
+readme = "README.md"
+keywords = ["tauri", "plugin", "ota", "hotswap", "update"]
+categories = ["gui", "web-programming"]
+links = "tauri-plugin-hotswap"
+exclude = [
+    ".github/",
+    ".gitignore",
+    "website/",
+    "docs/",
+    "examples/",
+    "Cargo.lock",
+    "CLAUDE.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "deny.toml",
+    "rustfmt.toml",
+    "guest-js/pnpm-lock.yaml",
+]
+
+[lib]
+name = "tauri_plugin_hotswap"
+path = "src/lib.rs"
+
+[features]
+default = []
+zip = ["dep:zip"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = "2"
+log = "0.4"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
+tokio = { version = "1", features = ["fs", "io-util", "time"] }
+semver = "1"
+minisign-verify = "0.2"
+tar = "0.4"
+flate2 = "1"
+thiserror = "2"
+base64 = "0.22"
+url = "2"
+dirs = "6"
+zip = { version = "8", optional = true }
+
+# TLS: native-tls on desktop, rustls on Android
+[target.'cfg(not(target_os = "android"))'.dependencies]
+reqwest = { version = "0.12", features = ["json", "stream", "native-tls"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt", "macros"] }
+tauri = { version = "2", features = ["test"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }

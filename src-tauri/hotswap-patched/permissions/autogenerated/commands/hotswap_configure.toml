@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-hotswap-configure"
+description = "Enables the hotswap_configure command without any pre-configured scope."
+commands.allow = ["hotswap_configure"]
+
+[[permission]]
+identifier = "deny-hotswap-configure"
+description = "Denies the hotswap_configure command without any pre-configured scope."
+commands.deny = ["hotswap_configure"]

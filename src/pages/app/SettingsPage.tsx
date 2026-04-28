@@ -34,6 +34,12 @@ function getErrorMessage(error: unknown): string {
 		return error;
 	}
 
+	try {
+		return JSON.stringify(error);
+	} catch {
+		// ignore
+	}
+
 	return "Failed to check or apply update.";
 }
 
@@ -102,8 +108,9 @@ export function SettingsPage() {
 			toast.success("Update installed. Reloading now...");
 			window.location.reload();
 		} catch (error) {
-			console.error("Update check failed:", error);
-			toast.error(getErrorMessage(error));
+			const msg = getErrorMessage(error);
+			console.error("Update check failed:", error, "| message:", msg);
+			toast.error(msg, { duration: 10000 });
 		} finally {
 			setIsCheckingUpdates(false);
 		}
@@ -123,7 +130,17 @@ export function SettingsPage() {
 		try {
 			await setHotswapChannel(channel);
 			setUpdateChannel(channel);
-			toast.success(`Update environment set to ${channel}.`);
+
+			const result = await checkForHotswapUpdate();
+			if (!result.requiresBinaryUpdate && result.available) {
+				await installHotswapUpdate();
+				toast.success(`Switched to ${channel} and applied update. Reloading...`);
+				window.location.reload();
+				return;
+			}
+
+			toast.success(`Switched to ${channel}. Reloading...`);
+			window.location.reload();
 		} catch (error) {
 			console.error("Switch update environment failed:", error);
 			toast.error("Failed to switch update environment.");

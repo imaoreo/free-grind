@@ -1,0 +1,42 @@
+{
+  "name": "tauri-plugin-hotswap-api",
+  "version": "0.0.4",
+  "description": "Open-source OTA frontend updates for Tauri v2 apps. Self-hosted, signed bundles, auto-rollback, runtime channels.",
+  "license": "MIT OR Apache-2.0",
+  "author": "denniskribl",
+  "homepage": "https://github.com/denniskribl/tauri-plugin-hotswap",
+  "bugs": {
+    "url": "https://github.com/denniskribl/tauri-plugin-hotswap/issues"
+  },
+  "keywords": ["tauri", "tauri-plugin", "hotswap", "ota", "update", "hot-reload"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/denniskribl/tauri-plugin-hotswap",
+    "directory": "guest-js"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "prepublishOnly": "cp ../README.md . && pnpm build"
+  },
+  "peerDependencies": {
+    "@tauri-apps/api": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
