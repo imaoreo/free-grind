@@ -4,20 +4,24 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { RangeSlider } from "../../components/ui/range-slider";
 import { sexualPositionLabels } from "../../types/grid";
 import { cn } from "../../utils/cn";
-
-type RightNowFiltersDraft = {
-	ageMin: number;
-	ageMax: number;
-	positionFilter: string;
-};
+import {
+	loadRightNowFiltersDraft,
+	type RightNowFiltersDraft,
+} from "./rightnow-filters-storage";
 
 function parseState(state: unknown): {
 	draft: RightNowFiltersDraft;
 	returnTo: string;
 } {
+	const persisted = loadRightNowFiltersDraft();
+
 	if (typeof state !== "object" || state === null) {
 		return {
-			draft: { ageMin: 18, ageMax: 102, positionFilter: "" },
+			draft: {
+				ageMin: persisted.ageMin,
+				ageMax: persisted.ageMax,
+				positionFilter: persisted.positionFilter,
+			},
 			returnTo: "/right-now",
 		};
 	}
@@ -30,18 +34,20 @@ function parseState(state: unknown): {
 	const ageMin =
 		typeof draft.ageMin === "number" && Number.isFinite(draft.ageMin)
 			? Math.max(18, Math.min(102, draft.ageMin))
-			: 18;
+			: persisted.ageMin;
 	const ageMaxRaw =
 		typeof draft.ageMax === "number" && Number.isFinite(draft.ageMax)
 			? Math.max(18, Math.min(102, draft.ageMax))
-			: 102;
+			: persisted.ageMax;
 
 	return {
 		draft: {
 			ageMin,
 			ageMax: Math.max(ageMin, ageMaxRaw),
 			positionFilter:
-				typeof draft.positionFilter === "string" ? draft.positionFilter : "",
+				typeof draft.positionFilter === "string"
+					? draft.positionFilter
+					: persisted.positionFilter,
 		},
 		returnTo: typeof safe.returnTo === "string" ? safe.returnTo : "/right-now",
 	};

@@ -12,32 +12,14 @@ import {
 	sexualPositionLabels,
 	tribeLabels,
 } from "./GridPage.types";
-
-export type BrowseFilters = {
-	onlineOnly: boolean;
-	hasAlbum: boolean;
-	photoOnly: boolean;
-	faceOnly: boolean;
-	notRecentlyChatted: boolean;
-	fresh: boolean;
-	rightNow: boolean;
-	favorites: boolean;
-	shuffle: boolean;
-	hot: boolean;
-};
-
-const defaultBrowseFilters: BrowseFilters = {
-	onlineOnly: false,
-	hasAlbum: false,
-	photoOnly: false,
-	faceOnly: false,
-	notRecentlyChatted: false,
-	fresh: false,
-	rightNow: false,
-	favorites: false,
-	shuffle: false,
-	hot: false,
-};
+import {
+	type BrowseFilters,
+	type BrowseFiltersDraft,
+	defaultBrowseFilters,
+	loadBrowseFiltersDraft,
+	normalizeBrowseFiltersDraft,
+	saveBrowseFiltersDraft,
+} from "./browse-filters-storage";
 
 const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = [
 	{ key: "onlineOnly", label: "Online" },
@@ -52,33 +34,8 @@ const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = 
 	{ key: "shuffle", label: "Shuffle" },
 ];
 
-type BrowseFiltersDraft = {
-	browseFilters: BrowseFilters;
-	ageMin: string;
-	ageMax: string;
-	heightCmMin: string;
-	heightCmMax: string;
-	weightGramsMin: string;
-	weightGramsMax: string;
-	tribes: number[];
-	lookingFor: number[];
-	relationshipStatuses: number[];
-	bodyTypes: number[];
-	sexualPositions: number[];
-	meetAt: number[];
-	nsfwPics: number[];
-	tags: string[];
-};
-
-function isNumberArray(value: unknown): value is number[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "number");
-}
-
-function isStringArray(value: unknown): value is string[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
 function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
+	const persisted = loadBrowseFiltersDraft();
 	const safe =
 		typeof state === "object" && state !== null
 			? (state as {
@@ -87,34 +44,48 @@ function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 			: {};
 	const draft = safe.browseFiltersDraft ?? {};
 
-	return {
+	return normalizeBrowseFiltersDraft({
 		browseFilters: {
-			...defaultBrowseFilters,
+			...persisted.browseFilters,
 			...(draft.browseFilters ?? {}),
 		},
-		ageMin: typeof draft.ageMin === "string" ? draft.ageMin : "",
-		ageMax: typeof draft.ageMax === "string" ? draft.ageMax : "",
+		ageMin: typeof draft.ageMin === "string" ? draft.ageMin : persisted.ageMin,
+		ageMax: typeof draft.ageMax === "string" ? draft.ageMax : persisted.ageMax,
 		heightCmMin:
-			typeof draft.heightCmMin === "string" ? draft.heightCmMin : "",
+			typeof draft.heightCmMin === "string"
+				? draft.heightCmMin
+				: persisted.heightCmMin,
 		heightCmMax:
-			typeof draft.heightCmMax === "string" ? draft.heightCmMax : "",
+			typeof draft.heightCmMax === "string"
+				? draft.heightCmMax
+				: persisted.heightCmMax,
 		weightGramsMin:
-			typeof draft.weightGramsMin === "string" ? draft.weightGramsMin : "",
+			typeof draft.weightGramsMin === "string"
+				? draft.weightGramsMin
+				: persisted.weightGramsMin,
 		weightGramsMax:
-			typeof draft.weightGramsMax === "string" ? draft.weightGramsMax : "",
-		tribes: isNumberArray(draft.tribes) ? draft.tribes : [],
-		lookingFor: isNumberArray(draft.lookingFor) ? draft.lookingFor : [],
-		relationshipStatuses: isNumberArray(draft.relationshipStatuses)
+			typeof draft.weightGramsMax === "string"
+				? draft.weightGramsMax
+				: persisted.weightGramsMax,
+		tribes: Array.isArray(draft.tribes) ? draft.tribes : persisted.tribes,
+		lookingFor: Array.isArray(draft.lookingFor)
+			? draft.lookingFor
+			: persisted.lookingFor,
+		relationshipStatuses: Array.isArray(draft.relationshipStatuses)
 			? draft.relationshipStatuses
-			: [],
-		bodyTypes: isNumberArray(draft.bodyTypes) ? draft.bodyTypes : [],
-		sexualPositions: isNumberArray(draft.sexualPositions)
+			: persisted.relationshipStatuses,
+		bodyTypes: Array.isArray(draft.bodyTypes)
+			? draft.bodyTypes
+			: persisted.bodyTypes,
+		sexualPositions: Array.isArray(draft.sexualPositions)
 			? draft.sexualPositions
-			: [],
-		meetAt: isNumberArray(draft.meetAt) ? draft.meetAt : [],
-		nsfwPics: isNumberArray(draft.nsfwPics) ? draft.nsfwPics : [],
-		tags: isStringArray(draft.tags) ? draft.tags : [],
-	};
+			: persisted.sexualPositions,
+		meetAt: Array.isArray(draft.meetAt) ? draft.meetAt : persisted.meetAt,
+		nsfwPics: Array.isArray(draft.nsfwPics)
+			? draft.nsfwPics
+			: persisted.nsfwPics,
+		tags: Array.isArray(draft.tags) ? draft.tags : persisted.tags,
+	});
 }
 
 export function BrowseFiltersPage() {
@@ -239,6 +210,24 @@ export function BrowseFiltersPage() {
 	};
 
 	const applyAndReturn = () => {
+		saveBrowseFiltersDraft({
+			browseFilters,
+			ageMin,
+			ageMax,
+			heightCmMin,
+			heightCmMax,
+			weightGramsMin,
+			weightGramsMax,
+			tribes,
+			lookingFor,
+			relationshipStatuses,
+			bodyTypes,
+			sexualPositions,
+			meetAt,
+			nsfwPics,
+			tags,
+		});
+
 		navigate("/", {
 			state: {
 				browseFiltersDraft: {

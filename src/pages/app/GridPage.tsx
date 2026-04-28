@@ -20,58 +20,14 @@ import {
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
-
-type BrowseFilters = {
-	onlineOnly: boolean;
-	hasAlbum: boolean;
-	photoOnly: boolean;
-	faceOnly: boolean;
-	notRecentlyChatted: boolean;
-	fresh: boolean;
-	rightNow: boolean;
-	favorites: boolean;
-	shuffle: boolean;
-	hot: boolean;
-};
-
-const defaultBrowseFilters: BrowseFilters = {
-	onlineOnly: false,
-	hasAlbum: false,
-	photoOnly: false,
-	faceOnly: false,
-	notRecentlyChatted: false,
-	fresh: false,
-	rightNow: false,
-	favorites: false,
-	shuffle: false,
-	hot: false,
-};
-
-type BrowseFiltersDraft = {
-	browseFilters?: Partial<BrowseFilters>;
-	ageMin?: string;
-	ageMax?: string;
-	heightCmMin?: string;
-	heightCmMax?: string;
-	weightGramsMin?: string;
-	weightGramsMax?: string;
-	tribes?: number[];
-	lookingFor?: number[];
-	relationshipStatuses?: number[];
-	bodyTypes?: number[];
-	sexualPositions?: number[];
-	meetAt?: number[];
-	nsfwPics?: number[];
-	tags?: string[];
-};
-
-function isNumberArray(value: unknown): value is number[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "number");
-}
-
-function isStringArray(value: unknown): value is string[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
+import {
+	type BrowseFilters,
+	type BrowseFiltersDraft,
+	defaultBrowseFilters,
+	loadBrowseFiltersDraft,
+	normalizeBrowseFiltersDraft,
+	saveBrowseFiltersDraft,
+} from "./browse-filters-storage";
 
 export function GridPage() {
 	const PULL_REFRESH_THRESHOLD_PX = 72;
@@ -86,6 +42,7 @@ export function GridPage() {
 	} = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
+	const persistedBrowseFilters = useMemo(() => loadBrowseFiltersDraft(), []);
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
@@ -103,22 +60,34 @@ export function GridPage() {
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
-		defaultBrowseFilters,
+		persistedBrowseFilters.browseFilters,
 	);
-	const [ageMin, setAgeMin] = useState("");
-	const [ageMax, setAgeMax] = useState("");
-	const [heightCmMin, setHeightCmMin] = useState("");
-	const [heightCmMax, setHeightCmMax] = useState("");
-	const [weightGramsMin, setWeightGramsMin] = useState("");
-	const [weightGramsMax, setWeightGramsMax] = useState("");
-	const [tribes, setTribes] = useState<number[]>([]);
-	const [lookingFor, setLookingFor] = useState<number[]>([]);
-	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>([]);
-	const [bodyTypes, setBodyTypes] = useState<number[]>([]);
-	const [sexualPositions, setSexualPositions] = useState<number[]>([]);
-	const [meetAt, setMeetAt] = useState<number[]>([]);
-	const [nsfwPics, setNsfwPics] = useState<number[]>([]);
-	const [tags, setTags] = useState<string[]>([]);
+	const [ageMin, setAgeMin] = useState(persistedBrowseFilters.ageMin);
+	const [ageMax, setAgeMax] = useState(persistedBrowseFilters.ageMax);
+	const [heightCmMin, setHeightCmMin] = useState(persistedBrowseFilters.heightCmMin);
+	const [heightCmMax, setHeightCmMax] = useState(persistedBrowseFilters.heightCmMax);
+	const [weightGramsMin, setWeightGramsMin] = useState(
+		persistedBrowseFilters.weightGramsMin,
+	);
+	const [weightGramsMax, setWeightGramsMax] = useState(
+		persistedBrowseFilters.weightGramsMax,
+	);
+	const [tribes, setTribes] = useState<number[]>(persistedBrowseFilters.tribes);
+	const [lookingFor, setLookingFor] = useState<number[]>(
+		persistedBrowseFilters.lookingFor,
+	);
+	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>(
+		persistedBrowseFilters.relationshipStatuses,
+	);
+	const [bodyTypes, setBodyTypes] = useState<number[]>(
+		persistedBrowseFilters.bodyTypes,
+	);
+	const [sexualPositions, setSexualPositions] = useState<number[]>(
+		persistedBrowseFilters.sexualPositions,
+	);
+	const [meetAt, setMeetAt] = useState<number[]>(persistedBrowseFilters.meetAt);
+	const [nsfwPics, setNsfwPics] = useState<number[]>(persistedBrowseFilters.nsfwPics);
+	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
 	const [pullDistance, setPullDistance] = useState(0);
 	const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 	const touchStartYRef = useRef<number | null>(null);
@@ -222,37 +191,68 @@ export function GridPage() {
 	useEffect(() => {
 		const safeState =
 			typeof location.state === "object" && location.state !== null
-				? (location.state as { browseFiltersDraft?: BrowseFiltersDraft })
+				? (location.state as {
+						browseFiltersDraft?: Partial<BrowseFiltersDraft>;
+				  })
 				: {};
 		const draft = safeState.browseFiltersDraft;
 		if (!draft) {
 			return;
 		}
 
-		setBrowseFilters({ ...defaultBrowseFilters, ...(draft.browseFilters ?? {}) });
-		setAgeMin(typeof draft.ageMin === "string" ? draft.ageMin : "");
-		setAgeMax(typeof draft.ageMax === "string" ? draft.ageMax : "");
-		setHeightCmMin(typeof draft.heightCmMin === "string" ? draft.heightCmMin : "");
-		setHeightCmMax(typeof draft.heightCmMax === "string" ? draft.heightCmMax : "");
-		setWeightGramsMin(
-			typeof draft.weightGramsMin === "string" ? draft.weightGramsMin : "",
-		);
-		setWeightGramsMax(
-			typeof draft.weightGramsMax === "string" ? draft.weightGramsMax : "",
-		);
-		setTribes(isNumberArray(draft.tribes) ? draft.tribes : []);
-		setLookingFor(isNumberArray(draft.lookingFor) ? draft.lookingFor : []);
-		setRelationshipStatuses(
-			isNumberArray(draft.relationshipStatuses) ? draft.relationshipStatuses : [],
-		);
-		setBodyTypes(isNumberArray(draft.bodyTypes) ? draft.bodyTypes : []);
-		setSexualPositions(
-			isNumberArray(draft.sexualPositions) ? draft.sexualPositions : [],
-		);
-		setMeetAt(isNumberArray(draft.meetAt) ? draft.meetAt : []);
-		setNsfwPics(isNumberArray(draft.nsfwPics) ? draft.nsfwPics : []);
-		setTags(isStringArray(draft.tags) ? draft.tags : []);
+		const normalized = normalizeBrowseFiltersDraft(draft);
+		setBrowseFilters(normalized.browseFilters);
+		setAgeMin(normalized.ageMin);
+		setAgeMax(normalized.ageMax);
+		setHeightCmMin(normalized.heightCmMin);
+		setHeightCmMax(normalized.heightCmMax);
+		setWeightGramsMin(normalized.weightGramsMin);
+		setWeightGramsMax(normalized.weightGramsMax);
+		setTribes(normalized.tribes);
+		setLookingFor(normalized.lookingFor);
+		setRelationshipStatuses(normalized.relationshipStatuses);
+		setBodyTypes(normalized.bodyTypes);
+		setSexualPositions(normalized.sexualPositions);
+		setMeetAt(normalized.meetAt);
+		setNsfwPics(normalized.nsfwPics);
+		setTags(normalized.tags);
 	}, [location.key, location.state]);
+
+	useEffect(() => {
+		saveBrowseFiltersDraft({
+			browseFilters,
+			ageMin,
+			ageMax,
+			heightCmMin,
+			heightCmMax,
+			weightGramsMin,
+			weightGramsMax,
+			tribes,
+			lookingFor,
+			relationshipStatuses,
+			bodyTypes,
+			sexualPositions,
+			meetAt,
+			nsfwPics,
+			tags,
+		});
+	}, [
+		browseFilters,
+		ageMin,
+		ageMax,
+		heightCmMin,
+		heightCmMax,
+		weightGramsMin,
+		weightGramsMax,
+		tribes,
+		lookingFor,
+		relationshipStatuses,
+		bodyTypes,
+		sexualPositions,
+		meetAt,
+		nsfwPics,
+		tags,
+	]);
 
 	const activeBrowseFilters = useMemo(() => {
 		const next: Partial<BrowseFilters> = {};

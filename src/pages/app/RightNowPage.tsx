@@ -15,8 +15,14 @@ import { formatDistance } from "./gridpage/utils";
 import { cn } from "../../utils/cn";
 import blankProfileImage from "../../images/blank-profile.png";
 import { sexualPositionLabels } from "../../types/grid";
+import {
+	type RightNowFiltersDraft,
+	type RightNowSortOption,
+	loadRightNowFiltersDraft,
+	saveRightNowFiltersDraft,
+} from "./rightnow-filters-storage";
 
-type SortOption = "DISTANCE" | "RECENCY";
+type SortOption = RightNowSortOption;
 
 const positionFilterOptions = [
 	{ value: "", label: "Any" },
@@ -24,12 +30,6 @@ const positionFilterOptions = [
 		.sort(([left], [right]) => Number(left) - Number(right))
 		.map(([value, label]) => ({ value, label })),
 ];
-
-type RightNowFiltersDraft = {
-	ageMin: number;
-	ageMax: number;
-	positionFilter: string;
-};
 
 function parseFiltersFromLocationState(
 	state: unknown,
@@ -177,15 +177,18 @@ export function RightNowPage() {
 	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
 
 	const [items, setItems] = useState<RightNowFeedItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [sort, setSort] = useState<SortOption>("DISTANCE");
-	const [hostingOnly, setHostingOnly] = useState(false);
-	const [ageMin, setAgeMin] = useState(18);
-	const [ageMax, setAgeMax] = useState(102);
-	const [positionFilter, setPositionFilter] = useState<string>("");
+	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
+	const [hostingOnly, setHostingOnly] = useState(persistedFilters.hostingOnly);
+	const [ageMin, setAgeMin] = useState(persistedFilters.ageMin);
+	const [ageMax, setAgeMax] = useState(persistedFilters.ageMax);
+	const [positionFilter, setPositionFilter] = useState<string>(
+		persistedFilters.positionFilter,
+	);
 
 	const ageLabel = `${ageMin}-${ageMax}${ageMax >= 102 ? "+" : ""}`;
 	const activePositionFilter =
@@ -207,6 +210,16 @@ export function RightNowPage() {
 		setAgeMax(next.ageMax);
 		setPositionFilter(next.positionFilter);
 	}, [location.key, location.state]);
+
+	useEffect(() => {
+		saveRightNowFiltersDraft({
+			sort,
+			hostingOnly,
+			ageMin,
+			ageMax,
+			positionFilter,
+		});
+	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
 
 	const isMountedRef = useRef(true);
 	useEffect(() => {
