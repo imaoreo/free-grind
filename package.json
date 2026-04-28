@@ -33,6 +33,7 @@
 		"react-leaflet": "^4.2.1",
 		"react-router-dom": "^7",
 		"tailwindcss": "^4.2.2",
+		"tauri-plugin-hotswap-api": "^0.0.4",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

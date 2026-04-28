@@ -22,6 +22,12 @@
 			"csp": null
 		}
 	},
+	"plugins": {
+		"hotswap": {
+			"endpoint": "https://updates.example.com/api/updates/{{current_sequence}}",
+			"pubkey": "RWRJW9mxbpaZjWQ7RPUHMYHtIPXb5r3uRCxnf/IrVaNHGr70C/MewrYZ"
+		}
+	},
 	"bundle": {
 		"active": true,
 		"targets": "all",

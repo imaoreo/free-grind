@@ -11,8 +11,12 @@ pub fn run() {
     storage::init_keyring();
 
     let client = GrindrClient::new().ok();
+    let context = tauri::generate_context!();
+    let (hotswap, context) =
+        tauri_plugin_hotswap::init(context).expect("failed to initialize hotswap plugin");
 
     tauri::Builder::default()
+        .plugin(hotswap)
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_geolocation::init())
         .plugin(tauri_plugin_fs::init())
@@ -27,6 +31,6 @@ pub fn run() {
             api::auth::websocket_token,
             api::rest::request,
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }

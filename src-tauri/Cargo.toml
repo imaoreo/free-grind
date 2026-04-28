@@ -34,6 +34,7 @@ rmp-serde = "1.3.1"
 serde_bytes = "0.11"
 tauri-plugin-geolocation = "2"
 tauri-plugin-os = "2"
+tauri-plugin-hotswap = "0.0.4"
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-native-keyring-store = "0.5.0"
