@@ -21,6 +21,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states
 import { useAuth } from "../../contexts/AuthContext";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import blankProfileImage from "../../images/blank-profile.png";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -537,7 +538,7 @@ export function SharedAlbumsPage() {
 								null;
 							const avatarUrl = item.profileMediaHash
 								? getThumbImageUrl(item.profileMediaHash, "320x320")
-								: null;
+								: blankProfileImage;
 
 							return (
 								<button

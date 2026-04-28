@@ -6,7 +6,8 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import type { ConversationEntry } from "../../types/messages";
 import type { ProfileSearchResult, SearchMode } from "../../types/chat-page";
-import { getProfileImageUrl } from "../../utils/media";
+import { getProfileImageUrl, validateMediaHash } from "../../utils/media";
+import blankProfileImage from "../../images/blank-profile.png";
 import {
 	indexConversations,
 	searchConversationsLocal,
@@ -75,6 +76,14 @@ export function ChatSearchPage() {
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
 		[searchQuery],
 	);
+
+	const getSearchProfileImage = useCallback((hash: string | null | undefined) => {
+		if (!hash || !validateMediaHash(hash)) {
+			return blankProfileImage;
+		}
+
+		return getProfileImageUrl(hash);
+	}, []);
 
 	useEffect(() => {
 		indexConversations(conversations);
@@ -427,13 +436,11 @@ export function ChatSearchPage() {
 												className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 											>
 												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-													{profile.profileImageMediaHash ? (
-														<img
-															src={getProfileImageUrl(profile.profileImageMediaHash)}
-															alt=""
-															className="h-full w-full object-cover"
-														/>
-													) : null}
+													<img
+														src={getSearchProfileImage(profile.profileImageMediaHash)}
+														alt={profile.displayName || "Profile"}
+														className="h-full w-full object-cover"
+													/>
 												</div>
 												<div className="min-w-0 flex-1">
 													<p className="truncate text-sm font-semibold">
