@@ -4,13 +4,13 @@
 
 <p align="center">
   <a href="https://discord.gg/cJqTaWPMFF"><img src="https://img.shields.io/discord/1496182396033175823?label=Discord&logo=discord" alt="Discord"></a>
-  <a href="https://t.me/opengrind"><img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram"></a>
-  <a href="https://github.com/kezza2k7/open-grind/releases"><img src="https://img.shields.io/github/v/release/kezza2k7/open-grind?logo=github&label=Release" alt="Latest Release"></a>
+  <a href="https://t.me/fre-grind"><img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram"></a>
+  <a href="https://github.com/kezza2k7/free-grind/releases"><img src="https://img.shields.io/github/v/release/kezza2k7/free-grind?logo=github&label=Release" alt="Latest Release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Personal%20Use-blue" alt="License"></a>
-  <a href="https://github.com/kezza2k7/open-grind/issues"><img src="https://img.shields.io/github/issues/kezza2k7/open-grind?label=Issues" alt="Issues"></a>
+  <a href="https://github.com/kezza2k7/free-grind/issues"><img src="https://img.shields.io/github/issues/kezza2k7/free-grind?label=Issues" alt="Issues"></a>
 </p>
 
-<h1 align="center">Open Grind</h1>
+<h1 align="center">Free Grind</h1>
 
 <p align="center">
 An unofficial, cross-platform Grindr client — free, libre, ad-free, tracker-free, and community-driven.
@@ -18,7 +18,7 @@ An unofficial, cross-platform Grindr client — free, libre, ad-free, tracker-fr
 
 ## Introduction
 
-Open Grind is a fully independent Grindr client built with [Tauri](https://tauri.app/) and React, running the same codebase on Windows, Linux, macOS, Android, and iOS. It is not a mod or patch of the official app — it communicates directly with the Grindr API as a native client.
+Free Grind is a fully independent Grindr client built with [Tauri](https://tauri.app/) and React, running the same codebase on Windows, Linux, macOS, Android, and iOS. It is not a mod or patch of the official app — it communicates directly with the Grindr API as a native client.
 
 The goal is to provide a privacy-respecting, open, and extensible alternative to the official client, without ads, trackers, or forced upsells.
 
@@ -34,7 +34,7 @@ Open Grind does not collect personal data, display ads, or generate revenue of a
 
 ## Downloads
 
-- Download the latest stable release from the [releases page](https://github.com/kezza2k7/open-grind/releases).
+- Download the latest stable release from the [releases page](https://github.com/kezza2k7/free-grind/releases).
 - You can build the latest version yourself by following the [Development](#development) guide below.
 
 ## Features
@@ -88,7 +88,7 @@ Open Grind does not collect personal data, display ads, or generate revenue of a
 - **Profile fields**: Some server-side fields are undocumented and may display incorrectly.
 
 > [!TIP]
-> Before reporting a bug, check the [issues](https://github.com/kezza2k7/open-grind/issues) page to see if it's already known.
+> Before reporting a bug, check the [issues](https://github.com/kezza2k7/free-grind/issues) page to see if it's already known.
 
 ## Development
 
@@ -115,18 +115,18 @@ The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) a
 <details>
   <summary>Why isn't feature X implemented yet?</summary>
 
-  Open Grind is community-driven and under active development. Check the [ROADMAP.md](./ROADMAP.md) for planned features, or open a [feature request](https://github.com/kezza2k7/open-grind/issues).
+  Free Grind is community-driven and under active development. Check the [ROADMAP.md](./ROADMAP.md) for planned features, or open a [feature request](https://github.com/kezza2k7/free-grind/issues).
 </details>
 
 <details>
   <summary>Where is the API documentation?</summary>
 
-  The Grindr API reference is maintained in this repo under [`docs/content/grindr-api/`](./docs/content/grindr-api/) and hosted at [opengrind.imaoreo.dev](https://opengrind.imaoreo.dev).
+  The Grindr API reference is maintained in this repo under [`docs/content/grindr-api/`](./docs/content/grindr-api/) and hosted at [freegrind.imaoreo.dev](https://freegrind.imaoreo.dev).
 </details>
 
 ## Contributing
 
-This project is open to all kinds of contributions — code, documentation, bug reports, and reverse engineering. Feel free to [open a pull request](https://github.com/kezza2k7/open-grind/pulls) or [submit an issue](https://github.com/kezza2k7/open-grind/issues).
+This project is open to all kinds of contributions — code, documentation, bug reports, and reverse engineering. Feel free to [open a pull request](https://github.com/kezza2k7/free-grind/pulls) or [submit an issue](https://github.com/kezza2k7/free-grind/issues).
 
 ## Donate
 

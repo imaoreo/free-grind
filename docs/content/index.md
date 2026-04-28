@@ -15,7 +15,7 @@ hero:
       link: /grindr-api/
     - theme: alt
       text: Source code
-      link: https://github.com/kezza2k7/open-grind
+      link: https://github.com/kezza2k7/free-grind
 
 features:
   - title: User Guides

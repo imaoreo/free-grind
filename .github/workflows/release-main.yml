@@ -142,7 +142,7 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           mkdir -p src-tauri/certs
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/certs/open-grind-dev.jks
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/certs/free-grind-dev.jks
 
       - name: Build Android APK
         run: bunx tauri android build --apk

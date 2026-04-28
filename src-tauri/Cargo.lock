@@ -1074,6 +1074,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "free-grind"
+version = "0.1.0"
+dependencies = [
+ "android-native-keyring-store",
+ "apple-native-keyring-store",
+ "chrono",
+ "jsonwebtoken",
+ "keyring-core",
+ "linux-keyutils-keyring-store",
+ "rand 0.10.1",
+ "reqwest 0.12.28",
+ "rmp-serde",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-fs",
+ "tauri-plugin-geolocation",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tokio",
+ "uuid",
+ "windows-native-keyring-store",
+]
+
+[[package]]
 name = "futf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2549,33 +2576,6 @@ dependencies = [
  "is-wsl",
  "libc",
  "pathdiff",
-]
-
-[[package]]
-name = "open-grind"
-version = "0.1.0"
-dependencies = [
- "android-native-keyring-store",
- "apple-native-keyring-store",
- "chrono",
- "jsonwebtoken",
- "keyring-core",
- "linux-keyutils-keyring-store",
- "rand 0.10.1",
- "reqwest 0.12.28",
- "rmp-serde",
- "serde",
- "serde_bytes",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-fs",
- "tauri-plugin-geolocation",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tokio",
- "uuid",
- "windows-native-keyring-store",
 ]
 
 [[package]]

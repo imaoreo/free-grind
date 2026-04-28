@@ -1,5 +1,5 @@
 [package]
-name = "open-grind"
+name = "free-grind"
 version = "0.1.0"
 description = "FLOSS Grindr client"
 authors = ["Jay Brammeld <jay@imaoreo.dev>"]

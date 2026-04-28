@@ -113,7 +113,7 @@ impl AuthStorage {
         Ok(PathBuf::from(home)
             .join("Library")
             .join("Application Support")
-            .join("open-grind")
+            .join("free-grind")
             .join("dev-session.msgpack"))
     }
 
@@ -177,7 +177,7 @@ impl AuthStorage {
 
     #[cfg(not(all(target_os = "macos", debug_assertions)))]
     fn get_session_entry() -> Result<Entry, AppError> {
-        Entry::new("open-grind", "session").map_err(|e| AppError::Auth(e.to_string()))
+        Entry::new("free-grind", "session").map_err(|e| AppError::Auth(e.to_string()))
     }
 
     #[cfg(not(all(target_os = "macos", debug_assertions)))]

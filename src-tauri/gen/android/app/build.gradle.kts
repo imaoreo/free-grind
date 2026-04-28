@@ -26,7 +26,7 @@ android {
     }
     signingConfigs {
         create("release") {
-            storeFile = file("../../../../src-tauri/certs/open-grind-dev.jks")
+            storeFile = file("../../../../src-tauri/certs/free-grind-dev.jks")
             storePassword = "opengrind"
             keyAlias = "opengrind"
             keyPassword = "opengrind"

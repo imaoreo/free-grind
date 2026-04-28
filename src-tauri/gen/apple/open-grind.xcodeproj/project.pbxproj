@@ -100,13 +100,13 @@
 			path = "open-grind_iOS";
 			sourceTree = "<group>";
 		};
-		8DE7CFF9B84691435B68979F /* open-grind */ = {
+		8DE7CFF9B84691435B68979F /* free-grind */ = {
 			isa = PBXGroup;
 			children = (
 				24921155B146EBBBD04774DF /* main.mm */,
 				ACB269354C4450E320349E84 /* bindings */,
 			);
-			path = "open-grind";
+			path = "free-grind";
 			sourceTree = "<group>";
 		};
 		A580F83FF8A0E72B51B72187 /* src */ = {
@@ -134,7 +134,7 @@
 		BB86D2C0635C1590D2B98330 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
-				8DE7CFF9B84691435B68979F /* open-grind */,
+				8DE7CFF9B84691435B68979F /* free-grind */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -208,7 +208,7 @@
 				TargetAttributes = {
 				};
 			};
-			buildConfigurationList = BBE881C91C0C48A110028F09 /* Build configuration list for PBXProject "open-grind" */;
+			buildConfigurationList = BBE881C91C0C48A110028F09 /* Build configuration list for PBXProject "free-grind" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -299,7 +299,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.estopia.open-grind;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.estopia.free-grind;
 				PRODUCT_NAME = "Open Grind";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -330,7 +330,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = dev.estopia.open-grind;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.estopia.free-grind;
 				PRODUCT_NAME = "Open Grind";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -460,7 +460,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		BBE881C91C0C48A110028F09 /* Build configuration list for PBXProject "open-grind" */ = {
+		BBE881C91C0C48A110028F09 /* Build configuration list for PBXProject "free-grind" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				DF68DDCB784246FEF16EB628 /* debug */,

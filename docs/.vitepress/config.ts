@@ -39,7 +39,7 @@ export default defineConfig({
 					text: "User guide",
 					items: [
 						{ text: "Overview", link: "/guide/" },
-						{ text: "Why Open Grind", link: "/guide/why-open-grind" },
+						{ text: "Why Open Grind", link: "/guide/why-free-grind" },
 						{ text: "Download", link: "/guide/download" },
 						{ text: "Login", link: "/guide/login" },
 						{ text: "Getting Started", link: "/guide/getting-started" },
@@ -59,7 +59,7 @@ export default defineConfig({
 		},
 
 		socialLinks: [
-			{ icon: "github", link: "https://github.com/kezza2k7/open-grind" },
+			{ icon: "github", link: "https://github.com/kezza2k7/free-grind" },
 			{ icon: "discord", link: "https://discord.gg/cJqTaWPMFF" },
 			{
 				icon: {
@@ -72,7 +72,7 @@ export default defineConfig({
 		footer: {
 			message: "Open Grind is not affiliated with Grindr in any way.",
 			copyright:
-				'Licensed under the <a href="https://github.com/kezza2k7/open-grind/blob/main/LICENSE">Personal Use Licence</a>.',
+				'Licensed under the <a href="https://github.com/kezza2k7/free-grind/blob/main/LICENSE">Personal Use Licence</a>.',
 		},
 	},
 });

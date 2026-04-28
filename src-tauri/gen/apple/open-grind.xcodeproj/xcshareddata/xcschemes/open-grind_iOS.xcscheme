@@ -17,7 +17,7 @@
                BlueprintIdentifier = "7E14D82AB29A8C7225C618E6"
                BuildableName = "Open Grind.app"
                BlueprintName = "open-grind_iOS"
-               ReferencedContainer = "container:open-grind.xcodeproj">
+               ReferencedContainer = "container:free-grind.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,7 +33,7 @@
             BlueprintIdentifier = "7E14D82AB29A8C7225C618E6"
             BuildableName = "Open Grind.app"
             BlueprintName = "open-grind_iOS"
-            ReferencedContainer = "container:open-grind.xcodeproj">
+            ReferencedContainer = "container:free-grind.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <EnvironmentVariables>
@@ -68,7 +68,7 @@
             BlueprintIdentifier = "7E14D82AB29A8C7225C618E6"
             BuildableName = "Open Grind.app"
             BlueprintName = "open-grind_iOS"
-            ReferencedContainer = "container:open-grind.xcodeproj">
+            ReferencedContainer = "container:free-grind.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
@@ -97,7 +97,7 @@
             BlueprintIdentifier = "7E14D82AB29A8C7225C618E6"
             BuildableName = "Open Grind.app"
             BlueprintName = "open-grind_iOS"
-            ReferencedContainer = "container:open-grind.xcodeproj">
+            ReferencedContainer = "container:free-grind.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>

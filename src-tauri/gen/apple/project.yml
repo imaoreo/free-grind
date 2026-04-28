@@ -1,6 +1,6 @@
-name: open-grind
+name: free-grind
 options:
-  bundleIdPrefix: dev.estopia.open-grind
+  bundleIdPrefix: dev.estopia.free-grind
   deploymentTarget:
     iOS: 14.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: Open Grind
-      PRODUCT_BUNDLE_IDENTIFIER: dev.estopia.open-grind
+      PRODUCT_BUNDLE_IDENTIFIER: dev.estopia.free-grind
 targetTemplates:
   app:
     type: application

@@ -10,7 +10,7 @@ Use these guides to get set up, send messages, share media, and troubleshoot com
 
 ## Start here
 
-- [Why Open Grind](/guide/why-open-grind)
+- [Why Open Grind](/guide/why-free-grind)
 - [Download](/guide/download)
 - [Getting Started](/guide/getting-started)
 

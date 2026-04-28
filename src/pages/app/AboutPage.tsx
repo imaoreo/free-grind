@@ -21,14 +21,14 @@ const resourceLinks = [
 	},
 	{
 		title: "Source Code",
-		href: "https://github.com/kezza2k7/open-grind",
+		href: "https://github.com/kezza2k7/free-grind",
 		description: "Track progress, inspect the code, and follow releases.",
 		icon: GitBranch,
 		external: true,
 	},
 	{
 		title: "Contributing",
-		href: "https://github.com/kezza2k7/open-grind/blob/main/CONTRIBUTING.md",
+		href: "https://github.com/kezza2k7/free-grind/blob/main/CONTRIBUTING.md",
 		description:
 			"Project structure, contribution rules, and collaboration notes.",
 		icon: HeartHandshake,
@@ -36,7 +36,7 @@ const resourceLinks = [
 	},
 	{
 		title: "Licence",
-		href: "https://github.com/kezza2k7/open-grind/blob/main/LICENSE",
+		href: "https://github.com/kezza2k7/free-grind/blob/main/LICENSE",
 		description: "Personal-use licence and attribution requirements.",
 		icon: FileText,
 		external: true,
