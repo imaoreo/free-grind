@@ -708,7 +708,7 @@ export function ProfileDetailsModal({
 			onClick={handleBackdropClose}
 		>
 			<div
-				className="surface-card max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl"
+				className="surface-card flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100dvh-8rem)]"
 				onClick={(event) => event.stopPropagation()}
 			>
 				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
@@ -728,7 +728,7 @@ export function ProfileDetailsModal({
 					</button>
 				</div>
 
-				<div className="max-h-[80vh] overflow-y-auto p-4 sm:p-5">
+				<div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] sm:p-5 sm:pb-6">
 					{isLoadingActiveProfile ? (
 						<p className="text-sm text-[var(--text-muted)]">
 							Loading profile details...
@@ -791,6 +791,18 @@ export function ProfileDetailsModal({
 										<p>Distance: {formatDistance(profileDistance)}</p>
 									</div>
 								</div>
+								{messageProfileId && onMessageProfile ? (
+									<div className="mt-3">
+										<button
+											type="button"
+											onClick={() => onMessageProfile(messageProfileId)}
+											className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+										>
+											<MessageCircle className="h-4 w-4" />
+											Message
+										</button>
+									</div>
+								) : null}
 							</div>
 
 							<div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
