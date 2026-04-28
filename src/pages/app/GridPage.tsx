@@ -2,7 +2,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { MapPin, SlidersHorizontal } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
@@ -74,6 +74,9 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 export function GridPage() {
+	const PULL_REFRESH_THRESHOLD_PX = 72;
+	const MAX_PULL_DISTANCE_PX = 120;
+
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const {
@@ -115,6 +118,17 @@ export function GridPage() {
 	const [meetAt, setMeetAt] = useState<number[]>([]);
 	const [nsfwPics, setNsfwPics] = useState<number[]>([]);
 	const [tags, setTags] = useState<string[]>([]);
+	const [pullDistance, setPullDistance] = useState(0);
+	const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+	const touchStartYRef = useRef<number | null>(null);
+	const isPullingRef = useRef(false);
+	const isMountedRef = useRef(true);
+
+	useEffect(() => {
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
@@ -377,35 +391,44 @@ export function GridPage() {
 		return `${geohash}:${filtersKey}`;
 	}, [browseRequestFilters, geohash]);
 
-	useEffect(() => {
-		let cancelled = false;
-
-		const loadBrowseCards = async (page?: number) => {
+	const loadBrowseCards = useCallback(
+		async ({
+			page,
+			preferCache = true,
+			showLoadingState = true,
+		}: {
+			page?: number;
+			preferCache?: boolean;
+			showLoadingState?: boolean;
+		} = {}) => {
 			if (isLoadingPreferences) {
 				return;
 			}
 
 			if (!geohash) {
-				if (!cancelled) {
-					setIsLoadingCards(true);
-					setCards([]);
-					setCardsError(
-						"Tap the location pin (📍) button above to set your location.",
-					);
-					setIsLoadingCards(false);
+				if (!isMountedRef.current) {
+					return;
 				}
+				setIsLoadingCards(true);
+				setCards([]);
+				setCardsError(
+					"Tap the location pin (📍) button above to set your location.",
+				);
+				setIsLoadingCards(false);
 				return;
 			}
 
-			const cachedCards = getCachedBrowseCards(browseCacheKey);
+			const cachedCards = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
+			if (!isMountedRef.current) {
+				return;
+			}
+
 			setCardsError(null);
 
 			if (cachedCards) {
-				if (!cancelled) {
-					setCards(cachedCards);
-					setIsLoadingCards(false);
-				}
-			} else {
+				setCards(cachedCards);
+				setIsLoadingCards(false);
+			} else if (showLoadingState) {
 				setIsLoadingCards(true);
 			}
 
@@ -416,35 +439,42 @@ export function GridPage() {
 					filters: browseRequestFilters,
 				});
 
-				if (!cancelled) {
-					setCards(parsed.cards);
-					setCachedBrowseCards(browseCacheKey, parsed.cards);
-					setNextPage(parsed.nextPage ?? null);
+				if (!isMountedRef.current) {
+					return;
 				}
+
+				setCards(parsed.cards);
+				setCachedBrowseCards(browseCacheKey, parsed.cards);
+				setNextPage(parsed.nextPage ?? null);
 			} catch (error) {
-				if (!cancelled) {
-					if (!cachedCards) {
-						setCards([]);
-						setCardsError(
-							error instanceof Error
-								? error.message
-								: "Failed to load browse profiles",
-						);
-					}
+				if (!isMountedRef.current) {
+					return;
+				}
+
+				if (!cachedCards) {
+					setCards([]);
+					setCardsError(
+						error instanceof Error
+							? error.message
+							: "Failed to load browse profiles",
+					);
 				}
 			} finally {
-				if (!cancelled) {
+				if (!isMountedRef.current) {
+					return;
+				}
+
+				if (showLoadingState) {
 					setIsLoadingCards(false);
 				}
 			}
-		};
+		},
+		[apiFunctions, geohash, isLoadingPreferences, browseCacheKey, browseRequestFilters],
+	);
 
+	useEffect(() => {
 		void loadBrowseCards();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [apiFunctions, geohash, isLoadingPreferences, browseCacheKey, browseRequestFilters]);
+	}, [loadBrowseCards]);
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
@@ -466,6 +496,68 @@ export function GridPage() {
 			if (!cancelled) setIsLoadingMoreCards(false);
 		}
 	};
+
+	const handlePullRefresh = useCallback(() => {
+		if (isLoadingCards || isLoadingMoreCards || isPullRefreshing) {
+			return;
+		}
+
+		setIsPullRefreshing(true);
+		void loadBrowseCards({ preferCache: false, showLoadingState: false }).finally(
+			() => {
+				if (!isMountedRef.current) {
+					return;
+				}
+				setIsPullRefreshing(false);
+			},
+		);
+	}, [isLoadingCards, isLoadingMoreCards, isPullRefreshing, loadBrowseCards]);
+
+	const handlePageTouchStart = useCallback(
+		(event: React.TouchEvent<HTMLElement>) => {
+			if (window.scrollY > 0 || isLoadingCards || isPullRefreshing) {
+				touchStartYRef.current = null;
+				isPullingRef.current = false;
+				return;
+			}
+
+			touchStartYRef.current = event.touches[0]?.clientY ?? null;
+			isPullingRef.current = touchStartYRef.current !== null;
+		},
+		[isLoadingCards, isPullRefreshing],
+	);
+
+	const handlePageTouchMove = useCallback((event: React.TouchEvent<HTMLElement>) => {
+		if (!isPullingRef.current) {
+			return;
+		}
+
+		const startY = touchStartYRef.current;
+		if (startY == null) {
+			return;
+		}
+
+		const currentY = event.touches[0]?.clientY ?? startY;
+		const delta = currentY - startY;
+
+		if (delta <= 0) {
+			setPullDistance(0);
+			return;
+		}
+
+		event.preventDefault();
+		setPullDistance(Math.min(MAX_PULL_DISTANCE_PX, delta * 0.55));
+	}, []);
+
+	const handlePageTouchEnd = useCallback(() => {
+		if (pullDistance >= PULL_REFRESH_THRESHOLD_PX) {
+			handlePullRefresh();
+		}
+
+		touchStartYRef.current = null;
+		isPullingRef.current = false;
+		setPullDistance(0);
+	}, [handlePullRefresh, pullDistance]);
 
 	const clearBrowseFilters = () => {
 		setBrowseFilters(defaultBrowseFilters);
@@ -604,7 +696,27 @@ export function GridPage() {
 
 	return (
 		/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */
-		<section className="app-screen overflow-x-hidden !px-0" style={{ width: "100%" }}>
+		<section
+			className="app-screen overflow-x-hidden !px-0"
+			style={{ width: "100%" }}
+			onTouchStart={handlePageTouchStart}
+			onTouchMove={handlePageTouchMove}
+			onTouchEnd={handlePageTouchEnd}
+			onTouchCancel={handlePageTouchEnd}
+		>
+			{(pullDistance > 0 || isPullRefreshing) && (
+				<div
+					className="w-full flex items-center justify-center overflow-hidden text-xs font-medium text-[var(--text-muted)]"
+					style={{ height: `${Math.max(20, pullDistance)}px` }}
+				>
+					{isPullRefreshing
+						? "Refreshing feed..."
+						: pullDistance >= PULL_REFRESH_THRESHOLD_PX
+							? "Release to refresh"
+							: "Pull to refresh"}
+				</div>
+			)}
+
 			{/* Re-applying the standard app padding via --app-px only to the header container */}
 			<div className="w-full px-[var(--app-px)]">
 				<header className="mb-6 px-4">
