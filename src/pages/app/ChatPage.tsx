@@ -1181,11 +1181,36 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
+				const localMessages = await chatLog.readLog(conversationId);
+				const localMessageMap = new Map(
+					localMessages.map((message) => [message.messageId, message] as const),
+				);
+				const responseMessages = response.messages.map((message) => {
+					const localMessage = localMessageMap.get(message.messageId);
+					const localBody =
+						localMessage?.body && typeof localMessage.body === "object"
+							? (localMessage.body as Record<string, unknown>)
+							: null;
+					const currentBody =
+						message.body && typeof message.body === "object"
+							? (message.body as Record<string, unknown>)
+							: null;
+
+					if (!localBody?.url || currentBody?.url) {
+						return message;
+					}
+
+					return {
+						...message,
+						body: { ...(currentBody ?? {}), url: localBody.url },
+					};
+				});
+
 				// Persist API messages to the local log.
-				void chatLog.appendMessages(conversationId, response.messages);
+				void chatLog.appendMessages(conversationId, responseMessages);
 
 				if (!older) {
-					const mediaIdImageMessages = response.messages.filter((message) => {
+					const mediaIdImageMessages = responseMessages.filter((message) => {
 						const imageType = message.chat1Type?.toLowerCase();
 						const isImageLike =
 							message.type === "Image" ||
@@ -1199,6 +1224,60 @@ export function ChatPage() {
 					});
 
 					if (mediaIdImageMessages.length > 0) {
+						const unresolvedMessageIds = new Set(
+							mediaIdImageMessages.map((message) => message.messageId),
+						);
+
+						void Promise.allSettled(
+							mediaIdImageMessages.map((message) =>
+								service.getMessage({
+									conversationId,
+									messageId: message.messageId,
+								}),
+							),
+						).then((results) => {
+							const hydratedMessages: UiMessage[] = [];
+
+							for (let index = 0; index < results.length; index += 1) {
+								const result = results[index];
+								if (result.status !== "fulfilled") {
+									continue;
+								}
+
+								const hydrated = result.value as UiMessage;
+								if (!getMessageImageUrl(hydrated)) {
+									continue;
+								}
+
+								hydratedMessages.push(hydrated);
+								unresolvedMessageIds.delete(hydrated.messageId);
+							}
+
+							if (hydratedMessages.length > 0) {
+								void chatLog.appendMessages(conversationId, hydratedMessages);
+
+								setThreadMessages((previous) => {
+									const map = new Map<string, UiMessage>();
+									for (const message of previous) {
+										map.set(message.messageId, message);
+									}
+									for (const message of hydratedMessages) {
+										map.set(message.messageId, message);
+									}
+									return [...map.values()].sort(
+										(a, b) => a.timestamp - b.timestamp,
+									);
+								});
+							}
+
+							const fallbackMessages = mediaIdImageMessages.filter((message) =>
+								unresolvedMessageIds.has(message.messageId),
+							);
+
+							if (fallbackMessages.length === 0) {
+								return;
+							}
+
 						void service
 							.getSharedConversationImages(conversationId)
 							.then((sharedImages) => {
@@ -1208,7 +1287,7 @@ export function ChatPage() {
 								}
 
 								const hydratedMessages: UiMessage[] = [];
-								for (const message of mediaIdImageMessages) {
+								for (const message of fallbackMessages) {
 									const mediaId = getMessageMediaId(message as UiMessage);
 									if (mediaId == null) continue;
 									const url = sharedImageMap.get(mediaId);
@@ -1241,6 +1320,7 @@ export function ChatPage() {
 							.catch(() => {
 								// Best effort only.
 							});
+						});
 					}
 				}
 
@@ -1248,7 +1328,7 @@ export function ChatPage() {
 					const map = new Map<string, UiMessage>();
 					if (older) {
 						// Older messages prepended; keep existing (including any local-only).
-						for (const message of response.messages)
+						for (const message of responseMessages)
 							map.set(message.messageId, message);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
@@ -1262,7 +1342,7 @@ export function ChatPage() {
 								map.set(message.messageId, message);
 							}
 						}
-						for (const message of response.messages)
+						for (const message of responseMessages)
 							map.set(message.messageId, message);
 					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
