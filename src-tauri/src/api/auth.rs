@@ -111,8 +111,7 @@ impl AuthStorage {
             .or_else(|| std::env::var_os("LOCALAPPDATA"))
             .ok_or_else(|| {
                 AppError::Auth(
-                    "APPDATA and LOCALAPPDATA are not set; cannot resolve session path"
-                        .to_owned(),
+                    "APPDATA and LOCALAPPDATA are not set; cannot resolve session path".to_owned(),
                 )
             })?;
 
