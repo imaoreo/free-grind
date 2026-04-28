@@ -685,6 +685,8 @@ export function ChatPage() {
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
 	);
+	const messageLongPressTimeoutRef = useRef<number | null>(null);
+	const messageLongPressTriggeredRef = useRef(false);
 	const [isMutatingMessageId, setIsMutatingMessageId] = useState<string | null>(
 		null,
 	);
@@ -711,8 +713,40 @@ export function ChatPage() {
 			if (reactionBurstTimeoutRef.current != null) {
 				window.clearTimeout(reactionBurstTimeoutRef.current);
 			}
+			if (messageLongPressTimeoutRef.current != null) {
+				window.clearTimeout(messageLongPressTimeoutRef.current);
+			}
 		};
 	}, []);
+
+	const clearMessageLongPress = useCallback(() => {
+		if (messageLongPressTimeoutRef.current != null) {
+			window.clearTimeout(messageLongPressTimeoutRef.current);
+			messageLongPressTimeoutRef.current = null;
+		}
+	}, []);
+
+	const startMessageLongPress = useCallback(
+		(messageId: string) => {
+			if (isDesktop || isLocalClientMessageId(messageId)) {
+				return;
+			}
+
+			messageLongPressTriggeredRef.current = false;
+			clearMessageLongPress();
+			messageLongPressTimeoutRef.current = window.setTimeout(() => {
+				messageLongPressTriggeredRef.current = true;
+				setOpenMessageActionId((current) =>
+					current === messageId ? null : messageId,
+				);
+			}, 420);
+		},
+		[clearMessageLongPress, isDesktop],
+	);
+
+	const endMessageLongPress = useCallback(() => {
+		clearMessageLongPress();
+	}, [clearMessageLongPress]);
 
 	const [isAlbumPickerOpen, setIsAlbumPickerOpen] = useState(false);
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
@@ -1695,6 +1729,21 @@ export function ChatPage() {
 				};
 		}
 	}, [realtimeStatus]);
+
+	const selectedActionMessage = useMemo(() => {
+		if (!openMessageActionId) {
+			return null;
+		}
+		return (
+			threadMessages.find((message) => message.messageId === openMessageActionId) ??
+			null
+		);
+	}, [openMessageActionId, threadMessages]);
+
+	const selectedActionMessageMine =
+		selectedActionMessage != null &&
+		userId != null &&
+		Number(selectedActionMessage.senderId) === Number(userId);
 
 	const filteredConversations = conversations;
 
@@ -2941,6 +2990,10 @@ export function ChatPage() {
 									>
 										<div
 											onDoubleClick={() => void handleMessageTap(message)}
+											onTouchStart={() => startMessageLongPress(message.messageId)}
+											onTouchEnd={endMessageLongPress}
+											onTouchCancel={endMessageLongPress}
+											onTouchMove={endMessageLongPress}
 											className={`relative group/bubble max-w-[85%] rounded-2xl text-sm ${
 												isMediaOnlyBubble
 													? "overflow-hidden bg-transparent p-0"
@@ -2959,7 +3012,13 @@ export function ChatPage() {
 											{imageUrl ? (
 												<button
 													type="button"
-													onClick={() => openFullScreenImage(imageUrl)}
+													onClick={() => {
+														if (messageLongPressTriggeredRef.current) {
+															messageLongPressTriggeredRef.current = false;
+															return;
+														}
+														openFullScreenImage(imageUrl);
+													}}
 													className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 												>
 													<div className="relative">
@@ -2983,7 +3042,8 @@ export function ChatPage() {
 																	<span>
 																		{formatMessageTime(message.timestamp, nowTimestamp)}
 																	</span>
-																	{!pending &&
+																	{isDesktop &&
+																	!pending &&
 																	!isLocalClientMessageId(message.messageId) ? (
 																		<button
 																			type="button"
@@ -3009,6 +3069,10 @@ export function ChatPage() {
 												<button
 													type="button"
 													onClick={() => {
+														if (messageLongPressTriggeredRef.current) {
+															messageLongPressTriggeredRef.current = false;
+															return;
+														}
 														if (albumId) {
 															void openAlbumViewerById(albumId);
 														}
@@ -3050,7 +3114,9 @@ export function ChatPage() {
 																<span>
 																	{formatMessageTime(message.timestamp, nowTimestamp)}
 																</span>
-																{!pending && !isLocalClientMessageId(message.messageId) ? (
+																{isDesktop &&
+																!pending &&
+																!isLocalClientMessageId(message.messageId) ? (
 																	<button
 																		type="button"
 																		onClick={(event) => {
@@ -3156,7 +3222,8 @@ export function ChatPage() {
 													<span>
 														{formatMessageTime(message.timestamp, nowTimestamp)}
 													</span>
-													{!pending &&
+													{isDesktop &&
+													!pending &&
 													!isLocalClientMessageId(message.messageId) ? (
 														<button
 															type="button"
@@ -3176,7 +3243,7 @@ export function ChatPage() {
 											</div>
 											) : null}
 
-											{openMessageActionId === message.messageId ? (
+											{isDesktop && openMessageActionId === message.messageId ? (
 												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
 													{mine && !message.unsent ? (
 														<button
@@ -3373,6 +3440,53 @@ export function ChatPage() {
 							</button>
 						</div>
 					</form>
+
+					{!isDesktop && selectedActionMessage ? (
+						<div
+							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+							onClick={() => setOpenMessageActionId(null)}
+						>
+							<div
+								className="w-full max-w-xs rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-3 shadow-2xl"
+								onClick={(event) => event.stopPropagation()}
+							>
+								<p className="px-1 pb-2 text-center text-xs font-medium tracking-wide text-[var(--text-muted)]">
+									Message actions
+								</p>
+								<div className="grid gap-2">
+									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
+										<button
+											type="button"
+											onClick={() => void handleUnsend(selectedActionMessage)}
+											disabled={
+												isMutatingMessageId === selectedActionMessage.messageId
+											}
+											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
+										>
+											Unsend
+										</button>
+									) : null}
+									<button
+										type="button"
+										onClick={() => void handleDelete(selectedActionMessage)}
+										disabled={
+											isMutatingMessageId === selectedActionMessage.messageId
+										}
+										className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
+									>
+										Delete
+									</button>
+									<button
+										type="button"
+										onClick={() => setOpenMessageActionId(null)}
+										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									>
+										Cancel
+									</button>
+								</div>
+							</div>
+						</div>
+					) : null}
 				</>
 			)}
 		</div>
