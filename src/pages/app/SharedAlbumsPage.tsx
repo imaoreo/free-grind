@@ -2,8 +2,6 @@ import {
 	Album,
 	ChevronLeft,
 	ChevronRight,
-	Eye,
-	MessageSquare,
 	RefreshCw,
 	Users,
 	X,
@@ -18,11 +16,14 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
+import { Avatar } from "../../components/ui/avatar";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 
 function getCounterparty(
@@ -53,6 +54,7 @@ function getCounterparty(
 export function SharedAlbumsPage() {
 	const navigate = useNavigate();
 	const { userId } = useAuth();
+	const { mobileGridColumns } = usePreferences();
 	const apiFunctions = useApiFunctions();
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -68,6 +70,7 @@ export function SharedAlbumsPage() {
 	const pageTouchStartXRef = useRef<number | null>(null);
 	const viewerHistoryPushedRef = useRef(false);
 	const fullScreenHistoryPushedRef = useRef(false);
+	const minmaxValue = mobileGridColumns === "2" ? "130px" : "100px";
 
 	const loadSharedAlbums = useCallback(async () => {
 		setError(null);
@@ -75,7 +78,7 @@ export function SharedAlbumsPage() {
 		try {
 			const profileMap = new Map<
 				number,
-				{ profileName: string; conversationId: string | null }
+				{ profileName: string; conversationId: string | null; profileMediaHash: string | null }
 			>();
 			let page = 1;
 			let nextPage: number | null = 1;
@@ -93,6 +96,7 @@ export function SharedAlbumsPage() {
 						profileName:
 							entry.data.name?.trim() || `Profile ${counterparty.profileId}`,
 						conversationId: entry.data.conversationId ?? null,
+						profileMediaHash: counterparty.mediaHash,
 					});
 				}
 
@@ -114,6 +118,11 @@ export function SharedAlbumsPage() {
 				return {
 					profileId: sharedAlbum.ownerProfileId,
 					profileName,
+					profileMediaHash:
+						profileMeta?.profileMediaHash &&
+						validateMediaHash(profileMeta.profileMediaHash)
+							? profileMeta.profileMediaHash
+							: null,
 					conversationId: profileMeta?.conversationId ?? null,
 					album: {
 						albumId: sharedAlbum.albumId,
@@ -514,74 +523,60 @@ export function SharedAlbumsPage() {
 				) : null}
 
 				{!isLoading && !error && items.length > 0 ? (
-					<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					<div
+						className="w-full grid gap-1"
+						style={{
+							gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
+						}}
+					>
 						{items.map((item) => {
 							const previewUrl =
 								item.album.content?.thumbUrl ||
 								item.album.content?.url ||
 								item.album.content?.coverUrl ||
 								null;
-							const imageCount = item.album.contentCount.imageCount;
-							const videoCount = item.album.contentCount.videoCount;
+							const avatarUrl = item.profileMediaHash
+								? getThumbImageUrl(item.profileMediaHash, "320x320")
+								: null;
 
 							return (
-								<div
+								<button
 									key={`${item.profileId}:${item.album.albumId}`}
-									className="surface-card overflow-hidden rounded-2xl"
+									type="button"
+									onClick={() => void openViewer(item.album.albumId)}
+									className="surface-card relative overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-0.5"
 								>
-									<div className="relative aspect-[16/9] w-full bg-[var(--surface-2)]">
+									<div className="relative aspect-[4/6] w-full bg-[var(--surface-2)]">
 										{previewUrl ? (
-											<img
-												src={previewUrl}
-												alt={item.album.albumName ?? "Shared album preview"}
-												className="h-full w-full object-cover"
-											/>
+											<>
+												<img
+													src={previewUrl}
+													alt={item.album.albumName ?? "Shared album preview"}
+													className="h-full w-full scale-110 object-cover blur-xl"
+												/>
+												<div className="absolute inset-0 bg-black/25" />
+											</>
 										) : (
 											<div className="flex h-full w-full items-center justify-center text-[var(--text-muted)]">
 												<Album className="h-8 w-8" />
 											</div>
 										)}
-									</div>
 
-									<div className="grid gap-3 p-4">
-										<div>
-											<p className="text-base font-semibold">
-												{item.album.albumName?.trim() || "Untitled album"}
-											</p>
-											<p className="mt-1 text-sm text-[var(--text-muted)]">
-												Shared by {item.profileName}
-											</p>
-										</div>
-
-										<p className="text-xs text-[var(--text-muted)]">
-											{imageCount} image{imageCount === 1 ? "" : "s"} · {videoCount} video
-											{videoCount === 1 ? "" : "s"}
-										</p>
-
-										<div className="grid gap-2 sm:grid-cols-2">
-											<Button
-												type="button"
-												onClick={() => void openViewer(item.album.albumId)}
-												disabled={isOpeningAlbum}
-												className="w-full"
-											>
-												<Eye className="h-4 w-4" />
-												View Album
-											</Button>
-											{item.conversationId ? (
-												<Button
-													type="button"
-													onClick={() => navigate(`/chat/${item.conversationId}`)}
-													variant="secondary"
-													className="w-full"
-												>
-													<MessageSquare className="h-4 w-4" />
-													Open Chat
-												</Button>
-											) : null}
+										<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
+											<Avatar
+												src={avatarUrl}
+												alt={item.profileName}
+												fallback={item.profileName}
+												className="h-20 w-20 border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm"
+											/>
+											<div className="max-w-full">
+												<p className="truncate text-base font-semibold leading-tight text-white drop-shadow">
+													{item.profileName}
+												</p>
+											</div>
 										</div>
 									</div>
-								</div>
+								</button>
 							);
 						})}
 					</div>

@@ -3,9 +3,10 @@ import type { SharedAlbum } from "./albums";
 export type SharedAlbumItem = {
 	profileId: number;
 	profileName: string;
+	profileMediaHash: string | null;
 	conversationId: string | null;
 	album: SharedAlbum;
-    albumNumber: number;
+	albumNumber: number;
 };
 
 export type AlbumViewer = {
