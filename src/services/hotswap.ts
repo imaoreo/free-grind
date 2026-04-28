@@ -99,6 +99,38 @@ export async function markHotswapStartupReady(): Promise<void> {
 	startupReadyNotified = true;
 }
 
+export async function autoCheckAndInstallUpdate(): Promise<void> {
+	if (!isHotswapAvailable()) {
+		return;
+	}
+
+	try {
+		const result = await checkForHotswapUpdate();
+
+		// Skip if binary update is required (user needs to manually download APK)
+		if (result.requiresBinaryUpdate) {
+			console.log(
+				"[hotswap] Binary update required, skipping auto-install:",
+				result.notes,
+			);
+			return;
+		}
+
+		// Download and cache if update is available
+		// Don't reload - let it apply on next app restart for reliability
+		if (result.available) {
+			console.log("[hotswap] Auto-installing available update...");
+			await installHotswapUpdate();
+            
+            console.log("[hotswap] Applying update immediately...");
+            window.location.reload();
+		}
+	} catch (error) {
+		console.error("[hotswap] Auto-update check failed:", error);
+		// Silently fail - don't interrupt user experience
+	}
+}
+
 export async function setHotswapChannel(channel: HotswapChannel): Promise<void> {
 	currentChannel = channel;
 	window.localStorage.setItem(HOTSWAP_CHANNEL_STORAGE_KEY, channel);
