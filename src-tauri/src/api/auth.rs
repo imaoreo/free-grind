@@ -1,6 +1,7 @@
+#[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
 use keyring_core::Entry;
 use serde::{Deserialize, Serialize};
-#[cfg(all(target_os = "macos", debug_assertions))]
+#[cfg(any(target_os = "windows", all(target_os = "macos", debug_assertions)))]
 use std::path::PathBuf;
 
 use crate::error::AppError;
@@ -104,6 +105,80 @@ fn decode_session_jwt(token: &str) -> Result<JwtClaims, AppError> {
 pub struct AuthStorage;
 
 impl AuthStorage {
+    #[cfg(target_os = "windows")]
+    fn windows_session_file_path() -> Result<PathBuf, AppError> {
+        let app_data = std::env::var_os("APPDATA")
+            .or_else(|| std::env::var_os("LOCALAPPDATA"))
+            .ok_or_else(|| {
+                AppError::Auth(
+                    "APPDATA and LOCALAPPDATA are not set; cannot resolve session path"
+                        .to_owned(),
+                )
+            })?;
+
+        Ok(PathBuf::from(app_data)
+            .join("free-grind")
+            .join("session.msgpack"))
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn get_session() -> Result<Option<Session>, AppError> {
+        let path = Self::windows_session_file_path()?;
+
+        let session_bytes = match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(AppError::Auth(format!(
+                    "Failed to read Windows session from {}: {}",
+                    path.display(),
+                    error
+                )))
+            }
+        };
+
+        rmp_serde::decode::from_slice(&session_bytes)
+            .map_err(|e| AppError::Auth(e.to_string()))
+            .map(Some)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn set_session(session: &Session) -> Result<(), AppError> {
+        let path = Self::windows_session_file_path()?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                AppError::Auth(format!(
+                    "Failed to create Windows session directory {}: {}",
+                    parent.display(),
+                    error
+                ))
+            })?;
+        }
+
+        let session_bytes = rmp_serde::encode::to_vec(session).unwrap();
+        std::fs::write(&path, session_bytes).map_err(|error| {
+            AppError::Auth(format!(
+                "Failed to write Windows session {}: {}",
+                path.display(),
+                error
+            ))
+        })
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn clear_session() -> Result<(), AppError> {
+        let path = Self::windows_session_file_path()?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to clear Windows session {}: {}",
+                path.display(),
+                error
+            ))),
+        }
+    }
+
     #[cfg(all(target_os = "macos", debug_assertions))]
     fn dev_session_file_path() -> Result<PathBuf, AppError> {
         let home = std::env::var("HOME").map_err(|_| {
@@ -175,12 +250,12 @@ impl AuthStorage {
         }
     }
 
-    #[cfg(not(all(target_os = "macos", debug_assertions)))]
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
     fn get_session_entry() -> Result<Entry, AppError> {
         Entry::new("free-grind", "session").map_err(|e| AppError::Auth(e.to_string()))
     }
 
-    #[cfg(not(all(target_os = "macos", debug_assertions)))]
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
     pub fn get_session() -> Result<Option<Session>, AppError> {
         let entry = Self::get_session_entry()?;
         let session_bytes = match entry.get_secret() {
@@ -193,7 +268,7 @@ impl AuthStorage {
             .map(Some)
     }
 
-    #[cfg(not(all(target_os = "macos", debug_assertions)))]
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
     pub fn set_session(session: &Session) -> Result<(), AppError> {
         let session_bytes = rmp_serde::encode::to_vec(session).unwrap();
         Self::get_session_entry()?
@@ -309,7 +384,7 @@ pub async fn refresh_token(state: tauri::State<'_, AppState>) -> Result<LoginRes
 
 #[tauri::command]
 pub async fn logout(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
-    #[cfg(all(target_os = "macos", debug_assertions))]
+    #[cfg(any(target_os = "windows", all(target_os = "macos", debug_assertions)))]
     AuthStorage::clear_session()?;
 
     state
