@@ -1,6 +1,6 @@
 {
 	"name": "open-grind",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"license": "Personal Use License",
 	"author": "Jay Brammeld <jay@imaoreo.dev> (https://imaoreo.dev)",
 	"type": "module",
