@@ -52,6 +52,93 @@ jobs:
             });
             core.setOutput('release_id', String(data.id));
 
+  publish-ota:
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend bundle
+        run: |
+          bun run build
+          tar -czf frontend.tar.gz -C dist .
+
+      - name: Sign OTA bundle
+        env:
+          HOTSWAP_PRIVATE_KEY: ${{ secrets.HOTSWAP_PRIVATE_KEY }}
+        run: |
+          bunx tauri signer sign frontend.tar.gz -k "$HOTSWAP_PRIVATE_KEY"
+
+      - name: Upload OTA bundle to backend
+        id: ota-upload
+        env:
+          OTA_BACKEND_URL: ${{ secrets.OTA_BACKEND_URL }}
+          OTA_BACKEND_TOKEN: ${{ secrets.OTA_BACKEND_TOKEN }}
+        run: |
+          BACKEND_URL="${OTA_BACKEND_URL%/}"
+          OTA_VERSION="$(jq -r '.version' package.json)-ota.${GITHUB_RUN_NUMBER}"
+          RESPONSE=$(curl --fail-with-body -sS -X POST "$BACKEND_URL/api/releases" \
+            -H "Authorization: Bearer $OTA_BACKEND_TOKEN" \
+            -F "channel=main" \
+            -F "platform=all" \
+            -F "arch=all" \
+            -F "version=$OTA_VERSION" \
+            -F "minBinaryVersion=$(jq -r '.version' package.json)" \
+            -F "signature=$(cat frontend.tar.gz.sig)" \
+            -F "notes=Automated OTA upload for ${GITHUB_SHA}" \
+            -F "mandatory=false" \
+            -F "bundleFile=@frontend.tar.gz;type=application/gzip")
+
+          echo "$RESPONSE" > ota-upload-response.json
+          echo "ota_version=$OTA_VERSION" >> "$GITHUB_OUTPUT"
+          echo "ota_sequence=$(jq -r '.sequence' ota-upload-response.json)" >> "$GITHUB_OUTPUT"
+          echo "ota_bundle_url=$(jq -r '.bundle_url' ota-upload-response.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload OTA artifacts to GitHub release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          OTA_VERSION: ${{ steps.ota-upload.outputs.ota_version }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const files = [
+              {
+                path: 'frontend.tar.gz',
+                name: `frontend-${process.env.OTA_VERSION}.tar.gz`,
+                contentType: 'application/gzip'
+              },
+              {
+                path: 'frontend.tar.gz.sig',
+                name: `frontend-${process.env.OTA_VERSION}.tar.gz.sig`,
+                contentType: 'text/plain'
+              }
+            ];
+
+            for (const file of files) {
+              const data = fs.readFileSync(file.path);
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: Number(process.env.RELEASE_ID),
+                name: file.name,
+                data,
+                headers: {
+                  'content-type': file.contentType,
+                  'content-length': data.length
+                }
+              });
+            }
+
   build-desktop:
     needs: create-release
     permissions:
@@ -179,6 +266,7 @@ jobs:
   publish-release:
     needs:
       - create-release
+      - publish-ota
       - build-desktop
       - build-android
     runs-on: ubuntu-latest
