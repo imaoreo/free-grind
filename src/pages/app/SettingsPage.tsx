@@ -227,7 +227,7 @@ export function SettingsPage() {
 							<Info className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">About Open Grind</p>
+							<p className="text-base font-semibold">About Free Grind</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								Project goals, credits, licence, and documentation links.
 							</p>
