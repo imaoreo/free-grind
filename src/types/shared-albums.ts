@@ -5,6 +5,7 @@ export type SharedAlbumItem = {
 	profileName: string;
 	conversationId: string | null;
 	album: SharedAlbum;
+    albumNumber: number;
 };
 
 export type AlbumViewer = {

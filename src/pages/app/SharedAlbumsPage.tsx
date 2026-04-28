@@ -128,15 +128,12 @@ export function SharedAlbumsPage() {
 							videoCount: sharedAlbum.videoCount,
 						},
 					},
+                    albumNumber: sharedAlbum.albumNumber,
 				};
 			});
 
 			nextItems.sort((a, b) => {
-				const profileCompare = a.profileName.localeCompare(b.profileName);
-				if (profileCompare !== 0) {
-					return profileCompare;
-				}
-				return (a.album.albumName ?? "").localeCompare(b.album.albumName ?? "");
+				return a.albumNumber - b.albumNumber;
 			});
 
 			setItems(nextItems);
