@@ -2221,6 +2221,9 @@ export function ChatPage() {
 		const alreadyReactedByUser = message.reactions.some(
 			(reaction) => reaction.profileId === userId && reaction.reactionType === 1,
 		);
+		if (alreadyReactedByUser) {
+			return;
+		}
 
 		const previous = threadMessages;
 		setIsMutatingMessageId(message.messageId);
@@ -2229,16 +2232,6 @@ export function ChatPage() {
 			current.map((item) => {
 				if (item.messageId !== message.messageId) {
 					return item;
-				}
-
-				if (alreadyReactedByUser) {
-					return {
-						...item,
-						reactions: item.reactions.filter(
-							(reaction) =>
-								!(reaction.profileId === userId && reaction.reactionType === 1),
-						),
-					};
 				}
 
 				return {
@@ -2250,24 +2243,20 @@ export function ChatPage() {
 				};
 			}),
 		);
-		if (!alreadyReactedByUser) {
-			triggerReactionBurst(message.messageId);
-		}
+		triggerReactionBurst(message.messageId);
 
 		try {
 			await service.reactToMessage({
 				conversationId: selectedConversation.data.conversationId,
 				messageId: message.messageId,
-				reactionType: alreadyReactedByUser ? 0 : 1,
+				reactionType: 1,
 			});
 		} catch (error) {
 			setThreadMessages(previous);
 			toast.error(
 				error instanceof Error
 					? error.message
-					: alreadyReactedByUser
-						? "Failed to remove reaction"
-						: "Failed to react",
+					: "Failed to react",
 			);
 		} finally {
 			setIsMutatingMessageId(null);
@@ -2885,6 +2874,10 @@ export function ChatPage() {
 								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
+								const messageText = getMessageText(message);
+								const isExpiringImage = message.type === "ExpiringImage";
+								const isImageOnlyBubble =
+									Boolean(imageUrl) && messageText === "Shared an image";
 								const isActiveSearchMatch =
 									selectedThreadMessageMatches[activeThreadSearchIndex]
 										?.messageId === message.messageId;
@@ -2910,10 +2903,14 @@ export function ChatPage() {
 									>
 										<div
 											onDoubleClick={() => void handleMessageTap(message)}
-											className={`relative group/bubble max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-												mine
-													? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-													: "bg-[var(--surface-2)] text-[var(--text)]"
+											className={`relative group/bubble max-w-[85%] rounded-2xl text-sm ${
+												isImageOnlyBubble
+													? "overflow-hidden bg-transparent p-0"
+													: `px-3 py-2 ${
+														mine
+															? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+															: "bg-[var(--surface-2)] text-[var(--text)]"
+													}`
 											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
 										>
 											{localOnly ? (
@@ -2924,14 +2921,49 @@ export function ChatPage() {
 											{imageUrl ? (
 												<button
 													type="button"
-															onClick={() => openFullScreenImage(imageUrl)}
-													className="mb-2 block overflow-hidden rounded-xl border border-black/10"
+													onClick={() => openFullScreenImage(imageUrl)}
+													className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 												>
+													<div className="relative">
 													<img
 														src={imageUrl}
 														alt="Shared"
-														className="max-h-64 w-full object-cover"
+															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
 													/>
+													{isExpiringImage ? (
+														<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
+															1
+														</div>
+													) : null}
+														{isImageOnlyBubble ? (
+															<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
+																<div className="flex items-center gap-2">
+																	{pending ? <span>Sending...</span> : null}
+																	{failed ? <span>Failed</span> : null}
+																</div>
+																<div className="flex items-center gap-2">
+																	<span>
+																		{formatMessageTime(message.timestamp, nowTimestamp)}
+																	</span>
+																	{!pending &&
+																	!isLocalClientMessageId(message.messageId) ? (
+																		<button
+																			type="button"
+																			onClick={(event) => {
+																				event.stopPropagation();
+																				setOpenMessageActionId((current) =>
+																					current === message.messageId ? null : message.messageId,
+																				);
+																			}}
+																			className="rounded-md p-1 hover:bg-white/10"
+																		>
+																			<Ellipsis className="h-3.5 w-3.5" />
+																		</button>
+																	) : null}
+																</div>
+															</div>
+														) : null}
+													</div>
 												</button>
 											) : null}
 
@@ -2988,9 +3020,11 @@ export function ChatPage() {
 												</div>
 											) : null}
 
-											<p className="whitespace-pre-wrap break-words">
-														{getMessageText(message)}
-													</p>
+											{!isImageOnlyBubble ? (
+												<p className="whitespace-pre-wrap break-words">
+													{messageText}
+												</p>
+											) : null}
 
 													{!isLocalClientMessageId(message.messageId) ? (
 												<button
@@ -3011,6 +3045,7 @@ export function ChatPage() {
 												</button>
 											) : null}
 
+											{!isImageOnlyBubble ? (
 											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
 												<div className="flex items-center gap-2">
 													{pending ? <span>Sending...</span> : null}
@@ -3038,6 +3073,7 @@ export function ChatPage() {
 													) : null}
 												</div>
 											</div>
+											) : null}
 
 											{openMessageActionId === message.messageId ? (
 												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
