@@ -15,10 +15,10 @@ val tauriProperties = Properties().apply {
 
 android {
     compileSdk = 36
-    namespace = "dev.estopia.open_grind"
+    namespace = "dev.estopia.free_grind"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "dev.estopia.open_grind"
+        applicationId = "dev.estopia.free_grind"
         minSdk = 24
         targetSdk = 36
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
@@ -26,7 +26,7 @@ android {
     }
     signingConfigs {
         create("release") {
-            storeFile = file("../../../../src-tauri/certs/open-grind-dev.jks")
+            storeFile = file("../../../../src-tauri/certs/free-grind-dev.jks")
             storePassword = "opengrind"
             keyAlias = "opengrind"
             keyPassword = "opengrind"
@@ -45,8 +45,8 @@ android {
             }
         }
         getByName("release") {
-            isMinifyEnabled = true
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
             proguardFiles(
                 *fileTree(".") { include("**/*.pro") }
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
@@ -61,6 +61,8 @@ android {
         buildConfig = true
     }
 }
+
+
 
 rust {
     rootDirRel = "../../../"

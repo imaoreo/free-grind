@@ -1,4 +1,4 @@
-package dev.estopia.open_grind
+package dev.estopia.free_grind
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

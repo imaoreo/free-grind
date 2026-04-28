@@ -11,11 +11,11 @@ export function SignUpPage() {
 		e.preventDefault();
 		setIsLoading(true);
 		try {
-			await openUrl("https://github.com/kezza2k7/open-grind/issues/2");
+			await openUrl("https://github.com/kezza2k7/free-grind/issues/2");
 		} catch (error) {
 			// Web fallback when not running under Tauri
 			window.open(
-				"https://github.com/kezza2k7/open-grind/issues/2",
+				"https://github.com/kezza2k7/free-grind/issues/2",
 				"_blank",
 				"noopener,noreferrer",
 			);

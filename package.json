@@ -1,12 +1,13 @@
 {
-	"name": "open-grind",
-	"version": "0.0.1",
+	"name": "free-grind",
+	"version": "0.0.2",
 	"license": "Personal Use License",
 	"author": "Jay Brammeld <jay@imaoreo.dev> (https://imaoreo.dev)",
 	"type": "module",
 	"scripts": {
 		"docs": "bun run --cwd docs start",
 		"build": "vite build",
+		"ota": "node scripts/publish-ota.mjs",
 		"dev": "bun dev:desktop",
 		"dev:web": "vite dev",
 		"dev:desktop": "tauri dev",
@@ -33,6 +34,7 @@
 		"react-leaflet": "^4.2.1",
 		"react-router-dom": "^7",
 		"tailwindcss": "^4.2.2",
+		"tauri-plugin-hotswap-api": "^0.0.4",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

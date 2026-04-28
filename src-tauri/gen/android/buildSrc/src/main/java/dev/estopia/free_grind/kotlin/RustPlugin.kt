@@ -17,30 +17,13 @@ open class RustPlugin : Plugin<Project> {
     override fun apply(project: Project) = with(project) {
         config = extensions.create("rust", Config::class.java)
 
-        val defaultAbiList = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
-        val abiList = (findProperty("abiList") as? String)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?: defaultAbiList
+        val defaultAbiList = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64");
+        val abiList = (findProperty("abiList") as? String)?.split(',') ?: defaultAbiList
 
-        val defaultArchList = listOf("arm64", "arm", "x86", "x86_64")
-        val archList = (findProperty("archList") as? String)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?: defaultArchList
+        val defaultArchList = listOf("arm64", "arm", "x86", "x86_64");
+        val archList = (findProperty("archList") as? String)?.split(',') ?: defaultArchList
 
-        val defaultTargetsList = listOf("aarch64", "armv7", "i686", "x86_64")
-        val targetsList = (findProperty("targetList") as? String)
-            ?.split(',')
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?: defaultTargetsList
-
-        require(archList.size == targetsList.size) {
-            "archList and targetList must have the same number of values"
-        }
+        val targetsList = (findProperty("targetList") as? String)?.split(',') ?: listOf("aarch64", "armv7", "i686", "x86_64")
 
         extensions.configure<ApplicationExtension> {
             @Suppress("UnstableApiUsage")
@@ -52,11 +35,11 @@ open class RustPlugin : Plugin<Project> {
                         abiFilters += abiList
                     }
                 }
-                archList.forEachIndexed { index, arch ->
+                defaultArchList.forEachIndexed { index, arch ->
                     create(arch) {
                         dimension = "abi"
                         ndk {
-                            abiFilters.add(abiList[index])
+                            abiFilters.add(defaultAbiList[index])
                         }
                     }
                 }

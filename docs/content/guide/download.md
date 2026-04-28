@@ -13,11 +13,11 @@ Open Grind is actively under development.
 
 ## How to get updates
 
-- Download the latest release from the [Releases page](https://github.com/kezza2k7/open-grind/releases).
+- Download the latest release from the [Releases page](https://github.com/kezza2k7/free-grind/releases).
 - Watch the repository for release announcements.
 - Follow project discussions for milestone updates.
 
-Project repository: [Open Grind on GitHub](https://github.com/kezza2k7/open-grind/)
+Project repository: [Open Grind on GitHub](https://github.com/kezza2k7/free-grind/)
 
 ## After download
 

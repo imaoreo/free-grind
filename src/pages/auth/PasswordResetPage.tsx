@@ -30,7 +30,7 @@ export function PasswordResetPage() {
 				type="button"
 				variant="primary"
 				onClick={() => {
-					void openIssueLink("https://github.com/kezza2k7/open-grind/issues/1");
+					void openIssueLink("https://github.com/kezza2k7/free-grind/issues/1");
 				}}
 				className="w-full"
 			>

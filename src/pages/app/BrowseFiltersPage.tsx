@@ -1,6 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { RangeSlider } from "../../components/ui/range-slider";
 import {
 	bodyTypeLabels,
 	lookingForLabels,
@@ -279,7 +280,7 @@ export function BrowseFiltersPage() {
 							key={`${title}-${option.value}`}
 							type="button"
 							onClick={() => onToggle(option.value)}
-							className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+							className={`rounded-full border px-3 py-1 font-medium transition ${
 								isSelected
 									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
@@ -333,7 +334,7 @@ export function BrowseFiltersPage() {
 										key={filter.key}
 										type="button"
 										onClick={() => toggleBrowseFilter(filter.key)}
-										className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+										className={`rounded-full border px-3 py-1 font-medium transition ${
 											active
 												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 												: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
@@ -346,59 +347,50 @@ export function BrowseFiltersPage() {
 						</div>
 					</div>
 
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-						<input
-							type="number"
-							inputMode="numeric"
+					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+						<RangeSlider
+							label="Age"
 							min={18}
-							placeholder="Age min"
-							value={ageMin}
-							onChange={(event) => setAgeMin(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
+							max={99}
+							minDefault={ageMin ? Number(ageMin) : 18}
+							maxDefault={ageMax ? Number(ageMax) : 99}
+							onChange={(min, max) => {
+								setAgeMin(min === 18 ? "" : String(min));
+								setAgeMax(max === 99 ? "" : String(max));
+							}}
 						/>
-						<input
-							type="number"
-							inputMode="numeric"
-							min={18}
-							placeholder="Age max"
-							value={ageMax}
-							onChange={(event) => setAgeMax(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
+						<RangeSlider
+							label="Height"
+							unit="cm"
+							min={90}
+							max={230}
+							minDefault={heightCmMin ? Number(heightCmMin) : 90}
+							maxDefault={heightCmMax ? Number(heightCmMax) : 230}
+							onChange={(min, max) => {
+								setHeightCmMin(min === 90 ? "" : String(min));
+								setHeightCmMax(max === 230 ? "" : String(max));
+							}}
 						/>
-						<input
-							type="number"
-							inputMode="decimal"
-							placeholder="Height cm min"
-							value={heightCmMin}
-							onChange={(event) => setHeightCmMin(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
-						/>
-						<input
-							type="number"
-							inputMode="decimal"
-							placeholder="Height cm max"
-							value={heightCmMax}
-							onChange={(event) => setHeightCmMax(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
-						/>
-						<input
-							type="number"
-							inputMode="decimal"
-							placeholder="Weight g min"
-							value={weightGramsMin}
-							onChange={(event) => setWeightGramsMin(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
-						/>
-						<input
-							type="number"
-							inputMode="decimal"
-							placeholder="Weight g max"
-							value={weightGramsMax}
-							onChange={(event) => setWeightGramsMax(event.target.value)}
-							className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
+						<RangeSlider
+							label="Weight"
+							unit="kg"
+							min={30}
+							max={200}
+							minDefault={weightGramsMin ? Math.round(Number(weightGramsMin) / 1000) : 30}
+							maxDefault={weightGramsMax ? Math.round(Number(weightGramsMax) / 1000) : 200}
+							onChange={(min, max) => {
+								setWeightGramsMin(min === 30 ? "" : String(min * 1000));
+								setWeightGramsMax(max === 200 ? "" : String(max * 1000));
+							}}
 						/>
 					</div>
 
+					{renderMultiSelectGroup(
+						"Sexual position",
+						sexualPositionFilterOptions,
+						sexualPositions,
+						(value) => toggleMultiSelect(value, setSexualPositions),
+					)}
 					{renderMultiSelectGroup("Tribes", tribeFilterOptions, tribes, (value) =>
 						toggleMultiSelect(value, setTribes),
 					)}
@@ -416,12 +408,6 @@ export function BrowseFiltersPage() {
 					)}
 					{renderMultiSelectGroup("Body type", bodyTypeFilterOptions, bodyTypes, (value) =>
 						toggleMultiSelect(value, setBodyTypes),
-					)}
-					{renderMultiSelectGroup(
-						"Sexual position",
-						sexualPositionFilterOptions,
-						sexualPositions,
-						(value) => toggleMultiSelect(value, setSexualPositions),
 					)}
 					{renderMultiSelectGroup("Meet at", meetAtFilterOptions, meetAt, (value) =>
 						toggleMultiSelect(value, setMeetAt),

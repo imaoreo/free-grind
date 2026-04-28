@@ -4,14 +4,14 @@ export function formatDistance(
 	distanceMeters: number | null | undefined,
 ): string {
 	if (distanceMeters == null || !Number.isFinite(distanceMeters)) {
-		return "Distance hidden";
+		return "hidden";
 	}
 
 	if (distanceMeters < 1000) {
-		return `${Math.max(0, Math.round(distanceMeters))} m away`;
+		return `${Math.max(0, Math.round(distanceMeters))} m`;
 	}
 
-	return `${(distanceMeters / 1000).toFixed(1)} km away`;
+	return `${(distanceMeters / 1000).toFixed(1)} km`;
 }
 
 export function isCurrentlyOnline(
