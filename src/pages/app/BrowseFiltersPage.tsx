@@ -355,8 +355,8 @@ export function BrowseFiltersPage() {
 							minDefault={ageMin ? Number(ageMin) : 18}
 							maxDefault={ageMax ? Number(ageMax) : 99}
 							onChange={(min, max) => {
-								setAgeMin(String(min));
-								setAgeMax(String(max));
+								setAgeMin(min === 18 ? "" : String(min));
+								setAgeMax(max === 99 ? "" : String(max));
 							}}
 						/>
 						<RangeSlider
@@ -367,8 +367,8 @@ export function BrowseFiltersPage() {
 							minDefault={heightCmMin ? Number(heightCmMin) : 90}
 							maxDefault={heightCmMax ? Number(heightCmMax) : 230}
 							onChange={(min, max) => {
-								setHeightCmMin(String(min));
-								setHeightCmMax(String(max));
+								setHeightCmMin(min === 90 ? "" : String(min));
+								setHeightCmMax(max === 230 ? "" : String(max));
 							}}
 						/>
 						<RangeSlider
@@ -379,8 +379,8 @@ export function BrowseFiltersPage() {
 							minDefault={weightGramsMin ? Math.round(Number(weightGramsMin) / 1000) : 30}
 							maxDefault={weightGramsMax ? Math.round(Number(weightGramsMax) / 1000) : 200}
 							onChange={(min, max) => {
-								setWeightGramsMin(String(min * 1000));
-								setWeightGramsMax(String(max * 1000));
+								setWeightGramsMin(min === 30 ? "" : String(min * 1000));
+								setWeightGramsMax(max === 200 ? "" : String(max * 1000));
 							}}
 						/>
 					</div>
