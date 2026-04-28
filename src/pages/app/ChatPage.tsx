@@ -1,4 +1,5 @@
 import {
+	Album,
 	ChevronLeft,
 	ChevronRight,
 	Ellipsis,
@@ -51,6 +52,7 @@ import {
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../utils/media";
+import { Avatar } from "../../components/ui/avatar";
 import {
 	indexConversations,
 	indexMessages,
@@ -2876,8 +2878,28 @@ export function ChatPage() {
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message);
 								const isExpiringImage = message.type === "ExpiringImage";
+								const isAlbumMessage =
+									message.type === "Album" ||
+									message.type === "ExpiringAlbum" ||
+									message.type === "ExpiringAlbumV2";
 								const isImageOnlyBubble =
 									Boolean(imageUrl) && messageText === "Shared an image";
+								const isAlbumOnlyBubble =
+									isAlbumMessage && messageText === "Shared an album";
+								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
+								const senderParticipant =
+									selectedConversation.data.participants.find(
+										(participant) =>
+											Number(participant.profileId) === Number(message.senderId),
+									) ?? null;
+								const senderAvatarUrl =
+									senderParticipant?.primaryMediaHash &&
+									validateMediaHash(senderParticipant.primaryMediaHash)
+										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
+										: null;
+								const senderLabel = mine
+									? "You"
+									: selectedConversation.data.name?.trim() || "Unknown";
 								const isActiveSearchMatch =
 									selectedThreadMessageMatches[activeThreadSearchIndex]
 										?.messageId === message.messageId;
@@ -2904,7 +2926,7 @@ export function ChatPage() {
 										<div
 											onDoubleClick={() => void handleMessageTap(message)}
 											className={`relative group/bubble max-w-[85%] rounded-2xl text-sm ${
-												isImageOnlyBubble
+												isMediaOnlyBubble
 													? "overflow-hidden bg-transparent p-0"
 													: `px-3 py-2 ${
 														mine
@@ -2967,6 +2989,71 @@ export function ChatPage() {
 												</button>
 											) : null}
 
+											{isAlbumOnlyBubble ? (
+												<button
+													type="button"
+													onClick={() => {
+														if (albumId) {
+															void openAlbumViewerById(albumId);
+														}
+													}}
+													className="block w-full"
+													disabled={!albumId}
+												>
+													<div className="relative h-56 w-full overflow-hidden bg-[var(--surface-2)]">
+														<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
+															<Album className="h-8 w-8" />
+														</div>
+														{albumCover ? (
+															<img
+																src={albumCover}
+																alt="Album cover"
+																className="h-full w-full object-cover"
+																onError={(event) => {
+																	event.currentTarget.style.display = "none";
+																}}
+															/>
+														) : null}
+														<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
+															<Avatar
+																src={senderAvatarUrl}
+																alt={senderLabel}
+																fallback={senderLabel}
+																className="h-16 w-16 border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm"
+															/>
+															<p className="max-w-full truncate text-sm font-semibold leading-tight text-white drop-shadow">
+																{senderLabel}
+															</p>
+														</div>
+														<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
+															<div className="flex items-center gap-2">
+																{pending ? <span>Sending...</span> : null}
+																{failed ? <span>Failed</span> : null}
+															</div>
+															<div className="flex items-center gap-2">
+																<span>
+																	{formatMessageTime(message.timestamp, nowTimestamp)}
+																</span>
+																{!pending && !isLocalClientMessageId(message.messageId) ? (
+																	<button
+																		type="button"
+																		onClick={(event) => {
+																			event.stopPropagation();
+																			setOpenMessageActionId((current) =>
+																				current === message.messageId ? null : message.messageId,
+																			);
+																		}}
+																		className="rounded-md p-1 hover:bg-white/10"
+																	>
+																		<Ellipsis className="h-3.5 w-3.5" />
+																	</button>
+																) : null}
+															</div>
+														</div>
+													</div>
+												</button>
+											) : null}
+
 											{videoUrl ? (
 												<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
 													<video
@@ -2989,9 +3076,7 @@ export function ChatPage() {
 												</div>
 											) : null}
 
-											{message.type === "Album" ||
-											message.type === "ExpiringAlbum" ||
-											message.type === "ExpiringAlbumV2" ? (
+											{isAlbumMessage && !isAlbumOnlyBubble ? (
 												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
 													{albumCover ? (
 														<img
@@ -3020,7 +3105,7 @@ export function ChatPage() {
 												</div>
 											) : null}
 
-											{!isImageOnlyBubble ? (
+											{!isMediaOnlyBubble ? (
 												<p className="whitespace-pre-wrap break-words">
 													{messageText}
 												</p>
@@ -3045,7 +3130,7 @@ export function ChatPage() {
 												</button>
 											) : null}
 
-											{!isImageOnlyBubble ? (
+											{!isMediaOnlyBubble ? (
 											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
 												<div className="flex items-center gap-2">
 													{pending ? <span>Sending...</span> : null}
