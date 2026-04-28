@@ -76,6 +76,7 @@ function isStringArray(value: unknown): value is string[] {
 export function GridPage() {
 	const PULL_REFRESH_THRESHOLD_PX = 72;
 	const MAX_PULL_DISTANCE_PX = 120;
+	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
@@ -391,6 +392,63 @@ export function GridPage() {
 		return `${geohash}:${filtersKey}`;
 	}, [browseRequestFilters, geohash]);
 
+	const getBrowseCardsWithTimeout = useCallback(
+		async (args: {
+			geohash: string;
+			page?: number;
+			filters?: {
+				onlineOnly?: boolean;
+				photoOnly?: boolean;
+				faceOnly?: boolean;
+				hasAlbum?: boolean;
+				notRecentlyChatted?: boolean;
+				fresh?: boolean;
+				rightNow?: boolean;
+				favorites?: boolean;
+				shuffle?: boolean;
+				hot?: boolean;
+				ageMin?: number;
+				ageMax?: number;
+				heightCmMin?: number;
+				heightCmMax?: number;
+				weightGramsMin?: number;
+				weightGramsMax?: number;
+				tribes?: string;
+				lookingFor?: string;
+				relationshipStatuses?: string;
+				bodyTypes?: string;
+				sexualPositions?: string;
+				meetAt?: string;
+				nsfwPics?: string;
+				tags?: string;
+			};
+		}) => {
+			return await new Promise<
+				Awaited<ReturnType<typeof apiFunctions.getBrowseCards>>
+			>((resolve, reject) => {
+				const timeout = window.setTimeout(() => {
+					reject(
+						new Error(
+							"Browse feed request timed out. Please check your connection and try again.",
+						),
+					);
+				}, BROWSE_LOAD_TIMEOUT_MS);
+
+				void apiFunctions
+					.getBrowseCards(args)
+					.then((result) => {
+						window.clearTimeout(timeout);
+						resolve(result);
+					})
+					.catch((error) => {
+						window.clearTimeout(timeout);
+						reject(error);
+					});
+			});
+		},
+		[apiFunctions, BROWSE_LOAD_TIMEOUT_MS],
+	);
+
 	const loadBrowseCards = useCallback(
 		async ({
 			page,
@@ -433,7 +491,7 @@ export function GridPage() {
 			}
 
 			try {
-				const parsed = await apiFunctions.getBrowseCards({
+				const parsed = await getBrowseCardsWithTimeout({
 					geohash,
 					page,
 					filters: browseRequestFilters,
@@ -469,7 +527,13 @@ export function GridPage() {
 				}
 			}
 		},
-		[apiFunctions, geohash, isLoadingPreferences, browseCacheKey, browseRequestFilters],
+		[
+			geohash,
+			isLoadingPreferences,
+			browseCacheKey,
+			browseRequestFilters,
+			getBrowseCardsWithTimeout,
+		],
 	);
 
 	useEffect(() => {
@@ -481,7 +545,7 @@ export function GridPage() {
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
-			const parsed = await apiFunctions.getBrowseCards({
+			const parsed = await getBrowseCardsWithTimeout({
 				geohash,
 				page: nextPage,
 				filters: browseRequestFilters,
