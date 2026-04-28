@@ -29,7 +29,7 @@ jobs:
           echo "package_version=$(jq -r '.version' package.json)" >> "$GITHUB_OUTPUT"
           echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "tag_name=main-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "release_name=Open Grind v$(jq -r '.version' package.json) (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
+          echo "release_name=Free Grind v$(jq -r '.version' package.json) (${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
 
       - name: Create draft release
         id: create-release

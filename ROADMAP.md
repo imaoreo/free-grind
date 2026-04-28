@@ -1,4 +1,4 @@
-# Open Grind roadmap
+# Free Grind roadmap
 
 ## Features
 

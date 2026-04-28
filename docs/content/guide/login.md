@@ -4,11 +4,11 @@ title: Signing In with a Token
 
 # Sign In with a Token
 
-This is the only way to sign into open grind using google, facebook, or apple. 
+This is the only way to sign into Free Grind using google, facebook, or apple. 
 
 ## What is the token?
 
-It is a JWT (JSON Web Token) that allows Open Grind to make API requests, This token does NOT contain your password, but does allow the app access to your grindr account.
+It is a JWT (JSON Web Token) that allows Free Grind to make API requests, This token does NOT contain your password, but does allow the app access to your grindr account.
 
 The token looks like this:
 
@@ -33,13 +33,13 @@ If logging in with email and password:
 5. Click on the request then click on response
 6. Look for the `jwt` field in the JSON response. This is your token.
 7. Copy everything in the `jwt` field inside the quotes.
-8. Paste the token into Open Grind.
+8. Paste the token into Free Grind.
 9. Login and enjoy!
 
 ## Token expiry
 
-Tokens expire after a period of time. If Open Grind shows an authentication error, return here and obtain a fresh token from the Grindr app. Expires after 15 minutes so be quick!
+Tokens expire after a period of time. If Free Grind shows an authentication error, return here and obtain a fresh token from the Grindr app. Expires after 15 minutes so be quick!
 
 ## Privacy note
 
-Your token is stored locally in your device's secure keychain and is never sent to any Open Grind server. All requests go directly to Grindr's API.
+Your token is stored locally in your device's secure keychain and is never sent to any Free Grind server. All requests go directly to Grindr's API.

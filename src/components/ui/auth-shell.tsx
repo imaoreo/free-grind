@@ -18,7 +18,7 @@ export function AuthShell({
 				<div className="mb-5 flex justify-center">
 					<img
 						src="/newLogo.webp"
-						alt="Open Grind"
+						alt="Free Grind"
 						className="h-14 w-14 rounded-2xl object-cover"
 					/>
 				</div>

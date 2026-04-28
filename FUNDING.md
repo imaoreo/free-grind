@@ -1,4 +1,4 @@
-# Donate to Open Grind
+# Donate to Free Grind
 
 Contributors listed in order of their contributions value:
 

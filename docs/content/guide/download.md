@@ -2,9 +2,9 @@
 title: Download
 ---
 
-# Download Open Grind
+# Download Free Grind
 
-Open Grind is actively under development.
+Free Grind is actively under development.
 
 ## Current status
 
@@ -17,7 +17,7 @@ Open Grind is actively under development.
 - Watch the repository for release announcements.
 - Follow project discussions for milestone updates.
 
-Project repository: [Open Grind on GitHub](https://github.com/kezza2k7/free-grind/)
+Project repository: [Free Grind on GitHub](https://github.com/kezza2k7/free-grind/)
 
 ## After download
 

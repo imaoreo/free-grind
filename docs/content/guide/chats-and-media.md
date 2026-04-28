@@ -31,7 +31,7 @@ Use this guide for text messages, image sharing, album sharing, and local histor
 
 ## Local history behavior
 
-Open Grind stores local chat history for resilience.
+Free Grind stores local chat history for resilience.
 
 - Local-only entries are labeled as from local history.
 - Local history can be cleared per conversation from the chat header.
