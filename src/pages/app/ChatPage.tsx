@@ -61,6 +61,7 @@ import {
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 import { ChatSearchPage } from "./ChatSearchPage";
 import * as chatLog from "../../services/chatLog";
+import { formatDistance } from "./gridpage/utils";
 
 type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -685,6 +686,9 @@ export function ChatPage() {
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
 	);
+	const [isHeaderActionsMenuOpen, setIsHeaderActionsMenuOpen] =
+		useState(false);
+	const headerActionsMenuRef = useRef<HTMLDivElement | null>(null);
 	const messageLongPressTimeoutRef = useRef<number | null>(null);
 	const messageLongPressTriggeredRef = useRef(false);
 	const [isMutatingMessageId, setIsMutatingMessageId] = useState<string | null>(
@@ -718,6 +722,32 @@ export function ChatPage() {
 			}
 		};
 	}, []);
+
+	useEffect(() => {
+		setIsHeaderActionsMenuOpen(false);
+	}, [routeConversationId, isDesktop]);
+
+	useEffect(() => {
+		if (!isHeaderActionsMenuOpen) {
+			return;
+		}
+
+		const handlePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (
+				headerActionsMenuRef.current &&
+				target instanceof Node &&
+				!headerActionsMenuRef.current.contains(target)
+			) {
+				setIsHeaderActionsMenuOpen(false);
+			}
+		};
+
+		window.addEventListener("pointerdown", handlePointerDown);
+		return () => {
+			window.removeEventListener("pointerdown", handlePointerDown);
+		};
+	}, [isHeaderActionsMenuOpen]);
 
 	const clearMessageLongPress = useCallback(() => {
 		if (messageLongPressTimeoutRef.current != null) {
@@ -2808,7 +2838,7 @@ export function ChatPage() {
 
 	const renderThread = selectedConversation ? (
 		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+			className={`flex h-full flex-col ${!isDesktop ? "overflow-visible p-0" : "overflow-hidden p-3 sm:p-4"} ${
 				isDesktop ? "surface-card" : ""
 			}`}
 		>
@@ -2818,18 +2848,14 @@ export function ChatPage() {
 					userId,
 				);
 				return (
-					<div className="mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
-						<div className="min-w-0">
-							<p className="truncate text-lg font-semibold">
-								{selectedConversation.data.name || "Conversation"}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{selectedConversation.data.muted
-									? "Notifications muted"
-									: "Notifications enabled"}
-							</p>
-						</div>
-						<div className="flex items-center gap-2">
+					<div 
+						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
+						style={!isDesktop ? {
+							top: 0,
+							paddingTop: "max(12px, env(safe-area-inset-top))",
+						} : undefined}
+					>
+						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-3 sm:pl-4" : ""}`}>
 							<button
 								type="button"
 								onClick={() => {
@@ -2847,40 +2873,163 @@ export function ChatPage() {
 									);
 								}}
 								disabled={!otherParticipant}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								aria-label="Open profile"
+								className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] transition hover:border-[var(--accent)] disabled:cursor-default disabled:opacity-80"
 							>
-								View profile
-							</button>
-							<button
-								type="button"
-								disabled={isUpdatingConversationState}
-								onClick={togglePin}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-							>
-								<Pin className="mr-1 inline h-3.5 w-3.5" />
-								{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-							</button>
-							<button
-								type="button"
-								disabled={isUpdatingConversationState}
-								onClick={toggleMute}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-							>
-								{selectedConversation.data.muted ? (
-									<Volume2 className="mr-1 inline h-3.5 w-3.5" />
+								{otherParticipant?.primaryMediaHash ? (
+									<img
+										src={getProfileImageUrl(otherParticipant.primaryMediaHash)}
+										alt=""
+										className="h-full w-full object-cover"
+									/>
 								) : (
-									<VolumeX className="mr-1 inline h-3.5 w-3.5" />
+									<div className="flex h-full w-full items-center justify-center text-xs text-[var(--text-muted)]">
+										{(selectedConversation.data.name || "?")
+											.slice(0, 1)
+											.toUpperCase()}
+									</div>
 								)}
-								{selectedConversation.data.muted ? "Unmute" : "Mute"}
 							</button>
-							<button
-								type="button"
-								onClick={() => void clearLocalHistory()}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								Clear local history
-							</button>
+							<div className="min-w-0">
+								<p className="truncate text-lg font-semibold">
+									{selectedConversation.data.name || "Conversation"}
+								</p>
+								<p className="text-sm text-[var(--text-muted)]">
+									{otherParticipant?.distanceMetres
+										? formatDistance(otherParticipant.distanceMetres)
+										: "Distance unknown"}
+								</p>
+							</div>
 						</div>
+						{isDesktop ? (
+							<div className="flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => {
+										if (!otherParticipant) {
+											return;
+										}
+										const returnTo = getProfileReturnToChatPath(
+											otherParticipant.profileId,
+										);
+										const nextParams = new URLSearchParams();
+										nextParams.set("returnTo", returnTo);
+										navigate(
+											`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+											{ state: { returnTo } },
+										);
+									}}
+									disabled={!otherParticipant}
+									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								>
+									View profile
+								</button>
+								<button
+									type="button"
+									disabled={isUpdatingConversationState}
+									onClick={togglePin}
+									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								>
+									<Pin className="mr-1 inline h-3.5 w-3.5" />
+									{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+								</button>
+								<button
+									type="button"
+									disabled={isUpdatingConversationState}
+									onClick={toggleMute}
+									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								>
+									{selectedConversation.data.muted ? (
+										<Volume2 className="mr-1 inline h-3.5 w-3.5" />
+									) : (
+										<VolumeX className="mr-1 inline h-3.5 w-3.5" />
+									)}
+									{selectedConversation.data.muted ? "Unmute" : "Mute"}
+								</button>
+								<button
+									type="button"
+									onClick={() => void clearLocalHistory()}
+									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								>
+									Clear local history
+								</button>
+							</div>
+						) : (
+							<div
+								ref={headerActionsMenuRef}
+								className="relative pr-3 sm:pr-4"
+							>
+								<button
+									type="button"
+									onClick={() =>
+										setIsHeaderActionsMenuOpen((current) => !current)
+									}
+									className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									aria-label="Open conversation actions"
+									aria-expanded={isHeaderActionsMenuOpen}
+								>
+									<Ellipsis className="h-4 w-4" />
+								</button>
+								{isHeaderActionsMenuOpen ? (
+									<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[180px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+										<button
+											type="button"
+											onClick={() => {
+												setIsHeaderActionsMenuOpen(false);
+												if (!otherParticipant) {
+													return;
+												}
+												const returnTo = getProfileReturnToChatPath(
+													otherParticipant.profileId,
+												);
+												const nextParams = new URLSearchParams();
+												nextParams.set("returnTo", returnTo);
+												navigate(
+													`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+													{ state: { returnTo } },
+												);
+											}}
+											disabled={!otherParticipant}
+											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+										>
+											View profile
+										</button>
+										<button
+											type="button"
+											disabled={isUpdatingConversationState}
+											onClick={() => {
+												setIsHeaderActionsMenuOpen(false);
+												void togglePin();
+											}}
+											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+										>
+											{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+										</button>
+										<button
+											type="button"
+											disabled={isUpdatingConversationState}
+											onClick={() => {
+												setIsHeaderActionsMenuOpen(false);
+												void toggleMute();
+											}}
+											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+										>
+											{selectedConversation.data.muted ? "Unmute" : "Mute"}
+										</button>
+										<button
+											type="button"
+											onClick={() => {
+												setIsHeaderActionsMenuOpen(false);
+												void clearLocalHistory();
+											}}
+											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+										>
+											Clear local history
+										</button>
+									</div>
+								) : null}
+							</div>
+						)}
 					</div>
 				);
 			})()}
@@ -2911,7 +3060,7 @@ export function ChatPage() {
 					<div
 						ref={threadScrollContainerRef}
 						onScroll={handleThreadScroll}
-						className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto"
+						className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
 					>
 						{messagePageKey ? (
 							<button
@@ -2929,7 +3078,7 @@ export function ChatPage() {
 							</button>
 						) : null}
 
-						<div className="flex flex-col gap-2">
+						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
 							{threadMessages.map((message) => {
 								const mine =
 									userId != null && Number(message.senderId) === Number(userId);
@@ -3287,7 +3436,8 @@ export function ChatPage() {
 
 					<form
 						onSubmit={handleSend}
-						className="mt-3 border-t border-[var(--border)] pt-3"
+						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 p-3 sm:p-4" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
 					>
 						<div className="mb-2 flex flex-wrap items-center gap-2">
 							<button
@@ -3441,7 +3591,7 @@ export function ChatPage() {
 						</div>
 					</form>
 
-					{!isDesktop && selectedActionMessage ? (
+					{!isDesktop && selectedActionMessage && albumViewer === null ? (
 						<div
 							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
 							onClick={() => setOpenMessageActionId(null)}
@@ -3623,23 +3773,6 @@ export function ChatPage() {
 			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
 		>
 			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
-				{!isDesktop && (selectedConversation ?? targetProfileId) ? (
-					<div className="mb-3 flex items-center justify-between px-3">
-						<button
-							type="button"
-							onClick={() => {
-								if (chatReturnTo) {
-									navigate(chatReturnTo, { replace: true });
-									return;
-								}
-								navigate("/chat");
-							}}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)]"
-						>
-							Back to inbox
-						</button>
-					</div>
-				) : null}
 
 				{isSearchRoute ? (
 					renderSearch
