@@ -9,6 +9,7 @@
 		color-scheme: light dark;
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
+		--accent-readable: #765900;
 		--content-max: 1200px;
 		/* Base horizontal padding for the app, shared across components for visual consistency */
 		--app-px: clamp(12px, 2.6vw, 28px);
@@ -38,6 +39,7 @@
 			--text: #f3f5f8;
 			--text-muted: #96a2b6;
 			--border: #2b3646;
+			--accent-readable: #ffcc01;
 		}
 	}
 
@@ -49,6 +51,7 @@
 		--text: #f3f5f8;
 		--text-muted: #96a2b6;
 		--border: #2b3646;
+		--accent-readable: #ffcc01;
 	}
 
 	:root[data-scheme="light"] {
@@ -59,6 +62,7 @@
 		--text: #131821;
 		--text-muted: #606a79;
 		--border: #d7dce3;
+		--accent-readable: #765900;
 	}
 
 	html,

@@ -33,9 +33,21 @@ function getContrastForHex(hexColor: string): "#1a1a1a" | "#ffffff" {
 	const r = parseInt(normalized.slice(1, 3), 16);
 	const g = parseInt(normalized.slice(3, 5), 16);
 	const b = parseInt(normalized.slice(5, 7), 16);
-	const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
 
-	return luminance > 0.6 ? "#1a1a1a" : "#ffffff";
+	const toLinear = (channel: number) => {
+		const normalizedChannel = channel / 255;
+		if (normalizedChannel <= 0.03928) {
+			return normalizedChannel / 12.92;
+		}
+		return ((normalizedChannel + 0.055) / 1.055) ** 2.4;
+	};
+
+	const luminance =
+		0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+	const contrastWithDark = (luminance + 0.05) / 0.05;
+	const contrastWithLight = 1.05 / (luminance + 0.05);
+
+	return contrastWithDark >= contrastWithLight ? "#1a1a1a" : "#ffffff";
 }
 
 export function CustomizabilityPage() {
@@ -111,7 +123,9 @@ export function CustomizabilityPage() {
 										background: isActive
 											? "color-mix(in srgb, var(--accent) 12%, transparent)"
 											: "var(--surface-2)",
-										color: isActive ? "var(--accent)" : "var(--text-muted)",
+										color: isActive
+											? "var(--accent-readable)"
+											: "var(--text-muted)",
 									}}
 								>
 									{icon}
@@ -162,7 +176,7 @@ export function CustomizabilityPage() {
 					</div>
 					<p className="mt-3 text-xs text-[var(--text-muted)]">
 						Selected:{" "}
-						<span className="font-semibold" style={{ color: "var(--accent)" }}>
+						<span className="font-semibold" style={{ color: "var(--accent-readable)" }}>
 							{ACCENT_PRESETS.find((p) => p.color === accentColor)?.name ?? "Custom"}
 						</span>
 					</p>
@@ -220,7 +234,9 @@ export function CustomizabilityPage() {
 										? "color-mix(in srgb, var(--accent) 12%, transparent)"
 										: "var(--surface-2)",
 								color:
-									mobileGridColumns === "2" ? "var(--accent)" : "var(--text-muted)",
+									mobileGridColumns === "2"
+										? "var(--accent-readable)"
+										: "var(--text-muted)",
 							}}
 						>
 							2 Columns
@@ -237,7 +253,9 @@ export function CustomizabilityPage() {
 										? "color-mix(in srgb, var(--accent) 12%, transparent)"
 										: "var(--surface-2)",
 								color:
-									mobileGridColumns === "3" ? "var(--accent)" : "var(--text-muted)",
+									mobileGridColumns === "3"
+										? "var(--accent-readable)"
+										: "var(--text-muted)",
 							}}
 						>
 							3 Columns
@@ -262,7 +280,10 @@ export function CustomizabilityPage() {
 						</span>
 						<span
 							className="inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold"
-							style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+							style={{
+								borderColor: "var(--accent)",
+								color: "var(--accent-readable)",
+							}}
 						>
 							Outlined
 						</span>
@@ -270,7 +291,7 @@ export function CustomizabilityPage() {
 							className="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold"
 							style={{
 								background: "color-mix(in srgb, var(--accent) 15%, transparent)",
-								color: "var(--accent)",
+								color: "var(--accent-readable)",
 							}}
 						>
 							Subtle

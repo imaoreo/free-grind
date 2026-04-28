@@ -384,7 +384,7 @@ export function ChatSearchPage() {
 											Use searched profile ID
 										</p>
 									</div>
-									<span className="text-xs font-semibold text-[var(--accent)]">
+									<span className="text-xs font-semibold text-[var(--accent-readable)]">
 										Start
 									</span>
 								</button>
