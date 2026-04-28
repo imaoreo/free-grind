@@ -10,7 +10,9 @@ import { PasswordResetPage } from "./pages/auth/PasswordResetPage";
 import { GridPage } from "./pages/app/GridPage.tsx";
 import { BrowseFiltersPage } from "./pages/app/BrowseFiltersPage.tsx";
 import { BrowseLocationPage } from "./pages/app/BrowseLocationPage";
-import { RightNowPage } from "./pages/app/RightNowPage";import { InterestPage } from "./pages/app/InterestPage";
+import { RightNowPage } from "./pages/app/RightNowPage";
+import { RightNowFiltersPage } from "./pages/app/RightNowFiltersPage";
+import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
 import { ChatFiltersPage } from "./pages/app/ChatFiltersPage";
 import { ChatSearchPage } from "./pages/app/ChatSearchPage";
@@ -60,7 +62,9 @@ export default function App() {
 							<Route path="/" element={<GridPage />} />
 							<Route path="/browse/filters" element={<BrowseFiltersPage />} />
 							<Route path="/browse/location" element={<BrowseLocationPage />} />
-							<Route path="/right-now" element={<RightNowPage />} />							<Route path="/interest" element={<InterestPage />} />
+							<Route path="/right-now" element={<RightNowPage />} />
+							<Route path="/right-now/filters" element={<RightNowFiltersPage />} />
+							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
 							<Route path="/chat/filters" element={<ChatFiltersPage />} />
 							<Route path="/chat/search" element={<ChatSearchPage />} />

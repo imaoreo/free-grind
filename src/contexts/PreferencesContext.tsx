@@ -18,6 +18,113 @@ export interface AccentPreset {
 	contrast: string;
 }
 
+type Rgb = { r: number; g: number; b: number };
+
+function normalizeHexColor(value: string): string | null {
+	const cleaned = value.trim().replace(/^#/, "");
+	if (/^[0-9a-fA-F]{3}$/.test(cleaned)) {
+		return `#${cleaned
+			.split("")
+			.map((char) => char + char)
+			.join("")
+			.toLowerCase()}`;
+	}
+	if (/^[0-9a-fA-F]{6}$/.test(cleaned)) {
+		return `#${cleaned.toLowerCase()}`;
+	}
+	return null;
+}
+
+function hexToRgb(value: string): Rgb | null {
+	const normalized = normalizeHexColor(value);
+	if (!normalized) {
+		return null;
+	}
+
+	return {
+		r: parseInt(normalized.slice(1, 3), 16),
+		g: parseInt(normalized.slice(3, 5), 16),
+		b: parseInt(normalized.slice(5, 7), 16),
+	};
+}
+
+function rgbToHex(value: Rgb): string {
+	const toHex = (channel: number) =>
+		Math.max(0, Math.min(255, Math.round(channel)))
+			.toString(16)
+			.padStart(2, "0");
+
+	return `#${toHex(value.r)}${toHex(value.g)}${toHex(value.b)}`;
+}
+
+function toLinear(channel: number): number {
+	const normalized = channel / 255;
+	if (normalized <= 0.03928) {
+		return normalized / 12.92;
+	}
+	return ((normalized + 0.055) / 1.055) ** 2.4;
+}
+
+function getRelativeLuminance(color: Rgb): number {
+	return (
+		0.2126 * toLinear(color.r) +
+		0.7152 * toLinear(color.g) +
+		0.0722 * toLinear(color.b)
+	);
+}
+
+function getContrastRatio(a: Rgb, b: Rgb): number {
+	const luminanceA = getRelativeLuminance(a);
+	const luminanceB = getRelativeLuminance(b);
+	const lighter = Math.max(luminanceA, luminanceB);
+	const darker = Math.min(luminanceA, luminanceB);
+	return (lighter + 0.05) / (darker + 0.05);
+}
+
+function mixColor(start: Rgb, end: Rgb, weight: number): Rgb {
+	const clampedWeight = Math.max(0, Math.min(1, weight));
+	return {
+		r: start.r + (end.r - start.r) * clampedWeight,
+		g: start.g + (end.g - start.g) * clampedWeight,
+		b: start.b + (end.b - start.b) * clampedWeight,
+	};
+}
+
+function getReadableAccentColor(
+	accentColor: string,
+	backgroundColors: string[],
+	fallbackTextColor: string,
+	targetContrast = 4.5,
+): string {
+	const accentRgb = hexToRgb(accentColor);
+	const textRgb = hexToRgb(fallbackTextColor);
+	const backgroundRgbs = backgroundColors
+		.map((value) => hexToRgb(value))
+		.filter((value): value is Rgb => value !== null);
+
+	if (!accentRgb || !textRgb || backgroundRgbs.length === 0) {
+		return accentColor;
+	}
+
+	const meetsTargetContrast = (candidate: Rgb) =>
+		backgroundRgbs.every(
+			(background) => getContrastRatio(candidate, background) >= targetContrast,
+		);
+
+	if (meetsTargetContrast(accentRgb)) {
+		return rgbToHex(accentRgb);
+	}
+
+	for (let weight = 0.1; weight <= 1; weight += 0.05) {
+		const candidate = mixColor(accentRgb, textRgb, weight);
+		if (meetsTargetContrast(candidate)) {
+			return rgbToHex(candidate);
+		}
+	}
+
+	return rgbToHex(textRgb);
+}
+
 export const ACCENT_PRESETS: AccentPreset[] = [
 	{ name: "Amber", color: "#ffcc01", contrast: "#1a1a1a" },
 	{ name: "Red", color: "#ff4757", contrast: "#ffffff" },
@@ -84,6 +191,19 @@ function applyTheme(colorScheme: ColorScheme, accentColor: string, accentContras
 	root.setAttribute("data-scheme", colorScheme);
 	root.style.setProperty("--accent", accentColor);
 	root.style.setProperty("--accent-contrast", accentContrast);
+
+	const styles = getComputedStyle(root);
+	const backgroundColor = styles.getPropertyValue("--bg").trim();
+	const surfaceColor = styles.getPropertyValue("--surface").trim();
+	const surface2Color = styles.getPropertyValue("--surface-2").trim();
+	const textColor = styles.getPropertyValue("--text").trim();
+	const readableAccentColor = getReadableAccentColor(
+		accentColor,
+		[backgroundColor, surfaceColor, surface2Color],
+		textColor,
+	);
+
+	root.style.setProperty("--accent-readable", readableAccentColor);
 }
 
 const STORAGE_KEY = "app_preferences";

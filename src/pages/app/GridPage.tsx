@@ -2,7 +2,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { MapPin, SlidersHorizontal } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
@@ -20,60 +20,20 @@ import {
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
-
-type BrowseFilters = {
-	onlineOnly: boolean;
-	hasAlbum: boolean;
-	photoOnly: boolean;
-	faceOnly: boolean;
-	notRecentlyChatted: boolean;
-	fresh: boolean;
-	rightNow: boolean;
-	favorites: boolean;
-	shuffle: boolean;
-	hot: boolean;
-};
-
-const defaultBrowseFilters: BrowseFilters = {
-	onlineOnly: false,
-	hasAlbum: false,
-	photoOnly: false,
-	faceOnly: false,
-	notRecentlyChatted: false,
-	fresh: false,
-	rightNow: false,
-	favorites: false,
-	shuffle: false,
-	hot: false,
-};
-
-type BrowseFiltersDraft = {
-	browseFilters?: Partial<BrowseFilters>;
-	ageMin?: string;
-	ageMax?: string;
-	heightCmMin?: string;
-	heightCmMax?: string;
-	weightGramsMin?: string;
-	weightGramsMax?: string;
-	tribes?: number[];
-	lookingFor?: number[];
-	relationshipStatuses?: number[];
-	bodyTypes?: number[];
-	sexualPositions?: number[];
-	meetAt?: number[];
-	nsfwPics?: number[];
-	tags?: string[];
-};
-
-function isNumberArray(value: unknown): value is number[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "number");
-}
-
-function isStringArray(value: unknown): value is string[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
+import {
+	type BrowseFilters,
+	type BrowseFiltersDraft,
+	defaultBrowseFilters,
+	loadBrowseFiltersDraft,
+	normalizeBrowseFiltersDraft,
+	saveBrowseFiltersDraft,
+} from "./browse-filters-storage";
 
 export function GridPage() {
+	const PULL_REFRESH_THRESHOLD_PX = 72;
+	const MAX_PULL_DISTANCE_PX = 120;
+	const BROWSE_LOAD_TIMEOUT_MS = 15000;
+
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const {
@@ -82,6 +42,7 @@ export function GridPage() {
 	} = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
+	const persistedBrowseFilters = useMemo(() => loadBrowseFiltersDraft(), []);
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
@@ -99,22 +60,46 @@ export function GridPage() {
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
-		defaultBrowseFilters,
+		persistedBrowseFilters.browseFilters,
 	);
-	const [ageMin, setAgeMin] = useState("");
-	const [ageMax, setAgeMax] = useState("");
-	const [heightCmMin, setHeightCmMin] = useState("");
-	const [heightCmMax, setHeightCmMax] = useState("");
-	const [weightGramsMin, setWeightGramsMin] = useState("");
-	const [weightGramsMax, setWeightGramsMax] = useState("");
-	const [tribes, setTribes] = useState<number[]>([]);
-	const [lookingFor, setLookingFor] = useState<number[]>([]);
-	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>([]);
-	const [bodyTypes, setBodyTypes] = useState<number[]>([]);
-	const [sexualPositions, setSexualPositions] = useState<number[]>([]);
-	const [meetAt, setMeetAt] = useState<number[]>([]);
-	const [nsfwPics, setNsfwPics] = useState<number[]>([]);
-	const [tags, setTags] = useState<string[]>([]);
+	const [ageMin, setAgeMin] = useState(persistedBrowseFilters.ageMin);
+	const [ageMax, setAgeMax] = useState(persistedBrowseFilters.ageMax);
+	const [heightCmMin, setHeightCmMin] = useState(persistedBrowseFilters.heightCmMin);
+	const [heightCmMax, setHeightCmMax] = useState(persistedBrowseFilters.heightCmMax);
+	const [weightGramsMin, setWeightGramsMin] = useState(
+		persistedBrowseFilters.weightGramsMin,
+	);
+	const [weightGramsMax, setWeightGramsMax] = useState(
+		persistedBrowseFilters.weightGramsMax,
+	);
+	const [tribes, setTribes] = useState<number[]>(persistedBrowseFilters.tribes);
+	const [lookingFor, setLookingFor] = useState<number[]>(
+		persistedBrowseFilters.lookingFor,
+	);
+	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>(
+		persistedBrowseFilters.relationshipStatuses,
+	);
+	const [bodyTypes, setBodyTypes] = useState<number[]>(
+		persistedBrowseFilters.bodyTypes,
+	);
+	const [sexualPositions, setSexualPositions] = useState<number[]>(
+		persistedBrowseFilters.sexualPositions,
+	);
+	const [meetAt, setMeetAt] = useState<number[]>(persistedBrowseFilters.meetAt);
+	const [nsfwPics, setNsfwPics] = useState<number[]>(persistedBrowseFilters.nsfwPics);
+	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
+	const [pullDistance, setPullDistance] = useState(0);
+	const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+	const touchStartYRef = useRef<number | null>(null);
+	const isPullingRef = useRef(false);
+	const isMountedRef = useRef(true);
+
+	useEffect(() => {
+		isMountedRef.current = true;
+		return () => {
+			isMountedRef.current = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
@@ -206,37 +191,68 @@ export function GridPage() {
 	useEffect(() => {
 		const safeState =
 			typeof location.state === "object" && location.state !== null
-				? (location.state as { browseFiltersDraft?: BrowseFiltersDraft })
+				? (location.state as {
+						browseFiltersDraft?: Partial<BrowseFiltersDraft>;
+				  })
 				: {};
 		const draft = safeState.browseFiltersDraft;
 		if (!draft) {
 			return;
 		}
 
-		setBrowseFilters({ ...defaultBrowseFilters, ...(draft.browseFilters ?? {}) });
-		setAgeMin(typeof draft.ageMin === "string" ? draft.ageMin : "");
-		setAgeMax(typeof draft.ageMax === "string" ? draft.ageMax : "");
-		setHeightCmMin(typeof draft.heightCmMin === "string" ? draft.heightCmMin : "");
-		setHeightCmMax(typeof draft.heightCmMax === "string" ? draft.heightCmMax : "");
-		setWeightGramsMin(
-			typeof draft.weightGramsMin === "string" ? draft.weightGramsMin : "",
-		);
-		setWeightGramsMax(
-			typeof draft.weightGramsMax === "string" ? draft.weightGramsMax : "",
-		);
-		setTribes(isNumberArray(draft.tribes) ? draft.tribes : []);
-		setLookingFor(isNumberArray(draft.lookingFor) ? draft.lookingFor : []);
-		setRelationshipStatuses(
-			isNumberArray(draft.relationshipStatuses) ? draft.relationshipStatuses : [],
-		);
-		setBodyTypes(isNumberArray(draft.bodyTypes) ? draft.bodyTypes : []);
-		setSexualPositions(
-			isNumberArray(draft.sexualPositions) ? draft.sexualPositions : [],
-		);
-		setMeetAt(isNumberArray(draft.meetAt) ? draft.meetAt : []);
-		setNsfwPics(isNumberArray(draft.nsfwPics) ? draft.nsfwPics : []);
-		setTags(isStringArray(draft.tags) ? draft.tags : []);
+		const normalized = normalizeBrowseFiltersDraft(draft);
+		setBrowseFilters(normalized.browseFilters);
+		setAgeMin(normalized.ageMin);
+		setAgeMax(normalized.ageMax);
+		setHeightCmMin(normalized.heightCmMin);
+		setHeightCmMax(normalized.heightCmMax);
+		setWeightGramsMin(normalized.weightGramsMin);
+		setWeightGramsMax(normalized.weightGramsMax);
+		setTribes(normalized.tribes);
+		setLookingFor(normalized.lookingFor);
+		setRelationshipStatuses(normalized.relationshipStatuses);
+		setBodyTypes(normalized.bodyTypes);
+		setSexualPositions(normalized.sexualPositions);
+		setMeetAt(normalized.meetAt);
+		setNsfwPics(normalized.nsfwPics);
+		setTags(normalized.tags);
 	}, [location.key, location.state]);
+
+	useEffect(() => {
+		saveBrowseFiltersDraft({
+			browseFilters,
+			ageMin,
+			ageMax,
+			heightCmMin,
+			heightCmMax,
+			weightGramsMin,
+			weightGramsMax,
+			tribes,
+			lookingFor,
+			relationshipStatuses,
+			bodyTypes,
+			sexualPositions,
+			meetAt,
+			nsfwPics,
+			tags,
+		});
+	}, [
+		browseFilters,
+		ageMin,
+		ageMax,
+		heightCmMin,
+		heightCmMax,
+		weightGramsMin,
+		weightGramsMax,
+		tribes,
+		lookingFor,
+		relationshipStatuses,
+		bodyTypes,
+		sexualPositions,
+		meetAt,
+		nsfwPics,
+		tags,
+	]);
 
 	const activeBrowseFilters = useMemo(() => {
 		const next: Partial<BrowseFilters> = {};
@@ -377,81 +393,180 @@ export function GridPage() {
 		return `${geohash}:${filtersKey}`;
 	}, [browseRequestFilters, geohash]);
 
-	useEffect(() => {
-		let cancelled = false;
+	const getBrowseCardsWithTimeout = useCallback(
+		async (args: {
+			geohash: string;
+			page?: number;
+			filters?: {
+				onlineOnly?: boolean;
+				photoOnly?: boolean;
+				faceOnly?: boolean;
+				hasAlbum?: boolean;
+				notRecentlyChatted?: boolean;
+				fresh?: boolean;
+				rightNow?: boolean;
+				favorites?: boolean;
+				shuffle?: boolean;
+				hot?: boolean;
+				ageMin?: number;
+				ageMax?: number;
+				heightCmMin?: number;
+				heightCmMax?: number;
+				weightGramsMin?: number;
+				weightGramsMax?: number;
+				tribes?: string;
+				lookingFor?: string;
+				relationshipStatuses?: string;
+				bodyTypes?: string;
+				sexualPositions?: string;
+				meetAt?: string;
+				nsfwPics?: string;
+				tags?: string;
+			};
+		}) => {
+			return await new Promise<
+				Awaited<ReturnType<typeof apiFunctions.getBrowseCards>>
+			>((resolve, reject) => {
+				const timeout = window.setTimeout(() => {
+					reject(
+						new Error(
+							"Browse feed request timed out. Please check your connection and try again.",
+						),
+					);
+				}, BROWSE_LOAD_TIMEOUT_MS);
 
-		const loadBrowseCards = async (page?: number) => {
+				void apiFunctions
+					.getBrowseCards(args)
+					.then((result) => {
+						window.clearTimeout(timeout);
+						resolve(result);
+					})
+					.catch((error) => {
+						window.clearTimeout(timeout);
+						reject(error);
+					});
+			});
+		},
+		[apiFunctions, BROWSE_LOAD_TIMEOUT_MS],
+	);
+
+	const loadBrowseCards = useCallback(
+		async ({
+			page,
+			preferCache = true,
+			showLoadingState = true,
+		}: {
+			page?: number;
+			preferCache?: boolean;
+			showLoadingState?: boolean;
+		} = {}) => {
 			if (isLoadingPreferences) {
 				return;
 			}
 
 			if (!geohash) {
-				if (!cancelled) {
-					setIsLoadingCards(true);
-					setCards([]);
-					setCardsError(
-						"Tap the location pin (📍) button above to set your location.",
-					);
-					setIsLoadingCards(false);
+				if (!isMountedRef.current) {
+					return;
 				}
+				setIsLoadingCards(true);
+				setCards([]);
+				setCardsError(
+					"Tap the location pin (📍) button above to set your location.",
+				);
+				setIsLoadingCards(false);
 				return;
 			}
 
-			const cachedCards = getCachedBrowseCards(browseCacheKey);
+			const cachedCards = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
+			if (!isMountedRef.current) {
+				return;
+			}
+
 			setCardsError(null);
 
 			if (cachedCards) {
-				if (!cancelled) {
-					setCards(cachedCards);
-					setIsLoadingCards(false);
-				}
-			} else {
+				setCards(cachedCards);
+				setIsLoadingCards(false);
+			} else if (showLoadingState) {
 				setIsLoadingCards(true);
 			}
 
 			try {
-				const parsed = await apiFunctions.getBrowseCards({
+				const parsed = await getBrowseCardsWithTimeout({
 					geohash,
 					page,
 					filters: browseRequestFilters,
 				});
 
-				if (!cancelled) {
-					setCards(parsed.cards);
-					setCachedBrowseCards(browseCacheKey, parsed.cards);
-					setNextPage(parsed.nextPage ?? null);
+				if (!isMountedRef.current) {
+					return;
 				}
+
+				setCards(parsed.cards);
+				setCachedBrowseCards(browseCacheKey, parsed.cards);
+				setNextPage(parsed.nextPage ?? null);
 			} catch (error) {
-				if (!cancelled) {
-					if (!cachedCards) {
-						setCards([]);
-						setCardsError(
-							error instanceof Error
-								? error.message
-								: "Failed to load browse profiles",
-						);
-					}
+				if (!isMountedRef.current) {
+					return;
+				}
+
+				if (!cachedCards) {
+					setCards([]);
+					setCardsError(
+						error instanceof Error
+							? error.message
+							: "Failed to load browse profiles",
+					);
 				}
 			} finally {
-				if (!cancelled) {
+				if (!isMountedRef.current) {
+					return;
+				}
+
+				if (showLoadingState) {
 					setIsLoadingCards(false);
 				}
 			}
-		};
+		},
+		[
+			geohash,
+			isLoadingPreferences,
+			browseCacheKey,
+			browseRequestFilters,
+			getBrowseCardsWithTimeout,
+		],
+	);
 
+	useEffect(() => {
 		void loadBrowseCards();
+	}, [loadBrowseCards]);
+
+	useEffect(() => {
+		if (!isLoadingCards || cardsError || isLoadingPreferences) {
+			return;
+		}
+
+		const timeout = window.setTimeout(() => {
+			if (!isMountedRef.current) {
+				return;
+			}
+			setIsLoadingCards(false);
+			setCardsError(
+				"Loading nearby profiles is taking longer than expected. Try refreshing or updating your location.",
+			);
+		}, BROWSE_LOAD_TIMEOUT_MS + 3000);
 
 		return () => {
-			cancelled = true;
+			window.clearTimeout(timeout);
 		};
-	}, [apiFunctions, geohash, isLoadingPreferences, browseCacheKey, browseRequestFilters]);
+	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
-			const parsed = await apiFunctions.getBrowseCards({
+			const parsed = await getBrowseCardsWithTimeout({
 				geohash,
 				page: nextPage,
 				filters: browseRequestFilters,
@@ -466,6 +581,68 @@ export function GridPage() {
 			if (!cancelled) setIsLoadingMoreCards(false);
 		}
 	};
+
+	const handlePullRefresh = useCallback(() => {
+		if (isLoadingCards || isLoadingMoreCards || isPullRefreshing) {
+			return;
+		}
+
+		setIsPullRefreshing(true);
+		void loadBrowseCards({ preferCache: false, showLoadingState: false }).finally(
+			() => {
+				if (!isMountedRef.current) {
+					return;
+				}
+				setIsPullRefreshing(false);
+			},
+		);
+	}, [isLoadingCards, isLoadingMoreCards, isPullRefreshing, loadBrowseCards]);
+
+	const handlePageTouchStart = useCallback(
+		(event: React.TouchEvent<HTMLElement>) => {
+			if (window.scrollY > 0 || isLoadingCards || isPullRefreshing) {
+				touchStartYRef.current = null;
+				isPullingRef.current = false;
+				return;
+			}
+
+			touchStartYRef.current = event.touches[0]?.clientY ?? null;
+			isPullingRef.current = touchStartYRef.current !== null;
+		},
+		[isLoadingCards, isPullRefreshing],
+	);
+
+	const handlePageTouchMove = useCallback((event: React.TouchEvent<HTMLElement>) => {
+		if (!isPullingRef.current) {
+			return;
+		}
+
+		const startY = touchStartYRef.current;
+		if (startY == null) {
+			return;
+		}
+
+		const currentY = event.touches[0]?.clientY ?? startY;
+		const delta = currentY - startY;
+
+		if (delta <= 0) {
+			setPullDistance(0);
+			return;
+		}
+
+		event.preventDefault();
+		setPullDistance(Math.min(MAX_PULL_DISTANCE_PX, delta * 0.55));
+	}, []);
+
+	const handlePageTouchEnd = useCallback(() => {
+		if (pullDistance >= PULL_REFRESH_THRESHOLD_PX) {
+			handlePullRefresh();
+		}
+
+		touchStartYRef.current = null;
+		isPullingRef.current = false;
+		setPullDistance(0);
+	}, [handlePullRefresh, pullDistance]);
 
 	const clearBrowseFilters = () => {
 		setBrowseFilters(defaultBrowseFilters);
@@ -604,10 +781,163 @@ export function GridPage() {
 
 	return (
 		/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */
-		<section className="app-screen overflow-x-hidden !px-0" style={{ width: "100%" }}>
-			{/* Re-applying the standard app padding via --app-px only to the header container */}
-			<div className="w-full px-[var(--app-px)]">
-				<header className="mb-6 px-4">
+		<section
+			className="app-screen overflow-x-hidden !px-0"
+			style={{ width: "100%" }}
+			onTouchStart={handlePageTouchStart}
+			onTouchMove={handlePageTouchMove}
+			onTouchEnd={handlePageTouchEnd}
+			onTouchCancel={handlePageTouchEnd}
+		>
+			{(pullDistance > 0 || isPullRefreshing) && (
+				<div
+					className="w-full flex items-center justify-center overflow-hidden text-xs font-medium text-[var(--text-muted)]"
+					style={{ height: `${Math.max(20, pullDistance)}px` }}
+				>
+					{isPullRefreshing
+						? "Refreshing feed..."
+						: pullDistance >= PULL_REFRESH_THRESHOLD_PX
+							? "Release to refresh"
+							: "Pull to refresh"}
+				</div>
+			)}
+
+			<header className="mb-2 px-[var(--app-px)] sm:px-4">
+				<div className="sm:hidden">
+					<div>
+						<div className="mb-1 flex items-center gap-2">
+							<button
+								type="button"
+								onClick={() => navigate("/settings")}
+								className="shrink-0 rounded-full transition-all active:scale-95"
+								aria-label="Open settings"
+								title="Settings"
+							>
+								<Avatar
+									src={profilePhotoUrl}
+									alt="Your profile photo"
+									className="h-11 w-11"
+								/>
+							</button>
+
+							<button
+								type="button"
+								onClick={() => navigate("/browse/location")}
+								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99]"
+							>
+								<MapPin className="h-4 w-4" />
+								<span>Current location</span>
+							</button>
+						</div>
+
+						<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
+								<button
+									type="button"
+									onClick={() =>
+										navigate("/browse/filters", {
+											state: {
+												browseFiltersDraft: {
+													browseFilters,
+													ageMin,
+													ageMax,
+													heightCmMin,
+													heightCmMax,
+													weightGramsMin,
+													weightGramsMax,
+													tribes,
+													lookingFor,
+													relationshipStatuses,
+													bodyTypes,
+													sexualPositions,
+													meetAt,
+													nsfwPics,
+													tags,
+												},
+											},
+										})
+									}
+									className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+								>
+									<SlidersHorizontal className="h-4 w-4" />
+									{hasActiveBrowseFilters ? (
+										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+											{activeFilterCount}
+										</span>
+									) : null}
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										setBrowseFilters((prev) => ({
+											...prev,
+											onlineOnly: !prev.onlineOnly,
+										}))
+									}
+									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+								>
+									Online
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										setBrowseFilters((prev) => ({
+											...prev,
+											rightNow: !prev.rightNow,
+										}))
+									}
+									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+								>
+									Right Now
+								</button>
+
+								<button
+									type="button"
+									onClick={() =>
+										navigate("/browse/filters", {
+											state: {
+												browseFiltersDraft: {
+													browseFilters,
+													ageMin,
+													ageMax,
+													heightCmMin,
+													heightCmMax,
+													weightGramsMin,
+													weightGramsMax,
+													tribes,
+													lookingFor,
+													relationshipStatuses,
+													bodyTypes,
+													sexualPositions,
+													meetAt,
+													nsfwPics,
+													tags,
+												},
+											},
+										})
+									}
+									className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+								>
+									Position
+								</button>
+
+								{hasActiveBrowseFilters ? (
+									<button
+										type="button"
+										onClick={clearBrowseFilters}
+										className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+									>
+										Clear
+									</button>
+								) : null}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div className="hidden sm:block">
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
 							<h1 className="app-title">Browse Profiles</h1>
@@ -634,7 +964,7 @@ export function GridPage() {
 									<MapPin className="h-3.5 w-3.5" />
 									<span className="hidden lg:inline">Location</span>
 								</button>
-                                <button
+								<button
 									type="button"
 									onClick={() =>
 										navigate("/browse/filters", {
@@ -699,8 +1029,8 @@ export function GridPage() {
 					<p className="app-subtitle">
 						Discover people near you and jump into chats from the main feed.
 					</p>
-				</header>
-			</div>
+				</div>
+			</header>
 
 			<BrowseGrid
 				isLoadingCards={isLoadingCards}

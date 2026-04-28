@@ -50,7 +50,7 @@ export function SignInPage() {
 	return (
 		<AuthShell
 			title="Sign In"
-			subtitle="Welcome back to Open Grind."
+			subtitle="Welcome back to Free Grind."
 			footer={
 				<Link
 					to="/auth/sign-up"

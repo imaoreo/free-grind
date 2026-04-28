@@ -6,7 +6,8 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import type { ConversationEntry } from "../../types/messages";
 import type { ProfileSearchResult, SearchMode } from "../../types/chat-page";
-import { getProfileImageUrl } from "../../utils/media";
+import { getProfileImageUrl, validateMediaHash } from "../../utils/media";
+import blankProfileImage from "../../images/blank-profile.png";
 import {
 	indexConversations,
 	searchConversationsLocal,
@@ -75,6 +76,14 @@ export function ChatSearchPage() {
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
 		[searchQuery],
 	);
+
+	const getSearchProfileImage = useCallback((hash: string | null | undefined) => {
+		if (!hash || !validateMediaHash(hash)) {
+			return blankProfileImage;
+		}
+
+		return getProfileImageUrl(hash);
+	}, []);
 
 	useEffect(() => {
 		indexConversations(conversations);
@@ -206,6 +215,20 @@ export function ChatSearchPage() {
 		[navigate],
 	);
 
+	const viewProfileById = useCallback(
+		(rawProfileId: string) => {
+			const parsed = Number(rawProfileId.trim());
+			if (!Number.isInteger(parsed) || parsed <= 0) {
+				toast.error("Enter a valid profile ID");
+				return;
+			}
+
+			navigate(`/profile/${parsed}`);
+			setStartChatProfileIdDraft("");
+		},
+		[navigate],
+	);
+
 	const openConversationById = useCallback(
 		(conversationId: string) => {
 			navigate(`/chat/${encodeURIComponent(conversationId)}`);
@@ -268,10 +291,17 @@ export function ChatSearchPage() {
 								className="input-field h-9 text-sm"
 							/>
 							<button
+								type="button"
+								onClick={() => viewProfileById(startChatProfileIdDraft)}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								View
+							</button>
+							<button
 								type="submit"
 								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								Start
+								Message
 							</button>
 						</form>
 						<div className="mt-2 flex flex-wrap gap-2">
@@ -384,7 +414,7 @@ export function ChatSearchPage() {
 											Use searched profile ID
 										</p>
 									</div>
-									<span className="text-xs font-semibold text-[var(--accent)]">
+									<span className="text-xs font-semibold text-[var(--accent-readable)]">
 										Start
 									</span>
 								</button>
@@ -406,13 +436,11 @@ export function ChatSearchPage() {
 												className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 											>
 												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-													{profile.profileImageMediaHash ? (
-														<img
-															src={getProfileImageUrl(profile.profileImageMediaHash)}
-															alt=""
-															className="h-full w-full object-cover"
-														/>
-													) : null}
+													<img
+														src={getSearchProfileImage(profile.profileImageMediaHash)}
+														alt={profile.displayName || "Profile"}
+														className="h-full w-full object-cover"
+													/>
 												</div>
 												<div className="min-w-0 flex-1">
 													<p className="truncate text-sm font-semibold">

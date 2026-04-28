@@ -3,7 +3,7 @@
 layout: home
 
 hero:
-  name: "Open Grind"
+  name: "Free Grind"
   text: "Unofficial Grindr client"
   tagline: Crossplatform, free, libre, ad-free, tracker-free, privacy-centered and community-driven
   actions:

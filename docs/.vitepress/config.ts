@@ -19,8 +19,8 @@ export default defineConfig({
 
 	cleanUrls: true,
 
-	title: "Open Grind",
-	description: "Open Grind project documentation and Grindr API reference",
+	title: "Free Grind",
+	description: "Free Grind project documentation and Grindr API reference",
 	themeConfig: {
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
@@ -39,7 +39,7 @@ export default defineConfig({
 					text: "User guide",
 					items: [
 						{ text: "Overview", link: "/guide/" },
-						{ text: "Why Open Grind", link: "/guide/why-free-grind" },
+						{ text: "Why Free Grind", link: "/guide/why-free-grind" },
 						{ text: "Download", link: "/guide/download" },
 						{ text: "Login", link: "/guide/login" },
 						{ text: "Getting Started", link: "/guide/getting-started" },
@@ -70,7 +70,7 @@ export default defineConfig({
 		],
 
 		footer: {
-			message: "Open Grind is not affiliated with Grindr in any way.",
+			message: "Free Grind is not affiliated with Grindr in any way.",
 			copyright:
 				'Licensed under the <a href="https://github.com/kezza2k7/free-grind/blob/main/LICENSE">Personal Use Licence</a>.',
 		},

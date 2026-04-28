@@ -34,6 +34,7 @@ import {
 	isCurrentlyOnline,
 	shouldHideField,
 } from "../utils";
+import blankProfileImage from "../../../../images/blank-profile.png";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -464,9 +465,13 @@ export function ProfileDetailsModal({
 											)}
 										</>
 									) : (
-										<p className="text-sm text-[var(--text-muted)]">
-											No profile photos available.
-										</p>
+										<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+											<img
+												src={blankProfileImage}
+												alt="Default profile"
+												className="aspect-square w-full object-cover"
+											/>
+										</div>
 									)}
 								</div>
 
@@ -860,9 +865,13 @@ export function ProfileDetailsModal({
 										))}
 									</div>
 								) : (
-									<p className="text-sm text-[var(--text-muted)]">
-										No profile photos available.
-									</p>
+									<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+										<img
+											src={blankProfileImage}
+											alt="Default profile"
+											className="aspect-square w-full object-cover"
+										/>
+									</div>
 								)}
 							</div>
 

@@ -2,11 +2,11 @@ import type { BrowseCard } from "../../GridPage.types";
 import { MapPin } from "lucide-react";
 import {
 	formatDistance,
-	getCardInitials,
 	getDisplayName,
 	isCurrentlyOnline,
 } from "../utils";
 import { cn } from "../../../../utils/cn";
+import blankProfileImage from "../../../../images/blank-profile.png";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
@@ -18,7 +18,6 @@ type BrowseCardTileProps = {
 export function BrowseCardTile({
 	card,
 	onSelectProfile,
-	onMessageProfile,
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const name = getDisplayName(card);
@@ -31,24 +30,18 @@ export function BrowseCardTile({
 			key={card.profileId}
 			onClick={() => onSelectProfile(card.profileId)}
 			className={cn(
-				"surface-card-grid overflow-hidden text-left transition-transform hover:-translate-y-1 active:scale-95",
+				"surface-card-grid overflow-hidden text-left transition-transform active:scale-95",
 				// Keep mobile square, round only on desktop-like devices.
 				isDesktop && "rounded-xl shadow-sm",
 			)}
 		>
 			{/* Note: Switched from aspect-[4/5] to aspect-[5/5] because square images look more pleasant in the grid */}
 			<div className="relative aspect-[5/5] bg-[var(--surface-2)]">
-				{card.primaryImageUrl ? (
-					<img
-						src={card.primaryImageUrl}
-						alt={name}
-						className="h-full w-full object-cover"
-					/>
-				) : (
-					<div className="flex h-full items-center justify-center bg-[var(--surface)] text-2xl font-semibold text-[var(--text-muted)]">
-						{getCardInitials(name)}
-					</div>
-				)}
+				<img
+					src={card.primaryImageUrl ?? blankProfileImage}
+					alt={name}
+					className="h-full w-full object-cover"
+				/>
 				
 				{/* Top-left: Name & Age */}
 				<div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 via-black/20 to-transparent p-2 text-white">

@@ -1,6 +1,6 @@
 {
 	"$schema": "https://schema.tauri.app/config/2",
-	"productName": "Open Grind",
+	"productName": "Free Grind",
 	"version": "0.1.0",
 	"identifier": "dev.estopia.free-grind",
 	"build": {
@@ -12,7 +12,7 @@
 	"app": {
 		"windows": [
 			{
-				"title": "Open Grind",
+				"title": "Free Grind",
 				"width": 1000,
 				"height": 800,
 				"userAgent": "OpenGrind/0.1.0 (+https://opengrind.imaoreo.dev/; contact: support@imaoreo.dev)"

@@ -4,7 +4,7 @@ title: Privacy and Safety
 
 # Privacy and Safety
 
-Open Grind is designed for privacy-first usage.
+Free Grind is designed for privacy-first usage.
 
 ## Minimize data exposure
 

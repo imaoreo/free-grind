@@ -53,6 +53,7 @@ import {
 	validateMediaHash,
 } from "../../utils/media";
 import { Avatar } from "../../components/ui/avatar";
+import blankProfileImage from "../../images/blank-profile.png";
 import {
 	indexConversations,
 	indexMessages,
@@ -525,6 +526,14 @@ function getMessageVideoUrl(message: UiMessage): string | null {
 	return null;
 }
 
+function getParticipantAvatarUrl(hash: string | null | undefined): string {
+	if (!hash || !validateMediaHash(hash)) {
+		return blankProfileImage;
+	}
+
+	return getProfileImageUrl(hash);
+}
+
 function isLocalClientMessageId(messageId: string): boolean {
 	return (
 		messageId.startsWith("local:") || messageId.startsWith("local-upload:")
@@ -660,15 +669,6 @@ export function ChatPage() {
 	const clearInboxFilters = useCallback(() => {
 		setInboxFilters({});
 	}, []);
-
-	const activeInboxFilterCount =
-		Number(Boolean(inboxFilters.unreadOnly)) +
-		Number(Boolean(inboxFilters.chemistryOnly)) +
-		Number(Boolean(inboxFilters.favoritesOnly)) +
-		Number(Boolean(inboxFilters.rightNowOnly)) +
-		Number(Boolean(inboxFilters.onlineNowOnly)) +
-		Number((inboxFilters.positions?.length ?? 0) > 0) +
-		Number(inboxFilters.distanceMeters != null);
 
 	const [threadConversationId, setThreadConversationId] = useState<
 		string | null
@@ -2770,21 +2770,11 @@ export function ChatPage() {
 							>
 								<div className="flex items-start gap-3">
 									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-										{otherParticipant?.primaryMediaHash ? (
-											<img
-												src={getProfileImageUrl(
-													otherParticipant.primaryMediaHash,
-												)}
-												alt=""
-												className="h-full w-full object-cover"
-											/>
-										) : (
-											<div className="flex h-full w-full items-center justify-center text-xs text-[var(--text-muted)]">
-												{(conversation.data.name || "?")
-													.slice(0, 1)
-													.toUpperCase()}
-											</div>
-										)}
+										<img
+											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+											alt={conversation.data.name || "Profile"}
+											className="h-full w-full object-cover"
+										/>
 									</div>
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center justify-between gap-2">
@@ -2876,19 +2866,11 @@ export function ChatPage() {
 								aria-label="Open profile"
 								className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] transition hover:border-[var(--accent)] disabled:cursor-default disabled:opacity-80"
 							>
-								{otherParticipant?.primaryMediaHash ? (
-									<img
-										src={getProfileImageUrl(otherParticipant.primaryMediaHash)}
-										alt=""
-										className="h-full w-full object-cover"
-									/>
-								) : (
-									<div className="flex h-full w-full items-center justify-center text-xs text-[var(--text-muted)]">
-										{(selectedConversation.data.name || "?")
-											.slice(0, 1)
-											.toUpperCase()}
-									</div>
-								)}
+								<img
+									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+									alt={selectedConversation.data.name || "Profile"}
+									className="h-full w-full object-cover"
+								/>
 							</button>
 							<div className="min-w-0">
 								<p className="truncate text-lg font-semibold">
@@ -3110,7 +3092,7 @@ export function ChatPage() {
 									senderParticipant?.primaryMediaHash &&
 									validateMediaHash(senderParticipant.primaryMediaHash)
 										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-										: null;
+										: blankProfileImage;
 								const senderLabel = mine
 									? "You"
 									: selectedConversation.data.name?.trim() || "Unknown";

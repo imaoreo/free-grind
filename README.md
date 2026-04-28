@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src-tauri/icons/icon.png" alt="Open Grind Icon" width="150" height="150">
+  <img src="src-tauri/icons/icon.png" alt="Free Grind Icon" width="150" height="150">
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@ Free Grind is a fully independent Grindr client built with [Tauri](https://tauri
 
 The goal is to provide a privacy-respecting, open, and extensible alternative to the official client, without ads, trackers, or forced upsells.
 
-Open Grind is under active development. Stability is not always guaranteed, and some features are still in progress. See [ROADMAP.md](./ROADMAP.md) for what's planned.
+Free Grind is under active development. Stability is not always guaranteed, and some features are still in progress. See [ROADMAP.md](./ROADMAP.md) for what's planned.
 
 Neither the maintainers nor contributors are affiliated with Grindr LLC.
 
@@ -30,7 +30,7 @@ Neither the maintainers nor contributors are affiliated with Grindr LLC.
 
 This project is provided with no warranty of any kind. Use at your own risk. We are not responsible for lost chats, account issues, unexpected bans, or any other problems arising from use of this software.
 
-Open Grind does not collect personal data, display ads, or generate revenue of any kind. This project is open source — you can verify all of this yourself.
+Free Grind does not collect personal data, display ads, or generate revenue of any kind. This project is open source — you can verify all of this yourself.
 
 ## Downloads
 

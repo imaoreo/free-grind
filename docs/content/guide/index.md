@@ -4,13 +4,13 @@ title: User Guide
 
 # User Guide
 
-Welcome to the Open Grind user guides.
+Welcome to the Free Grind user guides.
 
 Use these guides to get set up, send messages, share media, and troubleshoot common issues.
 
 ## Start here
 
-- [Why Open Grind](/guide/why-free-grind)
+- [Why Free Grind](/guide/why-free-grind)
 - [Download](/guide/download)
 - [Getting Started](/guide/getting-started)
 

@@ -1,12 +1,20 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
+const packageJsonPath = fileURLToPath(new URL("./package.json", import.meta.url));
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+const appVersion = packageJson.version ?? "0.0.0";
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
 	plugins: [react()],
+	define: {
+		"import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+	},
 	build: {
 		outDir: "dist",
 		emptyOutDir: true,

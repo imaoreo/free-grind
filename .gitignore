@@ -12,5 +12,5 @@ vite.config.ts.timestamp-*
 src-tauri/certs/*.jks
 .idea/
 secrets
-frontend.tat.gz
-frontend.tat.gz.sig
+frontend.tar.gz
+frontend.tar.gz.sig

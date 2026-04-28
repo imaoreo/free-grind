@@ -1,10 +1,10 @@
 ---
-title: Why Open Grind
+title: Why Free Grind
 ---
 
-# Why Open Grind
+# Why Free Grind
 
-Open Grind focuses on control, visibility, and quality-of-life features that are hard to get in the standard app flow.
+Free Grind focuses on control, visibility, and quality-of-life features that are hard to get in the standard app flow.
 
 ## Core benefits
 

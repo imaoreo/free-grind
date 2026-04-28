@@ -4,7 +4,7 @@ title: Getting Started
 
 # Getting Started
 
-This guide walks you through your first Open Grind session.
+This guide walks you through your first Free Grind session.
 
 ## 1. Sign in
 
