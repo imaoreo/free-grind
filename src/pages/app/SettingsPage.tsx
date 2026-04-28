@@ -25,6 +25,18 @@ import {
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
 
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message) {
+		return error.message;
+	}
+
+	if (typeof error === "string") {
+		return error;
+	}
+
+	return "Failed to check or apply update.";
+}
+
 export function SettingsPage() {
 	const { logout } = useAuth();
 	const navigate = useNavigate();
@@ -91,7 +103,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			console.error("Update check failed:", error);
-			toast.error("Failed to check or apply update.");
+			toast.error(getErrorMessage(error));
 		} finally {
 			setIsCheckingUpdates(false);
 		}
