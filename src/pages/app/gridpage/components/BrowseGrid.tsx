@@ -1,5 +1,6 @@
 import type { BrowseCard } from "../../GridPage.types";
 import { BrowseCardTile } from "./BrowseCardTile";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
 import {
 	EmptyState,
 	ErrorState,
@@ -29,6 +30,9 @@ export function BrowseGrid({
 	isLoadingMore,
 	onLoadMore,
 }: BrowseGridProps) {
+	const { mobileGridColumns } = usePreferences();
+	const minmaxValue = mobileGridColumns === "2" ? "130px" : "100px";
+
 	const viewState = getAsyncState(
 		{ isLoading: isLoadingCards, error: cardsError, data: cards },
 		cards.length === 0,
@@ -62,8 +66,8 @@ export function BrowseGrid({
 	}
 
 	return (
-		<div className="flex flex-col gap-4">
-			<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+		<div className="w-full flex flex-col gap-4">
+			<div className="w-full grid gap-1" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))` }}>
 				{cards.map((card) => (
 					<BrowseCardTile
 						key={card.profileId}

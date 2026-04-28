@@ -30,7 +30,7 @@ export function getDisplayName(card: BrowseCard): string {
 		return value;
 	}
 
-	return `Profile ${card.profileId}`;
+	return ``;
 }
 
 export function getCardInitials(name: string): string {

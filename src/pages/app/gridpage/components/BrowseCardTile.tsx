@@ -1,5 +1,5 @@
-import { Flame, MapPin, MessageCircle, Shield } from "lucide-react";
 import type { BrowseCard } from "../../GridPage.types";
+import { MapPin } from "lucide-react";
 import {
 	formatDistance,
 	getCardInitials,
@@ -20,13 +20,14 @@ export function BrowseCardTile({
 }: BrowseCardTileProps) {
 	const name = getDisplayName(card);
 	const online = isCurrentlyOnline(card.onlineUntil);
+	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
 
 	return (
 		<button
 			type="button"
 			key={card.profileId}
 			onClick={() => onSelectProfile(card.profileId)}
-			className="surface-card overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-0.5"
+			className="surface-card overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-1 active:scale-95"
 		>
 			<div className="relative aspect-[4/5] bg-[var(--surface-2)]">
 				{card.primaryImageUrl ? (
@@ -40,57 +41,33 @@ export function BrowseCardTile({
 						{getCardInitials(name)}
 					</div>
 				)}
-				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2.5 text-white">
-					<div className="flex items-center justify-between gap-2">
-						<p className="truncate text-sm font-semibold">{name}</p>
-						{online ? (
-							<span className="inline-flex items-center rounded-full bg-green-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
-								Online
-							</span>
-						) : null}
-					</div>
-				</div>
+				
+				{/* Top-left: Name & Age */}
+				<div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 via-black/20 to-transparent p-3 text-white">
+				<p className="text-sm sm:text-base font-bold leading-tight">
+					{name}
+					{age && <span className="font-semibold text-white/90"> {age}</span>}
+				</p>
 			</div>
 
-			<div className="grid gap-2 p-3 text-xs text-[var(--text-muted)]">
-				<div>
-					<button
-						type="button"
-						onClick={(event) => {
-							event.stopPropagation();
-							onMessageProfile(card.profileId);
-						}}
-						className="inline-flex h-9 items-center justify-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)]"
-					>
-						<MessageCircle className="h-3.5 w-3.5" />
-						Message
-					</button>
+			{/* Top-right: Online Status */}
+			{online && (
+				<div className="absolute right-3 top-3">
+					{/* Dot on mobile */}
+					<span className="inline-flex sm:hidden h-3 w-3 rounded-full bg-green-500 shadow-lg" />
+					{/* Badge on larger screens */}
+					<span className="hidden sm:inline-flex items-center rounded-full bg-green-500/90 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
+						Online
+					</span>
 				</div>
-				<div className="flex items-center justify-between gap-2">
-					<span className="inline-flex items-center gap-1">
+			)}
+
+				{/* Bottom-left: Distance */}
+				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent p-3 text-white">
+					<span className="inline-flex items-center gap-1 text-xs font-semibold">
 						<MapPin className="h-3.5 w-3.5" />
 						{formatDistance(card.distanceMeters)}
 					</span>
-					<span className="font-medium text-[var(--text)]">
-						{typeof card.age === "number" && card.age > 0 ? `${card.age}` : "-"}
-					</span>
-				</div>
-				<div className="flex items-center justify-between gap-2">
-					<span className="inline-flex items-center gap-1">
-						<MessageCircle className="h-3.5 w-3.5" />
-						{card.unreadCount ?? 0} unread
-					</span>
-					{card.isPopular ? (
-						<span className="inline-flex items-center gap-1 text-[var(--text)]">
-							<Flame className="h-3.5 w-3.5" />
-							Popular
-						</span>
-					) : card.rightNow ? (
-						<span className="inline-flex items-center gap-1 text-[var(--text)]">
-							<Shield className="h-3.5 w-3.5" />
-							Right Now
-						</span>
-					) : null}
 				</div>
 			</div>
 		</button>

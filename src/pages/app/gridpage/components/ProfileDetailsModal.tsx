@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
 	createBackdropCloseHandler,
@@ -38,6 +38,7 @@ import {
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
+	onMessageProfile?: (profileId: string) => void;
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -51,6 +52,7 @@ type ProfileDetailsModalProps = {
 export function ProfileDetailsModal({
 	isOpen,
 	onClose,
+	onMessageProfile,
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -78,6 +80,7 @@ export function ProfileDetailsModal({
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
 	const profileLastSeen = activeProfile?.seen ?? null;
+	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -389,6 +392,18 @@ export function ProfileDetailsModal({
 											<p>Distance: {formatDistance(profileDistance)}</p>
 										</div>
 									</div>
+									{messageProfileId && onMessageProfile ? (
+										<div className="mt-3">
+											<button
+												type="button"
+												onClick={() => onMessageProfile(messageProfileId)}
+												className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+											>
+												<MessageCircle className="h-4 w-4" />
+												Message
+											</button>
+										</div>
+									) : null}
 								</div>
 
 								<div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">

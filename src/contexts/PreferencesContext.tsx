@@ -34,6 +34,7 @@ const preferencesSchema = z.object({
 	colorScheme: z.enum(["system", "light", "dark"]).default("system"),
 	accentColor: z.string().default("#ffcc01"),
 	accentContrast: z.string().default("#1a1a1a"),
+	mobileGridColumns: z.enum(["2", "3"]).default("3"),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -51,6 +52,7 @@ type PreferencesAction =
 	| { type: "SET_GEOHASH"; payload: string | null }
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_COLOR_SCHEME"; payload: ColorScheme }
+	| { type: "SET_MOBILE_GRID_COLUMNS"; payload: "2" | "3" }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
 function preferencesReducer(
@@ -64,6 +66,8 @@ function preferencesReducer(
 			return { ...state, isLoading: action.payload };
 		case "SET_COLOR_SCHEME":
 			return { ...state, colorScheme: action.payload };
+		case "SET_MOBILE_GRID_COLUMNS":
+			return { ...state, mobileGridColumns: action.payload };
 		case "SET_ACCENT":
 			return {
 				...state,
@@ -90,6 +94,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		colorScheme: "system",
 		accentColor: "#ffcc01",
 		accentContrast: "#1a1a1a",
+		mobileGridColumns: "3",
 		isLoading: true,
 	});
 
@@ -103,6 +108,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					const parsed = preferencesSchema.parse(decoded);
 					dispatch({ type: "SET_GEOHASH", payload: parsed.geohash });
 					dispatch({ type: "SET_COLOR_SCHEME", payload: parsed.colorScheme });
+					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
 					dispatch({
 						type: "SET_ACCENT",
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
@@ -126,6 +132,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				colorScheme: state.colorScheme,
 				accentColor: state.accentColor,
 				accentContrast: state.accentContrast,
+				mobileGridColumns: state.mobileGridColumns,
 			};
 			const preferences: Preferences = {
 				...oldValues,
@@ -141,6 +148,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.colorScheme !== undefined) {
 				dispatch({ type: "SET_COLOR_SCHEME", payload: newValues.colorScheme });
+			}
+			if (newValues.mobileGridColumns !== undefined) {
+				dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: newValues.mobileGridColumns });
 			}
 			if (newValues.accentColor !== undefined || newValues.accentContrast !== undefined) {
 				dispatch({
@@ -162,7 +172,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			// Persist to localStorage
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
 		},
-		[state.geohash, state.colorScheme, state.accentColor, state.accentContrast],
+		[
+			state.geohash,
+			state.colorScheme,
+			state.accentColor,
+			state.accentContrast,
+			state.mobileGridColumns,
+		],
 	);
 
 	const value: PreferencesContextType = {
@@ -170,6 +186,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		colorScheme: state.colorScheme,
 		accentColor: state.accentColor,
 		accentContrast: state.accentContrast,
+		mobileGridColumns: state.mobileGridColumns,
 		setPreferences,
 		isLoading: state.isLoading,
 	};

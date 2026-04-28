@@ -584,7 +584,9 @@ export function GridPage() {
 
 	const handleSelectProfile = (profileId: string) => {
 		if (window.matchMedia("(max-width: 639px)").matches) {
-			navigate(`/profile/${profileId}`);
+			navigate(`/profile/${profileId}`, {
+				state: { returnTo: `${location.pathname}${location.search}` },
+			});
 			return;
 		}
 
@@ -601,9 +603,9 @@ export function GridPage() {
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
-		<section className="app-screen overflow-x-hidden">
-			<div className="mx-auto w-full max-w-6xl">
-				<header className="mb-6">
+		<section className="app-screen overflow-x-hidden" style={{ width: "100%" }}>
+			<div className="w-full px-0 sm:px-4">
+				<header className="mb-6 px-4 sm:px-0">
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
 							<h1 className="app-title">Browse Profiles</h1>
@@ -628,6 +630,7 @@ export function GridPage() {
 									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								>
 									<MapPin className="h-3.5 w-3.5" />
+									<span className="hidden lg:inline">Location</span>
 								</button>
                                 <button
 									type="button"
@@ -657,6 +660,7 @@ export function GridPage() {
 									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								>
 									<SlidersHorizontal className="h-3.5 w-3.5" />
+									<span className="hidden lg:inline">Filter</span>
 									{hasActiveBrowseFilters ? (
 										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
 											{activeFilterCount}
@@ -712,6 +716,7 @@ export function GridPage() {
 				<ProfileDetailsModal
 					isOpen={Boolean(activeProfileId)}
 					onClose={() => setActiveProfileId(null)}
+					onMessageProfile={handleMessageProfile}
 					activeProfile={activeProfile}
 					selectedBrowseCard={selectedBrowseCard}
 					isLoadingActiveProfile={isLoadingActiveProfile}

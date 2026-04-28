@@ -51,6 +51,12 @@ export function GridProfilePage() {
 			: null;
 	const returnToFromQuery = searchParams.get("returnTo");
 	const returnTo = returnToFromState ?? returnToFromQuery;
+	const safeReturnTo =
+		typeof returnTo === "string" &&
+		returnTo.startsWith("/") &&
+		!returnTo.startsWith("//")
+			? returnTo
+			: "/browse";
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
@@ -177,17 +183,21 @@ export function GridProfilePage() {
 		return hashes;
 	}, [activeProfile]);
 
+	const handleMessageProfile = (targetProfileId: string) => {
+		const nextParams = new URLSearchParams();
+		nextParams.set("targetProfileId", targetProfileId);
+		nextParams.set("returnTo", safeReturnTo);
+		navigate(`/chat?${nextParams.toString()}`);
+	};
+
 	return (
 		<ProfileDetailsModal
 			variant="page"
 			isOpen
 			onClose={() => {
-				if (returnTo && returnTo.startsWith("/chat")) {
-					navigate(returnTo, { replace: true });
-					return;
-				}
-				navigate("/chat", { replace: true });
+				navigate(safeReturnTo, { replace: true });
 			}}
+			onMessageProfile={handleMessageProfile}
 			activeProfile={activeProfile}
 			selectedBrowseCard={null}
 			isLoadingActiveProfile={isLoadingActiveProfile}
