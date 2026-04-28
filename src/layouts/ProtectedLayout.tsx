@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 export function ProtectedLayout() {
 	const location = useLocation();
-	const isChat = location.pathname.startsWith("/chat");
+	const isChatConversationRoute = /^\/chat\/[^/]+$/.test(location.pathname);
 	const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
 
 	useEffect(() => {
@@ -16,8 +16,8 @@ export function ProtectedLayout() {
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
-	// Hide navbar on mobile chat pages only
-	const shouldHideNavbar = isChat && !isDesktop;
+	// Hide navbar on mobile conversation thread pages only.
+	const shouldHideNavbar = isChatConversationRoute && !isDesktop;
 
 	return (
 		<div className="relative">
