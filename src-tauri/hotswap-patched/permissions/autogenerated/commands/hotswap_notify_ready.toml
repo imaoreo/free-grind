@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-hotswap-notify-ready"
+description = "Enables the hotswap_notify_ready command without any pre-configured scope."
+commands.allow = ["hotswap_notify_ready"]
+
+[[permission]]
+identifier = "deny-hotswap-notify-ready"
+description = "Denies the hotswap_notify_ready command without any pre-configured scope."
+commands.deny = ["hotswap_notify_ready"]

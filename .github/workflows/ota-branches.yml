@@ -3,7 +3,6 @@ name: Publish OTA Branches
 on:
   push:
     branches:
-      - main
       - development
   workflow_dispatch:
     inputs:
@@ -38,9 +37,6 @@ jobs:
             channel="${{ github.event.inputs.channel }}"
           else
             case "${GITHUB_REF_NAME}" in
-              main)
-                channel="main"
-                ;;
               development)
                 channel="development"
                 ;;

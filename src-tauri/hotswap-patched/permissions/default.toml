@@ -1,0 +1,13 @@
+[default]
+description = "Default permissions for the Hotswap plugin"
+permissions = [
+    "allow-hotswap-check",
+    "allow-hotswap-apply",
+    "allow-hotswap-download",
+    "allow-hotswap-activate",
+    "allow-hotswap-rollback",
+    "allow-hotswap-current-version",
+    "allow-hotswap-notify-ready",
+    "allow-hotswap-configure",
+    "allow-hotswap-get-config",
+]

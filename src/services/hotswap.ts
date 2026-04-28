@@ -1,10 +1,25 @@
 import { isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import {
 	applyUpdate,
 	checkUpdate,
 	configure,
 	notifyReady,
 } from "tauri-plugin-hotswap-api";
+
+// Subscribe to hotswap lifecycle events for debugging
+if (typeof window !== "undefined") {
+	void (async () => {
+		if (!isTauri()) return;
+		await listen("hotswap://lifecycle", (event) => {
+			console.log("[hotswap-lifecycle]", JSON.stringify(event.payload));
+		});
+		await listen("hotswap://download-progress", (event) => {
+			const p = event.payload as { downloaded: number; total?: number };
+			console.log(`[hotswap-progress] ${p.downloaded}/${p.total ?? "?"}`);
+		});
+	})();
+}
 
 let startupReadyNotified = false;
 const HOTSWAP_CHANNEL_STORAGE_KEY = "hotswap-channel";

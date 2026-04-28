@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-hotswap-download"
+description = "Enables the hotswap_download command without any pre-configured scope."
+commands.allow = ["hotswap_download"]
+
+[[permission]]
+identifier = "deny-hotswap-download"
+description = "Denies the hotswap_download command without any pre-configured scope."
+commands.deny = ["hotswap_download"]
