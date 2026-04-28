@@ -1055,7 +1055,7 @@ export function ChatPage() {
 		setRealtimeStatus(status);
 	}, []);
 
-	const loadAlbums = useCallback(async () => {
+	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
 		setIsLoadingAlbums(true);
 		try {
 			const items = await service.listAlbums();
@@ -1073,10 +1073,12 @@ export function ChatPage() {
 				})
 				.filter((item) => Number.isFinite(item.albumId));
 			setShareableAlbums(mapped);
+			return mapped;
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : "Failed to load albums",
 			);
+			return [];
 		} finally {
 			setIsLoadingAlbums(false);
 		}
@@ -2502,13 +2504,27 @@ export function ChatPage() {
 		showPreviousAlbumMedia,
 	]);
 
-	const toggleAlbumPicker = () => {
-		const next = !isAlbumPickerOpen;
-		setIsAlbumPickerOpen(next);
-		if (next && shareableAlbums.length === 0) {
-			void loadAlbums();
+	const toggleAlbumPicker = useCallback(async () => {
+		if (isAlbumPickerOpen) {
+			setIsAlbumPickerOpen(false);
+			return;
 		}
-	};
+
+		const albums = shareableAlbums.length > 0 ? shareableAlbums : await loadAlbums();
+		const shareable = albums.filter((album) => album.isShareable);
+
+		if (shareable.length === 1) {
+			void shareAlbumToCurrentConversation(shareable[0].albumId);
+			return;
+		}
+
+		setIsAlbumPickerOpen(true);
+	}, [
+		isAlbumPickerOpen,
+		loadAlbums,
+		shareAlbumToCurrentConversation,
+		shareableAlbums,
+	]);
 
 	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
