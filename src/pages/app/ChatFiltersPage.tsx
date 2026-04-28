@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { sexualPositionLabels } from "../../types/grid";
 import type { InboxFilterKey } from "../../types/chat-page";
+import { Slider } from "../../components/ui/range-slider";
 
 type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -30,6 +31,29 @@ const defaultChatFiltersDraft: ChatFiltersDraft = {
 	onlineNowOnly: false,
 	distanceMeters: "",
 	positions: [],
+};
+
+/**
+ * Predefined steps for the distance slider to allow non-linear progression
+ * (finer steps for shorter distances, larger steps for further distances).
+ */
+const distanceSteps = [
+	100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400,
+	1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500, 3000, 3500,
+	4000, 4500, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000,
+	15000, 16000, 17000, 18000, 19000, 20000, 21000, 22000, 23000, 24000, 25000,
+	30000, 35000, 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000,
+];
+
+/**
+ * Formats meter values into a human-readable string.
+ * Values >= 75km are treated as "Unlimited" (75km+).
+ */
+const formatDistanceDisplay = (meters: number) => {
+	if (meters >= 75000 || meters <= 0) return "75km+";
+	if (meters < 1000) return `${meters}m`;
+	const km = meters / 1000;
+	return `${km}km`;
 };
 
 function isNumberArray(value: unknown): value is number[] {
@@ -72,6 +96,14 @@ export function ChatFiltersPage() {
 		[location.state],
 	);
 	const [filters, setFilters] = useState<ChatFiltersDraft>(initialState.draft);
+
+	// Distance Slider mapping logic:
+	// We map the string meter value from state to an index in distanceSteps.
+	// Empty string ("") corresponds to the maximum value (75km+ / No Filter).
+	const currentDistanceMeters = filters.distanceMeters === "" ? 75000 : Number(filters.distanceMeters);
+	const currentDistanceIndex = distanceSteps.indexOf(currentDistanceMeters);
+	const displayDistanceIndex = currentDistanceIndex === -1 ? distanceSteps.length - 1 : currentDistanceIndex;
+
 	const positionFilterOptions = useMemo(
 		() => [
 			{ value: -1, label: "Not specified" },
@@ -147,7 +179,7 @@ export function ChatFiltersPage() {
 										key={filter.key}
 										type="button"
 										onClick={() => toggleFilter(filter.key)}
-										className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+										className={`rounded-full border px-3 py-1 font-medium transition ${
 											active
 												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 												: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
@@ -160,27 +192,22 @@ export function ChatFiltersPage() {
 						</div>
 					</div>
 
-					<div>
-						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Distance
-						</p>
-						<div className="mt-2 grid grid-cols-1 gap-3 sm:max-w-xs">
-							<input
-								type="number"
-								inputMode="decimal"
-								min={0}
-								placeholder="Max distance in meters"
-								value={filters.distanceMeters}
-								onChange={(event) =>
-									setFilters((previous) => ({
-										...previous,
-										distanceMeters: event.target.value,
-									}))
-								}
-								className="h-9 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)]"
-							/>
-						</div>
-					</div>
+					<Slider
+						label="Max distance"
+						min={0}
+						max={distanceSteps.length - 1}
+						defaultValue={displayDistanceIndex}
+						displayValue={formatDistanceDisplay(currentDistanceMeters)}
+						onChange={(index) => {
+							const meters = distanceSteps[index];
+							setFilters((previous) => ({
+								...previous,
+								// If the user selects the last step (75km), we send an empty string
+								// to indicate "no distance filter" (Unlimited).
+								distanceMeters: index === distanceSteps.length - 1 ? "" : String(meters),
+							}));
+						}}
+					/>
 
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
@@ -194,7 +221,7 @@ export function ChatFiltersPage() {
 										key={positionId}
 										type="button"
 										onClick={() => togglePosition(positionId)}
-										className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+										className={`rounded-full border px-3 py-1 font-medium transition ${
 											active
 												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 												: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
