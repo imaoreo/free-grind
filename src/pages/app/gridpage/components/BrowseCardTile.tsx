@@ -6,17 +6,20 @@ import {
 	getDisplayName,
 	isCurrentlyOnline,
 } from "../utils";
+import { cn } from "../../../../utils/cn";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
 	onSelectProfile: (profileId: string) => void;
 	onMessageProfile: (profileId: string) => void;
+	isDesktop?: boolean;
 };
 
 export function BrowseCardTile({
 	card,
 	onSelectProfile,
 	onMessageProfile,
+	isDesktop = false,
 }: BrowseCardTileProps) {
 	const name = getDisplayName(card);
 	const online = isCurrentlyOnline(card.onlineUntil);
@@ -27,7 +30,11 @@ export function BrowseCardTile({
 			type="button"
 			key={card.profileId}
 			onClick={() => onSelectProfile(card.profileId)}
-			className="surface-card-grid overflow-hidden text-left transition-transform hover:-translate-y-1 active:scale-95"
+			className={cn(
+				"surface-card-grid overflow-hidden text-left transition-transform hover:-translate-y-1 active:scale-95",
+				// Keep mobile square, round only on desktop-like devices.
+				isDesktop && "rounded-xl shadow-sm",
+			)}
 		>
 			{/* Note: Switched from aspect-[4/5] to aspect-[5/5] because square images look more pleasant in the grid */}
 			<div className="relative aspect-[5/5] bg-[var(--surface-2)]">
