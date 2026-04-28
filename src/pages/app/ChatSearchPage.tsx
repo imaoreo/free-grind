@@ -206,6 +206,20 @@ export function ChatSearchPage() {
 		[navigate],
 	);
 
+	const viewProfileById = useCallback(
+		(rawProfileId: string) => {
+			const parsed = Number(rawProfileId.trim());
+			if (!Number.isInteger(parsed) || parsed <= 0) {
+				toast.error("Enter a valid profile ID");
+				return;
+			}
+
+			navigate(`/profile/${parsed}`);
+			setStartChatProfileIdDraft("");
+		},
+		[navigate],
+	);
+
 	const openConversationById = useCallback(
 		(conversationId: string) => {
 			navigate(`/chat/${encodeURIComponent(conversationId)}`);
@@ -268,10 +282,17 @@ export function ChatSearchPage() {
 								className="input-field h-9 text-sm"
 							/>
 							<button
+								type="button"
+								onClick={() => viewProfileById(startChatProfileIdDraft)}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								View
+							</button>
+							<button
 								type="submit"
 								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								Start
+								Message
 							</button>
 						</form>
 						<div className="mt-2 flex flex-wrap gap-2">
