@@ -603,9 +603,11 @@ export function GridPage() {
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
-		<section className="app-screen overflow-x-hidden" style={{ width: "100%" }}>
-			<div className="w-full px-0 sm:px-4">
-				<header className="mb-6 px-4 sm:px-0">
+		/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */
+		<section className="app-screen overflow-x-hidden !px-0" style={{ width: "100%" }}>
+			{/* Re-applying the standard app padding via --app-px only to the header container */}
+			<div className="w-full px-[var(--app-px)]">
+				<header className="mb-6 px-4">
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
 							<h1 className="app-title">Browse Profiles</h1>
@@ -698,34 +700,33 @@ export function GridPage() {
 						Discover people near you and jump into chats from the main feed.
 					</p>
 				</header>
-
-
-				<BrowseGrid
-					isLoadingCards={isLoadingCards}
-					cardsError={cardsError}
-					cards={cards}
-					onSelectProfile={handleSelectProfile}
-					onMessageProfile={handleMessageProfile}
-					hasMore={nextPage !== null}
-					isLoadingMore={isLoadingMoreCards}
-					onLoadMore={() => {
-						void handleLoadMoreCards();
-					}}
-				/>
-
-				<ProfileDetailsModal
-					isOpen={Boolean(activeProfileId)}
-					onClose={() => setActiveProfileId(null)}
-					onMessageProfile={handleMessageProfile}
-					activeProfile={activeProfile}
-					selectedBrowseCard={selectedBrowseCard}
-					isLoadingActiveProfile={isLoadingActiveProfile}
-					activeProfileError={activeProfileError}
-					activeProfilePhotoHashes={activeProfilePhotoHashes}
-					genderOptions={genderOptions}
-					pronounOptions={pronounOptions}
-				/>
 			</div>
+
+			<BrowseGrid
+				isLoadingCards={isLoadingCards}
+				cardsError={cardsError}
+				cards={cards}
+				onSelectProfile={handleSelectProfile}
+				onMessageProfile={handleMessageProfile}
+				hasMore={nextPage !== null}
+				isLoadingMore={isLoadingMoreCards}
+				onLoadMore={() => {
+					void handleLoadMoreCards();
+				}}
+			/>
+
+			<ProfileDetailsModal
+				isOpen={Boolean(activeProfileId)}
+				onClose={() => setActiveProfileId(null)}
+				onMessageProfile={handleMessageProfile}
+				activeProfile={activeProfile}
+				selectedBrowseCard={selectedBrowseCard}
+				isLoadingActiveProfile={isLoadingActiveProfile}
+				activeProfileError={activeProfileError}
+				activeProfilePhotoHashes={activeProfilePhotoHashes}
+				genderOptions={genderOptions}
+				pronounOptions={pronounOptions}
+			/>
 		</section>
 	);
 }

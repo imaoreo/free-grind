@@ -27,9 +27,10 @@ export function BrowseCardTile({
 			type="button"
 			key={card.profileId}
 			onClick={() => onSelectProfile(card.profileId)}
-			className="surface-card overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-1 active:scale-95"
+			className="surface-card-grid overflow-hidden text-left transition-transform hover:-translate-y-1 active:scale-95"
 		>
-			<div className="relative aspect-[4/5] bg-[var(--surface-2)]">
+			{/* Note: Switched from aspect-[4/5] to aspect-[5/5] because square images look more pleasant in the grid */}
+			<div className="relative aspect-[5/5] bg-[var(--surface-2)]">
 				{card.primaryImageUrl ? (
 					<img
 						src={card.primaryImageUrl}
@@ -43,7 +44,7 @@ export function BrowseCardTile({
 				)}
 				
 				{/* Top-left: Name & Age */}
-				<div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 via-black/20 to-transparent p-3 text-white">
+				<div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 via-black/20 to-transparent p-2 text-white">
 				<p className="text-sm sm:text-base font-bold leading-tight">
 					{name}
 					{age && <span className="font-semibold text-white/90"> {age}</span>}
@@ -52,7 +53,7 @@ export function BrowseCardTile({
 
 			{/* Top-right: Online Status */}
 			{online && (
-				<div className="absolute right-3 top-3">
+				<div className="absolute right-2 top-1">
 					{/* Dot on mobile */}
 					<span className="inline-flex sm:hidden h-3 w-3 rounded-full bg-green-500 shadow-lg" />
 					{/* Badge on larger screens */}
@@ -63,7 +64,7 @@ export function BrowseCardTile({
 			)}
 
 				{/* Bottom-left: Distance */}
-				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent p-3 text-white">
+				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
 					<span className="inline-flex items-center gap-1 text-xs font-semibold">
 						<MapPin className="h-3.5 w-3.5" />
 						{formatDistance(card.distanceMeters)}
