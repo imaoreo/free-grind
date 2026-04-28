@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
@@ -179,6 +179,14 @@ export function ProfileDetailsModal({
 	const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
 		null,
 	);
+	const [mobileCarouselPhotoIndex, setMobileCarouselPhotoIndex] = useState(0);
+	const [isDesktopLike, setIsDesktopLike] = useState(() => {
+		if (typeof window === "undefined") {
+			return true;
+		}
+		return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+	});
+	const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
 	useModalClose({ isOpen, onClose });
 	const handleBackdropClose = useMemo(
 		() => createBackdropCloseHandler(onClose),
@@ -190,6 +198,33 @@ export function ProfileDetailsModal({
 			setSelectedPhotoIndex(null);
 		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		setMobileCarouselPhotoIndex(0);
+		if (mobileCarouselRef.current) {
+			mobileCarouselRef.current.scrollTo({ left: 0 });
+		}
+	}, [activeProfile?.profileId, activeProfilePhotoHashes.length]);
+
+	useEffect(() => {
+		const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+		const update = () => setIsDesktopLike(query.matches);
+		update();
+		query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
+
+	const handleMobileCarouselScroll = (event: UIEvent<HTMLDivElement>) => {
+		const { scrollLeft, clientWidth } = event.currentTarget;
+		if (clientWidth <= 0) {
+			return;
+		}
+
+		const nextIndex = Math.round(scrollLeft / clientWidth);
+		if (nextIndex !== mobileCarouselPhotoIndex) {
+			setMobileCarouselPhotoIndex(nextIndex);
+		}
+	};
 
 	const selectedPhotoHash =
 		selectedPhotoIndex === null
@@ -345,23 +380,82 @@ export function ProfileDetailsModal({
 										Pictures ({activeProfilePhotoHashes.length})
 									</p>
 									{activeProfilePhotoHashes.length > 0 ? (
-										<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-											{activeProfilePhotoHashes.map((hash, index) => (
-												<button
-													type="button"
-													key={hash}
-													onClick={() => openPhotoViewer(index)}
-													className="overflow-hidden rounded-xl border border-[var(--border)]"
-													aria-label={`Open photo ${index + 1}`}
+										<>
+											{isDesktopLike ? (
+												<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+													{activeProfilePhotoHashes.map((hash, index) => (
+														<button
+															type="button"
+															key={hash}
+															onClick={() => openPhotoViewer(index)}
+															className="overflow-hidden rounded-xl border border-[var(--border)]"
+															aria-label={`Open photo ${index + 1}`}
+														>
+															<img
+																src={getThumbImageUrl(hash, "320x320")}
+																alt={`${activeProfileName} photo`}
+																className="aspect-square w-full object-cover"
+															/>
+														</button>
+													))}
+												</div>
+											) : (
+												<>
+											<div className="sm:hidden">
+												<div
+													ref={mobileCarouselRef}
+													onScroll={handleMobileCarouselScroll}
+													className="flex snap-x snap-mandatory overflow-x-auto rounded-xl border border-[var(--border)]"
 												>
-													<img
-														src={getThumbImageUrl(hash, "320x320")}
-														alt={`${activeProfileName} photo`}
-														className="aspect-square w-full object-cover"
-													/>
-												</button>
-											))}
-										</div>
+													{activeProfilePhotoHashes.map((hash, index) => (
+														<button
+															type="button"
+															key={hash}
+															onClick={() => openPhotoViewer(index)}
+															className="aspect-[2/3] w-full shrink-0 snap-center overflow-hidden"
+															aria-label={`Open photo ${index + 1}`}
+														>
+															<img
+																src={getThumbImageUrl(hash, "320x320")}
+																alt={`${activeProfileName} photo`}
+																className="h-full w-full object-cover"
+															/>
+														</button>
+													))}
+												</div>
+												{activeProfilePhotoHashes.length > 1 ? (
+													<div className="mt-2 flex items-center justify-center gap-1.5">
+														{activeProfilePhotoHashes.map((hash, index) => (
+															<span
+																key={`${hash}-dot`}
+																className={`h-1.5 w-1.5 rounded-full ${index === mobileCarouselPhotoIndex ? "bg-[var(--text)]" : "bg-[var(--border)]"}`}
+																aria-hidden="true"
+															/>
+														))}
+													</div>
+												) : null}
+											</div>
+
+											<div className="hidden grid-cols-3 gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-6">
+												{activeProfilePhotoHashes.map((hash, index) => (
+													<button
+														type="button"
+														key={hash}
+														onClick={() => openPhotoViewer(index)}
+														className="overflow-hidden rounded-xl border border-[var(--border)]"
+														aria-label={`Open photo ${index + 1}`}
+													>
+														<img
+															src={getThumbImageUrl(hash, "320x320")}
+															alt={`${activeProfileName} photo`}
+															className="aspect-square w-full object-cover"
+														/>
+													</button>
+												))}
+											</div>
+												</>
+											)}
+										</>
 									) : (
 										<p className="text-sm text-[var(--text-muted)]">
 											No profile photos available.
