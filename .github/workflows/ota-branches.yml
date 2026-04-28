@@ -1,0 +1,87 @@
+name: Publish OTA Branches
+
+on:
+  push:
+    branches:
+      - main
+      - development
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "OTA channel to publish"
+        required: true
+        default: "testingwjay"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ota-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish-ota:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve OTA metadata
+        id: ota-meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            channel="${{ github.event.inputs.channel }}"
+          else
+            case "${GITHUB_REF_NAME}" in
+              main)
+                channel="main"
+                ;;
+              development)
+                channel="development"
+                ;;
+              *)
+                echo "Unsupported branch for OTA: ${GITHUB_REF_NAME}" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
+          echo "ota_version=$(jq -r '.version' package.json)-ota.${channel}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "notes=Automated OTA upload for ${GITHUB_SHA} on ${channel}" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend bundle
+        run: |
+          bun run build
+          tar -czf frontend.tar.gz -C dist .
+
+      - name: Sign OTA bundle
+        env:
+          HOTSWAP_PRIVATE_KEY: ${{ secrets.HOTSWAP_PRIVATE_KEY }}
+        run: |
+          bunx tauri signer sign frontend.tar.gz -k "$HOTSWAP_PRIVATE_KEY"
+
+      - name: Upload OTA bundle to backend
+        env:
+          OTA_BACKEND_URL: ${{ secrets.OTA_BACKEND_URL }}
+          OTA_BACKEND_TOKEN: ${{ secrets.OTA_BACKEND_TOKEN }}
+        run: |
+          BACKEND_URL="${OTA_BACKEND_URL%/}"
+          RESPONSE=$(curl --fail-with-body -sS -X POST "$BACKEND_URL/api/releases" \
+            -H "Authorization: Bearer $OTA_BACKEND_TOKEN" \
+            -F "channel=${{ steps.ota-meta.outputs.channel }}" \
+            -F "platform=all" \
+            -F "arch=all" \
+            -F "version=${{ steps.ota-meta.outputs.ota_version }}" \
+            -F "minBinaryVersion=$(jq -r '.version' package.json)" \
+            -F "signature=$(cat frontend.tar.gz.sig)" \
+            -F "notes=${{ steps.ota-meta.outputs.notes }}" \
+            -F "mandatory=false" \
+            -F "bundleFile=@frontend.tar.gz;type=application/gzip")
+
+          echo "$RESPONSE"

@@ -75,9 +75,7 @@ jobs:
         env:
           HOTSWAP_PRIVATE_KEY: ${{ secrets.HOTSWAP_PRIVATE_KEY }}
         run: |
-          printf '%s' "$HOTSWAP_PRIVATE_KEY" > /tmp/hotswap.key
-          bunx tauri signer sign frontend.tar.gz -k /tmp/hotswap.key
-          rm /tmp/hotswap.key
+          bunx tauri signer sign frontend.tar.gz -k "$HOTSWAP_PRIVATE_KEY"
 
       - name: Upload OTA bundle to backend
         id: ota-upload
