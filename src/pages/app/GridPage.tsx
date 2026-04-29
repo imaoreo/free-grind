@@ -94,7 +94,7 @@ export function GridPage() {
 	const isPullingRef = useRef(false);
 	const isMountedRef = useRef(true);
 
-	type SortOption = "default" | "distance" | "online" | "age-asc" | "age-desc" | "popular" | "name";
+	type SortOption = "default" | "distance" | "age-asc" | "age-desc" | "popular" | "name";
 	const [sortBy, setSortBy] = useState<SortOption>("default");
 
 	useEffect(() => {
@@ -740,14 +740,6 @@ export function GridPage() {
 				const distB = b.distanceMeters ?? Infinity;
 				return distA - distB;
 			}
-			if (sortBy === "online") {
-				const onlineA = isCurrentlyOnline(a.onlineUntil) ? 1 : 0;
-				const onlineB = isCurrentlyOnline(b.onlineUntil) ? 1 : 0;
-				if (onlineA !== onlineB) return onlineB - onlineA;
-				const distA = a.distanceMeters ?? Infinity;
-				const distB = b.distanceMeters ?? Infinity;
-				return distA - distB;
-			}
 			if (sortBy === "age-asc") {
 				const ageA = a.age ?? Infinity;
 				const ageB = b.age ?? Infinity;
@@ -922,7 +914,6 @@ export function GridPage() {
 									>
 										<option value="default">Default</option>
 										<option value="distance">Distance</option>
-										<option value="online">Online First</option>
 										<option value="age-asc">Youngest</option>
 										<option value="age-desc">Oldest</option>
 										<option value="popular">Popular</option>
@@ -1072,7 +1063,6 @@ export function GridPage() {
 									>
 										<option value="default">Sort</option>
 										<option value="distance">Distance</option>
-										<option value="online">Online First</option>
 										<option value="age-asc">Youngest</option>
 										<option value="age-desc">Oldest</option>
 										<option value="popular">Popular</option>
