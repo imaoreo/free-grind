@@ -742,16 +742,13 @@ export function GridPage() {
 		};
 
 		const localState = tapVisualStates[activeProfileId] ?? null;
+		const localStateWithinWindow =
+			localState && isWithinTapWindow(localState.sentAt) ? localState : null;
 		const hasSentTap =
-			activeProfile?.tapped === true ||
-			(localState ? isWithinTapWindow(localState.sentAt) : false);
+			activeProfile?.tapped === true || localStateWithinWindow !== null;
 		const hasReceivedTap =
 			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
 			isWithinTapWindow(activeProfile.lastReceivedTapTimestamp);
-
-		if (hasSentTap && hasReceivedTap) {
-			return "mutual" as const;
-		}
 
 		if (hasSentTap || hasReceivedTap) {
 			return "single" as const;

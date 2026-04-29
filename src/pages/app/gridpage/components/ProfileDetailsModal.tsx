@@ -91,13 +91,12 @@ export function ProfileDetailsModal({
 	const profileLastSeen = activeProfile?.seen ?? null;
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
+	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
 	const tapButtonClassName =
-		effectiveTapVisualState === "mutual"
-			? "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_26%,var(--surface))] text-3xl leading-none text-[var(--text)] transition hover:brightness-110"
-			: effectiveTapVisualState === "single"
-				? "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] text-2xl leading-none text-[var(--text)] transition hover:brightness-110"
-				: "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
+		isTapActive
+			? "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] text-4xl leading-none text-[var(--text)] transition hover:brightness-110"
+			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -533,20 +532,15 @@ export function ProfileDetailsModal({
 													title={
 														isTapBlocked
 															? "Tap already sent in the last 24 hours"
-															:
-														effectiveTapVisualState === "mutual"
-															? "Mutual tap"
-															: effectiveTapVisualState === "single"
-																? "Tap sent"
+															: isTapActive
+																? "Tap active"
 																: "Send tap"
 													}
 												>
-													{effectiveTapVisualState === "none" ? (
-														<Flame className="h-7 w-7" strokeWidth={1.8} />
-													) : effectiveTapVisualState === "mutual" ? (
+													{isTapActive ? (
 														"🔥"
 													) : (
-														"🔥"
+														<Flame className="h-7 w-7" strokeWidth={1.8} />
 													)}
 												</button>
 												<button
@@ -967,20 +961,15 @@ export function ProfileDetailsModal({
 												title={
 													isTapBlocked
 														? "Tap already sent in the last 24 hours"
-														:
-													effectiveTapVisualState === "mutual"
-														? "Mutual tap"
-														: effectiveTapVisualState === "single"
-															? "Tap sent"
+														: isTapActive
+															? "Tap active"
 															: "Send tap"
 												}
 											>
-												{effectiveTapVisualState === "none" ? (
-													<Flame className="h-7 w-7" strokeWidth={1.8} />
-												) : effectiveTapVisualState === "mutual" ? (
+												{isTapActive ? (
 													"🔥"
 												) : (
-													"🔥"
+													<Flame className="h-7 w-7" strokeWidth={1.8} />
 												)}
 											</button>
 											<button
