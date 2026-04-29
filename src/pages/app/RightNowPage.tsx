@@ -269,9 +269,11 @@ export function RightNowPage() {
 
 	const handleSelect = useCallback(
 		(profileId: string) => {
-			navigate(`/profile/${profileId}`);
+			navigate(`/profile/${profileId}`, {
+				state: { returnTo: location.pathname },
+			});
 		},
-		[navigate],
+		[navigate, location.pathname],
 	);
 
 	const toggleSort = useCallback(() => {
