@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
-import { MapPin, SlidersHorizontal } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -93,6 +93,9 @@ export function GridPage() {
 	const touchStartYRef = useRef<number | null>(null);
 	const isPullingRef = useRef(false);
 	const isMountedRef = useRef(true);
+
+	type SortOption = "default" | "distance" | "online" | "age-asc" | "age-desc" | "popular" | "name";
+	const [sortBy, setSortBy] = useState<SortOption>("default");
 
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -729,6 +732,49 @@ export function GridPage() {
 		[cards],
 	);
 
+	const sortedCards = useMemo(() => {
+		if (sortBy === "default") return cards;
+		return [...cards].sort((a, b) => {
+			if (sortBy === "distance") {
+				const distA = a.distanceMeters ?? Infinity;
+				const distB = b.distanceMeters ?? Infinity;
+				return distA - distB;
+			}
+			if (sortBy === "online") {
+				const onlineA = isCurrentlyOnline(a.onlineUntil) ? 1 : 0;
+				const onlineB = isCurrentlyOnline(b.onlineUntil) ? 1 : 0;
+				if (onlineA !== onlineB) return onlineB - onlineA;
+				const distA = a.distanceMeters ?? Infinity;
+				const distB = b.distanceMeters ?? Infinity;
+				return distA - distB;
+			}
+			if (sortBy === "age-asc") {
+				const ageA = a.age ?? Infinity;
+				const ageB = b.age ?? Infinity;
+				return ageA - ageB;
+			}
+			if (sortBy === "age-desc") {
+				const ageA = a.age ?? -Infinity;
+				const ageB = b.age ?? -Infinity;
+				return ageB - ageA;
+			}
+			if (sortBy === "popular") {
+				const popA = a.isPopular ? 1 : 0;
+				const popB = b.isPopular ? 1 : 0;
+				if (popA !== popB) return popB - popA;
+				const distA = a.distanceMeters ?? Infinity;
+				const distB = b.distanceMeters ?? Infinity;
+				return distA - distB;
+			}
+			if (sortBy === "name") {
+				const nameA = a.displayName ?? "";
+				const nameB = b.displayName ?? "";
+				return nameA.localeCompare(nameB);
+			}
+			return 0;
+		});
+	}, [cards, sortBy]);
+
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
 			return null;
@@ -867,6 +913,23 @@ export function GridPage() {
 									) : null}
 								</button>
 
+								<div className="relative inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
+									<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+									<select
+										value={sortBy}
+										onChange={(e) => setSortBy(e.target.value as SortOption)}
+										className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
+									>
+										<option value="default">Default</option>
+										<option value="distance">Distance</option>
+										<option value="online">Online First</option>
+										<option value="age-asc">Youngest</option>
+										<option value="age-desc">Oldest</option>
+										<option value="popular">Popular</option>
+										<option value="name">Name (A-Z)</option>
+									</select>
+								</div>
+
 								<button
 									type="button"
 									onClick={() =>
@@ -999,6 +1062,24 @@ export function GridPage() {
 										</span>
 									) : null}
 								</button>
+
+								<div className="relative inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-2.5 pr-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)] focus-within:text-[var(--text)]">
+									<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
+									<select
+										value={sortBy}
+										onChange={(e) => setSortBy(e.target.value as SortOption)}
+										className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
+									>
+										<option value="default">Sort</option>
+										<option value="distance">Distance</option>
+										<option value="online">Online First</option>
+										<option value="age-asc">Youngest</option>
+										<option value="age-desc">Oldest</option>
+										<option value="popular">Popular</option>
+										<option value="name">Name (A-Z)</option>
+									</select>
+								</div>
+
 								{hasActiveBrowseFilters ? (
 									<button
 										type="button"
@@ -1035,7 +1116,7 @@ export function GridPage() {
 			<BrowseGrid
 				isLoadingCards={isLoadingCards}
 				cardsError={cardsError}
-				cards={cards}
+				cards={sortedCards}
 				onSelectProfile={handleSelectProfile}
 				onMessageProfile={handleMessageProfile}
 				hasMore={nextPage !== null}
