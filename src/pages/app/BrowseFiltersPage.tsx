@@ -211,6 +211,7 @@ export function BrowseFiltersPage() {
 
 	const applyAndReturn = () => {
 		saveBrowseFiltersDraft({
+			sortBy: initialDraft.sortBy,
 			browseFilters,
 			ageMin,
 			ageMax,
@@ -231,6 +232,7 @@ export function BrowseFiltersPage() {
 		navigate("/", {
 			state: {
 				browseFiltersDraft: {
+					sortBy: initialDraft.sortBy,
 					browseFilters,
 					ageMin,
 					ageMax,

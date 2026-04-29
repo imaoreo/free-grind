@@ -23,6 +23,7 @@ import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseFilters,
 	type BrowseFiltersDraft,
+	type BrowseSortOption,
 	defaultBrowseFilters,
 	loadBrowseFiltersDraft,
 	normalizeBrowseFiltersDraft,
@@ -94,8 +95,8 @@ export function GridPage() {
 	const isPullingRef = useRef(false);
 	const isMountedRef = useRef(true);
 
-	type SortOption = "default" | "distance" | "age-asc" | "age-desc" | "popular" | "name";
-	const [sortBy, setSortBy] = useState<SortOption>("default");
+	type SortOption = BrowseSortOption;
+	const [sortBy, setSortBy] = useState<SortOption>(persistedBrowseFilters.sortBy);
 
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -204,6 +205,7 @@ export function GridPage() {
 		}
 
 		const normalized = normalizeBrowseFiltersDraft(draft);
+		setSortBy(normalized.sortBy);
 		setBrowseFilters(normalized.browseFilters);
 		setAgeMin(normalized.ageMin);
 		setAgeMax(normalized.ageMax);
@@ -223,6 +225,7 @@ export function GridPage() {
 
 	useEffect(() => {
 		saveBrowseFiltersDraft({
+			sortBy,
 			browseFilters,
 			ageMin,
 			ageMax,
@@ -255,6 +258,7 @@ export function GridPage() {
 		meetAt,
 		nsfwPics,
 		tags,
+		sortBy,
 	]);
 
 	const activeBrowseFilters = useMemo(() => {
@@ -876,6 +880,7 @@ export function GridPage() {
 										navigate("/browse/filters", {
 											state: {
 												browseFiltersDraft: {
+													sortBy,
 													browseFilters,
 													ageMin,
 													ageMax,
@@ -953,6 +958,7 @@ export function GridPage() {
 										navigate("/browse/filters", {
 											state: {
 												browseFiltersDraft: {
+													sortBy,
 													browseFilters,
 													ageMin,
 													ageMax,
@@ -1024,6 +1030,7 @@ export function GridPage() {
 										navigate("/browse/filters", {
 											state: {
 												browseFiltersDraft: {
+													sortBy,
 													browseFilters,
 													ageMin,
 													ageMax,
