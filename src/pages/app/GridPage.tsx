@@ -1,6 +1,7 @@
 import { useAuth } from "../../contexts/AuthContext";
 import { MapPin, SlidersHorizontal, ListFilter } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -57,6 +58,7 @@ export function GridPage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(
 		null,
 	);
+	const [tappingProfileId, setTappingProfileId] = useState<string | null>(null);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
@@ -751,6 +753,29 @@ export function GridPage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
+	const handleTapProfile = useCallback(
+		async (profileId: string) => {
+			if (tappingProfileId === profileId) {
+				return;
+			}
+
+			setTappingProfileId(profileId);
+			try {
+				const result = await apiFunctions.tap(profileId);
+				toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : "Failed to send tap",
+				);
+			} finally {
+				setTappingProfileId((current) =>
+					current === profileId ? null : current,
+				);
+			}
+		},
+		[apiFunctions, tappingProfileId],
+	);
+
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
@@ -1003,6 +1028,8 @@ export function GridPage() {
 				isOpen={Boolean(activeProfileId)}
 				onClose={() => setActiveProfileId(null)}
 				onMessageProfile={handleMessageProfile}
+				onTapProfile={handleTapProfile}
+				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				activeProfile={activeProfile}
 				selectedBrowseCard={selectedBrowseCard}
 				isLoadingActiveProfile={isLoadingActiveProfile}

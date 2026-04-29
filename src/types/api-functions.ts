@@ -22,7 +22,8 @@ export type ApiFunctionName =
 	| "getSharedAlbumsForProfile"
 	| "openSharedAlbum"
 	| "getViews"
-	| "getTaps";
+	| "getTaps"
+	| "tap";
 
 export interface CreateOwnAlbumInput {
 	albumName: string;
@@ -68,6 +69,10 @@ export interface OpenSharedAlbumResult {
 	status: number;
 }
 
+export interface TapResult {
+	isMutual: boolean;
+}
+
 export interface ApiFunctionResultMap {
 	getOwnAlbums: Album[];
 	getOwnAlbumDetails: AlbumDetail;
@@ -83,6 +88,7 @@ export interface ApiFunctionResultMap {
 	openSharedAlbum: OpenSharedAlbumResult;
 	getViews: InterestViewsResponse;
 	getTaps: InterestTapsResponse;
+	tap: TapResult;
 }
 
 export type ApiFunctionResult<T extends ApiFunctionName> = ApiFunctionResultMap[T];

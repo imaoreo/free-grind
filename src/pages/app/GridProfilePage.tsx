@@ -6,6 +6,7 @@ import {
 	useSearchParams,
 } from "react-router-dom";
 import z from "zod";
+import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { validateMediaHash } from "../../utils/media";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
@@ -39,6 +40,7 @@ export function GridProfilePage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(
 		null,
 	);
+	const [isTappingProfile, setIsTappingProfile] = useState(false);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 
@@ -190,6 +192,22 @@ export function GridProfilePage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
+	const handleTapProfile = async (targetProfileId: string) => {
+		if (isTappingProfile) {
+			return;
+		}
+
+		setIsTappingProfile(true);
+		try {
+			const result = await apiFunctions.tap(targetProfileId);
+			toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Failed to send tap");
+		} finally {
+			setIsTappingProfile(false);
+		}
+	};
+
 	return (
 		<ProfileDetailsModal
 			variant="page"
@@ -198,6 +216,8 @@ export function GridProfilePage() {
 				navigate(safeReturnTo, { replace: true });
 			}}
 			onMessageProfile={handleMessageProfile}
+			onTapProfile={handleTapProfile}
+			isTappingProfile={isTappingProfile}
 			activeProfile={activeProfile}
 			selectedBrowseCard={null}
 			isLoadingActiveProfile={isLoadingActiveProfile}

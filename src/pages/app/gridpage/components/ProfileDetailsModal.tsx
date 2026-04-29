@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Hand, Images, MessageCircle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
@@ -40,6 +40,8 @@ type ProfileDetailsModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
+	onTapProfile?: (profileId: string) => void;
+	isTappingProfile?: boolean;
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -54,6 +56,8 @@ export function ProfileDetailsModal({
 	isOpen,
 	onClose,
 	onMessageProfile,
+	onTapProfile,
+	isTappingProfile = false,
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -499,15 +503,36 @@ export function ProfileDetailsModal({
 										</div>
 									</div>
 									{messageProfileId && onMessageProfile ? (
-										<div className="mt-3">
-											<button
-												type="button"
-												onClick={() => onMessageProfile(messageProfileId)}
-												className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-											>
-												<MessageCircle className="h-4 w-4" />
-												Message
-											</button>
+										<div className="mt-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,var(--surface-2))] p-2">
+											<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+												<button
+													type="button"
+													onClick={() => onMessageProfile(messageProfileId)}
+													className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+												>
+													<MessageCircle className="h-4 w-4" />
+													Message
+												</button>
+												<button
+													type="button"
+													onClick={() => onTapProfile?.(messageProfileId)}
+													disabled={!onTapProfile || isTappingProfile}
+													className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] px-3 text-sm font-semibold text-[var(--text)] transition hover:brightness-110"
+													aria-label="Tap profile"
+													title="Tap"
+												>
+													<Hand className="h-4 w-4" />
+												</button>
+												<button
+													type="button"
+													disabled
+													className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
+													title="Album"
+												>
+													<Images className="h-4 w-4" />
+													Album
+												</button>
+											</div>
 										</div>
 									) : null}
 								</div>
@@ -899,15 +924,37 @@ export function ProfileDetailsModal({
 									</div>
 								</div>
 								{messageProfileId && onMessageProfile ? (
-									<div className="mt-3">
-										<button
-											type="button"
-											onClick={() => onMessageProfile(messageProfileId)}
-											className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-										>
-											<MessageCircle className="h-4 w-4" />
-											Message
-										</button>
+									<div className="mt-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,var(--surface-2))] p-2">
+										<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+											<button
+												type="button"
+												onClick={() => onMessageProfile(messageProfileId)}
+												className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+											>
+												<MessageCircle className="h-4 w-4" />
+												Message
+											</button>
+											<button
+												type="button"
+												onClick={() => onTapProfile?.(messageProfileId)}
+												disabled={!onTapProfile || isTappingProfile}
+												className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] px-3 text-sm font-semibold text-[var(--text)] transition hover:brightness-110"
+												aria-label="Tap profile"
+												title="Tap"
+											>
+												<Hand className="h-4 w-4" />
+												{isTappingProfile ? "Sending..." : "Tap"}
+											</button>
+											<button
+												type="button"
+												disabled
+												className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
+												title="Album"
+											>
+												<Images className="h-4 w-4" />
+												Album
+											</button>
+										</div>
 									</div>
 								) : null}
 							</div>
