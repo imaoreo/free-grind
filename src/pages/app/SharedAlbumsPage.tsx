@@ -2,7 +2,6 @@ import {
 	Album,
 	ChevronLeft,
 	ChevronRight,
-	RefreshCw,
 	Users,
 	X,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
+import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -439,11 +439,20 @@ export function SharedAlbumsPage() {
 	]);
 
 	return (
-		<section
-			className="app-screen"
-			onTouchStart={handlePageTouchStart}
-			onTouchEnd={handlePageTouchEnd}
-		>
+		<section className="app-screen">
+			<PullToRefreshContainer
+				onRefresh={handleRefresh}
+				isDisabled={
+					isLoading ||
+					isRefreshing ||
+					isOpeningAlbum ||
+					viewer != null ||
+					fullScreenIndex != null
+				}
+				onTouchStartExtra={handlePageTouchStart}
+				onTouchEndExtra={handlePageTouchEnd}
+				refreshingLabel="Refreshing albums..."
+			>
 			<div className="mx-auto grid w-full max-w-6xl gap-5">
 				<header className="mb-3">
 					<div>
@@ -469,20 +478,6 @@ export function SharedAlbumsPage() {
 								<Users className="h-3.5 w-3.5" />
 								<span>{profileCount} people</span>
 							</div>
-                            <button
-                                type="button"
-                                onClick={handleRefresh}
-                                disabled={isRefreshing || isLoading}
-                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-60"
-                                aria-label="Refresh shared albums"
-                                title="Refresh"
-                            >
-                                <RefreshCw
-                                    className={
-                                        isRefreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-                                    }
-                                />
-                            </button>
 						</div>
 						<p className="app-subtitle mt-1 max-w-[68ch]">
 							Browse all albums shared by people in your chats.
@@ -583,6 +578,7 @@ export function SharedAlbumsPage() {
 					</div>
 				) : null}
 			</div>
+			</PullToRefreshContainer>
 
 			{isOpeningAlbum ? (
 				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">

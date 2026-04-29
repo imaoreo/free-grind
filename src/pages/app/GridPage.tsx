@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
-import { MapPin, SlidersHorizontal, ListFilter, RefreshCw } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,10 +29,9 @@ import {
 	normalizeBrowseFiltersDraft,
 	saveBrowseFiltersDraft,
 } from "./browse-filters-storage";
+import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 
 export function GridPage() {
-	const PULL_REFRESH_THRESHOLD_PX = 72;
-	const MAX_PULL_DISTANCE_PX = 120;
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 
 	const { userId } = useAuth();
@@ -89,10 +88,6 @@ export function GridPage() {
 	const [meetAt, setMeetAt] = useState<number[]>(persistedBrowseFilters.meetAt);
 	const [nsfwPics, setNsfwPics] = useState<number[]>(persistedBrowseFilters.nsfwPics);
 	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
-	const [pullDistance, setPullDistance] = useState(0);
-	const [isPullRefreshing, setIsPullRefreshing] = useState(false);
-	const touchStartYRef = useRef<number | null>(null);
-	const isPullingRef = useRef(false);
 	const isMountedRef = useRef(true);
 
 	type SortOption = BrowseSortOption;
@@ -588,75 +583,6 @@ export function GridPage() {
 			if (!cancelled) setIsLoadingMoreCards(false);
 		}
 	};
-
-	const handlePullRefresh = useCallback(() => {
-		if (isLoadingCards || isLoadingMoreCards || isPullRefreshing) {
-			return;
-		}
-
-		setIsPullRefreshing(true);
-		void loadBrowseCards({ preferCache: false, showLoadingState: false }).finally(
-			() => {
-				if (!isMountedRef.current) {
-					return;
-				}
-				setIsPullRefreshing(false);
-			},
-		);
-	}, [isLoadingCards, isLoadingMoreCards, isPullRefreshing, loadBrowseCards]);
-
-	const handlePageTouchStart = useCallback(
-		(event: React.TouchEvent<HTMLElement>) => {
-			if (window.scrollY > 0 || isLoadingCards || isPullRefreshing) {
-				touchStartYRef.current = null;
-				isPullingRef.current = false;
-				return;
-			}
-
-			touchStartYRef.current = event.touches[0]?.clientY ?? null;
-			isPullingRef.current = touchStartYRef.current !== null;
-		},
-		[isLoadingCards, isPullRefreshing],
-	);
-
-	const handlePageTouchMove = useCallback((event: React.TouchEvent<HTMLElement>) => {
-		if (!isPullingRef.current) {
-			return;
-		}
-
-		const startY = touchStartYRef.current;
-		if (startY == null) {
-			return;
-		}
-
-		const currentY = event.touches[0]?.clientY ?? startY;
-		const delta = currentY - startY;
-
-		if (delta <= 0) {
-			setPullDistance(0);
-			return;
-		}
-
-		event.preventDefault();
-
-		let pull = delta * 0.55; // Reduces pull speed for a more natural feel (resistance)
-		if (pull > MAX_PULL_DISTANCE_PX) {
-			touchStartYRef.current = currentY - MAX_PULL_DISTANCE_PX / 0.55;
-			pull = MAX_PULL_DISTANCE_PX;
-		}
-		setPullDistance(pull);
-	}, [MAX_PULL_DISTANCE_PX]);
-
-	const handlePageTouchEnd = useCallback(() => {
-		if (pullDistance >= PULL_REFRESH_THRESHOLD_PX) {
-			handlePullRefresh();
-		}
-
-		touchStartYRef.current = null;
-		isPullingRef.current = false;
-		setPullDistance(0);
-	}, [handlePullRefresh, pullDistance]);
-
 	const clearBrowseFilters = () => {
 		setBrowseFilters(defaultBrowseFilters);
 		setAgeMin("");
@@ -829,52 +755,15 @@ export function GridPage() {
 
 	return (
 		/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */
-		<section
+		<PullToRefreshContainer
 			className="app-screen overflow-x-hidden !px-0"
 			style={{ width: "100%" }}
-			onTouchStart={handlePageTouchStart}
-			onTouchMove={handlePageTouchMove}
-			onTouchEnd={handlePageTouchEnd}
-			onTouchCancel={handlePageTouchEnd}
+			onRefresh={() =>
+				loadBrowseCards({ preferCache: false, showLoadingState: false })
+			}
+			isDisabled={isLoadingCards || isLoadingMoreCards}
+			refreshingLabel="Refreshing feed..."
 		>
-			<div
-				className="flex w-full items-center justify-center overflow-hidden transition-all duration-300 ease-out"
-				style={{
-					height: isPullRefreshing ? "84px" : `${pullDistance}px`,
-					opacity: pullDistance > 0 || isPullRefreshing ? 1 : 0,
-					transition:
-						isPullRefreshing || pullDistance === 0
-							? "height 0.3s ease, opacity 0.3s ease"
-							: "none",
-				}}
-			>
-				<div
-					className="flex flex-col items-center gap-2"
-					style={{
-						transform: `translateY(${isPullRefreshing ? 0 : Math.min(0, (pullDistance - 84) / 2)}px)`,
-					}}
-				>
-					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2.5 shadow-lg shadow-black/5">
-						<RefreshCw
-							className={`h-5 w-5 text-[var(--accent)] ${isPullRefreshing ? "animate-spin" : ""}`}
-							style={{
-								transform: !isPullRefreshing
-									? `rotate(${pullDistance * 5}deg)`
-									: undefined,
-								willChange: "transform",
-							}}
-						/>
-					</div>
-					<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text)]">
-						{isPullRefreshing
-							? "Refreshing feed..."
-							: pullDistance >= PULL_REFRESH_THRESHOLD_PX
-								? "Release to refresh"
-								: "Pull to refresh"}
-					</span>
-				</div>
-			</div>
-
 			<header className="mb-2 px-[var(--app-px)] sm:px-4">
 				<div className="sm:hidden">
 					<div>
@@ -968,50 +857,6 @@ export function GridPage() {
 									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 								>
 									Online
-								</button>
-
-								<button
-									type="button"
-									onClick={() =>
-										setBrowseFilters((prev) => ({
-											...prev,
-											rightNow: !prev.rightNow,
-										}))
-									}
-									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-								>
-									Right Now
-								</button>
-
-								<button
-									type="button"
-									onClick={() =>
-										navigate("/browse/filters", {
-											state: {
-												browseFiltersDraft: {
-													sortBy,
-													browseFilters,
-													ageMin,
-													ageMax,
-													heightCmMin,
-													heightCmMax,
-													weightGramsMin,
-													weightGramsMax,
-													tribes,
-													lookingFor,
-													relationshipStatuses,
-													bodyTypes,
-													sexualPositions,
-													meetAt,
-													nsfwPics,
-													tags,
-												},
-											},
-										})
-									}
-									className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
-								>
-									Position
 								</button>
 
 								{hasActiveBrowseFilters ? (
@@ -1166,6 +1011,6 @@ export function GridPage() {
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
 			/>
-		</section>
+		</PullToRefreshContainer>
 	);
 }

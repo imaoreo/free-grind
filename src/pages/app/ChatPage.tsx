@@ -60,6 +60,7 @@ import {
 	searchMessagesLocal,
 } from "./chat/cache";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
+import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { ChatSearchPage } from "./ChatSearchPage";
 import * as chatLog from "../../services/chatLog";
 import { formatDistance } from "./gridpage/utils";
@@ -801,6 +802,7 @@ export function ChatPage() {
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
 	const inboxTouchStartXRef = useRef<number | null>(null);
+	const inboxListRef = useRef<HTMLDivElement | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
 	>(null);
@@ -2666,12 +2668,16 @@ export function ChatPage() {
 	}, [fullScreenImageUrl]);
 
 	const renderInbox = (
-		<div
+		<PullToRefreshContainer
 			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
 				isDesktop ? "surface-card" : ""
 			}`}
-			onTouchStart={handleInboxTouchStart}
-			onTouchEnd={handleInboxTouchEnd}
+			onRefresh={() => loadInbox({ page: 1, replace: true })}
+			isDisabled={isLoadingInbox || isLoadingMoreInbox}
+			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
+			refreshingLabel="Refreshing inbox..."
+			onTouchStartExtra={handleInboxTouchStart}
+			onTouchEndExtra={handleInboxTouchEnd}
 		>
 			<div className="mb-3 flex items-center justify-between gap-3">
 				<div>
@@ -2751,7 +2757,7 @@ export function ChatPage() {
 					</p>
 				</div>
 			) : (
-				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+				<div ref={inboxListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
 						const isSelected =
@@ -2821,7 +2827,7 @@ export function ChatPage() {
 					) : null}
 				</div>
 			)}
-		</div>
+		</PullToRefreshContainer>
 	);
 
 	const renderSearch = <ChatSearchPage />;

@@ -24,6 +24,12 @@ import {
 	type AgeVerificationSession,
 	type Liveness3dRequest,
 } from "../types/age-verification";
+import {
+	interestTapsResponseSchema,
+	interestViewsResponseSchema,
+	type InterestTapsResponse,
+	type InterestViewsResponse,
+} from "../types/interest";
 import { createChatService } from "./chatService";
 import type {
 	CreateOwnAlbumInput,
@@ -96,6 +102,18 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			},
 		) {
 			return fetchRest(path, options);
+		},
+
+		async getViews(): Promise<InterestViewsResponse> {
+			const response = await fetchRest("/v7/views/list");
+			await assertSuccess(response, "Failed to load views");
+			return interestViewsResponseSchema.parse(await parseJsonSafe(response));
+		},
+
+		async getTaps(): Promise<InterestTapsResponse> {
+			const response = await fetchRest("/v2/taps/received");
+			await assertSuccess(response, "Failed to load taps");
+			return interestTapsResponseSchema.parse(await parseJsonSafe(response));
 		},
 
 		async getOwnAlbums(): Promise<Album[]> {
