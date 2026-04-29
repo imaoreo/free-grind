@@ -90,7 +90,7 @@ export function SignInPage() {
 				<form onSubmit={handleTokenSubmit} className="space-y-4">
 					<div>
 						<a
-							href="https://opengrind.imaoreo.dev/guide/login"
+							href="https://freegrind.imaoreo.dev/guide/login"
 							target="_blank"
 							rel="noreferrer"
 							className="text-sm font-medium text-[var(--text-muted)] underline underline-offset-4 hover:text-[var(--text)]"
