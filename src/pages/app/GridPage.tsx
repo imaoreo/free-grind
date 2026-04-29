@@ -34,6 +34,7 @@ import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 
 export function GridPage() {
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
+	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
@@ -59,6 +60,9 @@ export function GridPage() {
 		null,
 	);
 	const [tappingProfileId, setTappingProfileId] = useState<string | null>(null);
+	const [tapVisualStates, setTapVisualStates] = useState<
+		Record<string, { visualState: "single" | "mutual"; sentAt: number }>
+	>({});
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
@@ -713,6 +717,78 @@ export function GridPage() {
 		return cards.find((card) => card.profileId === activeProfileId) ?? null;
 	}, [activeProfileId, cards]);
 
+	const resolvedTapVisualState = useMemo(() => {
+		if (!activeProfileId) {
+			return "none" as const;
+		}
+
+		const toEpochMs = (timestamp: number | null | undefined) => {
+			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+				return null;
+			}
+
+			// Some APIs send seconds while others send milliseconds.
+			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+		};
+
+		const isWithinTapWindow = (timestamp: number | null | undefined) => {
+			const normalizedTimestamp = toEpochMs(timestamp);
+			if (normalizedTimestamp === null) {
+				return false;
+			}
+
+			const ageMs = Date.now() - normalizedTimestamp;
+			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
+		};
+
+		const localState = tapVisualStates[activeProfileId] ?? null;
+		const hasSentTap =
+			activeProfile?.tapped === true ||
+			(localState ? isWithinTapWindow(localState.sentAt) : false);
+		const hasReceivedTap =
+			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
+			isWithinTapWindow(activeProfile.lastReceivedTapTimestamp);
+
+		if (hasSentTap && hasReceivedTap) {
+			return "mutual" as const;
+		}
+
+		if (hasSentTap || hasReceivedTap) {
+			return "single" as const;
+		}
+
+		return "none" as const;
+	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
+
+	const hasSentTapRecently = useMemo(() => {
+		if (!activeProfileId) {
+			return false;
+		}
+
+		const toEpochMs = (timestamp: number | null | undefined) => {
+			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+				return null;
+			}
+
+			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+		};
+
+		const isWithinTapWindow = (timestamp: number | null | undefined) => {
+			const normalizedTimestamp = toEpochMs(timestamp);
+			if (normalizedTimestamp === null) {
+				return false;
+			}
+
+			const ageMs = Date.now() - normalizedTimestamp;
+			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
+		};
+
+		const sentFromServer = activeProfile?.tapped === true;
+		const sentLocally = isWithinTapWindow(tapVisualStates[activeProfileId]?.sentAt);
+
+		return sentFromServer || sentLocally;
+	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
+
 	const activeProfilePhotoHashes = useMemo(() => {
 		if (!activeProfile) {
 			return [];
@@ -759,9 +835,47 @@ export function GridPage() {
 				return;
 			}
 
+			const toEpochMs = (timestamp: number | null | undefined) => {
+				if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+					return null;
+				}
+
+				return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+			};
+
+			const isWithinTapWindow = (timestamp: number | null | undefined) => {
+				const normalizedTimestamp = toEpochMs(timestamp);
+				if (normalizedTimestamp === null) {
+					return false;
+				}
+
+				const ageMs = Date.now() - normalizedTimestamp;
+				return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
+			};
+
+			const sentFromServer =
+				activeProfile?.profileId === profileId && activeProfile.tapped === true;
+			const sentLocally = isWithinTapWindow(tapVisualStates[profileId]?.sentAt);
+			if (sentFromServer || sentLocally) {
+				toast("You already tapped this profile in the last 24 hours");
+				return;
+			}
+
 			setTappingProfileId(profileId);
 			try {
 				const result = await apiFunctions.tap(profileId);
+				setActiveProfile((current) =>
+					current && current.profileId === profileId
+						? { ...current, tapped: true }
+						: current,
+				);
+				setTapVisualStates((current) => ({
+					...current,
+					[profileId]: {
+						visualState: result.isMutual ? "mutual" : "single",
+						sentAt: Date.now(),
+					},
+				}));
 				toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
 			} catch (error) {
 				toast.error(
@@ -773,7 +887,7 @@ export function GridPage() {
 				);
 			}
 		},
-		[apiFunctions, tappingProfileId],
+		[activeProfile, apiFunctions, tapVisualStates, tappingProfileId, TAP_WINDOW_MS],
 	);
 
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
@@ -1030,6 +1144,8 @@ export function GridPage() {
 				onMessageProfile={handleMessageProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
+				isTapBlocked={hasSentTapRecently}
+				tapVisualState={resolvedTapVisualState}
 				activeProfile={activeProfile}
 				selectedBrowseCard={selectedBrowseCard}
 				isLoadingActiveProfile={isLoadingActiveProfile}

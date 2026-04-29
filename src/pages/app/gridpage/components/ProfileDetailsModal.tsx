@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Hand, Images, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Flame, Images, MessageCircle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
@@ -42,6 +42,8 @@ type ProfileDetailsModalProps = {
 	onMessageProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string) => void;
 	isTappingProfile?: boolean;
+	isTapBlocked?: boolean;
+	tapVisualState?: "none" | "single" | "mutual";
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -58,6 +60,8 @@ export function ProfileDetailsModal({
 	onMessageProfile,
 	onTapProfile,
 	isTappingProfile = false,
+	isTapBlocked = false,
+	tapVisualState = "none",
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -86,6 +90,14 @@ export function ProfileDetailsModal({
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
 	const profileLastSeen = activeProfile?.seen ?? null;
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
+	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
+	const tapButtonClassName =
+		effectiveTapVisualState === "mutual"
+			? "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_26%,var(--surface))] text-3xl leading-none text-[var(--text)] transition hover:brightness-110"
+			: effectiveTapVisualState === "single"
+				? "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_14%,var(--surface))] text-2xl leading-none text-[var(--text)] transition hover:brightness-110"
+				: "inline-flex h-14 w-14 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -503,8 +515,7 @@ export function ProfileDetailsModal({
 										</div>
 									</div>
 									{messageProfileId && onMessageProfile ? (
-										<div className="mt-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,var(--surface-2))] p-2">
-											<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+										<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
 												<button
 													type="button"
 													onClick={() => onMessageProfile(messageProfileId)}
@@ -516,12 +527,27 @@ export function ProfileDetailsModal({
 												<button
 													type="button"
 													onClick={() => onTapProfile?.(messageProfileId)}
-													disabled={!onTapProfile || isTappingProfile}
-													className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] px-3 text-sm font-semibold text-[var(--text)] transition hover:brightness-110"
+													disabled={isTapDisabled}
+													className={tapButtonClassName}
 													aria-label="Tap profile"
-													title="Tap"
+													title={
+														isTapBlocked
+															? "Tap already sent in the last 24 hours"
+															:
+														effectiveTapVisualState === "mutual"
+															? "Mutual tap"
+															: effectiveTapVisualState === "single"
+																? "Tap sent"
+																: "Send tap"
+													}
 												>
-													<Hand className="h-4 w-4" />
+													{effectiveTapVisualState === "none" ? (
+														<Flame className="h-7 w-7" strokeWidth={1.8} />
+													) : effectiveTapVisualState === "mutual" ? (
+														"🔥"
+													) : (
+														"🔥"
+													)}
 												</button>
 												<button
 													type="button"
@@ -532,7 +558,6 @@ export function ProfileDetailsModal({
 													<Images className="h-4 w-4" />
 													Album
 												</button>
-											</div>
 										</div>
 									) : null}
 								</div>
@@ -924,8 +949,7 @@ export function ProfileDetailsModal({
 									</div>
 								</div>
 								{messageProfileId && onMessageProfile ? (
-									<div className="mt-3 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_78%,var(--surface-2))] p-2">
-										<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+									<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
 											<button
 												type="button"
 												onClick={() => onMessageProfile(messageProfileId)}
@@ -937,13 +961,27 @@ export function ProfileDetailsModal({
 											<button
 												type="button"
 												onClick={() => onTapProfile?.(messageProfileId)}
-												disabled={!onTapProfile || isTappingProfile}
-												className="inline-flex h-10 items-center justify-center gap-1 rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] px-3 text-sm font-semibold text-[var(--text)] transition hover:brightness-110"
+												disabled={isTapDisabled}
+												className={tapButtonClassName}
 												aria-label="Tap profile"
-												title="Tap"
+												title={
+													isTapBlocked
+														? "Tap already sent in the last 24 hours"
+														:
+													effectiveTapVisualState === "mutual"
+														? "Mutual tap"
+														: effectiveTapVisualState === "single"
+															? "Tap sent"
+															: "Send tap"
+												}
 											>
-												<Hand className="h-4 w-4" />
-												{isTappingProfile ? "Sending..." : "Tap"}
+												{effectiveTapVisualState === "none" ? (
+													<Flame className="h-7 w-7" strokeWidth={1.8} />
+												) : effectiveTapVisualState === "mutual" ? (
+													"🔥"
+												) : (
+													"🔥"
+												)}
 											</button>
 											<button
 												type="button"
@@ -954,7 +992,6 @@ export function ProfileDetailsModal({
 												<Images className="h-4 w-4" />
 												Album
 											</button>
-										</div>
 									</div>
 								) : null}
 							</div>

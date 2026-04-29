@@ -28,6 +28,7 @@ const profileRouteParamsSchema = z.object({
 });
 
 export function GridProfilePage() {
+	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 	const navigate = useNavigate();
 	const location = useLocation();
 	const params = useParams();
@@ -41,6 +42,8 @@ export function GridProfilePage() {
 		null,
 	);
 	const [isTappingProfile, setIsTappingProfile] = useState(false);
+	const [tapVisualState, setTapVisualState] = useState<"none" | "single" | "mutual">("none");
+	const [lastLocalTapSentAt, setLastLocalTapSentAt] = useState<number | null>(null);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 
@@ -185,6 +188,68 @@ export function GridProfilePage() {
 		return hashes;
 	}, [activeProfile]);
 
+	const resolvedTapVisualState = useMemo(() => {
+		const toEpochMs = (timestamp: number | null | undefined) => {
+			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+				return null;
+			}
+
+			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+		};
+
+		const isWithinTapWindow = (timestamp: number | null | undefined) => {
+			const normalizedTimestamp = toEpochMs(timestamp);
+			if (normalizedTimestamp === null) {
+				return false;
+			}
+
+			const ageMs = Date.now() - normalizedTimestamp;
+			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
+		};
+
+		const hasSentTap =
+			activeProfile?.tapped === true ||
+			(tapVisualState !== "none" && isWithinTapWindow(lastLocalTapSentAt));
+		const hasReceivedTap =
+			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
+			isWithinTapWindow(activeProfile.lastReceivedTapTimestamp);
+
+		if (hasSentTap && hasReceivedTap) {
+			return "mutual" as const;
+		}
+
+		if (hasSentTap || hasReceivedTap) {
+			return "single" as const;
+		}
+
+		return "none" as const;
+	}, [activeProfile, lastLocalTapSentAt, tapVisualState, TAP_WINDOW_MS]);
+
+	const hasSentTapRecently = useMemo(() => {
+		const toEpochMs = (timestamp: number | null | undefined) => {
+			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+				return null;
+			}
+
+			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
+		};
+
+		const isWithinTapWindow = (timestamp: number | null | undefined) => {
+			const normalizedTimestamp = toEpochMs(timestamp);
+			if (normalizedTimestamp === null) {
+				return false;
+			}
+
+			const ageMs = Date.now() - normalizedTimestamp;
+			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
+		};
+
+		return (
+			activeProfile?.tapped === true ||
+			(tapVisualState !== "none" && isWithinTapWindow(lastLocalTapSentAt))
+		);
+	}, [activeProfile, lastLocalTapSentAt, tapVisualState, TAP_WINDOW_MS]);
+
 	const handleMessageProfile = (targetProfileId: string) => {
 		const nextParams = new URLSearchParams();
 		nextParams.set("targetProfileId", targetProfileId);
@@ -197,9 +262,21 @@ export function GridProfilePage() {
 			return;
 		}
 
+		if (hasSentTapRecently) {
+			toast("You already tapped this profile in the last 24 hours");
+			return;
+		}
+
 		setIsTappingProfile(true);
 		try {
 			const result = await apiFunctions.tap(targetProfileId);
+			setActiveProfile((current) =>
+				current && current.profileId === targetProfileId
+					? { ...current, tapped: true }
+					: current,
+			);
+			setTapVisualState(result.isMutual ? "mutual" : "single");
+			setLastLocalTapSentAt(Date.now());
 			toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "Failed to send tap");
@@ -218,6 +295,8 @@ export function GridProfilePage() {
 			onMessageProfile={handleMessageProfile}
 			onTapProfile={handleTapProfile}
 			isTappingProfile={isTappingProfile}
+			isTapBlocked={hasSentTapRecently}
+			tapVisualState={resolvedTapVisualState}
 			activeProfile={activeProfile}
 			selectedBrowseCard={null}
 			isLoadingActiveProfile={isLoadingActiveProfile}

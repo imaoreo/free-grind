@@ -170,6 +170,9 @@ export const profileDetailItemSchema = z.object({
 		.optional()
 		.default([]),
 	profileImageMediaHash: z.string().nullable().optional(),
+	tapped: z.boolean().optional(),
+	tapType: z.union([z.number(), z.boolean()]).nullable().optional(),
+	lastReceivedTapTimestamp: z.number().nullable().optional(),
 	relationshipStatus: z.number().nullable().optional(),
 	bodyType: z.number().nullable().optional(),
 	ethnicity: z.number().nullable().optional(),
