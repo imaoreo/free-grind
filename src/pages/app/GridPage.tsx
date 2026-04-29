@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/AuthContext";
-import { MapPin, SlidersHorizontal, ListFilter } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, RefreshCw } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -638,8 +638,14 @@ export function GridPage() {
 		}
 
 		event.preventDefault();
-		setPullDistance(Math.min(MAX_PULL_DISTANCE_PX, delta * 0.55));
-	}, []);
+
+		let pull = delta * 0.55; // Reduces pull speed for a more natural feel (resistance)
+		if (pull > MAX_PULL_DISTANCE_PX) {
+			touchStartYRef.current = currentY - MAX_PULL_DISTANCE_PX / 0.55;
+			pull = MAX_PULL_DISTANCE_PX;
+		}
+		setPullDistance(pull);
+	}, [MAX_PULL_DISTANCE_PX]);
 
 	const handlePageTouchEnd = useCallback(() => {
 		if (pullDistance >= PULL_REFRESH_THRESHOLD_PX) {
@@ -831,18 +837,43 @@ export function GridPage() {
 			onTouchEnd={handlePageTouchEnd}
 			onTouchCancel={handlePageTouchEnd}
 		>
-			{(pullDistance > 0 || isPullRefreshing) && (
+			<div
+				className="flex w-full items-center justify-center overflow-hidden transition-all duration-300 ease-out"
+				style={{
+					height: isPullRefreshing ? "84px" : `${pullDistance}px`,
+					opacity: pullDistance > 0 || isPullRefreshing ? 1 : 0,
+					transition:
+						isPullRefreshing || pullDistance === 0
+							? "height 0.3s ease, opacity 0.3s ease"
+							: "none",
+				}}
+			>
 				<div
-					className="w-full flex items-center justify-center overflow-hidden text-xs font-medium text-[var(--text-muted)]"
-					style={{ height: `${Math.max(20, pullDistance)}px` }}
+					className="flex flex-col items-center gap-2"
+					style={{
+						transform: `translateY(${isPullRefreshing ? 0 : Math.min(0, (pullDistance - 84) / 2)}px)`,
+					}}
 				>
-					{isPullRefreshing
-						? "Refreshing feed..."
-						: pullDistance >= PULL_REFRESH_THRESHOLD_PX
-							? "Release to refresh"
-							: "Pull to refresh"}
+					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2.5 shadow-lg shadow-black/5">
+						<RefreshCw
+							className={`h-5 w-5 text-[var(--accent)] ${isPullRefreshing ? "animate-spin" : ""}`}
+							style={{
+								transform: !isPullRefreshing
+									? `rotate(${pullDistance * 5}deg)`
+									: undefined,
+								willChange: "transform",
+							}}
+						/>
+					</div>
+					<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text)]">
+						{isPullRefreshing
+							? "Refreshing feed..."
+							: pullDistance >= PULL_REFRESH_THRESHOLD_PX
+								? "Release to refresh"
+								: "Pull to refresh"}
+					</span>
 				</div>
-			)}
+			</div>
 
 			<header className="mb-2 px-[var(--app-px)] sm:px-4">
 				<div className="sm:hidden">
