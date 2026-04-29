@@ -16,6 +16,11 @@ ReactDOM.createRoot(document.getElementById("app")!).render(
 			<App />
 			<Toaster
 				position="top-center"
+				containerStyle={{
+					// Offset the toast container to avoid overlapping with the device status bar or notch.
+					// We use a larger offset to ensure visibility even if env() is not populated.
+					top: "calc(env(safe-area-inset-top, 0px) + 54px)",
+				}}
 				toastOptions={{
 					className:
 						"surface-card !bg-[var(--surface)] !text-[var(--text)] !border-[var(--border)] !rounded-[var(--radius-md)] !px-4 !py-3 !shadow-2xl flex items-center gap-3",
