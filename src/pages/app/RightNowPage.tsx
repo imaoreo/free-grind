@@ -15,6 +15,7 @@ import { formatDistance } from "./gridpage/utils";
 import { cn } from "../../utils/cn";
 import blankProfileImage from "../../images/blank-profile.png";
 import { sexualPositionLabels } from "../../types/grid";
+import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
 	type RightNowFiltersDraft,
 	type RightNowSortOption,
@@ -189,6 +190,7 @@ export function RightNowPage() {
 	const [positionFilter, setPositionFilter] = useState<string>(
 		persistedFilters.positionFilter,
 	);
+	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 
 	const ageLabel = `${ageMin}-${ageMax}${ageMax >= 102 ? "+" : ""}`;
 	const activePositionFilter =
@@ -294,7 +296,13 @@ export function RightNowPage() {
 	}, [navigate, ageMin, ageMax, positionFilter]);
 
 	return (
-		<section className="app-screen flex flex-col">
+		<PullToRefreshContainer
+			className="app-screen flex flex-col"
+			onRefresh={loadFeed}
+			isDisabled={isLoading}
+			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
+			refreshingLabel="Refreshing Right Now..."
+		>
 			{/* Header */}
 			<header className="mb-2 grid gap-3 px-[var(--app-px)]">
 				<h1 className="app-title">Right Now</h1>
@@ -348,7 +356,7 @@ export function RightNowPage() {
 			</header>
 
 			{/* Feed */}
-			<div className="flex-1 overflow-y-auto">
+			<div ref={feedContainerRef} className="flex-1 overflow-y-auto">
 				{isLoading ? (
 					<div className="flex items-center justify-center py-16">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
@@ -382,7 +390,7 @@ export function RightNowPage() {
 				)}
 			</div>
 
-		</section>
+		</PullToRefreshContainer>
 	);
 }
 
