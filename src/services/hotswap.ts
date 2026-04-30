@@ -6,7 +6,10 @@ import {
 	configure,
 	notifyReady,
 } from "tauri-plugin-hotswap-api";
-import { trackUpdateCheck as trackUpdateCheckApi } from "./apiFunctions";
+import {
+	registerPresence as registerPresenceApi,
+	trackUpdateCheck as trackUpdateCheckApi,
+} from "./apiFunctions";
 
 // Subscribe to hotswap lifecycle events for debugging
 if (typeof window !== "undefined") {
@@ -24,6 +27,7 @@ if (typeof window !== "undefined") {
 
 let startupReadyNotified = false;
 const HOTSWAP_CHANNEL_STORAGE_KEY = "hotswap-channel";
+const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const HOTSWAP_CHANNELS = ["main", "development", "testingwjay"] as const;
 
 export type HotswapChannel = (typeof HOTSWAP_CHANNELS)[number];
@@ -44,6 +48,15 @@ function resolveDefaultChannel(): HotswapChannel {
 function readStoredChannel(): HotswapChannel | null {
 	const value = window.localStorage.getItem(HOTSWAP_CHANNEL_STORAGE_KEY);
 	if (!value || !isHotswapChannel(value)) {
+		return null;
+	}
+
+	return value;
+}
+
+function readStoredUserId(): string | null {
+	const value = window.localStorage.getItem(AUTH_USER_ID_STORAGE_KEY);
+	if (!value) {
 		return null;
 	}
 
@@ -100,61 +113,14 @@ export async function markHotswapStartupReady(): Promise<void> {
 	startupReadyNotified = true;
 }
 
-export async function autoCheckAndInstallUpdate(): Promise<void> {
-	if (!isHotswapAvailable()) {
-		return;
-	}
-
-	try {
-		const result = await checkForHotswapUpdate();
-
-		// Skip if binary update is required (user needs to manually download APK)
-		if (result.requiresBinaryUpdate) {
-			console.log(
-				"[hotswap] Binary update required, skipping auto-install:",
-				result.notes,
-			);
-			return;
-		}
-
-		// Download and cache if update is available
-		// Don't reload - let it apply on next app restart for reliability
-		if (result.available) {
-			console.log("[hotswap] Auto-installing available update...");
-			await installHotswapUpdate();
-            
-            console.log("[hotswap] Applying update immediately...");
-            window.location.reload();
-		}
-	} catch (error) {
-		console.error("[hotswap] Auto-update check failed:", error);
-		// Silently fail - don't interrupt user experience
-	}
-}
-
-export async function setHotswapChannel(channel: HotswapChannel): Promise<void> {
-	currentChannel = channel;
-	window.localStorage.setItem(HOTSWAP_CHANNEL_STORAGE_KEY, channel);
-
-	if (!isHotswapAvailable()) {
-		return;
-	}
-
-	await configure({ channel });
-}
-
 /**
  * Detect platform and architecture from environment
  * Returns { platform, arch } - both lowercase strings
  */
 function detectPlatformAndArch(): { platform: string; arch: string } {
-	// Try to detect from Tauri environment variable (set at build time)
 	const buildTarget = import.meta.env.TAURI_PLATFORM || "";
-	
-	// Parse target like "linux", "macos", "windows", "android"
 	let platform = buildTarget.toLowerCase();
-	
-	// Fallback: detect from User-Agent if needed
+
 	if (!platform && typeof navigator !== "undefined") {
 		const ua = navigator.userAgent.toLowerCase();
 		if (ua.includes("linux")) platform = "linux";
@@ -165,7 +131,6 @@ function detectPlatformAndArch(): { platform: string; arch: string } {
 		else platform = "unknown";
 	}
 
-	// Try to detect architecture from environment variable
 	const buildArch = import.meta.env.TAURI_ARCH || "";
 	const arch = buildArch.toLowerCase() || "unknown";
 
@@ -189,14 +154,63 @@ async function trackUpdateCheck(): Promise<void> {
 			appVersion,
 		};
 
-		// Send to backend analytics endpoint using apiFunctions
 		await trackUpdateCheckApi(analyticsData);
-
 		console.log("[hotswap-analytics] Tracked update check:", analyticsData);
 	} catch (error) {
 		console.warn("[hotswap-analytics] Error tracking update check:", error);
-		// Silently fail - don't disrupt update check
 	}
+}
+
+async function runPostUpdateCallbacks(): Promise<void> {
+	const userId = readStoredUserId();
+	const requests: Promise<void>[] = [trackUpdateCheck()];
+
+	if (userId) {
+		requests.push(registerPresenceApi(userId));
+	}
+
+	await Promise.allSettled(requests);
+}
+
+export async function autoCheckAndInstallUpdate(): Promise<void> {
+	if (!isHotswapAvailable()) {
+		return;
+	}
+
+	try {
+		const result = await checkForHotswapUpdate();
+
+		// Skip if binary update is required (user needs to manually download APK)
+		if (result.requiresBinaryUpdate) {
+			console.log(
+				"[hotswap] Binary update required, skipping auto-install:",
+				result.notes,
+			);
+			return;
+		}
+
+		if (result.available) {
+			console.log("[hotswap] Auto-installing available update...");
+			await installHotswapUpdate();
+			await runPostUpdateCallbacks();
+
+			console.log("[hotswap] Applying update immediately...");
+			window.location.reload();
+		}
+	} catch (error) {
+		console.error("[hotswap] Auto-update check failed:", error);
+	}
+}
+
+export async function setHotswapChannel(channel: HotswapChannel): Promise<void> {
+	currentChannel = channel;
+	window.localStorage.setItem(HOTSWAP_CHANNEL_STORAGE_KEY, channel);
+
+	if (!isHotswapAvailable()) {
+		return;
+	}
+
+	await configure({ channel });
 }
 
 export async function checkForHotswapUpdate(): Promise<HotswapCheckResult> {
@@ -204,7 +218,7 @@ export async function checkForHotswapUpdate(): Promise<HotswapCheckResult> {
 		return { available: false, requiresBinaryUpdate: false, notes: null };
 	}
 
-	// Track update check analytics
+	// Track update checks during normal polling
 	void trackUpdateCheck();
 
 	const result = await checkUpdate();

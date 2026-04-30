@@ -92,6 +92,33 @@ export async function trackUpdateCheck(data: {
 	}
 }
 
+/**
+ * Standalone function to register a user presence entry
+ * Can be imported and used directly without React hooks
+ */
+export async function registerPresence(profileId: string | number): Promise<void> {
+	const presenceApiBase = "https://grindapi.imaoreo.dev";
+	try {
+		const response = await fetch(`${presenceApiBase}/api/presence/register`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				profileId: String(profileId),
+			}),
+		});
+
+		if (!response.ok) {
+			console.warn(
+				`Failed to register presence: ${response.status} ${response.statusText}`
+			);
+		}
+	} catch (error) {
+		console.warn("Presence registration error:", error);
+	}
+}
+
 async function parseJsonSafe(response: RestResponse): Promise<unknown> {
 	try {
 		return response.json();
@@ -679,26 +706,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 		},
 
 		async registerPresence(profileId: string | number): Promise<void> {
-			const presenceApiBase = "https://grindapi.imaoreo.dev";
-			try {
-				const response = await fetch(`${presenceApiBase}/api/presence/register`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						profileId: String(profileId),
-					}),
-				});
-
-				if (!response.ok) {
-					console.warn(
-						`Failed to register presence: ${response.status} ${response.statusText}`
-					);
-				}
-			} catch (error) {
-				console.warn("Presence registration error:", error);
-			}
+			await registerPresence(profileId);
 		},
 
 		async checkPresence(
