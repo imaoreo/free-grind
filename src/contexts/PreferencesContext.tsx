@@ -138,6 +138,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 
 const preferencesSchema = z.object({
 	geohash: geohashSchema.nullable(),
+	locationName: z.string().nullable().optional(),
 	colorScheme: z.enum(["system", "light", "dark"]).default("system"),
 	accentColor: z.string().default("#ffcc01"),
 	accentContrast: z.string().default("#1a1a1a"),
@@ -157,6 +158,7 @@ const PreferencesContext = createContext<PreferencesContextType | undefined>(
 
 type PreferencesAction =
 	| { type: "SET_GEOHASH"; payload: string | null }
+	| { type: "SET_LOCATION_NAME"; payload: string | null }
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_COLOR_SCHEME"; payload: ColorScheme }
 	| { type: "SET_MOBILE_GRID_COLUMNS"; payload: "2" | "3" }
@@ -169,6 +171,8 @@ function preferencesReducer(
 	switch (action.type) {
 		case "SET_GEOHASH":
 			return { ...state, geohash: action.payload };
+		case "SET_LOCATION_NAME":
+			return { ...state, locationName: action.payload };
 		case "SET_LOADING":
 			return { ...state, isLoading: action.payload };
 		case "SET_COLOR_SCHEME":
@@ -211,6 +215,7 @@ const STORAGE_KEY = "app_preferences";
 export function PreferencesProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(preferencesReducer, {
 		geohash: null,
+		locationName: null,
 		colorScheme: "system",
 		accentColor: "#ffcc01",
 		accentContrast: "#1a1a1a",
@@ -227,6 +232,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					const decoded = JSON.parse(stored);
 					const parsed = preferencesSchema.parse(decoded);
 					dispatch({ type: "SET_GEOHASH", payload: parsed.geohash });
+					dispatch({ type: "SET_LOCATION_NAME", payload: parsed.locationName ?? null });
 					dispatch({ type: "SET_COLOR_SCHEME", payload: parsed.colorScheme });
 					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
 					dispatch({
@@ -249,6 +255,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		async (newValues: Partial<Preferences>) => {
 			const oldValues: Preferences = {
 				geohash: state.geohash,
+				locationName: state.locationName,
 				colorScheme: state.colorScheme,
 				accentColor: state.accentColor,
 				accentContrast: state.accentContrast,
@@ -265,6 +272,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			// Update state
 			if (newValues.geohash !== undefined) {
 				dispatch({ type: "SET_GEOHASH", payload: newValues.geohash });
+			}
+			if (newValues.locationName !== undefined) {
+				dispatch({ type: "SET_LOCATION_NAME", payload: newValues.locationName });
 			}
 			if (newValues.colorScheme !== undefined) {
 				dispatch({ type: "SET_COLOR_SCHEME", payload: newValues.colorScheme });
@@ -303,6 +313,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
 	const value: PreferencesContextType = {
 		geohash: state.geohash,
+		locationName: state.locationName,
 		colorScheme: state.colorScheme,
 		accentColor: state.accentColor,
 		accentContrast: state.accentContrast,

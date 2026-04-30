@@ -30,11 +30,15 @@ export function BrowseLocationPage() {
 		label?: string,
 	) => {
 		const nextGeohash = encodeGeohash(lat, lon);
-		await setPreferences({ geohash: nextGeohash });
+		const finalLabel = label ?? `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`;
+		await setPreferences({
+			geohash: nextGeohash,
+			locationName: finalLabel
+		});
 		setSelectedLocation({
 			lat,
 			lon,
-			label: label ?? `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
+			label: finalLabel,
 		});
 		setMapPickerError(null);
 		setLocationError(null);
