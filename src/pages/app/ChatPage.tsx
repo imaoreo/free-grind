@@ -56,6 +56,7 @@ import {
 } from "../../utils/media";
 import { Avatar } from "../../components/ui/avatar";
 import blankProfileImage from "../../images/blank-profile.png";
+import freegrindLogo from "../../images/freegrind-logo.webp";
 import {
 	indexConversations,
 	indexMessages,
@@ -2849,7 +2850,12 @@ export function ChatPage() {
 													{conversation.data.name || "Unknown"}
 												</p>
 												{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
-													<span className="shrink-0 text-lg" title="Uses Free Grind">🌿</span>
+													<img
+														src={freegrindLogo}
+														alt="Free Grind user"
+														title="Uses Free Grind"
+														className="shrink-0 h-4 w-4 rounded-full border border-[var(--border)]"
+													/>
 												)}
 											</div>
 											<span className="text-xs text-[var(--text-muted)]">
@@ -2944,9 +2950,19 @@ export function ChatPage() {
 								/>
 							</button>
 							<div className="min-w-0">
-								<p className="truncate text-lg font-semibold">
-									{selectedConversation.data.name || "Conversation"}
-								</p>
+								<div className="flex items-center gap-1.5 min-w-0">
+									<p className="truncate text-lg font-semibold">
+										{selectedConversation.data.name || "Conversation"}
+									</p>
+									{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
+										<img
+											src={freegrindLogo}
+											alt="Free Grind user"
+											title="Uses Free Grind"
+											className="shrink-0 h-5 w-5 rounded-full border border-[var(--border)]"
+										/>
+									)}
+								</div>
 								<p className="text-sm text-[var(--text-muted)]">
 									{otherParticipant?.distanceMetres
 										? formatDistance(otherParticipant.distanceMetres)

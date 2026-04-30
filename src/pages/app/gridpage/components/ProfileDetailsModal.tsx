@@ -23,6 +23,8 @@ import {
 	vaccineLabels,
 } from "../../GridPage.types";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
+import blankProfileImage from "../../../../images/blank-profile.png";
+import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import {
 	formatDistance,
 	formatEstimatedAccountCreation,
@@ -36,7 +38,6 @@ import {
 	isCurrentlyOnline,
 	shouldHideField,
 } from "../utils";
-import blankProfileImage from "../../../../images/blank-profile.png";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -392,7 +393,12 @@ export function ProfileDetailsModal({
 								<div className="flex items-center gap-2">
 									<p className="text-base font-semibold">{activeProfileName}</p>
 									{usesFreegrind && (
-										<span className="text-lg" title="Uses Free Grind">🌿</span>
+										<img
+											src={freegrindLogo}
+											alt="Free Grind user"
+											title="Uses Free Grind"
+											className="h-5 w-5 rounded-full border border-[var(--border)]"
+										/>
 									)}
 								</div>
 							</div>

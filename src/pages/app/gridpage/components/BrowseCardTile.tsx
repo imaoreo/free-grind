@@ -7,6 +7,7 @@ import {
 } from "../utils";
 import { cn } from "../../../../utils/cn";
 import blankProfileImage from "../../../../images/blank-profile.png";
+import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 
 type BrowseCardTileProps = {
@@ -68,9 +69,12 @@ export function BrowseCardTile({
 			{/* Top-right (below online): Free Grind Badge */}
 			{usesFreegrind && (
 				<div className="absolute right-2 top-10 sm:top-11">
-					<span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-500/90 shadow-lg text-white text-xs font-bold" title="Uses Free Grind">
-						🌿
-					</span>
+					<img
+						src={freegrindLogo}
+						alt="Free Grind user"
+						title="Uses Free Grind"
+						className="h-6 w-6 rounded-full border-2 border-black/30 shadow-lg"
+					/>
 				</div>
 			)}
 
