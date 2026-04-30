@@ -1,6 +1,7 @@
 export type AnalyticsConsentChoice = "granted" | "denied";
 
 export const ANALYTICS_CONSENT_STORAGE_KEY = "fg-analytics-consent";
+export const ANALYTICS_CONSENT_EVENT = "fg-analytics-consent-change";
 
 export function readAnalyticsConsentChoice(): AnalyticsConsentChoice | null {
 	if (typeof window === "undefined") {
@@ -25,6 +26,7 @@ export function writeAnalyticsConsentChoice(choice: AnalyticsConsentChoice): voi
 
 	try {
 		window.localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, choice);
+		window.dispatchEvent(new Event(ANALYTICS_CONSENT_EVENT));
 	} catch {
 		// Ignore storage write failures.
 	}
