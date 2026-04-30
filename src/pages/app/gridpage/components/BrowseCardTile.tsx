@@ -56,7 +56,7 @@ export function BrowseCardTile({
 
 			{/* Top-right: Online Status */}
 			{online && (
-				<div className="absolute right-2 top-1">
+				<div className={cn("absolute right-2", usesFreegrind ? "top-10 sm:top-11" : "top-1")}>
 					{/* Dot on mobile */}
 					<span className="inline-flex sm:hidden h-3 w-3 rounded-full bg-green-500 shadow-lg" />
 					{/* Badge on larger screens */}
@@ -66,9 +66,9 @@ export function BrowseCardTile({
 				</div>
 			)}
 
-			{/* Top-right (below online): Free Grind Badge */}
+			{/* Top-right: Free Grind Badge */}
 			{usesFreegrind && (
-				<div className="absolute right-2 top-10 sm:top-11">
+				<div className="absolute right-2 top-1">
 					<img
 						src={freegrindLogo}
 						alt="Free Grind user"
