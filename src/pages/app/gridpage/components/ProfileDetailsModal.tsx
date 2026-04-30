@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Flame, Images, MessageCircle, Triangle, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Flame, MessageCircle, Triangle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
