@@ -42,6 +42,7 @@ type ProfileDetailsModalProps = {
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
 	onTriangleProfile?: (profileId: string) => void;
+	isLocatingProfile?: boolean;
 	onTapProfile?: (profileId: string) => void;
 	isTappingProfile?: boolean;
 	isTapBlocked?: boolean;
@@ -61,6 +62,7 @@ export function ProfileDetailsModal({
 	onClose,
 	onMessageProfile,
 	onTriangleProfile,
+	isLocatingProfile = false,
 	onTapProfile,
 	isTappingProfile = false,
 	isTapBlocked = false,
@@ -97,10 +99,15 @@ export function ProfileDetailsModal({
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
 	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
+	const isTriangleDisabled =
+		!onTriangleProfile || !messageProfileId || isLocatingProfile;
 	const tapButtonClassName =
 		isTapActive
 			? "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] text-4xl leading-none text-[var(--text)] transition hover:brightness-110"
 			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
+	const triangleButtonClassName = isTriangleDisabled
+		? "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
+		: "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]";
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -557,11 +564,13 @@ export function ProfileDetailsModal({
 															onTriangleProfile(messageProfileId);
 														}
 													}}
-													className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold transition text-[var(--text)] hover:border-[var(--accent)]`}
-													title="Trianglation"
+													disabled={isTriangleDisabled}
+													className={triangleButtonClassName}
+													aria-label="Run location finder"
+													title={isLocatingProfile ? "Location finder running" : "Location finder"}
 												>
 													<Triangle className="h-4 w-4" />
-													Trianglation
+													{isLocatingProfile ? "Locating..." : "Locate"}
 												</button>
 										</div>
 									) : null}
@@ -988,12 +997,18 @@ export function ProfileDetailsModal({
 											</button>
 											<button
 												type="button"
-												disabled
-												className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
-												title="Album"
+												onClick={() => {
+													if (messageProfileId && onTriangleProfile) {
+														onTriangleProfile(messageProfileId);
+													}
+												}}
+												disabled={isTriangleDisabled}
+												className={triangleButtonClassName}
+												aria-label="Run location finder"
+												title={isLocatingProfile ? "Location finder running" : "Location finder"}
 											>
-												<Images className="h-4 w-4" />
-												Album
+												<Triangle className="h-4 w-4" />
+												{isLocatingProfile ? "Locating..." : "Locate"}
 											</button>
 									</div>
 								) : null}
