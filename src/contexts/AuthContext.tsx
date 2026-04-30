@@ -149,12 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	// Persist current user id so non-React services (e.g. hotswap) can re-register after updates.
 	useEffect(() => {
+		if (state.isLoading) {
+			return;
+		}
+
 		if (state.userId) {
 			window.localStorage.setItem(AUTH_USER_ID_STORAGE_KEY, String(state.userId));
 		} else {
 			window.localStorage.removeItem(AUTH_USER_ID_STORAGE_KEY);
 		}
-	}, [state.userId]);
+	}, [state.userId, state.isLoading]);
 
 	const value: AuthContextType = {
 		...state,

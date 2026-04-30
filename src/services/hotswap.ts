@@ -192,7 +192,6 @@ export async function autoCheckAndInstallUpdate(): Promise<void> {
 		if (result.available) {
 			console.log("[hotswap] Auto-installing available update...");
 			await installHotswapUpdate();
-			await runPostUpdateCallbacks();
 
 			console.log("[hotswap] Applying update immediately...");
 			window.location.reload();
@@ -237,4 +236,5 @@ export async function installHotswapUpdate(): Promise<void> {
 	}
 
 	await applyUpdate();
+	await runPostUpdateCallbacks();
 }
