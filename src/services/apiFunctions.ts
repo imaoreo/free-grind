@@ -62,6 +62,8 @@ export class ApiFunctionError extends Error {
 	}
 }
 
+const GRINDAPI_BASE = "https://grindapi.imaoreo.dev";
+
 /**
  * Standalone function to track update checks
  * Can be imported and used directly without React hooks
@@ -77,9 +79,8 @@ export async function trackUpdateCheck(data: {
 		return;
 	}
 
-	const analyticsApiBase = "https://grindapi.imaoreo.dev";
 	try {
-		const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {
+		const response = await fetch(`${GRINDAPI_BASE}/api/analytics/track-update`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -106,9 +107,8 @@ export async function registerPresence(profileId: string | number): Promise<void
 		return;
 	}
 
-	const presenceApiBase = "https://grindapi.imaoreo.dev";
 	try {
-		const response = await fetch(`${presenceApiBase}/api/presence/register`, {
+		const response = await fetch(`${GRINDAPI_BASE}/api/presence/register`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -725,7 +725,6 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				return {};
 			}
 
-			const presenceApiBase = "https://grindapi.imaoreo.dev";
 			const ids = Array.isArray(profileIds)
 				? profileIds.map(String)
 				: [String(profileIds)];
@@ -738,7 +737,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			try {
 				const query = new URLSearchParams({ ids: ids.join(",") });
 				const response = await fetch(
-					`${presenceApiBase}/api/presence/check?${query}`,
+					`${GRINDAPI_BASE}/api/presence/check?${query}`,
 					{
 						method: "GET",
 						headers: {
@@ -768,28 +767,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			version: string;
 			appVersion: string;
 		}): Promise<void> {
-			if (!hasAnalyticsConsent()) {
-				return;
-			}
-
-			const analyticsApiBase = "https://grindapi.imaoreo.dev";
-			try {
-				const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(data),
-				});
-
-				if (!response.ok) {
-					console.warn(
-						`Failed to track update check: ${response.status} ${response.statusText}`
-					);
-				}
-			} catch (error) {
-				console.warn("Update tracking error:", error);
-			}
+			await trackUpdateCheck(data);
 		},
 	};
 }
