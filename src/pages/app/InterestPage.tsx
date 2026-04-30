@@ -1,5 +1,5 @@
 import { Eye, Hand, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import blankProfileImage from "../../images/blank-profile.png";
@@ -469,6 +469,7 @@ export function InterestPage() {
 	const [tapsLoaded, setTapsLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const touchStartXRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -573,6 +574,35 @@ export function InterestPage() {
 		[navigate, location.pathname, location.search],
 	);
 
+	const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
+		touchStartXRef.current = event.touches[0]?.clientX ?? null;
+	}, []);
+
+	const handleTouchEnd = useCallback(
+		(event: TouchEvent<HTMLDivElement>) => {
+			const startX = touchStartXRef.current;
+			if (startX == null) {
+				return;
+			}
+
+			const endX = event.changedTouches[0]?.clientX ?? startX;
+			const deltaX = startX - endX;
+
+			// Swipe left (positive deltaX) -> go to next tab (views -> taps)
+			if (deltaX > 70 && activeTab === "views") {
+				handleSetActiveTab("taps");
+			}
+
+			// Swipe right (negative deltaX) -> go to previous tab (taps -> views)
+			if (deltaX < -70 && activeTab === "taps") {
+				handleSetActiveTab("views");
+			}
+
+			touchStartXRef.current = null;
+		},
+		[activeTab, handleSetActiveTab],
+	);
+
 	return (
 		<PullToRefreshContainer
 			className="app-screen"
@@ -580,7 +610,11 @@ export function InterestPage() {
 			isDisabled={isLoading}
 			refreshingLabel={`Refreshing ${activeTab}...`}
 		>
-			<div className="mx-auto w-full max-w-4xl">
+			<div
+				className="mx-auto w-full max-w-4xl"
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}
+			>
 				<h1 className="app-title">Interest</h1>
 				<div className="mt-4 space-y-4">
 					<div className="flex items-end gap-3">
