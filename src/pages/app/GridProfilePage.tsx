@@ -44,6 +44,7 @@ export function GridProfilePage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(
 		null,
 	);
+	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [isTappingProfile, setIsTappingProfile] = useState(false);
 	const [tapVisualState, setTapVisualState] = useState<"none" | "single" | "mutual">("none");
 	const [lastLocalTapSentAt, setLastLocalTapSentAt] = useState<number | null>(null);
@@ -285,8 +286,12 @@ export function GridProfilePage() {
         const E = 2 * y3;
         const F = Math.pow(r1, 2) - Math.pow(r3, 2) + Math.pow(x3, 2) + Math.pow(y3, 2);
 
-        const x = (C * E - F * B) / (A * E - D * B);
-        const y = (A * F - D * C) / (A * E - D * B);
+        const denom = A * E - D * B;
+        if (Math.abs(denom) < 1e-10) {
+            throw new Error("Trilateration failed: measurement points are collinear or too close together. Try again with a larger initial offset.");
+        }
+        const x = (C * E - F * B) / denom;
+        const y = (A * F - D * C) / denom;
 
         // 3. Convert XY back to Lat/Lon
         return {
@@ -301,10 +306,40 @@ export function GridProfilePage() {
             return;
         }
 
-        // Decode starting position
-        const decoded = decodeGeohash(geohash);
-        const originalLat = (decoded.lat[0] + decoded.lat[1]) / 2;
-        const originalLon = (decoded.lon[0] + decoded.lon[1]) / 2;
+        if (isLocatingProfile) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "⚠️ Warning: Location Finder\n\n" +
+            "This feature works by repeatedly updating your location on the server to triangulate another user's position.\n\n" +
+            "• This may take several minutes to complete\n" +
+            "• It could result in your account being flagged or banned\n\n" +
+            "Do you want to continue?"
+        );
+        if (!confirmed) {
+            return;
+        }
+
+        setIsLocatingProfile(true);
+
+        let originalLat: number;
+        let originalLon: number;
+
+        try {
+            // Decode starting position
+            const decoded = decodeGeohash(geohash);
+            originalLat = (decoded.lat[0] + decoded.lat[1]) / 2;
+            originalLon = (decoded.lon[0] + decoded.lon[1]) / 2;
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Invalid browse location. Please set your location again.",
+            );
+            setIsLocatingProfile(false);
+            return;
+        }
 
         const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -391,9 +426,9 @@ export function GridProfilePage() {
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "An error occurred during triangulation");
         } finally {
-            // Optional: Uncomment if you want to jump back to original spot after 10 seconds
             await waitMs(10000);
             await putServerLocation(originalLat, originalLon, geohash);
+            setIsLocatingProfile(false);
         }
     };
 
@@ -434,6 +469,7 @@ export function GridProfilePage() {
 			}}
 			onMessageProfile={handleMessageProfile}
 			onTriangleProfile={handleTriangleProfile}
+			isLocatingProfile={isLocatingProfile}
 			onTapProfile={handleTapProfile}
 			isTappingProfile={isTappingProfile}
 			isTapBlocked={hasSentTapRecently}
