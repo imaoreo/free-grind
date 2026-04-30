@@ -254,7 +254,7 @@ export async function installHotswapUpdate(): Promise<void> {
 
 	await applyUpdate();
 
-	// Retry once to reduce chance of missing analytics/presence due transient network issues.
+	// Retry once to reduce chance of missing analytics/presence due to transient network issues.
 	try {
 		await runPostUpdateCallbacks();
 	} catch (error) {
