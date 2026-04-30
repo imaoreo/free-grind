@@ -4,7 +4,7 @@ const stringIdSchema = z
 	.union([z.string(), z.number()])
 	.transform((value) => String(value));
 
-const timestampSchema = z.union([z.number(), z.string()]).optional();
+const timestampSchema = z.union([z.number(), z.string()]).nullish();
 
 export const interestViewedCountSchema = z
 	.object({
