@@ -142,10 +142,76 @@ export async function setHotswapChannel(channel: HotswapChannel): Promise<void> 
 	await configure({ channel });
 }
 
+/**
+ * Detect platform and architecture from environment
+ * Returns { platform, arch } - both lowercase strings
+ */
+function detectPlatformAndArch(): { platform: string; arch: string } {
+	// Try to detect from Tauri environment variable (set at build time)
+	const buildTarget = import.meta.env.TAURI_PLATFORM || "";
+	
+	// Parse target like "linux", "macos", "windows", "android"
+	let platform = buildTarget.toLowerCase();
+	
+	// Fallback: detect from User-Agent if needed
+	if (!platform && typeof navigator !== "undefined") {
+		const ua = navigator.userAgent.toLowerCase();
+		if (ua.includes("linux")) platform = "linux";
+		else if (ua.includes("mac")) platform = "macos";
+		else if (ua.includes("windows")) platform = "windows";
+		else if (ua.includes("android")) platform = "android";
+		else if (ua.includes("iphone")) platform = "ios";
+		else platform = "unknown";
+	}
+
+	// Try to detect architecture from environment variable
+	const buildArch = import.meta.env.TAURI_ARCH || "";
+	const arch = buildArch.toLowerCase() || "unknown";
+
+	return { platform: platform || "unknown", arch };
+}
+
+/**
+ * Track update check analytics
+ * Sends data to backend for analytics dashboard
+ */
+async function trackUpdateCheck(): Promise<void> {
+	try {
+		const appVersion = import.meta.env.VITE_APP_VERSION || "unknown";
+		const { platform, arch } = detectPlatformAndArch();
+
+		const analyticsData = {
+			channel: currentChannel,
+			platform,
+			arch,
+			version: appVersion,
+			appVersion,
+		};
+
+		// Send to backend analytics endpoint
+		// Fire and forget - don't block update check on this
+		fetch("https://grindapi.imaoreo.dev/api/analytics/track-update", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(analyticsData),
+		}).catch((error) => {
+			console.warn("[hotswap-analytics] Failed to track update check:", error);
+		});
+
+		console.log("[hotswap-analytics] Tracked update check:", analyticsData);
+	} catch (error) {
+		console.warn("[hotswap-analytics] Error tracking update check:", error);
+		// Silently fail - don't disrupt update check
+	}
+}
+
 export async function checkForHotswapUpdate(): Promise<HotswapCheckResult> {
 	if (!isHotswapAvailable()) {
 		return { available: false, requiresBinaryUpdate: false, notes: null };
 	}
+
+	// Track update check analytics
+	void trackUpdateCheck();
 
 	const result = await checkUpdate();
 	const parsedNotes = parseBinaryRequiredNotes(result.notes);
