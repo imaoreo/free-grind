@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Flame, MessageCircle, Triangle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
@@ -24,6 +24,7 @@ import {
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import {
 	formatDistance,
+	formatEstimatedAccountCreation,
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
@@ -40,6 +41,12 @@ type ProfileDetailsModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
+	onTriangleProfile?: (profileId: string) => void;
+	isLocatingProfile?: boolean;
+	onTapProfile?: (profileId: string) => void;
+	isTappingProfile?: boolean;
+	isTapBlocked?: boolean;
+	tapVisualState?: "none" | "single" | "mutual";
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -54,6 +61,12 @@ export function ProfileDetailsModal({
 	isOpen,
 	onClose,
 	onMessageProfile,
+	onTriangleProfile,
+	isLocatingProfile = false,
+	onTapProfile,
+	isTappingProfile = false,
+	isTapBlocked = false,
+	tapVisualState = "none",
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -81,7 +94,20 @@ export function ProfileDetailsModal({
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
 	const profileLastSeen = activeProfile?.seen ?? null;
+	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
+	const isTapActive = effectiveTapVisualState !== "none";
+	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
+	const isTriangleDisabled =
+		!onTriangleProfile || !messageProfileId || isLocatingProfile;
+	const tapButtonClassName =
+		isTapActive
+			? "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] text-4xl leading-none text-[var(--text)] transition hover:brightness-110"
+			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
+	const triangleButtonClassName = isTriangleDisabled
+		? "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
+		: "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]";
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
@@ -487,6 +513,9 @@ export function ProfileDetailsModal({
 											<p className="mt-1 text-xs text-[var(--text-muted)]">
 												User ID: {activeProfile.profileId}
 											</p>
+												<p className="mt-1 text-xs text-[var(--text-muted)]">
+													Est. created: {estimatedCreatedAt}
+												</p>
 										</div>
 										<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 											<p>
@@ -499,15 +528,50 @@ export function ProfileDetailsModal({
 										</div>
 									</div>
 									{messageProfileId && onMessageProfile ? (
-										<div className="mt-3">
-											<button
-												type="button"
-												onClick={() => onMessageProfile(messageProfileId)}
-												className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-											>
-												<MessageCircle className="h-4 w-4" />
-												Message
-											</button>
+										<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+												<button
+													type="button"
+													onClick={() => onMessageProfile(messageProfileId)}
+													className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+												>
+													<MessageCircle className="h-4 w-4" />
+													Message
+												</button>
+												<button
+													type="button"
+													onClick={() => onTapProfile?.(messageProfileId)}
+													disabled={isTapDisabled}
+													className={tapButtonClassName}
+													aria-label="Tap profile"
+													title={
+														isTapBlocked
+															? "Tap already sent in the last 24 hours"
+															: isTapActive
+																? "Tap active"
+																: "Send tap"
+													}
+												>
+													{isTapActive ? (
+														"🔥"
+													) : (
+														<Flame className="h-7 w-7" strokeWidth={1.8} />
+													)}
+												</button>
+												<button
+													type="button"
+													onClick={() => {
+														if (messageProfileId && onTriangleProfile) {
+															onTriangleProfile(messageProfileId);
+														}
+													}}
+													disabled={isTriangleDisabled}
+													className={triangleButtonClassName}
+													aria-label="Run location finder"
+													title={isLocatingProfile ? "Location finder running" : "Location finder"}
+												>
+													<Triangle className="h-4 w-4" />
+													{isLocatingProfile ? "Locating..." : "Locate"}
+												</button>
 										</div>
 									) : null}
 								</div>
@@ -887,6 +951,9 @@ export function ProfileDetailsModal({
 										<p className="mt-1 text-xs text-[var(--text-muted)]">
 											User ID: {activeProfile.profileId}
 										</p>
+										<p className="mt-1 text-xs text-[var(--text-muted)]">
+											Est. created: {estimatedCreatedAt}
+										</p>
 									</div>
 									<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 										<p>
@@ -899,15 +966,50 @@ export function ProfileDetailsModal({
 									</div>
 								</div>
 								{messageProfileId && onMessageProfile ? (
-									<div className="mt-3">
-										<button
-											type="button"
-											onClick={() => onMessageProfile(messageProfileId)}
-											className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-										>
-											<MessageCircle className="h-4 w-4" />
-											Message
-										</button>
+									<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+											<button
+												type="button"
+												onClick={() => onMessageProfile(messageProfileId)}
+												className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+											>
+												<MessageCircle className="h-4 w-4" />
+												Message
+											</button>
+											<button
+												type="button"
+												onClick={() => onTapProfile?.(messageProfileId)}
+												disabled={isTapDisabled}
+												className={tapButtonClassName}
+												aria-label="Tap profile"
+												title={
+													isTapBlocked
+														? "Tap already sent in the last 24 hours"
+														: isTapActive
+															? "Tap active"
+															: "Send tap"
+												}
+											>
+												{isTapActive ? (
+													"🔥"
+												) : (
+													<Flame className="h-7 w-7" strokeWidth={1.8} />
+												)}
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													if (messageProfileId && onTriangleProfile) {
+														onTriangleProfile(messageProfileId);
+													}
+												}}
+												disabled={isTriangleDisabled}
+												className={triangleButtonClassName}
+												aria-label="Run location finder"
+												title={isLocatingProfile ? "Location finder running" : "Location finder"}
+											>
+												<Triangle className="h-4 w-4" />
+												{isLocatingProfile ? "Locating..." : "Locate"}
+											</button>
 									</div>
 								) : null}
 							</div>

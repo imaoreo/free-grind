@@ -469,20 +469,20 @@ export function SharedAlbumsPage() {
 								<Users className="h-3.5 w-3.5" />
 								<span>{profileCount} people</span>
 							</div>
-                            <button
-                                type="button"
-                                onClick={handleRefresh}
-                                disabled={isRefreshing || isLoading}
-                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-60"
-                                aria-label="Refresh shared albums"
-                                title="Refresh"
-                            >
-                                <RefreshCw
-                                    className={
-                                        isRefreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
-                                    }
-                                />
-                            </button>
+							<button
+								type="button"
+								onClick={handleRefresh}
+								disabled={isRefreshing || isLoading}
+								className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-60"
+								aria-label="Refresh shared albums"
+								title="Refresh"
+							>
+								<RefreshCw
+									className={
+										isRefreshing ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"
+									}
+								/>
+							</button>
 						</div>
 						<p className="app-subtitle mt-1 max-w-[68ch]">
 							Browse all albums shared by people in your chats.
