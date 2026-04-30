@@ -122,7 +122,8 @@ export function CustomizabilityPage() {
 						If disabled, the app will not use the API to find other FreeGrind users.
 					</p>
 					<p className="mt-2 text-xs text-[var(--text-muted)]">
-						No data is saved or tied to your device.
+						Your allow/deny choice is saved on this device. If enabled, the app may send
+						your profile identifier in API requests used for presence and discovery.
 					</p>
 					<div className="mt-4 flex flex-wrap gap-2">
 						<button
