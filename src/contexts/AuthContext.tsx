@@ -6,7 +6,10 @@ import {
 	ReactNode,
 } from "react";
 import { useApi } from "../hooks/useApi";
+import { useApiFunctions } from "../hooks/useApiFunctions";
 import toast from "react-hot-toast";
+
+const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 
 interface AuthState {
 	userId: number | null;
@@ -52,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	});
 
 	const { callMethod, asAppError } = useApi();
+	const apiFunctions = useApiFunctions();
 
 	const checkAuth = async () => {
 		try {
@@ -135,6 +139,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		checkAuth();
 	}, []);
+
+	// Register presence with Free Grind backend when a logged-in session is active.
+	// This must not depend only on `state.userId`, because consent/discovery settings can
+	// change after login while the user id stays the same.
+	useEffect(() => {
+		if (state.isLoading || !state.userId) {
+			return;
+		}
+
+		void apiFunctions.registerPresence(state.userId);
+	});
+	// Persist current user id so non-React services (e.g. hotswap) can re-register after updates.
+	useEffect(() => {
+		if (state.isLoading) {
+			return;
+		}
+
+		if (state.userId) {
+			window.localStorage.setItem(AUTH_USER_ID_STORAGE_KEY, String(state.userId));
+		} else {
+			window.localStorage.removeItem(AUTH_USER_ID_STORAGE_KEY);
+		}
+	}, [state.userId, state.isLoading]);
 
 	const value: AuthContextType = {
 		...state,

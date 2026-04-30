@@ -4,6 +4,7 @@ import {
 	createBackdropCloseHandler,
 	useModalClose,
 } from "../../../../hooks/useModalClose";
+import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import type {
 	BrowseCard,
 	ManagedOption,
@@ -22,6 +23,8 @@ import {
 	vaccineLabels,
 } from "../../GridPage.types";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
+import blankProfileImage from "../../../../images/blank-profile.png";
+import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import {
 	formatDistance,
 	formatEstimatedAccountCreation,
@@ -35,7 +38,6 @@ import {
 	isCurrentlyOnline,
 	shouldHideField,
 } from "../utils";
-import blankProfileImage from "../../../../images/blank-profile.png";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -96,6 +98,7 @@ export function ProfileDetailsModal({
 	const profileLastSeen = activeProfile?.seen ?? null;
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
 	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
@@ -387,7 +390,17 @@ export function ProfileDetailsModal({
 								<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 									Profile details
 								</p>
-								<p className="text-base font-semibold">{activeProfileName}</p>
+								<div className="flex items-center gap-2">
+									<p className="text-base font-semibold">{activeProfileName}</p>
+									{usesFreegrind && (
+										<img
+											src={freegrindLogo}
+											alt="Free Grind user"
+											title="Uses Free Grind"
+											className="h-5 w-5 rounded-full border border-[var(--border)]"
+										/>
+									)}
+								</div>
 							</div>
 						</div>
 					</div>

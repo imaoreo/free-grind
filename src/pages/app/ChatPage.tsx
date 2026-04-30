@@ -33,6 +33,7 @@ import {
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/AuthContext";
 import { type ChatApiError } from "../../services/chatService";
 import { ChatRealtimeManager } from "../../services/chatRealtime";
@@ -55,6 +56,7 @@ import {
 } from "../../utils/media";
 import { Avatar } from "../../components/ui/avatar";
 import blankProfileImage from "../../images/blank-profile.png";
+import freegrindLogo from "../../images/freegrind-logo.webp";
 import {
 	indexConversations,
 	indexMessages,
@@ -739,6 +741,24 @@ export function ChatPage() {
 	const [reactionBurstMessageId, setReactionBurstMessageId] = useState<
 		string | null
 	>(null);
+
+	// Extract profile IDs from conversations for batch presence check
+	const conversationProfileIds = useMemo(
+		() =>
+			conversations
+				.map((conv) => {
+					const otherParticipant = getOtherParticipant(conv, userId);
+					return otherParticipant?.profileId != null
+						? String(otherParticipant.profileId)
+						: null;
+				})
+				.filter((id): id is string => id != null)
+				.slice(0, 50), // Limit to 50
+		[conversations, userId],
+	);
+	const presenceResults = usePresenceCheckBatch(
+		conversationProfileIds.length > 0 ? conversationProfileIds : null,
+	);
 	const reactionBurstTimeoutRef = useRef<number | null>(null);
 
 	const triggerReactionBurst = useCallback((messageId: string) => {
@@ -2825,9 +2845,19 @@ export function ChatPage() {
 									</div>
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center justify-between gap-2">
-											<p className="truncate font-semibold">
-												{conversation.data.name || "Unknown"}
-											</p>
+											<div className="flex items-center gap-1 min-w-0">
+												<p className="truncate font-semibold">
+													{conversation.data.name || "Unknown"}
+												</p>
+												{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
+													<img
+														src={freegrindLogo}
+														alt="Free Grind user"
+														title="Uses Free Grind"
+														className="shrink-0 h-4 w-4 rounded-full border border-[var(--border)]"
+													/>
+												)}
+											</div>
 											<span className="text-xs text-[var(--text-muted)]">
 												{formatConversationTime(
 													conversation.data.lastActivityTimestamp,
@@ -2920,9 +2950,19 @@ export function ChatPage() {
 								/>
 							</button>
 							<div className="min-w-0">
-								<p className="truncate text-lg font-semibold">
-									{selectedConversation.data.name || "Conversation"}
-								</p>
+								<div className="flex items-center gap-1.5 min-w-0">
+									<p className="truncate text-lg font-semibold">
+										{selectedConversation.data.name || "Conversation"}
+									</p>
+									{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
+										<img
+											src={freegrindLogo}
+											alt="Free Grind user"
+											title="Uses Free Grind"
+											className="shrink-0 h-5 w-5 rounded-full border border-[var(--border)]"
+										/>
+									)}
+								</div>
 								<p className="text-sm text-[var(--text-muted)]">
 									{otherParticipant?.distanceMetres
 										? formatDistance(otherParticipant.distanceMetres)

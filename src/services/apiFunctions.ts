@@ -48,6 +48,7 @@ import type {
 	GetSharedAlbumsInput,
 } from "../types/api-functions";
 import type { RestFetcher, RestResponse } from "../types/chat-service";
+import { hasAnalyticsConsent } from "../utils/analyticsConsent";
 
 export class ApiFunctionError extends Error {
 	status: number;
@@ -58,6 +59,72 @@ export class ApiFunctionError extends Error {
 		this.name = "ApiFunctionError";
 		this.status = status;
 		this.payload = payload;
+	}
+}
+
+const GRINDAPI_BASE = "https://grindapi.imaoreo.dev";
+
+/**
+ * Standalone function to track update checks
+ * Can be imported and used directly without React hooks
+ */
+export async function trackUpdateCheck(data: {
+	channel: string;
+	platform: string;
+	arch: string;
+	version: string;
+	appVersion: string;
+}): Promise<void> {
+	if (!hasAnalyticsConsent()) {
+		return;
+	}
+
+	try {
+		const response = await fetch(`${GRINDAPI_BASE}/api/analytics/track-update`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data),
+		});
+
+		if (!response.ok) {
+			console.warn(
+				`Failed to track update check: ${response.status} ${response.statusText}`
+			);
+		}
+	} catch (error) {
+		console.warn("Update tracking error:", error);
+	}
+}
+
+/**
+ * Standalone function to register a user presence entry
+ * Can be imported and used directly without React hooks
+ */
+export async function registerPresence(profileId: string | number): Promise<void> {
+	if (!hasAnalyticsConsent()) {
+		return;
+	}
+
+	try {
+		const response = await fetch(`${GRINDAPI_BASE}/api/presence/register`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				profileId: String(profileId),
+			}),
+		});
+
+		if (!response.ok) {
+			console.warn(
+				`Failed to register presence: ${response.status} ${response.statusText}`
+			);
+		}
+	} catch (error) {
+		console.warn("Presence registration error:", error);
 	}
 }
 
@@ -645,6 +712,62 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 					};
 				})
 				.filter((item): item is RightNowFeedItem => item !== null);
+		},
+
+		async registerPresence(profileId: string | number): Promise<void> {
+			await registerPresence(profileId);
+		},
+
+		async checkPresence(
+			profileIds: string | number | (string | number)[]
+		): Promise<Record<string, boolean>> {
+			if (!hasAnalyticsConsent()) {
+				return {};
+			}
+
+			const ids = Array.isArray(profileIds)
+				? profileIds.map(String)
+				: [String(profileIds)];
+
+			if (ids.length > 50) {
+				console.warn("checkPresence: truncating to 50 IDs (received " + ids.length + ")");
+				ids.length = 50;
+			}
+
+			try {
+				const query = new URLSearchParams({ ids: ids.join(",") });
+				const response = await fetch(
+					`${GRINDAPI_BASE}/api/presence/check?${query}`,
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+						},
+					}
+				);
+
+				if (!response.ok) {
+					console.warn(
+						`Failed to check presence: ${response.status} ${response.statusText}`
+					);
+					return {};
+				}
+
+				return (await response.json()) as Record<string, boolean>;
+			} catch (error) {
+				console.warn("Presence check error:", error);
+				return {};
+			}
+		},
+
+		async trackUpdateCheck(data: {
+			channel: string;
+			platform: string;
+			arch: string;
+			version: string;
+			appVersion: string;
+		}): Promise<void> {
+			await trackUpdateCheck(data);
 		},
 	};
 }
