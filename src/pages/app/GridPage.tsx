@@ -39,6 +39,7 @@ export function GridPage() {
 	const apiFunctions = useApiFunctions();
 	const {
 		geohash,
+		locationName,
 		isLoading: isLoadingPreferences,
 	} = usePreferences();
 	const navigate = useNavigate();
@@ -896,10 +897,10 @@ export function GridPage() {
 							<button
 								type="button"
 								onClick={() => navigate("/browse/location")}
-								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99]"
+								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
 							>
-								<MapPin className="h-4 w-4" />
-								<span>Current location</span>
+								<MapPin className="h-4 w-4 shrink-0" />
+								<span className="truncate">{locationName || "Current location"}</span>
 							</button>
 						</div>
 
@@ -1050,10 +1051,12 @@ export function GridPage() {
 								<button
 									type="button"
 									onClick={() => navigate("/browse/location")}
-									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
 								>
-									<MapPin className="h-3.5 w-3.5" />
-									<span className="hidden lg:inline">Location</span>
+									<MapPin className="h-3.5 w-3.5 shrink-0" />
+									<span className="hidden lg:inline truncate">
+										{locationName || "Location"}
+									</span>
 								</button>
 								<button
 									type="button"
