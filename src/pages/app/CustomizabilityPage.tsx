@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { usePreferences, ACCENT_PRESETS, type ColorScheme } from "../../contexts/PreferencesContext";
 import { BackToSettings } from "../../components/BackToSettings";
+import {
+	readAnalyticsConsentChoice,
+	writeAnalyticsConsentChoice,
+	type AnalyticsConsentChoice,
+} from "../../utils/analyticsConsent";
 
 const SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: React.ReactNode }[] = [
 	{ value: "system", label: "System", icon: <Monitor className="h-5 w-5" /> },
@@ -54,6 +59,9 @@ export function CustomizabilityPage() {
 	const { colorScheme, accentColor, mobileGridColumns, setPreferences } = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
+	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
+		() => readAnalyticsConsentChoice(),
+	);
 
 	useEffect(() => {
 		setCustomHex(accentColor);
@@ -104,6 +112,69 @@ export function CustomizabilityPage() {
 			</header>
 
 			<div className="grid gap-6">
+				{/* Analytics & FreeGrind Discovery */}
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						Analytics & Discovery
+					</p>
+					<p className="text-sm text-[var(--text-muted)]">
+						This controls anonymous analytics and FreeGrind user discovery.
+						If disabled, the app will not use the API to find other FreeGrind users.
+					</p>
+					<p className="mt-2 text-xs text-[var(--text-muted)]">
+						No data is saved or tied to your device.
+					</p>
+					<div className="mt-4 flex flex-wrap gap-2">
+						<button
+							type="button"
+							onClick={() => {
+								writeAnalyticsConsentChoice("granted");
+								setAnalyticsConsent("granted");
+							}}
+							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+							style={{
+								borderColor:
+									analyticsConsent === "granted" ? "var(--accent)" : "var(--border)",
+								background:
+									analyticsConsent === "granted"
+										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+										: "var(--surface-2)",
+								color:
+									analyticsConsent === "granted"
+										? "var(--accent-readable)"
+										: "var(--text)",
+							}}
+						>
+							Allow
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								writeAnalyticsConsentChoice("denied");
+								setAnalyticsConsent("denied");
+							}}
+							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+							style={{
+								borderColor:
+									analyticsConsent === "denied" ? "var(--accent)" : "var(--border)",
+								background:
+									analyticsConsent === "denied"
+										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+										: "var(--surface-2)",
+								color:
+									analyticsConsent === "denied"
+										? "var(--accent-readable)"
+										: "var(--text)",
+							}}
+						>
+							Deny
+						</button>
+					</div>
+					<p className="mt-3 text-xs text-[var(--text-muted)]">
+						Current: {analyticsConsent === null ? "Not selected yet" : analyticsConsent}
+					</p>
+				</div>
+
 				{/* Color Scheme */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">

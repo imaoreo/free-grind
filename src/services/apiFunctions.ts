@@ -48,6 +48,7 @@ import type {
 	GetSharedAlbumsInput,
 } from "../types/api-functions";
 import type { RestFetcher, RestResponse } from "../types/chat-service";
+import { hasAnalyticsConsent } from "../utils/analyticsConsent";
 
 export class ApiFunctionError extends Error {
 	status: number;
@@ -72,6 +73,10 @@ export async function trackUpdateCheck(data: {
 	version: string;
 	appVersion: string;
 }): Promise<void> {
+	if (!hasAnalyticsConsent()) {
+		return;
+	}
+
 	const analyticsApiBase = "https://grindapi.imaoreo.dev";
 	try {
 		const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {
@@ -97,6 +102,10 @@ export async function trackUpdateCheck(data: {
  * Can be imported and used directly without React hooks
  */
 export async function registerPresence(profileId: string | number): Promise<void> {
+	if (!hasAnalyticsConsent()) {
+		return;
+	}
+
 	const presenceApiBase = "https://grindapi.imaoreo.dev";
 	try {
 		const response = await fetch(`${presenceApiBase}/api/presence/register`, {
@@ -712,6 +721,10 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 		async checkPresence(
 			profileIds: string | number | (string | number)[]
 		): Promise<Record<string, boolean>> {
+			if (!hasAnalyticsConsent()) {
+				return {};
+			}
+
 			const presenceApiBase = "https://grindapi.imaoreo.dev";
 			const ids = Array.isArray(profileIds)
 				? profileIds.map(String)
@@ -755,6 +768,10 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			version: string;
 			appVersion: string;
 		}): Promise<void> {
+			if (!hasAnalyticsConsent()) {
+				return;
+			}
+
 			const analyticsApiBase = "https://grindapi.imaoreo.dev";
 			try {
 				const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {

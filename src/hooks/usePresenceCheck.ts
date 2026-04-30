@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useApiFunctions } from "./useApiFunctions";
+import { hasAnalyticsConsent } from "../utils/analyticsConsent";
 
 const presenceCache = new Map<string, boolean>();
 
@@ -12,6 +13,12 @@ export function usePresenceCheck(profileId: string | null) {
 	const apiFunctions = useApiFunctions();
 
 	useEffect(() => {
+		if (!hasAnalyticsConsent()) {
+			presenceCache.clear();
+			setUsesFreegrind(null);
+			return;
+		}
+
 		if (!profileId) {
 			setUsesFreegrind(null);
 			return;
@@ -44,6 +51,12 @@ export function usePresenceCheckBatch(profileIds: string[] | null) {
 
 	const check = useCallback(
 		async (ids: string[]) => {
+			if (!hasAnalyticsConsent()) {
+				presenceCache.clear();
+				setResults({});
+				return;
+			}
+
 			if (ids.length === 0) {
 				setResults({});
 				return;
@@ -71,6 +84,11 @@ export function usePresenceCheckBatch(profileIds: string[] | null) {
 	);
 
 	useEffect(() => {
+		if (!hasAnalyticsConsent()) {
+			setResults({});
+			return;
+		}
+
 		if (profileIds && profileIds.length > 0) {
 			void check(profileIds);
 		}

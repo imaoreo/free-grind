@@ -25,6 +25,7 @@ import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
+import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 
 function ErrorPage() {
 	return (
@@ -49,6 +50,7 @@ export default function App() {
 	return (
 		<AuthProvider>
 			<PreferencesProvider>
+				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
 						{/* Auth Routes */}
