@@ -53,9 +53,11 @@ export function PullToRefreshContainer({
 		}
 
 		setIsRefreshing(true);
-		void Promise.resolve(onRefresh()).finally(() => {
-			setIsRefreshing(false);
-		});
+		void Promise.resolve()
+			.then(onRefresh)
+			.finally(() => {
+				setIsRefreshing(false);
+			});
 	}, [isDisabled, isRefreshing, onRefresh]);
 
 	const handleTouchStart = useCallback(
