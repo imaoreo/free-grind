@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { decodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
@@ -826,6 +827,37 @@ export function GridPage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
+	const handleTriangleProfile = (targetProfileId: string) => {
+		if (!geohash) {
+			toast.error("Set your browse location first");
+			return;
+		}
+
+		try {
+			const decoded = decodeGeohash(geohash);
+			const latitude = (decoded.lat[0] + decoded.lat[1]) / 2;
+			const longitude = (decoded.lon[0] + decoded.lon[1]) / 2;
+			const distanceMeters =
+				typeof activeProfile?.distance === "number" &&
+				Number.isFinite(activeProfile.distance)
+					? Math.round(activeProfile.distance)
+					: null;
+
+			if (distanceMeters !== null) {
+				toast.success(
+					`Browse location ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. ${targetProfileId} is about ${distanceMeters}m away.`,
+				);
+				return;
+			}
+
+			toast.success(
+				`Browse location ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Distance is unavailable for ${targetProfileId}.`,
+			);
+		} catch {
+			toast.error("Could not read your saved browse location");
+		}
+	};
+
 	const handleTapProfile = useCallback(
 		async (profileId: string) => {
 			if (tappingProfileId === profileId) {
@@ -1139,6 +1171,7 @@ export function GridPage() {
 				isOpen={Boolean(activeProfileId)}
 				onClose={() => setActiveProfileId(null)}
 				onMessageProfile={handleMessageProfile}
+				onTriangleProfile={handleTriangleProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				isTapBlocked={hasSentTapRecently}

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Flame, Images, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Flame, Images, MessageCircle, Triangle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
 	createBackdropCloseHandler,
@@ -41,6 +41,7 @@ type ProfileDetailsModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
+	onTriangleProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string) => void;
 	isTappingProfile?: boolean;
 	isTapBlocked?: boolean;
@@ -59,6 +60,7 @@ export function ProfileDetailsModal({
 	isOpen,
 	onClose,
 	onMessageProfile,
+	onTriangleProfile,
 	onTapProfile,
 	isTappingProfile = false,
 	isTapBlocked = false,
@@ -550,12 +552,16 @@ export function ProfileDetailsModal({
 												</button>
 												<button
 													type="button"
-													disabled
-													className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
-													title="Album"
+													onClick={() => {
+														if (messageProfileId && onTriangleProfile) {
+															onTriangleProfile(messageProfileId);
+														}
+													}}
+													className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold transition text-[var(--text)] hover:border-[var(--accent)]`}
+													title="Trianglation"
 												>
-													<Images className="h-4 w-4" />
-													Album
+													<Triangle className="h-4 w-4" />
+													Trianglation
 												</button>
 										</div>
 									) : null}
