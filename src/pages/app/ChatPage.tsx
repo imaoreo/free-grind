@@ -190,6 +190,17 @@ function formatMessageTime(timestamp: number, now: number): string {
 	});
 }
 
+function formatDateTime24(timestamp: number): string {
+	const date = new Date(timestamp);
+	const day = String(date.getDate()).padStart(2, "0");
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const year = String(date.getFullYear()).slice(-2);
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+
+	return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
 /**
  * Determines the date header label for grouping messages in the chat thread.
  * Returns "Today", "Yesterday", a weekday (e.g., "Monday"), or a formatted date.
@@ -474,6 +485,37 @@ function getMessageImageUrl(message: UiMessage): string | null {
 	}
 
 	return null;
+}
+
+function getMessageTakenOnGrindr(message: UiMessage): boolean {
+	if (!message.body || typeof message.body !== "object") {
+		return false;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	return body.takenOnGrindr === true;
+}
+
+function getMessageImageCreatedAt(message: UiMessage): number | null {
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	const candidate = body.createdAt;
+	const parsed =
+		typeof candidate === "number"
+			? candidate
+			: typeof candidate === "string"
+				? Number(candidate)
+				: NaN;
+
+	if (!Number.isFinite(parsed)) {
+		return null;
+	}
+
+	// Some payloads use seconds while others use milliseconds.
+	return parsed < 100_000_000_000 ? parsed * 1000 : parsed;
 }
 
 function getMessageMediaId(message: UiMessage): number | null {
@@ -3164,6 +3206,12 @@ export function ChatPage() {
 								const pending = message.clientState === "pending";
 								const localOnly = message._localOnly === true;
 								const imageUrl = getMessageImageUrl(message);
+								const messageTakenOnGrindr = getMessageTakenOnGrindr(message);
+								const imageCreatedAt = getMessageImageCreatedAt(message);
+								const imageCreatedAtLabel =
+									imageCreatedAt != null
+										? formatDateTime24(imageCreatedAt)
+										: null;
 								const videoUrl = getMessageVideoUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
@@ -3269,6 +3317,24 @@ export function ChatPage() {
 															1
 														</div>
 													) : null}
+													{!mine ? (
+														<div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
+															{ messageTakenOnGrindr ? (
+                                                                <img
+                                                                    src={freegrindLogo}
+                                                                    alt="Taken on Grindr"
+                                                                    className="h-3.5 w-3.5 rounded-full"
+                                                                />
+                                                            ) : null}
+
+                                                            <span>
+                                                                {imageCreatedAtLabel
+                                                                    ? ` ${imageCreatedAtLabel}`
+                                                                    : ""}
+                                                            </span>
+														</div>
+													) : null}
+                                                
 														{isImageOnlyBubble ? (
 															<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
 																<div className="flex items-center gap-2">
