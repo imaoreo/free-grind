@@ -6,6 +6,7 @@ import {
 	configure,
 	notifyReady,
 } from "tauri-plugin-hotswap-api";
+import { trackUpdateCheck as trackUpdateCheckApi } from "./apiFunctions";
 
 // Subscribe to hotswap lifecycle events for debugging
 if (typeof window !== "undefined") {
@@ -188,15 +189,8 @@ async function trackUpdateCheck(): Promise<void> {
 			appVersion,
 		};
 
-		// Send to backend analytics endpoint
-		// Fire and forget - don't block update check on this
-		fetch("https://grindapi.imaoreo.dev/api/analytics/track-update", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(analyticsData),
-		}).catch((error) => {
-			console.warn("[hotswap-analytics] Failed to track update check:", error);
-		});
+		// Send to backend analytics endpoint using apiFunctions
+		await trackUpdateCheckApi(analyticsData);
 
 		console.log("[hotswap-analytics] Tracked update check:", analyticsData);
 	} catch (error) {

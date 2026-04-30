@@ -61,6 +61,37 @@ export class ApiFunctionError extends Error {
 	}
 }
 
+/**
+ * Standalone function to track update checks
+ * Can be imported and used directly without React hooks
+ */
+export async function trackUpdateCheck(data: {
+	channel: string;
+	platform: string;
+	arch: string;
+	version: string;
+	appVersion: string;
+}): Promise<void> {
+	const analyticsApiBase = "https://grindapi.imaoreo.dev";
+	try {
+		const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(data),
+		});
+
+		if (!response.ok) {
+			console.warn(
+				`Failed to track update check: ${response.status} ${response.statusText}`
+			);
+		}
+	} catch (error) {
+		console.warn("Update tracking error:", error);
+	}
+}
+
 async function parseJsonSafe(response: RestResponse): Promise<unknown> {
 	try {
 		return response.json();
@@ -706,6 +737,33 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			} catch (error) {
 				console.warn("Presence check error:", error);
 				return {};
+			}
+		},
+
+		async trackUpdateCheck(data: {
+			channel: string;
+			platform: string;
+			arch: string;
+			version: string;
+			appVersion: string;
+		}): Promise<void> {
+			const analyticsApiBase = "https://grindapi.imaoreo.dev";
+			try {
+				const response = await fetch(`${analyticsApiBase}/api/analytics/track-update`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify(data),
+				});
+
+				if (!response.ok) {
+					console.warn(
+						`Failed to track update check: ${response.status} ${response.statusText}`
+					);
+				}
+			} catch (error) {
+				console.warn("Update tracking error:", error);
 			}
 		},
 	};
