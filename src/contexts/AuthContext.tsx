@@ -140,13 +140,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		checkAuth();
 	}, []);
 
-	// Register presence with Free Grind backend when user logs in
+	// Register presence with Free Grind backend when a logged-in session is active.
+	// This must not depend only on `state.userId`, because consent/discovery settings can
+	// change after login while the user id stays the same.
 	useEffect(() => {
-		if (state.userId) {
-			void apiFunctions.registerPresence(state.userId);
+		if (state.isLoading || !state.userId) {
+			return;
 		}
-	}, [state.userId, apiFunctions]);
 
+		void apiFunctions.registerPresence(state.userId);
+	});
 	// Persist current user id so non-React services (e.g. hotswap) can re-register after updates.
 	useEffect(() => {
 		if (state.isLoading) {
