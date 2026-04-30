@@ -33,6 +33,7 @@ import {
 import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/AuthContext";
 import { type ChatApiError } from "../../services/chatService";
 import { ChatRealtimeManager } from "../../services/chatRealtime";
@@ -739,6 +740,24 @@ export function ChatPage() {
 	const [reactionBurstMessageId, setReactionBurstMessageId] = useState<
 		string | null
 	>(null);
+
+	// Extract profile IDs from conversations for batch presence check
+	const conversationProfileIds = useMemo(
+		() =>
+			conversations
+				.map((conv) => {
+					const otherParticipant = getOtherParticipant(conv, userId);
+					return otherParticipant?.profileId != null
+						? String(otherParticipant.profileId)
+						: null;
+				})
+				.filter((id): id is string => id != null)
+				.slice(0, 50), // Limit to 50
+		[conversations, userId],
+	);
+	const presenceResults = usePresenceCheckBatch(
+		conversationProfileIds.length > 0 ? conversationProfileIds : null,
+	);
 	const reactionBurstTimeoutRef = useRef<number | null>(null);
 
 	const triggerReactionBurst = useCallback((messageId: string) => {
@@ -2825,9 +2844,14 @@ export function ChatPage() {
 									</div>
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center justify-between gap-2">
-											<p className="truncate font-semibold">
-												{conversation.data.name || "Unknown"}
-											</p>
+											<div className="flex items-center gap-1 min-w-0">
+												<p className="truncate font-semibold">
+													{conversation.data.name || "Unknown"}
+												</p>
+												{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
+													<span className="shrink-0 text-lg" title="Uses Free Grind">🌿</span>
+												)}
+											</div>
 											<span className="text-xs text-[var(--text-muted)]">
 												{formatConversationTime(
 													conversation.data.lastActivityTimestamp,

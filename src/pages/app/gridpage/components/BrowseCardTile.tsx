@@ -7,6 +7,7 @@ import {
 } from "../utils";
 import { cn } from "../../../../utils/cn";
 import blankProfileImage from "../../../../images/blank-profile.png";
+import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
@@ -23,6 +24,7 @@ export function BrowseCardTile({
 	const name = getDisplayName(card);
 	const online = isCurrentlyOnline(card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
+	const usesFreegrind = usePresenceCheck(card.profileId);
 
 	return (
 		<button
@@ -59,6 +61,15 @@ export function BrowseCardTile({
 					{/* Badge on larger screens */}
 					<span className="hidden sm:inline-flex items-center rounded-full bg-green-500/90 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
 						Online
+					</span>
+				</div>
+			)}
+
+			{/* Top-right (below online): Free Grind Badge */}
+			{usesFreegrind && (
+				<div className="absolute right-2 top-10 sm:top-11">
+					<span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-green-500/90 shadow-lg text-white text-xs font-bold" title="Uses Free Grind">
+						🌿
 					</span>
 				</div>
 			)}

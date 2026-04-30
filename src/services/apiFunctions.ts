@@ -646,6 +646,68 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				})
 				.filter((item): item is RightNowFeedItem => item !== null);
 		},
+
+		async registerPresence(profileId: string | number): Promise<void> {
+			const presenceApiBase = "https://grindapi.imaoreo.dev";
+			try {
+				const response = await fetch(`${presenceApiBase}/api/presence/register`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						profileId: String(profileId),
+					}),
+				});
+
+				if (!response.ok) {
+					console.warn(
+						`Failed to register presence: ${response.status} ${response.statusText}`
+					);
+				}
+			} catch (error) {
+				console.warn("Presence registration error:", error);
+			}
+		},
+
+		async checkPresence(
+			profileIds: string | number | (string | number)[]
+		): Promise<Record<string, boolean>> {
+			const presenceApiBase = "https://grindapi.imaoreo.dev";
+			const ids = Array.isArray(profileIds)
+				? profileIds.map(String)
+				: [String(profileIds)];
+
+			if (ids.length > 50) {
+				console.warn("checkPresence: truncating to 50 IDs (received " + ids.length + ")");
+				ids.length = 50;
+			}
+
+			try {
+				const query = new URLSearchParams({ ids: ids.join(",") });
+				const response = await fetch(
+					`${presenceApiBase}/api/presence/check?${query}`,
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+						},
+					}
+				);
+
+				if (!response.ok) {
+					console.warn(
+						`Failed to check presence: ${response.status} ${response.statusText}`
+					);
+					return {};
+				}
+
+				return (await response.json()) as Record<string, boolean>;
+			} catch (error) {
+				console.warn("Presence check error:", error);
+				return {};
+			}
+		},
 	};
 }
 

@@ -4,6 +4,7 @@ import {
 	createBackdropCloseHandler,
 	useModalClose,
 } from "../../../../hooks/useModalClose";
+import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import type {
 	BrowseCard,
 	ManagedOption,
@@ -96,6 +97,7 @@ export function ProfileDetailsModal({
 	const profileLastSeen = activeProfile?.seen ?? null;
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
 	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
@@ -387,7 +389,12 @@ export function ProfileDetailsModal({
 								<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 									Profile details
 								</p>
-								<p className="text-base font-semibold">{activeProfileName}</p>
+								<div className="flex items-center gap-2">
+									<p className="text-base font-semibold">{activeProfileName}</p>
+									{usesFreegrind && (
+										<span className="text-lg" title="Uses Free Grind">🌿</span>
+									)}
+								</div>
 							</div>
 						</div>
 					</div>

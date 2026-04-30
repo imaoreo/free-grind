@@ -6,6 +6,7 @@ import {
 	ReactNode,
 } from "react";
 import { useApi } from "../hooks/useApi";
+import { useApiFunctions } from "../hooks/useApiFunctions";
 import toast from "react-hot-toast";
 
 interface AuthState {
@@ -52,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	});
 
 	const { callMethod, asAppError } = useApi();
+	const apiFunctions = useApiFunctions();
 
 	const checkAuth = async () => {
 		try {
@@ -135,6 +137,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		checkAuth();
 	}, []);
+
+	// Register presence with Free Grind backend when user logs in
+	useEffect(() => {
+		if (state.userId) {
+			void apiFunctions.registerPresence(state.userId);
+		}
+	}, [state.userId, apiFunctions]);
 
 	const value: AuthContextType = {
 		...state,
