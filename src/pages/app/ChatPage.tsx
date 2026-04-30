@@ -15,6 +15,7 @@ import {
 	X,
 } from "lucide-react";
 import {
+    Fragment,
 	type FormEvent,
 	type TouchEvent,
 	useCallback,
@@ -185,6 +186,46 @@ function formatMessageTime(timestamp: number, now: number): string {
 		hour: "2-digit",
 		minute: "2-digit",
 	});
+}
+
+/**
+ * Determines the date header label for grouping messages in the chat thread.
+ * Returns "Today", "Yesterday", a weekday (e.g., "Monday"), or a formatted date.
+ */
+function formatDateHeader(timestamp: number, now: number): string {
+	const msgDate = new Date(timestamp);
+	const nowDate = new Date(now);
+
+	const isSameDay = (d1: Date, d2: Date) =>
+		d1.getFullYear() === d2.getFullYear() &&
+		d1.getMonth() === d2.getMonth() &&
+		d1.getDate() === d2.getDate();
+
+	if (isSameDay(msgDate, nowDate)) {
+		return "Today";
+	}
+
+	const yesterday = new Date(now);
+	yesterday.setDate(yesterday.getDate() - 1);
+	if (isSameDay(msgDate, yesterday)) {
+		return "Yesterday";
+	}
+
+	const oneWeekAgo = new Date(now);
+	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+	if (msgDate > oneWeekAgo) {
+		return new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
+			msgDate,
+		);
+	}
+
+	return new Intl.DateTimeFormat(undefined, {
+		day: "numeric",
+		month: "long",
+		year:
+			msgDate.getFullYear() === nowDate.getFullYear() ? undefined : "numeric",
+	}).format(msgDate);
 }
 
 function getPreviewText(conversation: ConversationEntry): string {
@@ -3067,7 +3108,16 @@ export function ChatPage() {
 						) : null}
 
 						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
-							{threadMessages.map((message) => {
+                        {(() => {
+                            // Track the last header label to detect day transitions during rendering
+                            let lastHeader = "";
+                            return threadMessages.map((message) => {
+                                const currentHeader = formatDateHeader(
+                                    message.timestamp,
+                                    nowTimestamp,
+                                );
+                                const isNewDay = currentHeader !== lastHeader;
+                                lastHeader = currentHeader;
 								const mine =
 									userId != null && Number(message.senderId) === Number(userId);
 								const failed = message.clientState === "failed";
@@ -3110,8 +3160,18 @@ export function ChatPage() {
 									: "absolute -right-3 -top-2";
 
 								return (
-									<div
-										key={message.messageId}
+								/* Use Fragment to allow rendering the separator and the message as a single map item */
+                                <Fragment key={message.messageId}>
+                                    {isNewDay && (
+                                        <div className="my-6 flex items-center gap-4 px-4 opacity-80">
+                                            <div className="h-px flex-1 bg-[var(--border)]" />
+                                            <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                                                {currentHeader}
+                                            </span>
+                                            <div className="h-px flex-1 bg-[var(--border)]" />
+                                        </div>
+                                    )}
+                                    <div
 										data-message-id={message.messageId}
 										ref={(element) => {
 											if (element) {
@@ -3416,8 +3476,10 @@ export function ChatPage() {
 											) : null}
 										</div>
 									</div>
-								);
-							})}
+						            </Fragment>
+                                );
+                            });
+                        })()}
 						</div>
 						<div ref={threadBottomRef} />
 					</div>
