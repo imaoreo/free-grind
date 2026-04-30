@@ -13,29 +13,45 @@ export function usePresenceCheck(profileId: string | null) {
 	const apiFunctions = useApiFunctions();
 
 	useEffect(() => {
+		let isActive = true;
+
 		if (!hasAnalyticsConsent()) {
 			presenceCache.clear();
 			setUsesFreegrind(null);
-			return;
+			return () => {
+				isActive = false;
+			};
 		}
 
 		if (!profileId) {
 			setUsesFreegrind(null);
-			return;
+			return () => {
+				isActive = false;
+			};
 		}
 
 		// Check cache first
 		if (presenceCache.has(profileId)) {
 			setUsesFreegrind(presenceCache.get(profileId) ?? false);
-			return;
+			return () => {
+				isActive = false;
+			};
 		}
 
 		// Query the API
 		void apiFunctions.checkPresence(profileId).then((result) => {
+			if (!isActive) {
+				return;
+			}
+
 			const isFreegrind = result[profileId] ?? false;
 			presenceCache.set(profileId, isFreegrind);
 			setUsesFreegrind(isFreegrind);
 		});
+
+		return () => {
+			isActive = false;
+		};
 	}, [profileId, apiFunctions]);
 
 	return usesFreegrind;
