@@ -163,13 +163,30 @@ async function trackUpdateCheck(): Promise<void> {
 
 async function runPostUpdateCallbacks(): Promise<void> {
 	const userId = readStoredUserId();
+	console.log("[hotswap-post-update] starting callbacks", {
+		hasUserId: Boolean(userId),
+		channel: currentChannel,
+	});
+
 	const requests: Promise<void>[] = [trackUpdateCheck()];
 
 	if (userId) {
 		requests.push(registerPresenceApi(userId));
+	} else {
+		console.warn("[hotswap-post-update] registerPresence skipped (no stored user id)");
 	}
 
-	await Promise.allSettled(requests);
+	const results = await Promise.allSettled(requests);
+	const hasError = results.some((result) => result.status === "rejected");
+
+	if (hasError) {
+		console.warn("[hotswap-post-update] callback errors detected", results);
+	}
+
+	console.log("[hotswap-post-update] callbacks complete", {
+		total: results.length,
+		hasError,
+	});
 }
 
 export async function autoCheckAndInstallUpdate(): Promise<void> {
@@ -236,5 +253,12 @@ export async function installHotswapUpdate(): Promise<void> {
 	}
 
 	await applyUpdate();
-	await runPostUpdateCallbacks();
+
+	// Retry once to reduce chance of missing analytics/presence due transient network issues.
+	try {
+		await runPostUpdateCallbacks();
+	} catch (error) {
+		console.warn("[hotswap-post-update] first attempt failed, retrying", error);
+		await runPostUpdateCallbacks();
+	}
 }
