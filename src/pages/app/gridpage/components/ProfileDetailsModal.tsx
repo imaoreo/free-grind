@@ -24,6 +24,7 @@ import {
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import {
 	formatDistance,
+	formatEstimatedAccountCreation,
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
@@ -89,6 +90,7 @@ export function ProfileDetailsModal({
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
 	const profileLastSeen = activeProfile?.seen ?? null;
+	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
 	const isTapActive = effectiveTapVisualState !== "none";
@@ -502,6 +504,9 @@ export function ProfileDetailsModal({
 											<p className="mt-1 text-xs text-[var(--text-muted)]">
 												User ID: {activeProfile.profileId}
 											</p>
+												<p className="mt-1 text-xs text-[var(--text-muted)]">
+													Est. created: {estimatedCreatedAt}
+												</p>
 										</div>
 										<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 											<p>
@@ -930,6 +935,9 @@ export function ProfileDetailsModal({
 										</p>
 										<p className="mt-1 text-xs text-[var(--text-muted)]">
 											User ID: {activeProfile.profileId}
+										</p>
+										<p className="mt-1 text-xs text-[var(--text-muted)]">
+											Est. created: {estimatedCreatedAt}
 										</p>
 									</div>
 									<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
