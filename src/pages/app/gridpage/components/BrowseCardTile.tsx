@@ -2,8 +2,8 @@ import type { BrowseCard } from "../../GridPage.types";
 import { MapPin } from "lucide-react";
 import {
 	formatDistance,
+	getOnlineStatusMeta,
 	getDisplayName,
-	isCurrentlyOnline,
 } from "../utils";
 import { cn } from "../../../../utils/cn";
 import blankProfileImage from "../../../../images/blank-profile.png";
@@ -23,7 +23,7 @@ export function BrowseCardTile({
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const name = getDisplayName(card);
-	const online = isCurrentlyOnline(card.onlineUntil);
+	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
 	const usesFreegrind = usePresenceCheck(card.profileId);
 
@@ -54,17 +54,19 @@ export function BrowseCardTile({
 				</p>
 			</div>
 
-			{/* Top-right: Online Status */}
-			{online && (
-				<div className="absolute right-2 top-1">
-					{/* Dot on mobile */}
-					<span className="inline-flex sm:hidden h-3 w-3 rounded-full bg-green-500 shadow-lg" />
-					{/* Badge on larger screens */}
-					<span className="hidden sm:inline-flex items-center rounded-full bg-green-500/90 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
-						Online
-					</span>
-				</div>
-			)}
+			{/* Top-right: Online / last seen status */}
+			<div className="absolute right-2 top-2">
+				<span
+					className={cn(
+						"inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg backdrop-blur-sm sm:text-[11px]",
+						onlineStatus.isOnline
+							? "bg-green-500/90"
+							: "bg-black/55",
+					)}
+				>
+					{onlineStatus.label}
+				</span>
+			</div>
 
 			{/* Bottom-right: Free Grind Badge */}
 			{usesFreegrind && (

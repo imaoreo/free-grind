@@ -31,11 +31,11 @@ import {
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
+	getOnlineStatusMeta,
 	formatOptionalNumber,
 	formatTimeAgo,
 	formatWeightKg,
 	getEnumLabel,
-	isCurrentlyOnline,
 	shouldHideField,
 } from "../utils";
 
@@ -95,17 +95,16 @@ export function ProfileDetailsModal({
 		activeProfile?.distance ?? selectedBrowseCard?.distanceMeters ?? null;
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
-	const profileLastSeen = activeProfile?.seen ?? null;
-	const profileLastOnlineTimestamp = profileLastSeen ?? profileOnlineUntil;
-	const profileMinutesLeft =
-		profileOnlineUntil != null && profileOnlineUntil > Date.now()
-			? Math.max(1, Math.ceil((profileOnlineUntil - Date.now()) / (60 * 1000)))
-			: null;
-	const profileStatusLabel = isCurrentlyOnline(profileOnlineUntil)
-		? `Online (${profileMinutesLeft} min${profileMinutesLeft === 1 ? "" : "s"} left)`
-		: profileLastOnlineTimestamp != null
-			? `Last online ${formatTimeAgo(profileLastOnlineTimestamp)}`
-			: "Offline";
+	const profileLastSeen = activeProfile?.seen ?? selectedBrowseCard?.lastOnline ?? null;
+	const profileStatusMeta = getOnlineStatusMeta(
+		profileLastSeen,
+		profileOnlineUntil,
+	);
+	const profileStatusLabel = profileStatusMeta.isOnline
+		? profileStatusMeta.label
+		: profileStatusMeta.label === "Offline"
+			? "Offline"
+			: `Last online ${profileStatusMeta.label}`;
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);

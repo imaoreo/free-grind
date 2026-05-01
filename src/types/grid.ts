@@ -32,6 +32,7 @@ export const browseCardSchema = z.object({
 	age: z.number().nullable().optional(),
 	distanceMeters: z.number().nullable().optional(),
 	primaryImageUrl: z.string().nullable().optional(),
+	lastOnline: z.number().nullable().optional(),
 	onlineUntil: z.number().nullable().optional(),
 	isPopular: z.boolean().optional(),
 	unreadCount: z.number().optional(),

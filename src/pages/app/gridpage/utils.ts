@@ -119,6 +119,53 @@ export function isCurrentlyOnline(
 	return onlineUntil > Date.now();
 }
 
+export function getOnlineStatusMeta(
+	lastOnline: number | null | undefined,
+	onlineUntil: number | null | undefined,
+	nowTimestamp: number = Date.now(),
+): { isOnline: boolean; label: string } {
+	const hasLastOnline =
+		typeof lastOnline === "number" && Number.isFinite(lastOnline);
+	const hasOnlineUntil =
+		typeof onlineUntil === "number" && Number.isFinite(onlineUntil);
+	const minuteMs = 60 * 1000;
+	const hourMs = 60 * minuteMs;
+	const dayMs = 24 * hourMs;
+
+	if (!hasLastOnline && !hasOnlineUntil) {
+		return { isOnline: false, label: "Offline" };
+	}
+
+	if (hasOnlineUntil && (onlineUntil as number) > nowTimestamp) {
+		const minsLeft = Math.max(
+			1,
+			Math.ceil(((onlineUntil as number) - nowTimestamp) / minuteMs),
+		);
+		return {
+			isOnline: true,
+			label: `Online (${minsLeft}m left)`,
+		};
+	}
+
+	const referenceTimestamp = hasLastOnline
+		? (lastOnline as number)
+		: (onlineUntil as number);
+	const diffMs = Math.max(0, nowTimestamp - referenceTimestamp);
+
+	if (diffMs < hourMs) {
+		const minutes = Math.max(1, Math.floor(diffMs / minuteMs));
+		return { isOnline: false, label: `${minutes}m ago` };
+	}
+
+	if (diffMs < dayMs) {
+		const hours = Math.max(1, Math.floor(diffMs / hourMs));
+		return { isOnline: false, label: `${hours}h ago` };
+	}
+
+	const days = Math.max(1, Math.floor(diffMs / dayMs));
+	return { isOnline: false, label: `${days}d ago` };
+}
+
 export function getDisplayName(card: BrowseCard): string {
 	const value = card.displayName?.trim();
 	if (value) {
