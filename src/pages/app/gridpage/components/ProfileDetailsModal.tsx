@@ -863,18 +863,40 @@ export function ProfileDetailsModal({
 													{activeProfile.socialNetworks?.instagram?.userId && (
 														<p>
 															Instagram:{" "}
-															{activeProfile.socialNetworks.instagram.userId}
+															<a
+																href={`https://instagram.com/${activeProfile.socialNetworks.instagram.userId}`}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-[var(--text)] underline hover:opacity-75"
+															>
+																{activeProfile.socialNetworks.instagram.userId}
+															</a>
 														</p>
 													)}
 													{activeProfile.socialNetworks?.twitter?.userId && (
 														<p>
-															X: {activeProfile.socialNetworks.twitter.userId}
+															X:{" "}
+															<a
+																href={`https://x.com/${activeProfile.socialNetworks.twitter.userId}`}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-[var(--text)] underline hover:opacity-75"
+															>
+																{activeProfile.socialNetworks.twitter.userId}
+															</a>
 														</p>
 													)}
 													{activeProfile.socialNetworks?.facebook?.userId && (
 														<p>
 															Facebook:{" "}
-															{activeProfile.socialNetworks.facebook.userId}
+															<a
+																href={`https://facebook.com/${activeProfile.socialNetworks.facebook.userId}`}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-[var(--text)] underline hover:opacity-75"
+															>
+																{activeProfile.socialNetworks.facebook.userId}
+															</a>
 														</p>
 													)}
 												</div>
@@ -1296,18 +1318,40 @@ export function ProfileDetailsModal({
 												{activeProfile.socialNetworks?.instagram?.userId && (
 													<p>
 														Instagram:{" "}
-														{activeProfile.socialNetworks.instagram.userId}
+														<a
+															href={`https://instagram.com/${activeProfile.socialNetworks.instagram.userId}`}
+															target="_blank"
+															rel="noopener noreferrer"
+															className="text-[var(--text)] underline hover:opacity-75"
+														>
+															{activeProfile.socialNetworks.instagram.userId}
+														</a>
 													</p>
 												)}
 												{activeProfile.socialNetworks?.twitter?.userId && (
 													<p>
-														X: {activeProfile.socialNetworks.twitter.userId}
+														X:{" "}
+														<a
+															href={`https://x.com/${activeProfile.socialNetworks.twitter.userId}`}
+															target="_blank"
+															rel="noopener noreferrer"
+															className="text-[var(--text)] underline hover:opacity-75"
+														>
+															{activeProfile.socialNetworks.twitter.userId}
+														</a>
 													</p>
 												)}
 												{activeProfile.socialNetworks?.facebook?.userId && (
 													<p>
 														Facebook:{" "}
-														{activeProfile.socialNetworks.facebook.userId}
+														<a
+															href={`https://facebook.com/${activeProfile.socialNetworks.facebook.userId}`}
+															target="_blank"
+															rel="noopener noreferrer"
+															className="text-[var(--text)] underline hover:opacity-75"
+														>
+															{activeProfile.socialNetworks.facebook.userId}
+														</a>
 													</p>
 												)}
 											</div>
