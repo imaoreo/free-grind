@@ -137,6 +137,48 @@ const resources = {
 					shuffle: "Shuffle",
 				},
 			},
+			about_page: {
+				badge: "About Free Grind",
+				title: "Free Grind is a privacy-first, community-built client.",
+				description:
+					"Built for personal use with a cleaner interface, no ads, and open documentation around how things work. The goal is practical freedom, not platform lock-in.",
+				platform: "Platform",
+				licence: "Licence",
+				licence_value: "Personal Use",
+				maintainer: "Maintainer",
+				maintainer_credit: "Credit stays visible in-app to honor ownership and attribution.",
+				commercial_note:
+					"Commercial usage is reserved. Personal use, learning, and private experimentation are supported by the included licence.",
+				principles_title: "Core Principles",
+				principles: {
+					privacy_title: "Privacy over engagement tricks",
+					privacy_desc: "The interface prioritizes control and clarity instead of ad-driven loops.",
+					community_title: "Community-first documentation",
+					community_desc:
+						"Reverse-engineered notes stay public so users and contributors can learn together.",
+					roadmap_title: "Practical roadmap",
+					roadmap_desc:
+						"Current focus includes browse, profile management, messaging foundations, and reliability.",
+				},
+				support_title: "Support the project",
+				support_text: "Donation links currently listed by the project team:",
+				resources: {
+					external: "External",
+					local: "Local",
+					documentation_title: "Documentation",
+					documentation_desc: "Reverse-engineered API notes and developer-facing reference.",
+					source_code_title: "Source Code",
+					source_code_desc: "Track progress, inspect the code, and follow releases.",
+					contributing_title: "Contributing",
+					contributing_desc: "Project structure, contribution rules, and collaboration notes.",
+					licence_title: "Licence",
+					licence_desc: "Personal-use licence and attribution requirements.",
+					discord_title: "Discord",
+					discord_desc: "Join the community Discord server for support and discussion.",
+					telegram_title: "Telegram",
+					telegram_desc: "Follow updates and announcements on Telegram.",
+				},
+			},
 			settings_albums: {
 				label: "Albums",
 				title: "Manage your private albums",
@@ -541,6 +583,50 @@ const resources = {
 					favorites: "Favoriten",
 					hot: "Hot",
 					shuffle: "Zufällig",
+				},
+			},
+			about_page: {
+				badge: "Über Free Grind",
+				title: "Free Grind ist ein privatsphäre-orientierter, Community-basierter Client.",
+				description:
+					"Entwickelt für den persönlichen Gebrauch mit einer saubereren Oberfläche, ohne Werbung und mit offener Dokumentation über die Funktionsweise. Das Ziel ist praktische Freiheit, keine Plattformbindung.",
+				platform: "Plattform",
+				licence: "Lizenz",
+				licence_value: "Persönliche Nutzung",
+				maintainer: "Maintainer",
+				maintainer_credit:
+					"Credits bleiben in der App sichtbar, um Eigentum und Urheberschaft zu ehren.",
+				commercial_note:
+					"Gewerbliche Nutzung ist vorbehalten. Persönliche Nutzung, Lernen und privates Experimentieren werden durch die enthaltene Lizenz unterstützt.",
+				principles_title: "Kernprinzipien",
+				principles: {
+					privacy_title: "Privatsphäre vor Engagement-Tricks",
+					privacy_desc:
+						"Die Benutzeroberfläche priorisiert Kontrolle und Klarheit anstelle von werbegesteuerten Loops.",
+					community_title: "Community-orientierte Dokumentation",
+					community_desc:
+						"Reverse-Engineering-Notizen bleiben öffentlich, damit Nutzer und Mitwirkende gemeinsam lernen können.",
+					roadmap_title: "Praktische Roadmap",
+					roadmap_desc:
+						"Der aktuelle Fokus umfasst Browse, Profilverwaltung, Messaging-Grundlagen und Zuverlässigkeit.",
+				},
+				support_title: "Projekt unterstützen",
+				support_text: "Spendenlinks, die derzeit vom Projektteam gelistet werden:",
+				resources: {
+					external: "Extern",
+					local: "Lokal",
+					documentation_title: "Dokumentation",
+					documentation_desc: "Reverse-Engineering-API-Notizen und Referenz für Entwickler.",
+					source_code_title: "Quellcode",
+					source_code_desc: "Fortschritte verfolgen, Code inspizieren und Releases folgen.",
+					contributing_title: "Mitwirken",
+					contributing_desc: "Projektstruktur, Beitragsregeln und Zusammenarbeitshinweise.",
+					licence_title: "Lizenz",
+					licence_desc: "Lizenz für den persönlichen Gebrauch und Attributierungspflichten.",
+					discord_title: "Discord",
+					discord_desc: "Tritt dem Community-Discord-Server für Support und Diskussionen bei.",
+					telegram_title: "Telegram",
+					telegram_desc: "Folge Updates und Ankündigungen auf Telegram.",
 				},
 			},
 			settings_albums: {
