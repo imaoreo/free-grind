@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	AtSign,
 	BadgeInfo,
@@ -22,164 +23,6 @@ import { Chip } from "../../components/ui/chip";
 import { BackToSettings } from "../../components/BackToSettings";
 
 const MAX_PROFILE_PHOTOS = 5;
-
-const lookingForLabels: Record<number, string> = {
-	2: "Chat",
-	3: "Dates",
-	4: "Friends",
-	5: "Networking",
-	6: "Relationship",
-	7: "Hookups",
-};
-
-const relationshipStatusLabels: Record<number, string> = {
-	1: "Single",
-	2: "Dating",
-	3: "Exclusive",
-	4: "Committed",
-	5: "Partnered",
-	6: "Engaged",
-	7: "Married",
-	8: "Open Relationship",
-};
-
-const bodyTypeLabels: Record<number, string> = {
-	1: "Toned",
-	2: "Average",
-	3: "Large",
-	4: "Muscular",
-	5: "Slim",
-	6: "Stocky",
-};
-
-const ethnicityLabels: Record<number, string> = {
-	1: "Asian",
-	2: "Black",
-	3: "Latino",
-	4: "Middle Eastern",
-	5: "Mixed",
-	6: "Native American",
-	7: "White",
-	8: "Other",
-	9: "South Asian",
-};
-
-const sexualPositionLabels: Record<number, string> = {
-	1: "Top",
-	2: "Bottom",
-	3: "Versatile",
-	4: "Vers Bottom",
-	5: "Vers Top",
-	6: "Side",
-};
-
-const meetAtLabels: Record<number, string> = {
-	1: "My Place",
-	2: "Your Place",
-	3: "Bar",
-	4: "Coffee Shop",
-	5: "Restaurant",
-};
-
-const hivStatusLabels: Record<number, string> = {
-	1: "Negative",
-	2: "Negative, on PrEP",
-	3: "Positive",
-	4: "Positive, undetectable",
-};
-
-const nsfwLabels: Record<number, string> = {
-	1: "Never",
-	2: "Not At First",
-	3: "Yes Please",
-};
-
-const sexualHealthLabels: Record<number, string> = {
-	1: "Condoms",
-	2: "I'm on doxyPEP",
-	3: "I'm on PrEP",
-	4: "I'm HIV undetectable",
-	5: "Prefer to discuss",
-};
-
-const vaccineLabels: Record<number, string> = {
-	1: "COVID-19",
-	2: "Monkeypox",
-	3: "Meningitis",
-};
-
-const tribeLabels: Record<number, string> = {
-	1: "Bear",
-	2: "Clean-Cut",
-	3: "Daddy",
-	4: "Discreet",
-	5: "Geek",
-	6: "Jock",
-	7: "Leather",
-	8: "Otter",
-	9: "Poz",
-	10: "Rugged",
-	11: "Sober",
-	12: "Trans",
-	13: "Twink",
-};
-
-const relationshipStatusOptions = Object.entries(relationshipStatusLabels).map(
-	([value, label]) => ({ value, label }),
-);
-
-const bodyTypeOptions = Object.entries(bodyTypeLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const ethnicityOptions = Object.entries(ethnicityLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const positionOptions = Object.entries(sexualPositionLabels).map(
-	([value, label]) => ({ value, label }),
-);
-
-const lookingForOptions = Object.entries(lookingForLabels).map(
-	([value, label]) => ({ value: Number(value), label }),
-);
-
-const meetAtOptions = Object.entries(meetAtLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
-
-const hivStatusOptions = Object.entries(hivStatusLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const nsfwOptions = Object.entries(nsfwLabels).map(([value, label]) => ({
-	value,
-	label,
-}));
-
-const sexualHealthOptions = Object.entries(sexualHealthLabels).map(
-	([value, label]) => ({ value: Number(value), label }),
-);
-
-const vaccineOptions = Object.entries(vaccineLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
-
-const tribeOptions = Object.entries(tribeLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
 
 const profileSchema = z.object({
 	profileId: z.string(),
@@ -477,6 +320,7 @@ function ChipGroup({
 }
 
 export function ProfileEditorPage() {
+	const { t } = useTranslation();
 	const { userId, logout } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
@@ -496,6 +340,167 @@ export function ProfileEditorPage() {
 		Array<{ value: number; label: string }>
 	>([]);
 
+	const relationshipStatusLabels = useMemo<Record<number, string>>(
+		() => ({
+			1: t("profile_editor.labels.relationship_status.single"),
+			2: t("profile_editor.labels.relationship_status.dating"),
+			3: t("profile_editor.labels.relationship_status.exclusive"),
+			4: t("profile_editor.labels.relationship_status.committed"),
+			5: t("profile_editor.labels.relationship_status.partnered"),
+			6: t("profile_editor.labels.relationship_status.engaged"),
+			7: t("profile_editor.labels.relationship_status.married"),
+			8: t("profile_editor.labels.relationship_status.open_relationship"),
+		}),
+		[t],
+	);
+
+	const bodyTypeLabels = useMemo<Record<number, string>>(
+		() => ({
+			1: t("profile_editor.labels.body_type.toned"),
+			2: t("profile_editor.labels.body_type.average"),
+			3: t("profile_editor.labels.body_type.large"),
+			4: t("profile_editor.labels.body_type.muscular"),
+			5: t("profile_editor.labels.body_type.slim"),
+			6: t("profile_editor.labels.body_type.stocky"),
+		}),
+		[t],
+	);
+
+	const relationshipStatusOptions = useMemo(
+		() =>
+			Object.entries(relationshipStatusLabels).map(([value, label]) => ({
+				value: Number(value),
+				label,
+			})),
+		[relationshipStatusLabels],
+	);
+
+	const bodyTypeOptions = useMemo(
+		() =>
+			Object.entries(bodyTypeLabels).map(([value, label]) => ({
+				value: Number(value),
+				label,
+			})),
+		[bodyTypeLabels],
+	);
+
+	const ethnicityOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.ethnicity.asian") },
+			{ value: 2, label: t("profile_editor.labels.ethnicity.black") },
+			{ value: 3, label: t("profile_editor.labels.ethnicity.latino") },
+			{ value: 4, label: t("profile_editor.labels.ethnicity.middle_eastern") },
+			{ value: 5, label: t("profile_editor.labels.ethnicity.mixed") },
+			{ value: 6, label: t("profile_editor.labels.ethnicity.native_american") },
+			{ value: 7, label: t("profile_editor.labels.ethnicity.white") },
+			{ value: 8, label: t("profile_editor.labels.ethnicity.other") },
+			{ value: 9, label: t("profile_editor.labels.ethnicity.south_asian") },
+		],
+		[t],
+	);
+
+	const positionOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.sexual_position.top") },
+			{ value: 2, label: t("profile_editor.labels.sexual_position.bottom") },
+			{ value: 3, label: t("profile_editor.labels.sexual_position.versatile") },
+			{
+				value: 4,
+				label: t("profile_editor.labels.sexual_position.vers_bottom"),
+			},
+			{ value: 5, label: t("profile_editor.labels.sexual_position.vers_top") },
+			{ value: 6, label: t("profile_editor.labels.sexual_position.side") },
+		],
+		[t],
+	);
+
+	const lookingForOptions = useMemo(
+		() => [
+			{ value: 2, label: t("profile_editor.labels.looking_for.chat") },
+			{ value: 3, label: t("profile_editor.labels.looking_for.dates") },
+			{ value: 4, label: t("profile_editor.labels.looking_for.friends") },
+			{ value: 5, label: t("profile_editor.labels.looking_for.networking") },
+			{ value: 6, label: t("profile_editor.labels.looking_for.relationship") },
+			{ value: 7, label: t("profile_editor.labels.looking_for.hookups") },
+		],
+		[t],
+	);
+
+	const meetAtOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.meet_at.my_place") },
+			{ value: 2, label: t("profile_editor.labels.meet_at.your_place") },
+			{ value: 3, label: t("profile_editor.labels.meet_at.bar") },
+			{ value: 4, label: t("profile_editor.labels.meet_at.coffee_shop") },
+			{ value: 5, label: t("profile_editor.labels.meet_at.restaurant") },
+		],
+		[t],
+	);
+
+	const hivStatusOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.hiv_status.negative") },
+			{ value: 2, label: t("profile_editor.labels.hiv_status.negative_prep") },
+			{ value: 3, label: t("profile_editor.labels.hiv_status.positive") },
+			{
+				value: 4,
+				label: t("profile_editor.labels.hiv_status.positive_undetectable"),
+			},
+		],
+		[t],
+	);
+
+	const nsfwOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.nsfw.never") },
+			{ value: 2, label: t("profile_editor.labels.nsfw.not_at_first") },
+			{ value: 3, label: t("profile_editor.labels.nsfw.yes_please") },
+		],
+		[t],
+	);
+
+	const sexualHealthOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.sexual_health.condoms") },
+			{ value: 2, label: t("profile_editor.labels.sexual_health.doxy_pep") },
+			{ value: 3, label: t("profile_editor.labels.sexual_health.prep") },
+			{
+				value: 4,
+				label: t("profile_editor.labels.sexual_health.hiv_undetectable"),
+			},
+			{ value: 5, label: t("profile_editor.labels.sexual_health.discuss") },
+		],
+		[t],
+	);
+
+	const vaccineOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.vaccines.covid") },
+			{ value: 2, label: t("profile_editor.labels.vaccines.monkeypox") },
+			{ value: 3, label: t("profile_editor.labels.vaccines.meningitis") },
+		],
+		[t],
+	);
+
+	const tribeOptions = useMemo(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.tribes.bear") },
+			{ value: 2, label: t("profile_editor.labels.tribes.clean_cut") },
+			{ value: 3, label: t("profile_editor.labels.tribes.daddy") },
+			{ value: 4, label: t("profile_editor.labels.tribes.discreet") },
+			{ value: 5, label: t("profile_editor.labels.tribes.geek") },
+			{ value: 6, label: t("profile_editor.labels.tribes.jock") },
+			{ value: 7, label: t("profile_editor.labels.tribes.leather") },
+			{ value: 8, label: t("profile_editor.labels.tribes.otter") },
+			{ value: 9, label: t("profile_editor.labels.tribes.poz") },
+			{ value: 10, label: t("profile_editor.labels.tribes.rugged") },
+			{ value: 11, label: t("profile_editor.labels.tribes.sober") },
+			{ value: 12, label: t("profile_editor.labels.tribes.trans") },
+			{ value: 13, label: t("profile_editor.labels.tribes.twink") },
+		],
+		[t],
+	);
+
 	const loadProfile = useCallback(async () => {
 		if (!userId) {
 			setProfile(null);
@@ -513,12 +518,12 @@ export function ProfileEditorPage() {
 		} catch (error) {
 			setProfile(null);
 			setProfileError(
-				error instanceof Error ? error.message : "Failed to load profile",
+				error instanceof Error ? error.message : t("profile_editor.error_load"),
 			);
 		} finally {
 			setIsLoadingProfile(false);
 		}
-	}, [apiFunctions, userId]);
+	}, [apiFunctions, userId, t]);
 
 	const loadManagedOptions = useCallback(async () => {
 		try {
@@ -611,22 +616,22 @@ export function ProfileEditorPage() {
 
 	const selectedRelationshipLabel = useMemo(() => {
 		if (!draft.relationshipStatus) {
-			return "Relationship not set";
+			return t("profile_editor.sections.states.relationship_not_set");
 		}
 
 		return (
 			relationshipStatusLabels[Number(draft.relationshipStatus)] ??
 			`Status ${draft.relationshipStatus}`
 		);
-	}, [draft.relationshipStatus]);
+	}, [draft.relationshipStatus, relationshipStatusLabels, t]);
 
 	const selectedBodyTypeLabel = useMemo(() => {
 		if (!draft.bodyType) {
-			return "Body type not set";
+			return t("profile_editor.sections.states.body_type_not_set");
 		}
 
 		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
-	}, [draft.bodyType]);
+	}, [draft.bodyType, bodyTypeLabels, t]);
 
 	const completionChecklist = useMemo(
 		() => [
@@ -670,19 +675,19 @@ export function ProfileEditorPage() {
 		}
 
 		if (value.length < 3 || value.length > 15) {
-			return "Display name must be between 3 and 15 characters.";
+			return t("profile_editor.errors.display_name_length");
 		}
 
 		return null;
-	}, [draft.displayName]);
+	}, [draft.displayName, t]);
 
 	const aboutMeError = useMemo(() => {
 		if (draft.aboutMe.length > 255) {
-			return "About Me must stay under 255 characters.";
+			return t("profile_editor.errors.about_me_length");
 		}
 
 		return null;
-	}, [draft.aboutMe]);
+	}, [draft.aboutMe, t]);
 
 	const canSave = hasChanges && !isSaving && !displayNameError && !aboutMeError;
 
@@ -706,9 +711,9 @@ export function ProfileEditorPage() {
 	) => {
 		setDraft((current) => ({
 			...current,
-			[key]: current[key].includes(value)
-				? current[key].filter((item) => item !== value)
-				: [...current[key], value].sort((left, right) => left - right),
+			[key]: (current[key] as number[]).includes(value)
+				? (current[key] as number[]).filter((item) => item !== value)
+				: [...(current[key] as number[]), value].sort((left, right) => left - right),
 		}));
 	};
 
@@ -751,11 +756,13 @@ export function ProfileEditorPage() {
 				},
 			});
 
-			toast.success("Profile updated");
+			toast.success(t("profile_editor.toasts.updated"));
 			await loadProfile();
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to update profile";
+				error instanceof Error
+					? error.message
+					: t("profile_editor.toasts.error_update");
 			toast.error(message);
 		} finally {
 			setIsSaving(false);
@@ -797,18 +804,20 @@ export function ProfileEditorPage() {
 				}
 
 				await loadProfile();
-				toast.success(options?.successMessage ?? "Profile photos updated");
+				toast.success(
+					options?.successMessage ?? t("profile_editor.toasts.photos_updated"),
+				);
 			} catch (error) {
 				const message =
 					error instanceof Error
 						? error.message
-						: "Failed to update profile photos";
+						: t("profile_editor.toasts.error_photos");
 				toast.error(message);
 			} finally {
 				setIsSavingPhotos(false);
 			}
 		},
-		[apiFunctions, loadProfile, userId],
+		[apiFunctions, loadProfile, userId, t],
 	);
 
 	const handleUploadPhoto = async (
@@ -822,12 +831,12 @@ export function ProfileEditorPage() {
 		}
 
 		if (!file.type.startsWith("image/")) {
-			toast.error("Choose an image file to upload");
+			toast.error(t("profile_editor.toasts.error_upload_type"));
 			return;
 		}
 
 		if (profilePhotoHashes.length >= MAX_PROFILE_PHOTOS) {
-			toast.error("Remove a photo before adding another one");
+			toast.error(t("profile_editor.toasts.error_photo_limit"));
 			return;
 		}
 
@@ -880,11 +889,13 @@ export function ProfileEditorPage() {
 			}
 
 			await persistProfilePhotos([...profilePhotoHashes, uploadedHash], {
-				successMessage: "Photo uploaded",
+				successMessage: t("profile_editor.toasts.photo_uploaded"),
 			});
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to upload image";
+				error instanceof Error
+					? error.message
+					: t("profile_editor.toasts.error_upload");
 			toast.error(message);
 		} finally {
 			setIsUploadingPhoto(false);
@@ -906,7 +917,7 @@ export function ProfileEditorPage() {
 		];
 
 		await persistProfilePhotos(reordered, {
-			successMessage: "Primary photo updated",
+			successMessage: t("profile_editor.toasts.primary_updated"),
 		});
 	};
 
@@ -919,7 +930,7 @@ export function ProfileEditorPage() {
 			profilePhotoHashes.filter((currentHash) => currentHash !== hash),
 			{
 				deletedHashes: [hash],
-				successMessage: "Photo removed",
+				successMessage: t("profile_editor.toasts.photo_removed"),
 			},
 		);
 	};
@@ -942,25 +953,24 @@ export function ProfileEditorPage() {
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
 				<header className="space-y-3">
 					<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-						Profile Management
+						{t("profile_editor.management")}
 					</p>
-					<h1 className="app-title">Profile Editor</h1>
+					<h1 className="app-title">{t("profile_editor.title")}</h1>
 					<p className="max-w-[65ch] text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
-						Shape how people meet you at a glance, then fine-tune your details
-						in one place.
+						{t("profile_editor.subtitle")}
 					</p>
 				</header>
 
 				{isLoadingProfile ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-medium text-[var(--text-muted)]">
-							Loading your profile...
+							{t("profile_editor.loading")}
 						</p>
 					</div>
 				) : profileError ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-semibold">
-							Could not load profile details.
+							{t("profile_editor.error_load")}
 						</p>
 						<p className="mt-2 text-sm text-[var(--text-muted)]">
 							{profileError}
@@ -976,7 +986,7 @@ export function ProfileEditorPage() {
 									</div>
 									<div>
 										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-											SUMMARY
+											{t("profile_editor.summary")}
 										</p>
 										<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
 											{draftDisplayName}
@@ -990,10 +1000,10 @@ export function ProfileEditorPage() {
 											</span>
 											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
 												{tagList.length > 0
-													? `${tagList.length} tag${
-															tagList.length === 1 ? "" : "s"
-														}`
-													: "No tags"}
+													? t("profile_editor.tags_count", {
+															count: tagList.length,
+														})
+													: t("profile_editor.no_tags")}
 											</span>
 										</div>
 									</div>
@@ -1001,7 +1011,7 @@ export function ProfileEditorPage() {
 
 								<div className="flex w-full flex-col items-start gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 lg:w-auto lg:min-w-[260px]">
 									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-										Profile Completion
+										{t("profile_editor.completion_title")}
 									</p>
 									<p className="text-3xl font-semibold leading-none">
 										{completionPercent}%
@@ -1013,8 +1023,10 @@ export function ProfileEditorPage() {
 										/>
 									</div>
 									<p className="text-xs text-[var(--text-muted)]">
-										{completionCount}/{completionChecklist.length} profile
-										signals set
+										{t("profile_editor.completion_signals", {
+											count: completionCount,
+											total: completionChecklist.length,
+										})}
 									</p>
 								</div>
 							</div>
@@ -1024,22 +1036,28 @@ export function ProfileEditorPage() {
 							<div className="grid gap-5">
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Pictures"
-										description="Photo slots"
+										title={t("profile_editor.sections.pictures.title")}
+										description={t(
+											"profile_editor.sections.pictures.description",
+										)}
 										icon={ImageOff}
 									/>
 									<div className="grid gap-4">
 										<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 sm:p-4">
 											<p className="text-sm text-[var(--text-muted)]">
-												{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS} photos
-												used
+												{t("profile_editor.sections.pictures.usage", {
+													count: profilePhotoHashes.length,
+													total: MAX_PROFILE_PHOTOS,
+												})}
 											</p>
 											<label
 												htmlFor="profile-photo-upload"
 												className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors hover:border-[var(--text-muted)]"
 											>
 												<Camera className="h-4 w-4" />
-												{isUploadingPhoto ? "Uploading..." : "Add photo"}
+												{isUploadingPhoto
+													? t("profile_editor.sections.pictures.uploading")
+													: t("profile_editor.sections.pictures.add")}
 											</label>
 											<input
 												id="profile-photo-upload"
@@ -1076,7 +1094,11 @@ export function ProfileEditorPage() {
 
 														<div className="mt-2 space-y-2">
 															<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-																{isPrimary ? "Primary" : `Photo ${index + 1}`}
+																{isPrimary
+																	? t("profile_editor.sections.pictures.primary")
+																	: t("profile_editor.sections.pictures.slot", {
+																			index: index + 1,
+																		})}
 															</p>
 
 															{hash ? (
@@ -1094,7 +1116,9 @@ export function ProfileEditorPage() {
 																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
 																	>
 																		<Star className="h-3.5 w-3.5" />
-																		Set primary
+																		{t(
+																			"profile_editor.sections.pictures.set_primary",
+																		)}
 																	</button>
 																	<button
 																		type="button"
@@ -1105,7 +1129,7 @@ export function ProfileEditorPage() {
 																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
 																	>
 																		<Trash2 className="h-3.5 w-3.5" />
-																		Remove
+																		{t("profile_editor.sections.pictures.remove")}
 																	</button>
 																</div>
 															) : (
@@ -1113,7 +1137,7 @@ export function ProfileEditorPage() {
 																	htmlFor="profile-photo-upload"
 																	className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)]"
 																>
-																	Add
+																	{t("profile_editor.sections.pictures.add")}
 																</label>
 															)}
 														</div>
@@ -1124,25 +1148,27 @@ export function ProfileEditorPage() {
 
 										{isSavingPhotos ? (
 											<p className="text-xs text-[var(--text-muted)]">
-												Saving photo changes...
+												{t("profile_editor.sections.pictures.saving")}
 											</p>
 										) : null}
 										<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-											First slot is your primary profile photo shown in browse.
+											{t("profile_editor.sections.pictures.footer")}
 										</p>
 									</div>
 								</div>
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Profile"
-										description="Name, bio, and tags"
+										title={t("profile_editor.sections.profile.title")}
+										description={t(
+											"profile_editor.sections.profile.description",
+										)}
 										icon={Sparkles}
 									/>
 									<div className="grid gap-5">
 										<div>
 											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Display Name
+												{t("profile_editor.sections.profile.display_name")}
 											</label>
 											<input
 												type="text"
@@ -1152,17 +1178,22 @@ export function ProfileEditorPage() {
 													handleDraftChange("displayName", event.target.value)
 												}
 												className="input-field"
-												placeholder="3 to 15 characters"
+												placeholder={t(
+													"profile_editor.sections.profile.display_name_placeholder",
+												)}
 											/>
 											<p className="mt-2 text-xs text-[var(--text-muted)] sm:text-sm">
 												{displayNameError ??
-													`${draft.displayName.trim().length || 0}/15 characters`}
+													t("profile_editor.sections.profile.char_count", {
+														count: draft.displayName.trim().length || 0,
+														total: 15,
+													})}
 											</p>
 										</div>
 
 										<div>
 											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												About Me
+												{t("profile_editor.sections.profile.about_me")}
 											</label>
 											<textarea
 												value={draft.aboutMe}
@@ -1171,17 +1202,22 @@ export function ProfileEditorPage() {
 													handleDraftChange("aboutMe", event.target.value)
 												}
 												className="input-field min-h-32 resize-y"
-												placeholder="Up to 255 characters"
+												placeholder={t(
+													"profile_editor.sections.profile.about_me_placeholder",
+												)}
 											/>
 											<p className="mt-2 text-xs text-[var(--text-muted)] sm:text-sm">
 												{aboutMeError ??
-													`${draft.aboutMe.length}/255 characters`}
+													t("profile_editor.sections.profile.char_count", {
+														count: draft.aboutMe.length,
+														total: 255,
+													})}
 											</p>
 										</div>
 
 										<div>
 											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												My Tags
+												{t("profile_editor.sections.profile.my_tags")}
 											</label>
 											<input
 												type="text"
@@ -1193,7 +1229,9 @@ export function ProfileEditorPage() {
 													)
 												}
 												className="input-field"
-												placeholder="Keyword tags, separated by commas"
+												placeholder={t(
+													"profile_editor.sections.profile.my_tags_placeholder",
+												)}
 											/>
 											<div className="mt-3 flex flex-wrap gap-2.5">
 												{tagList.length > 0 ? (
@@ -1207,7 +1245,9 @@ export function ProfileEditorPage() {
 													))
 												) : (
 													<p className="text-sm text-[var(--text-muted)]">
-														No tags added yet.
+														{t(
+															"profile_editor.sections.profile.no_tags_added",
+														)}
 													</p>
 												)}
 											</div>
@@ -1217,8 +1257,10 @@ export function ProfileEditorPage() {
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="States"
-										description="Visible stats and profile traits"
+										title={t("profile_editor.sections.states.title")}
+										description={t(
+											"profile_editor.sections.states.description",
+										)}
 										icon={Ruler}
 									/>
 									<div className="grid gap-4">
@@ -1228,12 +1270,14 @@ export function ProfileEditorPage() {
 												onChange={(checked) =>
 													handleDraftChange("showAge", checked)
 												}
-												label="Show Age"
-												description="Control whether age is visible on profile."
+												label={t("profile_editor.sections.states.show_age")}
+												description={t(
+													"profile_editor.sections.states.show_age_desc",
+												)}
 											/>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Age
+													{t("profile_editor.sections.states.age")}
 												</label>
 												<input
 													type="number"
@@ -1243,12 +1287,14 @@ export function ProfileEditorPage() {
 														handleDraftChange("age", event.target.value)
 													}
 													className="input-field"
-													placeholder="Age"
+													placeholder={t(
+														"profile_editor.sections.states.age",
+													)}
 												/>
 											</div>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Height
+													{t("profile_editor.sections.states.height")}
 												</label>
 												<input
 													type="number"
@@ -1258,12 +1304,14 @@ export function ProfileEditorPage() {
 														handleDraftChange("height", event.target.value)
 													}
 													className="input-field"
-													placeholder="Height in cm"
+													placeholder={t(
+														"profile_editor.sections.states.height_placeholder",
+													)}
 												/>
 											</div>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Weight
+													{t("profile_editor.sections.states.weight")}
 												</label>
 												<input
 													type="number"
@@ -1273,12 +1321,14 @@ export function ProfileEditorPage() {
 														handleDraftChange("weight", event.target.value)
 													}
 													className="input-field"
-													placeholder="Weight in kg"
+													placeholder={t(
+														"profile_editor.sections.states.weight_placeholder",
+													)}
 												/>
 											</div>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Ethnicity
+													{t("profile_editor.sections.states.ethnicity")}
 												</label>
 												<select
 													value={draft.ethnicity}
@@ -1287,7 +1337,9 @@ export function ProfileEditorPage() {
 													}
 													className="input-field"
 												>
-													<option value="">Not set</option>
+													<option value="">
+														{t("profile_editor.sections.states.not_set")}
+													</option>
 													{ethnicityOptions.map((option) => (
 														<option key={option.value} value={option.value}>
 															{option.label}
@@ -1297,7 +1349,7 @@ export function ProfileEditorPage() {
 											</div>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Body Type
+													{t("profile_editor.sections.states.body_type")}
 												</label>
 												<select
 													value={draft.bodyType}
@@ -1306,7 +1358,9 @@ export function ProfileEditorPage() {
 													}
 													className="input-field"
 												>
-													<option value="">Not set</option>
+													<option value="">
+														{t("profile_editor.sections.states.not_set")}
+													</option>
 													{bodyTypeOptions.map((option) => (
 														<option key={option.value} value={option.value}>
 															{option.label}
@@ -1319,12 +1373,14 @@ export function ProfileEditorPage() {
 												onChange={(checked) =>
 													handleDraftChange("showPosition", checked)
 												}
-												label="Show Position"
-												description="Let people see your position on profile."
+												label={t("profile_editor.sections.states.show_position")}
+												description={t(
+													"profile_editor.sections.states.show_position_desc",
+												)}
 											/>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Position
+													{t("profile_editor.sections.states.position")}
 												</label>
 												<select
 													value={draft.sexualPosition}
@@ -1336,7 +1392,9 @@ export function ProfileEditorPage() {
 													}
 													className="input-field"
 												>
-													<option value="">Not set</option>
+													<option value="">
+														{t("profile_editor.sections.states.not_set")}
+													</option>
 													{positionOptions.map((option) => (
 														<option key={option.value} value={option.value}>
 															{option.label}
@@ -1349,12 +1407,16 @@ export function ProfileEditorPage() {
 												onChange={(checked) =>
 													handleDraftChange("showTribes", checked)
 												}
-												label="Show Tribes"
-												description="Choose whether your tribes are visible publicly."
+												label={t("profile_editor.sections.states.show_tribes")}
+												description={t(
+													"profile_editor.sections.states.show_tribes_desc",
+												)}
 											/>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Relationship Status
+													{t(
+														"profile_editor.sections.states.relationship_status",
+													)}
 												</label>
 												<select
 													value={draft.relationshipStatus}
@@ -1366,7 +1428,9 @@ export function ProfileEditorPage() {
 													}
 													className="input-field"
 												>
-													<option value="">Not set</option>
+													<option value="">
+														{t("profile_editor.sections.states.not_set")}
+													</option>
 													{relationshipStatusOptions.map((option) => (
 														<option key={option.value} value={option.value}>
 															{option.label}
@@ -1378,7 +1442,7 @@ export function ProfileEditorPage() {
 
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Tribes
+												{t("profile_editor.sections.states.tribes")}
 											</p>
 											<ChipGroup
 												options={tribeOptions}
@@ -1393,14 +1457,16 @@ export function ProfileEditorPage() {
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Expectations"
-										description="What you're open to and how"
+										title={t("profile_editor.sections.expectations.title")}
+										description={t(
+											"profile_editor.sections.expectations.description",
+										)}
 										icon={Sparkles}
 									/>
 									<div className="grid gap-4">
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Looking For
+												{t("profile_editor.sections.expectations.looking_for")}
 											</p>
 											<ChipGroup
 												options={lookingForOptions}
@@ -1412,7 +1478,7 @@ export function ProfileEditorPage() {
 										</div>
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Meet At
+												{t("profile_editor.sections.expectations.meet_at")}
 											</p>
 											<ChipGroup
 												options={meetAtOptions}
@@ -1422,7 +1488,7 @@ export function ProfileEditorPage() {
 										</div>
 										<div>
 											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Accept NSFW Pics
+												{t("profile_editor.sections.expectations.accept_nsfw")}
 											</label>
 											<select
 												value={draft.nsfw}
@@ -1431,7 +1497,9 @@ export function ProfileEditorPage() {
 												}
 												className="input-field"
 											>
-												<option value="">Not set</option>
+												<option value="">
+													{t("profile_editor.sections.states.not_set")}
+												</option>
 												{nsfwOptions.map((option) => (
 													<option key={option.value} value={option.value}>
 														{option.label}
@@ -1444,14 +1512,16 @@ export function ProfileEditorPage() {
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Identity"
-										description="Managed identity fields"
+										title={t("profile_editor.sections.identity.title")}
+										description={t(
+											"profile_editor.sections.identity.description",
+										)}
 										icon={BadgeInfo}
 									/>
 									<div className="grid gap-4">
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Gender
+												{t("profile_editor.sections.identity.gender")}
 											</p>
 											{genderOptions.length > 0 ? (
 												<ChipGroup
@@ -1463,13 +1533,15 @@ export function ProfileEditorPage() {
 												/>
 											) : (
 												<p className="text-sm text-[var(--text-muted)]">
-													Gender options are unavailable right now.
+													{t(
+														"profile_editor.sections.identity.gender_unavailable",
+													)}
 												</p>
 											)}
 										</div>
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Pronouns
+												{t("profile_editor.sections.identity.pronouns")}
 											</p>
 											{pronounOptions.length > 0 ? (
 												<ChipGroup
@@ -1481,7 +1553,9 @@ export function ProfileEditorPage() {
 												/>
 											) : (
 												<p className="text-sm text-[var(--text-muted)]">
-													Pronoun options are unavailable right now.
+													{t(
+														"profile_editor.sections.identity.pronouns_unavailable",
+													)}
 												</p>
 											)}
 										</div>
@@ -1490,15 +1564,17 @@ export function ProfileEditorPage() {
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Health"
-										description="Status, testing, and practices"
+										title={t("profile_editor.sections.health.title")}
+										description={t(
+											"profile_editor.sections.health.description",
+										)}
 										icon={ShieldPlus}
 									/>
 									<div className="grid gap-4">
 										<div className="grid gap-4 md:grid-cols-2">
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													HIV Status
+													{t("profile_editor.sections.health.hiv_status")}
 												</label>
 												<select
 													value={draft.hivStatus}
@@ -1507,7 +1583,9 @@ export function ProfileEditorPage() {
 													}
 													className="input-field"
 												>
-													<option value="">Not set</option>
+													<option value="">
+														{t("profile_editor.sections.states.not_set")}
+													</option>
 													{hivStatusOptions.map((option) => (
 														<option key={option.value} value={option.value}>
 															{option.label}
@@ -1517,7 +1595,7 @@ export function ProfileEditorPage() {
 											</div>
 											<div>
 												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Last Tested
+													{t("profile_editor.sections.health.last_tested")}
 												</label>
 												<input
 													type="date"
@@ -1535,7 +1613,7 @@ export function ProfileEditorPage() {
 
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Health Practices
+												{t("profile_editor.sections.health.health_practices")}
 											</p>
 											<ChipGroup
 												options={sexualHealthOptions}
@@ -1547,7 +1625,7 @@ export function ProfileEditorPage() {
 										</div>
 										<div>
 											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Vaccinations
+												{t("profile_editor.sections.health.vaccinations")}
 											</p>
 											<ChipGroup
 												options={vaccineOptions}
@@ -1562,14 +1640,16 @@ export function ProfileEditorPage() {
 
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<CategoryHeader
-										title="Social"
-										description="Public handles and usernames"
+										title={t("profile_editor.sections.social.title")}
+										description={t(
+											"profile_editor.sections.social.description",
+										)}
 										icon={AtSign}
 									/>
 									<div className="grid gap-4 md:grid-cols-3">
 										<div>
 											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Insta username
+												{t("profile_editor.sections.social.instagram")}
 											</label>
 											<input
 												type="text"
@@ -1578,12 +1658,14 @@ export function ProfileEditorPage() {
 													handleDraftChange("instagram", event.target.value)
 												}
 												className="input-field"
-												placeholder="username"
+												placeholder={t(
+													"profile_editor.sections.social.placeholder",
+												)}
 											/>
 										</div>
 										<div>
 											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												X handle
+												{t("profile_editor.sections.social.twitter")}
 											</label>
 											<input
 												type="text"
@@ -1592,12 +1674,14 @@ export function ProfileEditorPage() {
 													handleDraftChange("twitter", event.target.value)
 												}
 												className="input-field"
-												placeholder="username"
+												placeholder={t(
+													"profile_editor.sections.social.placeholder",
+												)}
 											/>
 										</div>
 										<div>
 											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Facebook username
+												{t("profile_editor.sections.social.facebook")}
 											</label>
 											<input
 												type="text"
@@ -1606,7 +1690,9 @@ export function ProfileEditorPage() {
 													handleDraftChange("facebook", event.target.value)
 												}
 												className="input-field"
-												placeholder="username"
+												placeholder={t(
+													"profile_editor.sections.social.placeholder",
+												)}
 											/>
 										</div>
 									</div>
@@ -1614,12 +1700,12 @@ export function ProfileEditorPage() {
 								<div className="grid gap-4">
 									<div className="surface-card rounded-3xl p-4 sm:p-5">
 										<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-											Other Information
+											{t("profile_editor.sections.other.title")}
 										</p>
 										<div className="mt-4 grid gap-3">
 											<div className="flex items-center justify-between gap-3">
 												<span className="text-sm text-[var(--text-muted)]">
-													User ID
+													{t("profile_editor.sections.other.user_id")}
 												</span>
 												<span className="text-sm font-semibold">
 													{profile?.profileId ?? userId ?? "Unknown"}
@@ -1633,7 +1719,7 @@ export function ProfileEditorPage() {
 							<aside className="grid gap-4 lg:sticky lg:top-4">
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Quick Actions
+										{t("profile_editor.actions.title")}
 									</p>
 									<div className="mt-3 grid gap-2.5">
 										<button
@@ -1643,7 +1729,9 @@ export function ProfileEditorPage() {
 											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed"
 										>
 											<Save className="h-4 w-4" />
-											{isSaving ? "Saving..." : "Save changes"}
+											{isSaving
+												? t("profile_editor.actions.saving")
+												: t("profile_editor.actions.save")}
 										</button>
 										<button
 											type="button"
@@ -1652,11 +1740,11 @@ export function ProfileEditorPage() {
 											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<RefreshCw className="h-4 w-4" />
-											Reset draft
+											{t("profile_editor.actions.reset")}
 										</button>
 									</div>
 									<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-										Your changes stay local until you press Save.
+										{t("profile_editor.actions.footer")}
 									</p>
 								</div>{" "}
 							</aside>
@@ -1670,7 +1758,7 @@ export function ProfileEditorPage() {
 						onClick={handleLogout}
 						className="btn-accent min-h-11 px-4 py-2.5 font-semibold"
 					>
-						Logout
+						{t("settings.logout")}
 					</button>
 				</div>
 			</div>
