@@ -56,16 +56,13 @@ export function BrowseCardTile({
 
 			{/* Top-right: Online / last seen status */}
 			<div className="absolute right-2 top-2">
-				<span
-					className={cn(
-						"inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg backdrop-blur-sm sm:text-[11px]",
-						onlineStatus.isOnline
-							? "bg-green-500/90"
-							: "bg-black/55",
-					)}
-				>
-					{onlineStatus.isOnline ? "Online" : onlineStatus.label}
-				</span>
+				{onlineStatus.isOnline ? (
+					<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
+				) : (
+					<span className="inline-flex items-center rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg backdrop-blur-sm sm:text-[11px]">
+						{onlineStatus.label}
+					</span>
+				)}
 			</div>
 
 			{/* Bottom-right: Free Grind Badge */}
