@@ -29,6 +29,7 @@
 		"copy-to-clipboard": "^3.3.3",
 		"i18next": "^26.0.8",
 		"i18next-browser-languagedetector": "^8.2.1",
+		"i18next-http-backend": "^3.0.6",
 		"leaflet": "^1.9.4",
 		"react": "^19",
 		"react-dom": "^19",
