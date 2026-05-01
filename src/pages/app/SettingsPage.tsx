@@ -152,8 +152,13 @@ export function SettingsPage() {
 		}
 	};
 
-	const changeLanguage = (lng: string) => {
-		i18n.changeLanguage(lng);
+	const changeLanguage = async (lng: string) => {
+		try {
+			await i18n.changeLanguage(lng);
+			document.documentElement.lang = lng;
+		} catch (error) {
+			console.error("Language change failed:", error);
+		}
 	};
 
 	return (
