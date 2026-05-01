@@ -96,6 +96,16 @@ export function ProfileDetailsModal({
 	const profileOnlineUntil =
 		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
 	const profileLastSeen = activeProfile?.seen ?? null;
+	const profileLastOnlineTimestamp = profileLastSeen ?? profileOnlineUntil;
+	const profileMinutesLeft =
+		profileOnlineUntil != null && profileOnlineUntil > Date.now()
+			? Math.max(1, Math.ceil((profileOnlineUntil - Date.now()) / (60 * 1000)))
+			: null;
+	const profileStatusLabel = isCurrentlyOnline(profileOnlineUntil)
+		? `Online (${profileMinutesLeft} min${profileMinutesLeft === 1 ? "" : "s"} left)`
+		: profileLastOnlineTimestamp != null
+			? `Last online ${formatTimeAgo(profileLastOnlineTimestamp)}`
+			: "Offline";
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);
@@ -532,10 +542,7 @@ export function ProfileDetailsModal({
 										</div>
 										<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 											<p>
-												Status:{" "}
-												{isCurrentlyOnline(profileOnlineUntil)
-													? "Online"
-													: `Last online ${formatTimeAgo(profileLastSeen ?? profileOnlineUntil)}`}
+												Status: {profileStatusLabel}
 											</p>
 											<p>Distance: {formatDistance(profileDistance)}</p>
 										</div>
@@ -970,10 +977,7 @@ export function ProfileDetailsModal({
 									</div>
 									<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 										<p>
-											Status:{" "}
-											{isCurrentlyOnline(profileOnlineUntil)
-												? "Online"
-												: `Last online ${formatTimeAgo(profileLastSeen ?? profileOnlineUntil)}`}
+											Status: {profileStatusLabel}
 										</p>
 										<p>Distance: {formatDistance(profileDistance)}</p>
 									</div>

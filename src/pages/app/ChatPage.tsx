@@ -668,6 +668,62 @@ function getOtherParticipant(
 	);
 }
 
+function getParticipantOnlineMeta(
+	lastOnline: number | null | undefined,
+	onlineUntil: number | null | undefined,
+	nowTimestamp: number,
+): { isOnline: boolean; label: string } {
+	const hasLastOnline =
+		typeof lastOnline === "number" && Number.isFinite(lastOnline);
+	const hasOnlineUntil =
+		typeof onlineUntil === "number" && Number.isFinite(onlineUntil);
+	const minuteMs = 60 * 1000;
+	const hourMs = 60 * minuteMs;
+	const dayMs = 24 * hourMs;
+
+	if (!hasLastOnline && !hasOnlineUntil) {
+		return { isOnline: false, label: "Offline" };
+	}
+
+	if (hasOnlineUntil && (onlineUntil as number) > nowTimestamp) {
+		const minsLeft = Math.max(
+			1,
+			Math.ceil(((onlineUntil as number) - nowTimestamp) / minuteMs),
+		);
+		return {
+			isOnline: true,
+			label: `Online (${minsLeft} min${minsLeft === 1 ? "" : "s"} left)`,
+		};
+	}
+
+	const referenceTimestamp = hasLastOnline
+		? (lastOnline as number)
+		: (onlineUntil as number);
+	const diffMs = Math.max(0, nowTimestamp - referenceTimestamp);
+
+	if (diffMs < hourMs) {
+		const minsAgo = Math.max(1, Math.floor(diffMs / minuteMs));
+		return {
+			isOnline: false,
+			label: `${minsAgo} min${minsAgo === 1 ? "" : "s"} ago`,
+		};
+	}
+
+	if (diffMs < dayMs) {
+		const hoursAgo = Math.floor(diffMs / hourMs);
+		return {
+			isOnline: false,
+			label: `${hoursAgo} hour${hoursAgo === 1 ? "" : "s"} ago`,
+		};
+	}
+
+	const daysAgo = Math.floor(diffMs / dayMs);
+	return {
+		isOnline: false,
+		label: `${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`,
+	};
+}
+
 function useDesktopBreakpoint() {
 	const [isDesktop, setIsDesktop] = useState(() =>
 		typeof window !== "undefined"
@@ -2863,6 +2919,12 @@ export function ChatPage() {
 				<div ref={inboxListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
+						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
+							otherParticipant?.lastOnline,
+							otherParticipant?.onlineUntil,
+							nowTimestamp,
+						);
+						const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 						const isSelected =
 							conversation.data.conversationId === selectedConversationId;
 
@@ -2878,7 +2940,14 @@ export function ChatPage() {
 								}`}
 							>
 								<div className="flex items-start gap-3">
-									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+									<div
+										title={otherParticipantOnlineMeta.label}
+										className={`h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] ${
+											isOtherParticipantOnline
+												? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)]"
+												: "border-[var(--border)]"
+										}`}
+									>
 										<img
 											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
 											alt={conversation.data.name || "Profile"}
@@ -2956,6 +3025,15 @@ export function ChatPage() {
 					selectedConversation,
 					userId,
 				);
+				const otherParticipantOnlineMeta = getParticipantOnlineMeta(
+					otherParticipant?.lastOnline,
+					otherParticipant?.onlineUntil,
+					nowTimestamp,
+				);
+				const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
+				const distanceLabel = otherParticipant?.distanceMetres
+					? formatDistance(otherParticipant.distanceMetres)
+					: null;
 				return (
 					<div 
 						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
@@ -2983,7 +3061,12 @@ export function ChatPage() {
 								}}
 								disabled={!otherParticipant}
 								aria-label="Open profile"
-								className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] transition hover:border-[var(--accent)] disabled:cursor-default disabled:opacity-80"
+								title={otherParticipantOnlineMeta.label}
+								className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
+									isOtherParticipantOnline
+										? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)] hover:border-emerald-400"
+										: "border-[var(--border)] hover:border-[var(--accent)]"
+								}`}
 							>
 								<img
 									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
@@ -3006,9 +3089,9 @@ export function ChatPage() {
 									)}
 								</div>
 								<p className="text-sm text-[var(--text-muted)]">
-									{otherParticipant?.distanceMetres
-										? formatDistance(otherParticipant.distanceMetres)
-										: "Distance unknown"}
+									{distanceLabel
+										? `${otherParticipantOnlineMeta.label} · ${distanceLabel}`
+										: otherParticipantOnlineMeta.label}
 								</p>
 							</div>
 						</div>
