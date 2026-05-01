@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import {
 	ArrowUpDown,
 	Clock,
@@ -24,13 +26,6 @@ import {
 } from "./rightnow-filters-storage";
 
 type SortOption = RightNowSortOption;
-
-const positionFilterOptions = [
-	{ value: "", label: "Any" },
-	...Object.entries(sexualPositionLabels)
-		.sort(([left], [right]) => Number(left) - Number(right))
-		.map(([value, label]) => ({ value, label })),
-];
 
 function parseFiltersFromLocationState(
 	state: unknown,
@@ -65,20 +60,20 @@ function parseFiltersFromLocationState(
 	};
 }
 
-function formatMinutesAgo(postedAt: number | null): string {
+function formatMinutesAgo(postedAt: number | null, t: TFunction): string {
 	if (!postedAt) return "";
 	const diffMs = Date.now() - postedAt;
-	if (diffMs < 0) return "Just now";
+	if (diffMs < 0) return t("right_now.just_now");
 	const minutes = Math.floor(diffMs / 60000);
-	if (minutes < 1) return "Just now";
-	if (minutes < 60) return `${minutes} min`;
+	if (minutes < 1) return t("right_now.just_now");
+	if (minutes < 60) return t("right_now.minutes_short", { count: minutes });
 	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `${hours}h`;
-	return `${Math.floor(hours / 24)}d`;
+	if (hours < 24) return t("right_now.hours_short", { count: hours });
+	return t("right_now.days_short", { count: Math.floor(hours / 24) });
 }
 
-function getItemName(item: RightNowFeedItem): string {
-	return item.displayName?.trim() || "Anonymous";
+function getItemName(item: RightNowFeedItem, t: TFunction): string {
+	return item.displayName?.trim() || t("right_now.anonymous");
 }
 
 function getItemImageUrl(item: RightNowFeedItem): string | null {
@@ -107,13 +102,16 @@ function RightNowRow({
 	onMessage: (profileId: string) => void;
 	onSelect: (profileId: string) => void;
 }) {
-	const name = getItemName(item);
+	const { t } = useTranslation();
+	const name = getItemName(item, t);
 	const isHosting = item.hosting;
 	const imageUrl = getItemDisplayImageUrl(item);
 
-	const timeAgo = formatMinutesAgo(item.postedAt);
+	const timeAgo = formatMinutesAgo(item.postedAt, t);
 	const distance = item.distanceMeters != null ? formatDistance(item.distanceMeters) : null;
-	const subtitle = isHosting ? `${name} is Hosting in Right Now` : `${name} is in Right Now`;
+	const subtitle = isHosting
+		? t("right_now.hosting_subtitle", { name })
+		: t("right_now.member_subtitle", { name });
 	const isOnline = isItemOnline(item);
 
 	return (
@@ -166,7 +164,7 @@ function RightNowRow({
 				type="button"
 				onClick={() => onMessage(item.profileId)}
 				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] transition-colors active:bg-[var(--surface-3)]"
-				aria-label={`Message ${name}`}
+				aria-label={t("right_now.message_aria", { name })}
 			>
 				<MessageSquare className="h-4 w-4" />
 			</button>
@@ -175,6 +173,7 @@ function RightNowRow({
 }
 
 export function RightNowPage() {
+	const { t } = useTranslation();
 	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -192,14 +191,28 @@ export function RightNowPage() {
 	);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 
+	const positionFilterOptions = useMemo(
+		() => [
+			{ value: "", label: t("right_now.any_position") },
+			...Object.entries(sexualPositionLabels)
+				.sort(([left], [right]) => Number(left) - Number(right))
+				.map(([value, label]) => ({ value, label })),
+		],
+		[t],
+	);
+
 	const ageLabel = `${ageMin}-${ageMax}${ageMax >= 102 ? "+" : ""}`;
 	const activePositionFilter =
 		positionFilterOptions.find((option) => option.value === positionFilter) ??
 		positionFilterOptions[0];
 	const hasAdvancedFilters = positionFilter.length > 0 || ageMin !== 18 || ageMax !== 102;
 	const filterSummary = useMemo(
-		() => `Position: ${activePositionFilter.label} · Age: ${ageLabel}`,
-		[activePositionFilter.label, ageLabel],
+		() =>
+			t("right_now.filter_summary", {
+				position: activePositionFilter.label,
+				age: ageLabel,
+			}),
+		[activePositionFilter.label, ageLabel, t],
 	);
 
 	useEffect(() => {
@@ -247,7 +260,9 @@ export function RightNowPage() {
 			}
 		} catch (err) {
 			if (isMountedRef.current) {
-				setError(err instanceof Error ? err.message : "Failed to load Right Now");
+				setError(
+					err instanceof Error ? err.message : t("right_now.error_load"),
+				);
 			}
 		} finally {
 			if (isMountedRef.current) {
@@ -301,11 +316,11 @@ export function RightNowPage() {
 			onRefresh={loadFeed}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
-			refreshingLabel="Refreshing Right Now..."
+			refreshingLabel={t("right_now.refreshing")}
 		>
 			{/* Header */}
 			<header className="mb-2 grid gap-3 px-[var(--app-px)]">
-				<h1 className="app-title">Right Now</h1>
+				<h1 className="app-title">{t("right_now.title")}</h1>
 
 				<div className="flex flex-wrap items-center gap-2 pb-1">
 					{/* Sort by Distance / Recency */}
@@ -318,7 +333,7 @@ export function RightNowPage() {
 						)}
 					>
 						<ArrowUpDown className="h-3.5 w-3.5" />
-						{sort === "DISTANCE" ? "Distance" : "Recent"}
+						{sort === "DISTANCE" ? t("right_now.distance") : t("right_now.recent")}
 					</button>
 
 					{/* Hosting toggle */}
@@ -332,7 +347,7 @@ export function RightNowPage() {
 								: "bg-[var(--surface-2)] text-[var(--text)]",
 						)}
 					>
-						Hosting
+						{t("right_now.hosting")}
 					</button>
 
 					<button
@@ -346,7 +361,7 @@ export function RightNowPage() {
 						)}
 					>
 						<SlidersHorizontal className="h-3.5 w-3.5" />
-						Filters
+						{t("right_now.filters")}
 					</button>
 
 					<span className="text-xs text-[var(--text-muted)] sm:text-sm">
@@ -369,12 +384,12 @@ export function RightNowPage() {
 							onClick={() => void loadFeed()}
 							className="rounded-full bg-[var(--surface-2)] px-4 py-2 text-sm font-medium text-[var(--text)]"
 						>
-							Try again
+							{t("right_now.try_again")}
 						</button>
 					</div>
 				) : items.length === 0 ? (
 					<div className="px-[var(--app-px)] py-16 text-center">
-						<p className="text-sm text-[var(--text-muted)]">Nobody here right now.</p>
+						<p className="text-sm text-[var(--text-muted)]">{t("right_now.empty")}</p>
 					</div>
 				) : (
 					<div className="divide-y divide-[var(--surface-2)]">

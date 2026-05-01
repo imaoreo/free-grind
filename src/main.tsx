@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { Toaster } from "react-hot-toast";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
+import "./i18n";
 import { markHotswapStartupReady, autoCheckAndInstallUpdate } from "./services/hotswap";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 import "./index.css";

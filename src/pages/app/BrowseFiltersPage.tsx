@@ -1,17 +1,9 @@
 import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { RangeSlider } from "../../components/ui/range-slider";
-import {
-	bodyTypeLabels,
-	lookingForLabels,
-	type ManagedOption,
-	meetAtLabels,
-	nsfwLabels,
-	relationshipStatusLabels,
-	sexualPositionLabels,
-	tribeLabels,
-} from "./GridPage.types";
+import { type ManagedOption } from "./GridPage.types";
 import {
 	type BrowseFilters,
 	type BrowseFiltersDraft,
@@ -20,19 +12,6 @@ import {
 	normalizeBrowseFiltersDraft,
 	saveBrowseFiltersDraft,
 } from "./browse-filters-storage";
-
-const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = [
-	{ key: "onlineOnly", label: "Online" },
-	{ key: "hasAlbum", label: "Has album" },
-	{ key: "photoOnly", label: "Photo" },
-	{ key: "faceOnly", label: "Face" },
-	{ key: "notRecentlyChatted", label: "No recent chat" },
-	{ key: "fresh", label: "Fresh" },
-	{ key: "rightNow", label: "Right now" },
-	{ key: "favorites", label: "Favorites" },
-	{ key: "hot", label: "Hot" },
-	{ key: "shuffle", label: "Shuffle" },
-];
 
 function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 	const persisted = loadBrowseFiltersDraft();
@@ -89,6 +68,7 @@ function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 }
 
 export function BrowseFiltersPage() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const initialDraft = useMemo(
@@ -103,8 +83,12 @@ export function BrowseFiltersPage() {
 	const [ageMax, setAgeMax] = useState(initialDraft.ageMax);
 	const [heightCmMin, setHeightCmMin] = useState(initialDraft.heightCmMin);
 	const [heightCmMax, setHeightCmMax] = useState(initialDraft.heightCmMax);
-	const [weightGramsMin, setWeightGramsMin] = useState(initialDraft.weightGramsMin);
-	const [weightGramsMax, setWeightGramsMax] = useState(initialDraft.weightGramsMax);
+	const [weightGramsMin, setWeightGramsMin] = useState(
+		initialDraft.weightGramsMin,
+	);
+	const [weightGramsMax, setWeightGramsMax] = useState(
+		initialDraft.weightGramsMax,
+	);
 	const [tribes, setTribes] = useState<number[]>(initialDraft.tribes);
 	const [lookingFor, setLookingFor] = useState<number[]>(initialDraft.lookingFor);
 	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>(
@@ -119,41 +103,123 @@ export function BrowseFiltersPage() {
 	const [tags, setTags] = useState<string[]>(initialDraft.tags);
 	const [tagDraft, setTagDraft] = useState("");
 
-	const buildOptionsFromLabels = (labels: Record<number, string>): ManagedOption[] =>
-		Object.entries(labels)
-			.map(([value, label]) => ({ value: Number(value), label }))
-			.sort((a, b) => a.label.localeCompare(b.label));
+	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> =
+		useMemo(
+			() => [
+				{ key: "onlineOnly", label: t("browse_filters.options.online") },
+				{ key: "hasAlbum", label: t("browse_filters.options.has_album") },
+				{ key: "photoOnly", label: t("browse_filters.options.photo") },
+				{ key: "faceOnly", label: t("browse_filters.options.face") },
+				{ key: "notRecentlyChatted", label: t("browse_filters.options.no_recent_chat"), },
+				{ key: "fresh", label: t("browse_filters.options.fresh") },
+				{ key: "rightNow", label: t("browse_filters.options.right_now") },
+				{ key: "favorites", label: t("browse_filters.options.favorites") },
+				{ key: "hot", label: t("browse_filters.options.hot") },
+				{ key: "shuffle", label: t("browse_filters.options.shuffle") },
+			],
+			[t],
+		);
 
-	const tribeFilterOptions = useMemo(
-		() => buildOptionsFromLabels(tribeLabels),
-		[],
-	);
-	const lookingForFilterOptions = useMemo(
-		() => buildOptionsFromLabels(lookingForLabels),
-		[],
-	);
-	const relationshipFilterOptions = useMemo(
-		() => buildOptionsFromLabels(relationshipStatusLabels),
-		[],
-	);
-	const bodyTypeFilterOptions = useMemo(
-		() => buildOptionsFromLabels(bodyTypeLabels),
-		[],
-	);
-	const sexualPositionFilterOptions = useMemo(
+	const tribeFilterOptions = useMemo<ManagedOption[]>(
 		() => [
-			{ value: -1, label: "Not specified" },
-			...buildOptionsFromLabels(sexualPositionLabels),
+			{ value: 1, label: t("profile_editor.labels.tribes.bear") },
+			{ value: 2, label: t("profile_editor.labels.tribes.clean_cut") },
+			{ value: 3, label: t("profile_editor.labels.tribes.daddy") },
+			{ value: 4, label: t("profile_editor.labels.tribes.discreet") },
+			{ value: 5, label: t("profile_editor.labels.tribes.geek") },
+			{ value: 6, label: t("profile_editor.labels.tribes.jock") },
+			{ value: 7, label: t("profile_editor.labels.tribes.leather") },
+			{ value: 8, label: t("profile_editor.labels.tribes.otter") },
+			{ value: 9, label: t("profile_editor.labels.tribes.poz") },
+			{ value: 10, label: t("profile_editor.labels.tribes.rugged") },
+			{ value: 11, label: t("profile_editor.labels.tribes.sober") },
+			{ value: 12, label: t("profile_editor.labels.tribes.trans") },
+			{ value: 13, label: t("profile_editor.labels.tribes.twink") },
 		],
-		[],
+		[t],
 	);
-	const meetAtFilterOptions = useMemo(
-		() => buildOptionsFromLabels(meetAtLabels),
-		[],
+
+	const lookingForFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: 2, label: t("profile_editor.labels.looking_for.chat") },
+			{ value: 3, label: t("profile_editor.labels.looking_for.dates") },
+			{ value: 4, label: t("profile_editor.labels.looking_for.friends") },
+			{ value: 5, label: t("profile_editor.labels.looking_for.networking") },
+			{ value: 6, label: t("profile_editor.labels.looking_for.relationship") },
+			{ value: 7, label: t("profile_editor.labels.looking_for.hookups") },
+		],
+		[t],
 	);
-	const nsfwFilterOptions = useMemo(
-		() => buildOptionsFromLabels(nsfwLabels),
-		[],
+
+	const relationshipFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.relationship_status.single") },
+			{ value: 2, label: t("profile_editor.labels.relationship_status.dating") },
+			{
+				value: 3,
+				label: t("profile_editor.labels.relationship_status.exclusive"),
+			},
+			{
+				value: 4,
+				label: t("profile_editor.labels.relationship_status.committed"),
+			},
+			{
+				value: 5,
+				label: t("profile_editor.labels.relationship_status.partnered"),
+			},
+			{ value: 6, label: t("profile_editor.labels.relationship_status.engaged") },
+			{ value: 7, label: t("profile_editor.labels.relationship_status.married") },
+			{
+				value: 8,
+				label: t("profile_editor.labels.relationship_status.open_relationship"),
+			},
+		],
+		[t],
+	);
+
+	const bodyTypeFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.body_type.toned") },
+			{ value: 2, label: t("profile_editor.labels.body_type.average") },
+			{ value: 3, label: t("profile_editor.labels.body_type.large") },
+			{ value: 4, label: t("profile_editor.labels.body_type.muscular") },
+			{ value: 5, label: t("profile_editor.labels.body_type.slim") },
+			{ value: 6, label: t("profile_editor.labels.body_type.stocky") },
+		],
+		[t],
+	);
+
+	const sexualPositionFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: -1, label: t("browse_filters.not_specified") },
+			{ value: 1, label: t("profile_editor.labels.sexual_position.top") },
+			{ value: 2, label: t("profile_editor.labels.sexual_position.bottom") },
+			{ value: 3, label: t("profile_editor.labels.sexual_position.versatile") },
+			{ value: 4, label: t("profile_editor.labels.sexual_position.vers_bottom") },
+			{ value: 5, label: t("profile_editor.labels.sexual_position.vers_top") },
+			{ value: 6, label: t("profile_editor.labels.sexual_position.side") },
+		],
+		[t],
+	);
+
+	const meetAtFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.meet_at.my_place") },
+			{ value: 2, label: t("profile_editor.labels.meet_at.your_place") },
+			{ value: 3, label: t("profile_editor.labels.meet_at.bar") },
+			{ value: 4, label: t("profile_editor.labels.meet_at.coffee_shop") },
+			{ value: 5, label: t("profile_editor.labels.meet_at.restaurant") },
+		],
+		[t],
+	);
+
+	const nsfwFilterOptions = useMemo<ManagedOption[]>(
+		() => [
+			{ value: 1, label: t("profile_editor.labels.nsfw.never") },
+			{ value: 2, label: t("profile_editor.labels.nsfw.not_at_first") },
+			{ value: 3, label: t("profile_editor.labels.nsfw.yes_please") },
+		],
+		[t],
 	);
 
 	const toggleBrowseFilter = (key: keyof BrowseFilters) => {
@@ -299,8 +365,8 @@ export function BrowseFiltersPage() {
 							<ArrowLeft className="h-4 w-4" />
 						</button>
 						<div>
-							<h1 className="app-title">Browse Filters</h1>
-							<p className="app-subtitle">Choose who appears in your grid</p>
+							<h1 className="app-title">{t("browse_filters.title")}</h1>
+							<p className="app-subtitle">{t("browse_filters.subtitle")}</p>
 						</div>
 					</div>
 					<button
@@ -308,14 +374,14 @@ export function BrowseFiltersPage() {
 						onClick={applyAndReturn}
 						className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 					>
-						Apply
+						{t("browse_filters.apply")}
 					</button>
 				</header>
 
 				<div className="surface-card space-y-4 p-4 sm:p-5">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Quick filters
+							{t("browse_filters.quick_filters")}
 						</p>
 						<div className="mt-2 flex flex-wrap gap-2">
 							{browseFilterOptions.map((filter) => {
@@ -340,7 +406,7 @@ export function BrowseFiltersPage() {
 
 					<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 						<RangeSlider
-							label="Age"
+							label={t("browse_filters.age")}
 							min={18}
 							max={99}
 							minDefault={ageMin ? Number(ageMin) : 18}
@@ -351,7 +417,7 @@ export function BrowseFiltersPage() {
 							}}
 						/>
 						<RangeSlider
-							label="Height"
+							label={t("browse_filters.height")}
 							unit="cm"
 							min={90}
 							max={230}
@@ -363,12 +429,16 @@ export function BrowseFiltersPage() {
 							}}
 						/>
 						<RangeSlider
-							label="Weight"
+							label={t("browse_filters.weight")}
 							unit="kg"
 							min={30}
 							max={200}
-							minDefault={weightGramsMin ? Math.round(Number(weightGramsMin) / 1000) : 30}
-							maxDefault={weightGramsMax ? Math.round(Number(weightGramsMax) / 1000) : 200}
+							minDefault={
+								weightGramsMin ? Math.round(Number(weightGramsMin) / 1000) : 30
+							}
+							maxDefault={
+								weightGramsMax ? Math.round(Number(weightGramsMax) / 1000) : 200
+							}
 							onChange={(min, max) => {
 								setWeightGramsMin(min === 30 ? "" : String(min * 1000));
 								setWeightGramsMax(max === 200 ? "" : String(max * 1000));
@@ -377,44 +447,56 @@ export function BrowseFiltersPage() {
 					</div>
 
 					{renderMultiSelectGroup(
-						"Sexual position",
+						t("profile_editor.sections.states.position"),
 						sexualPositionFilterOptions,
 						sexualPositions,
 						(value) => toggleMultiSelect(value, setSexualPositions),
 					)}
-					{renderMultiSelectGroup("Tribes", tribeFilterOptions, tribes, (value) =>
-						toggleMultiSelect(value, setTribes),
+					{renderMultiSelectGroup(
+						t("profile_editor.sections.states.tribes"),
+						tribeFilterOptions,
+						tribes,
+						(value) => toggleMultiSelect(value, setTribes),
 					)}
 					{renderMultiSelectGroup(
-						"Looking for",
+						t("profile_editor.sections.expectations.looking_for"),
 						lookingForFilterOptions,
 						lookingFor,
 						(value) => toggleMultiSelect(value, setLookingFor),
 					)}
 					{renderMultiSelectGroup(
-						"Relationship status",
+						t("profile_editor.sections.states.relationship_status"),
 						relationshipFilterOptions,
 						relationshipStatuses,
 						(value) => toggleMultiSelect(value, setRelationshipStatuses),
 					)}
-					{renderMultiSelectGroup("Body type", bodyTypeFilterOptions, bodyTypes, (value) =>
-						toggleMultiSelect(value, setBodyTypes),
+					{renderMultiSelectGroup(
+						t("profile_editor.sections.states.body_type"),
+						bodyTypeFilterOptions,
+						bodyTypes,
+						(value) => toggleMultiSelect(value, setBodyTypes),
 					)}
-					{renderMultiSelectGroup("Meet at", meetAtFilterOptions, meetAt, (value) =>
-						toggleMultiSelect(value, setMeetAt),
+					{renderMultiSelectGroup(
+						t("profile_editor.sections.expectations.meet_at"),
+						meetAtFilterOptions,
+						meetAt,
+						(value) => toggleMultiSelect(value, setMeetAt),
 					)}
-					{renderMultiSelectGroup("NSFW pics", nsfwFilterOptions, nsfwPics, (value) =>
-						toggleMultiSelect(value, setNsfwPics),
+					{renderMultiSelectGroup(
+						t("profile_editor.sections.expectations.accept_nsfw"),
+						nsfwFilterOptions,
+						nsfwPics,
+						(value) => toggleMultiSelect(value, setNsfwPics),
 					)}
 
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Tags
+							{t("browse_filters.tags")}
 						</p>
 						<div className="mt-2 flex flex-wrap items-center gap-2">
 							<input
 								type="text"
-								placeholder="Add a tag and press Enter"
+								placeholder={t("browse_filters.tags_placeholder")}
 								value={tagDraft}
 								onChange={(event) => setTagDraft(event.target.value)}
 								onKeyDown={(event) => {
@@ -430,7 +512,7 @@ export function BrowseFiltersPage() {
 								onClick={addTag}
 								className="h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								Add
+								{t("browse_filters.add")}
 							</button>
 						</div>
 						{tags.length > 0 ? (
@@ -455,14 +537,14 @@ export function BrowseFiltersPage() {
 							onClick={clearBrowseFilters}
 							className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						>
-							Clear all
+							{t("browse_filters.clear_all")}
 						</button>
 						<button
 							type="button"
 							onClick={applyAndReturn}
 							className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 						>
-							Apply
+							{t("browse_filters.apply")}
 						</button>
 					</div>
 				</div>

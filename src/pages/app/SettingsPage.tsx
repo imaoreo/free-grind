@@ -5,6 +5,7 @@ import {
 	Download,
 	Images,
 	Info,
+	Languages,
 	LogOut,
 	Palette,
 	Radar,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import { exportAllLogs } from "../../services/chatLog";
 import {
@@ -25,7 +27,7 @@ import {
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
 
-function getErrorMessage(error: unknown): string {
+function getErrorMessage(error: unknown, fallback: string): string {
 	if (error instanceof Error && error.message) {
 		return error.message;
 	}
@@ -40,10 +42,11 @@ function getErrorMessage(error: unknown): string {
 		// ignore
 	}
 
-	return "Failed to check or apply update.";
+	return fallback;
 }
 
 export function SettingsPage() {
+	const { t, i18n } = useTranslation();
 	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const [isExporting, setIsExporting] = useState(false);
@@ -84,7 +87,7 @@ export function SettingsPage() {
 
 	const handleCheckUpdates = async () => {
 		if (!isHotswapAvailable()) {
-			toast.error("OTA updates are only available in the Tauri app.");
+			toast.error(t("settings.ota_available_only_tauri"));
 			return;
 		}
 
@@ -100,15 +103,15 @@ export function SettingsPage() {
 			}
 
 			if (!result.available) {
-				toast.success("You already have the latest version.");
+				toast.success(t("settings.latest_version"));
 				return;
 			}
 
 			await installHotswapUpdate();
-			toast.success("Update installed. Reloading now...");
+			toast.success(t("settings.update_installed"));
 			window.location.reload();
 		} catch (error) {
-			const msg = getErrorMessage(error);
+			const msg = getErrorMessage(error, t("settings.failed_update_check"));
 			console.error("Update check failed:", error, "| message:", msg);
 			toast.error(msg, { duration: 10000 });
 		} finally {
@@ -118,7 +121,7 @@ export function SettingsPage() {
 
 	const handleSwitchUpdateChannel = async (channel: HotswapChannel) => {
 		if (!isHotswapAvailable()) {
-			toast.error("OTA updates are only available in the Tauri app.");
+			toast.error(t("settings.ota_available_only_tauri"));
 			return;
 		}
 
@@ -134,29 +137,71 @@ export function SettingsPage() {
 			const result = await checkForHotswapUpdate();
 			if (!result.requiresBinaryUpdate && result.available) {
 				await installHotswapUpdate();
-				toast.success(`Switched to ${channel} and applied update. Reloading...`);
+				toast.success(t("settings.switched_and_updated", { channel }));
 				window.location.reload();
 				return;
 			}
 
-			toast.success(`Switched to ${channel}. Reloading...`);
+			toast.success(t("settings.switched_channel", { channel }));
 			window.location.reload();
 		} catch (error) {
 			console.error("Switch update environment failed:", error);
-			toast.error("Failed to switch update environment.");
+			toast.error(t("settings.failed_switch_env"));
 		} finally {
 			setIsSwitchingChannel(false);
+		}
+	};
+
+	const changeLanguage = async (lng: string) => {
+		try {
+			await i18n.changeLanguage(lng);
+			document.documentElement.lang = lng;
+		} catch (error) {
+			console.error("Language change failed:", error);
 		}
 	};
 
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
-				<h1 className="app-title mb-2">Settings</h1>
-				<p className="app-subtitle">Choose what you want to manage.</p>
+				<h1 className="app-title mb-2">{t("settings.title")}</h1>
+				<p className="app-subtitle">{t("settings.subtitle")}</p>
 			</header>
 
 			<div className="grid gap-4">
+				<div className="surface-card flex w-full flex-col gap-4 p-4 text-left sm:p-5">
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Languages className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.language")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.language_description")}
+							</p>
+						</div>
+					</div>
+					<div className="flex gap-2">
+						{[
+							{ code: "en", label: "English" },
+							{ code: "de", label: "Deutsch" },
+						].map((lang) => (
+							<button
+								key={lang.code}
+								type="button"
+								onClick={() => changeLanguage(lang.code)}
+								className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+									i18n.language.startsWith(lang.code)
+										? "border-[var(--accent)] bg-[var(--accent)] text-black"
+										: "border-[var(--surface-2)] bg-[var(--surface-1)] text-[var(--text-muted)]"
+								}`}
+							>
+								{lang.label}
+							</button>
+						))}
+					</div>
+				</div>
+
 				<button
 					type="button"
 					onClick={() => navigate("/settings/profile-editor")}
@@ -167,9 +212,11 @@ export function SettingsPage() {
 							<BadgeInfo className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">Profile Editor</p>
+							<p className="text-base font-semibold">
+								{t("settings.profile_editor")}
+							</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Edit profile details, identity, and preferences.
+								{t("settings.profile_editor_desc")}
 							</p>
 						</div>
 					</div>
@@ -186,16 +233,18 @@ export function SettingsPage() {
 							<Palette className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">Customizability</p>
+							<p className="text-base font-semibold">
+								{t("settings.customizability")}
+							</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Change color scheme and accent color.
+								{t("settings.customizability_desc")}
 							</p>
 						</div>
 					</div>
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
 
-                {/* 
+                {/*
                     <button
                         type="button"
                         onClick={() => navigate("/settings/age-verification")}
@@ -227,9 +276,9 @@ export function SettingsPage() {
 							<Info className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">About Free Grind</p>
+							<p className="text-base font-semibold">{t("settings.about")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Project goals, credits, licence, and documentation links.
+								{t("settings.about_desc")}
 							</p>
 						</div>
 					</div>
@@ -246,9 +295,11 @@ export function SettingsPage() {
 							<Radar className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">API Inspector</p>
+							<p className="text-base font-semibold">
+								{t("settings.api_inspector")}
+							</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								View request and response history for debugging.
+								{t("settings.api_inspector_desc")}
 							</p>
 						</div>
 					</div>
@@ -265,9 +316,9 @@ export function SettingsPage() {
 							<Images className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">My Albums</p>
+							<p className="text-base font-semibold">{t("settings.my_albums")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Create, rename, and delete private albums.
+								{t("settings.my_albums_desc")}
 							</p>
 						</div>
 					</div>
@@ -285,14 +336,16 @@ export function SettingsPage() {
 							<Download className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">Export Chat Data</p>
+							<p className="text-base font-semibold">{t("settings.export_chat")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Download all locally stored messages as a JSON file.
+								{t("settings.export_chat_desc")}
 							</p>
 						</div>
 					</div>
 					{isExporting ? (
-						<span className="text-xs text-[var(--text-muted)]">Exporting…</span>
+						<span className="text-xs text-[var(--text-muted)]">
+							{t("settings.exporting")}
+						</span>
 					) : (
 						<Download className="h-5 w-5 text-[var(--text-muted)]" />
 					)}
@@ -304,9 +357,11 @@ export function SettingsPage() {
 							<RefreshCcw className="h-5 w-5" />
 						</div>
 						<div>
-							<p className="text-base font-semibold">Check for Updates</p>
+							<p className="text-base font-semibold">
+								{t("settings.check_updates")}
+							</p>
 							<p className="text-sm text-[var(--text-muted)]">
-								Environment: <strong>{updateChannel}</strong>
+								{t("settings.environment")}: <strong>{updateChannel}</strong>
 							</p>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
 								{getHotswapChannels().map((channel) => (
@@ -328,27 +383,31 @@ export function SettingsPage() {
 						</div>
 					</div>
 					{isSwitchingChannel ? (
-						<span className="text-xs text-[var(--text-muted)]">Switching…</span>
+						<span className="text-xs text-[var(--text-muted)]">
+							{t("settings.switching")}
+						</span>
 					) : isCheckingUpdates ? (
-						<span className="text-xs text-[var(--text-muted)]">Checking…</span>
+						<span className="text-xs text-[var(--text-muted)]">
+							{t("settings.checking")}
+						</span>
 					) : (
 						<Button
 							type="button"
 							onClick={() => void handleCheckUpdates()}
 							disabled={isCheckingUpdates || isSwitchingChannel}
 						>
-							Check Now
+							{t("settings.check_now")}
 						</Button>
 					)}
 				</div>
 
 				<div className="mt-2 flex flex-wrap items-center gap-3">
 					<Button type="button" onClick={() => navigate("/")}>
-						Back to Browse
+						{t("settings.back_to_browse")}
 					</Button>
 					<Button type="button" variant="primary" onClick={handleLogout}>
 						<LogOut className="h-4 w-4" />
-						Logout
+						{t("settings.logout")}
 					</Button>
 				</div>
 			</div>
