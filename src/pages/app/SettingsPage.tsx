@@ -5,7 +5,6 @@ import {
 	Download,
 	Images,
 	Info,
-	Languages,
 	LogOut,
 	Palette,
 	Radar,
@@ -46,7 +45,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function SettingsPage() {
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const [isExporting, setIsExporting] = useState(false);
@@ -152,15 +151,6 @@ export function SettingsPage() {
 		}
 	};
 
-	const changeLanguage = async (lng: string) => {
-		try {
-			await i18n.changeLanguage(lng);
-			document.documentElement.lang = lng;
-		} catch (error) {
-			console.error("Language change failed:", error);
-		}
-	};
-
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
@@ -169,38 +159,6 @@ export function SettingsPage() {
 			</header>
 
 			<div className="grid gap-4">
-				<div className="surface-card flex w-full flex-col gap-4 p-4 text-left sm:p-5">
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Languages className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.language")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.language_description")}
-							</p>
-						</div>
-					</div>
-					<div className="flex gap-2">
-						{[
-							{ code: "en", label: "English" },
-							{ code: "de", label: "Deutsch" },
-						].map((lang) => (
-							<button
-								key={lang.code}
-								type="button"
-								onClick={() => changeLanguage(lang.code)}
-								className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-									i18n.language.startsWith(lang.code)
-										? "border-[var(--accent)] bg-[var(--accent)] text-black"
-										: "border-[var(--surface-2)] bg-[var(--surface-1)] text-[var(--text-muted)]"
-								}`}
-							>
-								{lang.label}
-							</button>
-						))}
-					</div>
-				</div>
 
 				<button
 					type="button"

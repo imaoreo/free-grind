@@ -7,6 +7,11 @@ import {
 	writeAnalyticsConsentChoice,
 	type AnalyticsConsentChoice,
 } from "../../utils/analyticsConsent";
+import { useTranslation } from "react-i18next";
+import {
+	SUPPORTED_LOCALE_OPTIONS,
+	resolveSupportedLocale,
+} from "../../utils/locales";
 
 const SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: React.ReactNode }[] = [
 	{ value: "system", label: "System", icon: <Monitor className="h-5 w-5" /> },
@@ -56,12 +61,15 @@ function getContrastForHex(hexColor: string): "#1a1a1a" | "#ffffff" {
 }
 
 export function CustomizabilityPage() {
+	const { i18n } = useTranslation();
 	const { colorScheme, accentColor, mobileGridColumns, setPreferences } = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
 		() => readAnalyticsConsentChoice(),
-	);
+	); 
+    const { t } = useTranslation();
+	const selectedLocale = resolveSupportedLocale(i18n.language);
 
 	useEffect(() => {
 		setCustomHex(accentColor);
@@ -103,6 +111,16 @@ export function CustomizabilityPage() {
 		});
 	};
 
+	const handleLocaleChange = async (locale: string) => {
+		try {
+			const nextLocale = resolveSupportedLocale(locale);
+			await i18n.changeLanguage(nextLocale);
+			document.documentElement.lang = nextLocale;
+		} catch (error) {
+			console.error("Locale change failed:", error);
+		}
+	};
+
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
@@ -112,6 +130,26 @@ export function CustomizabilityPage() {
 			</header>
 
 			<div className="grid gap-6">
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("settings.language")}
+					</p>
+					<p className="mb-3 text-sm text-[var(--text-muted)]">
+						{t("settings.language_description")}
+					</p>
+					<select
+						value={selectedLocale}
+						onChange={(event) => void handleLocaleChange(event.target.value)}
+						className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+					>
+						{SUPPORTED_LOCALE_OPTIONS.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+				</div>
+
 				{/* Analytics & FreeGrind Discovery */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
