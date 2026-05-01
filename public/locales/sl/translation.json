@@ -1,11 +1,11 @@
 {
     "settings": {
-        "title": "",
-        "subtitle": "",
-        "language": "",
-        "language_description": "",
-        "profile_editor": "",
-        "profile_editor_desc": "",
+        "title": "Nastavitve",
+        "subtitle": "Izberi kaj želiš urediti.",
+        "language": "Jezik",
+        "language_description": "Izberi privzeti jezik.",
+        "profile_editor": "Urejanje profila",
+        "profile_editor_desc": "Uredi podrobnosti profila, identiteto in izbire.",
         "customizability": "",
         "customizability_desc": "",
         "about": "",
