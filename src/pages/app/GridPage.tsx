@@ -813,7 +813,10 @@ export function GridPage() {
 	const handleSelectProfile = (profileId: string) => {
 		if (window.matchMedia("(max-width: 639px)").matches) {
 			navigate(`/profile/${profileId}`, {
-				state: { returnTo: `${location.pathname}${location.search}` },
+				state: {
+					returnTo: `${location.pathname}${location.search}`,
+					profileIds: sortedCards.map((c) => c.profileId),
+				},
 			});
 			return;
 		}

@@ -57,6 +57,8 @@ type ProfileDetailsModalProps = {
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
 	variant?: "modal" | "page";
+	onPrevProfile?: () => void;
+	onNextProfile?: () => void;
 };
 
 export function ProfileDetailsModal({
@@ -77,6 +79,8 @@ export function ProfileDetailsModal({
 	genderOptions,
 	pronounOptions,
 	variant = "modal",
+	onPrevProfile,
+	onNextProfile,
 }: ProfileDetailsModalProps) {
 	const activeProfileName = useMemo(() => {
 		if (!activeProfile) {
@@ -395,6 +399,28 @@ export function ProfileDetailsModal({
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</button>
+							{(onPrevProfile || onNextProfile) && (
+								<div className="flex items-center gap-1">
+									<button
+										type="button"
+										onClick={onPrevProfile}
+										disabled={!onPrevProfile}
+										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+										aria-label="Previous profile"
+									>
+										<ChevronLeft className="h-4 w-4" />
+									</button>
+									<button
+										type="button"
+										onClick={onNextProfile}
+										disabled={!onNextProfile}
+										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+										aria-label="Next profile"
+									>
+										<ChevronRight className="h-4 w-4" />
+									</button>
+								</div>
+							)}
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 									Profile details

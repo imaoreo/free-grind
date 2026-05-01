@@ -53,11 +53,12 @@ export function GridProfilePage() {
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+	const locationState = (location.state as { returnTo?: unknown; profileIds?: unknown } | null) ?? {};
 	const returnToFromState =
-		typeof (location.state as { returnTo?: unknown } | null)?.returnTo ===
-		"string"
-			? ((location.state as { returnTo?: string }).returnTo ?? null)
-			: null;
+		typeof locationState.returnTo === "string" ? locationState.returnTo : null;
+	const profileIds: string[] = Array.isArray(locationState.profileIds)
+		? (locationState.profileIds as unknown[]).filter((x): x is string => typeof x === "string")
+		: [];
 	const returnToFromQuery = searchParams.get("returnTo");
 	const returnTo = returnToFromState ?? returnToFromQuery;
 	const safeReturnTo =
@@ -66,6 +67,17 @@ export function GridProfilePage() {
 		!returnTo.startsWith("//")
 			? returnTo
 			: "/browse";
+
+	const currentIndex = profileId ? profileIds.indexOf(profileId) : -1;
+	const prevProfileId = currentIndex > 0 ? profileIds[currentIndex - 1] : null;
+	const nextProfileId = currentIndex >= 0 && currentIndex < profileIds.length - 1 ? profileIds[currentIndex + 1] : null;
+
+	const handlePrevProfile = prevProfileId
+		? () => navigate(`/profile/${prevProfileId}`, { replace: true, state: { returnTo: safeReturnTo, profileIds } })
+		: undefined;
+	const handleNextProfile = nextProfileId
+		? () => navigate(`/profile/${nextProfileId}`, { replace: true, state: { returnTo: safeReturnTo, profileIds } })
+		: undefined;
 
 	useEffect(() => {
 		const loadManagedOptions = async () => {
@@ -467,6 +479,8 @@ export function GridProfilePage() {
 			onClose={() => {
 				navigate(safeReturnTo, { replace: true });
 			}}
+			onPrevProfile={handlePrevProfile}
+			onNextProfile={handleNextProfile}
 			onMessageProfile={handleMessageProfile}
 			onTriangleProfile={handleTriangleProfile}
 			isLocatingProfile={isLocatingProfile}
