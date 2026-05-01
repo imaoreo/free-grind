@@ -64,7 +64,7 @@ export function BrowseCardTile({
 							: "bg-black/55",
 					)}
 				>
-					{onlineStatus.label}
+					{onlineStatus.isOnline ? "Online" : onlineStatus.label}
 				</span>
 			</div>
 
