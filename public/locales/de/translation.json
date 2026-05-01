@@ -77,13 +77,13 @@
         "next": "Weiter"
     },
     "right_now": {
-        "title": "Right now",
-        "refreshing": "Aktualisiere Right now...",
+        "title": "Jetzt gerade",
+        "refreshing": "Aktualisiere Jetzt gerade..",
         "anonymous": "Anonym",
         "hosting_subtitle": "{{name}} hostet gerade",
         "member_subtitle": "{{name}} ist gerade right now",
         "distance": "Entfernung",
-        "recent": "Neu",
+        "recent": "Letzte",
         "hosting": "Hosting",
         "filters": "Filter",
         "filter_summary": "Position: {{position}} · Alter: {{age}}",
@@ -125,7 +125,7 @@
             "face": "Gesicht",
             "no_recent_chat": "Noch nicht gechattet",
             "fresh": "Neu",
-            "right_now": "Right now",
+            "right_now": "Jetzt gerade",
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
