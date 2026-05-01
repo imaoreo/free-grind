@@ -21,6 +21,17 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { Chip } from "../../components/ui/chip";
 import { BackToSettings } from "../../components/BackToSettings";
+import {
+	getBodyTypeLabelMap,
+	getBodyTypeOptions,
+	getLookingForOptions,
+	getMeetAtOptions,
+	getNsfwOptions,
+	getRelationshipStatusLabelMap,
+	getRelationshipStatusOptions,
+	getSexualPositionOptions,
+	getTribeOptions,
+} from "./profile-option-builders";
 
 const MAX_PROFILE_PHOTOS = 5;
 
@@ -341,47 +352,23 @@ export function ProfileEditorPage() {
 	>([]);
 
 	const relationshipStatusLabels = useMemo<Record<number, string>>(
-		() => ({
-			1: t("profile_editor.labels.relationship_status.single"),
-			2: t("profile_editor.labels.relationship_status.dating"),
-			3: t("profile_editor.labels.relationship_status.exclusive"),
-			4: t("profile_editor.labels.relationship_status.committed"),
-			5: t("profile_editor.labels.relationship_status.partnered"),
-			6: t("profile_editor.labels.relationship_status.engaged"),
-			7: t("profile_editor.labels.relationship_status.married"),
-			8: t("profile_editor.labels.relationship_status.open_relationship"),
-		}),
+		() => getRelationshipStatusLabelMap(t),
 		[t],
 	);
 
 	const bodyTypeLabels = useMemo<Record<number, string>>(
-		() => ({
-			1: t("profile_editor.labels.body_type.toned"),
-			2: t("profile_editor.labels.body_type.average"),
-			3: t("profile_editor.labels.body_type.large"),
-			4: t("profile_editor.labels.body_type.muscular"),
-			5: t("profile_editor.labels.body_type.slim"),
-			6: t("profile_editor.labels.body_type.stocky"),
-		}),
+		() => getBodyTypeLabelMap(t),
 		[t],
 	);
 
 	const relationshipStatusOptions = useMemo(
-		() =>
-			Object.entries(relationshipStatusLabels).map(([value, label]) => ({
-				value: Number(value),
-				label,
-			})),
-		[relationshipStatusLabels],
+		() => getRelationshipStatusOptions(t),
+		[t],
 	);
 
 	const bodyTypeOptions = useMemo(
-		() =>
-			Object.entries(bodyTypeLabels).map(([value, label]) => ({
-				value: Number(value),
-				label,
-			})),
-		[bodyTypeLabels],
+		() => getBodyTypeOptions(t),
+		[t],
 	);
 
 	const ethnicityOptions = useMemo(
@@ -400,40 +387,17 @@ export function ProfileEditorPage() {
 	);
 
 	const positionOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.sexual_position.top") },
-			{ value: 2, label: t("profile_editor.labels.sexual_position.bottom") },
-			{ value: 3, label: t("profile_editor.labels.sexual_position.versatile") },
-			{
-				value: 4,
-				label: t("profile_editor.labels.sexual_position.vers_bottom"),
-			},
-			{ value: 5, label: t("profile_editor.labels.sexual_position.vers_top") },
-			{ value: 6, label: t("profile_editor.labels.sexual_position.side") },
-		],
+		() => getSexualPositionOptions(t),
 		[t],
 	);
 
 	const lookingForOptions = useMemo(
-		() => [
-			{ value: 2, label: t("profile_editor.labels.looking_for.chat") },
-			{ value: 3, label: t("profile_editor.labels.looking_for.dates") },
-			{ value: 4, label: t("profile_editor.labels.looking_for.friends") },
-			{ value: 5, label: t("profile_editor.labels.looking_for.networking") },
-			{ value: 6, label: t("profile_editor.labels.looking_for.relationship") },
-			{ value: 7, label: t("profile_editor.labels.looking_for.hookups") },
-		],
+		() => getLookingForOptions(t),
 		[t],
 	);
 
 	const meetAtOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.meet_at.my_place") },
-			{ value: 2, label: t("profile_editor.labels.meet_at.your_place") },
-			{ value: 3, label: t("profile_editor.labels.meet_at.bar") },
-			{ value: 4, label: t("profile_editor.labels.meet_at.coffee_shop") },
-			{ value: 5, label: t("profile_editor.labels.meet_at.restaurant") },
-		],
+		() => getMeetAtOptions(t),
 		[t],
 	);
 
@@ -451,11 +415,7 @@ export function ProfileEditorPage() {
 	);
 
 	const nsfwOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.nsfw.never") },
-			{ value: 2, label: t("profile_editor.labels.nsfw.not_at_first") },
-			{ value: 3, label: t("profile_editor.labels.nsfw.yes_please") },
-		],
+		() => getNsfwOptions(t),
 		[t],
 	);
 
@@ -483,21 +443,7 @@ export function ProfileEditorPage() {
 	);
 
 	const tribeOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.tribes.bear") },
-			{ value: 2, label: t("profile_editor.labels.tribes.clean_cut") },
-			{ value: 3, label: t("profile_editor.labels.tribes.daddy") },
-			{ value: 4, label: t("profile_editor.labels.tribes.discreet") },
-			{ value: 5, label: t("profile_editor.labels.tribes.geek") },
-			{ value: 6, label: t("profile_editor.labels.tribes.jock") },
-			{ value: 7, label: t("profile_editor.labels.tribes.leather") },
-			{ value: 8, label: t("profile_editor.labels.tribes.otter") },
-			{ value: 9, label: t("profile_editor.labels.tribes.poz") },
-			{ value: 10, label: t("profile_editor.labels.tribes.rugged") },
-			{ value: 11, label: t("profile_editor.labels.tribes.sober") },
-			{ value: 12, label: t("profile_editor.labels.tribes.trans") },
-			{ value: 13, label: t("profile_editor.labels.tribes.twink") },
-		],
+		() => getTribeOptions(t),
 		[t],
 	);
 

@@ -16,7 +16,6 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
 import { cn } from "../../utils/cn";
 import blankProfileImage from "../../images/blank-profile.png";
-import { sexualPositionLabels } from "../../types/grid";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
 	type RightNowFiltersDraft,
@@ -24,6 +23,7 @@ import {
 	loadRightNowFiltersDraft,
 	saveRightNowFiltersDraft,
 } from "./rightnow-filters-storage";
+import { getSexualPositionFilterOptions } from "./profile-option-builders";
 
 type SortOption = RightNowSortOption;
 
@@ -192,12 +192,7 @@ export function RightNowPage() {
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 
 	const positionFilterOptions = useMemo(
-		() => [
-			{ value: "", label: t("right_now.any_position") },
-			...Object.entries(sexualPositionLabels)
-				.sort(([left], [right]) => Number(left) - Number(right))
-				.map(([value, label]) => ({ value, label })),
-		],
+		() => getSexualPositionFilterOptions(t, t("right_now.any_position")),
 		[t],
 	);
 

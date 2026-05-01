@@ -12,6 +12,15 @@ import {
 	normalizeBrowseFiltersDraft,
 	saveBrowseFiltersDraft,
 } from "./browse-filters-storage";
+import {
+	getBodyTypeOptions,
+	getLookingForOptions,
+	getMeetAtOptions,
+	getNsfwOptions,
+	getRelationshipStatusOptions,
+	getSexualPositionOptions,
+	getTribeOptions,
+} from "./profile-option-builders";
 
 function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 	const persisted = loadBrowseFiltersDraft();
@@ -121,104 +130,37 @@ export function BrowseFiltersPage() {
 		);
 
 	const tribeFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.tribes.bear") },
-			{ value: 2, label: t("profile_editor.labels.tribes.clean_cut") },
-			{ value: 3, label: t("profile_editor.labels.tribes.daddy") },
-			{ value: 4, label: t("profile_editor.labels.tribes.discreet") },
-			{ value: 5, label: t("profile_editor.labels.tribes.geek") },
-			{ value: 6, label: t("profile_editor.labels.tribes.jock") },
-			{ value: 7, label: t("profile_editor.labels.tribes.leather") },
-			{ value: 8, label: t("profile_editor.labels.tribes.otter") },
-			{ value: 9, label: t("profile_editor.labels.tribes.poz") },
-			{ value: 10, label: t("profile_editor.labels.tribes.rugged") },
-			{ value: 11, label: t("profile_editor.labels.tribes.sober") },
-			{ value: 12, label: t("profile_editor.labels.tribes.trans") },
-			{ value: 13, label: t("profile_editor.labels.tribes.twink") },
-		],
+		() => getTribeOptions(t),
 		[t],
 	);
 
 	const lookingForFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 2, label: t("profile_editor.labels.looking_for.chat") },
-			{ value: 3, label: t("profile_editor.labels.looking_for.dates") },
-			{ value: 4, label: t("profile_editor.labels.looking_for.friends") },
-			{ value: 5, label: t("profile_editor.labels.looking_for.networking") },
-			{ value: 6, label: t("profile_editor.labels.looking_for.relationship") },
-			{ value: 7, label: t("profile_editor.labels.looking_for.hookups") },
-		],
+		() => getLookingForOptions(t),
 		[t],
 	);
 
 	const relationshipFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.relationship_status.single") },
-			{ value: 2, label: t("profile_editor.labels.relationship_status.dating") },
-			{
-				value: 3,
-				label: t("profile_editor.labels.relationship_status.exclusive"),
-			},
-			{
-				value: 4,
-				label: t("profile_editor.labels.relationship_status.committed"),
-			},
-			{
-				value: 5,
-				label: t("profile_editor.labels.relationship_status.partnered"),
-			},
-			{ value: 6, label: t("profile_editor.labels.relationship_status.engaged") },
-			{ value: 7, label: t("profile_editor.labels.relationship_status.married") },
-			{
-				value: 8,
-				label: t("profile_editor.labels.relationship_status.open_relationship"),
-			},
-		],
+		() => getRelationshipStatusOptions(t),
 		[t],
 	);
 
 	const bodyTypeFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.body_type.toned") },
-			{ value: 2, label: t("profile_editor.labels.body_type.average") },
-			{ value: 3, label: t("profile_editor.labels.body_type.large") },
-			{ value: 4, label: t("profile_editor.labels.body_type.muscular") },
-			{ value: 5, label: t("profile_editor.labels.body_type.slim") },
-			{ value: 6, label: t("profile_editor.labels.body_type.stocky") },
-		],
+		() => getBodyTypeOptions(t),
 		[t],
 	);
 
 	const sexualPositionFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: -1, label: t("browse_filters.not_specified") },
-			{ value: 1, label: t("profile_editor.labels.sexual_position.top") },
-			{ value: 2, label: t("profile_editor.labels.sexual_position.bottom") },
-			{ value: 3, label: t("profile_editor.labels.sexual_position.versatile") },
-			{ value: 4, label: t("profile_editor.labels.sexual_position.vers_bottom") },
-			{ value: 5, label: t("profile_editor.labels.sexual_position.vers_top") },
-			{ value: 6, label: t("profile_editor.labels.sexual_position.side") },
-		],
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getSexualPositionOptions(t)],
 		[t],
 	);
 
 	const meetAtFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.meet_at.my_place") },
-			{ value: 2, label: t("profile_editor.labels.meet_at.your_place") },
-			{ value: 3, label: t("profile_editor.labels.meet_at.bar") },
-			{ value: 4, label: t("profile_editor.labels.meet_at.coffee_shop") },
-			{ value: 5, label: t("profile_editor.labels.meet_at.restaurant") },
-		],
+		() => getMeetAtOptions(t),
 		[t],
 	);
 
 	const nsfwFilterOptions = useMemo<ManagedOption[]>(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.nsfw.never") },
-			{ value: 2, label: t("profile_editor.labels.nsfw.not_at_first") },
-			{ value: 3, label: t("profile_editor.labels.nsfw.yes_please") },
-		],
+		() => getNsfwOptions(t),
 		[t],
 	);
 

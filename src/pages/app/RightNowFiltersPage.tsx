@@ -3,12 +3,12 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { RangeSlider } from "../../components/ui/range-slider";
-import { sexualPositionLabels } from "../../types/grid";
 import { cn } from "../../utils/cn";
 import {
 	loadRightNowFiltersDraft,
 	type RightNowFiltersDraft,
 } from "./rightnow-filters-storage";
+import { getSexualPositionFilterOptions } from "./profile-option-builders";
 
 function parseState(state: unknown): {
 	draft: RightNowFiltersDraft;
@@ -54,13 +54,6 @@ function parseState(state: unknown): {
 	};
 }
 
-const positionFilterOptions = [
-	{ value: "", label: "Any" },
-	...Object.entries(sexualPositionLabels)
-		.sort(([left], [right]) => Number(left) - Number(right))
-		.map(([value, label]) => ({ value, label })),
-];
-
 export function RightNowFiltersPage() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -72,12 +65,7 @@ export function RightNowFiltersPage() {
 	const [positionFilter, setPositionFilter] = useState(initialState.draft.positionFilter);
 
 	const positionFilterOptions = useMemo(
-		() => [
-			{ value: "", label: t("right_now.any_position") },
-			...Object.entries(sexualPositionLabels)
-				.sort(([left], [right]) => Number(left) - Number(right))
-				.map(([value, label]) => ({ value, label })),
-		],
+		() => getSexualPositionFilterOptions(t, t("right_now.any_position")),
 		[t],
 	);
 
