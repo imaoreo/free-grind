@@ -1,5 +1,8 @@
 use reqwest::Client;
+use reqwest_cookie_store::CookieStoreMutex;
+use std::sync::Arc;
 use tokio::sync::RwLock;
+use url::Url;
 
 use crate::error::AppError;
 
@@ -21,11 +24,31 @@ pub struct GrindrClient {
     pub(super) http: Client,
     pub(super) session: RwLock<Option<Session>>,
     pub(super) user_agent: String,
+    pub(super) cookie_store: Arc<CookieStoreMutex>,
 }
 
 impl GrindrClient {
     pub fn user_agent(&self) -> &str {
         &self.user_agent
+    }
+
+    /// Returns a `Cookie` header value containing all cookies stored for `https://grindr.mobi`,
+    /// so that the WebSocket handshake can include the same Cloudflare session cookies.
+    pub fn cookie_header_for_base_url(&self) -> Option<String> {
+        let url = Url::parse(BASE_URL).ok()?;
+        let store = self.cookie_store.lock().ok()?;
+        let pairs: Vec<_> = store.get_request_values(&url).collect();
+        if pairs.is_empty() {
+            None
+        } else {
+            Some(
+                pairs
+                    .iter()
+                    .map(|(k, v)| format!("{k}={v}"))
+                    .collect::<Vec<_>>()
+                    .join("; "),
+            )
+        }
     }
 }
 
@@ -39,12 +62,14 @@ impl GrindrClient {
             .unwrap_or("")
             .to_owned();
 
+        let cookie_store = Arc::new(CookieStoreMutex::new(Default::default()));
+
         #[cfg(target_os = "windows")]
         let http = {
             // Windows: use system certificate store, skip custom CA
             Client::builder()
                 .default_headers(headers)
-                .cookie_store(true)
+                .cookie_provider(cookie_store.clone())
                 .build()?
         };
 
@@ -56,7 +81,7 @@ impl GrindrClient {
 
             let mut builder = Client::builder()
                 .default_headers(headers)
-                .cookie_store(true);
+                .cookie_provider(cookie_store.clone());
 
             let mut custom_ca_loaded = false;
 
@@ -103,6 +128,7 @@ impl GrindrClient {
             http,
             session: RwLock::new(session),
             user_agent,
+            cookie_store,
         })
     }
 }
