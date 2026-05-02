@@ -251,6 +251,100 @@
         "error_reorder_fallback": "Reihenfolge konnte nicht geändert werden",
         "error_delete_content_fallback": "Medium konnte nicht gelöscht werden"
     },
+    "profile": {
+        "labels": {
+            "looking_for": {
+                "chat": "Chat",
+                "dates": "Verabredungen",
+                "friends": "Freunde",
+                "networking": "Vernetzung",
+                "relationship": "Beziehung",
+                "hookups": "Casual Dating"
+            },
+            "relationship_status": {
+                "single": "Single",
+                "dating": "Ich date jemanden",
+                "exclusive": "In einer monogamen Beziehung",
+                "committed": "Vergeben",
+                "partnered": "In einer Beziehung",
+                "engaged": "Verlobt",
+                "married": "Verheiratet",
+                "open_relationship": "In einer offenen Beziehung"
+            },
+            "body_type": {
+                "toned": "Wohlgeformt",
+                "average": "Durchschnitt",
+                "large": "Groß",
+                "muscular": "Muskulös",
+                "slim": "Schlank",
+                "stocky": "Dünn"
+            },
+            "ethnicity": {
+                "asian": "Asiatisch",
+                "black": "Schwarz",
+                "latino": "Latino",
+                "middle_eastern": "Aus dem Nahen Osten",
+                "mixed": "Gemischt",
+                "native_american": "Indianer",
+                "white": "Weiß",
+                "other": "Sonstige",
+                "south_asian": "Südasiatisch"
+            },
+            "sexual_position": {
+                "top": "Top",
+                "bottom": "Bottom",
+                "versatile": "Mal so, mal so",
+                "vers_bottom": "Eher Bottom",
+                "vers_top": "Eher Top",
+                "side": "Keine Penetration"
+            },
+            "meet_at": {
+                "my_place": "Bei mir",
+                "your_place": "Bei dir",
+                "bar": "Bar",
+                "coffee_shop": "Café",
+                "restaurant": "Restaurant"
+            },
+            "hiv_status": {
+                "negative": "Negativ",
+                "negative_prep": "Negativ, auf PrEP",
+                "positive": "Positiv",
+                "positive_undetectable": "Positiv, unter der Nachweisgrenze"
+            },
+            "nsfw": {
+                "never": "Niemals",
+                "not_at_first": "Nicht sofort",
+                "yes_please": "Ja, bitte"
+            },
+            "sexual_health": {
+                "condoms": "Kondome",
+                "doxy_pep": "Ich nehme DoxyPEP",
+                "prep": "Ich nehme PrEP",
+                "hiv_undetectable": "Bei mir ist HIV nicht nachweisbar",
+                "discuss": "Lieber besprechen"
+            },
+            "vaccines": {
+                "covid": "COVID-19",
+                "monkeypox": "Affenpocken",
+                "meningitis": "Meningitis"
+            },
+            "tribes": {
+                "bear": "Bär",
+                "clean_cut": "Adrett",
+                "daddy": "Daddy",
+                "discreet": "Diskret",
+                "geek": "Geek",
+                "jock": "Sportler",
+                "leather": "Leder",
+                "otter": "Otter",
+                "poz": "Poz",
+                "rugged": "Naturbursche",
+                "sober": "Abstinent",
+                "trans": "Trans",
+                "twink": "Twink"
+            }
+        }
+    },
     "profile_editor": {
         "title": "Profil-Editor",
         "management": "Profilverwaltung",
@@ -370,98 +464,6 @@
         "errors": {
             "display_name_length": "Der Anzeigename muss zwischen 3 und 15 Zeichen lang sein.",
             "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
-        },
-        "labels": {
-            "looking_for": {
-                "chat": "Chat",
-                "dates": "Verabredungen",
-                "friends": "Freunde",
-                "networking": "Vernetzung",
-                "relationship": "Beziehung",
-                "hookups": "Casual Dating"
-            },
-            "relationship_status": {
-                "single": "Single",
-                "dating": "Ich date jemanden",
-                "exclusive": "In einer monogamen Beziehung",
-                "committed": "Vergeben",
-                "partnered": "In einer Beziehung",
-                "engaged": "Verlobt",
-                "married": "Verheiratet",
-                "open_relationship": "In einer offenen Beziehung"
-            },
-            "body_type": {
-                "toned": "Wohlgeformt",
-                "average": "Durchschnitt",
-                "large": "Groß",
-                "muscular": "Muskulös",
-                "slim": "Schlank",
-                "stocky": "Dünn"
-            },
-            "ethnicity": {
-                "asian": "Asiatisch",
-                "black": "Schwarz",
-                "latino": "Latino",
-                "middle_eastern": "Aus dem Nahen Osten",
-                "mixed": "Gemischt",
-                "native_american": "Indianer",
-                "white": "Weiß",
-                "other": "Sonstige",
-                "south_asian": "Südasiatisch"
-            },
-            "sexual_position": {
-                "top": "Top",
-                "bottom": "Bottom",
-                "versatile": "Mal so, mal so",
-                "vers_bottom": "Eher Bottom",
-                "vers_top": "Eher Top",
-                "side": "Keine Penetration"
-            },
-            "meet_at": {
-                "my_place": "Bei mir",
-                "your_place": "Bei dir",
-                "bar": "Bar",
-                "coffee_shop": "Café",
-                "restaurant": "Restaurant"
-            },
-            "hiv_status": {
-                "negative": "Negativ",
-                "negative_prep": "Negativ, auf PrEP",
-                "positive": "Positiv",
-                "positive_undetectable": "Positiv, unter der Nachweisgrenze"
-            },
-            "nsfw": {
-                "never": "Niemals",
-                "not_at_first": "Nicht sofort",
-                "yes_please": "Ja, bitte"
-            },
-            "sexual_health": {
-                "condoms": "Kondome",
-                "doxy_pep": "Ich nehme DoxyPEP",
-                "prep": "Ich nehme PrEP",
-                "hiv_undetectable": "Bei mir ist HIV nicht nachweisbar",
-                "discuss": "Lieber besprechen"
-            },
-            "vaccines": {
-                "covid": "COVID-19",
-                "monkeypox": "Affenpocken",
-                "meningitis": "Meningitis"
-            },
-            "tribes": {
-                "bear": "Bär",
-                "clean_cut": "Adrett",
-                "daddy": "Daddy",
-                "discreet": "Diskret",
-                "geek": "Geek",
-                "jock": "Sportler",
-                "leather": "Leder",
-                "otter": "Otter",
-                "poz": "Poz",
-                "rugged": "Naturbursche",
-                "sober": "Abstinent",
-                "trans": "Trans",
-                "twink": "Twink"
-            }
         }
     },
     "issues_form": {

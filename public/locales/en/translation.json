@@ -405,98 +405,6 @@
         "errors": {
             "display_name_length": "Display name must be between 3 and 15 characters.",
             "about_me_length": "About Me must stay under 255 characters."
-        },
-        "labels": {
-            "looking_for": {
-                "chat": "Chat",
-                "dates": "Dates",
-                "friends": "Friends",
-                "networking": "Networking",
-                "relationship": "Relationship",
-                "hookups": "Hookups"
-            },
-            "relationship_status": {
-                "single": "Single",
-                "dating": "Dating",
-                "exclusive": "Exclusive",
-                "committed": "Committed",
-                "partnered": "Partnered",
-                "engaged": "Engaged",
-                "married": "Married",
-                "open_relationship": "Open Relationship"
-            },
-            "body_type": {
-                "toned": "Toned",
-                "average": "Average",
-                "large": "Large",
-                "muscular": "Muscular",
-                "slim": "Slim",
-                "stocky": "Stocky"
-            },
-            "ethnicity": {
-                "asian": "Asian",
-                "black": "Black",
-                "latino": "Latino",
-                "middle_eastern": "Middle Eastern",
-                "mixed": "Mixed",
-                "native_american": "Native American",
-                "white": "White",
-                "other": "Other",
-                "south_asian": "South Asian"
-            },
-            "sexual_position": {
-                "top": "Top",
-                "bottom": "Bottom",
-                "versatile": "Versatile",
-                "vers_bottom": "Vers Bottom",
-                "vers_top": "Vers Top",
-                "side": "Side"
-            },
-            "meet_at": {
-                "my_place": "My Place",
-                "your_place": "Your Place",
-                "bar": "Bar",
-                "coffee_shop": "Coffee Shop",
-                "restaurant": "Restaurant"
-            },
-            "hiv_status": {
-                "negative": "Negative",
-                "negative_prep": "Negative, on PrEP",
-                "positive": "Positive",
-                "positive_undetectable": "Positive, undetectable"
-            },
-            "nsfw": {
-                "never": "Never",
-                "not_at_first": "Not At First",
-                "yes_please": "Yes Please"
-            },
-            "sexual_health": {
-                "condoms": "Condoms",
-                "doxy_pep": "I'm on doxyPEP",
-                "prep": "I'm on PrEP",
-                "hiv_undetectable": "I'm HIV undetectable",
-                "discuss": "Prefer to discuss"
-            },
-            "vaccines": {
-                "covid": "COVID-19",
-                "monkeypox": "Monkeypox",
-                "meningitis": "Meningitis"
-            },
-            "tribes": {
-                "bear": "Bear",
-                "clean_cut": "Clean-Cut",
-                "daddy": "Daddy",
-                "discreet": "Discreet",
-                "geek": "Geek",
-                "jock": "Jock",
-                "leather": "Leather",
-                "otter": "Otter",
-                "poz": "Poz",
-                "rugged": "Rugged",
-                "sober": "Sober",
-                "trans": "Trans",
-                "twink": "Twink"
-            }
         }
     },
     "customizability": {
@@ -700,6 +608,100 @@
             "title": "New conversation",
             "subtitle": "Message profile #{{profileId}} to start chatting.",
             "write_first_message": "Write your first message..."
+        }
+    },
+    "profile": {
+        "labels": {
+            "looking_for": {
+                "chat": "Chat",
+                "dates": "Dates",
+                "friends": "Friends",
+                "networking": "Networking",
+                "relationship": "Relationship",
+                "hookups": "Hookups"
+            },
+            "relationship_status": {
+                "single": "Single",
+                "dating": "Dating",
+                "exclusive": "Exclusive",
+                "committed": "Committed",
+                "partnered": "Partnered",
+                "engaged": "Engaged",
+                "married": "Married",
+                "open_relationship": "Open Relationship"
+            },
+            "body_type": {
+                "toned": "Toned",
+                "average": "Average",
+                "large": "Large",
+                "muscular": "Muscular",
+                "slim": "Slim",
+                "stocky": "Stocky"
+            },
+            "ethnicity": {
+                "asian": "Asian",
+                "black": "Black",
+                "latino": "Latino",
+                "middle_eastern": "Middle Eastern",
+                "mixed": "Mixed",
+                "native_american": "Native American",
+                "white": "White",
+                "other": "Other",
+                "south_asian": "South Asian"
+            },
+            "sexual_position": {
+                "top": "Top",
+                "bottom": "Bottom",
+                "versatile": "Versatile",
+                "vers_bottom": "Vers Bottom",
+                "vers_top": "Vers Top",
+                "side": "Side"
+            },
+            "meet_at": {
+                "my_place": "My Place",
+                "your_place": "Your Place",
+                "bar": "Bar",
+                "coffee_shop": "Coffee Shop",
+                "restaurant": "Restaurant"
+            },
+            "hiv_status": {
+                "negative": "Negative",
+                "negative_prep": "Negative, on PrEP",
+                "positive": "Positive",
+                "positive_undetectable": "Positive, undetectable"
+            },
+            "nsfw": {
+                "never": "Never",
+                "not_at_first": "Not At First",
+                "yes_please": "Yes Please"
+            },
+            "sexual_health": {
+                "condoms": "Condoms",
+                "doxy_pep": "I'm on doxyPEP",
+                "prep": "I'm on PrEP",
+                "hiv_undetectable": "I'm HIV undetectable",
+                "discuss": "Prefer to discuss"
+            },
+            "vaccines": {
+                "covid": "COVID-19",
+                "monkeypox": "Monkeypox",
+                "meningitis": "Meningitis"
+            },
+            "tribes": {
+                "bear": "Bear",
+                "clean_cut": "Clean-Cut",
+                "daddy": "Daddy",
+                "discreet": "Discreet",
+                "geek": "Geek",
+                "jock": "Jock",
+                "leather": "Leather",
+                "otter": "Otter",
+                "poz": "Poz",
+                "rugged": "Rugged",
+                "sober": "Sober",
+                "trans": "Trans",
+                "twink": "Twink"
+            }
         }
     },
     "profile_details": {

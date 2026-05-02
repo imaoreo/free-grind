@@ -12,17 +12,17 @@ import type {
 	ProfileDetail,
 } from "../../GridPage.types";
 import {
-	bodyTypeLabels,
-	ethnicityLabels,
-	hivStatusLabels,
-	lookingForLabels,
-	meetAtLabels,
-	relationshipStatusLabels,
-	sexualHealthLabels,
-	sexualPositionLabels,
-	tribeLabels,
-	vaccineLabels,
-} from "../../GridPage.types";
+	getBodyTypeLabelMap,
+	getEthnicityLabelMap,
+	getHivStatusLabelMap,
+	getLookingForLabelMap,
+	getMeetAtLabelMap,
+	getRelationshipStatusLabelMap,
+	getSexualHealthLabelMap,
+	getSexualPositionLabelMap,
+	getTribeLabelMap,
+	getVaccineLabelMap,
+} from "../../profile-option-builders";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
@@ -126,6 +126,17 @@ export function ProfileDetailsModal({
 	const triangleButtonClassName = isTriangleDisabled
 		? "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
 		: "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]";
+
+	const lookingForLabels = useMemo(() => getLookingForLabelMap(t), [t]);
+	const meetAtLabels = useMemo(() => getMeetAtLabelMap(t), [t]);
+	const tribeLabels = useMemo(() => getTribeLabelMap(t), [t]);
+	const hivStatusLabels = useMemo(() => getHivStatusLabelMap(t), [t]);
+	const sexualHealthLabels = useMemo(() => getSexualHealthLabelMap(t), [t]);
+	const vaccineLabels = useMemo(() => getVaccineLabelMap(t), [t]);
+	const sexualPositionLabels = useMemo(() => getSexualPositionLabelMap(t), [t]);
+	const bodyTypeLabels = useMemo(() => getBodyTypeLabelMap(t), [t]);
+	const ethnicityLabels = useMemo(() => getEthnicityLabelMap(t), [t]);
+	const relationshipStatusLabels = useMemo(() => getRelationshipStatusLabelMap(t),[t]);
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
