@@ -118,6 +118,14 @@
         "clear_all": "Clear all",
         "apply": "Apply",
         "not_specified": "Not specified",
+        "sort": {
+            "default": "Default",
+            "distance": "Distance",
+            "youngest": "Youngest",
+            "oldest": "Oldest",
+            "popular": "Popular",
+            "name_az": "Name (A-Z)"
+        },
         "options": {
             "online": "Online",
             "has_album": "Has album",
@@ -129,6 +137,33 @@
             "favorites": "Favorites",
             "hot": "Hot",
             "shuffle": "Shuffle"
+        }
+    },
+    "nav": {
+        "browse": "Browse",
+        "right_now": "Right Now",
+        "interest": "Interest",
+        "inbox": "Inbox"
+    },
+    "browse_page": {
+        "title": "Browse Profiles",
+        "subtitle": "Discover people near you and jump into chats from the main feed.",
+        "sort": "Sort",
+        "filter": "Filter",
+        "location": "Location",
+        "current_location": "Current location",
+        "refreshing_feed": "Refreshing feed...",
+        "open_settings": "Open settings",
+        "settings": "Settings"
+    },
+    "chat_filters": {
+        "title": "Chat Filters",
+        "subtitle": "Refine which conversations appear in inbox",
+        "back": "Back",
+        "max_distance": "Max distance",
+        "options": {
+            "unread": "Unread",
+            "chemistry": "Chemistry"
         }
     },
     "about_page": {
@@ -436,5 +471,222 @@
                 "twink": "Twink"
             }
         }
+    },
+    "customizability": {
+        "title": "Customizability",
+        "subtitle": "Personalize the look and feel of the app.",
+        "color_scheme": "Color Scheme",
+        "accent_color": "Accent Color",
+        "selected": "Selected",
+        "custom": "Custom",
+        "picker": "Picker",
+        "apply_hex": "Apply Hex",
+        "hex_error": "Enter a valid hex color like #22c55e or 22c55e",
+        "browse_grid_mobile": "Browse Grid (Mobile)",
+        "columns_two": "2 Columns",
+        "columns_three": "3 Columns",
+        "preview": "Preview",
+        "preview_primary": "Primary Button",
+        "preview_outlined": "Outlined",
+        "preview_subtle": "Subtle",
+        "schemes": {
+            "system": "System",
+            "light": "Light",
+            "dark": "Dark"
+        },
+        "analytics": {
+            "title": "Analytics & Discovery",
+            "description": "This controls anonymous analytics and FreeGrind user discovery. If disabled, the app will not use the API to find other FreeGrind users.",
+            "note": "Your allow/deny choice is saved on this device. If enabled, the app may send your profile identifier in API requests used for presence and discovery.",
+            "allow": "Allow",
+            "deny": "Deny",
+            "current": "Current",
+            "not_selected": "Not selected yet"
+        }
+    },
+    "auth": {
+        "common": {
+            "email": "Email",
+            "password": "Password"
+        },
+        "sign_in": {
+            "title": "Sign In",
+            "subtitle": "Welcome back to Free Grind.",
+            "no_account": "Don't have an account? Sign up",
+            "method_token": "Token",
+            "method_password": "Email & Password",
+            "token_help": "How to get your authentication token",
+            "jwt_label": "JWT Token",
+            "signing_in": "Signing in...",
+            "sign_in_with_token": "Sign In with Token",
+            "submit": "Sign In"
+        },
+        "sign_up": {
+            "title": "Sign Up",
+            "subtitle": "Sign up is not implemented yet. Track progress in Issue #2.",
+            "have_account": "Already have an account? Sign in",
+            "opening_issue": "Opening issue...",
+            "open_issue": "Open Issue #2"
+        }
+    },
+    "chat": {
+        "tabs": {
+            "inbox": "Inbox",
+            "albums": "Albums"
+        },
+        "your_conversations": "Your conversations",
+        "pinned": "Pinned",
+        "muted": "Muted",
+        "conversation": "Conversation",
+        "unknown": "Unknown",
+        "you": "You",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "retry": "Retry",
+        "loading": "Loading...",
+        "load_more": "Load more",
+        "loading_inbox": "Loading inbox...",
+        "loading_messages": "Loading messages...",
+        "refreshing_inbox": "Refreshing inbox...",
+        "clear_filters": "Clear filters",
+        "open_search": "Open search",
+        "open_filters": "Open filters",
+        "profile": "Profile",
+        "no_conversations_match": "No conversations match your filters.",
+        "no_conversations": "No conversations yet.",
+        "no_messages_yet": "No messages yet.",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "clear_local_history": "Clear local history",
+        "open_conversation_actions": "Open conversation actions",
+        "share_album": "Share album",
+        "attach_media": "Attach media",
+        "manage_albums": "Manage albums",
+        "loading_albums": "Loading albums...",
+        "no_albums_available": "No albums available. Create one in Settings first.",
+        "share": "Share",
+        "write_message": "Write a message...",
+        "send": "Send",
+        "sending": "Sending...",
+        "open": "Open",
+        "album_fallback": "Album {{id}}",
+        "select_conversation": "Select a conversation to view messages.",
+        "loading_album": "Loading album...",
+        "time": {
+            "one_min_ago": "1 min ago",
+            "mins_ago": "{{count}} mins ago"
+        },
+        "preview": {
+            "sent_image": "Sent an image",
+            "shared_album": "Shared an album",
+            "sent_audio": "Sent an audio message",
+            "reacted_album_content": "Reacted to album content",
+            "sent_video": "Sent a video",
+            "sent_message": "Sent a message"
+        },
+        "thread": {
+            "unsent": "This message was unsent",
+            "image_placeholder": "[image]",
+            "video_placeholder": "[video]",
+            "audio_placeholder": "[audio]",
+            "unsupported_placeholder": "[unsupported message]",
+            "shared_image": "Shared an image",
+            "shared_video": "Shared a video",
+            "shared_audio": "Shared an audio message",
+            "failed": "Failed",
+            "from_local_history": "From local history",
+            "shared_alt": "Shared",
+            "taken_on_grindr": "Taken on Grindr",
+            "album_cover": "Album cover",
+            "album_share": "Album share"
+        },
+        "actions": {
+            "title": "Message actions",
+            "unsend": "Unsend",
+            "delete": "Delete",
+            "cancel": "Cancel"
+        },
+        "realtime": {
+            "connected": "Connected",
+            "connecting": "Connecting",
+            "reconnecting": "Reconnecting",
+            "polling": "Polling",
+            "idle": "Idle",
+            "offline": "Offline",
+            "error": "Error"
+        },
+        "attachments": {
+            "only_image_video": "Only image and video attachments are supported.",
+            "ready_to_send": "Ready to send: {{file}}",
+            "looping": "looping",
+            "taken_on_grindr": "takenOnGrindr",
+            "send_attachment": "Send attachment",
+            "uploading": "Uploading attachment",
+            "too_large": "Attachment is too large. Limit is 12MB."
+        },
+        "errors": {
+            "load_albums": "Failed to load albums",
+            "load_inbox": "Failed to load inbox",
+            "load_messages": "Failed to load messages",
+            "update_pin_state": "Failed to update pin state",
+            "update_mute_state": "Failed to update mute state",
+            "missing_recipient": "Unable to determine message recipient",
+            "send_failed": "Failed to send",
+            "rate_limited": "Sending too fast. Please wait and retry.",
+            "attachment_upload_send_failed": "Attachment upload/send failed",
+            "reupload_image": "Please re-upload this image.",
+            "react_failed": "Failed to react",
+            "unsend_failed": "Failed to unsend",
+            "delete_failed": "Failed to delete",
+            "album_share_missing_recipient": "Unable to determine recipient for album share",
+            "album_share_failed": "Failed to share album",
+            "album_open_failed": "Failed to open album"
+        },
+        "toasts": {
+            "cleared_local_history": "Cleared local history for this chat",
+            "album_shared": "Album shared"
+        },
+        "new_conversation": {
+            "title": "New conversation",
+            "subtitle": "Message profile #{{profileId}} to start chatting.",
+            "write_first_message": "Write your first message..."
+        }
+    },
+    "profile_details": {
+        "title": "Profile details",
+        "profile_fallback": "Profile {{id}}",
+        "last_online": "Last online {{value}}",
+        "close_photo_viewer": "Close photo viewer",
+        "previous_photo": "Previous photo",
+        "next_photo": "Next photo",
+        "photo_alt": "{{name}} photo",
+        "previous_profile": "Previous profile",
+        "next_profile": "Next profile",
+        "uses_free_grind": "Uses Free Grind",
+        "loading": "Loading profile details...",
+        "est_created": "Est. created",
+        "status": "Status",
+        "message": "Message",
+        "tap_profile": "Tap profile",
+        "tap_sent_recent": "Tap already sent in the last 24 hours",
+        "tap_active": "Tap active",
+        "send_tap": "Send tap",
+        "run_location_finder": "Run location finder",
+        "location_finder_running": "Location finder running",
+        "location_finder": "Location finder",
+        "locating": "Locating...",
+        "locate": "Locate",
+        "about": "About",
+        "genders": "Genders",
+        "sexual_health": "Sexual health",
+        "stats": "Stats",
+        "instagram": "Instagram",
+        "x": "X",
+        "facebook": "Facebook",
+        "close_profile_details": "Close profile details",
+        "default_profile": "Default profile",
+        "open_photo": "Open photo {{index}}"
     }
 }

@@ -5,8 +5,10 @@ import { useAuth } from "../../contexts/AuthContext";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
 import type { SignInMethod } from "../../types/auth";
+import { useTranslation } from "react-i18next";
 
 export function SignInPage() {
+	const { t } = useTranslation();
 	const [method, setMethod] = useState<SignInMethod>("token");
 
 	// Token fields
@@ -49,14 +51,14 @@ export function SignInPage() {
 
 	return (
 		<AuthShell
-			title="Sign In"
-			subtitle="Welcome back to Free Grind."
+			title={t("auth.sign_in.title")}
+			subtitle={t("auth.sign_in.subtitle")}
 			footer={
 				<Link
 					to="/auth/sign-up"
 					className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
 				>
-					Don&apos;t have an account? Sign up
+					{t("auth.sign_in.no_account")}
 				</Link>
 			}
 		>
@@ -71,7 +73,7 @@ export function SignInPage() {
 							: "text-[var(--text-muted)] hover:text-[var(--text)]"
 					}`}
 				>
-					Token
+					{t("auth.sign_in.method_token")}
 				</button>
 				<button
 					type="button"
@@ -82,7 +84,7 @@ export function SignInPage() {
 							: "text-[var(--text-muted)] hover:text-[var(--text)]"
 					}`}
 				>
-					Email &amp; Password
+					{t("auth.sign_in.method_password")}
 				</button>
 			</div>
 
@@ -95,12 +97,12 @@ export function SignInPage() {
 							rel="noreferrer"
 							className="text-sm font-medium text-[var(--text-muted)] underline underline-offset-4 hover:text-[var(--text)]"
 						>
-							How to get your authentication token
+							{t("auth.sign_in.token_help")}
 						</a>
 					</div>
 					<div>
 						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-							JWT Token
+							{t("auth.sign_in.jwt_label")}
 						</label>
 						<input
 							type="text"
@@ -112,7 +114,9 @@ export function SignInPage() {
 							autoComplete="off"
 						/>
 					</div>
-					{error ? (
+							{isTokenLoading
+								? t("auth.sign_in.signing_in")
+								: t("auth.sign_in.sign_in_with_token")}
 						<p className="text-sm text-[var(--text-muted)]">{error}</p>
 					) : null}
 					<div className="pt-2">
@@ -121,7 +125,7 @@ export function SignInPage() {
 							variant="primary"
 							loading={isTokenLoading}
 							className="w-full"
-						>
+						{t("auth.common.email")}
 							{isTokenLoading ? "Signing in..." : "Sign In with Token"}
 						</Button>
 					</div>
@@ -143,7 +147,7 @@ export function SignInPage() {
 					</div>
 					<div>
 						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-							Password
+							{t("auth.common.password")}
 						</label>
 						<input
 							type="password"
@@ -153,7 +157,9 @@ export function SignInPage() {
 							className="input-field"
 							placeholder="••••••••"
 						/>
-					</div>
+							{isPasswordLoading
+								? t("auth.sign_in.signing_in")
+								: t("auth.sign_in.submit")}
 					{error ? (
 						<p className="text-sm text-[var(--text-muted)]">{error}</p>
 					) : null}

@@ -24,6 +24,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	useLocation,
 	useNavigate,
@@ -78,6 +79,8 @@ type ChatFiltersDraft = {
 	positions: number[];
 };
 
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+
 function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
 }
@@ -130,10 +133,6 @@ function parseChatFiltersFromLocationState(state: unknown): InboxFilters | null 
 	};
 }
 
-const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
-	numeric: "auto",
-});
-
 async function buildBinaryUpload(file: File): Promise<{
 	body: Uint8Array;
 	contentType: string;
@@ -145,10 +144,17 @@ async function buildBinaryUpload(file: File): Promise<{
 	};
 }
 
-function formatConversationTime(timestamp: number | null | undefined): string {
+function formatConversationTime(
+	timestamp: number | null | undefined,
+	locale?: string,
+): string {
 	if (!timestamp) {
 		return "";
 	}
+
+	const inboxRelativeTime = new Intl.RelativeTimeFormat(locale, {
+		numeric: "auto",
+	});
 
 	const now = Date.now();
 	const diffMs = timestamp - now;
@@ -171,7 +177,11 @@ function formatConversationTime(timestamp: number | null | undefined): string {
 	return new Date(timestamp).toLocaleDateString();
 }
 
-function formatMessageTime(timestamp: number, now: number): string {
+function formatMessageTime(
+	timestamp: number,
+	now: number,
+	t: TranslateFn,
+): string {
 	const diffMs = now - timestamp;
 	const minuteMs = 60 * 1000;
 	const hourMs = 60 * minuteMs;
@@ -179,9 +189,9 @@ function formatMessageTime(timestamp: number, now: number): string {
 	if (diffMs < hourMs) {
 		const minsAgo = Math.max(0, Math.floor(diffMs / minuteMs));
 		if (minsAgo <= 1) {
-			return "1 min ago";
+			return t("chat.time.one_min_ago");
 		}
-		return `${minsAgo} mins ago`;
+		return t("chat.time.mins_ago", { count: minsAgo });
 	}
 
 	return new Date(timestamp).toLocaleTimeString([], {
@@ -205,7 +215,11 @@ function formatDateTime24(timestamp: number): string {
  * Determines the date header label for grouping messages in the chat thread.
  * Returns "Today", "Yesterday", a weekday (e.g., "Monday"), or a formatted date.
  */
-function formatDateHeader(timestamp: number, now: number): string {
+function formatDateHeader(
+	timestamp: number,
+	now: number,
+	t: TranslateFn,
+): string {
 	const msgDate = new Date(timestamp);
 	const nowDate = new Date(now);
 
@@ -215,13 +229,13 @@ function formatDateHeader(timestamp: number, now: number): string {
 		d1.getDate() === d2.getDate();
 
 	if (isSameDay(msgDate, nowDate)) {
-		return "Today";
+		return t("chat.today");
 	}
 
 	const yesterday = new Date(now);
 	yesterday.setDate(yesterday.getDate() - 1);
 	if (isSameDay(msgDate, yesterday)) {
-		return "Yesterday";
+		return t("chat.yesterday");
 	}
 
 	const oneWeekAgo = new Date(now);
@@ -241,10 +255,10 @@ function formatDateHeader(timestamp: number, now: number): string {
 	}).format(msgDate);
 }
 
-function getPreviewText(conversation: ConversationEntry): string {
+function getPreviewText(conversation: ConversationEntry, t: TranslateFn): string {
 	const preview = conversation.data.preview;
 	if (!preview) {
-		return "No messages yet";
+		return t("chat.no_messages_yet");
 	}
 
 	if (preview.text?.trim()) {
@@ -254,23 +268,23 @@ function getPreviewText(conversation: ConversationEntry): string {
 	switch (preview.type) {
 		case "Image":
 		case "ExpiringImage":
-			return "Sent an image";
+			return t("chat.preview.sent_image");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
-			return "Shared an album";
+			return t("chat.preview.shared_album");
 		case "Audio":
-			return "Sent an audio message";
+			return t("chat.preview.sent_audio");
 		case "AlbumContentReaction":
-			return "Reacted to album content";
+			return t("chat.preview.reacted_album_content");
 		case "Video":
-			return "Sent a video";
+			return t("chat.preview.sent_video");
 		default:
-			return "Sent a message";
+			return t("chat.preview.sent_message");
 	}
 }
 
-function getMessagePreviewLabel(message: Message): string {
+function getMessagePreviewLabel(message: Message, t: TranslateFn): string {
 	if (
 		typeof (message.body as Record<string, unknown> | null)?.text === "string"
 	) {
@@ -280,37 +294,37 @@ function getMessagePreviewLabel(message: Message): string {
 	switch (message.type) {
 		case "Image":
 		case "ExpiringImage":
-			return "Sent an image";
+			return t("chat.preview.sent_image");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
-			return "Shared an album";
+			return t("chat.preview.shared_album");
 		case "Audio":
-			return "Sent an audio message";
+			return t("chat.preview.sent_audio");
 		case "AlbumContentReaction":
-			return "Reacted to album content";
+			return t("chat.preview.reacted_album_content");
 		case "Video":
-			return "Sent a video";
+			return t("chat.preview.sent_video");
 		default:
-			return "Sent a message";
+			return t("chat.preview.sent_message");
 	}
 }
 
-function getMessageText(message: UiMessage): string {
+function getMessageText(message: UiMessage, t: TranslateFn): string {
 	if (!message.body || typeof message.body !== "object") {
 		if (message.unsent) {
-			return "This message was unsent";
+			return t("chat.thread.unsent");
 		}
 		if (message.type === "Image" || message.type === "ExpiringImage") {
-			return "[image]";
+			return t("chat.thread.image_placeholder");
 		}
 		if (message.type === "Video") {
-			return "[video]";
+			return t("chat.thread.video_placeholder");
 		}
 		if (message.type === "Audio") {
-			return "[audio]";
+			return t("chat.thread.audio_placeholder");
 		}
-		return "[unsupported message]";
+		return t("chat.thread.unsupported_placeholder");
 	}
 
 	const body = message.body as Record<string, unknown>;
@@ -323,23 +337,23 @@ function getMessageText(message: UiMessage): string {
 		message.type === "ExpiringAlbum" ||
 		message.type === "ExpiringAlbumV2"
 	) {
-		return "Shared an album";
+		return t("chat.preview.shared_album");
 	}
 
 	if (message.type === "Image" || message.type === "ExpiringImage") {
-		return "Shared an image";
+		return t("chat.thread.shared_image");
 	}
 
 	if (message.type === "Video") {
-		return "Shared a video";
+		return t("chat.thread.shared_video");
 	}
 
 	if (message.type === "Audio") {
-		return "Shared an audio message";
+		return t("chat.thread.shared_audio");
 	}
 
 	if (message.type === "AlbumContentReaction") {
-		return "Reacted to album content";
+		return t("chat.preview.reacted_album_content");
 	}
 
 	return `[${message.type}]`;
@@ -743,6 +757,7 @@ function useDesktopBreakpoint() {
 }
 
 export function ChatPage() {
+	const { t, i18n } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
@@ -1173,7 +1188,7 @@ export function ChatPage() {
 					return conversation;
 				}
 
-				const text = getMessagePreviewLabel(latestMessage);
+				const text = getMessagePreviewLabel(latestMessage, t);
 
 				return {
 					...conversation,
@@ -1301,7 +1316,7 @@ export function ChatPage() {
 			return mapped;
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to load albums",
+				error instanceof Error ? error.message : t("chat.errors.load_albums"),
 			);
 			return [];
 		} finally {
@@ -1365,7 +1380,7 @@ export function ChatPage() {
 				}
 			} catch (error) {
 				const message =
-					error instanceof Error ? error.message : "Failed to load inbox";
+					error instanceof Error ? error.message : t("chat.errors.load_inbox");
 				setInboxError(message);
 			} finally {
 				setIsLoadingInbox(false);
@@ -1642,7 +1657,7 @@ export function ChatPage() {
 				if (!older) {
 					const newest = response.messages[response.messages.length - 1];
 					if (newest) {
-						const previewText = getMessagePreviewLabel(newest);
+						const previewText = getMessagePreviewLabel(newest, t);
 
 						syncConversation((conversation) => ({
 							...conversation,
@@ -1684,7 +1699,7 @@ export function ChatPage() {
 				}
 			} catch (error) {
 				const message =
-					error instanceof Error ? error.message : "Failed to load messages";
+					error instanceof Error ? error.message : t("chat.errors.load_messages");
 				setThreadError(message);
 			} finally {
 				setIsLoadingThread(false);
@@ -1892,7 +1907,7 @@ export function ChatPage() {
 		switch (realtimeStatus) {
 			case "connected":
 				return {
-					label: "Connected",
+					label: t("chat.realtime.connected"),
 					symbol: "✓",
 					className:
 						"border-emerald-500/40 bg-emerald-500/15 text-emerald-700",
@@ -1900,7 +1915,10 @@ export function ChatPage() {
 			case "disconnected":
 			case "error":
 				return {
-					label: realtimeStatus === "error" ? "Error" : "Offline",
+					label:
+						realtimeStatus === "error"
+							? t("chat.realtime.error")
+							: t("chat.realtime.offline"),
 					symbol: "•",
 					className: "border-red-500/40 bg-red-500/15 text-red-700",
 				};
@@ -1908,18 +1926,18 @@ export function ChatPage() {
 				return {
 					label:
 						realtimeStatus === "reconnecting"
-							? "Reconnecting"
+							? t("chat.realtime.reconnecting")
 							: realtimeStatus === "connecting"
-								? "Connecting"
+								? t("chat.realtime.connecting")
 								: realtimeStatus === "polling"
-									? "Polling"
-									: "Idle",
+									? t("chat.realtime.polling")
+									: t("chat.realtime.idle"),
 					symbol: "•",
 					className:
 						"border-amber-500/40 bg-amber-500/15 text-amber-700",
 				};
 		}
-	}, [realtimeStatus]);
+	}, [realtimeStatus, t]);
 
 	const selectedActionMessage = useMemo(() => {
 		if (!openMessageActionId) {
@@ -2062,7 +2080,7 @@ export function ChatPage() {
 			}));
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to update pin state",
+				error instanceof Error ? error.message : t("chat.errors.update_pin_state"),
 			);
 		} finally {
 			setIsUpdatingConversationState(false);
@@ -2093,7 +2111,7 @@ export function ChatPage() {
 			}));
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to update mute state",
+				error instanceof Error ? error.message : t("chat.errors.update_mute_state"),
 			);
 		} finally {
 			setIsUpdatingConversationState(false);
@@ -2113,7 +2131,7 @@ export function ChatPage() {
 					!(message._localOnly && message.conversationId === conversationId),
 			),
 		);
-		toast.success("Cleared local history for this chat");
+		toast.success(t("chat.toasts.cleared_local_history"));
 	}, [selectedConversation]);
 
 	const sendTextMessage = useCallback(
@@ -2127,7 +2145,7 @@ export function ChatPage() {
 				: targetProfileId;
 
 			if (!targetProfileIdValue) {
-				toast.error("Unable to determine message recipient");
+				toast.error(t("chat.errors.missing_recipient"));
 				return;
 			}
 
@@ -2224,9 +2242,9 @@ export function ChatPage() {
 
 				const apiError = error as ChatApiError;
 				const fallback =
-					error instanceof Error ? error.message : "Failed to send";
+					error instanceof Error ? error.message : t("chat.errors.send_failed");
 				if (apiError?.status === 429) {
-					toast.error("Sending too fast. Please wait and retry.");
+					toast.error(t("chat.errors.rate_limited"));
 				} else {
 					toast.error(fallback);
 				}
@@ -2258,7 +2276,7 @@ export function ChatPage() {
 				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
 				: targetProfileId;
 			if (!targetProfileIdValue) {
-				toast.error("Unable to determine message recipient");
+				toast.error(t("chat.errors.missing_recipient"));
 				return;
 			}
 
@@ -2270,7 +2288,7 @@ export function ChatPage() {
 			}
 
 			if (file.size > 12 * 1024 * 1024) {
-				toast.error("Attachment is too large. Limit is 12MB.");
+				toast.error(t("chat.attachments.too_large"));
 				return;
 			}
 
@@ -2387,7 +2405,7 @@ export function ChatPage() {
 				toast.error(
 					error instanceof Error
 						? error.message
-						: "Attachment upload/send failed",
+						: t("chat.errors.attachment_upload_send_failed"),
 				);
 			} finally {
 				window.clearInterval(progressId);
@@ -2446,7 +2464,7 @@ export function ChatPage() {
 		}
 
 		if (message.type === "Image" || message.type === "ExpiringImage") {
-			toast.error("Please re-upload this image.");
+			toast.error(t("chat.errors.reupload_image"));
 			return;
 		}
 
@@ -2500,7 +2518,7 @@ export function ChatPage() {
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to react",
+					: t("chat.errors.react_failed"),
 			);
 		} finally {
 			setIsMutatingMessageId(null);
@@ -2565,7 +2583,7 @@ export function ChatPage() {
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to unsend");
+			toast.error(error instanceof Error ? error.message : t("chat.errors.unsend_failed"));
 		} finally {
 			setIsMutatingMessageId(null);
 		}
@@ -2602,7 +2620,7 @@ export function ChatPage() {
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to delete");
+			toast.error(error instanceof Error ? error.message : t("chat.errors.delete_failed"));
 		} finally {
 			setIsMutatingMessageId(null);
 		}
@@ -2615,7 +2633,7 @@ export function ChatPage() {
 			}
 			const targetProfile = getOtherParticipant(selectedConversation, userId);
 			if (!targetProfile?.profileId) {
-				toast.error("Unable to determine recipient for album share");
+				toast.error(t("chat.errors.album_share_missing_recipient"));
 				return;
 			}
 
@@ -2630,7 +2648,7 @@ export function ChatPage() {
 						},
 					],
 				});
-				toast.success("Album shared");
+				toast.success(t("chat.toasts.album_shared"));
 				setIsAlbumPickerOpen(false);
 				void loadThread({
 					conversationId: selectedConversation.data.conversationId,
@@ -2638,7 +2656,7 @@ export function ChatPage() {
 				});
 			} catch (error) {
 				toast.error(
-					error instanceof Error ? error.message : "Failed to share album",
+					error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
 				);
 			} finally {
 				setIsSharingAlbum(false);
@@ -2660,7 +2678,7 @@ export function ChatPage() {
 				setAlbumViewerMediaIndex(null);
 			} catch (error) {
 				toast.error(
-					error instanceof Error ? error.message : "Failed to open album",
+					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
 				setIsAlbumViewerLoading(false);
@@ -2834,7 +2852,7 @@ export function ChatPage() {
 			onRefresh={() => loadInbox({ page: 1, replace: true })}
 			isDisabled={isLoadingInbox || isLoadingMoreInbox}
 			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
-			refreshingLabel="Refreshing inbox..."
+			refreshingLabel={t("chat.refreshing_inbox")}
 			onTouchStartExtra={handleInboxTouchStart}
 			onTouchEndExtra={handleInboxTouchEnd}
 		>
@@ -2853,7 +2871,7 @@ export function ChatPage() {
 							</span>
 						}
 					/>
-					<p className="app-subtitle mt-1">Your conversations</p>
+					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<button
@@ -2867,7 +2885,7 @@ export function ChatPage() {
 							})
                         }
 						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label="Open search"
+						aria-label={t("chat.open_filters")}
 					>
 						<SlidersHorizontal className="h-4 w-4" />
 					</button>
@@ -2875,7 +2893,7 @@ export function ChatPage() {
 						type="button"
 						onClick={() => navigate("/chat/search")}
 						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label="Open search"
+						aria-label={t("chat.open_search")}
 					>
 						<Search className="h-4 w-4" />
 					</button>
@@ -2885,7 +2903,7 @@ export function ChatPage() {
 							onClick={clearInboxFilters}
 							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						>
-							Clear filters
+							{t("chat.clear_filters")}
 						</button>
 					) : null}
 				</div>
@@ -2893,7 +2911,7 @@ export function ChatPage() {
 
 			{isLoadingInbox ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading inbox...
+					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat.loading_inbox")}
 				</div>
 			) : inboxError ? (
 				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
@@ -2903,7 +2921,7 @@ export function ChatPage() {
 						onClick={() => void loadInbox({ page: 1, replace: true })}
 						className="btn-accent px-4 py-2 text-sm"
 					>
-						Retry
+						{t("chat.retry")}
 					</button>
 				</div>
 			) : filteredConversations.length === 0 ? (
@@ -2911,8 +2929,8 @@ export function ChatPage() {
 					<MessageCircle className="h-8 w-8" />
 					<p className="text-sm">
 						{hasActiveInboxFilters
-							? "No conversations match your filters."
-							: "No conversations yet."}
+							? t("chat.no_conversations_match")
+							: t("chat.no_conversations")}
 					</p>
 				</div>
 			) : (
@@ -2950,7 +2968,7 @@ export function ChatPage() {
 									>
 										<img
 											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-											alt={conversation.data.name || "Profile"}
+											alt={conversation.data.name || t("chat.profile")}
 											className="h-full w-full object-cover"
 										/>
 									</div>
@@ -2958,13 +2976,13 @@ export function ChatPage() {
 										<div className="flex items-center justify-between gap-2">
 											<div className="flex items-center gap-1 min-w-0">
 												<p className="truncate font-semibold">
-													{conversation.data.name || "Unknown"}
+													{conversation.data.name || t("chat.unknown")}
 												</p>
 												{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
 													<img
 														src={freegrindLogo}
 														alt="Free Grind user"
-														title="Uses Free Grind"
+														title={t("profile_details.uses_free_grind")}
 														className="shrink-0 h-4 w-4 rounded-full border border-[var(--border)]"
 													/>
 												)}
@@ -2972,21 +2990,22 @@ export function ChatPage() {
 											<span className="text-xs text-[var(--text-muted)]">
 												{formatConversationTime(
 													conversation.data.lastActivityTimestamp,
+													i18n.language,
 												)}
 											</span>
 										</div>
 										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
-											{getPreviewText(conversation)}
+											{getPreviewText(conversation, t)}
 										</p>
 										<div className="mt-2 flex items-center gap-2">
 											{conversation.data.pinned ? (
 												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Pinned
+													{t("chat.pinned")}
 												</span>
 											) : null}
 											{conversation.data.muted ? (
 												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Muted
+													{t("chat.muted")}
 												</span>
 											) : null}
 										</div>
@@ -3004,7 +3023,7 @@ export function ChatPage() {
 							disabled={isLoadingMoreInbox}
 							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
 						>
-							{isLoadingMoreInbox ? "Loading..." : "Load more"}
+							{isLoadingMoreInbox ? t("chat.loading") : t("chat.load_more")}
 						</button>
 					) : null}
 				</div>
@@ -3070,7 +3089,7 @@ export function ChatPage() {
 							>
 								<img
 									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-									alt={selectedConversation.data.name || "Profile"}
+										alt={selectedConversation.data.name || t("chat.profile")}
 									className="h-full w-full object-cover"
 								/>
 							</button>
@@ -3277,9 +3296,10 @@ export function ChatPage() {
                             // Track the last header label to detect day transitions during rendering
                             let lastHeader = "";
                             return threadMessages.map((message) => {
-                                const currentHeader = formatDateHeader(
+								const currentHeader = formatDateHeader(
                                     message.timestamp,
                                     nowTimestamp,
+									t,
                                 );
                                 const isNewDay = currentHeader !== lastHeader;
                                 lastHeader = currentHeader;
@@ -3299,16 +3319,16 @@ export function ChatPage() {
 								const audioUrl = getMessageAudioUrl(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
-								const messageText = getMessageText(message);
+								const messageText = getMessageText(message, t);
 								const isExpiringImage = message.type === "ExpiringImage";
 								const isAlbumMessage =
 									message.type === "Album" ||
 									message.type === "ExpiringAlbum" ||
 									message.type === "ExpiringAlbumV2";
 								const isImageOnlyBubble =
-									Boolean(imageUrl) && messageText === "Shared an image";
+									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
-									isAlbumMessage && messageText === "Shared an album";
+									isAlbumMessage && messageText === t("chat.preview.shared_album");
 								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
 								const senderParticipant =
 									selectedConversation.data.participants.find(
@@ -3321,8 +3341,8 @@ export function ChatPage() {
 										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
 										: blankProfileImage;
 								const senderLabel = mine
-									? "You"
-									: selectedConversation.data.name?.trim() || "Unknown";
+									? t("chat.you")
+									: selectedConversation.data.name?.trim() || t("chat.unknown");
 								const isActiveSearchMatch =
 									selectedThreadMessageMatches[activeThreadSearchIndex]
 										?.messageId === message.messageId;
@@ -3374,7 +3394,7 @@ export function ChatPage() {
 										>
 											{localOnly ? (
 												<p className="mb-1 text-xs opacity-60">
-													From local history
+													{t("chat.thread.from_local_history")}
 												</p>
 											) : null}
 											{imageUrl ? (
@@ -3392,7 +3412,7 @@ export function ChatPage() {
 													<div className="relative">
 													<img
 														src={imageUrl}
-														alt="Shared"
+														alt={t("chat.thread.shared_alt")}
 															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
 													/>
 													{isExpiringImage ? (
@@ -3405,7 +3425,7 @@ export function ChatPage() {
 															{ messageTakenOnGrindr ? (
                                                                 <img
                                                                     src={freegrindLogo}
-                                                                    alt="Taken on Grindr"
+																	    alt={t("chat.thread.taken_on_grindr")}
                                                                     className="h-3.5 w-3.5 rounded-full"
                                                                 />
                                                             ) : null}
@@ -3421,12 +3441,12 @@ export function ChatPage() {
 														{isImageOnlyBubble ? (
 															<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
 																<div className="flex items-center gap-2">
-																	{pending ? <span>Sending...</span> : null}
-																	{failed ? <span>Failed</span> : null}
+																	{pending ? <span>{t("chat.sending")}</span> : null}
+																	{failed ? <span>{t("chat.thread.failed")}</span> : null}
 																</div>
 																<div className="flex items-center gap-2">
 																	<span>
-																		{formatMessageTime(message.timestamp, nowTimestamp)}
+																		{formatMessageTime(message.timestamp, nowTimestamp, t)}
 																	</span>
 																	{isDesktop &&
 																	!pending &&
@@ -3473,7 +3493,7 @@ export function ChatPage() {
 														{albumCover ? (
 															<img
 																src={albumCover}
-																alt="Album cover"
+															alt={t("chat.thread.album_cover")}
 																className="h-full w-full object-cover"
 																onError={(event) => {
 																	event.currentTarget.style.display = "none";
@@ -3493,12 +3513,12 @@ export function ChatPage() {
 														</div>
 														<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
 															<div className="flex items-center gap-2">
-																{pending ? <span>Sending...</span> : null}
-																{failed ? <span>Failed</span> : null}
+																{pending ? <span>{t("chat.sending")}</span> : null}
+																{failed ? <span>{t("chat.thread.failed")}</span> : null}
 															</div>
 															<div className="flex items-center gap-2">
 																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp)}
+																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
 																</span>
 																{isDesktop &&
 																!pending &&
@@ -3549,13 +3569,13 @@ export function ChatPage() {
 													{albumCover ? (
 														<img
 															src={albumCover}
-															alt="Album cover"
+															alt={t("chat.thread.album_cover")}
 															className="mb-2 h-36 w-full rounded-lg object-cover"
 														/>
 													) : null}
 													<div className="flex items-center justify-between gap-2">
 														<span className="text-xs font-medium">
-															Album share
+															{t("chat.thread.album_share")}
 														</span>
 														<button
 															type="button"
@@ -3567,7 +3587,7 @@ export function ChatPage() {
 															className="rounded-md border border-black/20 px-2 py-1 text-[11px]"
 															disabled={!albumId}
 														>
-															Open
+															{t("chat.open")}
 														</button>
 													</div>
 												</div>
@@ -3601,12 +3621,12 @@ export function ChatPage() {
 											{!isMediaOnlyBubble ? (
 											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
 												<div className="flex items-center gap-2">
-													{pending ? <span>Sending...</span> : null}
-													{failed ? <span>Failed</span> : null}
+													{pending ? <span>{t("chat.sending")}</span> : null}
+													{failed ? <span>{t("chat.thread.failed")}</span> : null}
 												</div>
 												<div className="flex items-center gap-2">
 													<span>
-														{formatMessageTime(message.timestamp, nowTimestamp)}
+														{formatMessageTime(message.timestamp, nowTimestamp, t)}
 													</span>
 													{isDesktop &&
 													!pending &&
@@ -3640,7 +3660,7 @@ export function ChatPage() {
 															}
 															className="rounded-md border border-black/20 px-2 py-1"
 														>
-															Unsend
+															{t("chat.actions.unsend")}
 														</button>
 													) : null}
 													<button
@@ -3649,7 +3669,7 @@ export function ChatPage() {
 														disabled={isMutatingMessageId === message.messageId}
 														className="rounded-md border border-black/20 px-2 py-1"
 													>
-														Delete
+														{t("chat.actions.delete")}
 													</button>
 												</div>
 											) : null}
@@ -3660,7 +3680,7 @@ export function ChatPage() {
 													onClick={() => handleRetry(message)}
 													className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 py-1 text-[11px] font-semibold"
 												>
-													Retry
+													{t("chat.retry")}
 												</button>
 											) : null}
 										</div>
@@ -3684,7 +3704,7 @@ export function ChatPage() {
 								onClick={toggleAlbumPicker}
 								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								<Share2 className="mr-1 inline h-3.5 w-3.5" /> Share album
+								<Share2 className="mr-1 inline h-3.5 w-3.5" /> {t("chat.share_album")}
 							</button>
 							<button
 								type="button"
@@ -3692,7 +3712,7 @@ export function ChatPage() {
 								disabled={isUploadingAttachment}
 								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 							>
-								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
+								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
 							</button>
 							<input
 								type="file"
@@ -3706,14 +3726,14 @@ export function ChatPage() {
 								onClick={() => navigate("/settings/albums")}
 								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								Manage albums
+								{t("chat.manage_albums")}
 							</button>
 						</div>
 
 						{pendingAttachmentFile ? (
 							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 								<p className="text-xs font-medium text-[var(--text)]">
-									Ready to send: {pendingAttachmentFile.name}
+									{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
 								</p>
 								<div className="mt-2 grid gap-2">
 									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -3724,7 +3744,7 @@ export function ChatPage() {
 												setAttachmentLooping(event.target.checked)
 											}
 										/>
-										<span>looping</span>
+										<span>{t("chat.attachments.looping")}</span>
 									</label>
 									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
 										<input
@@ -3734,7 +3754,7 @@ export function ChatPage() {
 												setAttachmentTakenOnGrindr(event.target.checked)
 											}
 										/>
-										<span>takenOnGrindr</span>
+										<span>{t("chat.attachments.taken_on_grindr")}</span>
 									</label>
 								</div>
 								<div className="mt-3 flex gap-2">
@@ -3744,7 +3764,7 @@ export function ChatPage() {
 										disabled={isUploadingAttachment}
 										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
 									>
-										Send attachment
+										{t("chat.attachments.send_attachment")}
 									</button>
 									<button
 										type="button"
@@ -3752,7 +3772,7 @@ export function ChatPage() {
 										disabled={isUploadingAttachment}
 										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
 									>
-										Cancel
+										{t("chat.actions.cancel")}
 									</button>
 								</div>
 							</div>
@@ -3762,12 +3782,11 @@ export function ChatPage() {
 							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
 								{isLoadingAlbums ? (
 									<div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading
-										albums...
+										<Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
 									</div>
 								) : shareableAlbums.length === 0 ? (
 									<p className="text-xs text-[var(--text-muted)]">
-										No albums available. Create one in Settings first.
+										{t("chat.no_albums_available")}
 									</p>
 								) : (
 									<div className="grid gap-2 sm:grid-cols-2">
@@ -3777,7 +3796,7 @@ export function ChatPage() {
 												className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
 											>
 												<p className="truncate text-xs font-medium">
-													{album.albumName || `Album ${album.albumId}`}
+													{album.albumName || t("chat.album_fallback", { id: album.albumId })}
 												</p>
 												<button
 													type="button"
@@ -3787,7 +3806,7 @@ export function ChatPage() {
 													disabled={!album.isShareable || isSharingAlbum}
 													className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
 												>
-													Share
+													{t("chat.share")}
 												</button>
 											</div>
 										))}
@@ -3799,7 +3818,7 @@ export function ChatPage() {
 						{isUploadingAttachment || uploadProgress > 0 ? (
 							<div className="mb-2">
 								<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-									<span>Uploading attachment</span>
+									<span>{t("chat.attachments.uploading")}</span>
 									<span>{Math.round(uploadProgress)}%</span>
 								</div>
 								<div className="h-2 rounded-full bg-[var(--surface-2)]">
@@ -3817,7 +3836,7 @@ export function ChatPage() {
 								onChange={(event) => setDraft(event.target.value)}
 								rows={2}
 								maxLength={5000}
-								placeholder="Write a message..."
+								placeholder={t("chat.write_message")}
 								className="input-field min-h-[56px] resize-none"
 							/>
 							<button
@@ -3825,7 +3844,7 @@ export function ChatPage() {
 								disabled={isSending || draft.trim().length === 0}
 								className="btn-accent h-11 shrink-0 px-4 text-sm"
 							>
-								{isSending ? "Sending" : "Send"}
+								{isSending ? t("chat.sending") : t("chat.send")}
 							</button>
 						</div>
 					</form>
@@ -3840,7 +3859,7 @@ export function ChatPage() {
 								onClick={(event) => event.stopPropagation()}
 							>
 								<p className="px-1 pb-2 text-center text-xs font-medium tracking-wide text-[var(--text-muted)]">
-									Message actions
+									{t("chat.actions.title")}
 								</p>
 								<div className="grid gap-2">
 									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
@@ -3852,7 +3871,7 @@ export function ChatPage() {
 											}
 											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
 										>
-											Unsend
+											{t("chat.actions.unsend")}
 										</button>
 									) : null}
 									<button
@@ -3863,14 +3882,14 @@ export function ChatPage() {
 										}
 										className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
 									>
-										Delete
+										{t("chat.actions.delete")}
 									</button>
 									<button
 										type="button"
 										onClick={() => setOpenMessageActionId(null)}
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 									>
-										Cancel
+										{t("chat.actions.cancel")}
 									</button>
 								</div>
 							</div>
@@ -3886,9 +3905,9 @@ export function ChatPage() {
 			}`}
 		>
 			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">New conversation</p>
+				<p className="text-lg font-semibold">{t("chat.new_conversation.title")}</p>
 				<p className="text-sm text-[var(--text-muted)]">
-					Message profile #{targetProfileId} to start chatting.
+					{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
 				</p>
 			</div>
 			<div className="flex-1" />
@@ -3903,7 +3922,7 @@ export function ChatPage() {
 						disabled={isUploadingAttachment}
 						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
-						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
+						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
 					</button>
 					<input
 						type="file"
@@ -3917,7 +3936,7 @@ export function ChatPage() {
 				{pendingAttachmentFile ? (
 					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 						<p className="text-xs font-medium text-[var(--text)]">
-							Ready to send: {pendingAttachmentFile.name}
+							{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
 						</p>
 						<div className="mt-2 grid gap-2">
 							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -3928,7 +3947,7 @@ export function ChatPage() {
 										setAttachmentLooping(event.target.checked)
 									}
 								/>
-								<span>looping</span>
+								<span>{t("chat.attachments.looping")}</span>
 							</label>
 							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
 								<input
@@ -3938,7 +3957,7 @@ export function ChatPage() {
 										setAttachmentTakenOnGrindr(event.target.checked)
 									}
 								/>
-								<span>takenOnGrindr</span>
+								<span>{t("chat.attachments.taken_on_grindr")}</span>
 							</label>
 						</div>
 						<div className="mt-3 flex gap-2">
@@ -3948,7 +3967,7 @@ export function ChatPage() {
 								disabled={isUploadingAttachment}
 								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
 							>
-								Send attachment
+								{t("chat.attachments.send_attachment")}
 							</button>
 							<button
 								type="button"
@@ -3956,7 +3975,7 @@ export function ChatPage() {
 								disabled={isUploadingAttachment}
 								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
 							>
-								Cancel
+								{t("chat.actions.cancel")}
 							</button>
 						</div>
 					</div>
@@ -3965,7 +3984,7 @@ export function ChatPage() {
 				{isUploadingAttachment || uploadProgress > 0 ? (
 					<div className="mb-2">
 						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-							<span>Uploading attachment</span>
+							<span>{t("chat.attachments.uploading")}</span>
 							<span>{Math.round(uploadProgress)}%</span>
 						</div>
 						<div className="h-2 rounded-full bg-[var(--surface-2)]">
@@ -3983,7 +4002,7 @@ export function ChatPage() {
 						onChange={(event) => setDraft(event.target.value)}
 						rows={2}
 						maxLength={5000}
-						placeholder="Write your first message..."
+						placeholder={t("chat.new_conversation.write_first_message")}
 						className="input-field min-h-[56px] resize-none"
 					/>
 					<button
@@ -3991,7 +4010,7 @@ export function ChatPage() {
 						disabled={isSending || draft.trim().length === 0}
 						className="btn-accent h-11 shrink-0 px-4 text-sm"
 					>
-						{isSending ? "Sending" : "Send"}
+						{isSending ? t("chat.sending") : t("chat.send")}
 					</button>
 				</div>
 			</form>
@@ -4002,7 +4021,7 @@ export function ChatPage() {
 				isDesktop ? "surface-card" : ""
 			}`}
 		>
-			Select a conversation to view messages.
+			{t("chat.select_conversation")}
 		</div>
 	);
 
@@ -4036,7 +4055,7 @@ export function ChatPage() {
 			{isAlbumViewerLoading ? (
 				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
 					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> Loading album...
+						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
 					</div>
 				</div>
 			) : null}

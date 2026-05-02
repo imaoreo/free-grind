@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 type InboxAlbumsTabsProps = {
 	activeTab: "inbox" | "albums";
@@ -13,6 +14,8 @@ export function InboxAlbumsTabs({
 	onAlbumsClick,
 	trailing,
 }: InboxAlbumsTabsProps) {
+	const { t } = useTranslation();
+
 	return (
 		<div className="flex min-h-10 items-end gap-3">
 			<button
@@ -32,7 +35,7 @@ export function InboxAlbumsTabs({
 							: "text-lg font-semibold leading-none sm:text-xl"
 					}
 				>
-					Inbox
+					{t("chat.tabs.inbox")}
 				</span>
 			</button>
 			<button
@@ -52,7 +55,7 @@ export function InboxAlbumsTabs({
 							: "text-lg font-semibold leading-none sm:text-xl"
 					}
 				>
-					Albums
+					{t("chat.tabs.albums")}
 				</span>
 			</button>
 			{trailing}

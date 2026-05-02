@@ -1,5 +1,6 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, Flame, MessageCircle, Triangle, X } from "lucide-react";
 import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
@@ -82,9 +83,10 @@ export function ProfileDetailsModal({
 	onPrevProfile,
 	onNextProfile,
 }: ProfileDetailsModalProps) {
+	const { t } = useTranslation();
 	const activeProfileName = useMemo(() => {
 		if (!activeProfile) {
-			return "Profile details";
+			return t("profile_details.title");
 		}
 
 		const value = activeProfile.displayName?.trim();
@@ -92,8 +94,8 @@ export function ProfileDetailsModal({
 			return value;
 		}
 
-		return `Profile ${activeProfile.profileId}`;
-	}, [activeProfile]);
+		return t("profile_details.profile_fallback", { id: activeProfile.profileId });
+	}, [activeProfile, t]);
 
 	const profileDistance =
 		activeProfile?.distance ?? selectedBrowseCard?.distanceMeters ?? null;
@@ -107,8 +109,8 @@ export function ProfileDetailsModal({
 	const profileStatusLabel = profileStatusMeta.isOnline
 		? profileStatusMeta.label
 		: profileStatusMeta.label === "Offline"
-			? "Offline"
-			: `Last online ${profileStatusMeta.label}`;
+			? t("chat.realtime.offline")
+			: t("profile_details.last_online", { value: profileStatusMeta.label });
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);
@@ -127,23 +129,23 @@ export function ProfileDetailsModal({
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
-			return "Not set";
+			return t("profile_editor.sections.states.not_set");
 		}
 
 		return activeProfile.genders
 			.map((genderId) => getEnumLabel(genderId, genderOptions))
 			.join(", ");
-	}, [activeProfile?.genders, genderOptions]);
+	}, [activeProfile?.genders, genderOptions, t]);
 
 	const formattedActivePronouns = useMemo(() => {
 		if (!activeProfile?.pronouns.length) {
-			return "Not set";
+			return t("profile_editor.sections.states.not_set");
 		}
 
 		return activeProfile.pronouns
 			.map((pronounId) => getEnumLabel(pronounId, pronounOptions))
 			.join(", ");
-	}, [activeProfile?.pronouns, pronounOptions]);
+	}, [activeProfile?.pronouns, pronounOptions, t]);
 
 	const hasExpectationsFields = useMemo(() => {
 		if (!activeProfile) return false;
@@ -343,7 +345,7 @@ export function ProfileDetailsModal({
 					closePhotoViewer();
 				}}
 				className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
-				aria-label="Close photo viewer"
+				aria-label={t("profile_details.close_photo_viewer")}
 			>
 				<X className="h-5 w-5" />
 			</button>
@@ -356,7 +358,7 @@ export function ProfileDetailsModal({
 					type="button"
 					onClick={showPreviousPhoto}
 					className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
-					aria-label="Previous photo"
+					aria-label={t("profile_details.previous_photo")}
 				>
 					<ChevronLeft className="h-5 w-5" />
 				</button>
@@ -364,13 +366,13 @@ export function ProfileDetailsModal({
 					type="button"
 					onClick={showNextPhoto}
 					className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
-					aria-label="Next photo"
+					aria-label={t("profile_details.next_photo")}
 				>
 					<ChevronRight className="h-5 w-5" />
 				</button>
 				<img
 					src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
-					alt={`${activeProfileName} photo`}
+					alt={t("profile_details.photo_alt", { name: activeProfileName })}
 					className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
 				/>
 				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
@@ -395,7 +397,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onClose}
 								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)]"
-								aria-label="Back to browse"
+								aria-label={t("settings.back_to_browse")}
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</button>
@@ -406,7 +408,7 @@ export function ProfileDetailsModal({
 										onClick={onPrevProfile}
 										disabled={!onPrevProfile}
 										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
-										aria-label="Previous profile"
+										aria-label={t("profile_details.previous_profile")}
 									>
 										<ChevronLeft className="h-4 w-4" />
 									</button>
@@ -415,7 +417,7 @@ export function ProfileDetailsModal({
 										onClick={onNextProfile}
 										disabled={!onNextProfile}
 										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
-										aria-label="Next profile"
+										aria-label={t("profile_details.next_profile")}
 									>
 										<ChevronRight className="h-4 w-4" />
 									</button>
@@ -423,7 +425,7 @@ export function ProfileDetailsModal({
 							)}
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-									Profile details
+									{t("profile_details.title")}
 								</p>
 								<div className="flex items-center gap-2">
 									<p className="text-base font-semibold">{activeProfileName}</p>
@@ -431,7 +433,7 @@ export function ProfileDetailsModal({
 										<img
 											src={freegrindLogo}
 											alt="Free Grind user"
-											title="Uses Free Grind"
+											title={t("profile_details.uses_free_grind")}
 											className="h-5 w-5 rounded-full border border-[var(--border)]"
 										/>
 									)}
@@ -444,7 +446,7 @@ export function ProfileDetailsModal({
 					<div className="px-[var(--app-px)] pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:py-5">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
-								Loading profile details...
+								{t("profile_details.loading")}
 							</p>
 						) : activeProfileError ? (
 							<p className="text-sm text-[var(--text-muted)]">
@@ -465,7 +467,7 @@ export function ProfileDetailsModal({
 															key={hash}
 															onClick={() => openPhotoViewer(index)}
 															className="overflow-hidden rounded-xl border border-[var(--border)]"
-															aria-label={`Open photo ${index + 1}`}
+															aria-label={t("profile_details.open_photo", { index: index + 1 })}
 														>
 															<img
 																src={getThumbImageUrl(hash, "320x320")}
@@ -493,7 +495,7 @@ export function ProfileDetailsModal({
 															key={hash}
 															onClick={() => openPhotoViewer(index)}
 															className="aspect-[2/3] w-full shrink-0 snap-center overflow-hidden"
-															aria-label={`Open photo ${index + 1}`}
+															aria-label={t("profile_details.open_photo", { index: index + 1 })}
 														>
 															<img
 																/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
@@ -525,7 +527,7 @@ export function ProfileDetailsModal({
 														key={hash}
 														onClick={() => openPhotoViewer(index)}
 														className="overflow-hidden rounded-xl border border-[var(--border)]"
-														aria-label={`Open photo ${index + 1}`}
+														aria-label={t("profile_details.open_photo", { index: index + 1 })}
 													>
 														<img
 															src={getThumbImageUrl(hash, "320x320")}
@@ -542,8 +544,8 @@ export function ProfileDetailsModal({
 										<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
 											<img
 												src={blankProfileImage}
-												alt="Default profile"
-												className="aspect-square w-full object-cover"
+													alt={t("profile_details.default_profile")}
+													className="aspect-square w-full object-cover"
 											/>
 										</div>
 									)}
@@ -559,17 +561,17 @@ export function ProfileDetailsModal({
 												</span>
 											</p>
 											<p className="mt-1 text-xs text-[var(--text-muted)]">
-												User ID: {activeProfile.profileId}
+												{t("profile_editor.sections.other.user_id")}: {activeProfile.profileId}
 											</p>
 												<p className="mt-1 text-xs text-[var(--text-muted)]">
-													Est. created: {estimatedCreatedAt}
+													{t("profile_details.est_created")}: {estimatedCreatedAt}
 												</p>
 										</div>
 										<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 											<p>
-												Status: {profileStatusLabel}
+												{t("profile_details.status")}: {profileStatusLabel}
 											</p>
-											<p>Distance: {formatDistance(profileDistance)}</p>
+											<p>{t("right_now.distance")}: {formatDistance(profileDistance)}</p>
 										</div>
 									</div>
 									{messageProfileId && onMessageProfile ? (
@@ -580,7 +582,7 @@ export function ProfileDetailsModal({
 													className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
 												>
 													<MessageCircle className="h-4 w-4" />
-													Message
+													{t("profile_details.message")}
 												</button>
 												<button
 													type="button"
@@ -951,7 +953,7 @@ export function ProfileDetailsModal({
 				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-							Profile details
+							{t("profile_details.title")}
 						</p>
 						<p className="text-base font-semibold">{activeProfileName}</p>
 					</div>
@@ -959,7 +961,7 @@ export function ProfileDetailsModal({
 						type="button"
 						onClick={onClose}
 						className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
-						aria-label="Close profile details"
+						aria-label={t("profile_details.close_profile_details")}
 					>
 						<X className="h-4 w-4" />
 					</button>
@@ -968,7 +970,7 @@ export function ProfileDetailsModal({
 				<div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] sm:p-5 sm:pb-6">
 					{isLoadingActiveProfile ? (
 						<p className="text-sm text-[var(--text-muted)]">
-							Loading profile details...
+							{t("profile_details.loading")}
 						</p>
 					) : activeProfileError ? (
 						<p className="text-sm text-[var(--text-muted)]">
@@ -999,7 +1001,7 @@ export function ProfileDetailsModal({
 									<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
 										<img
 											src={blankProfileImage}
-											alt="Default profile"
+											alt={t("profile_details.default_profile")}
 											className="aspect-square w-full object-cover"
 										/>
 									</div>
@@ -1044,13 +1046,13 @@ export function ProfileDetailsModal({
 												onClick={() => onTapProfile?.(messageProfileId)}
 												disabled={isTapDisabled}
 												className={tapButtonClassName}
-												aria-label="Tap profile"
+												aria-label={t("profile_details.tap_profile")}
 												title={
 													isTapBlocked
-														? "Tap already sent in the last 24 hours"
+														? t("profile_details.tap_sent_recent")
 														: isTapActive
-															? "Tap active"
-															: "Send tap"
+															? t("profile_details.tap_active")
+															: t("profile_details.send_tap")
 												}
 											>
 												{isTapActive ? (
@@ -1068,11 +1070,11 @@ export function ProfileDetailsModal({
 												}}
 												disabled={isTriangleDisabled}
 												className={triangleButtonClassName}
-												aria-label="Run location finder"
-												title={isLocatingProfile ? "Location finder running" : "Location finder"}
+												aria-label={t("profile_details.run_location_finder")}
+												title={isLocatingProfile ? t("profile_details.location_finder_running") : t("profile_details.location_finder")}
 											>
 												<Triangle className="h-4 w-4" />
-												{isLocatingProfile ? "Locating..." : "Locate"}
+												{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 											</button>
 									</div>
 								) : null}

@@ -3,40 +3,41 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useApiFunctions } from "../hooks/useApiFunctions";
-
-const navItems = [
-	{
-		value: "browse",
-		label: "Browse",
-		icon: GridIcon,
-		path: "/",
-	},
-	{
-		value: "right-now",
-		label: "Right Now",
-		icon: Droplet,
-		path: "/right-now",
-	},
-	{
-		value: "interest",
-		label: "Interest",
-		icon: Flame,
-		path: "/interest",
-	},
-	{
-		value: "inbox",
-		label: "Inbox",
-		icon: MessageCircle,
-		path: "/chat",
-	},
-];
+import { useTranslation } from "react-i18next";
 
 export function NavBar() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
+	const navItems = [
+		{
+			value: "browse",
+			label: t("nav.browse"),
+			icon: GridIcon,
+			path: "/",
+		},
+		{
+			value: "right-now",
+			label: t("nav.right_now"),
+			icon: Droplet,
+			path: "/right-now",
+		},
+		{
+			value: "interest",
+			label: t("nav.interest"),
+			icon: Flame,
+			path: "/interest",
+		},
+		{
+			value: "inbox",
+			label: t("nav.inbox"),
+			icon: MessageCircle,
+			path: "/chat",
+		},
+	];
 
 	// Update active tab based on current path
 	useEffect(() => {

@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
+import { useTranslation } from "react-i18next";
 
 export function SignUpPage() {
+	const { t } = useTranslation();
 	const [isLoading, setIsLoading] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -26,14 +28,14 @@ export function SignUpPage() {
 
 	return (
 		<AuthShell
-			title="Sign Up"
-			subtitle="Sign up is not implemented yet. Track progress in Issue #2."
+			title={t("auth.sign_up.title")}
+			subtitle={t("auth.sign_up.subtitle")}
 			footer={
 				<Link
 					to="/auth/sign-in"
 					className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
 				>
-					Already have an account? Sign in
+					{t("auth.sign_up.have_account")}
 				</Link>
 			}
 		>
@@ -44,7 +46,9 @@ export function SignUpPage() {
 					loading={isLoading}
 					className="w-full"
 				>
-					{isLoading ? "Opening issue..." : "Open Issue #2"}
+					{isLoading
+						? t("auth.sign_up.opening_issue")
+						: t("auth.sign_up.open_issue")}
 				</Button>
 			</form>
 		</AuthShell>

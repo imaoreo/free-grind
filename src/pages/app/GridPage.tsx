@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { decodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -34,6 +35,7 @@ import {
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 
 export function GridPage() {
+	const { t } = useTranslation();
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -934,7 +936,7 @@ export function GridPage() {
 				loadBrowseCards({ preferCache: false, showLoadingState: false })
 			}
 			isDisabled={isLoadingCards || isLoadingMoreCards}
-			refreshingLabel="Refreshing feed..."
+			refreshingLabel={t("browse_page.refreshing_feed")}
 		>
 			<header className="mb-2 px-[var(--app-px)] sm:px-4">
 				<div className="sm:hidden">
@@ -944,8 +946,8 @@ export function GridPage() {
 								type="button"
 								onClick={() => navigate("/settings")}
 								className="shrink-0 rounded-full transition-all active:scale-95"
-								aria-label="Open settings"
-								title="Settings"
+								aria-label={t("browse_page.open_settings")}
+								title={t("browse_page.settings")}
 							>
 								<Avatar
 									src={profilePhotoUrl}
@@ -960,7 +962,9 @@ export function GridPage() {
 								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
 							>
 								<MapPin className="h-4 w-4 shrink-0" />
-								<span className="truncate">{locationName || "Current location"}</span>
+								<span className="truncate">
+									{locationName || t("browse_page.current_location")}
+								</span>
 							</button>
 						</div>
 
@@ -1010,11 +1014,12 @@ export function GridPage() {
 										className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
 									>
 										<option value="default">Default</option>
-										<option value="distance">Distance</option>
-										<option value="age-asc">Youngest</option>
-										<option value="age-desc">Oldest</option>
-										<option value="popular">Popular</option>
-										<option value="name">Name (A-Z)</option>
+										<option value="default">{t("browse_filters.sort.default")}</option>
+										<option value="distance">{t("browse_filters.sort.distance")}</option>
+										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+										<option value="popular">{t("browse_filters.sort.popular")}</option>
+										<option value="name">{t("browse_filters.sort.name_az")}</option>
 									</select>
 								</div>
 
@@ -1028,7 +1033,7 @@ export function GridPage() {
 									}
 									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 								>
-									Online
+									{t("browse_filters.options.online")}
 								</button>
 
 								{hasActiveBrowseFilters ? (
@@ -1037,7 +1042,7 @@ export function GridPage() {
 										onClick={clearBrowseFilters}
 										className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
 									>
-										Clear
+										{t("browse_filters.clear_all")}
 									</button>
 								) : null}
 							</div>
@@ -1048,7 +1053,7 @@ export function GridPage() {
 				<div className="hidden sm:block">
 					<div className="mb-2 flex items-start justify-between gap-4">
 						<div>
-							<h1 className="app-title">Browse Profiles</h1>
+							<h1 className="app-title">{t("browse_page.title")}</h1>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
 								<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
 									<span
@@ -1071,7 +1076,7 @@ export function GridPage() {
 								>
 									<MapPin className="h-3.5 w-3.5 shrink-0" />
 									<span className="hidden lg:inline truncate">
-										{locationName || "Location"}
+										{locationName || t("browse_page.location")}
 									</span>
 								</button>
 								<button
@@ -1103,7 +1108,9 @@ export function GridPage() {
 									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								>
 									<SlidersHorizontal className="h-3.5 w-3.5" />
-									<span className="hidden lg:inline">Filter</span>
+									<span className="hidden lg:inline">
+										{t("browse_page.filter")}
+									</span>
 									{hasActiveBrowseFilters ? (
 										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
 											{activeFilterCount}
@@ -1118,12 +1125,12 @@ export function GridPage() {
 										onChange={(e) => setSortBy(e.target.value as SortOption)}
 										className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
 									>
-										<option value="default">Sort</option>
-										<option value="distance">Distance</option>
-										<option value="age-asc">Youngest</option>
-										<option value="age-desc">Oldest</option>
-										<option value="popular">Popular</option>
-										<option value="name">Name (A-Z)</option>
+										<option value="default">{t("browse_page.sort")}</option>
+										<option value="distance">{t("browse_filters.sort.distance")}</option>
+										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+										<option value="popular">{t("browse_filters.sort.popular")}</option>
+										<option value="name">{t("browse_filters.sort.name_az")}</option>
 									</select>
 								</div>
 
@@ -1133,7 +1140,7 @@ export function GridPage() {
 										onClick={clearBrowseFilters}
 										className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 									>
-										Clear
+										{t("browse_filters.clear_all")}
 									</button>
 								) : null}
 							</div>
@@ -1143,8 +1150,8 @@ export function GridPage() {
 								type="button"
 								onClick={() => navigate("/settings")}
 								className="rounded-full transition-all hover:scale-[1.03]"
-								aria-label="Open settings"
-								title="Settings"
+								aria-label={t("browse_page.open_settings")}
+								title={t("browse_page.settings")}
 							>
 								<Avatar
 									src={profilePhotoUrl}
@@ -1154,9 +1161,7 @@ export function GridPage() {
 							</button>
 						</div>
 					</div>
-					<p className="app-subtitle">
-						Discover people near you and jump into chats from the main feed.
-					</p>
+					<p className="app-subtitle">{t("browse_page.subtitle")}</p>
 				</div>
 			</header>
 
