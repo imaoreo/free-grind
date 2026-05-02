@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { SelectedLocation } from "../../GridPage.types";
 
 type LeafletLocationPickerProps = {
@@ -12,6 +13,7 @@ export function LeafletLocationPicker({
 	onPick,
 	onError,
 }: LeafletLocationPickerProps) {
+	const { t } = useTranslation();
 	const mapContainerRef = useRef<HTMLDivElement | null>(null);
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
@@ -63,9 +65,7 @@ export function LeafletLocationPicker({
 					).addTo(map);
 				}
 			} catch {
-				onError(
-					"Map picker failed to load on this device. Use location search or current location.",
-				);
+				onError(t("browse_location.map_picker_error_load"));
 			}
 		};
 
@@ -80,7 +80,7 @@ export function LeafletLocationPicker({
 				markerRef.current = null;
 			}
 		};
-	}, [onError, onPick, selectedLocation]);
+	}, [onError, onPick, selectedLocation, t]);
 
 	useEffect(() => {
 		const map = mapRef.current;

@@ -133,6 +133,31 @@
             "shuffle": "Zufällig"
         }
     },
+    "browse_location": {
+        "title": "Standort wählen",
+        "subtitle": "Wähle aus, von wo dein Feed geladen werden soll.",
+        "back_aria": "Zurück zur Übersicht",
+        "error_geolocation": "Geolocation ist auf diesem Gerät nicht verfügbar.",
+        "error_access": "Zugriff auf Standort fehlgeschlagen. Überprüfe die Berechtigungen und versuche es erneut.",
+        "error_search_failed": "Standortsuche fehlgeschlagen. Versuche es gleich noch einmal.",
+        "error_search_failed_general": "Standortsuche fehlgeschlagen",
+        "current_location_label": "Aktueller Standort",
+        "lat_lon_label": "Lat {{lat}}, Lon {{lon}}",
+        "panel_title": "Standort festlegen",
+        "panel_subtitle": "Suche nach einem Ort oder nutze GPS auf mobilen Geräten.",
+        "detecting_location": "Standort wird ermittelt...",
+        "use_current_location": "Aktuellen Standort verwenden",
+        "search_label": "Nach Stadt oder Region suchen",
+        "search_placeholder": "z.B. Berlin, London, Wien",
+        "selected_label": "Ausgewählt: {{label}}",
+        "map_picker_title": "Karte",
+        "map_picker_error_load": "Die Karte konnte auf diesem Gerät nicht geladen werden. Nutze die Suche oder den aktuellen Standort.",
+        "map_picker_hide": "Ausblenden",
+        "map_picker_open": "Öffnen",
+        "map_picker_instructions": "Öffne die Karte, um eine Stecknadel zu setzen und diesen Standort zu speichern.",
+        "map_picker_tap_hint": "Tippe auf die Karte, um eine Stecknadel zu setzen.",
+        "use_selected_location": "Diesen Standort verwenden"
+    },
     "about_page": {
         "badge": "Über Free Grind",
         "title": "Free Grind ist ein privatsphäre-orientierter, Community-basierter Client.",

@@ -141,6 +141,31 @@
             "shuffle": "Shuffle"
         }
     },
+    "browse_location": {
+        "title": "Browse Location",
+        "subtitle": "Choose where your feed should load from.",
+        "back_aria": "Back to browse",
+        "error_geolocation": "Geolocation is unavailable on this device.",
+        "error_access": "Could not access your location. Check location permissions and try again.",
+        "error_search_failed": "Location search failed. Try again in a moment.",
+        "error_search_failed_general": "Failed to search location",
+        "current_location_label": "Current location",
+        "lat_lon_label": "Lat {{lat}}, Lon {{lon}}",
+        "panel_title": "Set your browse location",
+        "panel_subtitle": "Search a place, or use GPS on mobile devices.",
+        "detecting_location": "Detecting location...",
+        "use_current_location": "Use current location",
+        "search_label": "Search by city or area",
+        "search_placeholder": "e.g. Berlin, London, Manila",
+        "selected_label": "Selected: {{label}}",
+        "map_picker_title": "Map picker",
+        "map_picker_error_load": "Map picker failed to load on this device. Use location search or current location.",
+        "map_picker_hide": "Hide",
+        "map_picker_open": "Open",
+        "map_picker_instructions": "Open the map to drop a pin and then save that location.",
+        "map_picker_tap_hint": "Tap map to place pin.",
+        "use_selected_location": "Use this location"
+    },
     "nav": {
         "browse": "Browse",
         "right_now": "Right Now",
