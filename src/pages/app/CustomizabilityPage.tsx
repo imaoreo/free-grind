@@ -368,7 +368,7 @@ export function CustomizabilityPage() {
 										: "var(--text-muted)",
 							}}
 						>
-							{t("customizability.columns_two")}
+							{t("customizability.columns_2")}
 						</button>
 						<button
 							type="button"
@@ -387,7 +387,7 @@ export function CustomizabilityPage() {
 										: "var(--text-muted)",
 							}}
 						>
-							{t("customizability.columns_three")}
+							{t("customizability.columns_3")}
 						</button>
 					</div>
 				</div>
