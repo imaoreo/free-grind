@@ -142,7 +142,7 @@ export function CustomizabilityPage() {
 		<section className="app-screen">
 			<header className="mb-6">
 				<BackToSettings />
-				<h1 className="app-title mb-2">{t("customizability.title")}</h1>
+				<h1 className="app-title mb-2">{t("settings.customizability")}</h1>
 				<p className="app-subtitle">{t("customizability.subtitle")}</p>
 			</header>
 

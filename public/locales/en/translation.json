@@ -473,7 +473,6 @@
         }
     },
     "customizability": {
-        "title": "Customizability",
         "subtitle": "Personalize the look and feel of the app.",
         "color_scheme": "Color Scheme",
         "accent_color": "Accent Color",
@@ -483,8 +482,8 @@
         "apply_hex": "Apply Hex",
         "hex_error": "Enter a valid hex color like #22c55e or 22c55e",
         "browse_grid_mobile": "Browse Grid (Mobile)",
-        "columns_two": "2 Columns",
-        "columns_three": "3 Columns",
+        "columns_2": "2 Columns",
+        "columns_3": "3 Columns",
         "preview": "Preview",
         "preview_primary": "Primary Button",
         "preview_outlined": "Outlined",
