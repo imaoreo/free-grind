@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
@@ -62,8 +61,7 @@ export function SignInPage() {
 				</Link>
 			}
 		>
-			{/* Method toggle */}
-			<div className="flex rounded-xl border border-[var(--border)] p-1 mb-4">
+			<div className="mb-4 flex rounded-xl border border-[var(--border)] p-1">
 				<button
 					type="button"
 					onClick={() => setMethod("token")}
@@ -114,19 +112,17 @@ export function SignInPage() {
 							autoComplete="off"
 						/>
 					</div>
-							{isTokenLoading
-								? t("auth.sign_in.signing_in")
-								: t("auth.sign_in.sign_in_with_token")}
-						<p className="text-sm text-[var(--text-muted)]">{error}</p>
-					) : null}
+					{error ? <p className="text-sm text-[var(--text-muted)]">{error}</p> : null}
 					<div className="pt-2">
 						<Button
 							type="submit"
 							variant="primary"
 							loading={isTokenLoading}
 							className="w-full"
-						{t("auth.common.email")}
-							{isTokenLoading ? "Signing in..." : "Sign In with Token"}
+						>
+							{isTokenLoading
+								? t("auth.sign_in.signing_in")
+								: t("auth.sign_in.sign_in_with_token")}
 						</Button>
 					</div>
 				</form>
@@ -134,7 +130,7 @@ export function SignInPage() {
 				<form onSubmit={handlePasswordSubmit} className="space-y-4">
 					<div>
 						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-							Email
+							{t("auth.common.email")}
 						</label>
 						<input
 							type="email"
@@ -157,12 +153,8 @@ export function SignInPage() {
 							className="input-field"
 							placeholder="••••••••"
 						/>
-							{isPasswordLoading
-								? t("auth.sign_in.signing_in")
-								: t("auth.sign_in.submit")}
-					{error ? (
-						<p className="text-sm text-[var(--text-muted)]">{error}</p>
-					) : null}
+					</div>
+					{error ? <p className="text-sm text-[var(--text-muted)]">{error}</p> : null}
 					<div className="pt-2">
 						<Button
 							type="submit"
@@ -170,7 +162,9 @@ export function SignInPage() {
 							loading={isPasswordLoading}
 							className="w-full"
 						>
-							{isPasswordLoading ? "Signing in..." : "Sign In"}
+							{isPasswordLoading
+								? t("auth.sign_in.signing_in")
+								: t("auth.sign_in.submit")}
 						</Button>
 					</div>
 				</form>
