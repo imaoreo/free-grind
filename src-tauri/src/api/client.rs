@@ -20,12 +20,24 @@ const EMBEDDED_HTTP_TOOLKIT_CA_PEM: &[u8] = include_bytes!("../../certs/httptool
 pub struct GrindrClient {
     pub(super) http: Client,
     pub(super) session: RwLock<Option<Session>>,
+    pub(super) user_agent: String,
+}
+
+impl GrindrClient {
+    pub fn user_agent(&self) -> &str {
+        &self.user_agent
+    }
 }
 
 impl GrindrClient {
     pub fn new() -> Result<Self, AppError> {
         let device = DeviceInfo::default();
         let headers = build_default_headers(&device, "Free");
+        let user_agent = headers
+            .get("User-Agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_owned();
 
         #[cfg(target_os = "windows")]
         let http = {
@@ -90,6 +102,7 @@ impl GrindrClient {
         Ok(Self {
             http,
             session: RwLock::new(session),
+            user_agent,
         })
     }
 }

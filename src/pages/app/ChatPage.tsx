@@ -38,6 +38,11 @@ import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/AuthContext";
 import { type ChatApiError } from "../../services/chatService";
 import { ChatRealtimeManager } from "../../services/chatRealtime";
+import { TauriWebSocket, isTauriRuntime } from "../../services/tauriWebSocket";
+import {
+	notifyMessage,
+	primeDesktopNotifications,
+} from "../../services/desktopNotify";
 import {
 	messageSchema,
 	type ConversationEntry,
@@ -771,6 +776,7 @@ export function ChatPage() {
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const selectedConversationIdRef = useRef<string | null>(null);
+	const conversationsRef = useRef<ConversationEntry[]>([]);
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const preserveThreadScrollRef = useRef(false);
@@ -1093,6 +1099,14 @@ export function ChatPage() {
 	}, [selectedConversationId]);
 
 	useEffect(() => {
+		conversationsRef.current = conversations;
+	}, [conversations]);
+
+	useEffect(() => {
+		void primeDesktopNotifications();
+	}, []);
+
+	useEffect(() => {
 		messagePageKeyRef.current = messagePageKey;
 	}, [messagePageKey]);
 
@@ -1213,6 +1227,57 @@ export function ChatPage() {
 		);
 	}, []);
 
+	const triggerMessageNotifications = useCallback(
+		(messages: Message[]) => {
+			if (!messages.length || userId == null) {
+				return;
+			}
+
+			const isWindowFocused =
+				typeof document !== "undefined" &&
+				!document.hidden &&
+				(typeof document.hasFocus !== "function" || document.hasFocus());
+			const activeConversationId = selectedConversationIdRef.current;
+
+			for (const message of messages) {
+				if (Number(message.senderId) === Number(userId)) {
+					continue;
+				}
+
+				const suppress =
+					isWindowFocused && message.conversationId === activeConversationId;
+
+				const conversation = conversationsRef.current.find(
+					(entry) => entry.data.conversationId === message.conversationId,
+				);
+				const otherParticipant = conversation
+					? getOtherParticipant(conversation, userId)
+					: null;
+				const senderName =
+					conversation?.data.name?.trim() ||
+					(otherParticipant?.profileId
+						? String(otherParticipant.profileId)
+						: String(message.senderId ?? "")) ||
+					t("chat.unknown");
+
+				const body = getMessagePreviewLabel(message, t);
+
+				console.log("[chat-ws:notify]", {
+					senderName,
+					conversationId: message.conversationId,
+					suppress,
+				});
+
+				void notifyMessage({
+					title: senderName,
+					body,
+					suppress,
+				});
+			}
+		},
+		[t, userId],
+	);
+
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
@@ -1277,9 +1342,10 @@ export function ChatPage() {
 
 			if (unique.length > 0) {
 				mergeIncomingMessages(unique);
+				triggerMessageNotifications(unique);
 			}
 		},
-		[mergeIncomingMessages],
+		[mergeIncomingMessages, triggerMessageNotifications],
 	);
 
 	const handleRealtimeEvent = useCallback(
@@ -1784,7 +1850,9 @@ export function ChatPage() {
 			return;
 		}
 
-		console.log("[chat-ws:lifecycle] starting websocket manager");
+		console.log("[chat-ws:lifecycle] starting websocket manager", {
+			transport: isTauriRuntime() ? "tauri" : "browser",
+		});
 
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
@@ -1797,6 +1865,9 @@ export function ChatPage() {
 			onParseError: (raw, error) => {
 				console.warn("[chat-ws:parse-error]", { raw, error });
 			},
+			buildSocket: isTauriRuntime()
+				? (url) => new TauriWebSocket(url) as unknown as WebSocket
+				: undefined,
 		});
 
 		manager.start();
