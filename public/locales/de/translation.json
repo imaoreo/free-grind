@@ -8,6 +8,8 @@
         "profile_editor_desc": "Bearbeite Profildetails, Identität und Einstellungen.",
         "customizability": "Personalisierung",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
+        "report_issue": "Fehler oder Feature melden",
+        "report_issue_desc": "Sende Fehlermeldungen und Feature-Wünsche an das Team.",
         "about": "Über Free Grind",
         "about_desc": "Projektziele, Credits, Lizenz und Dokumentation.",
         "api_inspector": "API-Inspektor",
@@ -436,5 +438,27 @@
                 "twink": "Twink"
             }
         }
+    },
+    "issues_form": {
+        "title": "Fehler melden oder Feature vorschlagen",
+        "subtitle": "Diese Meldung wird an das interne Issue-Board gesendet und kann mit Discord synchronisiert werden.",
+        "type_label": "Typ",
+        "type_bug": "Fehler",
+        "type_feature": "Feature-Wunsch",
+        "title_label": "Titel",
+        "title_placeholder": "Kurze Zusammenfassung",
+        "description_label": "Beschreibung",
+        "description_placeholder": "Was passiert ist, was erwartet wurde und wie man es reproduziert.",
+        "name_label": "Name (optional)",
+        "name_placeholder": "Wie sollen wir dich ansprechen?",
+        "contact_label": "Kontakt (optional)",
+        "contact_placeholder": "Discord-Tag, E-Mail oder Telegram",
+        "meta": "App {{version}} auf {{platform}}",
+        "submit": "Meldung senden",
+        "submitting": "Wird gesendet...",
+        "success": "Meldung gesendet: {{id}}",
+        "error": "Meldung konnte nicht gesendet werden",
+        "validation_title": "Bitte gib einen Titel mit mindestens 3 Zeichen ein.",
+        "validation_description": "Bitte gib eine Beschreibung mit mindestens 10 Zeichen ein."
     }
 }

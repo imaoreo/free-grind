@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "report_issue": "Report Bug or Feature",
+        "report_issue_desc": "Send bug reports and feature requests to the team.",
         "about": "About Free Grind",
         "about_desc": "Project goals, credits, licence, and documentation links.",
         "api_inspector": "API Inspector",
@@ -502,6 +504,28 @@
             "current": "Current",
             "not_selected": "Not selected yet"
         }
+    },
+    "issues_form": {
+        "title": "Report a Bug or Suggest a Feature",
+        "subtitle": "This report is sent to the internal issue board and can sync to Discord.",
+        "type_label": "Type",
+        "type_bug": "Bug",
+        "type_feature": "Feature Request",
+        "title_label": "Title",
+        "title_placeholder": "Short summary",
+        "description_label": "Description",
+        "description_placeholder": "What happened, what you expected, and how to reproduce it.",
+        "name_label": "Name (optional)",
+        "name_placeholder": "How should we refer to you?",
+        "contact_label": "Contact (optional)",
+        "contact_placeholder": "Discord tag, email, or Telegram",
+        "meta": "App {{version}} on {{platform}}",
+        "submit": "Submit report",
+        "submitting": "Submitting...",
+        "success": "Report submitted: {{id}}",
+        "error": "Failed to submit report",
+        "validation_title": "Please enter a title with at least 3 characters.",
+        "validation_description": "Please enter a description with at least 10 characters."
     },
     "auth": {
         "common": {

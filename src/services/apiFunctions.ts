@@ -63,6 +63,49 @@ export class ApiFunctionError extends Error {
 }
 
 const GRINDAPI_BASE = "https://grindapi.imaoreo.dev";
+const ISSUES_API_BASE =
+	import.meta.env.VITE_ISSUES_API_BASE ||
+	import.meta.env.VITE_GRINDAPI_BASE_URL ||
+	GRINDAPI_BASE;
+
+export async function submitIssueReport(data: {
+	kind: "BUG" | "FEATURE";
+	title: string;
+	description: string;
+	reporterName?: string;
+	reporterContact?: string;
+	appVersion?: string;
+	platform?: string;
+}): Promise<{ id: string }> {
+	const response = await fetch(`${ISSUES_API_BASE}/api/issues/submit`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(data),
+	});
+
+	let payload: { id?: string; error?: string } | null = null;
+	try {
+		payload = (await response.json()) as { id?: string; error?: string };
+	} catch {
+		payload = null;
+	}
+
+	if (!response.ok) {
+		throw new ApiFunctionError(
+			payload?.error || "Failed to submit report",
+			response.status,
+			payload,
+		);
+	}
+
+	if (!payload?.id) {
+		throw new ApiFunctionError("Report submitted but no ID returned", 500, payload);
+	}
+
+	return { id: payload.id };
+}
 
 /**
  * Standalone function to track update checks

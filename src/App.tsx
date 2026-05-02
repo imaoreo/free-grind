@@ -25,6 +25,7 @@ import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
+import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 
 function ErrorPage() {
@@ -98,6 +99,10 @@ export default function App() {
 							<Route
 								path="/settings/customizability"
 								element={<CustomizabilityPage />}
+							/>
+							<Route
+								path="/settings/report-issue"
+								element={<ReportIssuePage />}
 							/>
 							<Route
 								path="/settings/profile-editor"
