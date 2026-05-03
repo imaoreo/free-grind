@@ -4,6 +4,11 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
+import {
+	getInterestLastSeen,
+	INTEREST_SEEN_EVENT,
+} from "../services/seenStore";
+import { TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
 
 export function NavBar() {
 	const { t } = useTranslation();
@@ -12,6 +17,7 @@ export function NavBar() {
 	const apiFunctions = useApiFunctions();
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
+	const [interestUnseen, setInterestUnseen] = useState(false);
 	const navItems = [
 		{
 			value: "browse",
@@ -88,6 +94,81 @@ export function NavBar() {
 		};
 	}, [apiFunctions]);
 
+	// Track whether the Interest tab has anything new since the user last
+	// looked. Polls taps + views and listens for live tap events.
+	useEffect(() => {
+		let cancelled = false;
+
+		const refreshInterestUnseen = async () => {
+			try {
+				const [tapsResponse, viewsResponse] = await Promise.all([
+					apiFunctions.getTaps(),
+					apiFunctions.getViews(),
+				]);
+				const lastSeen = getInterestLastSeen();
+				const newest = (() => {
+					const tapsRaw = (tapsResponse as { profiles?: unknown[] }).profiles;
+					const viewsRaw = (viewsResponse as { profiles?: unknown[] }).profiles;
+					let max = 0;
+					for (const list of [tapsRaw, viewsRaw]) {
+						if (!Array.isArray(list)) continue;
+						for (const entry of list) {
+							if (!entry || typeof entry !== "object") continue;
+							const ts = (entry as { timestamp?: unknown }).timestamp;
+							const value =
+								typeof ts === "number"
+									? ts
+									: typeof ts === "string"
+										? Number(ts)
+										: 0;
+							if (Number.isFinite(value) && value > max) max = value;
+						}
+					}
+					return max;
+				})();
+
+				if (cancelled) return;
+
+				// On first run (no stored seen timestamp), treat current state as
+				// already seen so we don't show a stale dot.
+				if (lastSeen === 0) {
+					if (newest > 0) {
+						window.localStorage.setItem(
+							"fg-interest-last-seen",
+							String(newest),
+						);
+					}
+					setInterestUnseen(false);
+					return;
+				}
+
+				setInterestUnseen(newest > lastSeen);
+			} catch {
+				if (!cancelled) setInterestUnseen(false);
+			}
+		};
+
+		void refreshInterestUnseen();
+		const intervalId = window.setInterval(() => {
+			void refreshInterestUnseen();
+		}, 60_000);
+
+		const onTap = () => setInterestUnseen(true);
+		const onSeen = () => setInterestUnseen(false);
+		window.addEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
+		window.addEventListener(INTEREST_SEEN_EVENT, onSeen as EventListener);
+
+		return () => {
+			cancelled = true;
+			window.clearInterval(intervalId);
+			window.removeEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
+			window.removeEventListener(
+				INTEREST_SEEN_EVENT,
+				onSeen as EventListener,
+			);
+		};
+	}, [apiFunctions]);
+
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);
 		const item = navItems.find((i) => i.value === value);
@@ -121,10 +202,12 @@ export function NavBar() {
 										<span className="text-xs md:text-[0.8rem]">
 											{item.label}
 										</span>
-										{item.value === "inbox" && unreadCount > 0 ? (
-											<span className="absolute -right-5 -top-2 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 text-[10px] font-semibold text-[var(--accent-contrast)] md:-right-6">
-												{Math.min(99, unreadCount)}
-											</span>
+										{(item.value === "inbox" && unreadCount > 0) ||
+										(item.value === "interest" && interestUnseen) ? (
+											<span
+												aria-label="New activity"
+												className="absolute -right-2.5 -top-1 inline-block h-2 w-2 rounded-full bg-red-500 ring-2 ring-[var(--surface)]"
+											/>
 										) : null}
 									</div>
 								</TabsTrigger>

@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +24,30 @@ class MainActivity : TauriActivity() {
   companion object {
     private var activityRef: WeakReference<MainActivity>? = null
     private val pendingPushPayloads = mutableListOf<String>()
+
+    /**
+     * Active in-app route plus foreground flag, kept up to date by the
+     * frontend through `FreeGrindBridge.setActiveRoute(...)`. Used by the
+     * FCM service to suppress system notifications when the user is
+     * already looking at the relevant screen.
+     */
+    @Volatile var activeRoute: String? = null
+    @Volatile var inForeground: Boolean = false
+
+    fun isOnTapsScreen(): Boolean {
+      if (!inForeground) return false
+      val r = activeRoute ?: return false
+      // Matches "/interest?tab=taps" with any extra params.
+      return r.startsWith("/interest") && r.contains("tab=taps")
+    }
+
+    fun isOnConversation(conversationId: String?): Boolean {
+      if (!inForeground) return false
+      if (conversationId.isNullOrBlank()) return false
+      val r = activeRoute ?: return false
+      val path = r.substringBefore('?')
+      return path == "/chat/$conversationId" || path.startsWith("/chat/$conversationId/")
+    }
 
     fun enqueuePushNotification(payloadJson: String) {
       val activity = activityRef?.get()
@@ -76,6 +101,8 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     webViewRef = webView
+    @Suppress("AddJavascriptInterface")
+    webView.addJavascriptInterface(JsBridge(), "FreeGrindBridge")
     pendingFcmToken?.let {
       dispatchFcmTokenToWebview(it, 0)
       pendingFcmToken = null
@@ -86,12 +113,32 @@ class MainActivity : TauriActivity() {
 
   override fun onResume() {
     super.onResume()
+    inForeground = true
     latestFcmToken?.let {
       Log.d("FCM", "onResume: retrying token dispatch to WebView")
       dispatchFcmTokenToWebview(it, 0)
     }
     dispatchPendingPushNotifications()
     handleNotificationIntent(intent)
+  }
+
+  override fun onPause() {
+    inForeground = false
+    super.onPause()
+  }
+
+  /**
+   * JavaScript bridge exposed as `window.FreeGrindBridge`. Frontend calls
+   * `setActiveRoute(path + search)` whenever the React route or document
+   * focus changes so that the FCM service can decide whether to suppress
+   * a system notification.
+   */
+  inner class JsBridge {
+    @JavascriptInterface
+    fun setActiveRoute(route: String?) {
+      activeRoute = route
+      Log.d("FCM", "JsBridge.setActiveRoute=$route foreground=$inForeground")
+    }
   }
 
   override fun onDestroy() {

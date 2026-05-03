@@ -157,6 +157,21 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         val rawData = payload.optJSONObject("rawData")
         val conversationId = normalizeNullableString(payload.optString("conversationId"))
             ?: extractConversationId(rawData)
+
+        // Suppress when the user is already looking at the relevant screen
+        // (taps tab for tap notifications; the matching conversation for chat
+        // notifications). The frontend keeps MainActivity informed via the
+        // FreeGrindBridge.setActiveRoute JS hook.
+        val suppress = if (isTap) {
+            MainActivity.isOnTapsScreen()
+        } else {
+            MainActivity.isOnConversation(conversationId)
+        }
+        if (suppress) {
+            Log.d("FCM", "Suppressing notification (user on matching screen)")
+            return
+        }
+
         // _v2 suffix forces re-creation so the custom sound takes effect on existing installs.
         val channelId = if (isTap) "free_grind_taps_notifications_v2" else "free_grind_chat_notifications_v2"
         val channelName = if (isTap) "Taps" else "Chat Messages"

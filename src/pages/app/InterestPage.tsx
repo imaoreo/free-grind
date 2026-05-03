@@ -10,8 +10,14 @@ import {
 	type StoredInterestView,
 } from "../../services/interestViewsStore";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { formatRelativeTime } from "../../utils/relativeTime";
+import { markInterestSeen } from "../../services/seenStore";
 import { EmptyState, ErrorState } from "../../components/ui/states";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
+import {
+	TAP_RECEIVED_EVENT,
+	type TapReceivedDetail,
+} from "../../components/ChatRealtimeBridge";
 
 type InterestTab = "views" | "taps";
 
@@ -340,11 +346,15 @@ function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 		.filter((entry): entry is InterestItem => entry !== null);
 }
 
-function formatTimestamp(timestamp: number | null, t: TFunction): string {
+function formatTimestamp(
+	timestamp: number | null,
+	t: TFunction,
+	now: number = Date.now(),
+): string {
 	if (!timestamp) {
 		return t("interest_page.unknown_time");
 	}
-	return new Date(timestamp).toLocaleString();
+	return formatRelativeTime(timestamp, now);
 }
 
 function tapLabel(tapType: number | null, t: TFunction): string {
@@ -420,10 +430,12 @@ function InterestRow({
 	item,
 	mode,
 	onOpenProfile,
+	now,
 }: {
 	item: InterestItem;
 	mode: InterestTab;
 	onOpenProfile: (profileId: string) => void;
+	now: number;
 }) {
 	const { t } = useTranslation();
 	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : blankProfileImage;
@@ -450,7 +462,7 @@ function InterestRow({
 			</div>
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-sm font-semibold text-[var(--text)]">{item.displayName}</p>
-				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t)}</p>
+				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t, now)}</p>
 			</div>
 			<span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)]">
 				{mode === "views" ? <Eye className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
@@ -475,7 +487,20 @@ export function InterestPage() {
 	const [tapsLoaded, setTapsLoaded] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const touchStartXRef = useRef<number | null>(null);
+
+	// Keep relative timestamps fresh.
+	useEffect(() => {
+		const id = window.setInterval(() => setNowTimestamp(Date.now()), 30_000);
+		return () => window.clearInterval(id);
+	}, []);
+
+	// Mark Interest as "seen" whenever the user is on this page so the
+	// NavBar dot clears.
+	useEffect(() => {
+		markInterestSeen();
+	}, [activeTab, taps.length, views.length]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -544,6 +569,35 @@ export function InterestPage() {
 			void loadTaps();
 		}
 	}, [activeTab, viewsLoaded, tapsLoaded, loadViews, loadTaps]);
+
+	// Live tap events from the chat WebSocket — prepend incoming taps so the
+	// list updates without waiting for the next refresh.
+	useEffect(() => {
+		const onTap = (event: Event) => {
+			const detail = (event as CustomEvent<TapReceivedDetail>).detail;
+			if (!detail) return;
+			const incoming: InterestItem = {
+				profileId: detail.profileId,
+				displayName: detail.displayName,
+				imageHash: detail.imageHash,
+				timestamp: detail.timestamp,
+				tapType: detail.tapType,
+				viewCount: null,
+				canOpenProfile: true,
+			};
+			setTaps((previous) => {
+				const filtered = previous.filter(
+					(item) => item.profileId !== incoming.profileId,
+				);
+				return [incoming, ...filtered];
+			});
+			setTapsLoaded(true);
+		};
+		window.addEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
+		return () => {
+			window.removeEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
+		};
+	}, []);
 
 	const activeItems = useMemo(
 		() => (activeTab === "views" ? views : taps),
@@ -672,6 +726,7 @@ export function InterestPage() {
 									item={item}
 									mode={activeTab}
 									onOpenProfile={handleOpenProfile}
+									now={nowTimestamp}
 								/>
 							))}
 						</div>

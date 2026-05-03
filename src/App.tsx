@@ -29,6 +29,8 @@ import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
+import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
+import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 
 function ErrorPage() {
 	const { t } = useTranslation();
@@ -56,6 +58,8 @@ export default function App() {
 		<AuthProvider>
 			<PreferencesProvider>
 				<PushNotificationBridge />
+				<ChatRealtimeBridge />
+				<ActiveRouteBridge />
 				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>

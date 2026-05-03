@@ -32,17 +32,15 @@ import {
 	useSearchParams,
 } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
 import { type ChatApiError } from "../../services/chatService";
-import { ChatRealtimeManager } from "../../services/chatRealtime";
-import { TauriWebSocket, isTauriRuntime } from "../../services/tauriWebSocket";
+import { setConversationDirectory } from "../../services/conversationDirectory";
 import {
-	notifyMessage,
-	primeDesktopNotifications,
-} from "../../services/desktopNotify";
+	CHAT_REALTIME_EVENT,
+	CHAT_REALTIME_STATUS,
+} from "../../components/ChatRealtimeBridge";
 import {
 	messageSchema,
 	type ConversationEntry,
@@ -767,7 +765,6 @@ export function ChatPage() {
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const { callMethod } = useApi();
 	const service = useApiFunctions();
 	const { userId } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
@@ -988,7 +985,6 @@ export function ChatPage() {
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
-	const [websocketToken, setWebsocketToken] = useState<string | null>(null);
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");
@@ -1100,11 +1096,8 @@ export function ChatPage() {
 
 	useEffect(() => {
 		conversationsRef.current = conversations;
+		setConversationDirectory(conversations);
 	}, [conversations]);
-
-	useEffect(() => {
-		void primeDesktopNotifications();
-	}, []);
 
 	useEffect(() => {
 		messagePageKeyRef.current = messagePageKey;
@@ -1227,57 +1220,6 @@ export function ChatPage() {
 		);
 	}, []);
 
-	const triggerMessageNotifications = useCallback(
-		(messages: Message[]) => {
-			if (!messages.length || userId == null) {
-				return;
-			}
-
-			const isWindowFocused =
-				typeof document !== "undefined" &&
-				!document.hidden &&
-				(typeof document.hasFocus !== "function" || document.hasFocus());
-			const activeConversationId = selectedConversationIdRef.current;
-
-			for (const message of messages) {
-				if (Number(message.senderId) === Number(userId)) {
-					continue;
-				}
-
-				const suppress =
-					isWindowFocused && message.conversationId === activeConversationId;
-
-				const conversation = conversationsRef.current.find(
-					(entry) => entry.data.conversationId === message.conversationId,
-				);
-				const otherParticipant = conversation
-					? getOtherParticipant(conversation, userId)
-					: null;
-				const senderName =
-					conversation?.data.name?.trim() ||
-					(otherParticipant?.profileId
-						? String(otherParticipant.profileId)
-						: String(message.senderId ?? "")) ||
-					t("chat.unknown");
-
-				const body = getMessagePreviewLabel(message, t);
-
-				console.log("[chat-ws:notify]", {
-					senderName,
-					conversationId: message.conversationId,
-					suppress,
-				});
-
-				void notifyMessage({
-					title: senderName,
-					body,
-					suppress,
-				});
-			}
-		},
-		[t, userId],
-	);
-
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
@@ -1342,10 +1284,9 @@ export function ChatPage() {
 
 			if (unique.length > 0) {
 				mergeIncomingMessages(unique);
-				triggerMessageNotifications(unique);
 			}
 		},
-		[mergeIncomingMessages, triggerMessageNotifications],
+		[mergeIncomingMessages],
 	);
 
 	const handleRealtimeEvent = useCallback(
@@ -1805,78 +1746,24 @@ export function ChatPage() {
 	}, [isDesktop]);
 
 	useEffect(() => {
-		if (!userId) {
-			setWebsocketToken(null);
-			setRealtimeStatus("idle");
-			console.log("[chat-ws:token] skipped (no user)");
-			return;
-		}
-
-		let active = true;
-		void callMethod("websocket_token")
-			.then((token) => {
-				if (!active) {
-					return;
-				}
-				setWebsocketToken(token ?? null);
-				console.log("[chat-ws:token]", {
-					hasToken: Boolean(token),
-					tokenLength: token?.length ?? 0,
-				});
-				if (!token) {
-					setRealtimeStatus("polling");
-				}
-			})
-			.catch(() => {
-				if (!active) {
-					return;
-				}
-				setWebsocketToken(null);
-				setRealtimeStatus("polling");
-				console.warn("[chat-ws:token] failed to fetch websocket token");
-			});
-
-		return () => {
-			active = false;
+		const onEvent = (event: Event) => {
+			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
+			if (envelope) handleRealtimeEvent(envelope);
 		};
-	}, [callMethod, userId]);
-
-	useEffect(() => {
-		if (!websocketToken) {
-			setRealtimeStatus("polling");
-			console.log(
-				"[chat-ws:lifecycle] websocket disabled, using polling fallback",
+		const onStatus = (event: Event) => {
+			const status = (event as CustomEvent<RealtimeStatus>).detail;
+			if (status) handleRealtimeStatus(status);
+		};
+		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
+		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
+		return () => {
+			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
+			window.removeEventListener(
+				CHAT_REALTIME_STATUS,
+				onStatus as EventListener,
 			);
-			return;
-		}
-
-		console.log("[chat-ws:lifecycle] starting websocket manager", {
-			transport: isTauriRuntime() ? "tauri" : "browser",
-		});
-
-		const manager = new ChatRealtimeManager({
-			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => websocketToken,
-			onEvent: handleRealtimeEvent,
-			onStatusChange: handleRealtimeStatus,
-			onRawMessage: (raw) => {
-				console.log("[chat-ws:raw]", raw);
-			},
-			onParseError: (raw, error) => {
-				console.warn("[chat-ws:parse-error]", { raw, error });
-			},
-			buildSocket: isTauriRuntime()
-				? (url) => new TauriWebSocket(url) as unknown as WebSocket
-				: undefined,
-		});
-
-		manager.start();
-
-		return () => {
-			console.log("[chat-ws:lifecycle] stopping websocket manager");
-			manager.stop({ suppressStatus: true });
 		};
-	}, [handleRealtimeEvent, handleRealtimeStatus, websocketToken]);
+	}, [handleRealtimeEvent, handleRealtimeStatus]);
 
 	useEffect(() => {
 		const baseIntervalMs =
