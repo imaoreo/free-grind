@@ -1,21 +1,10 @@
 import {
-	Album,
 	ChevronLeft,
 	ChevronRight,
-	Ellipsis,
-	ImagePlus,
 	Loader2,
-	MessageCircle,
-	Pin,
-	Search,
-	Share2,
-	SlidersHorizontal,
-	Volume2,
-	VolumeX,
 	X,
 } from "lucide-react";
 import {
-    Fragment,
 	type FormEvent,
 	type TouchEvent,
 	useCallback,
@@ -54,44 +43,21 @@ import type {
 	UiMessage,
 } from "../../types/chat-page";
 import {
-	getThumbImageUrl,
-	validateMediaHash,
-} from "../../utils/media";
-import { Avatar } from "../../components/ui/avatar";
-import blankProfileImage from "../../images/blank-profile.png";
-import freegrindLogo from "../../images/freegrind-logo.webp";
-import {
 	indexConversations,
 	indexMessages,
 	searchMessagesLocal,
 } from "./chat/cache";
-import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
-import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { ChatSearchPage } from "./ChatSearchPage";
+import { ChatInboxPanel } from "./chat/ChatInboxPanel";
+import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import * as chatLog from "../../services/chatLog";
-import { formatDistance } from "./gridpage/utils";
 import {
 	buildBinaryUpload,
-	buildChatFiltersDraft,
 	extractImageHashFromSignedUrl,
-	formatConversationTime,
-	formatDateHeader,
-	formatDateTime24,
-	formatMessageTime,
-	getMessageAlbumCoverUrl,
-	getMessageAlbumId,
-	getMessageAudioUrl,
-	getMessageImageCreatedAt,
 	getMessageImageUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
-	getMessageTakenOnGrindr,
-	getMessageText,
-	getMessageVideoUrl,
 	getOtherParticipant,
-	getParticipantAvatarUrl,
-	getParticipantOnlineMeta,
-	getPreviewText,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
 	useDesktopBreakpoint,
@@ -99,7 +65,7 @@ import {
 
 
 export function ChatPage() {
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
@@ -2142,1184 +2108,112 @@ export function ChatPage() {
 	}, [fullScreenImageUrl]);
 
 	const renderInbox = (
-		<PullToRefreshContainer
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-			onRefresh={() => loadInbox({ page: 1, replace: true })}
-			isDisabled={isLoadingInbox || isLoadingMoreInbox}
-			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
-			refreshingLabel={t("chat.refreshing_inbox")}
-			onTouchStartExtra={handleInboxTouchStart}
-			onTouchEndExtra={handleInboxTouchEnd}
-		>
-			<div className="mb-3 flex items-center justify-between gap-3">
-				<div>
-					<InboxAlbumsTabs
-						activeTab="inbox"
-						onInboxClick={() => navigate("/chat")}
-						onAlbumsClick={() => navigate("/settings/shared-albums")}
-						trailing={
-							<span
-								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-							>
-								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-								<span>{realtimeStatusMeta.label}</span>
-							</span>
-						}
-					/>
-					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => 
-                            navigate("/chat/filters", {
-								state: {
-									inboxFiltersDraft: buildChatFiltersDraft(inboxFilters),
-									returnTo: `${location.pathname}${location.search}`,
-								},
-							})
-                        }
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_filters")}
-					>
-						<SlidersHorizontal className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={() => navigate("/chat/search")}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_search")}
-					>
-						<Search className="h-4 w-4" />
-					</button>
-					{hasActiveInboxFilters ? (
-						<button
-							type="button"
-							onClick={clearInboxFilters}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						>
-							{t("chat.clear_filters")}
-						</button>
-					) : null}
-				</div>
-			</div>
-
-			{isLoadingInbox ? (
-				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat.loading_inbox")}
-				</div>
-			) : inboxError ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-					<p className="text-sm text-[var(--text-muted)]">{inboxError}</p>
-					<button
-						type="button"
-						onClick={() => void loadInbox({ page: 1, replace: true })}
-						className="btn-accent px-4 py-2 text-sm"
-					>
-						{t("chat.retry")}
-					</button>
-				</div>
-			) : filteredConversations.length === 0 ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
-					<MessageCircle className="h-8 w-8" />
-					<p className="text-sm">
-						{hasActiveInboxFilters
-							? t("chat.no_conversations_match")
-							: t("chat.no_conversations")}
-					</p>
-				</div>
-			) : (
-				<div ref={inboxListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
-					{filteredConversations.map((conversation) => {
-						const otherParticipant = getOtherParticipant(conversation, userId);
-						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
-							otherParticipant?.lastOnline,
-							otherParticipant?.onlineUntil,
-							nowTimestamp,
-						);
-						const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
-						const isSelected =
-							conversation.data.conversationId === selectedConversationId;
-
-						return (
-							<button
-								type="button"
-								key={conversation.data.conversationId}
-								onClick={() => handleSelectConversation(conversation)}
-								className={`w-full rounded-2xl border p-3 text-left transition ${
-									isSelected
-										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
-										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
-								}`}
-							>
-								<div className="flex items-start gap-3">
-									<div
-										title={otherParticipantOnlineMeta.label}
-										className={`h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] ${
-											isOtherParticipantOnline
-												? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)]"
-												: "border-[var(--border)]"
-										}`}
-									>
-										<img
-											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-											alt={conversation.data.name || t("chat.profile")}
-											className="h-full w-full object-cover"
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-2">
-											<div className="flex items-center gap-1 min-w-0">
-												<p className="truncate font-semibold">
-													{conversation.data.name || t("chat.unknown")}
-												</p>
-												{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
-													<img
-														src={freegrindLogo}
-														alt="Free Grind user"
-														title={t("profile_details.uses_free_grind")}
-														className="shrink-0 h-4 w-4 rounded-full border border-[var(--border)]"
-													/>
-												)}
-											</div>
-											<span className="text-xs text-[var(--text-muted)]">
-												{formatConversationTime(
-													conversation.data.lastActivityTimestamp,
-													i18n.language,
-												)}
-											</span>
-										</div>
-										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
-											{getPreviewText(conversation, t)}
-										</p>
-										<div className="mt-2 flex items-center gap-2">
-											{conversation.data.pinned ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.pinned")}
-												</span>
-											) : null}
-											{conversation.data.muted ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.muted")}
-												</span>
-											) : null}
-										</div>
-									</div>
-
-								</div>
-							</button>
-						);
-					})}
-
-					{nextPage ? (
-						<button
-							type="button"
-							onClick={handleLoadMoreInbox}
-							disabled={isLoadingMoreInbox}
-							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-						>
-							{isLoadingMoreInbox ? t("chat.loading") : t("chat.load_more")}
-						</button>
-					) : null}
-				</div>
-			)}
-		</PullToRefreshContainer>
+		<ChatInboxPanel
+			isDesktop={isDesktop}
+			isLoadingInbox={isLoadingInbox}
+			isLoadingMoreInbox={isLoadingMoreInbox}
+			inboxError={inboxError}
+			inboxFilters={inboxFilters}
+			hasActiveInboxFilters={hasActiveInboxFilters}
+			filteredConversations={filteredConversations}
+			nextPage={nextPage}
+			realtimeStatusMeta={realtimeStatusMeta}
+			selectedConversationId={selectedConversationId}
+			userId={userId}
+			nowTimestamp={nowTimestamp}
+			presenceResults={presenceResults}
+			inboxListRef={inboxListRef}
+			onRefreshInbox={() => void loadInbox({ page: 1, replace: true })}
+			onLoadMoreInbox={handleLoadMoreInbox}
+			onInboxTouchStart={handleInboxTouchStart}
+			onInboxTouchEnd={handleInboxTouchEnd}
+			onSelectConversation={handleSelectConversation}
+			onClearInboxFilters={clearInboxFilters}
+			onOpenFilters={(inboxFiltersDraft) =>
+				navigate("/chat/filters", {
+					state: {
+						inboxFiltersDraft,
+						returnTo: `${location.pathname}${location.search}`,
+					},
+				})
+			}
+			onOpenSearch={() => navigate("/chat/search")}
+			onOpenInbox={() => navigate("/chat")}
+			onOpenAlbums={() => navigate("/settings/shared-albums")}
+		/>
 	);
 
 	const renderSearch = <ChatSearchPage />;
 
-	const renderThread = selectedConversation ? (
-		<div
-			className={`flex h-full flex-col ${!isDesktop ? "overflow-visible p-0" : "overflow-hidden p-3 sm:p-4"} ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			{(() => {
-				const otherParticipant = getOtherParticipant(
-					selectedConversation,
-					userId,
-				);
-				const otherParticipantOnlineMeta = getParticipantOnlineMeta(
-					otherParticipant?.lastOnline,
-					otherParticipant?.onlineUntil,
-					nowTimestamp,
-				);
-				const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
-				const distanceLabel = otherParticipant?.distanceMetres
-					? formatDistance(otherParticipant.distanceMetres)
-					: null;
-				return (
-					<div 
-						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
-						style={!isDesktop ? {
-							top: 0,
-							paddingTop: "max(12px, env(safe-area-inset-top))",
-						} : undefined}
-					>
-						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-3 sm:pl-4" : ""}`}>
-							<button
-								type="button"
-								onClick={() => {
-									if (!otherParticipant) {
-										return;
-									}
-									const returnTo = getProfileReturnToChatPath(
-										otherParticipant.profileId,
-									);
-									const nextParams = new URLSearchParams();
-									nextParams.set("returnTo", returnTo);
-									navigate(
-										`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-										{ state: { returnTo } },
-									);
-								}}
-								disabled={!otherParticipant}
-								aria-label="Open profile"
-								title={otherParticipantOnlineMeta.label}
-								className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
-									isOtherParticipantOnline
-										? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)] hover:border-emerald-400"
-										: "border-[var(--border)] hover:border-[var(--accent)]"
-								}`}
-							>
-								<img
-									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-										alt={selectedConversation.data.name || t("chat.profile")}
-									className="h-full w-full object-cover"
-								/>
-							</button>
-							<div className="min-w-0">
-								<div className="flex items-center gap-1.5 min-w-0">
-									<p className="truncate text-lg font-semibold">
-										{selectedConversation.data.name || "Conversation"}
-									</p>
-									{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
-										<img
-											src={freegrindLogo}
-											alt="Free Grind user"
-											title="Uses Free Grind"
-											className="shrink-0 h-5 w-5 rounded-full border border-[var(--border)]"
-										/>
-									)}
-								</div>
-								<p className="text-sm text-[var(--text-muted)]">
-									{distanceLabel
-										? `${otherParticipantOnlineMeta.label} · ${distanceLabel}`
-										: otherParticipantOnlineMeta.label}
-								</p>
-							</div>
-						</div>
-						{isDesktop ? (
-							<div className="flex items-center gap-2">
-								<button
-									type="button"
-									onClick={() => {
-										if (!otherParticipant) {
-											return;
-										}
-										const returnTo = getProfileReturnToChatPath(
-											otherParticipant.profileId,
-										);
-										const nextParams = new URLSearchParams();
-										nextParams.set("returnTo", returnTo);
-										navigate(
-											`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-											{ state: { returnTo } },
-										);
-									}}
-									disabled={!otherParticipant}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									View profile
-								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={togglePin}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									<Pin className="mr-1 inline h-3.5 w-3.5" />
-									{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={toggleMute}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									{selectedConversation.data.muted ? (
-										<Volume2 className="mr-1 inline h-3.5 w-3.5" />
-									) : (
-										<VolumeX className="mr-1 inline h-3.5 w-3.5" />
-									)}
-									{selectedConversation.data.muted ? "Unmute" : "Mute"}
-								</button>
-								<button
-									type="button"
-									onClick={() => void clearLocalHistory()}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								>
-									Clear local history
-								</button>
-							</div>
-						) : (
-							<div
-								ref={headerActionsMenuRef}
-								className="relative pr-3 sm:pr-4"
-							>
-								<button
-									type="button"
-									onClick={() =>
-										setIsHeaderActionsMenuOpen((current) => !current)
-									}
-									className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									aria-label="Open conversation actions"
-									aria-expanded={isHeaderActionsMenuOpen}
-								>
-									<Ellipsis className="h-4 w-4" />
-								</button>
-								{isHeaderActionsMenuOpen ? (
-									<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[180px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												if (!otherParticipant) {
-													return;
-												}
-												const returnTo = getProfileReturnToChatPath(
-													otherParticipant.profileId,
-												);
-												const nextParams = new URLSearchParams();
-												nextParams.set("returnTo", returnTo);
-												navigate(
-													`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-													{ state: { returnTo } },
-												);
-											}}
-											disabled={!otherParticipant}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											View profile
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void togglePin();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void toggleMute();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.muted ? "Unmute" : "Mute"}
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void clearLocalHistory();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
-										>
-											Clear local history
-										</button>
-									</div>
-								) : null}
-							</div>
-						)}
-					</div>
-				);
-			})()}
-
-			{isLoadingThread &&
-			threadConversationId !== selectedConversation.data.conversationId ? (
-				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading messages...
-				</div>
-			) : threadError ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-					<p className="text-sm text-[var(--text-muted)]">{threadError}</p>
-					<button
-						type="button"
-						onClick={() =>
-							void loadThread({
-								conversationId: selectedConversation.data.conversationId,
-								older: false,
-							})
-						}
-						className="btn-accent px-4 py-2 text-sm"
-					>
-						Retry
-					</button>
-				</div>
-			) : (
-				<>
-					<div
-						ref={threadScrollContainerRef}
-						onScroll={handleThreadScroll}
-						className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
-					>
-						{messagePageKey ? (
-							<button
-								type="button"
-								onClick={() =>
-									void loadThread({
-										conversationId: selectedConversation.data.conversationId,
-										older: true,
-									})
-								}
-								disabled={isLoadingOlderMessages}
-								className="mx-auto mb-3 rounded-xl border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-							>
-								{isLoadingOlderMessages ? "Loading..." : "Load older messages"}
-							</button>
-						) : null}
-
-						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
-                        {(() => {
-                            // Track the last header label to detect day transitions during rendering
-                            let lastHeader = "";
-                            return threadMessages.map((message) => {
-								const currentHeader = formatDateHeader(
-                                    message.timestamp,
-                                    nowTimestamp,
-									t,
-                                );
-                                const isNewDay = currentHeader !== lastHeader;
-                                lastHeader = currentHeader;
-								const mine =
-									userId != null && Number(message.senderId) === Number(userId);
-								const failed = message.clientState === "failed";
-								const pending = message.clientState === "pending";
-								const localOnly = message._localOnly === true;
-								const imageUrl = getMessageImageUrl(message);
-								const messageTakenOnGrindr = getMessageTakenOnGrindr(message);
-								const imageCreatedAt = getMessageImageCreatedAt(message);
-								const imageCreatedAtLabel =
-									imageCreatedAt != null
-										? formatDateTime24(imageCreatedAt)
-										: null;
-								const videoUrl = getMessageVideoUrl(message);
-								const audioUrl = getMessageAudioUrl(message);
-								const albumId = getMessageAlbumId(message);
-								const albumCover = getMessageAlbumCoverUrl(message);
-								const messageText = getMessageText(message, t);
-								const isExpiringImage = message.type === "ExpiringImage";
-								const isAlbumMessage =
-									message.type === "Album" ||
-									message.type === "ExpiringAlbum" ||
-									message.type === "ExpiringAlbumV2";
-								const isImageOnlyBubble =
-									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
-								const isAlbumOnlyBubble =
-									isAlbumMessage && messageText === t("chat.preview.shared_album");
-								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
-								const senderParticipant =
-									selectedConversation.data.participants.find(
-										(participant) =>
-											Number(participant.profileId) === Number(message.senderId),
-									) ?? null;
-								const senderAvatarUrl =
-									senderParticipant?.primaryMediaHash &&
-									validateMediaHash(senderParticipant.primaryMediaHash)
-										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-										: blankProfileImage;
-								const senderLabel = mine
-									? t("chat.you")
-									: selectedConversation.data.name?.trim() || t("chat.unknown");
-								const isActiveSearchMatch =
-									selectedThreadMessageMatches[activeThreadSearchIndex]
-										?.messageId === message.messageId;
-								const fireButtonClass = mine
-									? "absolute -left-3 -top-2"
-									: "absolute -right-3 -top-2";
-
-								return (
-								/* Use Fragment to allow rendering the separator and the message as a single map item */
-                                <Fragment key={message.messageId}>
-                                    {isNewDay && (
-                                        <div className="my-6 flex items-center gap-4 px-4 opacity-80">
-                                            <div className="h-px flex-1 bg-[var(--border)]" />
-                                            <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                                {currentHeader}
-                                            </span>
-                                            <div className="h-px flex-1 bg-[var(--border)]" />
-                                        </div>
-                                    )}
-                                    <div
-										data-message-id={message.messageId}
-										ref={(element) => {
-											if (element) {
-												messageElementRefs.current.set(
-													message.messageId,
-													element,
-												);
-											} else {
-												messageElementRefs.current.delete(message.messageId);
-											}
-										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
-									>
-										<div
-											onDoubleClick={() => void handleMessageTap(message)}
-											onTouchStart={() => startMessageLongPress(message.messageId)}
-											onTouchEnd={endMessageLongPress}
-											onTouchCancel={endMessageLongPress}
-											onTouchMove={endMessageLongPress}
-											className={`relative group/bubble max-w-[85%] rounded-2xl text-sm ${
-												isMediaOnlyBubble
-													? "overflow-hidden bg-transparent p-0"
-													: `px-3 py-2 ${
-														mine
-															? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-															: "bg-[var(--surface-2)] text-[var(--text)]"
-													}`
-											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
-										>
-											{localOnly ? (
-												<p className="mb-1 text-xs opacity-60">
-													{t("chat.thread.from_local_history")}
-												</p>
-											) : null}
-											{imageUrl ? (
-												<button
-													type="button"
-													onClick={() => {
-														if (messageLongPressTriggeredRef.current) {
-															messageLongPressTriggeredRef.current = false;
-															return;
-														}
-														openFullScreenImage(imageUrl);
-													}}
-													className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
-												>
-													<div className="relative">
-													<img
-														src={imageUrl}
-														alt={t("chat.thread.shared_alt")}
-															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
-													/>
-													{isExpiringImage ? (
-														<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
-															1
-														</div>
-													) : null}
-													{!mine ? (
-														<div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
-															{ messageTakenOnGrindr ? (
-                                                                <img
-                                                                    src={freegrindLogo}
-																	    alt={t("chat.thread.taken_on_grindr")}
-                                                                    className="h-3.5 w-3.5 rounded-full"
-                                                                />
-                                                            ) : null}
-
-                                                            <span>
-                                                                {imageCreatedAtLabel
-                                                                    ? ` ${imageCreatedAtLabel}`
-                                                                    : ""}
-                                                            </span>
-														</div>
-													) : null}
-                                                
-														{isImageOnlyBubble ? (
-															<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
-																<div className="flex items-center gap-2">
-																	{pending ? <span>{t("chat.sending")}</span> : null}
-																	{failed ? <span>{t("chat.thread.failed")}</span> : null}
-																</div>
-																<div className="flex items-center gap-2">
-																	<span>
-																		{formatMessageTime(message.timestamp, nowTimestamp, t)}
-																	</span>
-																	{isDesktop &&
-																	!pending &&
-																	!isLocalClientMessageId(message.messageId) ? (
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				setOpenMessageActionId((current) =>
-																					current === message.messageId ? null : message.messageId,
-																				);
-																			}}
-																			className="rounded-md p-1 hover:bg-white/10"
-																		>
-																			<Ellipsis className="h-3.5 w-3.5" />
-																		</button>
-																	) : null}
-																</div>
-															</div>
-														) : null}
-													</div>
-												</button>
-											) : null}
-
-											{isAlbumOnlyBubble ? (
-												<button
-													type="button"
-													onClick={() => {
-														if (messageLongPressTriggeredRef.current) {
-															messageLongPressTriggeredRef.current = false;
-															return;
-														}
-														if (albumId) {
-															void openAlbumViewerById(albumId);
-														}
-													}}
-													className="block w-full"
-													disabled={!albumId}
-												>
-													<div className="relative h-56 w-full overflow-hidden bg-[var(--surface-2)]">
-														<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
-															<Album className="h-8 w-8" />
-														</div>
-														{albumCover ? (
-															<img
-																src={albumCover}
-															alt={t("chat.thread.album_cover")}
-																className="h-full w-full object-cover"
-																onError={(event) => {
-																	event.currentTarget.style.display = "none";
-																}}
-															/>
-														) : null}
-														<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
-															<Avatar
-																src={senderAvatarUrl}
-																alt={senderLabel}
-																fallback={senderLabel}
-																className="h-16 w-16 border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm"
-															/>
-															<p className="max-w-full truncate text-sm font-semibold leading-tight text-white drop-shadow">
-																{senderLabel}
-															</p>
-														</div>
-														<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
-															<div className="flex items-center gap-2">
-																{pending ? <span>{t("chat.sending")}</span> : null}
-																{failed ? <span>{t("chat.thread.failed")}</span> : null}
-															</div>
-															<div className="flex items-center gap-2">
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
-																</span>
-																{isDesktop &&
-																!pending &&
-																!isLocalClientMessageId(message.messageId) ? (
-																	<button
-																		type="button"
-																		onClick={(event) => {
-																			event.stopPropagation();
-																			setOpenMessageActionId((current) =>
-																				current === message.messageId ? null : message.messageId,
-																			);
-																		}}
-																		className="rounded-md p-1 hover:bg-white/10"
-																	>
-																		<Ellipsis className="h-3.5 w-3.5" />
-																	</button>
-																) : null}
-															</div>
-														</div>
-													</div>
-												</button>
-											) : null}
-
-											{videoUrl ? (
-												<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
-													<video
-														controls
-														preload="metadata"
-														src={videoUrl}
-														className="max-h-72 w-full"
-													/>
-												</div>
-											) : null}
-
-											{audioUrl ? (
-												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-													<audio
-														controls
-														preload="none"
-														src={audioUrl}
-														className="w-full"
-													/>
-												</div>
-											) : null}
-
-											{isAlbumMessage && !isAlbumOnlyBubble ? (
-												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-													{albumCover ? (
-														<img
-															src={albumCover}
-															alt={t("chat.thread.album_cover")}
-															className="mb-2 h-36 w-full rounded-lg object-cover"
-														/>
-													) : null}
-													<div className="flex items-center justify-between gap-2">
-														<span className="text-xs font-medium">
-															{t("chat.thread.album_share")}
-														</span>
-														<button
-															type="button"
-															onClick={() => {
-																if (albumId) {
-																	void openAlbumViewerById(albumId);
-																}
-															}}
-															className="rounded-md border border-black/20 px-2 py-1 text-[11px]"
-															disabled={!albumId}
-														>
-															{t("chat.open")}
-														</button>
-													</div>
-												</div>
-											) : null}
-
-											{!isMediaOnlyBubble ? (
-												<p className="whitespace-pre-wrap break-words">
-													{messageText}
-												</p>
-											) : null}
-
-													{!isLocalClientMessageId(message.messageId) ? (
-												<button
-													type="button"
-													onClick={() => void handleReact(message)}
-													disabled={isMutatingMessageId === message.messageId}
-															className={`${fireButtonClass} cursor-pointer transition-opacity ${
-														message.reactions.length > 0
-															? "opacity-100"
-															: "opacity-0 group-hover/bubble:opacity-60"
-													} hover:opacity-80`}
-												>
-													<span className={`chat-reaction-flame text-2xl inline-flex ${
-														reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
-													}`}>
-														🔥
-													</span>
-												</button>
-											) : null}
-
-											{!isMediaOnlyBubble ? (
-											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
-												<div className="flex items-center gap-2">
-													{pending ? <span>{t("chat.sending")}</span> : null}
-													{failed ? <span>{t("chat.thread.failed")}</span> : null}
-												</div>
-												<div className="flex items-center gap-2">
-													<span>
-														{formatMessageTime(message.timestamp, nowTimestamp, t)}
-													</span>
-													{isDesktop &&
-													!pending &&
-													!isLocalClientMessageId(message.messageId) ? (
-														<button
-															type="button"
-															onClick={() =>
-																setOpenMessageActionId((current) =>
-																	current === message.messageId
-																		? null
-																		: message.messageId,
-																)
-															}
-															className="rounded-md p-1 hover:bg-black/10"
-														>
-															<Ellipsis className="h-3.5 w-3.5" />
-														</button>
-													) : null}
-												</div>
-											</div>
-											) : null}
-
-											{isDesktop && openMessageActionId === message.messageId ? (
-												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
-													{mine && !message.unsent ? (
-														<button
-															type="button"
-															onClick={() => void handleUnsend(message)}
-															disabled={
-																isMutatingMessageId === message.messageId
-															}
-															className="rounded-md border border-black/20 px-2 py-1"
-														>
-															{t("chat.actions.unsend")}
-														</button>
-													) : null}
-													<button
-														type="button"
-														onClick={() => void handleDelete(message)}
-														disabled={isMutatingMessageId === message.messageId}
-														className="rounded-md border border-black/20 px-2 py-1"
-													>
-														{t("chat.actions.delete")}
-													</button>
-												</div>
-											) : null}
-
-											{failed ? (
-												<button
-													type="button"
-													onClick={() => handleRetry(message)}
-													className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 py-1 text-[11px] font-semibold"
-												>
-													{t("chat.retry")}
-												</button>
-											) : null}
-										</div>
-									</div>
-						            </Fragment>
-                                );
-                            });
-                        })()}
-						</div>
-						<div ref={threadBottomRef} />
-					</div>
-
-					<form
-						onSubmit={handleSend}
-						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 p-3 sm:p-4" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
-						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
-					>
-						<div className="mb-2 flex flex-wrap items-center gap-2">
-							<button
-								type="button"
-								onClick={toggleAlbumPicker}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								<Share2 className="mr-1 inline h-3.5 w-3.5" /> {t("chat.share_album")}
-							</button>
-							<button
-								type="button"
-								onClick={() => attachmentInputRef.current?.click()}
-								disabled={isUploadingAttachment}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-							>
-								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
-							</button>
-							<input
-								type="file"
-								ref={attachmentInputRef}
-								onChange={onAttachmentInput}
-								accept="image/*,video/*"
-								className="hidden"
-							/>
-							<button
-								type="button"
-								onClick={() => navigate("/settings/albums")}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								{t("chat.manage_albums")}
-							</button>
-						</div>
-
-						{pendingAttachmentFile ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-								<p className="text-xs font-medium text-[var(--text)]">
-									{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
-								</p>
-								<div className="mt-2 grid gap-2">
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentLooping}
-											onChange={(event) =>
-												setAttachmentLooping(event.target.checked)
-											}
-										/>
-										<span>{t("chat.attachments.looping")}</span>
-									</label>
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentTakenOnGrindr}
-											onChange={(event) =>
-												setAttachmentTakenOnGrindr(event.target.checked)
-											}
-										/>
-										<span>{t("chat.attachments.taken_on_grindr")}</span>
-									</label>
-								</div>
-								<div className="mt-3 flex gap-2">
-									<button
-										type="button"
-										onClick={confirmPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-									>
-										{t("chat.attachments.send_attachment")}
-									</button>
-									<button
-										type="button"
-										onClick={cancelPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-									>
-										{t("chat.actions.cancel")}
-									</button>
-								</div>
-							</div>
-						) : null}
-
-						{isAlbumPickerOpen ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
-								{isLoadingAlbums ? (
-									<div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
-									</div>
-								) : shareableAlbums.length === 0 ? (
-									<p className="text-xs text-[var(--text-muted)]">
-										{t("chat.no_albums_available")}
-									</p>
-								) : (
-									<div className="grid gap-2 sm:grid-cols-2">
-										{shareableAlbums.map((album) => (
-											<div
-												key={album.albumId}
-												className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
-											>
-												<p className="truncate text-xs font-medium">
-													{album.albumName || t("chat.album_fallback", { id: album.albumId })}
-												</p>
-												<button
-													type="button"
-													onClick={() =>
-														void shareAlbumToCurrentConversation(album.albumId)
-													}
-													disabled={!album.isShareable || isSharingAlbum}
-													className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
-												>
-													{t("chat.share")}
-												</button>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						) : null}
-
-						{isUploadingAttachment || uploadProgress > 0 ? (
-							<div className="mb-2">
-								<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-									<span>{t("chat.attachments.uploading")}</span>
-									<span>{Math.round(uploadProgress)}%</span>
-								</div>
-								<div className="h-2 rounded-full bg-[var(--surface-2)]">
-									<div
-										className="h-2 rounded-full bg-[var(--accent)] transition-all"
-										style={{ width: `${Math.min(100, uploadProgress)}%` }}
-									/>
-								</div>
-							</div>
-						) : null}
-
-						<div className="flex items-end gap-2">
-							<textarea
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								rows={2}
-								maxLength={5000}
-								placeholder={t("chat.write_message")}
-								className="input-field min-h-[56px] resize-none"
-							/>
-							<button
-								type="submit"
-								disabled={isSending || draft.trim().length === 0}
-								className="btn-accent h-11 shrink-0 px-4 text-sm"
-							>
-								{isSending ? t("chat.sending") : t("chat.send")}
-							</button>
-						</div>
-					</form>
-
-					{!isDesktop && selectedActionMessage && albumViewer === null ? (
-						<div
-							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
-							onClick={() => setOpenMessageActionId(null)}
-						>
-							<div
-								className="w-full max-w-xs rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-3 shadow-2xl"
-								onClick={(event) => event.stopPropagation()}
-							>
-								<p className="px-1 pb-2 text-center text-xs font-medium tracking-wide text-[var(--text-muted)]">
-									{t("chat.actions.title")}
-								</p>
-								<div className="grid gap-2">
-									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
-										<button
-											type="button"
-											onClick={() => void handleUnsend(selectedActionMessage)}
-											disabled={
-												isMutatingMessageId === selectedActionMessage.messageId
-											}
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
-										>
-											{t("chat.actions.unsend")}
-										</button>
-									) : null}
-									<button
-										type="button"
-										onClick={() => void handleDelete(selectedActionMessage)}
-										disabled={
-											isMutatingMessageId === selectedActionMessage.messageId
-										}
-										className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
-									>
-										{t("chat.actions.delete")}
-									</button>
-									<button
-										type="button"
-										onClick={() => setOpenMessageActionId(null)}
-										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									>
-										{t("chat.actions.cancel")}
-									</button>
-								</div>
-							</div>
-						</div>
-					) : null}
-				</>
-			)}
-		</div>
-	) : targetProfileId ? (
-		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">{t("chat.new_conversation.title")}</p>
-				<p className="text-sm text-[var(--text-muted)]">
-					{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
-				</p>
-			</div>
-			<div className="flex-1" />
-			<form
-				onSubmit={handleSend}
-				className="border-t border-[var(--border)] pt-3"
-			>
-				<div className="mb-2 flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						onClick={() => attachmentInputRef.current?.click()}
-						disabled={isUploadingAttachment}
-						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
-					</button>
-					<input
-						type="file"
-						ref={attachmentInputRef}
-						onChange={onAttachmentInput}
-						accept="image/*,video/*"
-						className="hidden"
-					/>
-				</div>
-
-				{pendingAttachmentFile ? (
-					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-						<p className="text-xs font-medium text-[var(--text)]">
-							{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
-						</p>
-						<div className="mt-2 grid gap-2">
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentLooping}
-									onChange={(event) =>
-										setAttachmentLooping(event.target.checked)
-									}
-								/>
-								<span>{t("chat.attachments.looping")}</span>
-							</label>
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentTakenOnGrindr}
-									onChange={(event) =>
-										setAttachmentTakenOnGrindr(event.target.checked)
-									}
-								/>
-								<span>{t("chat.attachments.taken_on_grindr")}</span>
-							</label>
-						</div>
-						<div className="mt-3 flex gap-2">
-							<button
-								type="button"
-								onClick={confirmPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-							>
-								{t("chat.attachments.send_attachment")}
-							</button>
-							<button
-								type="button"
-								onClick={cancelPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-							>
-								{t("chat.actions.cancel")}
-							</button>
-						</div>
-					</div>
-				) : null}
-
-				{isUploadingAttachment || uploadProgress > 0 ? (
-					<div className="mb-2">
-						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-							<span>{t("chat.attachments.uploading")}</span>
-							<span>{Math.round(uploadProgress)}%</span>
-						</div>
-						<div className="h-2 rounded-full bg-[var(--surface-2)]">
-							<div
-								className="h-2 rounded-full bg-[var(--accent)] transition-all"
-								style={{ width: `${Math.min(100, uploadProgress)}%` }}
-							/>
-						</div>
-					</div>
-				) : null}
-
-				<div className="flex items-end gap-2">
-					<textarea
-						value={draft}
-						onChange={(event) => setDraft(event.target.value)}
-						rows={2}
-						maxLength={5000}
-						placeholder={t("chat.new_conversation.write_first_message")}
-						className="input-field min-h-[56px] resize-none"
-					/>
-					<button
-						type="submit"
-						disabled={isSending || draft.trim().length === 0}
-						className="btn-accent h-11 shrink-0 px-4 text-sm"
-					>
-						{isSending ? t("chat.sending") : t("chat.send")}
-					</button>
-				</div>
-			</form>
-		</div>
-	) : (
-		<div
-			className={`flex h-full overflow-hidden items-center justify-center p-6 text-center text-[var(--text-muted)] ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			{t("chat.select_conversation")}
-		</div>
+	const renderThread = (
+		<ChatThreadPanel
+			navigate={navigate}
+			isDesktop={isDesktop}
+			selectedConversation={selectedConversation}
+			targetProfileId={targetProfileId}
+			userId={userId}
+			nowTimestamp={nowTimestamp}
+			presenceResults={presenceResults}
+			isUpdatingConversationState={isUpdatingConversationState}
+			isHeaderActionsMenuOpen={isHeaderActionsMenuOpen}
+			setIsHeaderActionsMenuOpen={setIsHeaderActionsMenuOpen}
+			headerActionsMenuRef={headerActionsMenuRef}
+			togglePin={togglePin}
+			toggleMute={toggleMute}
+			clearLocalHistory={clearLocalHistory}
+			getProfileReturnToChatPath={getProfileReturnToChatPath}
+			isLoadingThread={isLoadingThread}
+			threadConversationId={threadConversationId}
+			threadError={threadError}
+			loadThread={loadThread}
+			threadScrollContainerRef={threadScrollContainerRef}
+			handleThreadScroll={handleThreadScroll}
+			messagePageKey={messagePageKey}
+			isLoadingOlderMessages={isLoadingOlderMessages}
+			threadMessages={threadMessages}
+			messageElementRefs={messageElementRefs}
+			handleMessageTap={handleMessageTap}
+			startMessageLongPress={startMessageLongPress}
+			endMessageLongPress={endMessageLongPress}
+			messageLongPressTriggeredRef={messageLongPressTriggeredRef}
+			openFullScreenImage={openFullScreenImage}
+			openAlbumViewerById={openAlbumViewerById}
+			selectedThreadMessageMatches={selectedThreadMessageMatches}
+			activeThreadSearchIndex={activeThreadSearchIndex}
+			openMessageActionId={openMessageActionId}
+			setOpenMessageActionId={setOpenMessageActionId}
+			isMutatingMessageId={isMutatingMessageId}
+			reactionBurstMessageId={reactionBurstMessageId}
+			handleReact={handleReact}
+			handleUnsend={handleUnsend}
+			handleDelete={handleDelete}
+			handleRetry={handleRetry}
+			threadBottomRef={threadBottomRef}
+			handleSend={handleSend}
+			toggleAlbumPicker={toggleAlbumPicker}
+			attachmentInputRef={attachmentInputRef}
+			onAttachmentInput={onAttachmentInput}
+			isUploadingAttachment={isUploadingAttachment}
+			pendingAttachmentFile={pendingAttachmentFile}
+			attachmentLooping={attachmentLooping}
+			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			setAttachmentLooping={setAttachmentLooping}
+			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			confirmPendingAttachment={confirmPendingAttachment}
+			cancelPendingAttachment={cancelPendingAttachment}
+			isAlbumPickerOpen={isAlbumPickerOpen}
+			isLoadingAlbums={isLoadingAlbums}
+			shareableAlbums={shareableAlbums}
+			isSharingAlbum={isSharingAlbum}
+			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
+			uploadProgress={uploadProgress}
+			draft={draft}
+			setDraft={setDraft}
+			isSending={isSending}
+			selectedActionMessage={selectedActionMessage}
+			selectedActionMessageMine={selectedActionMessageMine}
+			albumViewer={albumViewer}
+		/>
 	);
 
 	return (
