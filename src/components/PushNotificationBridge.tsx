@@ -1,19 +1,10 @@
 import { useEffect } from "react";
-import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 type NativePushNotificationDetail = {
 	event?: string;
-	source?: string;
-	receivedAt?: number;
-	openedAt?: number;
-	senderName?: string;
-	bodyText?: string;
-	isTap?: boolean;
 	action?: string | null;
 	conversationId?: string | null;
-	messageType?: string | null;
-	rawData?: Record<string, string>;
 };
 
 declare global {
@@ -36,18 +27,6 @@ function consumePendingPushNotifications(
 	for (const detail of queue) {
 		handleDetail(detail);
 	}
-}
-
-function getToastMessage(detail: NativePushNotificationDetail): string {
-	if (detail.isTap) {
-		return "Tapped you";
-	}
-
-	if (typeof detail.bodyText === "string" && detail.bodyText.trim()) {
-		return detail.bodyText;
-	}
-
-	return "Sent you a message";
 }
 
 function getConversationId(detail: NativePushNotificationDetail): string | null {
@@ -82,29 +61,13 @@ export function PushNotificationBridge() {
 	useEffect(() => {
 		const handleDetail = (detail: NativePushNotificationDetail) => {
 			console.info("[PUSH_EVENT] Received native push payload", detail);
-			window.dispatchEvent(
-				new CustomEvent("fg:push-notification:handled", {
-					detail,
-				}),
-			);
 
 			if (detail.event === "opened") {
 				const route = getNotificationRoute(detail);
 				if (route) {
 					navigate(route);
 				}
-				return;
 			}
-
-			if (document.visibilityState !== "visible") {
-				return;
-			}
-
-			const title =
-				typeof detail.senderName === "string" && detail.senderName.trim()
-					? detail.senderName
-					: "New activity";
-			toast(`${title}: ${getToastMessage(detail)}`);
 		};
 
 		const onPushNotification = (event: Event) => {
