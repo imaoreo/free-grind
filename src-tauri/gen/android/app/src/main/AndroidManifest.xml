@@ -13,7 +13,7 @@
         android:usesCleartextTraffic="${usesCleartextTraffic}">
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification_small" />
+            android:resource="@drawable/ic_notification_silhouette" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="free_grind_chat_notifications" />

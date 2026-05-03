@@ -59,7 +59,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun buildPushPayload(data: Map<String, String>): JSONObject {
         val titleStr = data["title"] ?: data["senderDisplayName"]
-        val senderName = titleStr ?: "Someone"
+        val senderName = normalizeSenderName(titleStr)
 
         val topBody = data["body"]
         val deeplinkAction = data["action"]
@@ -148,7 +148,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun showNotification(payload: JSONObject) {
-        val title = payload.optString("senderName", "Someone")
+        val title = normalizeSenderName(payload.optString("senderName"))
         val text = payload.optString("bodyText", "Sent you a message")
         val isTap = payload.optBoolean("isTap", false)
         val rawData = payload.optJSONObject("rawData")
@@ -217,10 +217,14 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification_small)
+            // Status-bar icon: monochrome stencil with transparent background only.
+            .setSmallIcon(R.drawable.ic_notification_silhouette)
             .setShortcutId(conversationId)
             .addPerson(sender)
-            .setColor(0xFFFFCC00.toInt())
+            // Keep the badge overlay neutral and avoid OEM color plates.
+            .setColor(Color.TRANSPARENT)
+            .setColorized(false)
+            // Notification body avatar: sender profile bitmap.
             .setLargeIcon(senderAvatarBitmap)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -377,6 +381,18 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         val trimmed = value?.trim().orEmpty()
         if (trimmed.isEmpty() || trimmed.equals("null", ignoreCase = true)) {
             return null
+        }
+        return trimmed
+    }
+
+    private fun normalizeSenderName(value: String?): String {
+        val trimmed = value?.trim().orEmpty()
+        if (
+            trimmed.isEmpty() ||
+            trimmed.equals("null", ignoreCase = true) ||
+            trimmed.equals("SOMEONE_TITLE", ignoreCase = true)
+        ) {
+            return "Someone"
         }
         return trimmed
     }
