@@ -14,7 +14,7 @@ import {
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 import { exportAllLogs } from "../../services/chatLog";
 import {
 	checkForHotswapUpdate,

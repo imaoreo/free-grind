@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button";
 import { Avatar } from "../../components/ui/avatar";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import blankProfileImage from "../../images/blank-profile.png";
