@@ -24,15 +24,12 @@ import {
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
 import {
-	type BrowseFilters,
-	type BrowseFiltersDraft,
 	type BrowseSortOption,
-	defaultBrowseFilters,
 	loadBrowseFiltersDraft,
-	normalizeBrowseFiltersDraft,
-	saveBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
+import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
+import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -56,52 +53,49 @@ export function GridPage() {
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
-	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
-		null,
-	);
+	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
-	const [activeProfileError, setActiveProfileError] = useState<string | null>(
-		null,
-	);
-	const [tappingProfileId, setTappingProfileId] = useState<string | null>(null);
-	const [tapVisualStates, setTapVisualStates] = useState<
-		Record<string, { visualState: "single" | "mutual"; sentAt: number }>
-	>({});
+	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
-	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
-		persistedBrowseFilters.browseFilters,
-	);
-	const [ageMin, setAgeMin] = useState(persistedBrowseFilters.ageMin);
-	const [ageMax, setAgeMax] = useState(persistedBrowseFilters.ageMax);
-	const [heightCmMin, setHeightCmMin] = useState(persistedBrowseFilters.heightCmMin);
-	const [heightCmMax, setHeightCmMax] = useState(persistedBrowseFilters.heightCmMax);
-	const [weightGramsMin, setWeightGramsMin] = useState(
-		persistedBrowseFilters.weightGramsMin,
-	);
-	const [weightGramsMax, setWeightGramsMax] = useState(
-		persistedBrowseFilters.weightGramsMax,
-	);
-	const [tribes, setTribes] = useState<number[]>(persistedBrowseFilters.tribes);
-	const [lookingFor, setLookingFor] = useState<number[]>(
-		persistedBrowseFilters.lookingFor,
-	);
-	const [relationshipStatuses, setRelationshipStatuses] = useState<number[]>(
-		persistedBrowseFilters.relationshipStatuses,
-	);
-	const [bodyTypes, setBodyTypes] = useState<number[]>(
-		persistedBrowseFilters.bodyTypes,
-	);
-	const [sexualPositions, setSexualPositions] = useState<number[]>(
-		persistedBrowseFilters.sexualPositions,
-	);
-	const [meetAt, setMeetAt] = useState<number[]>(persistedBrowseFilters.meetAt);
-	const [nsfwPics, setNsfwPics] = useState<number[]>(persistedBrowseFilters.nsfwPics);
-	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
 	const isMountedRef = useRef(true);
 
-	type SortOption = BrowseSortOption;
-	const [sortBy, setSortBy] = useState<SortOption>(persistedBrowseFilters.sortBy);
+	const {
+		browseFilters,
+		setBrowseFilters,
+		ageMin,
+		ageMax,
+		heightCmMin,
+		heightCmMax,
+		weightGramsMin,
+		weightGramsMax,
+		tribes,
+		lookingFor,
+		relationshipStatuses,
+		bodyTypes,
+		sexualPositions,
+		meetAt,
+		nsfwPics,
+		tags,
+		sortBy,
+		setSortBy,
+		browseRequestFilters,
+		hasActiveBrowseFilters,
+		clearBrowseFilters,
+	} = useBrowseFilters(persistedBrowseFilters);
+
+	const {
+		tappingProfileId,
+		resolvedTapVisualState,
+		hasSentTapRecently,
+		handleTapProfile,
+	} = useTapProfile({
+		activeProfile,
+		setActiveProfile,
+		activeProfileId,
+		tap: apiFunctions.tap,
+		TAP_WINDOW_MS,
+	});
 
 	useEffect(() => {
 		isMountedRef.current = true;
@@ -197,206 +191,6 @@ export function GridPage() {
 		};
 	}, [apiFunctions, userId]);
 
-	useEffect(() => {
-		const safeState =
-			typeof location.state === "object" && location.state !== null
-				? (location.state as {
-						browseFiltersDraft?: Partial<BrowseFiltersDraft>;
-				  })
-				: {};
-		const draft = safeState.browseFiltersDraft;
-		if (!draft) {
-			return;
-		}
-
-		const normalized = normalizeBrowseFiltersDraft(draft);
-		setSortBy(normalized.sortBy);
-		setBrowseFilters(normalized.browseFilters);
-		setAgeMin(normalized.ageMin);
-		setAgeMax(normalized.ageMax);
-		setHeightCmMin(normalized.heightCmMin);
-		setHeightCmMax(normalized.heightCmMax);
-		setWeightGramsMin(normalized.weightGramsMin);
-		setWeightGramsMax(normalized.weightGramsMax);
-		setTribes(normalized.tribes);
-		setLookingFor(normalized.lookingFor);
-		setRelationshipStatuses(normalized.relationshipStatuses);
-		setBodyTypes(normalized.bodyTypes);
-		setSexualPositions(normalized.sexualPositions);
-		setMeetAt(normalized.meetAt);
-		setNsfwPics(normalized.nsfwPics);
-		setTags(normalized.tags);
-	}, [location.key, location.state]);
-
-	useEffect(() => {
-		saveBrowseFiltersDraft({
-			sortBy,
-			browseFilters,
-			ageMin,
-			ageMax,
-			heightCmMin,
-			heightCmMax,
-			weightGramsMin,
-			weightGramsMax,
-			tribes,
-			lookingFor,
-			relationshipStatuses,
-			bodyTypes,
-			sexualPositions,
-			meetAt,
-			nsfwPics,
-			tags,
-		});
-	}, [
-		browseFilters,
-		ageMin,
-		ageMax,
-		heightCmMin,
-		heightCmMax,
-		weightGramsMin,
-		weightGramsMax,
-		tribes,
-		lookingFor,
-		relationshipStatuses,
-		bodyTypes,
-		sexualPositions,
-		meetAt,
-		nsfwPics,
-		tags,
-		sortBy,
-	]);
-
-	const activeBrowseFilters = useMemo(() => {
-		const next: Partial<BrowseFilters> = {};
-		for (const [key, value] of Object.entries(browseFilters)) {
-			if (value) {
-				next[key as keyof BrowseFilters] = true;
-			}
-		}
-		return next;
-	}, [browseFilters]);
-
-	const browseRequestFilters = useMemo(() => {
-		const next: {
-			onlineOnly?: boolean;
-			photoOnly?: boolean;
-			faceOnly?: boolean;
-			hasAlbum?: boolean;
-			notRecentlyChatted?: boolean;
-			fresh?: boolean;
-			rightNow?: boolean;
-			favorites?: boolean;
-			shuffle?: boolean;
-			hot?: boolean;
-			ageMin?: number;
-			ageMax?: number;
-			heightCmMin?: number;
-			heightCmMax?: number;
-			weightGramsMin?: number;
-			weightGramsMax?: number;
-			tribes?: string;
-			lookingFor?: string;
-			relationshipStatuses?: string;
-			bodyTypes?: string;
-			sexualPositions?: string;
-			meetAt?: string;
-			nsfwPics?: string;
-			tags?: string;
-		} = { ...activeBrowseFilters };
-
-		const toOptionalNumber = (value: string): number | undefined => {
-			const normalized = value.trim();
-			if (!normalized) {
-				return undefined;
-			}
-
-			const parsed = Number(normalized);
-			return Number.isFinite(parsed) ? parsed : undefined;
-		};
-
-		const toOptionalNumberCsv = (value: number[]): string | undefined => {
-			if (value.length === 0) {
-				return undefined;
-			}
-
-			const normalized = [...new Set(value)]
-				.filter((item) => Number.isFinite(item))
-				.join(",");
-
-			return normalized.length > 0 ? normalized : undefined;
-		};
-
-		const toOptionalTagCsv = (value: string[]): string | undefined => {
-			if (value.length === 0) {
-				return undefined;
-			}
-
-			const normalized = [...new Set(value.map((item) => item.trim()))]
-				.filter((item) => item.length > 0)
-				.join(",");
-			return normalized.length > 0 ? normalized : undefined;
-		};
-
-		const parsedAgeMin = toOptionalNumber(ageMin);
-		const parsedAgeMax = toOptionalNumber(ageMax);
-		const parsedHeightCmMin = toOptionalNumber(heightCmMin);
-		const parsedHeightCmMax = toOptionalNumber(heightCmMax);
-		const parsedWeightGramsMin = toOptionalNumber(weightGramsMin);
-		const parsedWeightGramsMax = toOptionalNumber(weightGramsMax);
-
-		if (typeof parsedAgeMin === "number" && parsedAgeMin >= 18) {
-			next.ageMin = parsedAgeMin;
-		}
-
-		if (typeof parsedAgeMax === "number" && parsedAgeMax >= 18) {
-			next.ageMax = parsedAgeMax;
-		}
-
-		if (typeof parsedHeightCmMin === "number") next.heightCmMin = parsedHeightCmMin;
-		if (typeof parsedHeightCmMax === "number") next.heightCmMax = parsedHeightCmMax;
-		if (typeof parsedWeightGramsMin === "number") next.weightGramsMin = parsedWeightGramsMin;
-		if (typeof parsedWeightGramsMax === "number") next.weightGramsMax = parsedWeightGramsMax;
-
-		const parsedTribes = toOptionalNumberCsv(tribes);
-		const parsedLookingFor = toOptionalNumberCsv(lookingFor);
-		const parsedRelationshipStatuses = toOptionalNumberCsv(relationshipStatuses);
-		const parsedBodyTypes = toOptionalNumberCsv(bodyTypes);
-		const parsedSexualPositions = toOptionalNumberCsv(sexualPositions);
-		const parsedMeetAt = toOptionalNumberCsv(meetAt);
-		const parsedNsfwPics = toOptionalNumberCsv(nsfwPics);
-		const parsedTags = toOptionalTagCsv(tags);
-
-		if (parsedTribes) next.tribes = parsedTribes;
-		if (parsedLookingFor) next.lookingFor = parsedLookingFor;
-		if (parsedRelationshipStatuses)
-			next.relationshipStatuses = parsedRelationshipStatuses;
-		if (parsedBodyTypes) next.bodyTypes = parsedBodyTypes;
-		if (parsedSexualPositions) next.sexualPositions = parsedSexualPositions;
-		if (parsedMeetAt) next.meetAt = parsedMeetAt;
-		if (parsedNsfwPics) next.nsfwPics = parsedNsfwPics;
-		if (parsedTags) next.tags = parsedTags;
-
-		return next;
-	}, [
-		activeBrowseFilters,
-		ageMax,
-		ageMin,
-		heightCmMax,
-		heightCmMin,
-		weightGramsMax,
-		weightGramsMin,
-		tribes,
-		lookingFor,
-		relationshipStatuses,
-		bodyTypes,
-		sexualPositions,
-		meetAt,
-		nsfwPics,
-		tags,
-	]);
-
-	const hasActiveBrowseFilters = Object.keys(browseRequestFilters).length > 0;
-
 	const browseCacheKey = useMemo(() => {
 		if (!geohash) {
 			return "";
@@ -406,36 +200,7 @@ export function GridPage() {
 	}, [browseRequestFilters, geohash]);
 
 	const getBrowseCardsWithTimeout = useCallback(
-		async (args: {
-			geohash: string;
-			page?: number;
-			filters?: {
-				onlineOnly?: boolean;
-				photoOnly?: boolean;
-				faceOnly?: boolean;
-				hasAlbum?: boolean;
-				notRecentlyChatted?: boolean;
-				fresh?: boolean;
-				rightNow?: boolean;
-				favorites?: boolean;
-				shuffle?: boolean;
-				hot?: boolean;
-				ageMin?: number;
-				ageMax?: number;
-				heightCmMin?: number;
-				heightCmMax?: number;
-				weightGramsMin?: number;
-				weightGramsMax?: number;
-				tribes?: string;
-				lookingFor?: string;
-				relationshipStatuses?: string;
-				bodyTypes?: string;
-				sexualPositions?: string;
-				meetAt?: string;
-				nsfwPics?: string;
-				tags?: string;
-			};
-		}) => {
+		async (args: Parameters<typeof apiFunctions.getBrowseCards>[0]) => {
 			return await new Promise<
 				Awaited<ReturnType<typeof apiFunctions.getBrowseCards>>
 			>((resolve, reject) => {
@@ -593,24 +358,6 @@ export function GridPage() {
 			if (!cancelled) setIsLoadingMoreCards(false);
 		}
 	};
-	const clearBrowseFilters = () => {
-		setBrowseFilters(defaultBrowseFilters);
-		setAgeMin("");
-		setAgeMax("");
-		setHeightCmMin("");
-		setHeightCmMax("");
-		setWeightGramsMin("");
-		setWeightGramsMax("");
-		setTribes([]);
-		setLookingFor([]);
-		setRelationshipStatuses([]);
-		setBodyTypes([]);
-		setSexualPositions([]);
-		setMeetAt([]);
-		setNsfwPics([]);
-		setTags([]);
-	};
-
 	useEffect(() => {
 		if (!activeProfileId) {
 			setActiveProfile(null);
@@ -721,75 +468,6 @@ export function GridPage() {
 		return cards.find((card) => card.profileId === activeProfileId) ?? null;
 	}, [activeProfileId, cards]);
 
-	const resolvedTapVisualState = useMemo(() => {
-		if (!activeProfileId) {
-			return "none" as const;
-		}
-
-		const toEpochMs = (timestamp: number | null | undefined) => {
-			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
-				return null;
-			}
-
-			// Some APIs send seconds while others send milliseconds.
-			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
-		};
-
-		const isWithinTapWindow = (timestamp: number | null | undefined) => {
-			const normalizedTimestamp = toEpochMs(timestamp);
-			if (normalizedTimestamp === null) {
-				return false;
-			}
-
-			const ageMs = Date.now() - normalizedTimestamp;
-			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
-		};
-
-		const localState = tapVisualStates[activeProfileId] ?? null;
-		const localStateWithinWindow =
-			localState && isWithinTapWindow(localState.sentAt) ? localState : null;
-		const hasSentTap =
-			activeProfile?.tapped === true || localStateWithinWindow !== null;
-		const hasReceivedTap =
-			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
-			isWithinTapWindow(activeProfile.lastReceivedTapTimestamp);
-
-		if (hasSentTap || hasReceivedTap) {
-			return "single" as const;
-		}
-
-		return "none" as const;
-	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
-
-	const hasSentTapRecently = useMemo(() => {
-		if (!activeProfileId) {
-			return false;
-		}
-
-		const toEpochMs = (timestamp: number | null | undefined) => {
-			if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
-				return null;
-			}
-
-			return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
-		};
-
-		const isWithinTapWindow = (timestamp: number | null | undefined) => {
-			const normalizedTimestamp = toEpochMs(timestamp);
-			if (normalizedTimestamp === null) {
-				return false;
-			}
-
-			const ageMs = Date.now() - normalizedTimestamp;
-			return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
-		};
-
-		const sentFromServer = activeProfile?.tapped === true;
-		const sentLocally = isWithinTapWindow(tapVisualStates[activeProfileId]?.sentAt);
-
-		return sentFromServer || sentLocally;
-	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
-
 	const activeProfilePhotoHashes = useMemo(() => {
 		if (!activeProfile) {
 			return [];
@@ -872,73 +550,6 @@ export function GridPage() {
 			toast.error(t("browse_page.errors.location_read_failed"));
 		}
 	};
-
-	const handleTapProfile = useCallback(
-		async (profileId: string) => {
-			if (tappingProfileId === profileId) {
-				return;
-			}
-
-			const toEpochMs = (timestamp: number | null | undefined) => {
-				if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
-					return null;
-				}
-
-				return timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp;
-			};
-
-			const isWithinTapWindow = (timestamp: number | null | undefined) => {
-				const normalizedTimestamp = toEpochMs(timestamp);
-				if (normalizedTimestamp === null) {
-					return false;
-				}
-
-				const ageMs = Date.now() - normalizedTimestamp;
-				return ageMs >= 0 && ageMs < TAP_WINDOW_MS;
-			};
-
-			const sentFromServer =
-				activeProfile?.profileId === profileId && activeProfile.tapped === true;
-			const sentLocally = isWithinTapWindow(tapVisualStates[profileId]?.sentAt);
-			if (sentFromServer || sentLocally) {
-				toast(t("browse_page.toasts.tap_limit"));
-				return;
-			}
-
-			setTappingProfileId(profileId);
-			try {
-				const result = await apiFunctions.tap(profileId);
-				setActiveProfile((current) =>
-					current && current.profileId === profileId
-						? { ...current, tapped: true }
-						: current,
-				);
-				setTapVisualStates((current) => ({
-					...current,
-					[profileId]: {
-						visualState: result.isMutual ? "mutual" : "single",
-						sentAt: Date.now(),
-					},
-				}));
-				toast.success(
-					result.isMutual
-						? t("browse_page.toasts.tap_mutual")
-						: t("browse_page.toasts.tap_sent"),
-				);
-			} catch (error) {
-				toast.error(
-					error instanceof Error
-						? error.message
-						: t("browse_page.toasts.tap_failed"),
-				);
-			} finally {
-				setTappingProfileId((current) =>
-					current === profileId ? null : current,
-				);
-			}
-		},
-		[activeProfile, apiFunctions, tapVisualStates, tappingProfileId, TAP_WINDOW_MS],
-	);
 
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
@@ -1025,7 +636,7 @@ export function GridPage() {
 									<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 									<select
 										value={sortBy}
-										onChange={(e) => setSortBy(e.target.value as SortOption)}
+										onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
 										className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
 									>
 										<option value="default">{t("browse_filters.sort.default")}</option>
@@ -1040,7 +651,7 @@ export function GridPage() {
 								<button
 									type="button"
 									onClick={() =>
-										setBrowseFilters((prev) => ({
+										setBrowseFilters((prev: typeof browseFilters) => ({
 											...prev,
 											onlineOnly: !prev.onlineOnly,
 										}))
@@ -1136,7 +747,7 @@ export function GridPage() {
 									<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
 									<select
 										value={sortBy}
-										onChange={(e) => setSortBy(e.target.value as SortOption)}
+										onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
 										className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
 									>
 										<option value="default">{t("browse_page.sort")}</option>

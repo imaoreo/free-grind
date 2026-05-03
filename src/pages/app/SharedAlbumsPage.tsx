@@ -1,10 +1,7 @@
 import {
 	Album,
-	ChevronLeft,
-	ChevronRight,
 	RefreshCw,
 	Users,
-	X,
 } from "lucide-react";
 import {
 	type TouchEvent,
@@ -16,7 +13,6 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../../components/ui/button";
 import { Avatar } from "../../components/ui/avatar";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/useAuth";
@@ -27,6 +23,8 @@ import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
+import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
+import { AlbumFullscreenOverlay } from "./shared-albums/AlbumFullscreenOverlay";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -597,229 +595,29 @@ export function SharedAlbumsPage() {
 			) : null}
 
 			{viewer ? (
-				<div
-					className="fixed inset-0 z-50 bg-black/75 p-0 backdrop-blur-[2px] sm:p-5"
-					onClick={closeViewer}
-				>
-					<div
-						className="mx-auto flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden border border-[var(--border)] bg-[var(--surface)] sm:h-full sm:rounded-2xl"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5">
-							<div className="min-w-0">
-								<p className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
-									{t("shared_albums.album_label")}
-								</p>
-								<p className="truncate text-lg font-semibold">
-									{viewer.albumName?.trim() || `Album #${viewer.albumId}`}
-								</p>
-								<p className="text-xs text-[var(--text-muted)]">
-									{t("shared_albums.items_count", { count: viewer.content.length })}
-									{selectedViewerItem ? ` · ${viewerIndex + 1}/${viewer.content.length}` : ""}
-								</p>
-							</div>
-							<div className="flex items-center gap-2">
-								<Button
-									type="button"
-									size="icon"
-									variant="ghost"
-									onClick={closeViewer}
-									aria-label={t("shared_albums.close_viewer")}
-								>
-									<X className="h-4 w-4" />
-								</Button>
-							</div>
-						</div>
-
-						{viewer.content.length === 0 ? (
-							<div className="p-4 sm:p-6">
-								<EmptyState
-									title={t("shared_albums.empty_album_title")}
-									description={t("shared_albums.empty_album_desc")}
-								/>
-							</div>
-						) : (
-							<div className="min-h-0 flex-1 p-3 sm:p-5">
-								<div className="mb-3">
-									<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-										{t("shared_albums.all_media")}
-									</p>
-								</div>
-								<div className="grid max-h-full grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4 lg:grid-cols-5">
-										{viewer.content.map((item, index) => {
-											const mediaUrl = item.thumbUrl || item.url || item.coverUrl;
-											const isActive = index === fullScreenIndex;
-
-											return (
-												<button
-													key={item.contentId}
-													type="button"
-													onClick={() => openFullScreen(index)}
-													className={`relative aspect-square overflow-hidden rounded-lg border transition ${
-														isActive
-															? "border-[var(--accent)]"
-															: "border-[var(--border)] hover:border-[var(--text-muted)]"
-													}`}
-												>
-													{mediaUrl ? (
-														item.contentType?.startsWith("video/") ? (
-															<video src={mediaUrl} className="h-full w-full object-cover" muted />
-														) : (
-															<img
-																src={mediaUrl}
-																alt={t("shared_albums.content_alt", { index: index + 1 })}
-																loading="lazy"
-																className="h-full w-full object-cover"
-															/>
-														)
-													) : (
-														<div className="flex h-full w-full items-center justify-center bg-[var(--surface-2)] text-[10px] text-[var(--text-muted)]">
-															{t("shared_albums.unavailable")}
-														</div>
-													)}
-													{isActive ? (
-														<div className="absolute inset-x-2 bottom-2 rounded-full bg-black/70 px-2 py-1 text-center text-[10px] font-medium text-white">
-															{t("shared_albums.open_action")}
-														</div>
-													) : null}
-												</button>
-											);
-										})}
-									</div>
-								</div>
-						)}
-					</div>
-				</div>
+				<AlbumViewerPanel
+					viewer={viewer}
+					viewerIndex={viewerIndex}
+					fullScreenIndex={fullScreenIndex}
+					selectedViewerItem={selectedViewerItem}
+					closeViewer={closeViewer}
+					openFullScreen={openFullScreen}
+				/>
 			) : null}
 
 			{viewer && fullScreenItem ? (
-				<div className="fixed inset-0 z-[60] bg-black/90" onClick={closeFullScreen}>
-					<div
-						className="flex h-full w-full items-center justify-center p-3 sm:p-6"
-						onTouchStart={onViewerTouchStart}
-						onTouchEnd={onViewerTouchEnd}
-					>
-						<div className="flex h-full w-full max-h-[92vh] max-w-[92vw] items-center justify-center">
-							{(() => {
-								const mediaUrl =
-									fullScreenItem.url ||
-									fullScreenItem.thumbUrl ||
-									fullScreenItem.coverUrl;
-
-								if (!mediaUrl) {
-									return (
-										<div className="rounded-xl bg-black/50 px-6 py-4 text-center text-sm text-white/80">
-											{t("shared_albums.media_unavailable")}
-										</div>
-									);
-								}
-
-								if (fullScreenItem.contentType?.startsWith("video/")) {
-									return (
-										<video
-											src={mediaUrl}
-											controls
-											autoPlay
-											onClick={(event) => event.stopPropagation()}
-											className="h-full w-full max-h-[92vh] max-w-[92vw] object-contain"
-										/>
-									);
-								}
-
-								return (
-									<img
-										src={mediaUrl}
-										alt={t("shared_albums.content_alt", { index: (fullScreenIndex ?? 0) + 1 })}
-										onClick={(event) => event.stopPropagation()}
-										className="h-full w-full max-h-[92vh] max-w-[92vw] object-contain"
-									/>
-								);
-							})()}
-						</div>
-
-						<Button
-							type="button"
-							size="icon"
-							variant="secondary"
-							onClick={(event) => {
-								event.stopPropagation();
-								closeFullScreen();
-							}}
-							aria-label={t("shared_albums.close_fullscreen")}
-							className="absolute"
-							style={{
-								right: "calc(env(safe-area-inset-right, 0px) + 12px)",
-								top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-							}}
-						>
-							<X className="h-5 w-5" />
-						</Button>
-
-						{viewer.content.length > 1 ? (
-							<>
-								<Button
-									type="button"
-									size="icon"
-									variant="secondary"
-									onClick={(event) => {
-										event.stopPropagation();
-										showPreviousFullScreenItem();
-									}}
-									disabled={!canViewPrevious}
-									aria-label={t("shared_albums.previous")}
-									className="absolute left-3 top-1/2 hidden -translate-y-1/2 sm:left-5 sm:inline-flex"
-								>
-									<ChevronLeft className="h-6 w-6" />
-								</Button>
-								<Button
-									type="button"
-									size="icon"
-									variant="secondary"
-									onClick={(event) => {
-										event.stopPropagation();
-										showNextFullScreenItem();
-									}}
-									disabled={!canViewNext}
-									aria-label={t("shared_albums.next")}
-									className="absolute right-3 top-1/2 hidden -translate-y-1/2 sm:right-5 sm:inline-flex"
-								>
-									<ChevronRight className="h-6 w-6" />
-								</Button>
-
-								<div className="absolute bottom-4 left-3 right-3 grid grid-cols-2 gap-2 sm:hidden">
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={(event) => {
-											event.stopPropagation();
-											showPreviousFullScreenItem();
-										}}
-										disabled={!canViewPrevious}
-										className="w-full"
-									>
-										{t("shared_albums.previous")}
-									</Button>
-									<Button
-										type="button"
-										variant="secondary"
-										onClick={(event) => {
-											event.stopPropagation();
-											showNextFullScreenItem();
-										}}
-										disabled={!canViewNext}
-										className="w-full"
-									>
-										{t("shared_albums.next")}
-									</Button>
-								</div>
-							</>
-						) : null}
-
-						<div className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white/90 sm:bottom-3">
-							{(fullScreenIndex ?? 0) + 1} / {viewer.content.length}
-						</div>
-					</div>
-				</div>
+				<AlbumFullscreenOverlay
+					viewer={viewer}
+					fullScreenIndex={fullScreenIndex}
+					fullScreenItem={fullScreenItem}
+					canViewPrevious={canViewPrevious}
+					canViewNext={canViewNext}
+					closeFullScreen={closeFullScreen}
+					showPreviousFullScreenItem={showPreviousFullScreenItem}
+					showNextFullScreenItem={showNextFullScreenItem}
+					onViewerTouchStart={onViewerTouchStart}
+					onViewerTouchEnd={onViewerTouchEnd}
+				/>
 			) : null}
 		</section>
 	);
