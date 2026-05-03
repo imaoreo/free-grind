@@ -2,6 +2,7 @@ import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import type { ConversationEntry } from "../../types/messages";
@@ -47,6 +48,7 @@ export function ChatSearchPage() {
 	const navigate = useNavigate();
 	const service = useApiFunctions();
 	const { geohash } = usePreferences();
+	const { t } = useTranslation();
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [startChatProfileIdDraft, setStartChatProfileIdDraft] = useState("");
@@ -105,7 +107,7 @@ export function ChatSearchPage() {
 				if (!active) {
 					return;
 				}
-				setInboxError(error instanceof Error ? error.message : "Failed to load inbox");
+				setInboxError(error instanceof Error ? error.message : t("chat_search.error_load_inbox"));
 			})
 			.finally(() => {
 				if (active) {
@@ -163,7 +165,7 @@ export function ChatSearchPage() {
 				);
 			} catch (error) {
 				toast.error(
-					error instanceof Error ? error.message : "Failed to search profiles",
+					error instanceof Error ? error.message : t("chat_search.error_search_profiles"),
 				);
 			} finally {
 				setIsSearchingProfiles(false);
@@ -203,7 +205,7 @@ export function ChatSearchPage() {
 		(rawProfileId: string) => {
 			const parsed = Number(rawProfileId.trim());
 			if (!Number.isInteger(parsed) || parsed <= 0) {
-				toast.error("Enter a valid profile ID");
+				toast.error(t("chat_search.error_valid_id"));
 				return;
 			}
 
@@ -219,7 +221,7 @@ export function ChatSearchPage() {
 		(rawProfileId: string) => {
 			const parsed = Number(rawProfileId.trim());
 			if (!Number.isInteger(parsed) || parsed <= 0) {
-				toast.error("Enter a valid profile ID");
+				toast.error(t("chat_search.error_valid_id"));
 				return;
 			}
 
@@ -249,9 +251,9 @@ export function ChatSearchPage() {
 				<div className="flex h-full flex-col overflow-hidden p-3 sm:p-4">
 					<div className="mb-3 flex items-center justify-between gap-3">
 						<div>
-							<h1 className="app-title">Search</h1>
+							<h1 className="app-title">{t("chat_search.title")}</h1>
 							<p className="app-subtitle mt-1">
-								Find conversations, messages, and profiles
+								{t("chat_search.subtitle")}
 							</p>
 						</div>
 						<button
@@ -259,7 +261,7 @@ export function ChatSearchPage() {
 							onClick={() => navigate("/chat")}
 							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						>
-							Back to Inbox
+							{t("chat_search.back_to_inbox")}
 						</button>
 					</div>
 
@@ -269,7 +271,7 @@ export function ChatSearchPage() {
 							<input
 								value={searchQuery}
 								onChange={(event) => setSearchQuery(event.target.value)}
-								placeholder="Search conversations, messages, profiles"
+								placeholder={t("chat_search.placeholder")}
 								className="input-field pl-9"
 							/>
 						</div>
@@ -287,7 +289,7 @@ export function ChatSearchPage() {
 								onChange={(event) =>
 									setStartChatProfileIdDraft(event.target.value)
 								}
-								placeholder="Quick start by profile ID"
+								placeholder={t("chat_search.quick_start_placeholder")}
 								className="input-field h-9 text-sm"
 							/>
 							<button
@@ -295,13 +297,13 @@ export function ChatSearchPage() {
 								onClick={() => viewProfileById(startChatProfileIdDraft)}
 								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								View
+								{t("chat_search.view")}
 							</button>
 							<button
 								type="submit"
 								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							>
-								Message
+								{t("chat_search.message")}
 							</button>
 						</form>
 						<div className="mt-2 flex flex-wrap gap-2">
@@ -317,7 +319,7 @@ export function ChatSearchPage() {
 												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)]"
 										}`}
 									>
-										{mode}
+										{t(`chat_search.modes.${mode}`)}
 									</button>
 								),
 							)}
@@ -326,7 +328,7 @@ export function ChatSearchPage() {
 
 					{isLoadingInbox ? (
 						<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading search index...
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat_search.loading")}
 						</div>
 					) : inboxError ? (
 						<div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
@@ -334,7 +336,7 @@ export function ChatSearchPage() {
 						</div>
 					) : searchQuery.trim().length < 2 ? (
 						<div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
-							Type at least 2 characters to search.
+							{t("chat_search.min_chars")}
 						</div>
 					) : (
 						<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
@@ -363,7 +365,7 @@ export function ChatSearchPage() {
 												)}
 											</p>
 											<p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-												{result.preview || "No preview"}
+												{result.preview || t("chat_search.no_preview")}
 											</p>
 										</button>
 									))
@@ -408,14 +410,14 @@ export function ChatSearchPage() {
 								>
 									<div>
 										<p className="text-sm font-semibold">
-											Start chat with profile #{searchedProfileId}
+											{t("chat_search.start_chat_with", { profileId: searchedProfileId })}
 										</p>
 										<p className="text-xs text-[var(--text-muted)]">
-											Use searched profile ID
+											{t("chat_search.use_searched_id")}
 										</p>
 									</div>
 									<span className="text-xs font-semibold text-[var(--accent-readable)]">
-										Start
+										{t("chat_search.start")}
 									</span>
 								</button>
 							) : null}
@@ -438,7 +440,7 @@ export function ChatSearchPage() {
 												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
 													<img
 														src={getSearchProfileImage(profile.profileImageMediaHash)}
-														alt={profile.displayName || "Profile"}
+														alt={profile.displayName || t("chat_search.profile_alt")}
 														className="h-full w-full object-cover"
 													/>
 												</div>
@@ -463,7 +465,7 @@ export function ChatSearchPage() {
 													<p className="text-xs text-[var(--text-muted)]">
 														{profile.distance != null
 															? `${profile.distance.toFixed(1)} km`
-															: "Distance unavailable"}
+															: t("chat_search.distance_unavailable")}
 													</p>
 												</div>
 											</button>
@@ -479,7 +481,7 @@ export function ChatSearchPage() {
 										onClick={() => void runProfileSearch({ loadMore: false })}
 										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
 									>
-										{isSearchingProfiles ? "Searching..." : "Refresh"}
+										{isSearchingProfiles ? t("chat_search.searching") : t("chat_search.refresh")}
 									</button>
 									{profileSearchAfterDistance && profileSearchAfterProfileId ? (
 										<button
@@ -488,7 +490,7 @@ export function ChatSearchPage() {
 											onClick={() => void runProfileSearch({ loadMore: true })}
 											className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
 										>
-											Load more profiles
+											{t("chat_search.load_more")}
 										</button>
 									) : null}
 								</div>
@@ -497,19 +499,19 @@ export function ChatSearchPage() {
 							{searchMode === "conversations" &&
 							conversationSearchResults.length === 0 ? (
 								<p className="text-xs text-[var(--text-muted)]">
-									No conversation matches found.
+									{t("chat_search.no_conversations_found")}
 								</p>
 							) : null}
 							{searchMode === "messages" && messageSearchResults.length === 0 ? (
 								<p className="text-xs text-[var(--text-muted)]">
-									No message matches found in indexed cache.
+									{t("chat_search.no_messages_found")}
 								</p>
 							) : null}
 							{searchMode === "profiles" &&
 							!isSearchingProfiles &&
 							profileResults.length === 0 ? (
 								<p className="text-xs text-[var(--text-muted)]">
-									No profile matches found.
+									{t("chat_search.no_profiles_found")}
 								</p>
 							) : null}
 						</div>

@@ -85,7 +85,7 @@
         "hosting_subtitle": "{{name}} hostet gerade",
         "member_subtitle": "{{name}} ist gerade right now",
         "distance": "Entfernung",
-        "recent": "Letzte",
+        "recent": "Neueste",
         "hosting": "Hosting",
         "filters": "Filter",
         "filter_summary": "Position: {{position}} · Alter: {{age}}",
@@ -120,6 +120,14 @@
         "clear_all": "Alle löschen",
         "apply": "Anwenden",
         "not_specified": "Nicht angegeben",
+        "sort": {
+            "default": "Standard",
+            "distance": "Entfernung",
+            "youngest": "Jüngste",
+            "oldest": "Älteste",
+            "popular": "Beliebt",
+            "name_az": "Name (A-Z)"
+        },
         "options": {
             "online": "Online",
             "has_album": "Hat Album",
@@ -157,6 +165,53 @@
         "map_picker_instructions": "Öffne die Karte, um eine Stecknadel zu setzen und diesen Standort zu speichern.",
         "map_picker_tap_hint": "Tippe auf die Karte, um eine Stecknadel zu setzen.",
         "use_selected_location": "Diesen Standort verwenden"
+    },
+    "browse_page": {
+        "title": "Profile durchsuchen",
+        "subtitle": "Entdecke Leute in deiner Nähe und springe direkt aus dem Feed in Chats.",
+        "sort": "Sortieren",
+        "filter": "Filter",
+        "location": "Standort",
+        "current_location": "Aktueller Standort",
+        "refreshing_feed": "Feed wird aktualisiert...",
+        "open_settings": "Einstellungen öffnen",
+        "settings": "Einstellungen",
+        "your_profile_photo": "Dein Profilfoto",
+        "uses_free_grind": "Nutzt Free Grind",
+        "profile_photo_alt": "Profilfoto von {{name}}",
+        "status_online": "Online",
+        "status_offline": "Offline",
+        "status_online_left": "Online (noch {{count}}m)",
+        "status_minutes_ago": "vor {{count}}m",
+        "status_hours_ago": "vor {{count}}h",
+        "status_days_ago": "vor {{count}}d",
+        "status_just_now": "Gerade eben",
+        "distance_hidden": "verborgen",
+        "unknown": "Unbekannt",
+        "not_set": "Nicht angegeben",
+        "loading_nearby": "Lade Profile in der Nähe",
+        "fetching_feed": "Dein lokaler Feed wird geladen.",
+        "error_load_feed": "Feed konnte nicht geladen werden",
+        "empty_title": "Keine Profile in der Nähe gefunden",
+        "empty_desc": "Versuche den Feed zu aktualisieren, nachdem du deinen Standort geändert hast.",
+        "loading": "Lade",
+        "errors": {
+            "load_timeout": "Zeitüberschreitung beim Laden des Feeds. Bitte prüfe deine Verbindung und versuche es erneut.",
+            "set_location": "Tippe auf die Stecknadel (📍) oben, um deinen Standort festzulegen.",
+            "loading_slow": "Das Laden der Profile dauert länger als erwartet. Versuche zu aktualisieren oder deinen Standort zu ändern.",
+            "load_profiles": "Laden der Profile fehlgeschlagen",
+            "load_profile_details": "Laden der Profildetails fehlgeschlagen",
+            "location_required": "Lege zuerst deinen Standort fest",
+            "location_read_failed": "Dein gespeicherter Standort konnte nicht gelesen werden"
+        },
+        "toasts": {
+            "distance_info": "Suchstandort {{lat}}, {{lon}}. {{id}} ist etwa {{distance}}m entfernt.",
+            "distance_unavailable": "Suchstandort {{lat}}, {{lon}}. Entfernung für {{id}} ist nicht verfügbar.",
+            "tap_limit": "Du hast dieses Profil in den letzten 24 Stunden bereits angetippt",
+            "tap_mutual": "Tap gesendet. Es beruht auf Gegenseitigkeit.",
+            "tap_sent": "Tap gesendet",
+            "tap_failed": "Fehler beim Senden des Taps"
+        }
     },
     "about_page": {
         "badge": "Über Free Grind",
@@ -250,100 +305,6 @@
         "error_reorder_unsupported": "Reihenfolge kann nicht geändert werden (nicht unterstützte Medien-IDs)",
         "error_reorder_fallback": "Reihenfolge konnte nicht geändert werden",
         "error_delete_content_fallback": "Medium konnte nicht gelöscht werden"
-    },
-    "profile": {
-        "labels": {
-            "looking_for": {
-                "chat": "Chat",
-                "dates": "Verabredungen",
-                "friends": "Freunde",
-                "networking": "Vernetzung",
-                "relationship": "Beziehung",
-                "hookups": "Casual Dating"
-            },
-            "relationship_status": {
-                "single": "Single",
-                "dating": "Ich date jemanden",
-                "exclusive": "In einer monogamen Beziehung",
-                "committed": "Vergeben",
-                "partnered": "In einer Beziehung",
-                "engaged": "Verlobt",
-                "married": "Verheiratet",
-                "open_relationship": "In einer offenen Beziehung"
-            },
-            "body_type": {
-                "toned": "Wohlgeformt",
-                "average": "Durchschnitt",
-                "large": "Groß",
-                "muscular": "Muskulös",
-                "slim": "Schlank",
-                "stocky": "Dünn"
-            },
-            "ethnicity": {
-                "asian": "Asiatisch",
-                "black": "Schwarz",
-                "latino": "Latino",
-                "middle_eastern": "Aus dem Nahen Osten",
-                "mixed": "Gemischt",
-                "native_american": "Indianer",
-                "white": "Weiß",
-                "other": "Sonstige",
-                "south_asian": "Südasiatisch"
-            },
-            "sexual_position": {
-                "top": "Top",
-                "bottom": "Bottom",
-                "versatile": "Mal so, mal so",
-                "vers_bottom": "Eher Bottom",
-                "vers_top": "Eher Top",
-                "side": "Keine Penetration"
-            },
-            "meet_at": {
-                "my_place": "Bei mir",
-                "your_place": "Bei dir",
-                "bar": "Bar",
-                "coffee_shop": "Café",
-                "restaurant": "Restaurant"
-            },
-            "hiv_status": {
-                "negative": "Negativ",
-                "negative_prep": "Negativ, auf PrEP",
-                "positive": "Positiv",
-                "positive_undetectable": "Positiv, unter der Nachweisgrenze"
-            },
-            "nsfw": {
-                "never": "Niemals",
-                "not_at_first": "Nicht sofort",
-                "yes_please": "Ja, bitte"
-            },
-            "sexual_health": {
-                "condoms": "Kondome",
-                "doxy_pep": "Ich nehme DoxyPEP",
-                "prep": "Ich nehme PrEP",
-                "hiv_undetectable": "Bei mir ist HIV nicht nachweisbar",
-                "discuss": "Lieber besprechen"
-            },
-            "vaccines": {
-                "covid": "COVID-19",
-                "monkeypox": "Affenpocken",
-                "meningitis": "Meningitis"
-            },
-            "tribes": {
-                "bear": "Bär",
-                "clean_cut": "Adrett",
-                "daddy": "Daddy",
-                "discreet": "Diskret",
-                "geek": "Geek",
-                "jock": "Sportler",
-                "leather": "Leder",
-                "otter": "Otter",
-                "poz": "Poz",
-                "rugged": "Naturbursche",
-                "sober": "Abstinent",
-                "trans": "Trans",
-                "twink": "Twink"
-            }
-        }
     },
     "profile_editor": {
         "title": "Profil-Editor",
@@ -544,6 +505,153 @@
             "upload_media_failed": "Medien-Upload fehlgeschlagen"
         }
     },
+    "profile_details": {
+        "title": "Profildetails",
+        "profile_fallback": "Profil {{id}}",
+        "last_online": "zuletzt online {{value}}",
+        "close_photo_viewer": "Fotobetrachter schließen",
+        "previous_photo": "Vorheriges Foto",
+        "next_photo": "Nächstes Foto",
+        "photo_alt": "Foto von {{name}}",
+        "previous_profile": "Vorheriges Profil",
+        "next_profile": "Nächstes Profil",
+        "uses_free_grind": "Nutzt Free Grind",
+        "loading": "Profildetails werden geladen...",
+        "est_created": "Vorauss. erstellt",
+        "user_id": "Benutzer-ID",
+        "status": "Status",
+        "distance": "Distanz",
+        "message": "Nachricht",
+        "tap_profile": "Profil antippen",
+        "tap_sent_recent": "Tap in den letzten 24 Stunden bereits gesendet",
+        "tap_active": "Tap aktiv",
+        "send_tap": "Tap senden",
+        "run_location_finder": "Standort-Finder starten",
+        "location_finder_running": "Standort-Finder läuft",
+        "location_finder": "Standort-Finder",
+        "locating": "Suche...",
+        "locate": "Suchen",
+        "about": "Über mich",
+        "genders": "Geschlecht",
+        "sexual_health": "Sexuelle Gesundheit",
+        "stats": "Stats",
+        "instagram": "Instagram",
+        "x": "X",
+        "facebook": "Facebook",
+        "close_profile_details": "Profildetails schließen",
+        "default_profile": "Standardprofil",
+        "open_photo": "Foto {{index}} öffnen",
+        "tags": "Tags",
+        "expectations": "Erwartungen",
+        "looking_for": "Ich suche",
+        "meet_at": "Treffen bei",
+        "tribes": "Tribes",
+        "pronouns": "Pronomen",
+        "right_now": "Jetzt gerade",
+        "health": "Gesundheit",
+        "hiv_status": "HIV-Status",
+        "last_tested": "Zuletzt getestet",
+        "vaccines": "Impfungen",
+        "position": "Position",
+        "height": "Größe",
+        "weight": "Gewicht",
+        "body_type": "Körpertyp",
+        "ethnicity": "Ethnizität",
+        "relationship": "Beziehung",
+        "social": "Soziales",
+        "labels": {
+            "looking_for": {
+                "chat": "Chat",
+                "dates": "Verabredungen",
+                "friends": "Freunde",
+                "networking": "Vernetzung",
+                "relationship": "Beziehung",
+                "hookups": "Casual Dating"
+            },
+            "relationship_status": {
+                "single": "Single",
+                "dating": "Ich date jemanden",
+                "exclusive": "In einer monogamen Beziehung",
+                "committed": "Vergeben",
+                "partnered": "In einer Beziehung",
+                "engaged": "Verlobt",
+                "married": "Verheiratet",
+                "open_relationship": "In einer offenen Beziehung"
+            },
+            "body_type": {
+                "toned": "Wohlgeformt",
+                "average": "Durchschnitt",
+                "large": "Groß",
+                "muscular": "Muskulös",
+                "slim": "Schlank",
+                "stocky": "Dünn"
+            },
+            "ethnicity": {
+                "asian": "Asiatisch",
+                "black": "Schwarz",
+                "latino": "Latino",
+                "middle_eastern": "Aus dem Nahen Osten",
+                "mixed": "Gemischt",
+                "native_american": "Indianer",
+                "white": "Weiß",
+                "other": "Sonstige",
+                "south_asian": "Südasiatisch"
+            },
+            "sexual_position": {
+                "top": "Top",
+                "bottom": "Bottom",
+                "versatile": "Mal so, mal so",
+                "vers_bottom": "Eher Bottom",
+                "vers_top": "Eher Top",
+                "side": "Keine Penetration"
+            },
+            "meet_at": {
+                "my_place": "Bei mir",
+                "your_place": "Bei dir",
+                "bar": "Bar",
+                "coffee_shop": "Café",
+                "restaurant": "Restaurant"
+            },
+            "hiv_status": {
+                "negative": "Negativ",
+                "negative_prep": "Negativ, auf PrEP",
+                "positive": "Positiv",
+                "positive_undetectable": "Positiv, unter der Nachweisgrenze"
+            },
+            "nsfw": {
+                "never": "Niemals",
+                "not_at_first": "Nicht sofort",
+                "yes_please": "Ja, bitte"
+            },
+            "sexual_health": {
+                "condoms": "Kondome",
+                "doxy_pep": "Ich nehme DoxyPEP",
+                "prep": "Ich nehme PrEP",
+                "hiv_undetectable": "Bei mir ist HIV nicht nachweisbar",
+                "discuss": "Lieber besprechen"
+            },
+            "vaccines": {
+                "covid": "COVID-19",
+                "monkeypox": "Affenpocken",
+                "meningitis": "Meningitis"
+            },
+            "tribes": {
+                "bear": "Bär",
+                "clean_cut": "Adrett",
+                "daddy": "Daddy",
+                "discreet": "Diskret",
+                "geek": "Geek",
+                "jock": "Sportler",
+                "leather": "Leder",
+                "otter": "Otter",
+                "poz": "Poz",
+                "rugged": "Naturbursche",
+                "sober": "Abstinent",
+                "trans": "Trans",
+                "twink": "Twink"
+            }
+        }
+    },
     "api": {
         "errors": {
             "load_views": "Ansichten konnten nicht geladen werden",
@@ -589,5 +697,36 @@
         "title": "Fehler",
         "subtitle": "Etwas ist schiefgelaufen",
         "action_home": "Zur Übersicht"
+    },
+    "chat_search": {
+        "title": "Suche",
+        "subtitle": "Konversationen, Nachrichten und Profile finden",
+        "back_to_inbox": "Zurück zum Posteingang",
+        "placeholder": "Konversationen, Nachrichten, Profile suchen",
+        "quick_start_placeholder": "Schnellstart per Profil-ID",
+        "view": "Ansehen",
+        "message": "Nachricht",
+        "modes": {
+            "messages": "Nachrichten",
+            "conversations": "Konversationen",
+            "profiles": "Profile"
+        },
+        "loading": "Suchindex wird geladen...",
+        "min_chars": "Gib mindestens 2 Zeichen ein, um zu suchen.",
+        "no_preview": "Keine Vorschau",
+        "start_chat_with": "Chat mit Profil #{{profileId}} starten",
+        "use_searched_id": "Gesuchte Profil-ID verwenden",
+        "start": "Start",
+        "profile_alt": "Profil",
+        "distance_unavailable": "Entfernung nicht verfügbar",
+        "searching": "Suche...",
+        "refresh": "Aktualisieren",
+        "load_more": "Mehr Profile laden",
+        "no_conversations_found": "Keine passenden Konversationen gefunden.",
+        "no_messages_found": "Keine passenden Nachrichten im Index gefunden.",
+        "no_profiles_found": "Keine passenden Profile gefunden.",
+        "error_valid_id": "Gib eine gültige Profil-ID ein",
+        "error_search_profiles": "Suche nach Profilen fehlgeschlagen",
+        "error_load_inbox": "Laden des Posteingangs fehlgeschlagen"
     }
 }

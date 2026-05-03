@@ -107,11 +107,15 @@ export function ProfileDetailsModal({
 		profileOnlineUntil,
 	);
 	const profileStatusLabel = profileStatusMeta.isOnline
-		? profileStatusMeta.label
-		: profileStatusMeta.label === "Offline"
-			? t("chat.realtime.offline")
-			: t("profile_details.last_online", { value: profileStatusMeta.label });
-	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId);
+		? t(profileStatusMeta.labelKey, { count: profileStatusMeta.count })
+		: profileStatusMeta.labelKey === "browse_page.status_offline"
+			? t(profileStatusMeta.labelKey)
+			: t("profile_details.last_online", {
+					value: t(profileStatusMeta.labelKey, {
+						count: profileStatusMeta.count,
+					}),
+				});
+	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
@@ -162,56 +166,58 @@ export function ProfileDetailsModal({
 		if (!activeProfile) return false;
 		return (
 			!shouldHideField(
-				formatEnumArray(activeProfile.lookingFor, lookingForLabels),
+				formatEnumArray(activeProfile.lookingFor, lookingForLabels, t),
 			) ||
-			!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels)) ||
+			!shouldHideField(formatEnumArray(activeProfile.meetAt, meetAtLabels, t)) ||
 			!shouldHideField(
-				formatEnumArray(activeProfile.grindrTribes, tribeLabels),
+				formatEnumArray(activeProfile.grindrTribes, tribeLabels, t),
 			) ||
 			!shouldHideField(formattedActiveGenders) ||
 			!shouldHideField(formattedActivePronouns) ||
 			!shouldHideField(activeProfile.rightNowText?.trim())
 		);
-	}, [activeProfile, formattedActiveGenders, formattedActivePronouns]);
+	}, [activeProfile, formattedActiveGenders, formattedActivePronouns, t]);
 
 	const hasHealthFields = useMemo(() => {
 		if (!activeProfile) return false;
 		return (
 			!shouldHideField(
-				formatEnumValue(activeProfile.hivStatus, hivStatusLabels),
+				formatEnumValue(activeProfile.hivStatus, hivStatusLabels, t),
 			) ||
 			Boolean(activeProfile.lastTestedDate) ||
 			!shouldHideField(
-				formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels),
+				formatEnumArray(activeProfile.sexualHealth, sexualHealthLabels, t),
 			) ||
-			!shouldHideField(formatEnumArray(activeProfile.vaccines, vaccineLabels))
+			!shouldHideField(formatEnumArray(activeProfile.vaccines, vaccineLabels, t))
 		);
-	}, [activeProfile]);
+	}, [activeProfile, t]);
 
 	const hasStatsFields = useMemo(() => {
 		if (!activeProfile) return false;
 		const positionFormatted = formatEnumValue(
 			activeProfile.sexualPosition,
 			sexualPositionLabels,
+			t
 		);
 		return (
 			!shouldHideField(positionFormatted) ||
-			!shouldHideField(formatHeightCm(activeProfile.height)) ||
-			!shouldHideField(formatWeightKg(activeProfile.weight)) ||
+			!shouldHideField(formatHeightCm(activeProfile.height, t)) ||
+			!shouldHideField(formatWeightKg(activeProfile.weight, t)) ||
 			!shouldHideField(
-				formatEnumValue(activeProfile.bodyType, bodyTypeLabels),
+				formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t),
 			) ||
 			!shouldHideField(
-				formatEnumValue(activeProfile.ethnicity, ethnicityLabels),
+				formatEnumValue(activeProfile.ethnicity, ethnicityLabels, t),
 			) ||
 			!shouldHideField(
 				formatEnumValue(
 					activeProfile.relationshipStatus,
 					relationshipStatusLabels,
+					t
 				),
 			)
 		);
-	}, [activeProfile]);
+	}, [activeProfile, t]);
 
 	const hasSocialFields = useMemo(() => {
 		if (!activeProfile) return false;
@@ -482,7 +488,7 @@ export function ProfileDetailsModal({
 														>
 															<img
 																src={getThumbImageUrl(hash, "320x320")}
-																alt={`${activeProfileName} photo`}
+																alt={t("profile_details.photo_alt", { name: activeProfileName })}
 																className="aspect-square w-full object-cover"
 															/>
 														</button>
@@ -512,7 +518,7 @@ export function ProfileDetailsModal({
 																/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
 																   on high-density mobile screens, as thumbnails (320x320) appear blurry here. */
 																src={getProfileImageUrl(hash, "1024x1024")}
-																alt={`${activeProfileName} photo`}
+																alt={t("profile_details.photo_alt", { name: activeProfileName })}
 																className="h-full w-full object-cover"
 															/>
 														</button>
@@ -542,7 +548,7 @@ export function ProfileDetailsModal({
 													>
 														<img
 															src={getThumbImageUrl(hash, "320x320")}
-															alt={`${activeProfileName} photo`}
+															alt={t("profile_details.photo_alt", { name: activeProfileName })}
 															className="aspect-square w-full object-cover"
 														/>
 													</button>
@@ -568,11 +574,11 @@ export function ProfileDetailsModal({
 											<p className="text-lg font-semibold sm:text-xl">
 												{activeProfileName}
 												<span className="ml-2 text-sm font-medium text-[var(--text-muted)]">
-													({formatOptionalNumber(activeProfile.age)})
+													({formatOptionalNumber(activeProfile.age, t)})
 												</span>
 											</p>
 											<p className="mt-1 text-xs text-[var(--text-muted)]">
-												{t("profile_editor.sections.other.user_id")}: {activeProfile.profileId}
+												{t("profile_details.user_id")}: {activeProfile.profileId}
 											</p>
 												<p className="mt-1 text-xs text-[var(--text-muted)]">
 													{t("profile_details.est_created")}: {estimatedCreatedAt}
@@ -582,7 +588,7 @@ export function ProfileDetailsModal({
 											<p>
 												{t("profile_details.status")}: {profileStatusLabel}
 											</p>
-											<p>{t("right_now.distance")}: {formatDistance(profileDistance)}</p>
+											<p>{t("profile_details.distance")}: {formatDistance(profileDistance, t)}</p>
 										</div>
 									</div>
 									{messageProfileId && onMessageProfile ? (
@@ -639,7 +645,7 @@ export function ProfileDetailsModal({
 										{hasTagsContent && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													Tags
+													{t("profile_details.tags")}
 												</p>
 												<div className="mt-2 flex flex-wrap gap-2">
 													{activeProfile.profileTags.map((tag) => (
@@ -657,7 +663,7 @@ export function ProfileDetailsModal({
 										{hasAboutContent && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													About
+													{t("profile_details.about")}
 												</p>
 												<p className="mt-2 text-sm leading-relaxed text-[var(--text)]">
 													{activeProfile.aboutMe?.trim()}
@@ -668,7 +674,7 @@ export function ProfileDetailsModal({
 										{hasExpectationsFields && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													Expectations
+													{t("profile_details.expectations")}
 												</p>
 												<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 													{!shouldHideField(
@@ -678,21 +684,23 @@ export function ProfileDetailsModal({
 														),
 													) && (
 														<p>
-															Looking for:{" "}
+															{t("profile_details.looking_for")}:{" "}
 															{formatEnumArray(
 																activeProfile.lookingFor,
 																lookingForLabels,
+																t
 															)}
 														</p>
 													)}
 													{!shouldHideField(
-														formatEnumArray(activeProfile.meetAt, meetAtLabels),
+														formatEnumArray(activeProfile.meetAt, meetAtLabels, t),
 													) && (
 														<p>
-															Meet at:{" "}
+															{t("profile_details.meet_at")}:{" "}
 															{formatEnumArray(
 																activeProfile.meetAt,
 																meetAtLabels,
+																t
 															)}
 														</p>
 													)}
@@ -700,27 +708,29 @@ export function ProfileDetailsModal({
 														formatEnumArray(
 															activeProfile.grindrTribes,
 															tribeLabels,
+															t
 														),
 													) && (
 														<p>
-															Tribes:{" "}
+															{t("profile_details.tribes")}:{" "}
 															{formatEnumArray(
 																activeProfile.grindrTribes,
 																tribeLabels,
+																t
 															)}
 														</p>
 													)}
 													{!shouldHideField(formattedActiveGenders) && (
-														<p>Genders: {formattedActiveGenders}</p>
+														<p>{t("profile_details.genders")}: {formattedActiveGenders}</p>
 													)}
 													{!shouldHideField(formattedActivePronouns) && (
-														<p>Pronouns: {formattedActivePronouns}</p>
+														<p>{t("profile_details.pronouns")}: {formattedActivePronouns}</p>
 													)}
 													{!shouldHideField(
 														activeProfile.rightNowText?.trim(),
 													) && (
 														<p>
-															Right now: {activeProfile.rightNowText?.trim()}
+															{t("profile_details.right_now")}: {activeProfile.rightNowText?.trim()}
 														</p>
 													)}
 												</div>
@@ -730,7 +740,7 @@ export function ProfileDetailsModal({
 										{hasHealthFields && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													Health
+													{t("profile_details.health")}
 												</p>
 												<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 													{!shouldHideField(
@@ -740,30 +750,33 @@ export function ProfileDetailsModal({
 														),
 													) && (
 														<p>
-															HIV status:{" "}
+															{t("profile_details.hiv_status")}:{" "}
 															{formatEnumValue(
 																activeProfile.hivStatus,
 																hivStatusLabels,
+																t
 															)}
 														</p>
 													)}
 													{activeProfile.lastTestedDate && (
 														<p>
-															Last tested:{" "}
-															{formatTimeAgo(activeProfile.lastTestedDate)}
+															{t("profile_details.last_tested")}:{" "}
+															{formatTimeAgo(activeProfile.lastTestedDate, t)}
 														</p>
 													)}
 													{!shouldHideField(
 														formatEnumArray(
 															activeProfile.sexualHealth,
 															sexualHealthLabels,
+															t
 														),
 													) && (
 														<p>
-															Sexual health:{" "}
+															{t("profile_details.sexual_health")}:{" "}
 															{formatEnumArray(
 																activeProfile.sexualHealth,
 																sexualHealthLabels,
+																t
 															)}
 														</p>
 													)}
@@ -771,13 +784,15 @@ export function ProfileDetailsModal({
 														formatEnumArray(
 															activeProfile.vaccines,
 															vaccineLabels,
+															t
 														),
 													) && (
 														<p>
-															Vaccines:{" "}
+															{t("profile_details.vaccines")}:{" "}
 															{formatEnumArray(
 																activeProfile.vaccines,
 																vaccineLabels,
+																t
 															)}
 														</p>
 													)}
@@ -790,7 +805,7 @@ export function ProfileDetailsModal({
 										{hasStatsFields && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													Stats
+													{t("profile_details.stats")}
 												</p>
 												<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
 													{!shouldHideField(
@@ -801,37 +816,38 @@ export function ProfileDetailsModal({
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Position
+																{t("profile_details.position")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
 																{formatEnumValue(
 																	activeProfile.sexualPosition,
 																	sexualPositionLabels,
+																	t
 																)}
 															</p>
 														</div>
 													)}
 													{!shouldHideField(
-														formatHeightCm(activeProfile.height),
+														formatHeightCm(activeProfile.height, t),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Height
+																{t("profile_details.height")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
-																{formatHeightCm(activeProfile.height)}
+																{formatHeightCm(activeProfile.height, t)}
 															</p>
 														</div>
 													)}
 													{!shouldHideField(
-														formatWeightKg(activeProfile.weight),
+														formatWeightKg(activeProfile.weight, t),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Weight
+																{t("profile_details.weight")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
-																{formatWeightKg(activeProfile.weight)}
+																{formatWeightKg(activeProfile.weight, t)}
 															</p>
 														</div>
 													)}
@@ -839,16 +855,18 @@ export function ProfileDetailsModal({
 														formatEnumValue(
 															activeProfile.bodyType,
 															bodyTypeLabels,
+															t
 														),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Body type
+																{t("profile_details.body_type")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
 																{formatEnumValue(
 																	activeProfile.bodyType,
 																	bodyTypeLabels,
+																	t
 																)}
 															</p>
 														</div>
@@ -857,16 +875,18 @@ export function ProfileDetailsModal({
 														formatEnumValue(
 															activeProfile.ethnicity,
 															ethnicityLabels,
+															t
 														),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Ethnicity
+																{t("profile_details.ethnicity")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
 																{formatEnumValue(
 																	activeProfile.ethnicity,
 																	ethnicityLabels,
+																	t
 																)}
 															</p>
 														</div>
@@ -875,16 +895,18 @@ export function ProfileDetailsModal({
 														formatEnumValue(
 															activeProfile.relationshipStatus,
 															relationshipStatusLabels,
+															t
 														),
 													) && (
 														<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 															<p className="text-[10px] uppercase tracking-[0.08em]">
-																Relationship
+																{t("profile_details.relationship")}
 															</p>
 															<p className="mt-1 font-medium text-[var(--text)]">
 																{formatEnumValue(
 																	activeProfile.relationshipStatus,
 																	relationshipStatusLabels,
+																	t
 																)}
 															</p>
 														</div>
@@ -896,12 +918,12 @@ export function ProfileDetailsModal({
 										{hasSocialFields && (
 											<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 												<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-													Social
+													{t("profile_details.social")}
 												</p>
 												<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 													{activeProfile.socialNetworks?.instagram?.userId && (
 														<p>
-															Instagram:{" "}
+															{t("profile_details.instagram")}:{" "}
 															<a
 																href={`https://instagram.com/${activeProfile.socialNetworks.instagram.userId}`}
 																target="_blank"
@@ -914,7 +936,7 @@ export function ProfileDetailsModal({
 													)}
 													{activeProfile.socialNetworks?.twitter?.userId && (
 														<p>
-															X:{" "}
+															{t("profile_details.x")}:{" "}
 															<a
 																href={`https://x.com/${activeProfile.socialNetworks.twitter.userId}`}
 																target="_blank"
@@ -927,7 +949,7 @@ export function ProfileDetailsModal({
 													)}
 													{activeProfile.socialNetworks?.facebook?.userId && (
 														<p>
-															Facebook:{" "}
+															{t("profile_details.facebook")}:{" "}
 															<a
 																href={`https://facebook.com/${activeProfile.socialNetworks.facebook.userId}`}
 																target="_blank"
@@ -998,11 +1020,11 @@ export function ProfileDetailsModal({
 												key={hash}
 												onClick={() => openPhotoViewer(index)}
 												className="overflow-hidden rounded-xl border border-[var(--border)]"
-												aria-label={`Open photo ${index + 1}`}
+												aria-label={t("profile_details.open_photo", { index: index + 1 })}
 											>
 												<img
 													src={getThumbImageUrl(hash, "320x320")}
-													alt={`${activeProfileName} photo`}
+													alt={t("profile_details.photo_alt", { name: activeProfileName })}
 													className="aspect-square w-full object-cover"
 												/>
 											</button>
@@ -1025,21 +1047,21 @@ export function ProfileDetailsModal({
 										<p className="text-lg font-semibold sm:text-xl">
 											{activeProfileName}
 											<span className="ml-2 text-sm font-medium text-[var(--text-muted)]">
-												({formatOptionalNumber(activeProfile.age)})
+												({formatOptionalNumber(activeProfile.age, t)})
 											</span>
 										</p>
 										<p className="mt-1 text-xs text-[var(--text-muted)]">
-											User ID: {activeProfile.profileId}
+											{t("profile_details.user_id")}: {activeProfile.profileId}
 										</p>
 										<p className="mt-1 text-xs text-[var(--text-muted)]">
-											Est. created: {estimatedCreatedAt}
+											{t("profile_details.est_created")}: {estimatedCreatedAt}
 										</p>
 									</div>
 									<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 										<p>
-											Status: {profileStatusLabel}
+											{t("profile_details.status")}: {profileStatusLabel}
 										</p>
-										<p>Distance: {formatDistance(profileDistance)}</p>
+										<p>{t("profile_details.distance")}: {formatDistance(profileDistance, t)}</p>
 									</div>
 								</div>
 								{messageProfileId && onMessageProfile ? (
@@ -1050,7 +1072,7 @@ export function ProfileDetailsModal({
 												className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
 											>
 												<MessageCircle className="h-4 w-4" />
-												Message
+												{t("profile_details.message")}
 											</button>
 											<button
 												type="button"
@@ -1096,7 +1118,7 @@ export function ProfileDetailsModal({
 									{hasTagsContent && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Tags
+												{t("profile_details.tags")}
 											</p>
 											<div className="mt-2 flex flex-wrap gap-2">
 												{activeProfile.profileTags.map((tag) => (
@@ -1114,7 +1136,7 @@ export function ProfileDetailsModal({
 									{hasAboutContent && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												About
+												{t("profile_details.about")}
 											</p>
 											<p className="mt-2 text-sm leading-relaxed text-[var(--text)]">
 												{activeProfile.aboutMe?.trim()}
@@ -1125,7 +1147,7 @@ export function ProfileDetailsModal({
 									{hasExpectationsFields && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Expectations
+												{t("profile_details.expectations")}
 											</p>
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
@@ -1135,21 +1157,23 @@ export function ProfileDetailsModal({
 													),
 												) && (
 													<p>
-														Looking for:{" "}
+														{t("profile_details.looking_for")}:{" "}
 														{formatEnumArray(
 															activeProfile.lookingFor,
 															lookingForLabels,
+															t
 														)}
 													</p>
 												)}
 												{!shouldHideField(
-													formatEnumArray(activeProfile.meetAt, meetAtLabels),
+													formatEnumArray(activeProfile.meetAt, meetAtLabels, t),
 												) && (
 													<p>
-														Meet at:{" "}
+														{t("profile_details.meet_at")}:{" "}
 														{formatEnumArray(
 															activeProfile.meetAt,
 															meetAtLabels,
+															t
 														)}
 													</p>
 												)}
@@ -1157,26 +1181,28 @@ export function ProfileDetailsModal({
 													formatEnumArray(
 														activeProfile.grindrTribes,
 														tribeLabels,
+														t
 													),
 												) && (
 													<p>
-														Tribes:{" "}
+														{t("profile_details.tribes")}:{" "}
 														{formatEnumArray(
 															activeProfile.grindrTribes,
 															tribeLabels,
+															t
 														)}
 													</p>
 												)}
 												{!shouldHideField(formattedActiveGenders) && (
-													<p>Genders: {formattedActiveGenders}</p>
+													<p>{t("profile_details.genders")}: {formattedActiveGenders}</p>
 												)}
 												{!shouldHideField(formattedActivePronouns) && (
-													<p>Pronouns: {formattedActivePronouns}</p>
+													<p>{t("profile_details.pronouns")}: {formattedActivePronouns}</p>
 												)}
 												{!shouldHideField(
 													activeProfile.rightNowText?.trim(),
 												) && (
-													<p>Right now: {activeProfile.rightNowText?.trim()}</p>
+													<p>{t("profile_details.right_now")}: {activeProfile.rightNowText?.trim()}</p>
 												)}
 											</div>
 										</div>
@@ -1185,7 +1211,7 @@ export function ProfileDetailsModal({
 									{hasHealthFields && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Health
+												{t("profile_details.health")}
 											</p>
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
@@ -1195,30 +1221,33 @@ export function ProfileDetailsModal({
 													),
 												) && (
 													<p>
-														HIV status:{" "}
+														{t("profile_details.hiv_status")}:{" "}
 														{formatEnumValue(
 															activeProfile.hivStatus,
 															hivStatusLabels,
+															t
 														)}
 													</p>
 												)}
 												{activeProfile.lastTestedDate && (
 													<p>
-														Last tested:{" "}
-														{formatTimeAgo(activeProfile.lastTestedDate)}
+														{t("profile_details.last_tested")}:{" "}
+														{formatTimeAgo(activeProfile.lastTestedDate, t)}
 													</p>
 												)}
 												{!shouldHideField(
 													formatEnumArray(
 														activeProfile.sexualHealth,
 														sexualHealthLabels,
+														t
 													),
 												) && (
 													<p>
-														Sexual health:{" "}
+														{t("profile_details.sexual_health")}:{" "}
 														{formatEnumArray(
 															activeProfile.sexualHealth,
 															sexualHealthLabels,
+															t
 														)}
 													</p>
 												)}
@@ -1226,13 +1255,15 @@ export function ProfileDetailsModal({
 													formatEnumArray(
 														activeProfile.vaccines,
 														vaccineLabels,
+														t
 													),
 												) && (
 													<p>
-														Vaccines:{" "}
+														{t("profile_details.vaccines")}:{" "}
 														{formatEnumArray(
 															activeProfile.vaccines,
 															vaccineLabels,
+															t
 														)}
 													</p>
 												)}
@@ -1245,7 +1276,7 @@ export function ProfileDetailsModal({
 									{hasStatsFields && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Stats
+												{t("profile_details.stats")}
 											</p>
 											<div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[var(--text-muted)]">
 												{!shouldHideField(
@@ -1256,37 +1287,38 @@ export function ProfileDetailsModal({
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Position
+															{t("profile_details.position")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatEnumValue(
 																activeProfile.sexualPosition,
 																sexualPositionLabels,
+																t
 															)}
 														</p>
 													</div>
 												)}
 												{!shouldHideField(
-													formatHeightCm(activeProfile.height),
+													formatHeightCm(activeProfile.height, t),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Height
+															{t("profile_details.height")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
-															{formatHeightCm(activeProfile.height)}
+															{formatHeightCm(activeProfile.height, t)}
 														</p>
 													</div>
 												)}
 												{!shouldHideField(
-													formatWeightKg(activeProfile.weight),
+													formatWeightKg(activeProfile.weight, t),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Weight
+															{t("profile_details.weight")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
-															{formatWeightKg(activeProfile.weight)}
+															{formatWeightKg(activeProfile.weight, t)}
 														</p>
 													</div>
 												)}
@@ -1294,16 +1326,18 @@ export function ProfileDetailsModal({
 													formatEnumValue(
 														activeProfile.bodyType,
 														bodyTypeLabels,
+														t
 													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Body type
+															{t("profile_details.body_type")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatEnumValue(
 																activeProfile.bodyType,
 																bodyTypeLabels,
+																t
 															)}
 														</p>
 													</div>
@@ -1312,16 +1346,18 @@ export function ProfileDetailsModal({
 													formatEnumValue(
 														activeProfile.ethnicity,
 														ethnicityLabels,
+														t
 													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Ethnicity
+															{t("profile_details.ethnicity")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatEnumValue(
 																activeProfile.ethnicity,
 																ethnicityLabels,
+																t
 															)}
 														</p>
 													</div>
@@ -1330,16 +1366,18 @@ export function ProfileDetailsModal({
 													formatEnumValue(
 														activeProfile.relationshipStatus,
 														relationshipStatusLabels,
+														t
 													),
 												) && (
 													<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
 														<p className="text-[10px] uppercase tracking-[0.08em]">
-															Relationship
+															{t("profile_details.relationship")}
 														</p>
 														<p className="mt-1 font-medium text-[var(--text)]">
 															{formatEnumValue(
 																activeProfile.relationshipStatus,
 																relationshipStatusLabels,
+																t
 															)}
 														</p>
 													</div>
@@ -1351,12 +1389,12 @@ export function ProfileDetailsModal({
 									{hasSocialFields && (
 										<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
 											<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Social
+												{t("profile_details.social")}
 											</p>
 											<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 												{activeProfile.socialNetworks?.instagram?.userId && (
 													<p>
-														Instagram:{" "}
+														{t("profile_details.instagram")}:{" "}
 														<a
 															href={`https://instagram.com/${activeProfile.socialNetworks.instagram.userId}`}
 															target="_blank"
@@ -1369,7 +1407,7 @@ export function ProfileDetailsModal({
 												)}
 												{activeProfile.socialNetworks?.twitter?.userId && (
 													<p>
-														X:{" "}
+														{t("profile_details.x")}:{" "}
 														<a
 															href={`https://x.com/${activeProfile.socialNetworks.twitter.userId}`}
 															target="_blank"
@@ -1382,7 +1420,7 @@ export function ProfileDetailsModal({
 												)}
 												{activeProfile.socialNetworks?.facebook?.userId && (
 													<p>
-														Facebook:{" "}
+														{t("profile_details.facebook")}:{" "}
 														<a
 															href={`https://facebook.com/${activeProfile.socialNetworks.facebook.userId}`}
 															target="_blank"
