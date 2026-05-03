@@ -16,7 +16,7 @@ import {
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { Chip } from "../../components/ui/chip";

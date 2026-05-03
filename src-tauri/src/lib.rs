@@ -41,6 +41,7 @@ pub fn run() {
             api::auth::logout,
             api::auth::auth_state,
             api::auth::websocket_token,
+            api::auth::sync_push_token,
             api::rest::request,
             api::websocket::ws_connect,
             api::websocket::ws_send,

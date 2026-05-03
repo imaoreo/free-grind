@@ -35,7 +35,7 @@ import toast from "react-hot-toast";
 import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 import { type ChatApiError } from "../../services/chatService";
 import { ChatRealtimeManager } from "../../services/chatRealtime";
 import { TauriWebSocket, isTauriRuntime } from "../../services/tauriWebSocket";

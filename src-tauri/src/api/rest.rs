@@ -44,7 +44,7 @@ impl GrindrClient {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             eprintln!("API error: status={}, body={}", status, text);
-            
+
             let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
             let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
             let message = json
@@ -58,17 +58,14 @@ impl GrindrClient {
                     }
                 })
                 .to_owned();
-            
-            return Err(AppError::Api {
-                code,
-                message,
-            });
+
+            return Err(AppError::Api { code, message });
         }
 
         response.json::<TResp>().await.map_err(Into::into)
     }
 
-    async fn request_raw(
+    pub(super) async fn request_raw(
         &self,
         method: Method,
         path: &str,

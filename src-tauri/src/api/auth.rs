@@ -66,6 +66,13 @@ pub struct LoginResult {
     pub profile_id: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PushTokenRequest {
+    vendor_provided_identifier: String,
+    token: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JwtClaims {
@@ -357,6 +364,58 @@ impl GrindrClient {
             .as_ref()
             .map(|s| format!("Grindr3 {}", s.session_id))
     }
+
+    pub async fn sync_push_token(&self, token: &str) -> Result<(), AppError> {
+        let trimmed = token.trim();
+        if trimmed.is_empty() {
+            eprintln!("[PUSH_SYNC] sync_push_token called with empty token");
+            return Err(AppError::Api {
+                code: 400,
+                message: "Push token is empty".to_owned(),
+            });
+        }
+
+        let identifier = trimmed.split(':').next().unwrap_or(trimmed).to_owned();
+        eprintln!(
+            "[PUSH_SYNC] Syncing push token: token_len={}, identifier={}",
+            trimmed.len(),
+            identifier
+        );
+        let payload = PushTokenRequest {
+            vendor_provided_identifier: identifier,
+            token: trimmed.to_owned(),
+        };
+        let body = serde_json::to_vec(&payload)
+            .map_err(|e| AppError::Http(format!("Failed to serialize push token payload: {e}")))?;
+
+        let response = self
+            .request_raw(
+                reqwest::Method::POST,
+                "/v3/gcm-push-tokens",
+                Some(body),
+                Some("application/json"),
+            )
+            .await?;
+
+        if (200..300).contains(&response.status) {
+            eprintln!(
+                "[PUSH_SYNC] /v3/gcm-push-tokens sync success: status={}",
+                response.status
+            );
+            Ok(())
+        } else {
+            let message = String::from_utf8(response.body)
+                .unwrap_or_else(|_| "Failed to sync push token".to_owned());
+            eprintln!(
+                "[PUSH_SYNC] /v3/gcm-push-tokens sync failed: status={}, body={}",
+                response.status, message
+            );
+            Err(AppError::Api {
+                code: response.status as i32,
+                message,
+            })
+        }
+    }
 }
 
 #[tauri::command]
@@ -415,4 +474,13 @@ pub async fn websocket_token(
 
     let session = client.session.read().await;
     Ok(session.as_ref().map(|s| s.session_id.clone()))
+}
+
+#[tauri::command]
+pub async fn sync_push_token(
+    state: tauri::State<'_, AppState>,
+    token: String,
+) -> Result<(), AppError> {
+    eprintln!("[PUSH_SYNC] Tauri command sync_push_token invoked");
+    state.client()?.sync_push_token(&token).await
 }
