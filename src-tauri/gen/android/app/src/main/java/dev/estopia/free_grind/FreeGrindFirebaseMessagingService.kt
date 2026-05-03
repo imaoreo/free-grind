@@ -3,22 +3,28 @@ package dev.estopia.free_grind
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
+import androidx.core.content.pm.ShortcutInfoCompat
+import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
     companion object {
         private const val PUBLIC_MEDIA_BASE_URL = "https://cdns.grindr.com"
+        private const val NOTIFICATION_INSTANCE_ID = 1
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
@@ -56,10 +62,12 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         val senderName = titleStr ?: "Someone"
 
         val topBody = data["body"]
+        val deeplinkAction = data["action"]
 
         var isTap = false
         var messageText = "Sent you a message"
         var conversationId: String? = null
+        var senderId: String? = normalizeNullableString(data["senderId"])
         var messageType: String? = null
 
         if (topBody == "TAP_NOTIFICATION_BODY") {
@@ -75,7 +83,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         if (messageJsonStr != null) {
             val json = JSONObject(messageJsonStr)
             if (json.has("conversationId")) {
-                conversationId = json.getString("conversationId")
+                conversationId = normalizeNullableString(json.optString("conversationId"))
             }
 
             val type = json.optString("type")
@@ -97,6 +105,14 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             }
         }
 
+        val actionValues = parseConversationAndSenderFromAction(deeplinkAction)
+        if (conversationId.isNullOrBlank()) {
+            conversationId = actionValues.first
+        }
+        if (senderId.isNullOrBlank()) {
+            senderId = actionValues.second
+        }
+
         messageText = messageText.trim().ifBlank { "Sent you a message" }
 
         val action = if (isTap) "taps" else conversationId?.let { "chat:$it" }
@@ -110,6 +126,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             put("isTap", isTap)
             put("action", action ?: JSONObject.NULL)
             put("conversationId", conversationId ?: JSONObject.NULL)
+            put("senderId", senderId ?: JSONObject.NULL)
             put("messageType", messageType ?: JSONObject.NULL)
             put("rawData", JSONObject(data))
         }
@@ -133,12 +150,19 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
     private fun showNotification(payload: JSONObject) {
         val title = payload.optString("senderName", "Someone")
         val text = payload.optString("bodyText", "Sent you a message")
-        val conversationId = payload.optString("conversationId").ifBlank { null }
         val isTap = payload.optBoolean("isTap", false)
         val rawData = payload.optJSONObject("rawData")
+        val conversationId = normalizeNullableString(payload.optString("conversationId"))
+            ?: extractConversationId(rawData)
         val channelId = if (isTap) "free_grind_taps_notifications" else "free_grind_chat_notifications"
         val channelName = if (isTap) "Taps" else "Chat Messages"
-        val notificationId = if (isTap) title.hashCode() else (conversationId?.hashCode() ?: 0)
+        val notificationKey = resolveNotificationKey(
+            isTap = isTap,
+            conversationId = conversationId,
+            senderName = title,
+            rawData = rawData,
+        )
+        val notificationId = notificationKey.hashCode()
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
@@ -150,7 +174,10 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             description = if (isTap) "Notifications for incoming taps" else "Notifications for new chat messages"
         }
         notificationManager.createNotificationChannel(channel)
-        Log.d("FCM", "Using notification channel=$channelId notificationId=$notificationId action=${if (isTap) "taps" else conversationId}")
+        Log.d(
+            "FCM",
+            "Using notification channel=$channelId notificationId=$notificationId key=$notificationKey action=${if (isTap) "taps" else conversationId}",
+        )
 
         val actionStr = payload.optString("action").ifBlank { null }
 
@@ -165,41 +192,81 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             this, notificationId, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val activeNotification =
-            notificationManager.activeNotifications.find { it.id == notificationId }
+        val senderAvatarBitmap = getNotificationAvatarBitmap(rawData)
 
-        val messagingStyle = if (activeNotification != null) {
-            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(activeNotification.notification)
-                ?: NotificationCompat.MessagingStyle(Person.Builder().setName("Me").build())
-        } else {
-            NotificationCompat.MessagingStyle(Person.Builder().setName("Me").build())
-        }
+        val me = Person.Builder().setName("Me").build()
+        val senderIcon = IconCompat.createWithBitmap(senderAvatarBitmap)
+        val sender = Person.Builder()
+            .setName(title)
+            .setIcon(senderIcon)
+            .setImportant(true)
+            .build()
+        val messagingStyle = NotificationCompat.MessagingStyle(me)
+            .addMessage(text, System.currentTimeMillis(), sender)
+            .setConversationTitle(if (isTap) "Taps" else null)
 
-        val senderAvatarBitmap = loadSenderAvatarBitmap(rawData)
-        val senderBuilder = Person.Builder().setName(title)
-        if (senderAvatarBitmap != null) {
-            senderBuilder.setIcon(IconCompat.createWithBitmap(senderAvatarBitmap))
+        if (!conversationId.isNullOrBlank()) {
+            val shortcut = ShortcutInfoCompat.Builder(this, conversationId)
+                .setShortLabel(title)
+                .setPerson(sender)
+                .setIcon(senderIcon)
+                .setIntent(intent.apply { action = Intent.ACTION_VIEW })
+                .setLongLived(true)
+                .build()
+            ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
         }
-        val sender = senderBuilder.build()
-        messagingStyle.addMessage(text, System.currentTimeMillis(), sender)
 
         val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification_small)
+            .setShortcutId(conversationId)
+            .addPerson(sender)
             .setColor(0xFFFFCC00.toInt())
-            .setContentTitle(title)
-            .setContentText(text)
-            .setStyle(messagingStyle)
+            .setLargeIcon(senderAvatarBitmap)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setTicker(text)
+            .setStyle(messagingStyle)
 
-        if (senderAvatarBitmap != null) {
-            builder.setLargeIcon(senderAvatarBitmap)
+        notificationManager.notify(notificationKey, NOTIFICATION_INSTANCE_ID, builder.build())
+        Log.d("FCM", "Local notification posted successfully")
+    }
+
+    private fun getNotificationAvatarBitmap(rawData: JSONObject?): Bitmap {
+        val senderBitmap = loadSenderAvatarBitmap(rawData)
+        if (senderBitmap != null) {
+            return senderBitmap
         }
 
-        notificationManager.notify(notificationId, builder.build())
-        Log.d("FCM", "Local notification posted successfully")
+        val fallback = BitmapFactory.decodeResource(resources, R.drawable.blank_profile)
+            ?: Bitmap.createBitmap(128, 128, Bitmap.Config.ARGB_8888)
+        return makeBlackPixelsTransparent(fallback)
+    }
+
+    private fun makeBlackPixelsTransparent(source: Bitmap): Bitmap {
+        val mutable = source.copy(Bitmap.Config.ARGB_8888, true)
+        val width = mutable.width
+        val height = mutable.height
+
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                val pixel = mutable.getPixel(x, y)
+                val alpha = Color.alpha(pixel)
+                if (alpha == 0) {
+                    continue
+                }
+
+                val red = Color.red(pixel)
+                val green = Color.green(pixel)
+                val blue = Color.blue(pixel)
+                if (red < 28 && green < 28 && blue < 28) {
+                    mutable.setPixel(x, y, Color.TRANSPARENT)
+                }
+            }
+        }
+
+        return mutable
     }
 
     private fun loadSenderAvatarBitmap(rawData: JSONObject?): Bitmap? {
@@ -277,6 +344,138 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
                 }
             } catch (_: Exception) {
                 // Ignore malformed JSON and keep default notification icon.
+            }
+        }
+
+        return null
+    }
+
+    private fun resolveNotificationKey(
+        isTap: Boolean,
+        conversationId: String?,
+        senderName: String,
+        rawData: JSONObject?,
+    ): String {
+        if (isTap) {
+            val tapSenderId = extractSenderStableId(rawData)
+            return "tap:${tapSenderId ?: senderName.lowercase()}"
+        }
+
+        if (!conversationId.isNullOrBlank()) {
+            return "chat:$conversationId"
+        }
+
+        val senderId = extractSenderStableId(rawData)
+        if (!senderId.isNullOrBlank()) {
+            return "chat:sender:$senderId"
+        }
+
+        return "chat:name:${senderName.lowercase()}"
+    }
+
+    private fun normalizeNullableString(value: String?): String? {
+        val trimmed = value?.trim().orEmpty()
+        if (trimmed.isEmpty() || trimmed.equals("null", ignoreCase = true)) {
+            return null
+        }
+        return trimmed
+    }
+
+    private fun parseConversationAndSenderFromAction(action: String?): Pair<String?, String?> {
+        val normalized = normalizeNullableString(action) ?: return null to null
+
+        val queryPart = normalized.substringAfter('?', "")
+        if (queryPart.isEmpty()) {
+            return null to null
+        }
+
+        var conversationId: String? = null
+        var senderId: String? = null
+
+        queryPart.split('&').forEach { pair ->
+            val key = pair.substringBefore('=', "").trim()
+            val rawValue = pair.substringAfter('=', "").trim()
+            val decodedValue = URLDecoder.decode(rawValue, StandardCharsets.UTF_8.name())
+
+            when (key) {
+                "id" -> conversationId = normalizeNullableString(decodedValue)
+                "senderId" -> senderId = normalizeNullableString(decodedValue)
+            }
+        }
+
+        return conversationId to senderId
+    }
+
+    private fun extractSenderStableId(rawData: JSONObject?): String? {
+        if (rawData == null) {
+            return null
+        }
+
+        val senderIdKeys = listOf(
+            "senderProfileId",
+            "senderId",
+            "profileId",
+            "fromProfileId",
+            "authorProfileId",
+        )
+        for (key in senderIdKeys) {
+            val value = normalizeNullableString(rawData.optString(key))
+            if (value != null) {
+                return value
+            }
+        }
+
+        val actionValues = parseConversationAndSenderFromAction(rawData.optString("action"))
+        if (!actionValues.second.isNullOrBlank()) {
+            return actionValues.second
+        }
+
+        val messageRaw = rawData.optString("message").trim()
+        if (messageRaw.isNotEmpty()) {
+            try {
+                val messageJson = JSONObject(messageRaw)
+                val senderObject = messageJson.optJSONObject("sender")
+                if (senderObject != null) {
+                    for (key in senderIdKeys) {
+                        val value = normalizeNullableString(senderObject.optString(key))
+                        if (value != null) {
+                            return value
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                // Ignore malformed JSON and continue with weaker fallback keys.
+            }
+        }
+
+        return null
+    }
+
+    private fun extractConversationId(rawData: JSONObject?): String? {
+        if (rawData == null) {
+            return null
+        }
+
+        val direct = normalizeNullableString(rawData.optString("conversationId"))
+        if (direct != null) {
+            return direct
+        }
+
+        val actionValues = parseConversationAndSenderFromAction(rawData.optString("action"))
+        if (!actionValues.first.isNullOrBlank()) {
+            return actionValues.first
+        }
+
+        val messageRaw = rawData.optString("message").trim()
+        if (messageRaw.isNotEmpty()) {
+            try {
+                val messageJson = JSONObject(messageRaw)
+                val id = normalizeNullableString(messageJson.optString("conversationId"))
+                if (id != null) {
+                    return id
+                }
+            } catch (_: Exception) {
+                // Ignore malformed JSON and keep default fallback behavior.
             }
         }
 
