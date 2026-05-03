@@ -5,6 +5,7 @@ import {
 	useParams,
 	useSearchParams,
 } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import z from "zod";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -30,6 +31,7 @@ const profileRouteParamsSchema = z.object({
 });
 
 export function GridProfilePage() {
+	const { t } = useTranslation();
 	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -131,7 +133,7 @@ export function GridProfilePage() {
 	useEffect(() => {
 		if (!profileId) {
 			setActiveProfile(null);
-			setActiveProfileError("Invalid profile ID");
+			setActiveProfileError(t("api.errors.invalid_profile_id"));
 			setIsLoadingActiveProfile(false);
 			return;
 		}
@@ -164,7 +166,7 @@ export function GridProfilePage() {
 						setActiveProfileError(
 							error instanceof Error
 								? error.message
-								: "Failed to load profile details",
+								: t("browse_page.errors.load_profile_details"),
 						);
 					}
 				}
@@ -314,7 +316,7 @@ export function GridProfilePage() {
 
     const handleTriangleProfile = async (targetProfileId: string) => {
         if (!geohash) {
-            toast.error("Set your browse location first");
+            toast.error(t("browse_page.errors.location_required"));
             return;
         }
 
@@ -322,13 +324,7 @@ export function GridProfilePage() {
             return;
         }
 
-        const confirmed = window.confirm(
-            "⚠️ Warning: Location Finder\n\n" +
-            "This feature works by repeatedly updating your location on the server to triangulate another user's position.\n\n" +
-            "• This may take several minutes to complete\n" +
-            "• It could result in your account being flagged or banned\n\n" +
-            "Do you want to continue?"
-        );
+        const confirmed = window.confirm(t("profile_details.location_finder_confirm"));
         if (!confirmed) {
             return;
         }
@@ -347,7 +343,7 @@ export function GridProfilePage() {
             toast.error(
                 error instanceof Error
                     ? error.message
-                    : "Invalid browse location. Please set your location again.",
+                    : t("browse_page.errors.location_read_failed"),
             );
             setIsLocatingProfile(false);
             return;
@@ -391,7 +387,7 @@ export function GridProfilePage() {
         try {
             const initialDist = await getDistanceFromProfile();
             if (initialDist === null) {
-                toast.error("Could not retrieve target distance.");
+                toast.error(t("profile_details.location_finder_error_distance"));
                 return;
             }
 
@@ -404,7 +400,7 @@ export function GridProfilePage() {
             // Degrees per meter (approximate)
             let offset = (initialDist*1.5) / 111320;
 
-            toast.success(`Target distance: ${Math.round(initialDist)}m. Starting ${rounds} triangulation rounds.`);
+            toast.success(t("profile_details.location_finder_start", { distance: Math.round(initialDist), rounds }));
 
             for (let i = 0; i < rounds; i++) {
                 const points = [
@@ -428,15 +424,27 @@ export function GridProfilePage() {
                     currentLon = estimate.lon;
                     offset /= 3; // Zoom in for the next round
 
-                    toast.success(`Round ${i + 1} complete. ${currentLat}, ${currentLon}. Estimated distance: ~${Math.round(results[0].dist)}m.`);
+                    toast.success(t("profile_details.location_finder_round_complete", {
+                        round: i + 1,
+                        lat: currentLat.toFixed(6),
+                        lon: currentLon.toFixed(6),
+                        distance: Math.round(results[0].dist)
+                    }));
                     
-                    toast.success(`Round ${i + 1} complete. Estimated error: ~${Math.round(offset * 111320)}m`);
+                    toast.success(t("profile_details.location_finder_error_estimate", {
+                        round: i + 1,
+                        error: Math.round(offset * 111320)
+                    }));
                 }
             }
 
-            toast.success("The user is at approximately lat:" + currentLat + ", lon:" + currentLon + ". Estimated error: ~" + Math.round(offset * 111320) + " meters from the final estimated location.");
+            toast.success(t("profile_details.location_finder_final_location", {
+                lat: currentLat.toFixed(6),
+                lon: currentLon.toFixed(6),
+                error: Math.round(offset * 111320)
+            }));
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "An error occurred during triangulation");
+            toast.error(error instanceof Error ? error.message : t("profile_details.location_finder_error_general"));
         } finally {
             await waitMs(10000);
             await putServerLocation(originalLat, originalLon, geohash);
@@ -450,7 +458,7 @@ export function GridProfilePage() {
 		}
 
 		if (hasSentTapRecently) {
-			toast("You already tapped this profile in the last 24 hours");
+			toast(t("browse_page.toasts.tap_limit"));
 			return;
 		}
 
@@ -464,9 +472,9 @@ export function GridProfilePage() {
 			);
 			setTapVisualState(result.isMutual ? "mutual" : "single");
 			setLastLocalTapSentAt(Date.now());
-			toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
+			toast.success(result.isMutual ? t("browse_page.toasts.tap_mutual") : t("browse_page.toasts.tap_sent"));
 		} catch (error) {
-			toast.error(error instanceof Error ? error.message : "Failed to send tap");
+			toast.error(error instanceof Error ? error.message : t("browse_page.toasts.tap_failed"));
 		} finally {
 			setIsTappingProfile(false);
 		}

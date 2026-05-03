@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type ReactNode, type TouchEvent } from "react";
 import { RefreshCw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type PullToRefreshContainerProps = {
 	children: ReactNode;
@@ -25,15 +26,16 @@ export function PullToRefreshContainer({
 	isAtTop,
 	className,
 	style,
-	refreshingLabel = "Refreshing...",
-	pullLabel = "Pull to refresh",
-	releaseLabel = "Release to refresh",
+	refreshingLabel,
+	pullLabel,
+	releaseLabel,
 	thresholdPx = 72,
 	maxPullPx = 120,
 	onTouchStartExtra,
 	onTouchMoveExtra,
 	onTouchEndExtra,
 }: PullToRefreshContainerProps) {
+	const { t } = useTranslation();
 	const [pullDistance, setPullDistance] = useState(0);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const touchStartYRef = useRef<number | null>(null);
@@ -170,10 +172,10 @@ export function PullToRefreshContainer({
 					</div>
 					<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text)]">
 						{isRefreshing
-							? refreshingLabel
+							? (refreshingLabel ?? t("pull_to_refresh.refreshing"))
 							: pullDistance >= thresholdPx
-								? releaseLabel
-								: pullLabel}
+								? (releaseLabel ?? t("pull_to_refresh.release"))
+								: (pullLabel ?? t("pull_to_refresh.pull"))}
 					</span>
 				</div>
 			</div>

@@ -68,8 +68,8 @@
         "next": "Weiter"
     },
     "right_now": {
-        "title": "Jetzt gerade",
-        "refreshing": "Aktualisiere Jetzt gerade…",
+        "title": "Right Now",
+        "refreshing": "Aktualisiere Right Now…",
         "anonymous": "Anonym",
         "hosting_subtitle": "{{name}} hostet gerade",
         "member_subtitle": "{{name}} ist gerade right now",
@@ -124,7 +124,7 @@
             "face": "Gesicht",
             "no_recent_chat": "Noch nicht gechattet",
             "fresh": "Neu",
-            "right_now": "Jetzt gerade",
+            "right_now": "Right Now",
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
@@ -154,6 +154,12 @@
         "map_picker_instructions": "Öffne die Karte, um eine Stecknadel zu setzen und diesen Standort zu speichern.",
         "map_picker_tap_hint": "Tippe auf die Karte, um eine Stecknadel zu setzen.",
         "use_selected_location": "Diesen Standort verwenden"
+    },
+    "nav": {
+        "browse": "Durchsuchen",
+        "right_now": "Right Now",
+        "interest": "Interest",
+        "inbox": "Posteingang"
     },
     "browse_page": {
         "title": "Profile durchsuchen",
@@ -200,6 +206,16 @@
             "tap_mutual": "Tap gesendet. Es beruht auf Gegenseitigkeit.",
             "tap_sent": "Tap gesendet",
             "tap_failed": "Fehler beim Senden des Taps"
+        }
+    },
+    "chat_filters": {
+        "title": "Chat-Filter",
+        "subtitle": "Verfeinere, welche Konversationen im Posteingang erscheinen",
+        "back": "Zurück",
+        "max_distance": "Maximale Entfernung",
+        "options": {
+            "unread": "Ungelesen",
+            "chemistry": "Chemie"
         }
     },
     "about_page": {
@@ -373,7 +389,7 @@
             },
             "health": {
                 "title": "Gesundheit",
-                "description": "Status, Tests und Praktiken",
+                "description": "Status, tests und praktiken",
                 "hiv_status": "HIV-Status",
                 "last_tested": "Zuletzt getestet",
                 "health_practices": "Gesundheitspraktiken",
@@ -409,38 +425,42 @@
             "error_photos": "Profilfotoaktualisierung fehlgeschlagen",
             "error_upload": "Bild-Upload fehlgeschlagen",
             "error_upload_type": "Wähle eine Bilddatei zum Hochladen aus",
-            "error_photo_limit": "Entferne ein Foto, bevor du ein neues hinzufügst"
+            "error_photo_limit": "Entferne ein foto, bevor du ein neues hinzufügst"
         },
-        "chat": {
         "errors": {
-            "load_albums": "Laden der Alben fehlgeschlagen",
-            "load_inbox": "Laden des Posteingangs fehlgeschlagen",
-            "load_messages": "Laden der Nachrichten fehlgeschlagen",
-            "load_message": "Laden der Nachricht fehlgeschlagen",
-            "update_pin_state": "Fehler beim Aktualisieren des Pin-Status",
-            "update_mute_state": "Fehler beim Aktualisieren des Stummschaltungs-Status",
-            "missing_recipient": "Empfänger konnte nicht ermittelt werden",
-            "send_failed": "Senden fehlgeschlagen",
-            "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
-            "attachment_upload_send_failed": "Hochladen/Senden des Anhangs fehlgeschlagen",
-            "reupload_image": "Bitte lade dieses Bild erneut hoch.",
-            "react_failed": "Reaktion fehlgeschlagen",
-            "unsend_failed": "Zurückziehen fehlgeschlagen",
-            "delete_failed": "Löschen fehlgeschlagen",
-            "album_share_missing_recipient": "Empfänger für Album-Freigabe konnte nicht ermittelt werden",
-            "album_share_failed": "Freigeben des Albums fehlgeschlagen",
-            "album_open_failed": "Öffnen des Albums fehlgeschlagen",
-            "search_profiles": "Suche nach Profilen fehlgeschlagen",
-            "mark_read_failed": "Fehler beim Markieren als gelesen",
-            "load_shared_images": "Laden der geteilten Bilder fehlgeschlagen",
-            "create_album_failed": "Album konnte nicht erstellt werden",
-            "load_album_details": "Albumdetails konnten nicht geladen werden",
-            "upload_media_failed": "Medien-Upload fehlgeschlagen"
-        }
-    },
-    "errors": {
             "display_name_length": "Der Anzeigename muss zwischen 3 und 15 Zeichen lang sein.",
             "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
+        }
+    },
+    "customizability": {
+        "subtitle": "Personalisiere das Aussehen der App.",
+        "color_scheme": "Farbschema",
+        "accent_color": "Akzentfarbe",
+        "selected": "Ausgewählt",
+        "custom": "Benutzerdefiniert",
+        "picker": "Auswahl",
+        "apply_hex": "Hex anwenden",
+        "hex_error": "Gib eine gültige Hex-Farbe wie #22c55e oder 22c55e ein",
+        "browse_grid_mobile": "Übersichts-Raster (Mobil)",
+        "columns_2": "2 Spalten",
+        "columns_3": "3 Spalten",
+        "preview": "Vorschau",
+        "preview_primary": "Primär-Button",
+        "preview_outlined": "Umrandet",
+        "preview_subtle": "Dezent",
+        "schemes": {
+            "system": "System",
+            "light": "Hell",
+            "dark": "Dunkel"
+        },
+        "analytics": {
+            "title": "Analyse & Entdeckung",
+            "description": "Dies steuert anonyme Analysen und die Entdeckung von FreeGrind-Nutzern. Wenn deaktiviert, nutzt die App die API nicht, um andere FreeGrind-Nutzer zu finden.",
+            "note": "Deine Wahl wird auf diesem Gerät gespeichert. Wenn aktiviert, kann die App deine Profil-ID in API-Anfragen senden, die für Präsenz und Entdeckung genutzt werden.",
+            "allow": "Zulassen",
+            "deny": "Ablehnen",
+            "current": "Aktuell",
+            "not_selected": "Noch nicht ausgewählt"
         }
     },
     "issues_form": {
@@ -467,7 +487,128 @@
         "validation_title": "Bitte gib einen Titel mit mindestens 3 Zeichen ein.",
         "validation_description": "Bitte gib eine Beschreibung mit mindestens 10 Zeichen ein."
     },
+    "auth": {
+        "common": {
+            "email": "E-Mail",
+            "password": "Passwort"
+        },
+        "sign_in": {
+            "title": "Anmelden",
+            "subtitle": "Willkommen zurück bei Free Grind.",
+            "no_account": "Noch kein Konto? Registrieren",
+            "method_token": "Token",
+            "method_password": "E-Mail & Passwort",
+            "token_help": "Wie du deinen Authentifizierungs-Token erhältst",
+            "jwt_label": "JWT-Token",
+            "signing_in": "Melde an...",
+            "sign_in_with_token": "Mit Token anmelden",
+            "submit": "Anmelden"
+        },
+        "sign_up": {
+            "title": "Registrieren",
+            "subtitle": "Die Registrierung ist noch nicht implementiert. Verfolge den Fortschritt in Issue #2.",
+            "have_account": "Hast du bereits ein Konto? Anmelden",
+            "opening_issue": "Öffne Issue...",
+            "open_issue": "Issue #2 öffnen"
+        }
+    },
     "chat": {
+        "tabs": {
+            "inbox": "Posteingang",
+            "albums": "Alben"
+        },
+        "your_conversations": "Deine Konversationen",
+        "pinned": "Angepinnt",
+        "muted": "Stummgeschaltet",
+        "conversation": "Konversation",
+        "unknown": "Unbekannt",
+        "you": "Du",
+        "today": "Heute",
+        "yesterday": "Gestern",
+        "retry": "Wiederholen",
+        "loading": "Lade...",
+        "load_more": "Mehr laden",
+        "loading_inbox": "Posteingang wird geladen...",
+        "loading_messages": "Nachrichten werden geladen...",
+        "refreshing_inbox": "Posteingang wird aktualisiert...",
+        "clear_filters": "Filter löschen",
+        "open_search": "Suche öffnen",
+        "open_filters": "Filter öffnen",
+        "profile": "Profil",
+        "no_conversations_match": "Keine Konversationen entsprechen deinen Filtern.",
+        "no_conversations": "Noch keine Konversationen.",
+        "no_messages_yet": "Noch keine Nachrichten.",
+        "pin": "Anpinnen",
+        "unpin": "Loslösen",
+        "mute": "Stummgeschaltet",
+        "unmute": "Stummschaltung aufheben",
+        "clear_local_history": "Lokalen Verlauf löschen",
+        "open_conversation_actions": "Konversationsaktionen öffnen",
+        "share_album": "Album teilen",
+        "attach_media": "Medien anhängen",
+        "manage_albums": "Alben verwalten",
+        "loading_albums": "Alben werden geladen...",
+        "no_albums_available": "Keine Alben verfügbar. Erstelle zuerst eines in den Einstellungen.",
+        "share": "Teilen",
+        "write_message": "Nachricht schreiben...",
+        "send": "Senden",
+        "sending": "Sende...",
+        "open": "Öffnen",
+        "album_fallback": "Album {{id}}",
+        "select_conversation": "Wähle eine Konversation aus, um Nachrichten anzuzeigen.",
+        "loading_album": "Album wird geladen...",
+        "time": {
+            "one_min_ago": "vor 1 Min",
+            "mins_ago": "vor {{count}} Min"
+        },
+        "preview": {
+            "sent_image": "Hat ein Bild gesendet",
+            "shared_album": "Hat ein Album geteilt",
+            "sent_audio": "Hat eine Sprachnachricht gesendet",
+            "reacted_album_content": "Hat auf Albuminhalt reagiert",
+            "sent_video": "Hat ein Video gesendet",
+            "sent_message": "Hat eine Nachricht gesendet"
+        },
+        "thread": {
+            "unsent": "Diese Nachricht wurde zurückgezogen",
+            "image_placeholder": "[Bild]",
+            "video_placeholder": "[Video]",
+            "audio_placeholder": "[Audio]",
+            "unsupported_placeholder": "[Nicht unterstützte Nachricht]",
+            "shared_image": "Hat ein Bild geteilt",
+            "shared_video": "Hat ein Video geteilt",
+            "shared_audio": "Hat eine Sprachnachricht geteilt",
+            "failed": "Fehlgeschlagen",
+            "from_local_history": "Aus lokalem Verlauf",
+            "shared_alt": "Geteilt",
+            "taken_on_grindr": "In Grindr aufgenommen",
+            "album_cover": "Album-Cover",
+            "album_share": "Album-Freigabe"
+        },
+        "actions": {
+            "title": "Nachrichten-Aktionen",
+            "unsend": "Zurückziehen",
+            "delete": "Löschen",
+            "cancel": "Abbrechen"
+        },
+        "realtime": {
+            "connected": "Verbunden",
+            "connecting": "Verbinde",
+            "reconnecting": "Neuverbinden",
+            "polling": "Polling",
+            "idle": "Leerlauf",
+            "offline": "Offline",
+            "error": "Fehler"
+        },
+        "attachments": {
+            "only_image_video": "Nur Bild- und Videoanhänge werden unterstützt.",
+            "ready_to_send": "Bereit zum Senden: {{file}}",
+            "looping": "Schleife",
+            "taken_on_grindr": "inGrindrAufgenommen",
+            "send_attachment": "Anhang senden",
+            "uploading": "Anhang wird hochgeladen",
+            "too_large": "Anhang ist zu groß. Limit ist 12MB."
+        },
         "errors": {
             "load_albums": "Laden der Alben fehlgeschlagen",
             "load_inbox": "Laden des Posteingangs fehlgeschlagen",
@@ -492,6 +633,15 @@
             "create_album_failed": "Album konnte nicht erstellt werden",
             "load_album_details": "Albumdetails konnten nicht geladen werden",
             "upload_media_failed": "Medien-Upload fehlgeschlagen"
+        },
+        "toasts": {
+            "cleared_local_history": "Lokaler Verlauf für diesen Chat gelöscht",
+            "album_shared": "Album geteilt"
+        },
+        "new_conversation": {
+            "title": "Neue Konversation",
+            "subtitle": "Sende eine Nachricht an Profil #{{profileId}}, um den Chat zu starten.",
+            "write_first_message": "Schreibe deine erste Nachricht..."
         }
     },
     "profile_details": {
@@ -518,6 +668,13 @@
         "run_location_finder": "Standort-Finder starten",
         "location_finder_running": "Standort-Finder läuft",
         "location_finder": "Standort-Finder",
+        "location_finder_confirm": "⚠️ Warnung: Standort-Finder\n\nDiese Funktion aktualisiert wiederholt deinen Standort auf dem Server, um die Position eines anderen Benutzers zu triangulieren.\n\n• Dies kann einige Minuten dauern\n• Es kann dazu führen, dass dein Konto markiert oder gesperrt wird\n\nMöchtest du fortfahren?",
+        "location_finder_error_distance": "Zielentfernung konnte nicht ermittelt werden.",
+        "location_finder_start": "Zielentfernung: {{distance}}m. Starte {{rounds}} Triangulationsrunden.",
+        "location_finder_round_complete": "Runde {{round}} abgeschlossen. {{lat}}, {{lon}}. Geschätzte Entfernung: ~{{distance}}m.",
+        "location_finder_error_estimate": "Runde {{round}} abgeschlossen. Geschätzter Fehler: ~{{error}}m",
+        "location_finder_final_location": "Der Benutzer befindet sich etwa bei Lat:{{lat}}, Lon:{{lon}}. Geschätzter Fehler: ~{{error}} Meter vom endgültigen geschätzten Standort entfernt.",
+        "location_finder_error_general": "Während der Triangulation ist ein Fehler aufgetreten",
         "locating": "Suche...",
         "locate": "Suchen",
         "about": "Über mich",
@@ -536,7 +693,7 @@
         "meet_at": "Treffen bei",
         "tribes": "Tribes",
         "pronouns": "Pronomen",
-        "right_now": "Jetzt gerade",
+        "right_now": "Right Now",
         "health": "Gesundheit",
         "hiv_status": "HIV-Status",
         "last_tested": "Zuletzt getestet",
@@ -641,6 +798,34 @@
             }
         }
     },
+    "interest_page": {
+        "title": "Interesse",
+        "profile_fallback": "Profil {{id}}",
+        "tabs": {
+            "views": "Besucher",
+            "taps": "Taps"
+        },
+        "total_viewed_count": "Besucheranzahl",
+        "refreshing": "{{tab}} wird aktualisiert...",
+        "loading": "{{tab}} wird geladen...",
+        "error_load": "{{tab}} konnte nicht geladen werden",
+        "empty_views": "Noch keine Besucher",
+        "empty_views_desc": "Deine letzten Profilansichten erscheinen hier.",
+        "empty_taps": "Noch keine Taps",
+        "empty_taps_desc": "Personen, die dich angetippt haben, erscheinen hier.",
+        "view_count_one": "{{count}} Besuch",
+        "view_count_other": "{{count}} Besuche",
+        "viewed": "Angesehen",
+        "preview": "Vorschau",
+        "private_viewer": "Privater Besucher",
+        "unknown_time": "Unbekannte Zeit",
+        "tap_labels": {
+            "friendly": "Freundlich",
+            "hot": "Heiß",
+            "looking": "Suchend",
+            "default": "Tap"
+        }
+    },
     "api": {
         "errors": {
             "load_views": "Ansichten konnten nicht geladen werden",
@@ -717,5 +902,10 @@
         "error_valid_id": "Gib eine gültige Profil-ID ein",
         "error_search_profiles": "Suche nach Profilen fehlgeschlagen",
         "error_load_inbox": "Laden des Posteingangs fehlgeschlagen"
+    },
+    "pull_to_refresh": {
+        "pull": "Zum Aktualisieren ziehen",
+        "release": "Zum Aktualisieren loslassen",
+        "refreshing": "Aktualisiere..."
     }
 }

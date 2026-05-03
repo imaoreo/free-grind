@@ -668,6 +668,13 @@
         "run_location_finder": "Run location finder",
         "location_finder_running": "Location finder running",
         "location_finder": "Location finder",
+        "location_finder_confirm": "⚠️ Warning: Location Finder\n\nThis feature works by repeatedly updating your location on the server to triangulate another user's position.\n\n• This may take several minutes to complete\n• It could result in your account being flagged or banned\n\nDo you want to continue?",
+        "location_finder_error_distance": "Could not retrieve target distance.",
+        "location_finder_start": "Target distance: {{distance}}m. Starting {{rounds}} triangulation rounds.",
+        "location_finder_round_complete": "Round {{round}} complete. {{lat}}, {{lon}}. Estimated distance: ~{{distance}}m.",
+        "location_finder_error_estimate": "Round {{round}} complete. Estimated error: ~{{error}}m",
+        "location_finder_final_location": "The user is at approximately lat:{{lat}}, lon:{{lon}}. Estimated error: ~{{error}} meters from the final estimated location.",
+        "location_finder_error_general": "An error occurred during triangulation",
         "locating": "Locating...",
         "locate": "Locate",
         "about": "About",
@@ -791,6 +798,34 @@
             }
         }
     },
+    "interest_page": {
+        "title": "Interest",
+        "profile_fallback": "Profile {{id}}",
+        "tabs": {
+            "views": "Views",
+            "taps": "Taps"
+        },
+        "total_viewed_count": "Total viewed count",
+        "refreshing": "Refreshing {{tab}}...",
+        "loading": "Loading {{tab}}...",
+        "error_load": "Could not load {{tab}}",
+        "empty_views": "No views yet",
+        "empty_views_desc": "Your recent profile views will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tapped you will appear here.",
+        "view_count_one": "{{count}} view",
+        "view_count_other": "{{count}} views",
+        "viewed": "Viewed",
+        "preview": "Preview",
+        "private_viewer": "Private viewer",
+        "unknown_time": "Unknown time",
+        "tap_labels": {
+            "friendly": "Friendly",
+            "hot": "Hot",
+            "looking": "Looking",
+            "default": "Tap"
+        }
+    },
     "api": {
         "errors": {
             "load_views": "Failed to load views",
@@ -867,5 +902,10 @@
         "error_valid_id": "Enter a valid profile ID",
         "error_search_profiles": "Failed to search profiles",
         "error_load_inbox": "Failed to load inbox"
+    },
+    "pull_to_refresh": {
+        "pull": "Pull to refresh",
+        "release": "Release to refresh",
+        "refreshing": "Refreshing..."
     }
 }
