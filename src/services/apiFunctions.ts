@@ -68,15 +68,18 @@ const ISSUES_API_BASE =
 	import.meta.env.VITE_GRINDAPI_BASE_URL ||
 	GRINDAPI_BASE;
 
-export async function submitIssueReport(data: {
-	kind: "BUG" | "FEATURE";
-	title: string;
-	description: string;
-	reporterName?: string;
-	reporterContact?: string;
-	appVersion?: string;
-	platform?: string;
-}): Promise<{ id: string }> {
+export async function submitIssueReport(
+	data: {
+		kind: "BUG" | "FEATURE";
+		title: string;
+		description: string;
+		reporterName?: string;
+		reporterContact?: string;
+		appVersion?: string;
+		platform?: string;
+	},
+	t: (key: string) => string,
+): Promise<{ id: string }> {
 	const response = await fetch(`${ISSUES_API_BASE}/api/issues/submit`, {
 		method: "POST",
 		headers: {
@@ -94,14 +97,14 @@ export async function submitIssueReport(data: {
 
 	if (!response.ok) {
 		throw new ApiFunctionError(
-			payload?.error || "Failed to submit report",
+			payload?.error || t("issues_form.submit_error"),
 			response.status,
 			payload,
 		);
 	}
 
 	if (!payload?.id) {
-		throw new ApiFunctionError("Report submitted but no ID returned", 500, payload);
+		throw new ApiFunctionError(t("issues_form.no_id_error"), 500, payload);
 	}
 
 	return { id: payload.id };
@@ -196,8 +199,8 @@ async function assertSuccess(response: RestResponse, fallbackMessage: string) {
 	throw new ApiFunctionError(message, response.status, payload);
 }
 
-export function createApiFunctions(fetchRest: RestFetcher) {
-	const chatService = createChatService(fetchRest);
+export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => string) {
+	const chatService = createChatService(fetchRest, t);
 
 	return {
 		...chatService,
@@ -217,13 +220,13 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getViews(): Promise<InterestViewsResponse> {
 			const response = await fetchRest("/v7/views/list");
-			await assertSuccess(response, "Failed to load views");
+			await assertSuccess(response, t("api.errors.load_views"));
 			return interestViewsResponseSchema.parse(await parseJsonSafe(response));
 		},
 
 		async getTaps(): Promise<InterestTapsResponse> {
 			const response = await fetchRest("/v2/taps/received");
-			await assertSuccess(response, "Failed to load taps");
+			await assertSuccess(response, t("api.errors.load_taps"));
 			return interestTapsResponseSchema.parse(await parseJsonSafe(response));
 		},
 
@@ -232,7 +235,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				typeof profileId === "number" ? profileId : Number(profileId);
 
 			if (!Number.isFinite(recipientId)) {
-				throw new ApiFunctionError("Invalid profile ID", 400, { profileId });
+				throw new ApiFunctionError(t("api.errors.invalid_profile_id"), 400, { profileId });
 			}
 
 			const response = await fetchRest("/v2/taps/add", {
@@ -242,7 +245,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 					tapType: 0,
 				},
 			});
-			await assertSuccess(response, "Failed to send tap");
+			await assertSuccess(response, t("api.errors.send_tap"));
 
 			const payload = await parseJsonSafe(response);
 			const isMutual =
@@ -258,20 +261,20 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getOwnAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");
-			await assertSuccess(response, "Failed to load own albums");
+			await assertSuccess(response, t("api.errors.load_albums"));
 			const parsed = albumsResponseSchema.parse(await parseJsonSafe(response));
 			return parsed.albums;
 		},
 
 		async getOwnAlbumDetails(albumId: string | number): Promise<AlbumDetail> {
 			const response = await fetchRest(`/v2/albums/${albumId}`);
-			await assertSuccess(response, "Failed to load own album details");
+			await assertSuccess(response, t("api.errors.load_album_details"));
 			return albumDetailSchema.parse(await parseJsonSafe(response));
 		},
 
 		async getOwnAlbumStorage(): Promise<AlbumLimits> {
 			const response = await fetchRest("/v1/albums/storage");
-			await assertSuccess(response, "Failed to load own album storage");
+			await assertSuccess(response, t("api.errors.load_album_storage"));
 			return albumLimitsSchema.parse(await parseJsonSafe(response));
 		},
 
@@ -280,7 +283,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "POST",
 				body: { albumName: input.albumName },
 			});
-			await assertSuccess(response, "Failed to create own album");
+			await assertSuccess(response, t("api.errors.create_album"));
 			const payload = await parseJsonSafe(response);
 			const albumId =
 				typeof payload === "object" &&
@@ -291,7 +294,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 					: Number((payload as { albumId?: unknown } | null)?.albumId);
 
 			if (!Number.isFinite(albumId)) {
-				throw new ApiFunctionError("Invalid album response", response.status, payload);
+				throw new ApiFunctionError(t("api.errors.invalid_album_response"), response.status, payload);
 			}
 
 			return { albumId };
@@ -302,7 +305,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "PUT",
 				body: { albumName: input.albumName },
 			});
-			await assertSuccess(response, "Failed to rename own album");
+			await assertSuccess(response, t("api.errors.rename_album"));
 			return { ok: true };
 		},
 
@@ -310,7 +313,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			const response = await fetchRest(`/v1/albums/${input.albumId}`, {
 				method: "DELETE",
 			});
-			await assertSuccess(response, "Failed to delete own album");
+			await assertSuccess(response, t("api.errors.delete_album"));
 			return { ok: true };
 		},
 
@@ -322,7 +325,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				rawBody: input.multipart.body,
 				contentType: input.multipart.contentType,
 			});
-			await assertSuccess(response, "Failed to upload own album content");
+			await assertSuccess(response, t("api.errors.upload_content"));
 			const payload = await parseJsonSafe(response);
 			const contentId =
 				typeof payload === "object" &&
@@ -334,7 +337,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 			if (!Number.isFinite(contentId)) {
 				throw new ApiFunctionError(
-					"Invalid upload content response",
+					t("api.errors.invalid_upload_response"),
 					response.status,
 					payload,
 				);
@@ -353,7 +356,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 					body: { contentIds: input.contentIds },
 				},
 			);
-			await assertSuccess(response, "Failed to reorder own album content");
+			await assertSuccess(response, t("api.errors.reorder_content"));
 			return { ok: true };
 		},
 
@@ -366,7 +369,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 					method: "DELETE",
 				},
 			);
-			await assertSuccess(response, "Failed to delete own album content");
+			await assertSuccess(response, t("api.errors.delete_content"));
 			return { ok: true };
 		},
 
@@ -377,7 +380,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "POST",
 				body: input,
 			});
-			await assertSuccess(response, "Failed to load shared albums");
+			await assertSuccess(response, t("api.errors.load_shared_albums"));
 			return sharedAlbumViewSchema.parse(await parseJsonSafe(response));
 		},
 
@@ -388,7 +391,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			if (response.status === 404) {
 				return [];
 			}
-			await assertSuccess(response, "Failed to load shared albums for profile");
+			await assertSuccess(response, t("api.errors.load_shared_albums_profile"));
 			const payload = sharedAlbumsResponseSchema.parse(
 				await parseJsonSafe(response),
 			);
@@ -403,17 +406,17 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				response.status !== 403 &&
 				(response.status < 200 || response.status >= 300)
 			) {
-				await assertSuccess(response, "Failed to open shared album");
+				await assertSuccess(response, t("api.errors.open_shared_album"));
 			}
 			return { status: response.status };
 		},
 
 		async getManagedGenders(): Promise<ManagedGender[]> {
 			const response = await fetchRest("/public/v2/genders");
-			await assertSuccess(response, "Failed to load genders");
+			await assertSuccess(response, t("api.errors.load_genders"));
 			const payload = await parseJsonSafe(response);
 			if (!Array.isArray(payload)) {
-				throw new ApiFunctionError("Invalid genders response", response.status, payload);
+				throw new ApiFunctionError(t("api.errors.invalid_genders_response"), response.status, payload);
 			}
 			return payload
 				.map((entry) => {
@@ -435,10 +438,10 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getManagedPronouns(): Promise<ManagedPronoun[]> {
 			const response = await fetchRest("/v1/pronouns");
-			await assertSuccess(response, "Failed to load pronouns");
+			await assertSuccess(response, t("api.errors.load_pronouns"));
 			const payload = await parseJsonSafe(response);
 			if (!Array.isArray(payload)) {
-				throw new ApiFunctionError("Invalid pronouns response", response.status, payload);
+				throw new ApiFunctionError(t("api.errors.invalid_pronouns_response"), response.status, payload);
 			}
 			return payload
 				.map((entry) => {
@@ -463,7 +466,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			medias: Array<{ mediaHash?: string }>;
 		}> {
 			const response = await fetchRest(`/v7/profiles/${profileId}`);
-			await assertSuccess(response, "Failed to load profile media");
+			await assertSuccess(response, t("api.errors.load_profile_media"));
 			const parsed = browseProfileSchema.parse(await parseJsonSafe(response));
 			return {
 				profileImageMediaHash: parsed.profiles[0]?.profileImageMediaHash ?? null,
@@ -554,7 +557,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 			const url = `/v4/cascade?${queryParams.toString()}`;
 			const response = await fetchRest(url);
-			await assertSuccess(response, "Failed to load browse profiles");
+			await assertSuccess(response, t("api.errors.load_browse_profiles"));
 			const parsed = cascadeResponseSchema.parse(await parseJsonSafe(response));
 			const cards: BrowseCard[] = [];
 			for (const item of parsed.items) {
@@ -574,7 +577,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getProfileDetail(profileId: string): Promise<ProfileDetail> {
 			const response = await fetchRest(`/v7/profiles/${profileId}`);
-			await assertSuccess(response, "Failed to load profile details");
+			await assertSuccess(response, t("api.errors.load_profile_details"));
 			const parsed = profileDetailResponseSchema.parse(
 				await parseJsonSafe(response),
 			);
@@ -583,7 +586,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getRawProfile(profileId: number | string): Promise<unknown> {
 			const response = await fetchRest(`/v7/profiles/${profileId}`);
-			await assertSuccess(response, "Failed to load profile");
+			await assertSuccess(response, t("api.errors.load_profile"));
 			return parseJsonSafe(response);
 		},
 
@@ -592,7 +595,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "PATCH",
 				body: payload,
 			});
-			await assertSuccess(response, "Failed to save profile");
+			await assertSuccess(response, t("api.errors.save_profile"));
 			return { ok: true };
 		},
 
@@ -604,7 +607,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "PUT",
 				body: payload,
 			});
-			await assertSuccess(response, "Failed to update profile photos");
+			await assertSuccess(response, t("api.errors.update_photos"));
 			return { ok: true };
 		},
 
@@ -613,7 +616,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "DELETE",
 				body: { media_hashes: mediaHashes },
 			});
-			await assertSuccess(response, "Failed to delete profile photos");
+			await assertSuccess(response, t("api.errors.delete_photos"));
 			return { ok: true };
 		},
 
@@ -627,11 +630,11 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				rawBody: params.body,
 				contentType: params.contentType,
 			});
-			await assertSuccess(response, "Failed to upload profile image");
+			await assertSuccess(response, t("api.errors.upload_image"));
 			const payload = await parseJsonSafe(response);
 			if (typeof payload !== "object" || payload === null) {
 				throw new ApiFunctionError(
-					"Invalid profile upload response",
+					t("api.errors.invalid_upload_profile_response"),
 					response.status,
 					payload,
 				);
@@ -641,7 +644,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 		async getAgeVerificationOptions(): Promise<AgeVerificationOptions> {
 			const response = await fetchRest("/v1/age-verification/options");
-			await assertSuccess(response, "Failed to fetch age verification options");
+			await assertSuccess(response, t("api.errors.age_verification_options"));
 			return response.json() as AgeVerificationOptions;
 		},
 
@@ -649,7 +652,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			const response = await fetchRest("/v1/age-verification/session", {
 				method: "POST",
 			});
-			await assertSuccess(response, "Failed to create age verification session");
+			await assertSuccess(response, t("api.errors.age_verification_session"));
 			return response.json() as AgeVerificationSession;
 		},
 
@@ -660,7 +663,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "POST",
 				body: data,
 			});
-			await assertSuccess(response, "Liveness3d verification failed");
+			await assertSuccess(response, t("api.errors.liveness_failed"));
 			return response.json() as AgeVerificationFaceTecResponse;
 		},
 
@@ -668,7 +671,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 			const response = await fetchRest("/v1/age-verification/verify/enrollment", {
 				method: "POST",
 			});
-			await assertSuccess(response, "Enrollment verification failed");
+			await assertSuccess(response, t("api.errors.enrollment_failed"));
 			return response.json() as AgeVerificationFaceTecResponse;
 		},
 
@@ -679,7 +682,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 				method: "POST",
 				body: photoIdMatchData,
 			});
-			await assertSuccess(response, "Document verification failed");
+			await assertSuccess(response, t("api.errors.document_failed"));
 			return response.json() as AgeVerificationFaceTecResponse;
 		},
 
@@ -699,7 +702,7 @@ export function createApiFunctions(fetchRest: RestFetcher) {
 
 			const url = `/v5/rightnow/feed?${queryParams.toString()}`;
 			const response = await fetchRest(url);
-			await assertSuccess(response, "Failed to load Right Now feed");
+			await assertSuccess(response, t("api.errors.load_right_now"));
 			const raw = (await parseJsonSafe(response)) as Record<string, unknown> | null;
 			const rawItems = Array.isArray(raw?.items) ? (raw.items as unknown[]) : [];
 			return rawItems

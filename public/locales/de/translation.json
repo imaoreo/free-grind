@@ -461,7 +461,34 @@
             "error_upload_type": "Wähle eine Bilddatei zum Hochladen aus",
             "error_photo_limit": "Entferne ein Foto, bevor du ein neues hinzufügst"
         },
+        "chat": {
         "errors": {
+            "load_albums": "Laden der Alben fehlgeschlagen",
+            "load_inbox": "Laden des Posteingangs fehlgeschlagen",
+            "load_messages": "Laden der Nachrichten fehlgeschlagen",
+            "load_message": "Laden der Nachricht fehlgeschlagen",
+            "update_pin_state": "Fehler beim Aktualisieren des Pin-Status",
+            "update_mute_state": "Fehler beim Aktualisieren des Stummschaltungs-Status",
+            "missing_recipient": "Empfänger konnte nicht ermittelt werden",
+            "send_failed": "Senden fehlgeschlagen",
+            "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
+            "attachment_upload_send_failed": "Hochladen/Senden des Anhangs fehlgeschlagen",
+            "reupload_image": "Bitte lade dieses Bild erneut hoch.",
+            "react_failed": "Reaktion fehlgeschlagen",
+            "unsend_failed": "Zurückziehen fehlgeschlagen",
+            "delete_failed": "Löschen fehlgeschlagen",
+            "album_share_missing_recipient": "Empfänger für Album-Freigabe konnte nicht ermittelt werden",
+            "album_share_failed": "Freigeben des Albums fehlgeschlagen",
+            "album_open_failed": "Öffnen des Albums fehlgeschlagen",
+            "search_profiles": "Suche nach Profilen fehlgeschlagen",
+            "mark_read_failed": "Fehler beim Markieren als gelesen",
+            "load_shared_images": "Laden der geteilten Bilder fehlgeschlagen",
+            "create_album_failed": "Album konnte nicht erstellt werden",
+            "load_album_details": "Albumdetails konnten nicht geladen werden",
+            "upload_media_failed": "Medien-Upload fehlgeschlagen"
+        }
+    },
+    "errors": {
             "display_name_length": "Der Anzeigename muss zwischen 3 und 15 Zeichen lang sein.",
             "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
         }
@@ -485,7 +512,82 @@
         "submitting": "Wird gesendet...",
         "success": "Meldung gesendet: {{id}}",
         "error": "Meldung konnte nicht gesendet werden",
+        "submit_error": "Fehler beim Senden der Meldung",
+        "no_id_error": "Meldung gesendet, aber keine ID erhalten",
         "validation_title": "Bitte gib einen Titel mit mindestens 3 Zeichen ein.",
         "validation_description": "Bitte gib eine Beschreibung mit mindestens 10 Zeichen ein."
+    },
+    "chat": {
+        "errors": {
+            "load_albums": "Laden der Alben fehlgeschlagen",
+            "load_inbox": "Laden des Posteingangs fehlgeschlagen",
+            "load_messages": "Laden der Nachrichten fehlgeschlagen",
+            "load_message": "Laden der Nachricht fehlgeschlagen",
+            "update_pin_state": "Fehler beim Aktualisieren des Pin-Status",
+            "update_mute_state": "Fehler beim Aktualisieren des Stummschaltungs-Status",
+            "missing_recipient": "Empfänger konnte nicht ermittelt werden",
+            "send_failed": "Senden fehlgeschlagen",
+            "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
+            "attachment_upload_send_failed": "Hochladen/Senden des Anhangs fehlgeschlagen",
+            "reupload_image": "Bitte lade dieses Bild erneut hoch.",
+            "react_failed": "Reaktion fehlgeschlagen",
+            "unsend_failed": "Zurückziehen fehlgeschlagen",
+            "delete_failed": "Löschen fehlgeschlagen",
+            "album_share_missing_recipient": "Empfänger für Album-Freigabe konnte nicht ermittelt werden",
+            "album_share_failed": "Freigeben des Albums fehlgeschlagen",
+            "album_open_failed": "Öffnen des Albums fehlgeschlagen",
+            "search_profiles": "Suche nach Profilen fehlgeschlagen",
+            "mark_read_failed": "Fehler beim Markieren als gelesen",
+            "load_shared_images": "Laden der geteilten Bilder fehlgeschlagen",
+            "create_album_failed": "Album konnte nicht erstellt werden",
+            "load_album_details": "Albumdetails konnten nicht geladen werden",
+            "upload_media_failed": "Medien-Upload fehlgeschlagen"
+        }
+    },
+    "api": {
+        "errors": {
+            "load_views": "Ansichten konnten nicht geladen werden",
+            "load_taps": "Taps konnten nicht geladen werden",
+            "invalid_profile_id": "Ungültige Profil-ID",
+            "send_tap": "Tap konnte nicht gesendet werden",
+            "load_albums": "Eigene Alben konnten nicht geladen werden",
+            "load_album_details": "Albumdetails konnten nicht geladen werden",
+            "load_album_storage": "Alben-Speicherplatz konnte nicht geladen werden",
+            "create_album": "Album konnte nicht erstellt werden",
+            "invalid_album_response": "Ungültige Antwort vom Alben-Server",
+            "rename_album": "Album konnte nicht umbenannt werden",
+            "delete_album": "Album konnte nicht gelöscht werden",
+            "upload_content": "Inhalt konnte nicht hochgeladen werden",
+            "invalid_upload_response": "Ungültige Antwort beim Hochladen",
+            "reorder_content": "Reihenfolge konnte nicht geändert werden",
+            "delete_content": "Inhalt konnte nicht gelöscht werden",
+            "load_shared_albums": "Geteilte Alben konnten nicht geladen werden",
+            "load_shared_albums_profile": "Geteilte Alben für das Profil konnten nicht geladen werden",
+            "open_shared_album": "Geteiltes Album konnte nicht geöffnet werden",
+            "load_genders": "Geschlechter konnten nicht geladen werden",
+            "invalid_genders_response": "Ungültige Antwort für Geschlechter",
+            "load_pronouns": "Pronomen konnten nicht geladen werden",
+            "invalid_pronouns_response": "Ungültige Antwort für Pronomen",
+            "load_profile_media": "Profilmedien konnten nicht geladen werden",
+            "load_browse_profiles": "Profile konnten nicht geladen werden",
+            "load_profile_details": "Profildetails konnten nicht geladen werden",
+            "load_profile": "Profil konnte nicht geladen werden",
+            "save_profile": "Profil konnte nicht gespeichert werden",
+            "update_photos": "Profilfotos konnten nicht aktualisiert werden",
+            "delete_photos": "Profilfotos konnten nicht gelöscht werden",
+            "upload_image": "Profilbild konnte nicht hochgeladen werden",
+            "invalid_upload_profile_response": "Ungültige Antwort beim Profilbild-Upload",
+            "age_verification_options": "Optionen für Altersverifizierung konnten nicht geladen werden",
+            "age_verification_session": "Sitzung für Altersverifizierung konnte nicht erstellt werden",
+            "liveness_failed": "Liveness3d-Prüfung fehlgeschlagen",
+            "enrollment_failed": "Registrierung fehlgeschlagen",
+            "document_failed": "Dokumentenprüfung fehlgeschlagen",
+            "load_right_now": "Right Now Feed konnte nicht geladen werden"
+        }
+    },
+    "errors": {
+        "title": "Fehler",
+        "subtitle": "Etwas ist schiefgelaufen",
+        "action_home": "Zur Übersicht"
     }
 }

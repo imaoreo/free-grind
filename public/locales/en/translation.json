@@ -457,6 +457,8 @@
         "submitting": "Submitting...",
         "success": "Report submitted: {{id}}",
         "error": "Failed to submit report",
+        "submit_error": "Failed to submit report",
+        "no_id_error": "Report submitted but no ID returned",
         "validation_title": "Please enter a title with at least 3 characters.",
         "validation_description": "Please enter a description with at least 10 characters."
     },
@@ -586,6 +588,7 @@
             "load_albums": "Failed to load albums",
             "load_inbox": "Failed to load inbox",
             "load_messages": "Failed to load messages",
+            "load_message": "Failed to load message",
             "update_pin_state": "Failed to update pin state",
             "update_mute_state": "Failed to update mute state",
             "missing_recipient": "Unable to determine message recipient",
@@ -598,7 +601,13 @@
             "delete_failed": "Failed to delete",
             "album_share_missing_recipient": "Unable to determine recipient for album share",
             "album_share_failed": "Failed to share album",
-            "album_open_failed": "Failed to open album"
+            "album_open_failed": "Failed to open album",
+            "search_profiles": "Failed to search profiles",
+            "mark_read_failed": "Failed to mark conversation as read",
+            "load_shared_images": "Failed to load shared conversation images",
+            "create_album_failed": "Failed to create album",
+            "load_album_details": "Failed to load album details",
+            "upload_media_failed": "Failed to upload media"
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
@@ -738,5 +747,51 @@
         "close_profile_details": "Close profile details",
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}"
+    },
+    "api": {
+        "errors": {
+            "load_views": "Failed to load views",
+            "load_taps": "Failed to load taps",
+            "invalid_profile_id": "Invalid profile ID",
+            "send_tap": "Failed to send tap",
+            "load_albums": "Failed to load own albums",
+            "load_album_details": "Failed to load own album details",
+            "load_album_storage": "Failed to load own album storage",
+            "create_album": "Failed to create own album",
+            "invalid_album_response": "Invalid album response",
+            "rename_album": "Failed to rename own album",
+            "delete_album": "Failed to delete own album",
+            "upload_content": "Failed to upload own album content",
+            "invalid_upload_response": "Invalid upload content response",
+            "reorder_content": "Failed to reorder own album content",
+            "delete_content": "Failed to delete own album content",
+            "load_shared_albums": "Failed to load shared albums",
+            "load_shared_albums_profile": "Failed to load shared albums for profile",
+            "open_shared_album": "Failed to open shared album",
+            "load_genders": "Failed to load genders",
+            "invalid_genders_response": "Invalid genders response",
+            "load_pronouns": "Failed to load pronouns",
+            "invalid_pronouns_response": "Invalid pronouns response",
+            "load_profile_media": "Failed to load profile media",
+            "load_browse_profiles": "Failed to load browse profiles",
+            "load_profile_details": "Failed to load profile details",
+            "load_profile": "Failed to load profile",
+            "save_profile": "Failed to save profile",
+            "update_photos": "Failed to update profile photos",
+            "delete_photos": "Failed to delete profile photos",
+            "upload_image": "Failed to upload profile image",
+            "invalid_upload_profile_response": "Invalid profile upload response",
+            "age_verification_options": "Failed to fetch age verification options",
+            "age_verification_session": "Failed to create age verification session",
+            "liveness_failed": "Liveness3d verification failed",
+            "enrollment_failed": "Enrollment verification failed",
+            "document_failed": "Document verification failed",
+            "load_right_now": "Failed to load Right Now feed"
+        }
+    },
+    "errors": {
+        "title": "Error",
+        "subtitle": "Something went wrong",
+        "action_home": "Go to Browse"
     }
 }
