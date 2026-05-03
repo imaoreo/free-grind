@@ -34,17 +34,6 @@
         "switched_channel": "Switched to {{channel}}. Reloading…",
         "failed_switch_env": "Failed to switch update environment."
     },
-    "browse": {
-        "online": "Online",
-        "offline": "Offline",
-        "online_left": "Online ({{count}}m left)",
-        "minutes_ago": "{{count}}m ago",
-        "hours_ago": "{{count}}h ago",
-        "days_ago": "{{count}}d ago",
-        "just_now": "Just now",
-        "hidden": "hidden",
-        "unknown": "Unknown"
-    },
     "shared_albums": {
         "title": "Shared Albums",
         "subtitle": "Browse all albums shared by people in your chats.",

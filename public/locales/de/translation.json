@@ -34,17 +34,6 @@
         "switched_channel": "Zu {{channel}} gewechselt. Lade neu…",
         "failed_switch_env": "Fehler beim Wechseln der Update-Umgebung."
     },
-    "browse": {
-        "online": "Online",
-        "offline": "Offline",
-        "online_left": "Online (noch {{count}}m)",
-        "minutes_ago": "vor {{count}}m",
-        "hours_ago": "vor {{count}}h",
-        "days_ago": "vor {{count}}d",
-        "just_now": "Gerade eben",
-        "hidden": "verborgen",
-        "unknown": "Unbekannt"
-    },
     "shared_albums": {
         "title": "Geteilte Alben",
         "subtitle": "Durchsuche alle Alben, die von Personen in deinen Chats geteilt wurden.",
