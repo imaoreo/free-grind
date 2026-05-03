@@ -1,6 +1,8 @@
 package dev.estopia.free_grind
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
 import android.os.Handler
 import android.os.Build
@@ -59,6 +61,7 @@ class MainActivity : TauriActivity() {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
     activityRef = WeakReference(this)
+    ensureNotificationChannels()
     requestNotificationPermissionIfNeeded()
     initFirebase()
     handleNotificationIntent(intent)
@@ -140,6 +143,29 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  private fun ensureNotificationChannels() {
+    val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+
+    val chatChannel = NotificationChannel(
+      "free_grind_chat_notifications",
+      "Chat Messages",
+      NotificationManager.IMPORTANCE_HIGH
+    ).apply {
+      description = "Notifications for new chat messages"
+    }
+
+    val tapsChannel = NotificationChannel(
+      "free_grind_taps_notifications",
+      "Taps",
+      NotificationManager.IMPORTANCE_HIGH
+    ).apply {
+      description = "Notifications for incoming taps"
+    }
+
+    notificationManager.createNotificationChannel(chatChannel)
+    notificationManager.createNotificationChannel(tapsChannel)
+  }
+
   private fun dispatchFcmTokenToWebview(token: String, attempt: Int) {
     val script =
       "(function(){" +
@@ -191,9 +217,69 @@ class MainActivity : TauriActivity() {
   }
 
   private fun handleNotificationIntent(intent: Intent?) {
-    val payloadJson = intent?.getStringExtra("push_payload") ?: return
-    intent.removeExtra("push_payload")
-    dispatchPushNotificationToWebview(toOpenedPushPayload(payloadJson), 0)
+    if (intent == null) {
+      return
+    }
+
+    val payloadJson = intent.getStringExtra("push_payload")
+    if (!payloadJson.isNullOrBlank()) {
+      intent.removeExtra("push_payload")
+      val openedPayload = toOpenedPushPayload(payloadJson)
+      cancelNotificationForAction(extractActionFromPayload(openedPayload))
+      dispatchPushNotificationToWebview(openedPayload, 0)
+      return
+    }
+
+    val action = intent.getStringExtra("action")?.trim().orEmpty()
+    if (action.isBlank()) {
+      return
+    }
+
+    intent.removeExtra("action")
+    cancelNotificationForAction(action)
+    dispatchPushNotificationToWebview(toOpenedPushPayloadFromAction(action), 0)
+  }
+
+  private fun toOpenedPushPayloadFromAction(action: String): String {
+    val conversationId = if (action.startsWith("chat:")) {
+      action.substringAfter("chat:").trim().ifBlank { null }
+    } else {
+      null
+    }
+    val isTap = action == "taps"
+
+    return JSONObject().apply {
+      put("event", "opened")
+      put("source", "notification_intent")
+      put("openedAt", System.currentTimeMillis())
+      put("action", action)
+      put("isTap", isTap)
+      put("conversationId", conversationId ?: JSONObject.NULL)
+    }.toString()
+  }
+
+  private fun extractActionFromPayload(payloadJson: String): String? {
+    return try {
+      val payload = JSONObject(payloadJson)
+      payload.optString("action").trim().ifBlank { null }
+    } catch (error: Exception) {
+      Log.w("FCM", "Failed to read action from opened payload", error)
+      null
+    }
+  }
+
+  private fun cancelNotificationForAction(action: String?) {
+    if (action.isNullOrBlank() || !action.startsWith("chat:")) {
+      return
+    }
+
+    val conversationId = action.substringAfter("chat:").trim()
+    if (conversationId.isBlank()) {
+      return
+    }
+
+    val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager.cancel(conversationId.hashCode())
   }
 
   private fun toOpenedPushPayload(payloadJson: String): String {

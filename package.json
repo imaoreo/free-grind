@@ -14,6 +14,8 @@
         "dev:ios": "echo 15 | tauri ios dev",
         "dev:android": "tauri android dev",
         "logs:push": "sh -c \"PKG=dev.estopia.free_grind; PID=$(adb shell pidof -s $PKG 2>/dev/null | tr -d '\\r\\n'); if [ -n \\\"$PID\\\" ]; then echo 'Using PID:' $PID; adb logcat -v time --pid=$PID | grep --line-buffered -E 'FCM|PUSH_SYNC|Tauri/Notification|gcm-push-tokens|sync_push_token'; else echo 'PID not found, using global filtered logs'; adb logcat -v time | grep --line-buffered -E 'FCM|PUSH_SYNC|Tauri/Notification|gcm-push-tokens|sync_push_token|dev.estopia.free_grind'; fi\"",
+        "logs:push:save": "sh scripts/capture-push-logs.sh filtered logs/android",
+        "logs:push:save:raw": "sh scripts/capture-push-logs.sh raw logs/android",
         "logs:push:raw": "sh -c \"PKG=dev.estopia.free_grind; PID=$(adb shell pidof -s $PKG 2>/dev/null | tr -d '\\r\\n'); if [ -n \\\"$PID\\\" ]; then echo 'Using PID:' $PID; adb logcat -v time --pid=$PID; else echo 'PID not found, using global app grep'; adb logcat -v time | grep --line-buffered 'dev.estopia.free_grind'; fi\"",
         "logs:push:global": "adb logcat -v time | grep --line-buffered -E 'FCM|PUSH_SYNC|Tauri/Notification|gcm-push-tokens|sync_push_token|dev.estopia.free_grind'",
         "logs:clear": "adb logcat -c",

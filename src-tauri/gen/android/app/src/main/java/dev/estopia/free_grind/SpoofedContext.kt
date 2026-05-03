@@ -7,6 +7,24 @@ import android.content.pm.PackageManager
 import android.util.Log
 
 class SpoofedContext(base: Context) : Application() {
+    private fun shouldSpoofForCaller(): Boolean {
+        val stackTrace = Thread.currentThread().stackTrace
+
+        // Keep component discovery on the real package so Firebase can load manifest-registered components.
+        if (stackTrace.any { it.className.contains("ComponentDiscovery") }) {
+            return false
+        }
+
+        return stackTrace.any {
+            it.className.contains("FirebaseInstallationServiceClient") ||
+            it.className.contains("com.google.firebase.installations.remote") ||
+            it.className.contains("com.google.firebase.messaging.Metadata") ||
+            it.className.contains("FirebaseMessaging") ||
+            // Obfuscated classes seen in logs during FIS auth requests.
+            it.className == "r2.b"
+        }
+    }
+
     init {
         attachBaseContext(base)
     }
@@ -16,31 +34,24 @@ class SpoofedContext(base: Context) : Application() {
     }
 
     override fun getPackageName(): String {
-        val stackTrace = Thread.currentThread().stackTrace
-
-        if (stackTrace.any { it.className.contains("FirebaseInstallationServiceClient") }) {
-            Log.d("SpoofedContext", "getPackageName() spoofed for FirebaseInstallation")
+        if (shouldSpoofForCaller()) {
+            Log.d("SpoofedContext", "getPackageName() spoofed for Firebase caller")
             return "com.grindrapp.android"
         }
-
-        if (stackTrace.any {
-            it.className.contains("com.google.firebase.messaging.Metadata") ||
-            it.className.contains("FirebaseMessaging")
-        }) {
-            Log.d("SpoofedContext", "getPackageName() spoofed for FirebaseMessaging")
-            return "com.grindrapp.android"
-        }
-
         return baseContext.packageName
+    }
+
+    override fun getOpPackageName(): String {
+        if (shouldSpoofForCaller()) {
+            Log.d("SpoofedContext", "getOpPackageName() spoofed for Firebase caller")
+            return "com.grindrapp.android"
+        }
+        return super.getOpPackageName()
     }
 
     override fun getApplicationInfo(): ApplicationInfo {
         val info = super.getApplicationInfo()
-        val stackTrace = Thread.currentThread().stackTrace
-        if (stackTrace.any {
-            it.className.contains("FirebaseInstallationServiceClient") ||
-            it.className.contains("com.google.firebase.messaging")
-        }) {
+        if (shouldSpoofForCaller()) {
             Log.d("SpoofedContext", "getApplicationInfo() spoofed")
             info.packageName = "com.grindrapp.android"
         }
