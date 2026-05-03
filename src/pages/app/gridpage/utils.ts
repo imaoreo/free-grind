@@ -82,10 +82,11 @@ export function estimateAccountCreationTimestamp(
 
 export function formatEstimatedAccountCreation(
 	profileId: string | number | null | undefined,
+	t?: (key: string, options?: any) => string,
 ): string {
 	const timestamp = estimateAccountCreationTimestamp(profileId);
 	if (timestamp == null) {
-		return "Unknown";
+		return t ? t("browse_page.unknown") : "Unknown";
 	}
 
 	return new Intl.DateTimeFormat(undefined, {
@@ -97,9 +98,10 @@ export function formatEstimatedAccountCreation(
 
 export function formatDistance(
 	distanceMeters: number | null | undefined,
+	t?: (key: string, options?: any) => string,
 ): string {
 	if (distanceMeters == null || !Number.isFinite(distanceMeters)) {
-		return "hidden";
+		return t ? t("browse_page.distance_hidden") : "hidden";
 	}
 
 	if (distanceMeters < 1000) {
@@ -119,11 +121,19 @@ export function isCurrentlyOnline(
 	return onlineUntil > Date.now();
 }
 
+export type OnlineStatusMeta = {
+	isOnline: boolean;
+	labelKey: string;
+	count?: number;
+	/** @deprecated Use labelKey and t() instead */
+	label: string;
+};
+
 export function getOnlineStatusMeta(
 	lastOnline: number | null | undefined,
 	onlineUntil: number | null | undefined,
 	nowTimestamp: number = Date.now(),
-): { isOnline: boolean; label: string } {
+): OnlineStatusMeta {
 	const hasLastOnline =
 		typeof lastOnline === "number" && Number.isFinite(lastOnline);
 	const hasOnlineUntil =
@@ -133,7 +143,7 @@ export function getOnlineStatusMeta(
 	const dayMs = 24 * hourMs;
 
 	if (!hasLastOnline && !hasOnlineUntil) {
-		return { isOnline: false, label: "Offline" };
+		return { isOnline: false, labelKey: "browse_page.status_offline", label: "Offline" };
 	}
 
 	if (hasOnlineUntil && (onlineUntil as number) > nowTimestamp) {
@@ -143,6 +153,8 @@ export function getOnlineStatusMeta(
 		);
 		return {
 			isOnline: true,
+			labelKey: "browse_page.status_online_left",
+			count: minsLeft,
 			label: `Online (${minsLeft}m left)`,
 		};
 	}
@@ -154,16 +166,31 @@ export function getOnlineStatusMeta(
 
 	if (diffMs < hourMs) {
 		const minutes = Math.max(1, Math.floor(diffMs / minuteMs));
-		return { isOnline: false, label: `${minutes}m ago` };
+		return {
+			isOnline: false,
+			labelKey: "browse_page.status_minutes_ago",
+			count: minutes,
+			label: `${minutes}m ago`,
+		};
 	}
 
 	if (diffMs < dayMs) {
 		const hours = Math.max(1, Math.floor(diffMs / hourMs));
-		return { isOnline: false, label: `${hours}h ago` };
+		return {
+			isOnline: false,
+			labelKey: "browse_page.status_hours_ago",
+			count: hours,
+			label: `${hours}h ago`,
+		};
 	}
 
 	const days = Math.max(1, Math.floor(diffMs / dayMs));
-	return { isOnline: false, label: `${days}d ago` };
+	return {
+		isOnline: false,
+		labelKey: "browse_page.status_days_ago",
+		count: days,
+		label: `${days}d ago`,
+	};
 }
 
 export function getDisplayName(card: BrowseCard): string {
@@ -185,14 +212,17 @@ export function getCardInitials(name: string): string {
 	return parts.map((part) => part[0]?.toUpperCase() ?? "").join("");
 }
 
-export function formatTimeAgo(timestamp: number | null | undefined): string {
+export function formatTimeAgo(
+	timestamp: number | null | undefined,
+	t?: (key: string, options?: any) => string,
+): string {
 	if (!timestamp || !Number.isFinite(timestamp)) {
-		return "Unknown";
+		return t ? t("browse_page.unknown") : "Unknown";
 	}
 
 	const diffMs = Date.now() - timestamp;
 	if (diffMs <= 0) {
-		return "Just now";
+		return t ? t("browse_page.status_just_now") : "Just now";
 	}
 
 	const minute = 60 * 1000;
@@ -201,21 +231,24 @@ export function formatTimeAgo(timestamp: number | null | undefined): string {
 
 	if (diffMs < hour) {
 		const minutes = Math.max(1, Math.floor(diffMs / minute));
-		return `${minutes}m ago`;
+		return t ? t("browse_page.status_minutes_ago", { count: minutes }) : `${minutes}m ago`;
 	}
 
 	if (diffMs < day) {
 		const hours = Math.max(1, Math.floor(diffMs / hour));
-		return `${hours}h ago`;
+		return t ? t("browse_page.status_hours_ago", { count: hours }) : `${hours}h ago`;
 	}
 
 	const days = Math.max(1, Math.floor(diffMs / day));
-	return `${days}d ago`;
+	return t ? t("browse_page.status_days_ago", { count: days }) : `${days}d ago`;
 }
 
-export function formatOptionalNumber(value: number | null | undefined): string {
+export function formatOptionalNumber(
+	value: number | null | undefined,
+	t?: (key: string, options?: any) => string,
+): string {
 	if (value == null || !Number.isFinite(value)) {
-		return "Not set";
+		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	return String(value);
@@ -224,9 +257,10 @@ export function formatOptionalNumber(value: number | null | undefined): string {
 export function formatEnumValue(
 	value: number | null | undefined,
 	labels: Record<number, string>,
+	t?: (key: string, options?: any) => string,
 ): string {
 	if (value == null || !Number.isFinite(value)) {
-		return "Not set";
+		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	return labels[value] ?? String(value);
@@ -235,25 +269,32 @@ export function formatEnumValue(
 export function formatEnumArray(
 	values: number[],
 	labels: Record<number, string>,
+	t?: (key: string, options?: any) => string,
 ): string {
 	if (values.length === 0) {
-		return "Not set";
+		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	return values.map((value) => labels[value] ?? String(value)).join(", ");
 }
 
-export function formatHeightCm(value: number | null | undefined): string {
+export function formatHeightCm(
+	value: number | null | undefined,
+	t?: (key: string, options?: any) => string,
+): string {
 	if (value == null || !Number.isFinite(value)) {
-		return "Not set";
+		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	return `${value}cm`;
 }
 
-export function formatWeightKg(value: number | null | undefined): string {
+export function formatWeightKg(
+	value: number | null | undefined,
+	t?: (key: string, options?: any) => string,
+): string {
 	if (value == null || !Number.isFinite(value)) {
-		return "Not set";
+		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	return `${(value / 1000).toFixed(0)}kg`;

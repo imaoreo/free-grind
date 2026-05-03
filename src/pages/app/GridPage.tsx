@@ -442,7 +442,7 @@ export function GridPage() {
 				const timeout = window.setTimeout(() => {
 					reject(
 						new Error(
-							"Browse feed request timed out. Please check your connection and try again.",
+							t("browse_page.errors.load_timeout"),
 						),
 					);
 				}, BROWSE_LOAD_TIMEOUT_MS);
@@ -483,7 +483,7 @@ export function GridPage() {
 				setIsLoadingCards(true);
 				setCards([]);
 				setCardsError(
-					"Tap the location pin (📍) button above to set your location.",
+					t("browse_page.errors.set_location"),
 				);
 				setIsLoadingCards(false);
 				return;
@@ -527,7 +527,7 @@ export function GridPage() {
 					setCardsError(
 						error instanceof Error
 							? error.message
-							: "Failed to load browse profiles",
+							: t("browse_page.errors.load_profiles"),
 					);
 				}
 			} finally {
@@ -564,7 +564,7 @@ export function GridPage() {
 			}
 			setIsLoadingCards(false);
 			setCardsError(
-				"Loading nearby profiles is taking longer than expected. Try refreshing or updating your location.",
+				t("browse_page.errors.loading_slow"),
 			);
 		}, BROWSE_LOAD_TIMEOUT_MS + 3000);
 
@@ -647,7 +647,7 @@ export function GridPage() {
 						setActiveProfileError(
 							error instanceof Error
 								? error.message
-								: "Failed to load profile details",
+								: t("browse_page.errors.load_profile_details"),
 						);
 					}
 				}
@@ -835,7 +835,7 @@ export function GridPage() {
 
 	const handleTriangleProfile = (targetProfileId: string) => {
 		if (!geohash) {
-			toast.error("Set your browse location first");
+			toast.error(t("browse_page.errors.location_required"));
 			return;
 		}
 
@@ -851,16 +851,25 @@ export function GridPage() {
 
 			if (distanceMeters !== null) {
 				toast.success(
-					`Browse location ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. ${targetProfileId} is about ${distanceMeters}m away.`,
+					t("browse_page.toasts.distance_info", {
+						lat: latitude.toFixed(5),
+						lon: longitude.toFixed(5),
+						id: targetProfileId,
+						distance: distanceMeters,
+					}),
 				);
 				return;
 			}
 
 			toast.success(
-				`Browse location ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Distance is unavailable for ${targetProfileId}.`,
+				t("browse_page.toasts.distance_unavailable", {
+					lat: latitude.toFixed(5),
+					lon: longitude.toFixed(5),
+					id: targetProfileId,
+				}),
 			);
 		} catch {
-			toast.error("Could not read your saved browse location");
+			toast.error(t("browse_page.errors.location_read_failed"));
 		}
 	};
 
@@ -892,7 +901,7 @@ export function GridPage() {
 				activeProfile?.profileId === profileId && activeProfile.tapped === true;
 			const sentLocally = isWithinTapWindow(tapVisualStates[profileId]?.sentAt);
 			if (sentFromServer || sentLocally) {
-				toast("You already tapped this profile in the last 24 hours");
+				toast(t("browse_page.toasts.tap_limit"));
 				return;
 			}
 
@@ -911,10 +920,16 @@ export function GridPage() {
 						sentAt: Date.now(),
 					},
 				}));
-				toast.success(result.isMutual ? "Tap sent. It's mutual." : "Tap sent");
+				toast.success(
+					result.isMutual
+						? t("browse_page.toasts.tap_mutual")
+						: t("browse_page.toasts.tap_sent"),
+				);
 			} catch (error) {
 				toast.error(
-					error instanceof Error ? error.message : "Failed to send tap",
+					error instanceof Error
+						? error.message
+						: t("browse_page.toasts.tap_failed"),
 				);
 			} finally {
 				setTappingProfileId((current) =>
@@ -951,7 +966,7 @@ export function GridPage() {
 							>
 								<Avatar
 									src={profilePhotoUrl}
-									alt="Your profile photo"
+									alt={t("browse_page.your_profile_photo")}
 									className="h-11 w-11"
 								/>
 							</button>
@@ -1013,7 +1028,6 @@ export function GridPage() {
 										onChange={(e) => setSortBy(e.target.value as SortOption)}
 										className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
 									>
-										<option value="default">Default</option>
 										<option value="default">{t("browse_filters.sort.default")}</option>
 										<option value="distance">{t("browse_filters.sort.distance")}</option>
 										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
@@ -1155,7 +1169,7 @@ export function GridPage() {
 							>
 								<Avatar
 									src={profilePhotoUrl}
-									alt="Your profile photo"
+									alt={t("browse_page.your_profile_photo")}
 									className="h-11 w-11"
 								/>
 							</button>

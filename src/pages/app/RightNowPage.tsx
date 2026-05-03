@@ -108,7 +108,7 @@ function RightNowRow({
 	const imageUrl = getItemDisplayImageUrl(item);
 
 	const timeAgo = formatMinutesAgo(item.postedAt, t);
-	const distance = item.distanceMeters != null ? formatDistance(item.distanceMeters) : null;
+	const distance = item.distanceMeters != null ? formatDistance(item.distanceMeters, t) : null;
 	const subtitle = isHosting
 		? t("right_now.hosting_subtitle", { name })
 		: t("right_now.member_subtitle", { name });

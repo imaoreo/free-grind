@@ -1,5 +1,7 @@
 import { Eye, Hand, Loader2 } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import blankProfileImage from "../../images/blank-profile.png";
@@ -108,12 +110,12 @@ function toNumber(value: unknown): number | null {
 	return null;
 }
 
-function getItemDisplayName(entry: Record<string, unknown>, profileId: string): string {
+function getItemDisplayName(entry: Record<string, unknown>, profileId: string, t: TFunction): string {
 	const value = entry.displayName;
 	if (typeof value === "string" && value.trim().length > 0) {
 		return value;
 	}
-	return `Profile ${profileId}`;
+	return t("interest_page.profile_fallback", { id: profileId });
 }
 
 function getItemImageHash(entry: Record<string, unknown>): string | null {
@@ -181,6 +183,7 @@ function getPreviewSyntheticId(
 function normalizeViews(
 	payload: unknown,
 	previouslyCached: InterestItem[],
+	t: TFunction
 ): InterestItem[] {
 	const root = asObject(payload);
 	if (!root) {
@@ -215,7 +218,7 @@ function normalizeViews(
 
 			return {
 				profileId,
-				displayName: getItemDisplayName(obj, profileId),
+				displayName: getItemDisplayName(obj, profileId, t),
 				imageHash: getItemImageHash(obj),
 				timestamp: getItemTimestamp(obj),
 				tapType: null,
@@ -239,7 +242,7 @@ function normalizeViews(
 			return {
 				profileId,
 				displayName:
-					getViewProfileId(obj) !== null ? getItemDisplayName(obj, profileId) : "Private viewer",
+					getViewProfileId(obj) !== null ? getItemDisplayName(obj, profileId, t) : t("interest_page.private_viewer"),
 				imageHash: getItemImageHash(obj),
 				timestamp: getItemTimestamp(obj),
 				tapType: null,
@@ -306,7 +309,7 @@ function normalizeViews(
 	return merged;
 }
 
-function normalizeTaps(payload: unknown): InterestItem[] {
+function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 	const root = asObject(payload);
 	if (!root || !Array.isArray(root.profiles)) {
 		return [];
@@ -326,7 +329,7 @@ function normalizeTaps(payload: unknown): InterestItem[] {
 
 			return {
 				profileId,
-				displayName: getItemDisplayName(obj, profileId),
+				displayName: getItemDisplayName(obj, profileId, t),
 				imageHash: getItemImageHash(obj),
 				timestamp: getItemTimestamp(obj),
 				tapType: toNumber(obj.tapType),
@@ -337,23 +340,23 @@ function normalizeTaps(payload: unknown): InterestItem[] {
 		.filter((entry): entry is InterestItem => entry !== null);
 }
 
-function formatTimestamp(timestamp: number | null): string {
+function formatTimestamp(timestamp: number | null, t: TFunction): string {
 	if (!timestamp) {
-		return "Unknown time";
+		return t("interest_page.unknown_time");
 	}
 	return new Date(timestamp).toLocaleString();
 }
 
-function tapLabel(tapType: number | null): string {
+function tapLabel(tapType: number | null, t: TFunction): string {
 	switch (tapType) {
 		case 0:
-			return "Friendly";
+			return t("interest_page.tap_labels.friendly");
 		case 1:
-			return "Hot";
+			return t("interest_page.tap_labels.hot");
 		case 2:
-			return "Looking";
+			return t("interest_page.tap_labels.looking");
 		default:
-			return "Tap";
+			return t("interest_page.tap_labels.default");
 	}
 }
 
@@ -366,6 +369,7 @@ function InterestTabs({
 	onViewsClick: () => void;
 	onTapsClick: () => void;
 }) {
+	const { t } = useTranslation();
 	return (
 		<div className="flex min-h-10 items-end gap-3">
 			<button
@@ -385,7 +389,7 @@ function InterestTabs({
 							: "text-lg font-semibold leading-none sm:text-xl"
 					}
 				>
-					Views
+					{t("interest_page.tabs.views")}
 				</span>
 			</button>
 			<button
@@ -405,7 +409,7 @@ function InterestTabs({
 							: "text-lg font-semibold leading-none sm:text-xl"
 					}
 				>
-					Taps
+					{t("interest_page.tabs.taps")}
 				</span>
 			</button>
 		</div>
@@ -421,13 +425,14 @@ function InterestRow({
 	mode: InterestTab;
 	onOpenProfile: (profileId: string) => void;
 }) {
+	const { t } = useTranslation();
 	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : blankProfileImage;
 	const trailing =
 		mode === "views"
 			? item.viewCount != null
-				? `${item.viewCount} view${item.viewCount === 1 ? "" : "s"}`
-				: "Viewed"
-			: tapLabel(item.tapType);
+				? t("interest_page.view_count", { count: item.viewCount })
+				: t("interest_page.viewed")
+			: tapLabel(item.tapType, t);
 
 	return (
 		<button
@@ -445,17 +450,18 @@ function InterestRow({
 			</div>
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-sm font-semibold text-[var(--text)]">{item.displayName}</p>
-				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp)}</p>
+				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t)}</p>
 			</div>
 			<span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)]">
 				{mode === "views" ? <Eye className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
-				{mode === "views" && !item.canOpenProfile ? "Preview" : trailing}
+				{mode === "views" && !item.canOpenProfile ? t("interest_page.preview") : trailing}
 			</span>
 		</button>
 	);
 }
 
 export function InterestPage() {
+	const { t } = useTranslation();
 	const api = useApiFunctions();
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -503,32 +509,32 @@ export function InterestPage() {
 				toNumber(listObj?.totalViewers) ?? toNumber(listDataObj?.totalViewers),
 			);
 
-			const normalizedViews = normalizeViews(listPayload, cachedViews);
+			const normalizedViews = normalizeViews(listPayload, cachedViews, t);
 			setViews(normalizedViews);
 			await interestViewsStore.upsertMany(
 				normalizedViews.map((item) => toStoredView(item)),
 			);
 			setViewsLoaded(true);
 		} catch (loadError) {
-			setError(loadError instanceof Error ? loadError.message : "Failed to load views");
+			setError(loadError instanceof Error ? loadError.message : t("interest_page.error_load", { tab: t(`interest_page.tabs.views`) }));
 		} finally {
 			setIsLoading(false);
 		}
-	}, [api]);
+	}, [api, t]);
 
 	const loadTaps = useCallback(async () => {
 		setIsLoading(true);
 		setError(null);
 		try {
 			const payload = await api.getTaps();
-			setTaps(normalizeTaps(payload));
+			setTaps(normalizeTaps(payload, t));
 			setTapsLoaded(true);
 		} catch (loadError) {
-			setError(loadError instanceof Error ? loadError.message : "Failed to load taps");
+			setError(loadError instanceof Error ? loadError.message : t("interest_page.error_load", { tab: t(`interest_page.tabs.taps`) }));
 		} finally {
 			setIsLoading(false);
 		}
-	}, [api]);
+	}, [api, t]);
 
 	useEffect(() => {
 		if (activeTab === "views" && !viewsLoaded) {
@@ -608,14 +614,14 @@ export function InterestPage() {
 			className="app-screen"
 			onRefresh={handleRefresh}
 			isDisabled={isLoading}
-			refreshingLabel={`Refreshing ${activeTab}...`}
+			refreshingLabel={t("interest_page.refreshing", { tab: t(`interest_page.tabs.${activeTab}`) })}
 		>
 			<div
 				className="mx-auto w-full max-w-4xl"
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
 			>
-				<h1 className="app-title">Interest</h1>
+				<h1 className="app-title">{t("interest_page.title")}</h1>
 				<div className="mt-4 space-y-4">
 					<div className="flex items-end gap-3">
 						<InterestTabs
@@ -628,7 +634,7 @@ export function InterestPage() {
 					{activeTab === "views" && viewedCount != null ? (
 						<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
 							<p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-								Total viewed count
+								{t("interest_page.total_viewed_count")}
 							</p>
 							<p className="mt-1 text-lg font-semibold text-[var(--text)]">{viewedCount}</p>
 						</div>
@@ -638,14 +644,14 @@ export function InterestPage() {
 						<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
 							<div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
 								<Loader2 className="h-4 w-4 animate-spin" />
-								Loading {activeTab}...
+								{t("interest_page.loading", { tab: t(`interest_page.tabs.${activeTab}`) })}
 							</div>
 						</div>
 					) : null}
 
 					{!isLoading && error ? (
 						<ErrorState
-							title={`Could not load ${activeTab}`}
+							title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
 							description={error}
 							onRetry={handleRefresh}
 						/>
@@ -653,12 +659,8 @@ export function InterestPage() {
 
 					{!isLoading && !error && activeItems.length === 0 ? (
 						<EmptyState
-							title={`No ${activeTab} yet`}
-							description={
-								activeTab === "views"
-									? "Your recent profile views will appear here."
-									: "People who tapped you will appear here."
-							}
+							title={t(`interest_page.empty_${activeTab}`)}
+							description={t(`interest_page.empty_${activeTab}_desc`)}
 						/>
 					) : null}
 

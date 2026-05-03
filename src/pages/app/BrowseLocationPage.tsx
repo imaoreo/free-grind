@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { ChevronLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash } from "../../utils/geohash";
 import {
@@ -13,6 +14,7 @@ import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPan
 
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
+	const { t } = useTranslation();
 	const { setPreferences } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
@@ -30,7 +32,7 @@ export function BrowseLocationPage() {
 		label?: string,
 	) => {
 		const nextGeohash = encodeGeohash(lat, lon);
-		const finalLabel = label ?? `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`;
+		const finalLabel = label ?? t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
 		await setPreferences({
 			geohash: nextGeohash,
 			locationName: finalLabel
@@ -46,7 +48,7 @@ export function BrowseLocationPage() {
 
 	const handleUseCurrentLocation = async () => {
 		if (!("geolocation" in navigator)) {
-			setLocationError("Geolocation is unavailable on this device.");
+			setLocationError(t("browse_location.error_geolocation"));
 			return;
 		}
 
@@ -66,12 +68,10 @@ export function BrowseLocationPage() {
 			await updateLocationPreference(
 				position.coords.latitude,
 				position.coords.longitude,
-				"Current location",
+				t("browse_location.current_location_label"),
 			);
 		} catch {
-			setLocationError(
-				"Could not access your location. Check location permissions and try again.",
-			);
+			setLocationError(t("browse_location.error_access"));
 		} finally {
 			setIsDetectingLocation(false);
 		}
@@ -100,7 +100,7 @@ export function BrowseLocationPage() {
 			setLocationResults(parsed);
 			setLocationError(null);
 		} catch {
-			setLocationError("Location search failed. Try again in a moment.");
+			setLocationError(t("browse_location.error_search_failed"));
 		} finally {
 			setIsSearchingLocation(false);
 		}
@@ -123,13 +123,13 @@ export function BrowseLocationPage() {
 						type="button"
 						onClick={() => navigate("/")}
 						className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
-						aria-label="Back to browse"
+						aria-label={t("browse_location.back_aria")}
 					>
 						<ChevronLeft className="h-4 w-4" />
 					</button>
 					<div>
-						<h1 className="app-title">Browse Location</h1>
-						<p className="app-subtitle">Choose where your feed should load from.</p>
+						<h1 className="app-title">{t("browse_location.title")}</h1>
+						<p className="app-subtitle">{t("browse_location.subtitle")}</p>
 					</div>
 				</header>
 
@@ -164,7 +164,7 @@ export function BrowseLocationPage() {
 						setSelectedLocation({
 							lat,
 							lon,
-							label: `Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`,
+							label: t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) }),
 						});
 					}}
 					onMapPickerError={setMapPickerError}

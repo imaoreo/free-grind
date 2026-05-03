@@ -536,7 +536,7 @@ export function SettingsAlbumsPage() {
 										key={album.albumId}
 										className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
 									>
-										<div className="flex flex-wrap items-center justify-between gap-3">
+										<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 											{isEditing ? (
 												<input
 													type="text"
@@ -544,21 +544,21 @@ export function SettingsAlbumsPage() {
 													onChange={(event) =>
 														setEditingName(event.target.value)
 													}
-													className="input-field max-w-md"
+													className="input-field w-full sm:max-w-md"
 													maxLength={255}
 												/>
 											) : (
-												<div className="grid gap-1">
-													<p className="text-base font-semibold">
+												<div className="min-w-0 flex-1">
+													<p className="truncate text-base font-semibold">
 														{album.albumName?.trim() || t("settings_albums.untitled")}
 													</p>
-													<p className="text-xs text-[var(--text-muted)]">
+													<p className="break-all text-xs text-[var(--text-muted)]">
 														{t("settings_albums.album_id", { id: album.albumId })}
 													</p>
 												</div>
 											)}
 
-											<div className="flex items-center gap-2">
+											<div className="flex flex-wrap items-center gap-2 sm:justify-end">
 												{isEditing ? (
 													<>
 														<button

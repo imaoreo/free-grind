@@ -187,21 +187,43 @@
 	}
 
 	.app-shell {
+		position: relative;
 		min-height: 100dvh;
 		background: var(--bg);
-		background:
-			radial-gradient(
-				circle at 14% -10%,
-				color-mix(in srgb, var(--accent) 12%, var(--bg) 88%) 0%,
-				transparent 46%
-			),
-			radial-gradient(
-				circle at 90% -20%,
-				color-mix(in srgb, var(--surface-2) 46%, transparent) 0%,
-				transparent 55%
-			),
-			var(--bg);
 		color: var(--text);
+		z-index: 0;
+	}
+
+	/* Separate layers for the glow effects to avoid using color-mix within gradients (Webview compatibility).
+	   Using position: fixed ensures the glow stays locked to the viewport during scrolling, maintaining
+	   consistent intensity and positioning regardless of page length. This ensures a seamless visual
+	   transition between short loading states and long, scrollable content pages. */
+	.app-shell::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		background: radial-gradient(
+			circle at 14% -10%,
+			var(--accent) 0%,
+			transparent 46%
+		);
+		opacity: 0.12;
+		pointer-events: none;
+		z-index: -1;
+	}
+
+	.app-shell::after {
+		content: "";
+		position: fixed;
+		inset: 0;
+		background: radial-gradient(
+			circle at 90% -20%,
+			var(--surface-2) 0%,
+			transparent 55%
+		);
+		opacity: 0.46;
+		pointer-events: none;
+		z-index: -1;
 	}
 
 	.app-screen {

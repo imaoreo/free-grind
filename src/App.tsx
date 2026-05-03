@@ -1,4 +1,5 @@
 import { Routes, Route, Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { RootLayout } from "./layouts/RootLayout";
@@ -30,17 +31,19 @@ import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 
 function ErrorPage() {
+	const { t } = useTranslation();
+
 	return (
 		<div className="app-screen flex items-center justify-center">
 			<div className="surface-card w-full max-w-md p-6 text-center sm:p-8">
-				<h1 className="text-4xl font-bold mb-4">Error</h1>
-				<p className="text-[var(--text-muted)]">Something went wrong</p>
+				<h1 className="text-4xl font-bold mb-4">{t("errors.title")}</h1>
+				<p className="text-[var(--text-muted)]">{t("errors.subtitle")}</p>
 				<div className="mt-5">
 					<Link
 						to="/"
 						className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
 					>
-						Go to Browse
+						{t("errors.action_home")}
 					</Link>
 				</div>
 			</div>

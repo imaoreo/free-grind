@@ -34,17 +34,6 @@
         "switched_channel": "Switched to {{channel}}. Reloading…",
         "failed_switch_env": "Failed to switch update environment."
     },
-    "browse": {
-        "online": "Online",
-        "offline": "Offline",
-        "online_left": "Online ({{count}}m left)",
-        "minutes_ago": "{{count}}m ago",
-        "hours_ago": "{{count}}h ago",
-        "days_ago": "{{count}}d ago",
-        "just_now": "Just now",
-        "hidden": "hidden",
-        "unknown": "Unknown"
-    },
     "shared_albums": {
         "title": "Shared Albums",
         "subtitle": "Browse all albums shared by people in your chats.",
@@ -141,6 +130,31 @@
             "shuffle": "Shuffle"
         }
     },
+    "browse_location": {
+        "title": "Browse Location",
+        "subtitle": "Choose where your feed should load from.",
+        "back_aria": "Back to browse",
+        "error_geolocation": "Geolocation is unavailable on this device.",
+        "error_access": "Could not access your location. Check location permissions and try again.",
+        "error_search_failed": "Location search failed. Try again in a moment.",
+        "error_search_failed_general": "Failed to search location",
+        "current_location_label": "Current location",
+        "lat_lon_label": "Lat {{lat}}, Lon {{lon}}",
+        "panel_title": "Set your browse location",
+        "panel_subtitle": "Search a place, or use GPS on mobile devices.",
+        "detecting_location": "Detecting location...",
+        "use_current_location": "Use current location",
+        "search_label": "Search by city or area",
+        "search_placeholder": "e.g. Berlin, London, Manila",
+        "selected_label": "Selected: {{label}}",
+        "map_picker_title": "Map picker",
+        "map_picker_error_load": "Map picker failed to load on this device. Use location search or current location.",
+        "map_picker_hide": "Hide",
+        "map_picker_open": "Open",
+        "map_picker_instructions": "Open the map to drop a pin and then save that location.",
+        "map_picker_tap_hint": "Tap map to place pin.",
+        "use_selected_location": "Use this location"
+    },
     "nav": {
         "browse": "Browse",
         "right_now": "Right Now",
@@ -156,7 +170,43 @@
         "current_location": "Current location",
         "refreshing_feed": "Refreshing feed...",
         "open_settings": "Open settings",
-        "settings": "Settings"
+        "settings": "Settings",
+        "your_profile_photo": "Your profile photo",
+        "uses_free_grind": "Uses Free Grind",
+        "profile_photo_alt": "{{name}} photo",
+        "status_online": "Online",
+        "status_offline": "Offline",
+        "status_online_left": "Online ({{count}}m left)",
+        "status_minutes_ago": "{{count}}m ago",
+        "status_hours_ago": "{{count}}h ago",
+        "status_days_ago": "{{count}}d ago",
+        "status_just_now": "Just now",
+        "distance_hidden": "hidden",
+        "unknown": "Unknown",
+        "not_set": "Not set",
+        "loading_nearby": "Loading nearby profiles",
+        "fetching_feed": "Fetching your local browse feed.",
+        "error_load_feed": "Could not load browse feed",
+        "empty_title": "No nearby profiles returned",
+        "empty_desc": "Try refreshing the feed after updating your location.",
+        "loading": "Loading",
+        "errors": {
+            "load_timeout": "Browse feed request timed out. Please check your connection and try again.",
+            "set_location": "Tap the location pin (📍) button above to set your location.",
+            "loading_slow": "Loading nearby profiles is taking longer than expected. Try refreshing or updating your location.",
+            "load_profiles": "Failed to load browse profiles",
+            "load_profile_details": "Failed to load profile details",
+            "location_required": "Set your browse location first",
+            "location_read_failed": "Could not read your saved browse location"
+        },
+        "toasts": {
+            "distance_info": "Browse location {{lat}}, {{lon}}. {{id}} is about {{distance}}m away.",
+            "distance_unavailable": "Browse location {{lat}}, {{lon}}. Distance is unavailable for {{id}}.",
+            "tap_limit": "You already tapped this profile in the last 24 hours",
+            "tap_mutual": "Tap sent. It's mutual.",
+            "tap_sent": "Tap sent",
+            "tap_failed": "Failed to send tap"
+        }
     },
     "chat_filters": {
         "title": "Chat Filters",
@@ -380,98 +430,6 @@
         "errors": {
             "display_name_length": "Display name must be between 3 and 15 characters.",
             "about_me_length": "About Me must stay under 255 characters."
-        },
-        "labels": {
-            "looking_for": {
-                "chat": "Chat",
-                "dates": "Dates",
-                "friends": "Friends",
-                "networking": "Networking",
-                "relationship": "Relationship",
-                "hookups": "Hookups"
-            },
-            "relationship_status": {
-                "single": "Single",
-                "dating": "Dating",
-                "exclusive": "Exclusive",
-                "committed": "Committed",
-                "partnered": "Partnered",
-                "engaged": "Engaged",
-                "married": "Married",
-                "open_relationship": "Open Relationship"
-            },
-            "body_type": {
-                "toned": "Toned",
-                "average": "Average",
-                "large": "Large",
-                "muscular": "Muscular",
-                "slim": "Slim",
-                "stocky": "Stocky"
-            },
-            "ethnicity": {
-                "asian": "Asian",
-                "black": "Black",
-                "latino": "Latino",
-                "middle_eastern": "Middle Eastern",
-                "mixed": "Mixed",
-                "native_american": "Native American",
-                "white": "White",
-                "other": "Other",
-                "south_asian": "South Asian"
-            },
-            "sexual_position": {
-                "top": "Top",
-                "bottom": "Bottom",
-                "versatile": "Versatile",
-                "vers_bottom": "Vers Bottom",
-                "vers_top": "Vers Top",
-                "side": "Side"
-            },
-            "meet_at": {
-                "my_place": "My Place",
-                "your_place": "Your Place",
-                "bar": "Bar",
-                "coffee_shop": "Coffee Shop",
-                "restaurant": "Restaurant"
-            },
-            "hiv_status": {
-                "negative": "Negative",
-                "negative_prep": "Negative, on PrEP",
-                "positive": "Positive",
-                "positive_undetectable": "Positive, undetectable"
-            },
-            "nsfw": {
-                "never": "Never",
-                "not_at_first": "Not At First",
-                "yes_please": "Yes Please"
-            },
-            "sexual_health": {
-                "condoms": "Condoms",
-                "doxy_pep": "I'm on doxyPEP",
-                "prep": "I'm on PrEP",
-                "hiv_undetectable": "I'm HIV undetectable",
-                "discuss": "Prefer to discuss"
-            },
-            "vaccines": {
-                "covid": "COVID-19",
-                "monkeypox": "Monkeypox",
-                "meningitis": "Meningitis"
-            },
-            "tribes": {
-                "bear": "Bear",
-                "clean_cut": "Clean-Cut",
-                "daddy": "Daddy",
-                "discreet": "Discreet",
-                "geek": "Geek",
-                "jock": "Jock",
-                "leather": "Leather",
-                "otter": "Otter",
-                "poz": "Poz",
-                "rugged": "Rugged",
-                "sober": "Sober",
-                "trans": "Trans",
-                "twink": "Twink"
-            }
         }
     },
     "customizability": {
@@ -524,6 +482,8 @@
         "submitting": "Submitting...",
         "success": "Report submitted: {{id}}",
         "error": "Failed to submit report",
+        "submit_error": "Failed to submit report",
+        "no_id_error": "Report submitted but no ID returned",
         "validation_title": "Please enter a title with at least 3 characters.",
         "validation_description": "Please enter a description with at least 10 characters."
     },
@@ -653,6 +613,7 @@
             "load_albums": "Failed to load albums",
             "load_inbox": "Failed to load inbox",
             "load_messages": "Failed to load messages",
+            "load_message": "Failed to load message",
             "update_pin_state": "Failed to update pin state",
             "update_mute_state": "Failed to update mute state",
             "missing_recipient": "Unable to determine message recipient",
@@ -665,7 +626,13 @@
             "delete_failed": "Failed to delete",
             "album_share_missing_recipient": "Unable to determine recipient for album share",
             "album_share_failed": "Failed to share album",
-            "album_open_failed": "Failed to open album"
+            "album_open_failed": "Failed to open album",
+            "search_profiles": "Failed to search profiles",
+            "mark_read_failed": "Failed to mark conversation as read",
+            "load_shared_images": "Failed to load shared conversation images",
+            "create_album_failed": "Failed to create album",
+            "load_album_details": "Failed to load album details",
+            "upload_media_failed": "Failed to upload media"
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
@@ -690,7 +657,9 @@
         "uses_free_grind": "Uses Free Grind",
         "loading": "Loading profile details...",
         "est_created": "Est. created",
+        "user_id": "User ID",
         "status": "Status",
+        "distance": "Distance",
         "message": "Message",
         "tap_profile": "Tap profile",
         "tap_sent_recent": "Tap already sent in the last 24 hours",
@@ -699,6 +668,13 @@
         "run_location_finder": "Run location finder",
         "location_finder_running": "Location finder running",
         "location_finder": "Location finder",
+        "location_finder_confirm": "⚠️ Warning: Location Finder\n\nThis feature works by repeatedly updating your location on the server to triangulate another user's position.\n\n• This may take several minutes to complete\n• It could result in your account being flagged or banned\n\nDo you want to continue?",
+        "location_finder_error_distance": "Could not retrieve target distance.",
+        "location_finder_start": "Target distance: {{distance}}m. Starting {{rounds}} triangulation rounds.",
+        "location_finder_round_complete": "Round {{round}} complete. {{lat}}, {{lon}}. Estimated distance: ~{{distance}}m.",
+        "location_finder_error_estimate": "Round {{round}} complete. Estimated error: ~{{error}}m",
+        "location_finder_final_location": "The user is at approximately lat:{{lat}}, lon:{{lon}}. Estimated error: ~{{error}} meters from the final estimated location.",
+        "location_finder_error_general": "An error occurred during triangulation",
         "locating": "Locating...",
         "locate": "Locate",
         "about": "About",
@@ -710,6 +686,226 @@
         "facebook": "Facebook",
         "close_profile_details": "Close profile details",
         "default_profile": "Default profile",
-        "open_photo": "Open photo {{index}}"
+        "open_photo": "Open photo {{index}}",
+        "tags": "Tags",
+        "expectations": "Expectations",
+        "looking_for": "Looking for",
+        "meet_at": "Meet at",
+        "tribes": "Tribes",
+        "pronouns": "Pronouns",
+        "right_now": "Right now",
+        "health": "Health",
+        "hiv_status": "HIV status",
+        "last_tested": "Last tested",
+        "vaccines": "Vaccines",
+        "position": "Position",
+        "height": "Height",
+        "weight": "Weight",
+        "body_type": "Body type",
+        "ethnicity": "Ethnicity",
+        "relationship": "Relationship",
+        "social": "Social",
+        "labels": {
+            "looking_for": {
+                "chat": "Chat",
+                "dates": "Dates",
+                "friends": "Friends",
+                "networking": "Networking",
+                "relationship": "Relationship",
+                "hookups": "Hookups"
+            },
+            "relationship_status": {
+                "single": "Single",
+                "dating": "Dating",
+                "exclusive": "Exclusive",
+                "committed": "Committed",
+                "partnered": "Partnered",
+                "engaged": "Engaged",
+                "married": "Married",
+                "open_relationship": "Open Relationship"
+            },
+            "body_type": {
+                "toned": "Toned",
+                "average": "Average",
+                "large": "Large",
+                "muscular": "Muscular",
+                "slim": "Slim",
+                "stocky": "Stocky"
+            },
+            "ethnicity": {
+                "asian": "Asian",
+                "black": "Black",
+                "latino": "Latino",
+                "middle_eastern": "Middle Eastern",
+                "mixed": "Mixed",
+                "native_american": "Native American",
+                "white": "White",
+                "other": "Other",
+                "south_asian": "South Asian"
+            },
+            "sexual_position": {
+                "top": "Top",
+                "bottom": "Bottom",
+                "versatile": "Versatile",
+                "vers_bottom": "Vers Bottom",
+                "vers_top": "Vers Top",
+                "side": "Side"
+            },
+            "meet_at": {
+                "my_place": "My Place",
+                "your_place": "Your Place",
+                "bar": "Bar",
+                "coffee_shop": "Coffee Shop",
+                "restaurant": "Restaurant"
+            },
+            "hiv_status": {
+                "negative": "Negative",
+                "negative_prep": "Negative, on PrEP",
+                "positive": "Positive",
+                "positive_undetectable": "Positive, undetectable"
+            },
+            "nsfw": {
+                "never": "Never",
+                "not_at_first": "Not At First",
+                "yes_please": "Yes Please"
+            },
+            "sexual_health": {
+                "condoms": "Condoms",
+                "doxy_pep": "I'm on doxyPEP",
+                "prep": "I'm on PrEP",
+                "hiv_undetectable": "I'm HIV undetectable",
+                "discuss": "Prefer to discuss"
+            },
+            "vaccines": {
+                "covid": "COVID-19",
+                "monkeypox": "Monkeypox",
+                "meningitis": "Meningitis"
+            },
+            "tribes": {
+                "bear": "Bear",
+                "clean_cut": "Clean-Cut",
+                "daddy": "Daddy",
+                "discreet": "Discreet",
+                "geek": "Geek",
+                "jock": "Jock",
+                "leather": "Leather",
+                "otter": "Otter",
+                "poz": "Poz",
+                "rugged": "Rugged",
+                "sober": "Sober",
+                "trans": "Trans",
+                "twink": "Twink"
+            }
+        }
+    },
+    "interest_page": {
+        "title": "Interest",
+        "profile_fallback": "Profile {{id}}",
+        "tabs": {
+            "views": "Views",
+            "taps": "Taps"
+        },
+        "total_viewed_count": "Total viewed count",
+        "refreshing": "Refreshing {{tab}}...",
+        "loading": "Loading {{tab}}...",
+        "error_load": "Could not load {{tab}}",
+        "empty_views": "No views yet",
+        "empty_views_desc": "Your recent profile views will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tapped you will appear here.",
+        "view_count_one": "{{count}} view",
+        "view_count_other": "{{count}} views",
+        "viewed": "Viewed",
+        "preview": "Preview",
+        "private_viewer": "Private viewer",
+        "unknown_time": "Unknown time",
+        "tap_labels": {
+            "friendly": "Friendly",
+            "hot": "Hot",
+            "looking": "Looking",
+            "default": "Tap"
+        }
+    },
+    "api": {
+        "errors": {
+            "load_views": "Failed to load views",
+            "load_taps": "Failed to load taps",
+            "invalid_profile_id": "Invalid profile ID",
+            "send_tap": "Failed to send tap",
+            "load_albums": "Failed to load own albums",
+            "load_album_details": "Failed to load own album details",
+            "load_album_storage": "Failed to load own album storage",
+            "create_album": "Failed to create own album",
+            "invalid_album_response": "Invalid album response",
+            "rename_album": "Failed to rename own album",
+            "delete_album": "Failed to delete own album",
+            "upload_content": "Failed to upload own album content",
+            "invalid_upload_response": "Invalid upload content response",
+            "reorder_content": "Failed to reorder own album content",
+            "delete_content": "Failed to delete own album content",
+            "load_shared_albums": "Failed to load shared albums",
+            "load_shared_albums_profile": "Failed to load shared albums for profile",
+            "open_shared_album": "Failed to open shared album",
+            "load_genders": "Failed to load genders",
+            "invalid_genders_response": "Invalid genders response",
+            "load_pronouns": "Failed to load pronouns",
+            "invalid_pronouns_response": "Invalid pronouns response",
+            "load_profile_media": "Failed to load profile media",
+            "load_browse_profiles": "Failed to load browse profiles",
+            "load_profile_details": "Failed to load profile details",
+            "load_profile": "Failed to load profile",
+            "save_profile": "Failed to save profile",
+            "update_photos": "Failed to update profile photos",
+            "delete_photos": "Failed to delete profile photos",
+            "upload_image": "Failed to upload profile image",
+            "invalid_upload_profile_response": "Invalid profile upload response",
+            "age_verification_options": "Failed to fetch age verification options",
+            "age_verification_session": "Failed to create age verification session",
+            "liveness_failed": "Liveness3d verification failed",
+            "enrollment_failed": "Enrollment verification failed",
+            "document_failed": "Document verification failed",
+            "load_right_now": "Failed to load Right Now feed"
+        }
+    },
+    "errors": {
+        "title": "Error",
+        "subtitle": "Something went wrong",
+        "action_home": "Go to Browse"
+    },
+    "chat_search": {
+        "title": "Search",
+        "subtitle": "Find conversations, messages, and profiles",
+        "back_to_inbox": "Back to Inbox",
+        "placeholder": "Search conversations, messages, profiles",
+        "quick_start_placeholder": "Quick start by profile ID",
+        "view": "View",
+        "message": "Message",
+        "modes": {
+            "messages": "messages",
+            "conversations": "conversations",
+            "profiles": "profiles"
+        },
+        "loading": "Loading search index...",
+        "min_chars": "Type at least 2 characters to search.",
+        "no_preview": "No preview",
+        "start_chat_with": "Start chat with profile #{{profileId}}",
+        "use_searched_id": "Use searched profile ID",
+        "start": "Start",
+        "profile_alt": "Profile",
+        "distance_unavailable": "Distance unavailable",
+        "searching": "Searching...",
+        "refresh": "Refresh",
+        "load_more": "Load more profiles",
+        "no_conversations_found": "No conversation matches found.",
+        "no_messages_found": "No message matches found in indexed cache.",
+        "no_profiles_found": "No profile matches found.",
+        "error_valid_id": "Enter a valid profile ID",
+        "error_search_profiles": "Failed to search profiles",
+        "error_load_inbox": "Failed to load inbox"
+    },
+    "pull_to_refresh": {
+        "pull": "Pull to refresh",
+        "release": "Release to refresh",
+        "refreshing": "Refreshing..."
     }
 }

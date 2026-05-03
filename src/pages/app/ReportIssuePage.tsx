@@ -51,15 +51,18 @@ export function ReportIssuePage() {
 
     setIsSubmitting(true);
     try {
-      const result = await submitIssueReport({
-        kind,
-        title: title.trim(),
-        description: description.trim(),
-        reporterName: reporterName.trim() || undefined,
-        reporterContact: reporterContact.trim() || undefined,
-        appVersion,
-        platform,
-      });
+      const result = await submitIssueReport(
+        {
+          kind,
+          title: title.trim(),
+          description: description.trim(),
+          reporterName: reporterName.trim() || undefined,
+          reporterContact: reporterContact.trim() || undefined,
+          appVersion,
+          platform,
+        },
+        t,
+      );
 
       toast.success(t("issues_form.success", { id: result.id }));
       setTitle("");

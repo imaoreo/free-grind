@@ -97,7 +97,7 @@ function sortMessages(messages: Message[]): Message[] {
 	return [...messages].sort((a, b) => a.timestamp - b.timestamp);
 }
 
-export function createChatService(fetchRest: RestFetcher) {
+export function createChatService(fetchRest: RestFetcher, t: (key: string) => string) {
 	return {
 		async searchProfiles(
 			params: SearchProfilesParams,
@@ -120,7 +120,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			}
 
 			const response = await fetchRest(`/v7/search?${query.toString()}`);
-			await assertSuccess(response, "Failed to search profiles");
+			await assertSuccess(response, t("chat.errors.search_profiles"));
 
 			return z
 				.object({
@@ -206,7 +206,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: filters,
 			});
-			await assertSuccess(response, "Failed to load conversations");
+			await assertSuccess(response, t("chat.errors.load_inbox"));
 			const parsed = inboxResponseSchema.parse(await parseJsonSafe(response));
 			return {
 				...parsed,
@@ -231,7 +231,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			const response = await fetchRest(
 				`/v5/chat/conversation/${params.conversationId}/message${suffix}`,
 			);
-			await assertSuccess(response, "Failed to load messages");
+			await assertSuccess(response, t("chat.errors.load_messages"));
 			const parsed = messagesResponseSchema.parse(
 				await parseJsonSafe(response),
 			);
@@ -248,7 +248,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			const response = await fetchRest(
 				`/v4/chat/conversation/${params.conversationId}/message/${params.messageId}`,
 			);
-			await assertSuccess(response, "Failed to load message");
+			await assertSuccess(response, t("chat.errors.load_message"));
 			return z
 				.object({ message: messageSchema })
 				.parse(await parseJsonSafe(response)).message;
@@ -260,7 +260,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: safePayload,
 			});
-			await assertSuccess(response, "Failed to send message");
+			await assertSuccess(response, t("chat.errors.send_failed"));
 			return messageSchema.parse(await parseJsonSafe(response));
 		},
 
@@ -283,7 +283,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					method: "POST",
 				},
 			);
-			await assertSuccess(response, "Failed to pin conversation");
+			await assertSuccess(response, t("chat.errors.update_pin_state"));
 		},
 
 		async unpinConversation(conversationId: string): Promise<void> {
@@ -293,7 +293,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					method: "POST",
 				},
 			);
-			await assertSuccess(response, "Failed to unpin conversation");
+			await assertSuccess(response, t("chat.errors.update_pin_state"));
 		},
 
 		async muteConversation(conversationId: string): Promise<void> {
@@ -303,7 +303,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					method: "POST",
 				},
 			);
-			await assertSuccess(response, "Failed to mute conversation");
+			await assertSuccess(response, t("chat.errors.update_mute_state"));
 		},
 
 		async unmuteConversation(conversationId: string): Promise<void> {
@@ -313,7 +313,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					method: "POST",
 				},
 			);
-			await assertSuccess(response, "Failed to unmute conversation");
+			await assertSuccess(response, t("chat.errors.update_mute_state"));
 		},
 
 		async markRead(conversationId: string, messageId: string): Promise<void> {
@@ -323,7 +323,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					method: "POST",
 				},
 			);
-			await assertSuccess(response, "Failed to mark conversation as read");
+			await assertSuccess(response, t("chat.errors.mark_read_failed"));
 		},
 
 		async unsendMessage(payload: ChatMessageMutation) {
@@ -332,7 +332,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: safePayload,
 			});
-			await assertSuccess(response, "Failed to unsend message");
+			await assertSuccess(response, t("chat.errors.unsend_failed"));
 		},
 
 		async deleteMessage(payload: ChatMessageMutation) {
@@ -341,7 +341,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: safePayload,
 			});
-			await assertSuccess(response, "Failed to delete message");
+			await assertSuccess(response, t("chat.errors.delete_failed"));
 		},
 
 		async reactToMessage(payload: ChatReactionPayload) {
@@ -350,7 +350,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: safePayload,
 			});
-			await assertSuccess(response, "Failed to react to message");
+			await assertSuccess(response, t("chat.errors.react_failed"));
 		},
 
 		async getSharedConversationImages(
@@ -361,7 +361,7 @@ export function createChatService(fetchRest: RestFetcher) {
 			);
 			await assertSuccess(
 				response,
-				"Failed to load shared conversation images",
+				t("chat.errors.load_shared_images"),
 			);
 			const payload = await parseJsonSafe(response);
 			const itemSchema = z.object({
@@ -384,7 +384,7 @@ export function createChatService(fetchRest: RestFetcher) {
 
 		async listAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");
-			await assertSuccess(response, "Failed to load albums");
+			await assertSuccess(response, t("chat.errors.load_albums"));
 			const parsed = albumsResponseSchema.parse(await parseJsonSafe(response));
 			return parsed.albums;
 		},
@@ -394,7 +394,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				method: "POST",
 				body: { albumName },
 			});
-			await assertSuccess(response, "Failed to create album");
+			await assertSuccess(response, t("chat.errors.create_album_failed"));
 			return z
 				.object({
 					albumId: z.coerce.number().int(),
@@ -404,7 +404,7 @@ export function createChatService(fetchRest: RestFetcher) {
 
 		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
 			const response = await fetchRest(`/v1/albums/${albumId}`);
-			await assertSuccess(response, "Failed to load album");
+			await assertSuccess(response, t("chat.errors.load_album_details"));
             
 			return z
 				.object({
@@ -444,7 +444,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				},
 			);
 
-			await assertSuccess(response, "Failed to upload chat media");
+			await assertSuccess(response, t("chat.errors.upload_media_failed"));
 
 			const parsed = z
 				.object({
@@ -469,7 +469,7 @@ export function createChatService(fetchRest: RestFetcher) {
 				rawBody: params.multipart.body,
 				contentType: params.multipart.contentType,
 			});
-			await assertSuccess(response, "Failed to upload media");
+			await assertSuccess(response, t("chat.errors.upload_media_failed"));
 			return z
 				.object({
 					contentId: z.coerce.number().int(),
@@ -486,7 +486,7 @@ export function createChatService(fetchRest: RestFetcher) {
 					body: { profiles: safePayload.profiles },
 				},
 			);
-			await assertSuccess(response, "Failed to share album");
+			await assertSuccess(response, t("chat.errors.album_share_failed"));
 		},
 	};
 }

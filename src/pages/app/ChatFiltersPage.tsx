@@ -2,9 +2,10 @@ import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { sexualPositionLabels } from "../../types/grid";
+import { getSexualPositionOptions } from "./profile-option-builders";
 import type { InboxFilterKey } from "../../types/chat-page";
 import { Slider } from "../../components/ui/range-slider";
+
 
 type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -108,9 +109,9 @@ export function ChatFiltersPage() {
 	const positionFilterOptions = useMemo(
 		() => [
 			{ value: -1, label: t("browse_filters.not_specified") },
-			...Object.entries(sexualPositionLabels).map(([value, label]) => ({
-				value: Number(value),
-				label,
+			...getSexualPositionOptions(t).map((option) => ({
+				value: option.value,
+				label: option.label,
 			})),
 		],
 		[t],

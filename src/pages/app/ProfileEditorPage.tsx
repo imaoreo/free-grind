@@ -24,13 +24,17 @@ import { BackToSettings } from "../../components/BackToSettings";
 import {
 	getBodyTypeLabelMap,
 	getBodyTypeOptions,
+	getEthnicityOptions,
+	getHivStatusOptions,
 	getLookingForOptions,
 	getMeetAtOptions,
 	getNsfwOptions,
 	getRelationshipStatusLabelMap,
 	getRelationshipStatusOptions,
+	getSexualHealthOptions,
 	getSexualPositionOptions,
 	getTribeOptions,
+	getVaccineOptions,
 } from "./profile-option-builders";
 
 const MAX_PROFILE_PHOTOS = 5;
@@ -372,17 +376,7 @@ export function ProfileEditorPage() {
 	);
 
 	const ethnicityOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.ethnicity.asian") },
-			{ value: 2, label: t("profile_editor.labels.ethnicity.black") },
-			{ value: 3, label: t("profile_editor.labels.ethnicity.latino") },
-			{ value: 4, label: t("profile_editor.labels.ethnicity.middle_eastern") },
-			{ value: 5, label: t("profile_editor.labels.ethnicity.mixed") },
-			{ value: 6, label: t("profile_editor.labels.ethnicity.native_american") },
-			{ value: 7, label: t("profile_editor.labels.ethnicity.white") },
-			{ value: 8, label: t("profile_editor.labels.ethnicity.other") },
-			{ value: 9, label: t("profile_editor.labels.ethnicity.south_asian") },
-		],
+		() => getEthnicityOptions(t),
 		[t],
 	);
 
@@ -402,15 +396,7 @@ export function ProfileEditorPage() {
 	);
 
 	const hivStatusOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.hiv_status.negative") },
-			{ value: 2, label: t("profile_editor.labels.hiv_status.negative_prep") },
-			{ value: 3, label: t("profile_editor.labels.hiv_status.positive") },
-			{
-				value: 4,
-				label: t("profile_editor.labels.hiv_status.positive_undetectable"),
-			},
-		],
+		() => getHivStatusOptions(t),
 		[t],
 	);
 
@@ -420,25 +406,12 @@ export function ProfileEditorPage() {
 	);
 
 	const sexualHealthOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.sexual_health.condoms") },
-			{ value: 2, label: t("profile_editor.labels.sexual_health.doxy_pep") },
-			{ value: 3, label: t("profile_editor.labels.sexual_health.prep") },
-			{
-				value: 4,
-				label: t("profile_editor.labels.sexual_health.hiv_undetectable"),
-			},
-			{ value: 5, label: t("profile_editor.labels.sexual_health.discuss") },
-		],
+		() => getSexualHealthOptions(t),
 		[t],
 	);
 
 	const vaccineOptions = useMemo(
-		() => [
-			{ value: 1, label: t("profile_editor.labels.vaccines.covid") },
-			{ value: 2, label: t("profile_editor.labels.vaccines.monkeypox") },
-			{ value: 3, label: t("profile_editor.labels.vaccines.meningitis") },
-		],
+		() => getVaccineOptions(t),
 		[t],
 	);
 
