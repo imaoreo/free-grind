@@ -28,6 +28,7 @@ import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
+import { PushNotificationBridge } from "./components/PushNotificationBridge";
 
 function ErrorPage() {
 	const { t } = useTranslation();
@@ -54,6 +55,7 @@ export default function App() {
 	return (
 		<AuthProvider>
 			<PreferencesProvider>
+				<PushNotificationBridge />
 				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
