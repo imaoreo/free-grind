@@ -6,7 +6,10 @@ import android.app.PendingIntent
 import android.graphics.Color
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.content.ContentResolver
 import android.content.Intent
+import android.media.AudioAttributes
+import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
@@ -154,7 +157,8 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         val rawData = payload.optJSONObject("rawData")
         val conversationId = normalizeNullableString(payload.optString("conversationId"))
             ?: extractConversationId(rawData)
-        val channelId = if (isTap) "free_grind_taps_notifications" else "free_grind_chat_notifications"
+        // _v2 suffix forces re-creation so the custom sound takes effect on existing installs.
+        val channelId = if (isTap) "free_grind_taps_notifications_v2" else "free_grind_chat_notifications_v2"
         val channelName = if (isTap) "Taps" else "Chat Messages"
         val notificationKey = resolveNotificationKey(
             isTap = isTap,
@@ -166,12 +170,20 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
 
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
+        val soundUri: Uri = Uri.parse(
+            "${ContentResolver.SCHEME_ANDROID_RESOURCE}://${packageName}/${R.raw.free_grind_message}"
+        )
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .build()
         val channel = NotificationChannel(
             channelId,
             channelName,
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = if (isTap) "Notifications for incoming taps" else "Notifications for new chat messages"
+            setSound(soundUri, audioAttributes)
         }
         notificationManager.createNotificationChannel(channel)
         Log.d(
@@ -231,6 +243,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setTicker(text)
+            .setSound(soundUri)
             .setStyle(messagingStyle)
 
         notificationManager.notify(notificationKey, NOTIFICATION_INSTANCE_ID, builder.build())
