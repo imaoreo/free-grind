@@ -35,17 +35,22 @@ tauri-plugin-geolocation = "2"
 tauri-plugin-os = "2"
 tauri-plugin-hotswap = { path = "hotswap-patched" }
 tauri-plugin-notification = "2"
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util = "0.3"
 http = "1"
+reqwest_cookie_store = "0.8"
+url = "2"
 
 # Platform-specific TLS: native-tls on Windows, rustls on others
 [target.'cfg(target_os = "windows")'.dependencies]
 reqwest = { version = "0.12", features = ["json", "native-tls-alpn", "cookies"], default-features = false }
 windows-native-keyring-store = "0.5.1"
+# Use rustls for WebSocket on Windows to avoid SChannel JA3 fingerprint detection by Cloudflare
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+rustls = { version = "0.23", features = ["ring"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-native-keyring-store = "0.5.0"

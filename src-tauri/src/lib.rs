@@ -11,6 +11,13 @@ use api::websocket::WsState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Install the ring crypto provider for rustls (required on Windows where
+    // tokio-tungstenite uses rustls for WebSocket TLS).
+    #[cfg(target_os = "windows")]
+    {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+
     storage::init_keyring();
 
     let client = GrindrClient::new().ok();

@@ -92,13 +92,15 @@ pub async fn ws_connect(
 
     let user_agent = client.user_agent().to_owned();
 
+    let cookies = client.cookie_header_for_base_url();
     eprintln!(
-        "[ws] connecting (ua_len={}, auth_len={})",
+        "[ws] connecting (ua_len={}, auth_len={}, cookies={})",
         user_agent.len(),
-        authorization.len()
+        authorization.len(),
+        cookies.as_deref().map(|c| c.len()).unwrap_or(0),
     );
 
-    let request = Request::builder()
+    let mut req_builder = Request::builder()
         .method("GET")
         .uri(&url)
         .header("Authorization", &authorization)
@@ -107,13 +109,20 @@ pub async fn ws_connect(
             "Host",
             host_from_url(&url).unwrap_or_else(|| "grindr.mobi".into()),
         )
+        .header("Origin", "https://grindr.mobi")
         .header("Connection", "Upgrade")
         .header("Upgrade", "websocket")
         .header("Sec-WebSocket-Version", "13")
         .header(
             "Sec-WebSocket-Key",
             tokio_tungstenite::tungstenite::handshake::client::generate_key(),
-        )
+        );
+
+    if let Some(cookie_str) = cookies {
+        req_builder = req_builder.header("Cookie", cookie_str);
+    }
+
+    let request = req_builder
         .body(())
         .map_err(|e| AppError::Http(format!("ws request build: {e}")))?;
 
