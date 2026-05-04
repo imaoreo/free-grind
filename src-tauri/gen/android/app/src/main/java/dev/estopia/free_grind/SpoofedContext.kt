@@ -15,7 +15,22 @@ class SpoofedContext(base: Context) : Application() {
         return this
     }
 
+    private fun logIdentityLookup(method: String) {
+        val caller = Thread.currentThread().stackTrace
+            .firstOrNull {
+                !it.className.contains("SpoofedContext") &&
+                    !it.className.contains("java.lang.Thread")
+            }
+        val callerText = if (caller != null) {
+            "${caller.className}.${caller.methodName}:${caller.lineNumber}"
+        } else {
+            "unknown"
+        }
+        Log.d("SpoofedContext", "Identity lookup via $method caller=$callerText")
+    }
+
     override fun getPackageName(): String {
+        logIdentityLookup("getPackageName")
         val stackTrace = Thread.currentThread().stackTrace
         val isFirebaseCaller = stackTrace.any { 
             it.className.contains("FirebaseInstallationServiceClient") || 
@@ -53,6 +68,7 @@ class SpoofedContext(base: Context) : Application() {
     }
 
     override fun getApplicationInfo(): ApplicationInfo {
+        logIdentityLookup("getApplicationInfo")
         val info = super.getApplicationInfo()
         val stackTrace = Thread.currentThread().stackTrace
         if (stackTrace.any { it.className.contains("FirebaseInstallationServiceClient") || it.className.contains("com.google.firebase.messaging") }) {
