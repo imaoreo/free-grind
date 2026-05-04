@@ -265,6 +265,10 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
+		albumId: number;
+		albumName: string;
+	} | null>(null);
 	const [albumViewer, setAlbumViewer] = useState<AlbumViewerState | null>(null);
 	const [albumViewerMediaIndex, setAlbumViewerMediaIndex] = useState<
 		number | null
@@ -416,6 +420,9 @@ export function ChatPage() {
 		selectedConversationUnreadCountRef.current =
 			selectedConversation?.data.unreadCount ?? 0;
 	}, [selectedConversation]);
+	useEffect(() => {
+		setPendingAlbumShare(null);
+	}, [selectedConversationId]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -1900,42 +1907,59 @@ export function ChatPage() {
 				return;
 			}
 
-			const resolvedAlbumName =
-				albumName?.trim() || t("chat.album_fallback", { id: albumId });
-			const confirmed = window.confirm(
-				t("chat.confirm_share_album", { album: resolvedAlbumName }),
-			);
-			if (!confirmed) {
-				return;
-			}
-
-			setIsSharingAlbum(true);
-			try {
-				await service.shareAlbum({
-					albumId,
-					profiles: [
-						{
-							profileId: targetProfile.profileId,
-							expirationType: "INDEFINITE",
-						},
-					],
-				});
-				toast.success(t("chat.toasts.album_shared"));
-				setIsAlbumPickerOpen(false);
-				void loadThread({
-					conversationId: selectedConversation.data.conversationId,
-					older: false,
-				});
-			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
-				);
-			} finally {
-				setIsSharingAlbum(false);
-			}
+			setPendingAlbumShare({
+				albumId,
+				albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
+			});
 		},
-		[loadThread, selectedConversation, service, userId],
+		[selectedConversation, t, userId],
 	);
+
+	const closePendingAlbumShare = useCallback(() => {
+		if (isSharingAlbum) {
+			return;
+		}
+
+		setPendingAlbumShare(null);
+	}, [isSharingAlbum]);
+
+	const confirmPendingAlbumShare = useCallback(async () => {
+		if (!selectedConversation || !userId || !pendingAlbumShare) {
+			return;
+		}
+
+		const targetProfile = getOtherParticipant(selectedConversation, userId);
+		if (!targetProfile?.profileId) {
+			toast.error(t("chat.errors.album_share_missing_recipient"));
+			return;
+		}
+
+		setIsSharingAlbum(true);
+		try {
+			await service.shareAlbum({
+				albumId: pendingAlbumShare.albumId,
+				profiles: [
+					{
+						profileId: targetProfile.profileId,
+						expirationType: "INDEFINITE",
+					},
+				],
+			});
+			toast.success(t("chat.toasts.album_shared"));
+			setPendingAlbumShare(null);
+			setIsAlbumPickerOpen(false);
+			void loadThread({
+				conversationId: selectedConversation.data.conversationId,
+				older: false,
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
+			);
+		} finally {
+			setIsSharingAlbum(false);
+		}
+	}, [loadThread, pendingAlbumShare, selectedConversation, service, t, userId]);
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
@@ -2217,7 +2241,10 @@ export function ChatPage() {
 			isLoadingAlbums={isLoadingAlbums}
 			shareableAlbums={shareableAlbums}
 			isSharingAlbum={isSharingAlbum}
+				pendingAlbumShare={pendingAlbumShare}
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
+			confirmPendingAlbumShare={confirmPendingAlbumShare}
+			closePendingAlbumShare={closePendingAlbumShare}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}

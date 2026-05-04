@@ -9,6 +9,10 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { NavigateFunction } from "react-router-dom";
+import {
+	createBackdropCloseHandler,
+	useModalClose,
+} from "../../../hooks/useModalClose";
 import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
@@ -79,10 +83,16 @@ type ChatThreadPanelProps = {
 	isLoadingAlbums: boolean;
 	shareableAlbums: AlbumListItem[];
 	isSharingAlbum: boolean;
+		pendingAlbumShare: {
+			albumId: number;
+			albumName: string;
+		} | null;
 	shareAlbumToCurrentConversation: (
 		albumId: number,
 		albumName?: string | null,
 	) => void | Promise<void>;
+		confirmPendingAlbumShare: () => void | Promise<void>;
+		closePendingAlbumShare: () => void;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -152,7 +162,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isLoadingAlbums,
 		shareableAlbums,
 		isSharingAlbum,
+			pendingAlbumShare,
 		shareAlbumToCurrentConversation,
+			confirmPendingAlbumShare,
+			closePendingAlbumShare,
 		uploadProgress,
 		draft,
 		setDraft,
@@ -162,6 +175,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		albumViewer,
 	} = props;
 	const { t } = useTranslation();
+		useModalClose({
+			isOpen: pendingAlbumShare !== null,
+			onClose: closePendingAlbumShare,
+			escapeKey: !isSharingAlbum,
+		});
+		const handlePendingAlbumShareBackdropClose = createBackdropCloseHandler(
+			closePendingAlbumShare,
+		);
 	const renderThread = selectedConversation ? (
 		<div
 			className={`flex h-full flex-col ${!isDesktop ? "overflow-visible p-0" : "overflow-hidden p-3 sm:p-4"} ${
@@ -630,6 +651,54 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 									>
 										{t("chat.actions.cancel")}
+									</button>
+								</div>
+							</div>
+						</div>
+					) : null}
+
+					{pendingAlbumShare && albumViewer === null ? (
+						<div
+							className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm sm:items-center"
+							onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
+						>
+							<div
+								role="dialog"
+								aria-modal="true"
+								aria-labelledby="chat-album-share-confirm-title"
+								className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+								onClick={(event) => event.stopPropagation()}
+							>
+								<p
+									id="chat-album-share-confirm-title"
+									className="text-sm font-semibold text-[var(--text)]"
+								>
+									{t("chat.share_album")}
+								</p>
+								<p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+									{t("chat.confirm_share_album", {
+										album: pendingAlbumShare.albumName,
+									})}
+								</p>
+								<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+									<button
+										type="button"
+										onClick={closePendingAlbumShare}
+										disabled={isSharingAlbum}
+										className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									>
+										{t("chat.actions.cancel")}
+									</button>
+									<button
+										type="button"
+										onClick={() => void confirmPendingAlbumShare()}
+										disabled={isSharingAlbum}
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+									>
+										{isSharingAlbum ? (
+											<Loader2 className="h-4 w-4 animate-spin" />
+										) : null}
+										<span>{t("chat.share")}</span>
 									</button>
 								</div>
 							</div>
