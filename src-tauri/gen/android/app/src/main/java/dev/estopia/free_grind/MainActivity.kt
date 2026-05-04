@@ -19,6 +19,8 @@ import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
 import org.json.JSONObject
 import java.lang.ref.WeakReference
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class MainActivity : TauriActivity() {
   companion object {
@@ -273,7 +275,8 @@ class MainActivity : TauriActivity() {
       return
     }
 
-    val action = intent.getStringExtra("action")?.trim().orEmpty()
+    val rawAction = intent.getStringExtra("action")?.trim().orEmpty()
+    val action = normalizeNotificationAction(rawAction)
     if (action.isBlank()) {
       return
     }
@@ -281,6 +284,47 @@ class MainActivity : TauriActivity() {
     intent.removeExtra("action")
     cancelNotificationForAction(action)
     dispatchPushNotificationToWebview(toOpenedPushPayloadFromAction(action), 0)
+  }
+
+  private fun normalizeNotificationAction(action: String): String {
+    val trimmed = action.trim()
+    if (trimmed.isEmpty()) {
+      return ""
+    }
+
+    if (trimmed == "taps" || trimmed.startsWith("chat:")) {
+      return trimmed
+    }
+
+    // Backward compatibility: some payloads may still carry raw Grindr deeplink actions.
+    val conversationId = parseConversationIdFromDeeplinkAction(trimmed)
+    return if (!conversationId.isNullOrBlank()) {
+      "chat:$conversationId"
+    } else {
+      trimmed
+    }
+  }
+
+  private fun parseConversationIdFromDeeplinkAction(action: String): String? {
+    val queryPart = action.substringAfter('?', "")
+    if (queryPart.isBlank()) {
+      return null
+    }
+
+    queryPart.split('&').forEach { pair ->
+      val key = pair.substringBefore('=', "").trim()
+      if (key != "id") {
+        return@forEach
+      }
+
+      val rawValue = pair.substringAfter('=', "").trim()
+      val decoded = URLDecoder.decode(rawValue, StandardCharsets.UTF_8.name()).trim()
+      if (decoded.isNotEmpty()) {
+        return decoded
+      }
+    }
+
+    return null
   }
 
   private fun toOpenedPushPayloadFromAction(action: String): String {

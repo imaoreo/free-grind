@@ -31,12 +31,25 @@ function consumePendingPushNotifications(
 
 function getConversationId(detail: NativePushNotificationDetail): string | null {
 	if (typeof detail.conversationId === "string" && detail.conversationId.trim()) {
-		return detail.conversationId;
+		return detail.conversationId.trim();
 	}
 
 	if (typeof detail.action === "string" && detail.action.startsWith("chat:")) {
 		const conversationId = detail.action.slice(5).trim();
 		return conversationId || null;
+	}
+
+	if (
+		typeof detail.action === "string" &&
+		detail.action.startsWith("grindr://conversation")
+	) {
+		try {
+			const url = new URL(detail.action);
+			const conversationId = url.searchParams.get("id")?.trim() ?? "";
+			return conversationId || null;
+		} catch {
+			return null;
+		}
 	}
 
 	return null;
@@ -45,7 +58,7 @@ function getConversationId(detail: NativePushNotificationDetail): string | null 
 function getNotificationRoute(detail: NativePushNotificationDetail): string | null {
 	const conversationId = getConversationId(detail);
 	if (conversationId) {
-		return `/chat/${conversationId}`;
+		return `/chat/${encodeURIComponent(conversationId)}`;
 	}
 
 	if (detail.action === "taps") {
@@ -65,7 +78,15 @@ export function PushNotificationBridge() {
 			if (detail.event === "opened") {
 				const route = getNotificationRoute(detail);
 				if (route) {
-					navigate(route);
+					try {
+						navigate(route);
+					} catch (error) {
+						console.error(
+							"[PUSH_EVENT] Failed to navigate to notification route",
+							error,
+						);
+						navigate("/chat");
+					}
 				}
 			}
 		};
