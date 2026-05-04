@@ -1890,13 +1890,22 @@ export function ChatPage() {
 	};
 
 	const shareAlbumToCurrentConversation = useCallback(
-		async (albumId: number) => {
+		async (albumId: number, albumName?: string | null) => {
 			if (!selectedConversation || !userId) {
 				return;
 			}
 			const targetProfile = getOtherParticipant(selectedConversation, userId);
 			if (!targetProfile?.profileId) {
 				toast.error(t("chat.errors.album_share_missing_recipient"));
+				return;
+			}
+
+			const resolvedAlbumName =
+				albumName?.trim() || t("chat.album_fallback", { id: albumId });
+			const confirmed = window.confirm(
+				t("chat.confirm_share_album", { album: resolvedAlbumName }),
+			);
+			if (!confirmed) {
 				return;
 			}
 
@@ -2035,7 +2044,10 @@ export function ChatPage() {
 		const shareable = albums.filter((album) => album.isShareable);
 
 		if (shareable.length === 1) {
-			void shareAlbumToCurrentConversation(shareable[0].albumId);
+			void shareAlbumToCurrentConversation(
+				shareable[0].albumId,
+				shareable[0].albumName,
+			);
 			return;
 		}
 

@@ -79,7 +79,10 @@ type ChatThreadPanelProps = {
 	isLoadingAlbums: boolean;
 	shareableAlbums: AlbumListItem[];
 	isSharingAlbum: boolean;
-	shareAlbumToCurrentConversation: (albumId: number) => void | Promise<void>;
+	shareAlbumToCurrentConversation: (
+		albumId: number,
+		albumName?: string | null,
+	) => void | Promise<void>;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -535,7 +538,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<button
 													type="button"
 													onClick={() =>
-														void shareAlbumToCurrentConversation(album.albumId)
+														void shareAlbumToCurrentConversation(
+															album.albumId,
+															album.albumName,
+														)
 													}
 													disabled={!album.isShareable || isSharingAlbum}
 													className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"

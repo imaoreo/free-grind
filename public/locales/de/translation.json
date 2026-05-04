@@ -549,6 +549,7 @@
         "manage_albums": "Alben verwalten",
         "loading_albums": "Alben werden geladen...",
         "no_albums_available": "Keine Alben verfügbar. Erstelle zuerst eines in den Einstellungen.",
+        "confirm_share_album": "\"{{album}}\" in diesem Chat teilen?",
         "share": "Teilen",
         "write_message": "Nachricht schreiben...",
         "send": "Senden",

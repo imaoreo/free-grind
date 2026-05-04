@@ -549,6 +549,7 @@
         "manage_albums": "Manage albums",
         "loading_albums": "Loading albums...",
         "no_albums_available": "No albums available. Create one in Settings first.",
+        "confirm_share_album": "Share \"{{album}}\" in this chat?",
         "share": "Share",
         "write_message": "Write a message...",
         "send": "Send",
