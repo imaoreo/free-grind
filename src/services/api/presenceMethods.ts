@@ -25,15 +25,9 @@ export function createPresenceMethods() {
 
 			try {
 				const query = new URLSearchParams({ ids: ids.join(",") });
-				const response = await fetch(
-					`${GRINDAPI_BASE}/api/presence/check?${query}`,
-					{
-						method: "GET",
-						headers: {
-							"Content-Type": "application/json",
-						},
-					}
-				);
+				const response = await fetch(`${GRINDAPI_BASE}/api/presence/check?${query}`, {
+					method: "GET",
+				});
 
 				if (!response.ok) {
 					console.warn(
