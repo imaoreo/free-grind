@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 type NativePushNotificationDetail = {
@@ -15,6 +15,25 @@ declare global {
 
 function isPushNotificationDetail(value: unknown): value is NativePushNotificationDetail {
 	return typeof value === "object" && value !== null;
+}
+
+function detailKey(detail: NativePushNotificationDetail): string {
+	const event = typeof detail.event === "string" ? detail.event : "";
+	const action = typeof detail.action === "string" ? detail.action : "";
+	const conversationId =
+		typeof detail.conversationId === "string" ? detail.conversationId : "";
+	return `${event}|${action}|${conversationId}`;
+}
+
+function removeQueuedPushNotification(detail: NativePushNotificationDetail) {
+	if (!Array.isArray(window.__FG_PUSH_NOTIFICATIONS)) {
+		return;
+	}
+
+	const targetKey = detailKey(detail);
+	window.__FG_PUSH_NOTIFICATIONS = window.__FG_PUSH_NOTIFICATIONS.filter(
+		(queuedDetail) => detailKey(queuedDetail) !== targetKey,
+	);
 }
 
 function consumePendingPushNotifications(
@@ -70,9 +89,34 @@ function getNotificationRoute(detail: NativePushNotificationDetail): string | nu
 
 export function PushNotificationBridge() {
 	const navigate = useNavigate();
+	const recentlyHandledKeysRef = useRef<Map<string, number>>(new Map());
 
 	useEffect(() => {
+		const markHandled = (detail: NativePushNotificationDetail): boolean => {
+			const key = detailKey(detail);
+			const now = Date.now();
+			const recentWindowMs = 10_000;
+			const lastHandledAt = recentlyHandledKeysRef.current.get(key);
+			if (typeof lastHandledAt === "number" && now - lastHandledAt < recentWindowMs) {
+				return false;
+			}
+
+			recentlyHandledKeysRef.current.set(key, now);
+			for (const [existingKey, handledAt] of recentlyHandledKeysRef.current) {
+				if (now - handledAt >= recentWindowMs) {
+					recentlyHandledKeysRef.current.delete(existingKey);
+				}
+			}
+
+			return true;
+		};
+
 		const handleDetail = (detail: NativePushNotificationDetail) => {
+			if (!markHandled(detail)) {
+				console.info("[PUSH_EVENT] Skipping duplicate push payload", detail);
+				return;
+			}
+
 			console.info("[PUSH_EVENT] Received native push payload", detail);
 
 			if (detail.event === "opened") {
@@ -98,6 +142,7 @@ export function PushNotificationBridge() {
 				return;
 			}
 
+			removeQueuedPushNotification(detail);
 			handleDetail(detail);
 		};
 
