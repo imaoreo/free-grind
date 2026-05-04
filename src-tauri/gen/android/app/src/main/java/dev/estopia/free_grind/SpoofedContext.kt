@@ -2,29 +2,11 @@ package dev.estopia.free_grind
 
 import android.app.Application
 import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.util.Log
 
 class SpoofedContext(base: Context) : Application() {
-    private fun shouldSpoofForCaller(): Boolean {
-        val stackTrace = Thread.currentThread().stackTrace
-
-        // Keep component discovery on the real package so Firebase can load manifest-registered components.
-        if (stackTrace.any { it.className.contains("ComponentDiscovery") }) {
-            return false
-        }
-
-        return stackTrace.any {
-            it.className.contains("FirebaseInstallationServiceClient") ||
-            it.className.contains("com.google.firebase.installations.remote") ||
-            it.className.contains("com.google.firebase.messaging.Metadata") ||
-            it.className.contains("FirebaseMessaging") ||
-            // Obfuscated classes seen in logs during FIS auth requests.
-            it.className == "r2.b"
-        }
-    }
-
     init {
         attachBaseContext(base)
     }
@@ -34,31 +16,49 @@ class SpoofedContext(base: Context) : Application() {
     }
 
     override fun getPackageName(): String {
-        if (shouldSpoofForCaller()) {
-            Log.d("SpoofedContext", "getPackageName() spoofed for Firebase caller")
+        val stackTrace = Thread.currentThread().stackTrace
+        val isFirebaseCaller = stackTrace.any { 
+            it.className.contains("FirebaseInstallationServiceClient") || 
+            it.className.contains("com.google.firebase") 
+        }
+        
+        // Android's ComponentDiscoveryService needs the real package name to find the registered Firebase components in the Manifest.
+        // We ONLY spoof the package name if we suspect Firebase is trying to do an auth/fingerprint check.
+        if (isFirebaseCaller && stackTrace.any { !it.className.contains("ComponentDiscovery") }) {
+             // Let's be aggressive: if it's Firebase but NOT ComponentDiscovery, spoof it.
+             // Actually, the ComponentDiscovery class is `com.google.firebase.components.ComponentDiscovery`
+        }
+
+        // A safer check matching your GrindrPlus analysis:
+        if (stackTrace.any { it.className.contains("FirebaseInstallationServiceClient") }) {
+            Log.d("SpoofedContext", "getPackageName() spoofed for FirebaseInstallation")
             return "com.grindrapp.android"
         }
+        
+        // Also required for FCM metadata fetching according to GrindrPlus analysis
+        if (stackTrace.any { it.className.contains("com.google.firebase.messaging.Metadata") || it.className.contains("FirebaseMessaging") }) {
+            Log.d("SpoofedContext", "getPackageName() spoofed for FirebaseMessaging")
+            return "com.grindrapp.android"
+        }
+
         return baseContext.packageName
     }
 
-    override fun getOpPackageName(): String {
-        if (shouldSpoofForCaller()) {
-            Log.d("SpoofedContext", "getOpPackageName() spoofed for Firebase caller")
-            return "com.grindrapp.android"
-        }
-        return super.getOpPackageName()
+    override fun getPackageManager(): PackageManager {
+        return SpoofedPackageManager(
+            super.getPackageManager(),
+            baseContext.packageName,
+            getString(R.string.grindr_cert)
+        )
     }
 
     override fun getApplicationInfo(): ApplicationInfo {
         val info = super.getApplicationInfo()
-        if (shouldSpoofForCaller()) {
+        val stackTrace = Thread.currentThread().stackTrace
+        if (stackTrace.any { it.className.contains("FirebaseInstallationServiceClient") || it.className.contains("com.google.firebase.messaging") }) {
             Log.d("SpoofedContext", "getApplicationInfo() spoofed")
             info.packageName = "com.grindrapp.android"
         }
         return info
-    }
-
-    override fun getPackageManager(): PackageManager {
-        return SpoofedPackageManager(super.getPackageManager(), baseContext.packageName, baseContext.resources)
     }
 }

@@ -163,19 +163,15 @@ class MainActivity : TauriActivity() {
 
   private fun initFirebase() {
     val spoofedContext = SpoofedContext(applicationContext)
-    if (FirebaseApp.getApps(spoofedContext).isEmpty()) {
-      val options = FirebaseOptions.Builder()
-        .setApplicationId(getString(R.string.fcm_google_app_id))
-        .setProjectId(getString(R.string.fcm_project_id))
-        .setApiKey(getString(R.string.fcm_google_api_key))
-        .setGcmSenderId(getString(R.string.fcm_gcm_default_sender_id))
-        .build()
+    val options = FirebaseOptions.Builder()
+      .setApplicationId(getString(R.string.fcm_google_app_id))
+      .setProjectId(getString(R.string.fcm_project_id))
+      .setApiKey(getString(R.string.fcm_google_api_key))
+      .setGcmSenderId(getString(R.string.fcm_gcm_defaultSenderId))
+      .build()
 
-      FirebaseApp.initializeApp(spoofedContext, options)
-      Log.d("FCM", "Firebase initialized with spoofed context")
-    } else {
-      Log.d("FCM", "Firebase app already initialized")
-    }
+    FirebaseApp.initializeApp(spoofedContext, options)
+    Log.d("FCM", "Firebase initialized with spoofed context")
 
     FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
       if (task.isSuccessful) {

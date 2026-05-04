@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
 	BadgeInfo,
+	Bell,
 	ChevronRight,
 	Download,
 	Images,
@@ -11,10 +12,11 @@ import {
 	Radar,
 	RefreshCcw,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/useAuth";
+import { useApi } from "../../hooks/useApi";
 import { exportAllLogs } from "../../services/chatLog";
 import {
 	checkForHotswapUpdate,
@@ -26,6 +28,9 @@ import {
 	type HotswapChannel,
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
+
+const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
+const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
 
 function getErrorMessage(error: unknown, fallback: string): string {
 	if (error instanceof Error && error.message) {
@@ -49,11 +54,59 @@ export function SettingsPage() {
 	const { t } = useTranslation();
 	const { logout } = useAuth();
 	const navigate = useNavigate();
+	const { callMethod, asAppError } = useApi();
 	const [isExporting, setIsExporting] = useState(false);
 	const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 	const [isSwitchingChannel, setIsSwitchingChannel] = useState(false);
+	const [isSyncingFcm, setIsSyncingFcm] = useState(false);
+	const [fcmToken, setFcmToken] = useState<string | null>(() => {
+		const stored = window.localStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
+		if (stored) return stored;
+		const win = window as Window & { __FG_FCM_TOKEN?: string };
+		return typeof win.__FG_FCM_TOKEN === "string" ? win.__FG_FCM_TOKEN : null;
+	});
+	const [fcmSyncedToken, setFcmSyncedToken] = useState<string | null>(() => window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY));
+	const [fcmEventLog, setFcmEventLog] = useState<{ time: string; token: string }[]>([]);
+	const [manualToken, setManualToken] = useState("");
+	const fcmLogRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const onFcmToken = (event: Event) => {
+			const token = (event as CustomEvent<{ token: string }>).detail?.token;
+			if (typeof token !== "string") return;
+			setFcmToken(token);
+			setFcmSyncedToken(window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY));
+			const time = new Date().toLocaleTimeString();
+			setFcmEventLog((prev) => [...prev, { time, token }]);
+			setTimeout(() => {
+				fcmLogRef.current?.scrollTo({ top: fcmLogRef.current.scrollHeight, behavior: "smooth" });
+			}, 50);
+		};
+		window.addEventListener("fg:fcm-token", onFcmToken as EventListener);
+		return () => window.removeEventListener("fg:fcm-token", onFcmToken as EventListener);
+	}, []);
 	const [updateChannel, setUpdateChannel] =
 		useState<HotswapChannel>(getCurrentHotswapChannel());
+
+	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
+		const tokenToSync = overrideToken ?? fcmToken;
+		if (!tokenToSync) {
+			toast.error("No FCM token to sync.");
+			return;
+		}
+		setIsSyncingFcm(true);
+		try {
+			await callMethod("sync_push_token", { token: tokenToSync });
+			window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, tokenToSync);
+			setFcmSyncedToken(tokenToSync);
+			toast.success("FCM token synced to Grindr.");
+		} catch (error) {
+			const appError = asAppError(error);
+			toast.error(appError?.prettyMessage ?? (error instanceof Error ? error.message : "Sync failed"));
+		} finally {
+			setIsSyncingFcm(false);
+		}
+	}, [fcmToken, callMethod, asAppError]);
 
 	const handleLogout = async () => {
 		try {
@@ -379,6 +432,88 @@ export function SettingsPage() {
 							{t("settings.check_now")}
 						</Button>
 					)}
+				</div>
+
+				<div className="surface-card p-4 sm:p-5">
+					<div className="flex items-start gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
+							<Bell className="h-5 w-5" />
+						</div>
+						<div className="grid gap-3 min-w-0 flex-1">
+							<p className="text-base font-semibold">Push Token (FCM)</p>
+
+							{/* Current token */}
+							{fcmToken ? (
+								<div className="grid gap-2">
+									<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+										<p className="text-xs text-[var(--text-muted)] mb-1">Token (tap to select)</p>
+										<p className="break-all font-mono text-xs select-all">{fcmToken}</p>
+									</div>
+									<div className="flex flex-wrap items-center gap-2">
+										<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+											fcmSyncedToken === fcmToken
+												? "bg-green-500/20 text-green-400"
+												: "bg-yellow-500/20 text-yellow-400"
+										}`}>
+											{fcmSyncedToken === fcmToken ? "✓ Synced to Grindr" : "⚠ Not yet synced"}
+										</span>
+										<Button type="button" size="sm" disabled={isSyncingFcm} onClick={() => void handleForceSyncFcm()}>
+											{isSyncingFcm ? "Syncing..." : "Force re-sync"}
+										</Button>
+									</div>
+								</div>
+							) : (
+								<div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-sm text-yellow-400">
+									<p className="font-medium mb-0.5">No token received yet</p>
+									<p className="text-xs opacity-80">Android delivers the FCM token via the <code>fg:fcm-token</code> event after Firebase initialises on launch. If you see nothing below, Firebase may have failed — check that Google Play Services is working on this device.</p>
+								</div>
+							)}
+
+							{/* Live event log */}
+							<div>
+								<p className="text-xs font-medium text-[var(--text-muted)] mb-1">
+									Live event log {fcmEventLog.length > 0 ? `(${fcmEventLog.length} received this session)` : "(waiting…)"}
+								</p>
+								<div
+									ref={fcmLogRef}
+									className="rounded-lg bg-[var(--surface-2)] px-3 py-2 max-h-32 overflow-y-auto"
+								>
+									{fcmEventLog.length === 0 ? (
+										<p className="font-mono text-xs text-[var(--text-muted)] italic">No fg:fcm-token events fired since this page opened</p>
+									) : (
+										fcmEventLog.map((entry, i) => (
+											<p key={i} className="font-mono text-xs break-all">
+												<span className="text-[var(--text-muted)]">[{entry.time}] </span>
+												{entry.token.slice(0, 20)}…{entry.token.slice(-8)}
+											</p>
+										))
+									)}
+								</div>
+							</div>
+
+							{/* Manual token input */}
+							<div className="grid gap-1.5">
+								<p className="text-xs font-medium text-[var(--text-muted)]">Manual token (paste to force-sync)</p>
+								<div className="flex gap-2">
+									<input
+										type="text"
+										value={manualToken}
+										onChange={(e) => setManualToken(e.target.value)}
+										placeholder="Paste FCM token here…"
+										className="input-field min-w-0 flex-1 font-mono text-xs"
+									/>
+									<Button
+										type="button"
+										size="sm"
+										disabled={isSyncingFcm || !manualToken.trim()}
+										onClick={() => void handleForceSyncFcm(manualToken.trim())}
+									>
+										Sync
+									</Button>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<div className="mt-2 flex flex-wrap items-center gap-3">
