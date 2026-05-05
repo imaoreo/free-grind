@@ -357,7 +357,7 @@ Requires [Authorization](/grindr-api/api-authorization).
 WIP, does not seem to work.
 
 ```
-POST /v4/chatstatus/typingx
+POST /v4/chatstatus/typing
 ```
 
 Body:
