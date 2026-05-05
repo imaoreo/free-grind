@@ -1,5 +1,6 @@
 const isDev = import.meta.env.DEV;
 const MAX_LOG_HISTORY = 100;
+const REDACTED = "[REDACTED]";
 
 type AppLogLevel = "debug" | "info" | "warn" | "error";
 
@@ -11,6 +12,57 @@ export type AppLogEntry = {
 
 const logHistory: AppLogEntry[] = [];
 
+const REDACT_KEY_PATTERN = /(token|authorization|auth|cookie|session|password|secret|api[_-]?key|jwt)/i;
+
+function isLikelySensitiveString(value: string): boolean {
+	const trimmed = value.trim();
+	if (!trimmed) {
+		return false;
+	}
+
+	const bearerLike = /^Bearer\s+[A-Za-z0-9._\-+/=]+$/i.test(trimmed);
+	const jwtLike = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(trimmed);
+	const longOpaque = /^[A-Za-z0-9+/_=-]{24,}$/.test(trimmed);
+
+	return bearerLike || jwtLike || longOpaque;
+}
+
+function shouldRedactKey(key: string): boolean {
+	return REDACT_KEY_PATTERN.test(key);
+}
+
+function redactUnknown(value: unknown, parentKey?: string): unknown {
+	if (parentKey && shouldRedactKey(parentKey)) {
+		return REDACTED;
+	}
+
+	if (typeof value === "string") {
+		return isLikelySensitiveString(value) ? REDACTED : value;
+	}
+
+	if (
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		value == null
+	) {
+		return value;
+	}
+
+	if (Array.isArray(value)) {
+		return value.map((entry) => redactUnknown(entry));
+	}
+
+	if (typeof value === "object") {
+		const output: Record<string, unknown> = {};
+		for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+			output[key] = redactUnknown(nested, key);
+		}
+		return output;
+	}
+
+	return String(value);
+}
+
 function normalizeLogArg(value: unknown): unknown {
 	if (value instanceof Error) {
 		return {
@@ -20,23 +72,31 @@ function normalizeLogArg(value: unknown): unknown {
 		};
 	}
 
-	if (
-		typeof value === "string" ||
-		typeof value === "number" ||
-		typeof value === "boolean" ||
-		value == null
-	) {
-		return value;
+	let serializable: unknown = value;
+	if (typeof value === "object" && value !== null) {
+		try {
+			serializable = JSON.parse(JSON.stringify(value));
+		} catch {
+			serializable = String(value);
+		}
 	}
 
-	try {
-		return JSON.parse(JSON.stringify(value));
-	} catch {
-		return String(value);
+	return redactUnknown(serializable);
+}
+
+function shouldCaptureForHistory(level: AppLogLevel): boolean {
+	if (isDev) {
+		return true;
 	}
-	}
+
+	return level === "warn" || level === "error";
+}
 
 function pushLogEntry(level: AppLogLevel, args: unknown[]) {
+	if (!shouldCaptureForHistory(level)) {
+		return;
+	}
+
 	logHistory.push({
 		timestamp: new Date().toISOString(),
 		level,
