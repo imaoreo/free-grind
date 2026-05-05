@@ -431,5 +431,33 @@
                 "twink": ""
             }
         }
+    },
+    "browse_page": {
+        "refreshing_feed": ""
+    },
+    "chat": {
+        "loading": "",
+        "new_conversation": {
+            "write_first_message": ""
+        },
+        "loading_albums": "",
+        "loading_inbox": "",
+        "loading_messages": "",
+        "refreshing_inbox": "",
+        "write_message": "",
+        "sending": "",
+        "loading_album": ""
+    },
+    "profile_details": {
+        "loading": "",
+        "locating": ""
+    },
+    "auth": {
+        "sign_in": {
+            "signing_in": ""
+        },
+        "sign_up": {
+            "opening_issue": ""
+        }
     }
 }
