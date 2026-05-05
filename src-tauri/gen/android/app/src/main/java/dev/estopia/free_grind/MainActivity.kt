@@ -164,27 +164,37 @@ class MainActivity : TauriActivity() {
   }
 
   private fun initFirebase() {
-    val spoofedContext = SpoofedContext(applicationContext)
-    val options = FirebaseOptions.Builder()
-      .setApplicationId(getString(R.string.fcm_google_app_id))
-      .setProjectId(getString(R.string.fcm_project_id))
-      .setApiKey(getString(R.string.fcm_google_api_key))
-      .setGcmSenderId(getString(R.string.fcm_gcm_defaultSenderId))
-      .build()
+    try {
+      val spoofedContext = SpoofedContext(applicationContext)
+      val options = FirebaseOptions.Builder()
+        .setApplicationId(getString(R.string.fcm_google_app_id))
+        .setProjectId(getString(R.string.fcm_project_id))
+        .setApiKey(getString(R.string.fcm_google_api_key))
+        .setGcmSenderId(getString(R.string.fcm_gcm_defaultSenderId))
+        .build()
 
-    FirebaseApp.initializeApp(spoofedContext, options)
-    Log.d("FCM", "Firebase initialized with spoofed context")
-
-    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-      if (task.isSuccessful) {
-        val token = task.result
-        latestFcmToken = token
-        Log.d("FCM", "Push token fetched successfully (len=${token.length})")
-        Log.v("FCM", "Push token value: $token")
-        dispatchFcmTokenToWebview(token, 0)
-      } else {
-        Log.w("FCM", "Failed to get push token", task.exception)
+      if (FirebaseApp.getApps(spoofedContext).isEmpty()) {
+        FirebaseApp.initializeApp(spoofedContext, options)
       }
+      Log.d("FCM", "Firebase initialized with spoofed context")
+
+      try {
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+          if (task.isSuccessful) {
+            val token = task.result
+            latestFcmToken = token
+            Log.d("FCM", "Push token fetched successfully (len=${token.length})")
+            Log.v("FCM", "Push token value: $token")
+            dispatchFcmTokenToWebview(token, 0)
+          } else {
+            Log.w("FCM", "Failed to get push token", task.exception)
+          }
+        }
+      } catch (t: Throwable) {
+        Log.e("FCM", "Firebase Messaging unavailable; continuing without push token", t)
+      }
+    } catch (t: Throwable) {
+      Log.e("FCM", "Firebase initialization failed; continuing without push", t)
     }
   }
 
