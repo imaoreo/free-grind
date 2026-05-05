@@ -1,482 +1,48 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
-	AtSign,
-	BadgeInfo,
-	Camera,
-	ImageOff,
 	RefreshCw,
-	Ruler,
 	Save,
-	ShieldPlus,
-	Sparkles,
-	Star,
-	Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
-import { useAuth } from "../../contexts/AuthContext";
+import { useAuth } from "../../contexts/useAuth";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
-import { Chip } from "../../components/ui/chip";
+import { validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
-
-const MAX_PROFILE_PHOTOS = 5;
-
-const lookingForLabels: Record<number, string> = {
-	2: "Chat",
-	3: "Dates",
-	4: "Friends",
-	5: "Networking",
-	6: "Relationship",
-	7: "Hookups",
-};
-
-const relationshipStatusLabels: Record<number, string> = {
-	1: "Single",
-	2: "Dating",
-	3: "Exclusive",
-	4: "Committed",
-	5: "Partnered",
-	6: "Engaged",
-	7: "Married",
-	8: "Open Relationship",
-};
-
-const bodyTypeLabels: Record<number, string> = {
-	1: "Toned",
-	2: "Average",
-	3: "Large",
-	4: "Muscular",
-	5: "Slim",
-	6: "Stocky",
-};
-
-const ethnicityLabels: Record<number, string> = {
-	1: "Asian",
-	2: "Black",
-	3: "Latino",
-	4: "Middle Eastern",
-	5: "Mixed",
-	6: "Native American",
-	7: "White",
-	8: "Other",
-	9: "South Asian",
-};
-
-const sexualPositionLabels: Record<number, string> = {
-	1: "Top",
-	2: "Bottom",
-	3: "Versatile",
-	4: "Vers Bottom",
-	5: "Vers Top",
-	6: "Side",
-};
-
-const meetAtLabels: Record<number, string> = {
-	1: "My Place",
-	2: "Your Place",
-	3: "Bar",
-	4: "Coffee Shop",
-	5: "Restaurant",
-};
-
-const hivStatusLabels: Record<number, string> = {
-	1: "Negative",
-	2: "Negative, on PrEP",
-	3: "Positive",
-	4: "Positive, undetectable",
-};
-
-const nsfwLabels: Record<number, string> = {
-	1: "Never",
-	2: "Not At First",
-	3: "Yes Please",
-};
-
-const sexualHealthLabels: Record<number, string> = {
-	1: "Condoms",
-	2: "I'm on doxyPEP",
-	3: "I'm on PrEP",
-	4: "I'm HIV undetectable",
-	5: "Prefer to discuss",
-};
-
-const vaccineLabels: Record<number, string> = {
-	1: "COVID-19",
-	2: "Monkeypox",
-	3: "Meningitis",
-};
-
-const tribeLabels: Record<number, string> = {
-	1: "Bear",
-	2: "Clean-Cut",
-	3: "Daddy",
-	4: "Discreet",
-	5: "Geek",
-	6: "Jock",
-	7: "Leather",
-	8: "Otter",
-	9: "Poz",
-	10: "Rugged",
-	11: "Sober",
-	12: "Trans",
-	13: "Twink",
-};
-
-const relationshipStatusOptions = Object.entries(relationshipStatusLabels).map(
-	([value, label]) => ({ value, label }),
-);
-
-const bodyTypeOptions = Object.entries(bodyTypeLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const ethnicityOptions = Object.entries(ethnicityLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const positionOptions = Object.entries(sexualPositionLabels).map(
-	([value, label]) => ({ value, label }),
-);
-
-const lookingForOptions = Object.entries(lookingForLabels).map(
-	([value, label]) => ({ value: Number(value), label }),
-);
-
-const meetAtOptions = Object.entries(meetAtLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
-
-const hivStatusOptions = Object.entries(hivStatusLabels).map(
-	([value, label]) => ({
-		value,
-		label,
-	}),
-);
-
-const nsfwOptions = Object.entries(nsfwLabels).map(([value, label]) => ({
-	value,
-	label,
-}));
-
-const sexualHealthOptions = Object.entries(sexualHealthLabels).map(
-	([value, label]) => ({ value: Number(value), label }),
-);
-
-const vaccineOptions = Object.entries(vaccineLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
-
-const tribeOptions = Object.entries(tribeLabels).map(([value, label]) => ({
-	value: Number(value),
-	label,
-}));
-
-const profileSchema = z.object({
-	profileId: z.string(),
-	displayName: z.string().nullable().optional(),
-	aboutMe: z.string().nullable().optional(),
-	age: z.number().nullable().optional(),
-	showAge: z.boolean().optional(),
-	height: z.number().nullable().optional(),
-	weight: z.number().nullable().optional(),
-	ethnicity: z.number().nullable().optional(),
-	bodyType: z.number().nullable().optional(),
-	showPosition: z.boolean().optional(),
-	sexualPosition: z.number().nullable().optional(),
-	showTribes: z.boolean().optional(),
-	grindrTribes: z.array(z.number()).optional().default([]),
-	relationshipStatus: z.number().nullable().optional(),
-	lookingFor: z.array(z.number()).optional().default([]),
-	meetAt: z.array(z.number()).optional().default([]),
-	nsfw: z.number().nullable().optional(),
-	genders: z.array(z.number()).optional().default([]),
-	pronouns: z.array(z.number()).optional().default([]),
-	hivStatus: z.number().nullable().optional(),
-	lastTestedDate: z.number().nullable().optional(),
-	sexualHealth: z.array(z.number()).optional().default([]),
-	vaccines: z.array(z.number()).optional().default([]),
-	profileTags: z.array(z.string()).optional().default([]),
-	onlineUntil: z.number().nullable().optional(),
-	rightNowText: z.string().nullable().optional(),
-	profileImageMediaHash: z.string().nullable().optional(),
-	isRoaming: z.boolean().optional(),
-	isTeleporting: z.boolean().optional(),
-	medias: z
-		.array(z.object({ mediaHash: z.string().optional() }))
-		.optional()
-		.default([]),
-	socialNetworks: z
-		.object({
-			instagram: z
-				.object({ userId: z.string().nullable().optional() })
-				.optional(),
-			twitter: z
-				.object({ userId: z.string().nullable().optional() })
-				.optional(),
-			facebook: z
-				.object({ userId: z.string().nullable().optional() })
-				.optional(),
-		})
-		.optional(),
-});
-
-const profileResponseSchema = z.object({
-	profiles: z.array(profileSchema).length(1),
-});
-
-interface ProfileDraft {
-	displayName: string;
-	aboutMe: string;
-	profileTagsText: string;
-	showAge: boolean;
-	age: string;
-	height: string;
-	weight: string;
-	ethnicity: string;
-	bodyType: string;
-	showPosition: boolean;
-	sexualPosition: string;
-	showTribes: boolean;
-	grindrTribes: number[];
-	relationshipStatus: string;
-	lookingFor: number[];
-	meetAt: number[];
-	nsfw: string;
-	genders: number[];
-	pronouns: number[];
-	hivStatus: string;
-	lastTestedDate: string;
-	sexualHealth: number[];
-	vaccines: number[];
-	instagram: string;
-	twitter: string;
-	facebook: string;
-}
-
-const emptyDraft: ProfileDraft = {
-	displayName: "",
-	aboutMe: "",
-	profileTagsText: "",
-	showAge: true,
-	age: "",
-	height: "",
-	weight: "",
-	ethnicity: "",
-	bodyType: "",
-	showPosition: false,
-	sexualPosition: "",
-	showTribes: false,
-	grindrTribes: [],
-	relationshipStatus: "",
-	lookingFor: [],
-	meetAt: [],
-	nsfw: "",
-	genders: [],
-	pronouns: [],
-	hivStatus: "",
-	lastTestedDate: "",
-	sexualHealth: [],
-	vaccines: [],
-	instagram: "",
-	twitter: "",
-	facebook: "",
-};
-
-function formatDateInput(value: number | null | undefined): string {
-	if (!value) {
-		return "";
-	}
-
-	const date = new Date(value);
-	if (Number.isNaN(date.getTime())) {
-		return "";
-	}
-
-	return date.toISOString().slice(0, 10);
-}
-
-function parseDateInput(value: string): number | null {
-	if (!value.trim()) {
-		return null;
-	}
-
-	const parsed = Date.parse(`${value}T00:00:00.000Z`);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function normalizeTagList(value: string): string[] {
-	return value
-		.split(",")
-		.map((item) => item.trim())
-		.filter(Boolean);
-}
-
-async function buildSquareThumbCoords(file: File): Promise<string> {
-	const bitmap = await createImageBitmap(file);
-	const side = Math.min(bitmap.width, bitmap.height);
-	const x1 = (bitmap.width - side) / 2;
-	const y1 = (bitmap.height - side) / 2;
-	const x2 = x1 + side;
-	const y2 = y1 + side;
-
-	bitmap.close();
-
-	// RectF query format is: y2,x1,x2,y1.
-	return `${y2},${x1},${x2},${y1}`;
-}
-
-function profileToDraft(
-	profile: z.infer<typeof profileSchema> | null,
-): ProfileDraft {
-	if (!profile) {
-		return emptyDraft;
-	}
-
-	return {
-		displayName: profile.displayName ?? "",
-		aboutMe: profile.aboutMe ?? "",
-		profileTagsText: (profile.profileTags ?? []).join(", "),
-		showAge: profile.showAge ?? true,
-		age: profile.age?.toString() ?? "",
-		height: profile.height?.toString() ?? "",
-		weight: profile.weight?.toString() ?? "",
-		ethnicity: profile.ethnicity?.toString() ?? "",
-		bodyType: profile.bodyType?.toString() ?? "",
-		showPosition: profile.showPosition ?? false,
-		sexualPosition: profile.sexualPosition?.toString() ?? "",
-		showTribes: profile.showTribes ?? false,
-		grindrTribes: profile.grindrTribes ?? [],
-		relationshipStatus: profile.relationshipStatus?.toString() ?? "",
-		lookingFor: profile.lookingFor ?? [],
-		meetAt: profile.meetAt ?? [],
-		nsfw: profile.nsfw?.toString() ?? "",
-		genders: profile.genders ?? [],
-		pronouns: profile.pronouns ?? [],
-		hivStatus: profile.hivStatus?.toString() ?? "",
-		lastTestedDate: formatDateInput(profile.lastTestedDate),
-		sexualHealth: profile.sexualHealth ?? [],
-		vaccines: profile.vaccines ?? [],
-		instagram: profile.socialNetworks?.instagram?.userId ?? "",
-		twitter: profile.socialNetworks?.twitter?.userId ?? "",
-		facebook: profile.socialNetworks?.facebook?.userId ?? "",
-	};
-}
-
-function parseNullableNumber(value: string): number | null {
-	if (!value.trim()) {
-		return null;
-	}
-
-	const parsed = Number(value);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function parseNullableInteger(value: string): number | null {
-	if (!value.trim()) {
-		return null;
-	}
-
-	const parsed = Number(value);
-	return Number.isInteger(parsed) ? parsed : null;
-}
-
-function CategoryHeader({
-	title,
-	description,
-	icon: Icon,
-}: {
-	title: string;
-	description: string;
-	icon: typeof Ruler;
-}) {
-	return (
-		<div className="mb-5 flex items-start gap-3">
-			<div className="mt-0.5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
-				<Icon className="h-4 w-4" strokeWidth={2.1} />
-			</div>
-			<div className="space-y-1">
-				<p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
-					{title}
-				</p>
-				<h3 className="text-lg font-semibold leading-tight">{description}</h3>
-			</div>
-		</div>
-	);
-}
-
-function ToggleRow({
-	checked,
-	onChange,
-	label,
-	description,
-}: {
-	checked: boolean;
-	onChange: (checked: boolean) => void;
-	label: string;
-	description: string;
-}) {
-	return (
-		<label className="flex min-h-14 items-start justify-between gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3.5">
-			<span>
-				<span className="block text-sm font-medium">{label}</span>
-				<span className="mt-1 block text-xs leading-relaxed text-[var(--text-muted)]">
-					{description}
-				</span>
-			</span>
-			<span className="relative mt-1 inline-flex h-7 w-12 flex-shrink-0 cursor-pointer items-center">
-				<input
-					type="checkbox"
-					checked={checked}
-					onChange={(event) => onChange(event.target.checked)}
-					className="peer sr-only"
-				/>
-				<span className="absolute inset-0 rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors peer-checked:border-transparent peer-checked:bg-[var(--accent)]" />
-				<span className="absolute left-1 h-5 w-5 rounded-full bg-[var(--text)] transition-transform peer-checked:translate-x-5 peer-checked:bg-[var(--accent-contrast)]" />
-			</span>
-		</label>
-	);
-}
-
-function ChipGroup({
-	options,
-	selected,
-	onToggle,
-}: {
-	options: Array<{ value: number; label: string }>;
-	selected: number[];
-	onToggle: (value: number) => void;
-}) {
-	return (
-		<div className="flex flex-wrap gap-2.5">
-			{options.map((option) => {
-				const active = selected.includes(option.value);
-
-				return (
-					<Chip
-						key={option.value}
-						selected={active}
-						onClick={() => onToggle(option.value)}
-						className={active ? "hover:brightness-[1.02]" : undefined}
-					>
-						{option.label}
-					</Chip>
-				);
-			})}
-		</div>
-	);
-}
+import {
+	getBodyTypeLabelMap,
+	getBodyTypeOptions,
+	getEthnicityOptions,
+	getHivStatusOptions,
+	getLookingForOptions,
+	getMeetAtOptions,
+	getNsfwOptions,
+	getRelationshipStatusLabelMap,
+	getRelationshipStatusOptions,
+	getSexualHealthOptions,
+	getSexualPositionOptions,
+	getTribeOptions,
+	getVaccineOptions,
+} from "./profile-option-builders";
+import { ProfileEditorFormSections } from "./profile-editor/ProfileEditorFormSections";
+import {
+	MAX_PROFILE_PHOTOS,
+	type ProfileDraft,
+	buildSquareThumbCoords,
+	emptyDraft,
+	parseDateInput,
+	parseNullableInteger,
+	parseNullableNumber,
+	normalizeTagList,
+	profileResponseSchema,
+	profileSchema,
+	profileToDraft,
+} from "./profile-editor/profileEditorUtils";
 
 export function ProfileEditorPage() {
+	const { t } = useTranslation();
 	const { userId, logout } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
@@ -496,6 +62,71 @@ export function ProfileEditorPage() {
 		Array<{ value: number; label: string }>
 	>([]);
 
+	const relationshipStatusLabels = useMemo<Record<number, string>>(
+		() => getRelationshipStatusLabelMap(t),
+		[t],
+	);
+
+	const bodyTypeLabels = useMemo<Record<number, string>>(
+		() => getBodyTypeLabelMap(t),
+		[t],
+	);
+
+	const relationshipStatusOptions = useMemo(
+		() => getRelationshipStatusOptions(t),
+		[t],
+	);
+
+	const bodyTypeOptions = useMemo(
+		() => getBodyTypeOptions(t),
+		[t],
+	);
+
+	const ethnicityOptions = useMemo(
+		() => getEthnicityOptions(t),
+		[t],
+	);
+
+	const positionOptions = useMemo(
+		() => getSexualPositionOptions(t),
+		[t],
+	);
+
+	const lookingForOptions = useMemo(
+		() => getLookingForOptions(t),
+		[t],
+	);
+
+	const meetAtOptions = useMemo(
+		() => getMeetAtOptions(t),
+		[t],
+	);
+
+	const hivStatusOptions = useMemo(
+		() => getHivStatusOptions(t),
+		[t],
+	);
+
+	const nsfwOptions = useMemo(
+		() => getNsfwOptions(t),
+		[t],
+	);
+
+	const sexualHealthOptions = useMemo(
+		() => getSexualHealthOptions(t),
+		[t],
+	);
+
+	const vaccineOptions = useMemo(
+		() => getVaccineOptions(t),
+		[t],
+	);
+
+	const tribeOptions = useMemo(
+		() => getTribeOptions(t),
+		[t],
+	);
+
 	const loadProfile = useCallback(async () => {
 		if (!userId) {
 			setProfile(null);
@@ -513,12 +144,12 @@ export function ProfileEditorPage() {
 		} catch (error) {
 			setProfile(null);
 			setProfileError(
-				error instanceof Error ? error.message : "Failed to load profile",
+				error instanceof Error ? error.message : t("profile_editor.error_load"),
 			);
 		} finally {
 			setIsLoadingProfile(false);
 		}
-	}, [apiFunctions, userId]);
+	}, [apiFunctions, userId, t]);
 
 	const loadManagedOptions = useCallback(async () => {
 		try {
@@ -611,22 +242,22 @@ export function ProfileEditorPage() {
 
 	const selectedRelationshipLabel = useMemo(() => {
 		if (!draft.relationshipStatus) {
-			return "Relationship not set";
+			return t("profile_editor.sections.states.relationship_not_set");
 		}
 
 		return (
 			relationshipStatusLabels[Number(draft.relationshipStatus)] ??
 			`Status ${draft.relationshipStatus}`
 		);
-	}, [draft.relationshipStatus]);
+	}, [draft.relationshipStatus, relationshipStatusLabels, t]);
 
 	const selectedBodyTypeLabel = useMemo(() => {
 		if (!draft.bodyType) {
-			return "Body type not set";
+			return t("profile_editor.sections.states.body_type_not_set");
 		}
 
 		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
-	}, [draft.bodyType]);
+	}, [draft.bodyType, bodyTypeLabels, t]);
 
 	const completionChecklist = useMemo(
 		() => [
@@ -670,19 +301,19 @@ export function ProfileEditorPage() {
 		}
 
 		if (value.length < 3 || value.length > 15) {
-			return "Display name must be between 3 and 15 characters.";
+			return t("profile_editor.errors.display_name_length");
 		}
 
 		return null;
-	}, [draft.displayName]);
+	}, [draft.displayName, t]);
 
 	const aboutMeError = useMemo(() => {
 		if (draft.aboutMe.length > 255) {
-			return "About Me must stay under 255 characters.";
+			return t("profile_editor.errors.about_me_length");
 		}
 
 		return null;
-	}, [draft.aboutMe]);
+	}, [draft.aboutMe, t]);
 
 	const canSave = hasChanges && !isSaving && !displayNameError && !aboutMeError;
 
@@ -706,9 +337,9 @@ export function ProfileEditorPage() {
 	) => {
 		setDraft((current) => ({
 			...current,
-			[key]: current[key].includes(value)
-				? current[key].filter((item) => item !== value)
-				: [...current[key], value].sort((left, right) => left - right),
+			[key]: (current[key] as number[]).includes(value)
+				? (current[key] as number[]).filter((item) => item !== value)
+				: [...(current[key] as number[]), value].sort((left, right) => left - right),
 		}));
 	};
 
@@ -751,11 +382,13 @@ export function ProfileEditorPage() {
 				},
 			});
 
-			toast.success("Profile updated");
+			toast.success(t("profile_editor.toasts.updated"));
 			await loadProfile();
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to update profile";
+				error instanceof Error
+					? error.message
+					: t("profile_editor.toasts.error_update");
 			toast.error(message);
 		} finally {
 			setIsSaving(false);
@@ -797,18 +430,20 @@ export function ProfileEditorPage() {
 				}
 
 				await loadProfile();
-				toast.success(options?.successMessage ?? "Profile photos updated");
+				toast.success(
+					options?.successMessage ?? t("profile_editor.toasts.photos_updated"),
+				);
 			} catch (error) {
 				const message =
 					error instanceof Error
 						? error.message
-						: "Failed to update profile photos";
+						: t("profile_editor.toasts.error_photos");
 				toast.error(message);
 			} finally {
 				setIsSavingPhotos(false);
 			}
 		},
-		[apiFunctions, loadProfile, userId],
+		[apiFunctions, loadProfile, userId, t],
 	);
 
 	const handleUploadPhoto = async (
@@ -822,12 +457,12 @@ export function ProfileEditorPage() {
 		}
 
 		if (!file.type.startsWith("image/")) {
-			toast.error("Choose an image file to upload");
+			toast.error(t("profile_editor.toasts.error_upload_type"));
 			return;
 		}
 
 		if (profilePhotoHashes.length >= MAX_PROFILE_PHOTOS) {
-			toast.error("Remove a photo before adding another one");
+			toast.error(t("profile_editor.toasts.error_photo_limit"));
 			return;
 		}
 
@@ -880,11 +515,13 @@ export function ProfileEditorPage() {
 			}
 
 			await persistProfilePhotos([...profilePhotoHashes, uploadedHash], {
-				successMessage: "Photo uploaded",
+				successMessage: t("profile_editor.toasts.photo_uploaded"),
 			});
 		} catch (error) {
 			const message =
-				error instanceof Error ? error.message : "Failed to upload image";
+				error instanceof Error
+					? error.message
+					: t("profile_editor.toasts.error_upload");
 			toast.error(message);
 		} finally {
 			setIsUploadingPhoto(false);
@@ -906,7 +543,7 @@ export function ProfileEditorPage() {
 		];
 
 		await persistProfilePhotos(reordered, {
-			successMessage: "Primary photo updated",
+			successMessage: t("profile_editor.toasts.primary_updated"),
 		});
 	};
 
@@ -919,7 +556,7 @@ export function ProfileEditorPage() {
 			profilePhotoHashes.filter((currentHash) => currentHash !== hash),
 			{
 				deletedHashes: [hash],
-				successMessage: "Photo removed",
+				successMessage: t("profile_editor.toasts.photo_removed"),
 			},
 		);
 	};
@@ -933,7 +570,11 @@ export function ProfileEditorPage() {
 			await logout();
 			navigate("/auth/sign-in");
 		} catch (error) {
-			console.error("Logout failed:", error);
+			const message =
+				error instanceof Error && error.message
+					? error.message
+					: "Failed to log out.";
+			toast.error(message);
 		}
 	};
 
@@ -942,25 +583,24 @@ export function ProfileEditorPage() {
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
 				<header className="space-y-3">
 					<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-						Profile Management
+						{t("profile_editor.management")}
 					</p>
-					<h1 className="app-title">Profile Editor</h1>
+					<h1 className="app-title">{t("profile_editor.title")}</h1>
 					<p className="max-w-[65ch] text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
-						Shape how people meet you at a glance, then fine-tune your details
-						in one place.
+						{t("profile_editor.subtitle")}
 					</p>
 				</header>
 
 				{isLoadingProfile ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-medium text-[var(--text-muted)]">
-							Loading your profile...
+							{t("profile_editor.loading")}
 						</p>
 					</div>
 				) : profileError ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-semibold">
-							Could not load profile details.
+							{t("profile_editor.error_load")}
 						</p>
 						<p className="mt-2 text-sm text-[var(--text-muted)]">
 							{profileError}
@@ -976,7 +616,7 @@ export function ProfileEditorPage() {
 									</div>
 									<div>
 										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-											SUMMARY
+											{t("profile_editor.summary")}
 										</p>
 										<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
 											{draftDisplayName}
@@ -990,10 +630,10 @@ export function ProfileEditorPage() {
 											</span>
 											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
 												{tagList.length > 0
-													? `${tagList.length} tag${
-															tagList.length === 1 ? "" : "s"
-														}`
-													: "No tags"}
+													? t("profile_editor.tags_count", {
+															count: tagList.length,
+														})
+													: t("profile_editor.no_tags")}
 											</span>
 										</div>
 									</div>
@@ -1001,7 +641,7 @@ export function ProfileEditorPage() {
 
 								<div className="flex w-full flex-col items-start gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 lg:w-auto lg:min-w-[260px]">
 									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-										Profile Completion
+										{t("profile_editor.completion_title")}
 									</p>
 									<p className="text-3xl font-semibold leading-none">
 										{completionPercent}%
@@ -1013,627 +653,50 @@ export function ProfileEditorPage() {
 										/>
 									</div>
 									<p className="text-xs text-[var(--text-muted)]">
-										{completionCount}/{completionChecklist.length} profile
-										signals set
+										{t("profile_editor.completion_signals", {
+											count: completionCount,
+											total: completionChecklist.length,
+										})}
 									</p>
 								</div>
 							</div>
 						</div>
 
 						<div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(270px,0.65fr)] lg:items-start">
-							<div className="grid gap-5">
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Pictures"
-										description="Photo slots"
-										icon={ImageOff}
-									/>
-									<div className="grid gap-4">
-										<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 sm:p-4">
-											<p className="text-sm text-[var(--text-muted)]">
-												{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS} photos
-												used
-											</p>
-											<label
-												htmlFor="profile-photo-upload"
-												className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors hover:border-[var(--text-muted)]"
-											>
-												<Camera className="h-4 w-4" />
-												{isUploadingPhoto ? "Uploading..." : "Add photo"}
-											</label>
-											<input
-												id="profile-photo-upload"
-												type="file"
-												accept="image/*"
-												onChange={handleUploadPhoto}
-												disabled={isUploadingPhoto || isSavingPhotos}
-												className="hidden"
-											/>
-										</div>
-
-										<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-											{photoSlots.map((hash, index) => {
-												const isPrimary = index === 0;
-
-												return (
-													<div
-														key={`${hash ?? "empty"}-${index}`}
-														className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-2"
-													>
-														<div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--surface)]">
-															{hash ? (
-																<img
-																	src={getThumbImageUrl(hash, "320x320")}
-																	alt={`Profile photo ${index + 1}`}
-																	className="h-full w-full object-cover"
-																/>
-															) : (
-																<div className="flex h-full items-center justify-center text-[var(--text-muted)]">
-																	<ImageOff className="h-5 w-5" />
-																</div>
-															)}
-														</div>
-
-														<div className="mt-2 space-y-2">
-															<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-																{isPrimary ? "Primary" : `Photo ${index + 1}`}
-															</p>
-
-															{hash ? (
-																<div className="grid gap-1.5">
-																	<button
-																		type="button"
-																		onClick={() =>
-																			void handleSetPrimaryPhoto(hash)
-																		}
-																		disabled={
-																			isPrimary ||
-																			isSavingPhotos ||
-																			isUploadingPhoto
-																		}
-																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-																	>
-																		<Star className="h-3.5 w-3.5" />
-																		Set primary
-																	</button>
-																	<button
-																		type="button"
-																		onClick={() => void handleRemovePhoto(hash)}
-																		disabled={
-																			isSavingPhotos || isUploadingPhoto
-																		}
-																		className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-																	>
-																		<Trash2 className="h-3.5 w-3.5" />
-																		Remove
-																	</button>
-																</div>
-															) : (
-																<label
-																	htmlFor="profile-photo-upload"
-																	className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)]"
-																>
-																	Add
-																</label>
-															)}
-														</div>
-													</div>
-												);
-											})}
-										</div>
-
-										{isSavingPhotos ? (
-											<p className="text-xs text-[var(--text-muted)]">
-												Saving photo changes...
-											</p>
-										) : null}
-										<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-											First slot is your primary profile photo shown in browse.
-										</p>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Profile"
-										description="Name, bio, and tags"
-										icon={Sparkles}
-									/>
-									<div className="grid gap-5">
-										<div>
-											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												Display Name
-											</label>
-											<input
-												type="text"
-												maxLength={15}
-												value={draft.displayName}
-												onChange={(event) =>
-													handleDraftChange("displayName", event.target.value)
-												}
-												className="input-field"
-												placeholder="3 to 15 characters"
-											/>
-											<p className="mt-2 text-xs text-[var(--text-muted)] sm:text-sm">
-												{displayNameError ??
-													`${draft.displayName.trim().length || 0}/15 characters`}
-											</p>
-										</div>
-
-										<div>
-											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												About Me
-											</label>
-											<textarea
-												value={draft.aboutMe}
-												maxLength={255}
-												onChange={(event) =>
-													handleDraftChange("aboutMe", event.target.value)
-												}
-												className="input-field min-h-32 resize-y"
-												placeholder="Up to 255 characters"
-											/>
-											<p className="mt-2 text-xs text-[var(--text-muted)] sm:text-sm">
-												{aboutMeError ??
-													`${draft.aboutMe.length}/255 characters`}
-											</p>
-										</div>
-
-										<div>
-											<label className="mb-2 block text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-												My Tags
-											</label>
-											<input
-												type="text"
-												value={draft.profileTagsText}
-												onChange={(event) =>
-													handleDraftChange(
-														"profileTagsText",
-														event.target.value,
-													)
-												}
-												className="input-field"
-												placeholder="Keyword tags, separated by commas"
-											/>
-											<div className="mt-3 flex flex-wrap gap-2.5">
-												{tagList.length > 0 ? (
-													tagList.map((tag) => (
-														<span
-															key={tag}
-															className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium"
-														>
-															{tag}
-														</span>
-													))
-												) : (
-													<p className="text-sm text-[var(--text-muted)]">
-														No tags added yet.
-													</p>
-												)}
-											</div>
-										</div>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="States"
-										description="Visible stats and profile traits"
-										icon={Ruler}
-									/>
-									<div className="grid gap-4">
-										<div className="grid gap-4 md:grid-cols-2">
-											<ToggleRow
-												checked={draft.showAge}
-												onChange={(checked) =>
-													handleDraftChange("showAge", checked)
-												}
-												label="Show Age"
-												description="Control whether age is visible on profile."
-											/>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Age
-												</label>
-												<input
-													type="number"
-													inputMode="numeric"
-													value={draft.age}
-													onChange={(event) =>
-														handleDraftChange("age", event.target.value)
-													}
-													className="input-field"
-													placeholder="Age"
-												/>
-											</div>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Height
-												</label>
-												<input
-													type="number"
-													inputMode="numeric"
-													value={draft.height}
-													onChange={(event) =>
-														handleDraftChange("height", event.target.value)
-													}
-													className="input-field"
-													placeholder="Height in cm"
-												/>
-											</div>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Weight
-												</label>
-												<input
-													type="number"
-													inputMode="numeric"
-													value={draft.weight}
-													onChange={(event) =>
-														handleDraftChange("weight", event.target.value)
-													}
-													className="input-field"
-													placeholder="Weight in kg"
-												/>
-											</div>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Ethnicity
-												</label>
-												<select
-													value={draft.ethnicity}
-													onChange={(event) =>
-														handleDraftChange("ethnicity", event.target.value)
-													}
-													className="input-field"
-												>
-													<option value="">Not set</option>
-													{ethnicityOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
-											</div>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Body Type
-												</label>
-												<select
-													value={draft.bodyType}
-													onChange={(event) =>
-														handleDraftChange("bodyType", event.target.value)
-													}
-													className="input-field"
-												>
-													<option value="">Not set</option>
-													{bodyTypeOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
-											</div>
-											<ToggleRow
-												checked={draft.showPosition}
-												onChange={(checked) =>
-													handleDraftChange("showPosition", checked)
-												}
-												label="Show Position"
-												description="Let people see your position on profile."
-											/>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Position
-												</label>
-												<select
-													value={draft.sexualPosition}
-													onChange={(event) =>
-														handleDraftChange(
-															"sexualPosition",
-															event.target.value,
-														)
-													}
-													className="input-field"
-												>
-													<option value="">Not set</option>
-													{positionOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
-											</div>
-											<ToggleRow
-												checked={draft.showTribes}
-												onChange={(checked) =>
-													handleDraftChange("showTribes", checked)
-												}
-												label="Show Tribes"
-												description="Choose whether your tribes are visible publicly."
-											/>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Relationship Status
-												</label>
-												<select
-													value={draft.relationshipStatus}
-													onChange={(event) =>
-														handleDraftChange(
-															"relationshipStatus",
-															event.target.value,
-														)
-													}
-													className="input-field"
-												>
-													<option value="">Not set</option>
-													{relationshipStatusOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
-											</div>
-										</div>
-
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Tribes
-											</p>
-											<ChipGroup
-												options={tribeOptions}
-												selected={draft.grindrTribes}
-												onToggle={(value) =>
-													toggleMultiValue("grindrTribes", value)
-												}
-											/>
-										</div>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Expectations"
-										description="What you're open to and how"
-										icon={Sparkles}
-									/>
-									<div className="grid gap-4">
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Looking For
-											</p>
-											<ChipGroup
-												options={lookingForOptions}
-												selected={draft.lookingFor}
-												onToggle={(value) =>
-													toggleMultiValue("lookingFor", value)
-												}
-											/>
-										</div>
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Meet At
-											</p>
-											<ChipGroup
-												options={meetAtOptions}
-												selected={draft.meetAt}
-												onToggle={(value) => toggleMultiValue("meetAt", value)}
-											/>
-										</div>
-										<div>
-											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Accept NSFW Pics
-											</label>
-											<select
-												value={draft.nsfw}
-												onChange={(event) =>
-													handleDraftChange("nsfw", event.target.value)
-												}
-												className="input-field"
-											>
-												<option value="">Not set</option>
-												{nsfwOptions.map((option) => (
-													<option key={option.value} value={option.value}>
-														{option.label}
-													</option>
-												))}
-											</select>
-										</div>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Identity"
-										description="Managed identity fields"
-										icon={BadgeInfo}
-									/>
-									<div className="grid gap-4">
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Gender
-											</p>
-											{genderOptions.length > 0 ? (
-												<ChipGroup
-													options={genderOptions}
-													selected={draft.genders}
-													onToggle={(value) =>
-														toggleMultiValue("genders", value)
-													}
-												/>
-											) : (
-												<p className="text-sm text-[var(--text-muted)]">
-													Gender options are unavailable right now.
-												</p>
-											)}
-										</div>
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Pronouns
-											</p>
-											{pronounOptions.length > 0 ? (
-												<ChipGroup
-													options={pronounOptions}
-													selected={draft.pronouns}
-													onToggle={(value) =>
-														toggleMultiValue("pronouns", value)
-													}
-												/>
-											) : (
-												<p className="text-sm text-[var(--text-muted)]">
-													Pronoun options are unavailable right now.
-												</p>
-											)}
-										</div>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Health"
-										description="Status, testing, and practices"
-										icon={ShieldPlus}
-									/>
-									<div className="grid gap-4">
-										<div className="grid gap-4 md:grid-cols-2">
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													HIV Status
-												</label>
-												<select
-													value={draft.hivStatus}
-													onChange={(event) =>
-														handleDraftChange("hivStatus", event.target.value)
-													}
-													className="input-field"
-												>
-													<option value="">Not set</option>
-													{hivStatusOptions.map((option) => (
-														<option key={option.value} value={option.value}>
-															{option.label}
-														</option>
-													))}
-												</select>
-											</div>
-											<div>
-												<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-													Last Tested
-												</label>
-												<input
-													type="date"
-													value={draft.lastTestedDate}
-													onChange={(event) =>
-														handleDraftChange(
-															"lastTestedDate",
-															event.target.value,
-														)
-													}
-													className="input-field"
-												/>
-											</div>
-										</div>
-
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Health Practices
-											</p>
-											<ChipGroup
-												options={sexualHealthOptions}
-												selected={draft.sexualHealth}
-												onToggle={(value) =>
-													toggleMultiValue("sexualHealth", value)
-												}
-											/>
-										</div>
-										<div>
-											<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Vaccinations
-											</p>
-											<ChipGroup
-												options={vaccineOptions}
-												selected={draft.vaccines}
-												onToggle={(value) =>
-													toggleMultiValue("vaccines", value)
-												}
-											/>
-										</div>
-									</div>
-								</div>
-
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<CategoryHeader
-										title="Social"
-										description="Public handles and usernames"
-										icon={AtSign}
-									/>
-									<div className="grid gap-4 md:grid-cols-3">
-										<div>
-											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Insta username
-											</label>
-											<input
-												type="text"
-												value={draft.instagram}
-												onChange={(event) =>
-													handleDraftChange("instagram", event.target.value)
-												}
-												className="input-field"
-												placeholder="username"
-											/>
-										</div>
-										<div>
-											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												X handle
-											</label>
-											<input
-												type="text"
-												value={draft.twitter}
-												onChange={(event) =>
-													handleDraftChange("twitter", event.target.value)
-												}
-												className="input-field"
-												placeholder="username"
-											/>
-										</div>
-										<div>
-											<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
-												Facebook username
-											</label>
-											<input
-												type="text"
-												value={draft.facebook}
-												onChange={(event) =>
-													handleDraftChange("facebook", event.target.value)
-												}
-												className="input-field"
-												placeholder="username"
-											/>
-										</div>
-									</div>
-								</div>
-								<div className="grid gap-4">
-									<div className="surface-card rounded-3xl p-4 sm:p-5">
-										<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-											Other Information
-										</p>
-										<div className="mt-4 grid gap-3">
-											<div className="flex items-center justify-between gap-3">
-												<span className="text-sm text-[var(--text-muted)]">
-													User ID
-												</span>
-												<span className="text-sm font-semibold">
-													{profile?.profileId ?? userId ?? "Unknown"}
-												</span>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
+							<ProfileEditorFormSections
+								draft={draft}
+								onDraftChange={handleDraftChange}
+								onToggleMultiValue={toggleMultiValue}
+								displayNameError={displayNameError}
+								aboutMeError={aboutMeError}
+								tagList={tagList}
+								photoSlots={photoSlots}
+								profilePhotoHashes={profilePhotoHashes}
+								isSavingPhotos={isSavingPhotos}
+								isUploadingPhoto={isUploadingPhoto}
+								onUploadPhoto={handleUploadPhoto}
+								onSetPrimaryPhoto={handleSetPrimaryPhoto}
+								onRemovePhoto={handleRemovePhoto}
+								profileId={profile?.profileId ?? userId}
+								ethnicityOptions={ethnicityOptions}
+								bodyTypeOptions={bodyTypeOptions}
+								positionOptions={positionOptions}
+								relationshipStatusOptions={relationshipStatusOptions}
+								tribeOptions={tribeOptions}
+								lookingForOptions={lookingForOptions}
+								meetAtOptions={meetAtOptions}
+								nsfwOptions={nsfwOptions}
+								genderOptions={genderOptions}
+								pronounOptions={pronounOptions}
+								hivStatusOptions={hivStatusOptions}
+								sexualHealthOptions={sexualHealthOptions}
+								vaccineOptions={vaccineOptions}
+							/>
 
 							<aside className="grid gap-4 lg:sticky lg:top-4">
 								<div className="surface-card rounded-3xl p-4 sm:p-5">
 									<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Quick Actions
+										{t("profile_editor.actions.title")}
 									</p>
 									<div className="mt-3 grid gap-2.5">
 										<button
@@ -1643,7 +706,9 @@ export function ProfileEditorPage() {
 											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed"
 										>
 											<Save className="h-4 w-4" />
-											{isSaving ? "Saving..." : "Save changes"}
+											{isSaving
+												? t("profile_editor.actions.saving")
+												: t("profile_editor.actions.save")}
 										</button>
 										<button
 											type="button"
@@ -1652,11 +717,11 @@ export function ProfileEditorPage() {
 											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<RefreshCw className="h-4 w-4" />
-											Reset draft
+											{t("profile_editor.actions.reset")}
 										</button>
 									</div>
 									<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-										Your changes stay local until you press Save.
+										{t("profile_editor.actions.footer")}
 									</p>
 								</div>{" "}
 							</aside>
@@ -1670,7 +735,7 @@ export function ProfileEditorPage() {
 						onClick={handleLogout}
 						className="btn-accent min-h-11 px-4 py-2.5 font-semibold"
 					>
-						Logout
+						{t("settings.logout")}
 					</button>
 				</div>
 			</div>

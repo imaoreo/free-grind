@@ -3,6 +3,7 @@ import { BrowseCardTile } from "./BrowseCardTile";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { cn } from "../../../../utils/cn";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	EmptyState,
 	ErrorState,
@@ -32,6 +33,7 @@ export function BrowseGrid({
 	isLoadingMore,
 	onLoadMore,
 }: BrowseGridProps) {
+	const { t } = useTranslation();
 	const { mobileGridColumns } = usePreferences();
 	const [isDesktop, setIsDesktop] = useState(() => {
 		if (typeof window === "undefined") {
@@ -63,8 +65,8 @@ export function BrowseGrid({
 			/* Padding applied to maintain header alignment for non-grid states */
 			<div className="w-full px-[var(--app-px)]">
 				<LoadingState
-					title="Loading nearby profiles"
-					description="Fetching your local browse feed."
+					title={t("browse_page.loading_nearby")}
+					description={t("browse_page.fetching_feed")}
 				/>
 			</div>
 		);
@@ -75,7 +77,7 @@ export function BrowseGrid({
 			/* Padding applied to maintain header alignment for non-grid states */
 			<div className="w-full px-[var(--app-px)]">
 				<ErrorState
-					title="Could not load browse feed"
+					title={t("browse_page.error_load_feed")}
 					description={cardsError ?? undefined}
 				/>
 			</div>
@@ -87,8 +89,8 @@ export function BrowseGrid({
 			/* Padding applied to maintain header alignment for non-grid states */
 			<div className="w-full px-[var(--app-px)]">
 				<EmptyState
-					title="No nearby profiles returned"
-					description="Try refreshing the feed after updating your location."
+					title={t("browse_page.empty_title")}
+					description={t("browse_page.empty_desc")}
 				/>
 			</div>
 		);
@@ -125,7 +127,7 @@ export function BrowseGrid({
 					<LoadMoreButton
 						onClick={onLoadMore}
 						loading={isLoadingMore}
-						loadingLabel="Loading"
+						loadingLabel={t("browse_page.loading")}
 					/>
 				</div>
 			)}

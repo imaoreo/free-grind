@@ -14,3 +14,4 @@ src-tauri/certs/*.jks
 secrets
 frontend.tar.gz
 frontend.tar.gz.sig
+src-tauri/gen/

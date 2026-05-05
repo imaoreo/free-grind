@@ -1,9 +1,11 @@
 import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { sexualPositionLabels } from "../../types/grid";
+import { useTranslation } from "react-i18next";
+import { getSexualPositionOptions } from "./profile-option-builders";
 import type { InboxFilterKey } from "../../types/chat-page";
 import { Slider } from "../../components/ui/range-slider";
+
 
 type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -14,14 +16,6 @@ type ChatFiltersDraft = {
 	distanceMeters: string;
 	positions: number[];
 };
-
-const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
-	{ key: "unreadOnly", label: "Unread" },
-	{ key: "favoritesOnly", label: "Favorites" },
-	{ key: "chemistryOnly", label: "Chemistry" },
-	{ key: "rightNowOnly", label: "Right now" },
-	{ key: "onlineNowOnly", label: "Online" },
-];
 
 const defaultChatFiltersDraft: ChatFiltersDraft = {
 	unreadOnly: false,
@@ -89,6 +83,7 @@ function parseDraftFromLocationState(state: unknown): {
 }
 
 export function ChatFiltersPage() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const initialState = useMemo(
@@ -96,6 +91,13 @@ export function ChatFiltersPage() {
 		[location.state],
 	);
 	const [filters, setFilters] = useState<ChatFiltersDraft>(initialState.draft);
+	const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
+		{ key: "unreadOnly", label: t("chat_filters.options.unread") },
+		{ key: "favoritesOnly", label: t("browse_filters.options.favorites") },
+		{ key: "chemistryOnly", label: t("chat_filters.options.chemistry") },
+		{ key: "rightNowOnly", label: t("browse_filters.options.right_now") },
+		{ key: "onlineNowOnly", label: t("browse_filters.options.online") },
+	];
 
 	// Distance Slider mapping logic:
 	// We map the string meter value from state to an index in distanceSteps.
@@ -106,13 +108,13 @@ export function ChatFiltersPage() {
 
 	const positionFilterOptions = useMemo(
 		() => [
-			{ value: -1, label: "Not specified" },
-			...Object.entries(sexualPositionLabels).map(([value, label]) => ({
-				value: Number(value),
-				label,
+			{ value: -1, label: t("browse_filters.not_specified") },
+			...getSexualPositionOptions(t).map((option) => ({
+				value: option.value,
+				label: option.label,
 			})),
 		],
-		[],
+		[t],
 	);
 
 	const toggleFilter = (key: InboxFilterKey) => {
@@ -148,13 +150,13 @@ export function ChatFiltersPage() {
 							type="button"
 							onClick={() => navigate(-1)}
 							className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							aria-label="Back"
+							aria-label={t("chat_filters.back")}
 						>
 							<ArrowLeft className="h-4 w-4" />
 						</button>
 						<div>
-							<h1 className="app-title">Chat Filters</h1>
-							<p className="app-subtitle">Refine which conversations appear in inbox</p>
+							<h1 className="app-title">{t("chat_filters.title")}</h1>
+							<p className="app-subtitle">{t("chat_filters.subtitle")}</p>
 						</div>
 					</div>
 					<button
@@ -162,14 +164,14 @@ export function ChatFiltersPage() {
 						onClick={applyAndReturn}
 						className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 					>
-						Apply
+						{t("browse_filters.apply")}
 					</button>
 				</header>
 
 				<div className="surface-card space-y-4 p-4 sm:p-5">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Quick filters
+							{t("browse_filters.quick_filters")}
 						</p>
 						<div className="mt-2 flex flex-wrap gap-2">
 							{inboxFilterOptions.map((filter) => {
@@ -193,7 +195,7 @@ export function ChatFiltersPage() {
 					</div>
 
 					<Slider
-						label="Max distance"
+						label={t("chat_filters.max_distance")}
 						min={0}
 						max={distanceSteps.length - 1}
 						defaultValue={displayDistanceIndex}
@@ -211,7 +213,7 @@ export function ChatFiltersPage() {
 
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Sexual position
+							{t("profile_editor.sections.states.position")}
 						</p>
 						<div className="mt-2 flex flex-wrap gap-2">
 								{positionFilterOptions.map(({ value: positionId, label }) => {
@@ -240,14 +242,14 @@ export function ChatFiltersPage() {
 							onClick={() => setFilters(defaultChatFiltersDraft)}
 							className="rounded-lg border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						>
-							Clear all
+							{t("browse_filters.clear_all")}
 						</button>
 						<button
 							type="button"
 							onClick={applyAndReturn}
 							className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 						>
-							Apply
+							{t("browse_filters.apply")}
 						</button>
 					</div>
 				</div>

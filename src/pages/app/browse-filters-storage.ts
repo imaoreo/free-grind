@@ -11,6 +11,14 @@ export type BrowseFilters = {
 	hot: boolean;
 };
 
+export type BrowseSortOption =
+	| "default"
+	| "distance"
+	| "age-asc"
+	| "age-desc"
+	| "popular"
+	| "name";
+
 export const defaultBrowseFilters: BrowseFilters = {
 	onlineOnly: false,
 	hasAlbum: false,
@@ -25,6 +33,7 @@ export const defaultBrowseFilters: BrowseFilters = {
 };
 
 export type BrowseFiltersDraft = {
+	sortBy: BrowseSortOption;
 	browseFilters: BrowseFilters;
 	ageMin: string;
 	ageMax: string;
@@ -43,6 +52,7 @@ export type BrowseFiltersDraft = {
 };
 
 type BrowseFiltersDraftInput = {
+	sortBy?: BrowseSortOption;
 	browseFilters?: Partial<BrowseFilters>;
 	ageMin?: string;
 	ageMax?: string;
@@ -72,6 +82,7 @@ function isStringArray(value: unknown): value is string[] {
 
 export function getDefaultBrowseFiltersDraft(): BrowseFiltersDraft {
 	return {
+		sortBy: "default",
 		browseFilters: { ...defaultBrowseFilters },
 		ageMin: "",
 		ageMax: "",
@@ -97,6 +108,15 @@ export function normalizeBrowseFiltersDraft(
 	const draft = input ?? {};
 
 	return {
+		sortBy:
+			draft.sortBy === "default" ||
+			draft.sortBy === "distance" ||
+			draft.sortBy === "age-asc" ||
+			draft.sortBy === "age-desc" ||
+			draft.sortBy === "popular" ||
+			draft.sortBy === "name"
+				? draft.sortBy
+				: defaults.sortBy,
 		browseFilters: {
 			...defaultBrowseFilters,
 			...(draft.browseFilters ?? {}),

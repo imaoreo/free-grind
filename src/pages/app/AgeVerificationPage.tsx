@@ -6,29 +6,12 @@ import { Button } from "../../components/ui/button";
 import { Card } from "../../components/ui/card";
 import { LoadingState, ErrorState } from "../../components/ui/states";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useTranslation } from "react-i18next";
 import type {
 	AgeVerificationFaceTecResponse,
 	AgeVerificationOptions,
 	VerificationStep,
 } from "../../types/age-verification";
-
-const METHOD_LABELS: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
-	liveness3d: {
-		label: "Face Liveness Check",
-		description: "Use your camera to verify your age with a 3D face scan.",
-		icon: <ScanFace className="h-5 w-5" />,
-	},
-	enrollment: {
-		label: "Face Enrollment",
-		description: "Enroll your face biometrics for age verification.",
-		icon: <Fingerprint className="h-5 w-5" />,
-	},
-	document: {
-		label: "Photo ID",
-		description: "Verify your age by submitting a government-issued photo ID.",
-		icon: <ShieldCheck className="h-5 w-5" />,
-	},
-};
 
 /**
  * Builds the FaceTec user agent string per the API specification.
@@ -41,6 +24,7 @@ function buildFaceTecUserAgent(sdkVersion: string): string {
 }
 
 export function AgeVerificationPage() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const {
 		getAgeVerificationOptions,
@@ -56,6 +40,27 @@ export function AgeVerificationPage() {
 	const [result, setResult] = useState<AgeVerificationFaceTecResponse | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+	const methodLabels: Record<
+		string,
+		{ label: string; description: string; icon: React.ReactNode }
+	> = {
+		liveness3d: {
+			label: t("age_verification.methods.liveness3d.label"),
+			description: t("age_verification.methods.liveness3d.description"),
+			icon: <ScanFace className="h-5 w-5" />,
+		},
+		enrollment: {
+			label: t("age_verification.methods.enrollment.label"),
+			description: t("age_verification.methods.enrollment.description"),
+			icon: <Fingerprint className="h-5 w-5" />,
+		},
+		document: {
+			label: t("age_verification.methods.document.label"),
+			description: t("age_verification.methods.document.description"),
+			icon: <ShieldCheck className="h-5 w-5" />,
+		},
+	};
+
 	const loadOptions = useCallback(async () => {
 		setStep("loading-options");
 		setErrorMessage(null);
@@ -64,10 +69,14 @@ export function AgeVerificationPage() {
 			setOptions(opts);
 			setStep("select-method");
 		} catch (err) {
-			setErrorMessage(err instanceof Error ? err.message : "Failed to load verification options.");
+			setErrorMessage(
+				err instanceof Error
+					? err.message
+					: t("age_verification.errors.load_options"),
+			);
 			setStep("error");
 		}
-	}, [getAgeVerificationOptions]);
+	}, [getAgeVerificationOptions, t]);
 
 	useEffect(() => {
 		void loadOptions();
@@ -81,7 +90,11 @@ export function AgeVerificationPage() {
 			setSessionId(session.sessionId);
 			setStep("face-scan");
 		} catch (err) {
-			setErrorMessage(err instanceof Error ? err.message : "Failed to start verification session.");
+			setErrorMessage(
+				err instanceof Error
+					? err.message
+					: t("age_verification.errors.start_session"),
+			);
 			setStep("error");
 		}
 	}
@@ -112,7 +125,11 @@ export function AgeVerificationPage() {
 			setResult(res);
 			setStep("success");
 		} catch (err) {
-			setErrorMessage(err instanceof Error ? err.message : "Verification failed. Please try again.");
+			setErrorMessage(
+				err instanceof Error
+					? err.message
+					: t("age_verification.errors.verification_failed"),
+			);
 			setStep("error");
 		}
 	}
@@ -123,18 +140,18 @@ export function AgeVerificationPage() {
 		<section className="app-screen">
 			<header className="mb-6">
 				<BackToSettings />
-				<h1 className="app-title">Age Verification</h1>
-				<p className="app-subtitle">Confirm your age to access all features.</p>
+				<h1 className="app-title">{t("age_verification.title")}</h1>
+				<p className="app-subtitle">{t("age_verification.subtitle")}</p>
 			</header>
 
 			<div className="grid gap-4">
 				{step === "loading-options" && (
-					<LoadingState title="Loading verification options…" />
+					<LoadingState title={t("age_verification.loading_options")} />
 				)}
 
 				{step === "error" && (
 					<ErrorState
-						title="Verification unavailable"
+						title={t("age_verification.unavailable")}
 						description={errorMessage ?? undefined}
 						onRetry={() => void loadOptions()}
 					/>
@@ -145,14 +162,14 @@ export function AgeVerificationPage() {
 						{availableMethods.length === 0 ? (
 							<Card className="p-5 sm:p-6">
 								<p className="text-sm text-[var(--text-muted)]">
-									No verification methods are currently available. Please try again later.
+									{t("age_verification.no_methods")}
 								</p>
 							</Card>
 						) : (
 							availableMethods.map((method) => {
-								const meta = METHOD_LABELS[method] ?? {
+								const meta = methodLabels[method] ?? {
 									label: method,
-									description: "Verify your age using this method.",
+									description: t("age_verification.methods.default_description"),
 									icon: <ShieldCheck className="h-5 w-5" />,
 								};
 								return (
@@ -181,7 +198,7 @@ export function AgeVerificationPage() {
 				)}
 
 				{step === "starting-session" && (
-					<LoadingState title="Starting verification session…" />
+					<LoadingState title={t("age_verification.starting_session")} />
 				)}
 
 				{step === "face-scan" && selectedMethod && (
@@ -192,21 +209,23 @@ export function AgeVerificationPage() {
 							</div>
 							<div>
 								<p className="text-base font-semibold">
-									{METHOD_LABELS[selectedMethod]?.label ?? selectedMethod}
+									{methodLabels[selectedMethod]?.label ?? selectedMethod}
 								</p>
-								<p className="text-sm text-[var(--text-muted)]">Session ready</p>
+								<p className="text-sm text-[var(--text-muted)]">
+									{t("age_verification.session_ready")}
+								</p>
 							</div>
 						</div>
 
 						<p className="mb-1 text-sm text-[var(--text-muted)]">
-							Session ID:{" "}
+							{t("age_verification.session_id")}: {" "}
 							<span className="font-mono text-xs break-all">{sessionId}</span>
 						</p>
 
 						<p className="mb-5 text-sm text-[var(--text-muted)]">
 							{selectedMethod === "liveness3d" || selectedMethod === "enrollment"
-								? "Your camera will be used to perform a 3D liveness check. Make sure you're in a well-lit environment."
-								: "Follow the on-screen steps to complete your verification."}
+								? t("age_verification.camera_guidance")
+								: t("age_verification.generic_guidance")}
 						</p>
 
 						<div className="flex gap-3">
@@ -217,21 +236,24 @@ export function AgeVerificationPage() {
 								onClick={() => void handleStartFaceScan()}
 								className="flex-1"
 							>
-								Start Scan
+								{t("age_verification.start_scan")}
 							</Button>
 							<Button
 								variant="ghost"
 								size="md"
 								onClick={() => setStep("select-method")}
 							>
-								Cancel
+								{t("age_verification.cancel")}
 							</Button>
 						</div>
 					</Card>
 				)}
 
 				{step === "submitting" && (
-					<LoadingState title="Submitting verification…" description="Please wait while your identity is being verified." />
+					<LoadingState
+						title={t("age_verification.submitting")}
+						description={t("age_verification.submitting_description")}
+					/>
 				)}
 
 				{step === "success" && result && (
@@ -239,14 +261,17 @@ export function AgeVerificationPage() {
 						<div className="flex items-center gap-3 mb-4">
 							<CheckCircle2 className="h-6 w-6 text-green-500 shrink-0" />
 							<div>
-								<p className="text-base font-semibold">Verification submitted</p>
+								<p className="text-base font-semibold">
+									{t("age_verification.submitted")}
+								</p>
 								<p className="text-sm text-[var(--text-muted)]">
-									Status: <span className="font-mono">{result.status}</span>
+									{t("age_verification.status")}: {" "}
+									<span className="font-mono">{result.status}</span>
 								</p>
 							</div>
 						</div>
 						<p className="text-sm text-[var(--text-muted)] mb-5">
-							Your age verification request has been submitted successfully. It may take a moment to process.
+							{t("age_verification.submitted_description")}
 						</p>
 						<Button
 							variant="secondary"
@@ -254,7 +279,7 @@ export function AgeVerificationPage() {
 							onClick={() => navigate("/settings")}
 							className="w-full"
 						>
-							Back to Settings
+							{t("age_verification.back_to_settings")}
 						</Button>
 					</Card>
 				)}
@@ -263,7 +288,9 @@ export function AgeVerificationPage() {
 					<Card className="p-5 sm:p-6">
 						<div className="flex items-center gap-3 mb-4">
 							<CheckCircle2 className="h-6 w-6 text-green-500 shrink-0" />
-							<p className="text-base font-semibold">Verification complete</p>
+							<p className="text-base font-semibold">
+								{t("age_verification.complete")}
+							</p>
 						</div>
 						<Button
 							variant="secondary"
@@ -271,7 +298,7 @@ export function AgeVerificationPage() {
 							onClick={() => navigate("/settings")}
 							className="w-full"
 						>
-							Back to Settings
+							{t("age_verification.back_to_settings")}
 						</Button>
 					</Card>
 				)}

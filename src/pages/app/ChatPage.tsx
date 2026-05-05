@@ -1,17 +1,7 @@
 import {
-	Album,
 	ChevronLeft,
 	ChevronRight,
-	Ellipsis,
-	ImagePlus,
 	Loader2,
-	MessageCircle,
-	Pin,
-	Search,
-	Share2,
-	SlidersHorizontal,
-	Volume2,
-	VolumeX,
 	X,
 } from "lucide-react";
 import {
@@ -23,6 +13,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
 	useLocation,
 	useNavigate,
@@ -30,11 +21,15 @@ import {
 	useSearchParams,
 } from "react-router-dom";
 import toast from "react-hot-toast";
-import { useApi } from "../../hooks/useApi";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useAuth } from "../../contexts/AuthContext";
+import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
+import { useAuth } from "../../contexts/useAuth";
 import { type ChatApiError } from "../../services/chatService";
-import { ChatRealtimeManager } from "../../services/chatRealtime";
+import { setConversationDirectory } from "../../services/conversationDirectory";
+import {
+	CHAT_REALTIME_EVENT,
+	CHAT_REALTIME_STATUS,
+} from "../../components/ChatRealtimeBridge";
 import {
 	messageSchema,
 	type ConversationEntry,
@@ -48,564 +43,34 @@ import type {
 	UiMessage,
 } from "../../types/chat-page";
 import {
-	getProfileImageUrl,
-	getThumbImageUrl,
-	validateMediaHash,
-} from "../../utils/media";
-import { Avatar } from "../../components/ui/avatar";
-import blankProfileImage from "../../images/blank-profile.png";
-import {
 	indexConversations,
 	indexMessages,
 	searchMessagesLocal,
 } from "./chat/cache";
-import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 import { ChatSearchPage } from "./ChatSearchPage";
+import { ChatInboxPanel } from "./chat/ChatInboxPanel";
+import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import * as chatLog from "../../services/chatLog";
-import { formatDistance } from "./gridpage/utils";
+import {
+	buildBinaryUpload,
+	extractImageHashFromSignedUrl,
+	getMessageImageUrl,
+	getMessageMediaId,
+	getMessagePreviewLabel,
+	getOtherParticipant,
+	isLocalClientMessageId,
+	parseChatFiltersFromLocationState,
+	useDesktopBreakpoint,
+} from "./chat/chatUtils";
+import { appLog } from "../../utils/logger";
 
-type ChatFiltersDraft = {
-	unreadOnly: boolean;
-	chemistryOnly: boolean;
-	favoritesOnly: boolean;
-	rightNowOnly: boolean;
-	onlineNowOnly: boolean;
-	distanceMeters: string;
-	positions: number[];
-};
-
-function isNumberArray(value: unknown): value is number[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "number");
-}
-
-function buildChatFiltersDraft(filters: InboxFilters): ChatFiltersDraft {
-	return {
-		unreadOnly: filters.unreadOnly === true,
-		chemistryOnly: filters.chemistryOnly === true,
-		favoritesOnly: filters.favoritesOnly === true,
-		rightNowOnly: filters.rightNowOnly === true,
-		onlineNowOnly: filters.onlineNowOnly === true,
-		distanceMeters:
-			typeof filters.distanceMeters === "number"
-				? String(filters.distanceMeters)
-				: "",
-		positions: filters.positions ?? [],
-	};
-}
-
-function parseChatFiltersFromLocationState(state: unknown): InboxFilters | null {
-	const safe =
-		typeof state === "object" && state !== null
-			? (state as { inboxFiltersDraft?: Partial<ChatFiltersDraft> })
-			: {};
-	const draft = safe.inboxFiltersDraft;
-
-	if (!draft) {
-		return null;
-	}
-
-	const distanceMeters =
-		typeof draft.distanceMeters === "string" && draft.distanceMeters.trim() !== ""
-			? Number(draft.distanceMeters)
-			: undefined;
-
-	return {
-		unreadOnly: draft.unreadOnly === true ? true : undefined,
-		chemistryOnly: draft.chemistryOnly === true ? true : undefined,
-		favoritesOnly: draft.favoritesOnly === true ? true : undefined,
-		rightNowOnly: draft.rightNowOnly === true ? true : undefined,
-		onlineNowOnly: draft.onlineNowOnly === true ? true : undefined,
-		positions:
-			isNumberArray(draft.positions) && draft.positions.length > 0
-				? draft.positions
-				: undefined,
-		distanceMeters:
-			typeof distanceMeters === "number" && Number.isFinite(distanceMeters)
-				? distanceMeters
-				: undefined,
-	};
-}
-
-const inboxRelativeTime = new Intl.RelativeTimeFormat(undefined, {
-	numeric: "auto",
-});
-
-async function buildBinaryUpload(file: File): Promise<{
-	body: Uint8Array;
-	contentType: string;
-}> {
-	const fileBytes = new Uint8Array(await file.arrayBuffer());
-	return {
-		body: fileBytes,
-		contentType: file.type || "application/octet-stream",
-	};
-}
-
-function formatConversationTime(timestamp: number | null | undefined): string {
-	if (!timestamp) {
-		return "";
-	}
-
-	const now = Date.now();
-	const diffMs = timestamp - now;
-	const minuteMs = 60 * 1000;
-	const hourMs = 60 * minuteMs;
-	const dayMs = 24 * hourMs;
-
-	if (Math.abs(diffMs) < hourMs) {
-		return inboxRelativeTime.format(Math.round(diffMs / minuteMs), "minute");
-	}
-
-	if (Math.abs(diffMs) < dayMs) {
-		return inboxRelativeTime.format(Math.round(diffMs / hourMs), "hour");
-	}
-
-	if (Math.abs(diffMs) < dayMs * 7) {
-		return inboxRelativeTime.format(Math.round(diffMs / dayMs), "day");
-	}
-
-	return new Date(timestamp).toLocaleDateString();
-}
-
-function formatMessageTime(timestamp: number, now: number): string {
-	const diffMs = now - timestamp;
-	const minuteMs = 60 * 1000;
-	const hourMs = 60 * minuteMs;
-
-	if (diffMs < hourMs) {
-		const minsAgo = Math.max(0, Math.floor(diffMs / minuteMs));
-		if (minsAgo <= 1) {
-			return "1 min ago";
-		}
-		return `${minsAgo} mins ago`;
-	}
-
-	return new Date(timestamp).toLocaleTimeString([], {
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
-
-function getPreviewText(conversation: ConversationEntry): string {
-	const preview = conversation.data.preview;
-	if (!preview) {
-		return "No messages yet";
-	}
-
-	if (preview.text?.trim()) {
-		return preview.text;
-	}
-
-	switch (preview.type) {
-		case "Image":
-		case "ExpiringImage":
-			return "Sent an image";
-		case "Album":
-		case "ExpiringAlbum":
-		case "ExpiringAlbumV2":
-			return "Shared an album";
-		case "Audio":
-			return "Sent an audio message";
-		case "AlbumContentReaction":
-			return "Reacted to album content";
-		case "Video":
-			return "Sent a video";
-		default:
-			return "Sent a message";
-	}
-}
-
-function getMessagePreviewLabel(message: Message): string {
-	if (
-		typeof (message.body as Record<string, unknown> | null)?.text === "string"
-	) {
-		return String((message.body as Record<string, unknown>).text);
-	}
-
-	switch (message.type) {
-		case "Image":
-		case "ExpiringImage":
-			return "Sent an image";
-		case "Album":
-		case "ExpiringAlbum":
-		case "ExpiringAlbumV2":
-			return "Shared an album";
-		case "Audio":
-			return "Sent an audio message";
-		case "AlbumContentReaction":
-			return "Reacted to album content";
-		case "Video":
-			return "Sent a video";
-		default:
-			return "Sent a message";
-	}
-}
-
-function getMessageText(message: UiMessage): string {
-	if (!message.body || typeof message.body !== "object") {
-		if (message.unsent) {
-			return "This message was unsent";
-		}
-		if (message.type === "Image" || message.type === "ExpiringImage") {
-			return "[image]";
-		}
-		if (message.type === "Video") {
-			return "[video]";
-		}
-		if (message.type === "Audio") {
-			return "[audio]";
-		}
-		return "[unsupported message]";
-	}
-
-	const body = message.body as Record<string, unknown>;
-	if (typeof body.text === "string" && body.text.trim().length > 0) {
-		return body.text;
-	}
-
-	if (
-		message.type === "Album" ||
-		message.type === "ExpiringAlbum" ||
-		message.type === "ExpiringAlbumV2"
-	) {
-		return "Shared an album";
-	}
-
-	if (message.type === "Image" || message.type === "ExpiringImage") {
-		return "Shared an image";
-	}
-
-	if (message.type === "Video") {
-		return "Shared a video";
-	}
-
-	if (message.type === "Audio") {
-		return "Shared an audio message";
-	}
-
-	if (message.type === "AlbumContentReaction") {
-		return "Reacted to album content";
-	}
-
-	return `[${message.type}]`;
-}
-
-function getMessageImageUrl(message: UiMessage): string | null {
-	const imageType = message.chat1Type?.toLowerCase();
-	const isImageMessage =
-		message.type === "Image" ||
-		message.type === "ExpiringImage" ||
-		imageType === "image" ||
-		imageType === "expiring_image";
-
-	if (!isImageMessage) {
-		return null;
-	}
-
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-
-	const body = message.body as Record<string, unknown>;
-	const imageRecord =
-		typeof body.image === "object" && body.image
-			? (body.image as Record<string, unknown>)
-			: null;
-
-	const collectStringValues = (
-		value: unknown,
-		depth: number,
-		out: string[],
-	): void => {
-		if (depth > 3) {
-			return;
-		}
-
-		if (typeof value === "string") {
-			const trimmed = value.trim();
-			if (trimmed.length > 0) {
-				out.push(trimmed);
-			}
-			return;
-		}
-
-		if (!value || typeof value !== "object") {
-			return;
-		}
-
-		if (Array.isArray(value)) {
-			for (const item of value) {
-				collectStringValues(item, depth + 1, out);
-			}
-			return;
-		}
-
-		for (const nested of Object.values(value)) {
-			collectStringValues(nested, depth + 1, out);
-		}
-	};
-
-	const normalizeUrlCandidate = (candidate: string): string | null => {
-		if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
-			return candidate;
-		}
-
-		if (candidate.startsWith("/")) {
-			return `https://cdns.grindr.com${candidate}`;
-		}
-
-		// Some payloads return CloudFront path without scheme.
-		if (candidate.startsWith("d2wxe7lth7kp8g.cloudfront.net/")) {
-			return `https://${candidate}`;
-		}
-
-		return null;
-	};
-	const urlCandidates: unknown[] = [
-		body.url,
-		body.imageUrl,
-		body.mediaUrl,
-		body.previewUrl,
-		body.thumbUrl,
-		body.signedUrl,
-		body.cdnUrl,
-		body.urlPath,
-		imageRecord?.url,
-		imageRecord?.imageUrl,
-		imageRecord?.mediaUrl,
-		imageRecord?.thumbUrl,
-		imageRecord?.previewUrl,
-		imageRecord?.signedUrl,
-		imageRecord?.cdnUrl,
-	];
-
-	for (const candidate of urlCandidates) {
-		if (typeof candidate === "string" && candidate.length > 0) {
-			const normalized = normalizeUrlCandidate(candidate);
-			if (normalized) {
-				console.log("Found image URL candidate:", { candidate, normalized });
-				return normalized;
-			}
-		}
-	}
-
-	const discoveredStrings: string[] = [];
-	collectStringValues(body, 0, discoveredStrings);
-	for (const value of discoveredStrings) {
-		const normalized = normalizeUrlCandidate(value);
-		if (normalized) {
-			return normalized;
-		}
-	}
-
-	const hashCandidates: unknown[] = [
-		body.imageHash,
-		body.mediaHash,
-		body.hash,
-		body.fileCacheKey,
-		imageRecord?.imageHash,
-		imageRecord?.mediaHash,
-		imageRecord?.hash,
-		imageRecord?.fileCacheKey,
-	];
-
-	for (const hashCandidate of hashCandidates) {
-		if (typeof hashCandidate !== "string") {
-			continue;
-		}
-
-		const normalized = hashCandidate.trim();
-		if (!normalized) {
-			continue;
-		}
-
-		if (validateMediaHash(normalized)) {
-			return getThumbImageUrl(normalized, "480x480");
-		}
-
-		// Fallback: some payloads send non-canonical hash-like values.
-		if (/^[a-z0-9_-]{16,}$/i.test(normalized)) {
-			return getThumbImageUrl(normalized, "480x480");
-		}
-	}
-
-	return null;
-}
-
-function getMessageMediaId(message: UiMessage): number | null {
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-
-	const body = message.body as Record<string, unknown>;
-	const candidate = body.mediaId;
-	if (typeof candidate === "number" && Number.isFinite(candidate)) {
-		return candidate;
-	}
-	if (typeof candidate === "string" && candidate.trim().length > 0) {
-		const parsed = Number(candidate);
-		return Number.isFinite(parsed) ? parsed : null;
-	}
-
-	return null;
-}
-
-function extractImageHashFromSignedUrl(url: string): string | null {
-	try {
-		const parsed = new URL(url);
-		const pathParts = parsed.pathname.split("/").filter(Boolean);
-		// Chat media URL format is typically /{uploaderProfileId}/{mediaHash}
-		const hashCandidate = pathParts[pathParts.length - 1] ?? "";
-		if (!hashCandidate) {
-			return null;
-		}
-		if (validateMediaHash(hashCandidate)) {
-			return hashCandidate;
-		}
-		return /^[a-z0-9_-]{16,}$/i.test(hashCandidate) ? hashCandidate : null;
-	} catch {
-		return null;
-	}
-}
-
-function getMessageAudioUrl(message: UiMessage): string | null {
-	const isAudioMessage =
-		message.type === "Audio" || message.chat1Type?.toLowerCase() === "audio";
-	if (!isAudioMessage) {
-		return null;
-	}
-
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-
-	const body = message.body as Record<string, unknown>;
-	const candidates: unknown[] = [
-		body.audioUrl,
-		body.url,
-		body.mediaUrl,
-		(body.audio as Record<string, unknown> | null)?.url,
-	];
-
-	for (const candidate of candidates) {
-		if (typeof candidate === "string" && candidate.length > 0) {
-			return candidate;
-		}
-	}
-
-	return null;
-}
-
-function getMessageVideoUrl(message: UiMessage): string | null {
-	const mediaType = message.chat1Type?.toLowerCase();
-	const isVideoMessage = message.type === "Video" || mediaType === "video";
-	if (!isVideoMessage) {
-		return null;
-	}
-
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-
-	const body = message.body as Record<string, unknown>;
-	const candidates: unknown[] = [
-		body.videoUrl,
-		body.url,
-		body.mediaUrl,
-		body.signedUrl,
-		(body.video as Record<string, unknown> | null)?.url,
-	];
-
-	for (const candidate of candidates) {
-		if (typeof candidate === "string" && candidate.length > 0) {
-			console.log("Found video URL candidate:", { candidate });
-			return candidate;
-		}
-	}
-
-	return null;
-}
-
-function getParticipantAvatarUrl(hash: string | null | undefined): string {
-	if (!hash || !validateMediaHash(hash)) {
-		return blankProfileImage;
-	}
-
-	return getProfileImageUrl(hash);
-}
-
-function isLocalClientMessageId(messageId: string): boolean {
-	return (
-		messageId.startsWith("local:") || messageId.startsWith("local-upload:")
-	);
-}
-
-function getMessageAlbumId(message: UiMessage): number | null {
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-	const body = message.body as Record<string, unknown>;
-	const rawAlbumId = body.albumId;
-	const parsed =
-		typeof rawAlbumId === "number"
-			? rawAlbumId
-			: typeof rawAlbumId === "string"
-				? Number(rawAlbumId)
-				: NaN;
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getMessageAlbumCoverUrl(message: UiMessage): string | null {
-	if (!message.body || typeof message.body !== "object") {
-		return null;
-	}
-	const body = message.body as Record<string, unknown>;
-	if (typeof body.coverUrl === "string" && body.coverUrl.length > 0) {
-		return body.coverUrl;
-	}
-	if (typeof body.previewUrl === "string" && body.previewUrl.length > 0) {
-		return body.previewUrl;
-	}
-	return null;
-}
-
-function getOtherParticipant(
-	conversation: ConversationEntry,
-	userId: number | null,
-) {
-	return (
-		conversation.data.participants.find(
-			(participant) => participant.profileId !== userId,
-		) ??
-		conversation.data.participants[0] ??
-		null
-	);
-}
-
-function useDesktopBreakpoint() {
-	const [isDesktop, setIsDesktop] = useState(() =>
-		typeof window !== "undefined"
-			? window.matchMedia("(min-width: 1024px)").matches
-			: false,
-	);
-
-	useEffect(() => {
-		const query = window.matchMedia("(min-width: 1024px)");
-		const update = () => setIsDesktop(query.matches);
-		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
-	}, []);
-
-	return isDesktop;
-}
 
 export function ChatPage() {
+	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const { callMethod } = useApi();
 	const service = useApiFunctions();
 	const { userId } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
@@ -614,6 +79,7 @@ export function ChatPage() {
 	const attachmentInputRef = useRef<HTMLInputElement | null>(null);
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const selectedConversationIdRef = useRef<string | null>(null);
+	const conversationsRef = useRef<ConversationEntry[]>([]);
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const preserveThreadScrollRef = useRef(false);
@@ -674,6 +140,7 @@ export function ChatPage() {
 		string | null
 	>(null);
 	const [threadMessages, setThreadMessages] = useState<UiMessage[]>([]);
+	const [threadLastReadTimestamp, setThreadLastReadTimestamp] = useState<number | null>(null);
 	const [messagePageKey, setMessagePageKey] = useState<string | null>(null);
 	const [isLoadingThread, setIsLoadingThread] = useState(false);
 	const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
@@ -697,6 +164,24 @@ export function ChatPage() {
 	const [reactionBurstMessageId, setReactionBurstMessageId] = useState<
 		string | null
 	>(null);
+
+	// Extract profile IDs from conversations for batch presence check
+	const conversationProfileIds = useMemo(
+		() =>
+			conversations
+				.map((conv) => {
+					const otherParticipant = getOtherParticipant(conv, userId);
+					return otherParticipant?.profileId != null
+						? String(otherParticipant.profileId)
+						: null;
+				})
+				.filter((id): id is string => id != null)
+				.slice(0, 50), // Limit to 50
+		[conversations, userId],
+	);
+	const presenceResults = usePresenceCheckBatch(
+		conversationProfileIds.length > 0 ? conversationProfileIds : null,
+	);
 	const reactionBurstTimeoutRef = useRef<number | null>(null);
 
 	const triggerReactionBurst = useCallback((messageId: string) => {
@@ -782,6 +267,10 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
+		albumId: number;
+		albumName: string;
+	} | null>(null);
 	const [albumViewer, setAlbumViewer] = useState<AlbumViewerState | null>(null);
 	const [albumViewerMediaIndex, setAlbumViewerMediaIndex] = useState<
 		number | null
@@ -801,12 +290,12 @@ export function ChatPage() {
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
 	const inboxTouchStartXRef = useRef<number | null>(null);
+	const inboxListRef = useRef<HTMLDivElement | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
-	const [websocketToken, setWebsocketToken] = useState<string | null>(null);
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");
@@ -917,6 +406,11 @@ export function ChatPage() {
 	}, [selectedConversationId]);
 
 	useEffect(() => {
+		conversationsRef.current = conversations;
+		setConversationDirectory(conversations);
+	}, [conversations]);
+
+	useEffect(() => {
 		messagePageKeyRef.current = messagePageKey;
 	}, [messagePageKey]);
 
@@ -928,6 +422,9 @@ export function ChatPage() {
 		selectedConversationUnreadCountRef.current =
 			selectedConversation?.data.unreadCount ?? 0;
 	}, [selectedConversation]);
+	useEffect(() => {
+		setPendingAlbumShare(null);
+	}, [selectedConversationId]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -1012,7 +509,7 @@ export function ChatPage() {
 					return conversation;
 				}
 
-				const text = getMessagePreviewLabel(latestMessage);
+				const text = getMessagePreviewLabel(latestMessage, t);
 
 				return {
 					...conversation,
@@ -1055,6 +552,28 @@ export function ChatPage() {
 					setConversations((previous) =>
 						previous.filter((c) => !ids.includes(c.data.conversationId)),
 					);
+				}
+				return;
+			}
+
+			if (
+				envelope.type === "chat.v1.read" &&
+				envelope.payload &&
+				typeof envelope.payload === "object"
+			) {
+				const record = envelope.payload as Record<string, unknown>;
+				const cid = record.conversationId as string | undefined;
+				const ts = Number(record.timestamp);
+				const senderId = Number(record.profileId);
+
+				if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
+					// If the other person read our messages
+					if (userId != null && senderId !== userId) {
+						if (cid === selectedConversationIdRef.current) {
+							setThreadLastReadTimestamp(ts);
+						}
+						void chatLog.appendMessages(cid, [], ts);
+					}
 				}
 				return;
 			}
@@ -1108,14 +627,14 @@ export function ChatPage() {
 
 	const handleRealtimeEvent = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			console.log("[chat-ws:event]", envelope);
+			appLog.debug("[chat-ws:event]", envelope);
 			applyRealtimeEnvelope(envelope);
 		},
 		[applyRealtimeEnvelope],
 	);
 
 	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
-		console.log("[chat-ws:status]", status);
+		appLog.debug("[chat-ws:status]", status);
 		setRealtimeStatus(status);
 	}, []);
 
@@ -1140,7 +659,7 @@ export function ChatPage() {
 			return mapped;
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to load albums",
+				error instanceof Error ? error.message : t("chat.errors.load_albums"),
 			);
 			return [];
 		} finally {
@@ -1204,7 +723,7 @@ export function ChatPage() {
 				}
 			} catch (error) {
 				const message =
-					error instanceof Error ? error.message : "Failed to load inbox";
+					error instanceof Error ? error.message : t("chat.errors.load_inbox");
 				setInboxError(message);
 			} finally {
 				setIsLoadingInbox(false);
@@ -1240,6 +759,13 @@ export function ChatPage() {
 				setIsLoadingThread(true);
 				setThreadError(null);
 				setThreadConversationId(conversationId);
+
+				// Load initial state from local log if available.
+				void chatLog.readLog(conversationId).then((localData) => {
+					if (selectedConversationIdRef.current === conversationId) {
+						setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
+					}
+				});
 			}
 
 			try {
@@ -1249,7 +775,8 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
-				const localMessages = await chatLog.readLog(conversationId);
+				const localData = await chatLog.readLog(conversationId);
+				const localMessages = localData.messages;
 				const localMessageMap = new Map(
 					localMessages.map((message) => [message.messageId, message] as const),
 				);
@@ -1275,9 +802,14 @@ export function ChatPage() {
 				});
 
 				// Persist API messages to the local log.
-				void chatLog.appendMessages(conversationId, responseMessages);
+				void chatLog.appendMessages(
+					conversationId,
+					responseMessages,
+					older ? undefined : (response.lastReadTimestamp ?? null),
+				);
 
 				if (!older) {
+					setThreadLastReadTimestamp(response.lastReadTimestamp ?? null);
 					const mediaIdImageMessages = responseMessages.filter((message) => {
 						const imageType = message.chat1Type?.toLowerCase();
 						const isImageLike =
@@ -1416,6 +948,22 @@ export function ChatPage() {
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 
+				// For fresh thread loads, imperatively scroll to the bottom once React has
+				// committed the new messages.  Two RAFs ensure layout (images etc.) has
+				// settled before measuring scrollHeight.  Guard stale-closure with ref.
+				if (!older) {
+					const targetConvId = conversationId;
+					window.requestAnimationFrame(() => {
+						window.requestAnimationFrame(() => {
+							if (selectedConversationIdRef.current !== targetConvId) return;
+							const container = threadScrollContainerRef.current;
+							if (container) {
+								container.scrollTop = container.scrollHeight;
+							}
+						});
+					});
+				}
+
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
 				if (!older && response.messages.length > 0) {
@@ -1423,7 +971,8 @@ export function ChatPage() {
 					const windowEnd =
 						response.messages[response.messages.length - 1].timestamp;
 					const apiIds = new Set(response.messages.map((m) => m.messageId));
-					void chatLog.readLog(conversationId).then(async (localMessages) => {
+					void chatLog.readLog(conversationId).then(async (localData) => {
+						const localMessages = localData.messages;
 						const localCandidates = localMessages.filter(
 							(m) =>
 								!apiIds.has(m.messageId) &&
@@ -1481,7 +1030,7 @@ export function ChatPage() {
 				if (!older) {
 					const newest = response.messages[response.messages.length - 1];
 					if (newest) {
-						const previewText = getMessagePreviewLabel(newest);
+						const previewText = getMessagePreviewLabel(newest, t);
 
 						syncConversation((conversation) => ({
 							...conversation,
@@ -1523,7 +1072,7 @@ export function ChatPage() {
 				}
 			} catch (error) {
 				const message =
-					error instanceof Error ? error.message : "Failed to load messages";
+					error instanceof Error ? error.message : t("chat.errors.load_messages");
 				setThreadError(message);
 			} finally {
 				setIsLoadingThread(false);
@@ -1533,6 +1082,23 @@ export function ChatPage() {
 		},
 		[service, syncConversation],
 	);
+
+	const scrollThreadToBottom = useCallback((attempts = 4) => {
+		const container = threadScrollContainerRef.current;
+		if (container) {
+			container.scrollTop = container.scrollHeight;
+		} else {
+			threadBottomRef.current?.scrollIntoView({ block: "end" });
+		}
+
+		if (attempts <= 1) {
+			return;
+		}
+
+		window.requestAnimationFrame(() => {
+			scrollThreadToBottom(attempts - 1);
+		});
+	}, []);
 
 	const handleThreadScroll = useCallback(() => {
 		const container = threadScrollContainerRef.current;
@@ -1544,7 +1110,7 @@ export function ChatPage() {
 			return;
 		}
 
-		if (container.scrollTop <= 40 && selectedConversationIdRef.current) {
+		if (container.scrollTop <= 150 && selectedConversationIdRef.current) {
 			void loadThread({
 				conversationId: selectedConversationIdRef.current,
 				older: true,
@@ -1563,73 +1129,24 @@ export function ChatPage() {
 	}, [isDesktop]);
 
 	useEffect(() => {
-		if (!userId) {
-			setWebsocketToken(null);
-			setRealtimeStatus("idle");
-			console.log("[chat-ws:token] skipped (no user)");
-			return;
-		}
-
-		let active = true;
-		void callMethod("websocket_token")
-			.then((token) => {
-				if (!active) {
-					return;
-				}
-				setWebsocketToken(token ?? null);
-				console.log("[chat-ws:token]", {
-					hasToken: Boolean(token),
-					tokenLength: token?.length ?? 0,
-				});
-				if (!token) {
-					setRealtimeStatus("polling");
-				}
-			})
-			.catch(() => {
-				if (!active) {
-					return;
-				}
-				setWebsocketToken(null);
-				setRealtimeStatus("polling");
-				console.warn("[chat-ws:token] failed to fetch websocket token");
-			});
-
-		return () => {
-			active = false;
+		const onEvent = (event: Event) => {
+			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
+			if (envelope) handleRealtimeEvent(envelope);
 		};
-	}, [callMethod, userId]);
-
-	useEffect(() => {
-		if (!websocketToken) {
-			setRealtimeStatus("polling");
-			console.log(
-				"[chat-ws:lifecycle] websocket disabled, using polling fallback",
+		const onStatus = (event: Event) => {
+			const status = (event as CustomEvent<RealtimeStatus>).detail;
+			if (status) handleRealtimeStatus(status);
+		};
+		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
+		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
+		return () => {
+			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
+			window.removeEventListener(
+				CHAT_REALTIME_STATUS,
+				onStatus as EventListener,
 			);
-			return;
-		}
-
-		console.log("[chat-ws:lifecycle] starting websocket manager");
-
-		const manager = new ChatRealtimeManager({
-			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => websocketToken,
-			onEvent: handleRealtimeEvent,
-			onStatusChange: handleRealtimeStatus,
-			onRawMessage: (raw) => {
-				console.log("[chat-ws:raw]", raw);
-			},
-			onParseError: (raw, error) => {
-				console.warn("[chat-ws:parse-error]", { raw, error });
-			},
-		});
-
-		manager.start();
-
-		return () => {
-			console.log("[chat-ws:lifecycle] stopping websocket manager");
-			manager.stop({ suppressStatus: true });
 		};
-	}, [handleRealtimeEvent, handleRealtimeStatus, websocketToken]);
+	}, [handleRealtimeEvent, handleRealtimeStatus]);
 
 	useEffect(() => {
 		const baseIntervalMs =
@@ -1685,8 +1202,18 @@ export function ChatPage() {
 			return;
 		}
 
-		threadBottomRef.current?.scrollIntoView({ block: "end" });
-	}, [threadMessages.length]);
+		// Direct scrollTop is synchronous and does not emit scroll events, preventing
+		// the upward-load handler from misfiring during the initial jump.
+		scrollThreadToBottom();
+	}, [threadMessages.length, scrollThreadToBottom]);
+
+	useEffect(() => {
+		if (!selectedConversationId || isLoadingThread) {
+			return;
+		}
+
+		scrollThreadToBottom();
+	}, [selectedConversationId, isLoadingThread, scrollThreadToBottom]);
 
 	useEffect(() => {
 		indexConversations(conversations);
@@ -1731,7 +1258,7 @@ export function ChatPage() {
 		switch (realtimeStatus) {
 			case "connected":
 				return {
-					label: "Connected",
+					label: t("chat.realtime.connected"),
 					symbol: "✓",
 					className:
 						"border-emerald-500/40 bg-emerald-500/15 text-emerald-700",
@@ -1739,7 +1266,10 @@ export function ChatPage() {
 			case "disconnected":
 			case "error":
 				return {
-					label: realtimeStatus === "error" ? "Error" : "Offline",
+					label:
+						realtimeStatus === "error"
+							? t("chat.realtime.error")
+							: t("chat.realtime.offline"),
 					symbol: "•",
 					className: "border-red-500/40 bg-red-500/15 text-red-700",
 				};
@@ -1747,18 +1277,18 @@ export function ChatPage() {
 				return {
 					label:
 						realtimeStatus === "reconnecting"
-							? "Reconnecting"
+							? t("chat.realtime.reconnecting")
 							: realtimeStatus === "connecting"
-								? "Connecting"
+								? t("chat.realtime.connecting")
 								: realtimeStatus === "polling"
-									? "Polling"
-									: "Idle",
+									? t("chat.realtime.polling")
+									: t("chat.realtime.idle"),
 					symbol: "•",
 					className:
 						"border-amber-500/40 bg-amber-500/15 text-amber-700",
 				};
 		}
-	}, [realtimeStatus]);
+	}, [realtimeStatus, t]);
 
 	const selectedActionMessage = useMemo(() => {
 		if (!openMessageActionId) {
@@ -1901,7 +1431,7 @@ export function ChatPage() {
 			}));
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to update pin state",
+				error instanceof Error ? error.message : t("chat.errors.update_pin_state"),
 			);
 		} finally {
 			setIsUpdatingConversationState(false);
@@ -1932,7 +1462,7 @@ export function ChatPage() {
 			}));
 		} catch (error) {
 			toast.error(
-				error instanceof Error ? error.message : "Failed to update mute state",
+				error instanceof Error ? error.message : t("chat.errors.update_mute_state"),
 			);
 		} finally {
 			setIsUpdatingConversationState(false);
@@ -1952,7 +1482,7 @@ export function ChatPage() {
 					!(message._localOnly && message.conversationId === conversationId),
 			),
 		);
-		toast.success("Cleared local history for this chat");
+		toast.success(t("chat.toasts.cleared_local_history"));
 	}, [selectedConversation]);
 
 	const sendTextMessage = useCallback(
@@ -1966,7 +1496,7 @@ export function ChatPage() {
 				: targetProfileId;
 
 			if (!targetProfileIdValue) {
-				toast.error("Unable to determine message recipient");
+				toast.error(t("chat.errors.missing_recipient"));
 				return;
 			}
 
@@ -2063,9 +1593,9 @@ export function ChatPage() {
 
 				const apiError = error as ChatApiError;
 				const fallback =
-					error instanceof Error ? error.message : "Failed to send";
+					error instanceof Error ? error.message : t("chat.errors.send_failed");
 				if (apiError?.status === 429) {
-					toast.error("Sending too fast. Please wait and retry.");
+					toast.error(t("chat.errors.rate_limited"));
 				} else {
 					toast.error(fallback);
 				}
@@ -2097,7 +1627,7 @@ export function ChatPage() {
 				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
 				: targetProfileId;
 			if (!targetProfileIdValue) {
-				toast.error("Unable to determine message recipient");
+				toast.error(t("chat.errors.missing_recipient"));
 				return;
 			}
 
@@ -2109,7 +1639,7 @@ export function ChatPage() {
 			}
 
 			if (file.size > 12 * 1024 * 1024) {
-				toast.error("Attachment is too large. Limit is 12MB.");
+				toast.error(t("chat.attachments.too_large"));
 				return;
 			}
 
@@ -2226,7 +1756,7 @@ export function ChatPage() {
 				toast.error(
 					error instanceof Error
 						? error.message
-						: "Attachment upload/send failed",
+						: t("chat.errors.attachment_upload_send_failed"),
 				);
 			} finally {
 				window.clearInterval(progressId);
@@ -2285,7 +1815,7 @@ export function ChatPage() {
 		}
 
 		if (message.type === "Image" || message.type === "ExpiringImage") {
-			toast.error("Please re-upload this image.");
+			toast.error(t("chat.errors.reupload_image"));
 			return;
 		}
 
@@ -2339,7 +1869,7 @@ export function ChatPage() {
 			toast.error(
 				error instanceof Error
 					? error.message
-					: "Failed to react",
+					: t("chat.errors.react_failed"),
 			);
 		} finally {
 			setIsMutatingMessageId(null);
@@ -2404,7 +1934,7 @@ export function ChatPage() {
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to unsend");
+			toast.error(error instanceof Error ? error.message : t("chat.errors.unsend_failed"));
 		} finally {
 			setIsMutatingMessageId(null);
 		}
@@ -2441,50 +1971,76 @@ export function ChatPage() {
 			});
 		} catch (error) {
 			setThreadMessages(previous);
-			toast.error(error instanceof Error ? error.message : "Failed to delete");
+			toast.error(error instanceof Error ? error.message : t("chat.errors.delete_failed"));
 		} finally {
 			setIsMutatingMessageId(null);
 		}
 	};
 
 	const shareAlbumToCurrentConversation = useCallback(
-		async (albumId: number) => {
+		async (albumId: number, albumName?: string | null) => {
 			if (!selectedConversation || !userId) {
 				return;
 			}
 			const targetProfile = getOtherParticipant(selectedConversation, userId);
 			if (!targetProfile?.profileId) {
-				toast.error("Unable to determine recipient for album share");
+				toast.error(t("chat.errors.album_share_missing_recipient"));
 				return;
 			}
 
-			setIsSharingAlbum(true);
-			try {
-				await service.shareAlbum({
-					albumId,
-					profiles: [
-						{
-							profileId: targetProfile.profileId,
-							expirationType: "INDEFINITE",
-						},
-					],
-				});
-				toast.success("Album shared");
-				setIsAlbumPickerOpen(false);
-				void loadThread({
-					conversationId: selectedConversation.data.conversationId,
-					older: false,
-				});
-			} catch (error) {
-				toast.error(
-					error instanceof Error ? error.message : "Failed to share album",
-				);
-			} finally {
-				setIsSharingAlbum(false);
-			}
+			setPendingAlbumShare({
+				albumId,
+				albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
+			});
 		},
-		[loadThread, selectedConversation, service, userId],
+		[selectedConversation, t, userId],
 	);
+
+	const closePendingAlbumShare = useCallback(() => {
+		if (isSharingAlbum) {
+			return;
+		}
+
+		setPendingAlbumShare(null);
+	}, [isSharingAlbum]);
+
+	const confirmPendingAlbumShare = useCallback(async (expirationType: any = "INDEFINITE") => {
+		if (!selectedConversation || !userId || !pendingAlbumShare) {
+			return;
+		}
+
+		const targetProfile = getOtherParticipant(selectedConversation, userId);
+		if (!targetProfile?.profileId) {
+			toast.error(t("chat.errors.album_share_missing_recipient"));
+			return;
+		}
+
+		setIsSharingAlbum(true);
+		try {
+			await service.shareAlbum({
+				albumId: pendingAlbumShare.albumId,
+				profiles: [
+					{
+						profileId: targetProfile.profileId,
+						expirationType,
+					},
+				],
+			});
+			toast.success(t("chat.toasts.album_shared"));
+			setPendingAlbumShare(null);
+			setIsAlbumPickerOpen(false);
+			void loadThread({
+				conversationId: selectedConversation.data.conversationId,
+				older: false,
+			});
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
+			);
+		} finally {
+			setIsSharingAlbum(false);
+		}
+	}, [loadThread, pendingAlbumShare, selectedConversation, service, t, userId]);
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
@@ -2499,7 +2055,7 @@ export function ChatPage() {
 				setAlbumViewerMediaIndex(null);
 			} catch (error) {
 				toast.error(
-					error instanceof Error ? error.message : "Failed to open album",
+					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
 				setIsAlbumViewerLoading(false);
@@ -2593,7 +2149,10 @@ export function ChatPage() {
 		const shareable = albums.filter((album) => album.isShareable);
 
 		if (shareable.length === 1) {
-			void shareAlbumToCurrentConversation(shareable[0].albumId);
+			void shareAlbumToCurrentConversation(
+				shareable[0].albumId,
+				shareable[0].albumName,
+			);
 			return;
 		}
 
@@ -2666,1087 +2225,116 @@ export function ChatPage() {
 	}, [fullScreenImageUrl]);
 
 	const renderInbox = (
-		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-			onTouchStart={handleInboxTouchStart}
-			onTouchEnd={handleInboxTouchEnd}
-		>
-			<div className="mb-3 flex items-center justify-between gap-3">
-				<div>
-					<InboxAlbumsTabs
-						activeTab="inbox"
-						onInboxClick={() => navigate("/chat")}
-						onAlbumsClick={() => navigate("/settings/shared-albums")}
-						trailing={
-							<span
-								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-							>
-								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-								<span>{realtimeStatusMeta.label}</span>
-							</span>
-						}
-					/>
-					<p className="app-subtitle mt-1">Your conversations</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => 
-                            navigate("/chat/filters", {
-								state: {
-									inboxFiltersDraft: buildChatFiltersDraft(inboxFilters),
-									returnTo: `${location.pathname}${location.search}`,
-								},
-							})
-                        }
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label="Open search"
-					>
-						<SlidersHorizontal className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={() => navigate("/chat/search")}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label="Open search"
-					>
-						<Search className="h-4 w-4" />
-					</button>
-					{hasActiveInboxFilters ? (
-						<button
-							type="button"
-							onClick={clearInboxFilters}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						>
-							Clear filters
-						</button>
-					) : null}
-				</div>
-			</div>
-
-			{isLoadingInbox ? (
-				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading inbox...
-				</div>
-			) : inboxError ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-					<p className="text-sm text-[var(--text-muted)]">{inboxError}</p>
-					<button
-						type="button"
-						onClick={() => void loadInbox({ page: 1, replace: true })}
-						className="btn-accent px-4 py-2 text-sm"
-					>
-						Retry
-					</button>
-				</div>
-			) : filteredConversations.length === 0 ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-[var(--text-muted)]">
-					<MessageCircle className="h-8 w-8" />
-					<p className="text-sm">
-						{hasActiveInboxFilters
-							? "No conversations match your filters."
-							: "No conversations yet."}
-					</p>
-				</div>
-			) : (
-				<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
-					{filteredConversations.map((conversation) => {
-						const otherParticipant = getOtherParticipant(conversation, userId);
-						const isSelected =
-							conversation.data.conversationId === selectedConversationId;
-
-						return (
-							<button
-								type="button"
-								key={conversation.data.conversationId}
-								onClick={() => handleSelectConversation(conversation)}
-								className={`w-full rounded-2xl border p-3 text-left transition ${
-									isSelected
-										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
-										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
-								}`}
-							>
-								<div className="flex items-start gap-3">
-									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-										<img
-											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-											alt={conversation.data.name || "Profile"}
-											className="h-full w-full object-cover"
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-2">
-											<p className="truncate font-semibold">
-												{conversation.data.name || "Unknown"}
-											</p>
-											<span className="text-xs text-[var(--text-muted)]">
-												{formatConversationTime(
-													conversation.data.lastActivityTimestamp,
-												)}
-											</span>
-										</div>
-										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
-											{getPreviewText(conversation)}
-										</p>
-										<div className="mt-2 flex items-center gap-2">
-											{conversation.data.pinned ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Pinned
-												</span>
-											) : null}
-											{conversation.data.muted ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													Muted
-												</span>
-											) : null}
-										</div>
-									</div>
-
-								</div>
-							</button>
-						);
-					})}
-
-					{nextPage ? (
-						<button
-							type="button"
-							onClick={handleLoadMoreInbox}
-							disabled={isLoadingMoreInbox}
-							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-						>
-							{isLoadingMoreInbox ? "Loading..." : "Load more"}
-						</button>
-					) : null}
-				</div>
-			)}
-		</div>
+		<ChatInboxPanel
+			isDesktop={isDesktop}
+			isLoadingInbox={isLoadingInbox}
+			isLoadingMoreInbox={isLoadingMoreInbox}
+			inboxError={inboxError}
+			inboxFilters={inboxFilters}
+			hasActiveInboxFilters={hasActiveInboxFilters}
+			filteredConversations={filteredConversations}
+			nextPage={nextPage}
+			realtimeStatusMeta={realtimeStatusMeta}
+			selectedConversationId={selectedConversationId}
+			userId={userId}
+			nowTimestamp={nowTimestamp}
+			presenceResults={presenceResults}
+			inboxListRef={inboxListRef}
+			onRefreshInbox={() => void loadInbox({ page: 1, replace: true })}
+			onLoadMoreInbox={handleLoadMoreInbox}
+			onInboxTouchStart={handleInboxTouchStart}
+			onInboxTouchEnd={handleInboxTouchEnd}
+			onSelectConversation={handleSelectConversation}
+			onClearInboxFilters={clearInboxFilters}
+			onOpenFilters={(inboxFiltersDraft) =>
+				navigate("/chat/filters", {
+					state: {
+						inboxFiltersDraft,
+						returnTo: `${location.pathname}${location.search}`,
+					},
+				})
+			}
+			onOpenSearch={() => navigate("/chat/search")}
+			onOpenInbox={() => navigate("/chat")}
+			onOpenAlbums={() => navigate("/settings/shared-albums")}
+		/>
 	);
 
 	const renderSearch = <ChatSearchPage />;
 
-	const renderThread = selectedConversation ? (
-		<div
-			className={`flex h-full flex-col ${!isDesktop ? "overflow-visible p-0" : "overflow-hidden p-3 sm:p-4"} ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			{(() => {
-				const otherParticipant = getOtherParticipant(
-					selectedConversation,
-					userId,
-				);
-				return (
-					<div 
-						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
-						style={!isDesktop ? {
-							top: 0,
-							paddingTop: "max(12px, env(safe-area-inset-top))",
-						} : undefined}
-					>
-						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-3 sm:pl-4" : ""}`}>
-							<button
-								type="button"
-								onClick={() => {
-									if (!otherParticipant) {
-										return;
-									}
-									const returnTo = getProfileReturnToChatPath(
-										otherParticipant.profileId,
-									);
-									const nextParams = new URLSearchParams();
-									nextParams.set("returnTo", returnTo);
-									navigate(
-										`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-										{ state: { returnTo } },
-									);
-								}}
-								disabled={!otherParticipant}
-								aria-label="Open profile"
-								className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)] transition hover:border-[var(--accent)] disabled:cursor-default disabled:opacity-80"
-							>
-								<img
-									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-									alt={selectedConversation.data.name || "Profile"}
-									className="h-full w-full object-cover"
-								/>
-							</button>
-							<div className="min-w-0">
-								<p className="truncate text-lg font-semibold">
-									{selectedConversation.data.name || "Conversation"}
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									{otherParticipant?.distanceMetres
-										? formatDistance(otherParticipant.distanceMetres)
-										: "Distance unknown"}
-								</p>
-							</div>
-						</div>
-						{isDesktop ? (
-							<div className="flex items-center gap-2">
-								<button
-									type="button"
-									onClick={() => {
-										if (!otherParticipant) {
-											return;
-										}
-										const returnTo = getProfileReturnToChatPath(
-											otherParticipant.profileId,
-										);
-										const nextParams = new URLSearchParams();
-										nextParams.set("returnTo", returnTo);
-										navigate(
-											`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-											{ state: { returnTo } },
-										);
-									}}
-									disabled={!otherParticipant}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									View profile
-								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={togglePin}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									<Pin className="mr-1 inline h-3.5 w-3.5" />
-									{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={toggleMute}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									{selectedConversation.data.muted ? (
-										<Volume2 className="mr-1 inline h-3.5 w-3.5" />
-									) : (
-										<VolumeX className="mr-1 inline h-3.5 w-3.5" />
-									)}
-									{selectedConversation.data.muted ? "Unmute" : "Mute"}
-								</button>
-								<button
-									type="button"
-									onClick={() => void clearLocalHistory()}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								>
-									Clear local history
-								</button>
-							</div>
-						) : (
-							<div
-								ref={headerActionsMenuRef}
-								className="relative pr-3 sm:pr-4"
-							>
-								<button
-									type="button"
-									onClick={() =>
-										setIsHeaderActionsMenuOpen((current) => !current)
-									}
-									className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									aria-label="Open conversation actions"
-									aria-expanded={isHeaderActionsMenuOpen}
-								>
-									<Ellipsis className="h-4 w-4" />
-								</button>
-								{isHeaderActionsMenuOpen ? (
-									<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[180px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												if (!otherParticipant) {
-													return;
-												}
-												const returnTo = getProfileReturnToChatPath(
-													otherParticipant.profileId,
-												);
-												const nextParams = new URLSearchParams();
-												nextParams.set("returnTo", returnTo);
-												navigate(
-													`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-													{ state: { returnTo } },
-												);
-											}}
-											disabled={!otherParticipant}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											View profile
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void togglePin();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void toggleMute();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.muted ? "Unmute" : "Mute"}
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void clearLocalHistory();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
-										>
-											Clear local history
-										</button>
-									</div>
-								) : null}
-							</div>
-						)}
-					</div>
-				);
-			})()}
-
-			{isLoadingThread &&
-			threadConversationId !== selectedConversation.data.conversationId ? (
-				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading messages...
-				</div>
-			) : threadError ? (
-				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-					<p className="text-sm text-[var(--text-muted)]">{threadError}</p>
-					<button
-						type="button"
-						onClick={() =>
-							void loadThread({
-								conversationId: selectedConversation.data.conversationId,
-								older: false,
-							})
-						}
-						className="btn-accent px-4 py-2 text-sm"
-					>
-						Retry
-					</button>
-				</div>
-			) : (
-				<>
-					<div
-						ref={threadScrollContainerRef}
-						onScroll={handleThreadScroll}
-						className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
-					>
-						{messagePageKey ? (
-							<button
-								type="button"
-								onClick={() =>
-									void loadThread({
-										conversationId: selectedConversation.data.conversationId,
-										older: true,
-									})
-								}
-								disabled={isLoadingOlderMessages}
-								className="mx-auto mb-3 rounded-xl border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-							>
-								{isLoadingOlderMessages ? "Loading..." : "Load older messages"}
-							</button>
-						) : null}
-
-						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
-							{threadMessages.map((message) => {
-								const mine =
-									userId != null && Number(message.senderId) === Number(userId);
-								const failed = message.clientState === "failed";
-								const pending = message.clientState === "pending";
-								const localOnly = message._localOnly === true;
-								const imageUrl = getMessageImageUrl(message);
-								const videoUrl = getMessageVideoUrl(message);
-								const audioUrl = getMessageAudioUrl(message);
-								const albumId = getMessageAlbumId(message);
-								const albumCover = getMessageAlbumCoverUrl(message);
-								const messageText = getMessageText(message);
-								const isExpiringImage = message.type === "ExpiringImage";
-								const isAlbumMessage =
-									message.type === "Album" ||
-									message.type === "ExpiringAlbum" ||
-									message.type === "ExpiringAlbumV2";
-								const isImageOnlyBubble =
-									Boolean(imageUrl) && messageText === "Shared an image";
-								const isAlbumOnlyBubble =
-									isAlbumMessage && messageText === "Shared an album";
-								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
-								const senderParticipant =
-									selectedConversation.data.participants.find(
-										(participant) =>
-											Number(participant.profileId) === Number(message.senderId),
-									) ?? null;
-								const senderAvatarUrl =
-									senderParticipant?.primaryMediaHash &&
-									validateMediaHash(senderParticipant.primaryMediaHash)
-										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-										: blankProfileImage;
-								const senderLabel = mine
-									? "You"
-									: selectedConversation.data.name?.trim() || "Unknown";
-								const isActiveSearchMatch =
-									selectedThreadMessageMatches[activeThreadSearchIndex]
-										?.messageId === message.messageId;
-								const fireButtonClass = mine
-									? "absolute -left-3 -top-2"
-									: "absolute -right-3 -top-2";
-
-								return (
-									<div
-										key={message.messageId}
-										data-message-id={message.messageId}
-										ref={(element) => {
-											if (element) {
-												messageElementRefs.current.set(
-													message.messageId,
-													element,
-												);
-											} else {
-												messageElementRefs.current.delete(message.messageId);
-											}
-										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
-									>
-										<div
-											onDoubleClick={() => void handleMessageTap(message)}
-											onTouchStart={() => startMessageLongPress(message.messageId)}
-											onTouchEnd={endMessageLongPress}
-											onTouchCancel={endMessageLongPress}
-											onTouchMove={endMessageLongPress}
-											className={`relative group/bubble max-w-[85%] rounded-2xl text-sm ${
-												isMediaOnlyBubble
-													? "overflow-hidden bg-transparent p-0"
-													: `px-3 py-2 ${
-														mine
-															? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-															: "bg-[var(--surface-2)] text-[var(--text)]"
-													}`
-											} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
-										>
-											{localOnly ? (
-												<p className="mb-1 text-xs opacity-60">
-													From local history
-												</p>
-											) : null}
-											{imageUrl ? (
-												<button
-													type="button"
-													onClick={() => {
-														if (messageLongPressTriggeredRef.current) {
-															messageLongPressTriggeredRef.current = false;
-															return;
-														}
-														openFullScreenImage(imageUrl);
-													}}
-													className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
-												>
-													<div className="relative">
-													<img
-														src={imageUrl}
-														alt="Shared"
-															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
-													/>
-													{isExpiringImage ? (
-														<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
-															1
-														</div>
-													) : null}
-														{isImageOnlyBubble ? (
-															<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
-																<div className="flex items-center gap-2">
-																	{pending ? <span>Sending...</span> : null}
-																	{failed ? <span>Failed</span> : null}
-																</div>
-																<div className="flex items-center gap-2">
-																	<span>
-																		{formatMessageTime(message.timestamp, nowTimestamp)}
-																	</span>
-																	{isDesktop &&
-																	!pending &&
-																	!isLocalClientMessageId(message.messageId) ? (
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				setOpenMessageActionId((current) =>
-																					current === message.messageId ? null : message.messageId,
-																				);
-																			}}
-																			className="rounded-md p-1 hover:bg-white/10"
-																		>
-																			<Ellipsis className="h-3.5 w-3.5" />
-																		</button>
-																	) : null}
-																</div>
-															</div>
-														) : null}
-													</div>
-												</button>
-											) : null}
-
-											{isAlbumOnlyBubble ? (
-												<button
-													type="button"
-													onClick={() => {
-														if (messageLongPressTriggeredRef.current) {
-															messageLongPressTriggeredRef.current = false;
-															return;
-														}
-														if (albumId) {
-															void openAlbumViewerById(albumId);
-														}
-													}}
-													className="block w-full"
-													disabled={!albumId}
-												>
-													<div className="relative h-56 w-full overflow-hidden bg-[var(--surface-2)]">
-														<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
-															<Album className="h-8 w-8" />
-														</div>
-														{albumCover ? (
-															<img
-																src={albumCover}
-																alt="Album cover"
-																className="h-full w-full object-cover"
-																onError={(event) => {
-																	event.currentTarget.style.display = "none";
-																}}
-															/>
-														) : null}
-														<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
-															<Avatar
-																src={senderAvatarUrl}
-																alt={senderLabel}
-																fallback={senderLabel}
-																className="h-16 w-16 border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm"
-															/>
-															<p className="max-w-full truncate text-sm font-semibold leading-tight text-white drop-shadow">
-																{senderLabel}
-															</p>
-														</div>
-														<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-3 py-2 text-[10px] text-white">
-															<div className="flex items-center gap-2">
-																{pending ? <span>Sending...</span> : null}
-																{failed ? <span>Failed</span> : null}
-															</div>
-															<div className="flex items-center gap-2">
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp)}
-																</span>
-																{isDesktop &&
-																!pending &&
-																!isLocalClientMessageId(message.messageId) ? (
-																	<button
-																		type="button"
-																		onClick={(event) => {
-																			event.stopPropagation();
-																			setOpenMessageActionId((current) =>
-																				current === message.messageId ? null : message.messageId,
-																			);
-																		}}
-																		className="rounded-md p-1 hover:bg-white/10"
-																	>
-																		<Ellipsis className="h-3.5 w-3.5" />
-																	</button>
-																) : null}
-															</div>
-														</div>
-													</div>
-												</button>
-											) : null}
-
-											{videoUrl ? (
-												<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
-													<video
-														controls
-														preload="metadata"
-														src={videoUrl}
-														className="max-h-72 w-full"
-													/>
-												</div>
-											) : null}
-
-											{audioUrl ? (
-												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-													<audio
-														controls
-														preload="none"
-														src={audioUrl}
-														className="w-full"
-													/>
-												</div>
-											) : null}
-
-											{isAlbumMessage && !isAlbumOnlyBubble ? (
-												<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-													{albumCover ? (
-														<img
-															src={albumCover}
-															alt="Album cover"
-															className="mb-2 h-36 w-full rounded-lg object-cover"
-														/>
-													) : null}
-													<div className="flex items-center justify-between gap-2">
-														<span className="text-xs font-medium">
-															Album share
-														</span>
-														<button
-															type="button"
-															onClick={() => {
-																if (albumId) {
-																	void openAlbumViewerById(albumId);
-																}
-															}}
-															className="rounded-md border border-black/20 px-2 py-1 text-[11px]"
-															disabled={!albumId}
-														>
-															Open
-														</button>
-													</div>
-												</div>
-											) : null}
-
-											{!isMediaOnlyBubble ? (
-												<p className="whitespace-pre-wrap break-words">
-													{messageText}
-												</p>
-											) : null}
-
-													{!isLocalClientMessageId(message.messageId) ? (
-												<button
-													type="button"
-													onClick={() => void handleReact(message)}
-													disabled={isMutatingMessageId === message.messageId}
-															className={`${fireButtonClass} cursor-pointer transition-opacity ${
-														message.reactions.length > 0
-															? "opacity-100"
-															: "opacity-0 group-hover/bubble:opacity-60"
-													} hover:opacity-80`}
-												>
-													<span className={`chat-reaction-flame text-2xl inline-flex ${
-														reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
-													}`}>
-														🔥
-													</span>
-												</button>
-											) : null}
-
-											{!isMediaOnlyBubble ? (
-											<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
-												<div className="flex items-center gap-2">
-													{pending ? <span>Sending...</span> : null}
-													{failed ? <span>Failed</span> : null}
-												</div>
-												<div className="flex items-center gap-2">
-													<span>
-														{formatMessageTime(message.timestamp, nowTimestamp)}
-													</span>
-													{isDesktop &&
-													!pending &&
-													!isLocalClientMessageId(message.messageId) ? (
-														<button
-															type="button"
-															onClick={() =>
-																setOpenMessageActionId((current) =>
-																	current === message.messageId
-																		? null
-																		: message.messageId,
-																)
-															}
-															className="rounded-md p-1 hover:bg-black/10"
-														>
-															<Ellipsis className="h-3.5 w-3.5" />
-														</button>
-													) : null}
-												</div>
-											</div>
-											) : null}
-
-											{isDesktop && openMessageActionId === message.messageId ? (
-												<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
-													{mine && !message.unsent ? (
-														<button
-															type="button"
-															onClick={() => void handleUnsend(message)}
-															disabled={
-																isMutatingMessageId === message.messageId
-															}
-															className="rounded-md border border-black/20 px-2 py-1"
-														>
-															Unsend
-														</button>
-													) : null}
-													<button
-														type="button"
-														onClick={() => void handleDelete(message)}
-														disabled={isMutatingMessageId === message.messageId}
-														className="rounded-md border border-black/20 px-2 py-1"
-													>
-														Delete
-													</button>
-												</div>
-											) : null}
-
-											{failed ? (
-												<button
-													type="button"
-													onClick={() => handleRetry(message)}
-													className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 py-1 text-[11px] font-semibold"
-												>
-													Retry
-												</button>
-											) : null}
-										</div>
-									</div>
-								);
-							})}
-						</div>
-						<div ref={threadBottomRef} />
-					</div>
-
-					<form
-						onSubmit={handleSend}
-						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 p-3 sm:p-4" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
-						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
-					>
-						<div className="mb-2 flex flex-wrap items-center gap-2">
-							<button
-								type="button"
-								onClick={toggleAlbumPicker}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								<Share2 className="mr-1 inline h-3.5 w-3.5" /> Share album
-							</button>
-							<button
-								type="button"
-								onClick={() => attachmentInputRef.current?.click()}
-								disabled={isUploadingAttachment}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-							>
-								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
-							</button>
-							<input
-								type="file"
-								ref={attachmentInputRef}
-								onChange={onAttachmentInput}
-								accept="image/*,video/*"
-								className="hidden"
-							/>
-							<button
-								type="button"
-								onClick={() => navigate("/settings/albums")}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								Manage albums
-							</button>
-						</div>
-
-						{pendingAttachmentFile ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-								<p className="text-xs font-medium text-[var(--text)]">
-									Ready to send: {pendingAttachmentFile.name}
-								</p>
-								<div className="mt-2 grid gap-2">
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentLooping}
-											onChange={(event) =>
-												setAttachmentLooping(event.target.checked)
-											}
-										/>
-										<span>looping</span>
-									</label>
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentTakenOnGrindr}
-											onChange={(event) =>
-												setAttachmentTakenOnGrindr(event.target.checked)
-											}
-										/>
-										<span>takenOnGrindr</span>
-									</label>
-								</div>
-								<div className="mt-3 flex gap-2">
-									<button
-										type="button"
-										onClick={confirmPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-									>
-										Send attachment
-									</button>
-									<button
-										type="button"
-										onClick={cancelPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-									>
-										Cancel
-									</button>
-								</div>
-							</div>
-						) : null}
-
-						{isAlbumPickerOpen ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
-								{isLoadingAlbums ? (
-									<div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading
-										albums...
-									</div>
-								) : shareableAlbums.length === 0 ? (
-									<p className="text-xs text-[var(--text-muted)]">
-										No albums available. Create one in Settings first.
-									</p>
-								) : (
-									<div className="grid gap-2 sm:grid-cols-2">
-										{shareableAlbums.map((album) => (
-											<div
-												key={album.albumId}
-												className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
-											>
-												<p className="truncate text-xs font-medium">
-													{album.albumName || `Album ${album.albumId}`}
-												</p>
-												<button
-													type="button"
-													onClick={() =>
-														void shareAlbumToCurrentConversation(album.albumId)
-													}
-													disabled={!album.isShareable || isSharingAlbum}
-													className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
-												>
-													Share
-												</button>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						) : null}
-
-						{isUploadingAttachment || uploadProgress > 0 ? (
-							<div className="mb-2">
-								<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-									<span>Uploading attachment</span>
-									<span>{Math.round(uploadProgress)}%</span>
-								</div>
-								<div className="h-2 rounded-full bg-[var(--surface-2)]">
-									<div
-										className="h-2 rounded-full bg-[var(--accent)] transition-all"
-										style={{ width: `${Math.min(100, uploadProgress)}%` }}
-									/>
-								</div>
-							</div>
-						) : null}
-
-						<div className="flex items-end gap-2">
-							<textarea
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								rows={2}
-								maxLength={5000}
-								placeholder="Write a message..."
-								className="input-field min-h-[56px] resize-none"
-							/>
-							<button
-								type="submit"
-								disabled={isSending || draft.trim().length === 0}
-								className="btn-accent h-11 shrink-0 px-4 text-sm"
-							>
-								{isSending ? "Sending" : "Send"}
-							</button>
-						</div>
-					</form>
-
-					{!isDesktop && selectedActionMessage && albumViewer === null ? (
-						<div
-							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
-							onClick={() => setOpenMessageActionId(null)}
-						>
-							<div
-								className="w-full max-w-xs rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-3 shadow-2xl"
-								onClick={(event) => event.stopPropagation()}
-							>
-								<p className="px-1 pb-2 text-center text-xs font-medium tracking-wide text-[var(--text-muted)]">
-									Message actions
-								</p>
-								<div className="grid gap-2">
-									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
-										<button
-											type="button"
-											onClick={() => void handleUnsend(selectedActionMessage)}
-											disabled={
-												isMutatingMessageId === selectedActionMessage.messageId
-											}
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
-										>
-											Unsend
-										</button>
-									) : null}
-									<button
-										type="button"
-										onClick={() => void handleDelete(selectedActionMessage)}
-										disabled={
-											isMutatingMessageId === selectedActionMessage.messageId
-										}
-										className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
-									>
-										Delete
-									</button>
-									<button
-										type="button"
-										onClick={() => setOpenMessageActionId(null)}
-										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									>
-										Cancel
-									</button>
-								</div>
-							</div>
-						</div>
-					) : null}
-				</>
-			)}
-		</div>
-	) : targetProfileId ? (
-		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">New conversation</p>
-				<p className="text-sm text-[var(--text-muted)]">
-					Message profile #{targetProfileId} to start chatting.
-				</p>
-			</div>
-			<div className="flex-1" />
-			<form
-				onSubmit={handleSend}
-				className="border-t border-[var(--border)] pt-3"
-			>
-				<div className="mb-2 flex flex-wrap items-center gap-2">
-					<button
-						type="button"
-						onClick={() => attachmentInputRef.current?.click()}
-						disabled={isUploadingAttachment}
-						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
-					</button>
-					<input
-						type="file"
-						ref={attachmentInputRef}
-						onChange={onAttachmentInput}
-						accept="image/*,video/*"
-						className="hidden"
-					/>
-				</div>
-
-				{pendingAttachmentFile ? (
-					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-						<p className="text-xs font-medium text-[var(--text)]">
-							Ready to send: {pendingAttachmentFile.name}
-						</p>
-						<div className="mt-2 grid gap-2">
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentLooping}
-									onChange={(event) =>
-										setAttachmentLooping(event.target.checked)
-									}
-								/>
-								<span>looping</span>
-							</label>
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentTakenOnGrindr}
-									onChange={(event) =>
-										setAttachmentTakenOnGrindr(event.target.checked)
-									}
-								/>
-								<span>takenOnGrindr</span>
-							</label>
-						</div>
-						<div className="mt-3 flex gap-2">
-							<button
-								type="button"
-								onClick={confirmPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-							>
-								Send attachment
-							</button>
-							<button
-								type="button"
-								onClick={cancelPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-							>
-								Cancel
-							</button>
-						</div>
-					</div>
-				) : null}
-
-				{isUploadingAttachment || uploadProgress > 0 ? (
-					<div className="mb-2">
-						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-							<span>Uploading attachment</span>
-							<span>{Math.round(uploadProgress)}%</span>
-						</div>
-						<div className="h-2 rounded-full bg-[var(--surface-2)]">
-							<div
-								className="h-2 rounded-full bg-[var(--accent)] transition-all"
-								style={{ width: `${Math.min(100, uploadProgress)}%` }}
-							/>
-						</div>
-					</div>
-				) : null}
-
-				<div className="flex items-end gap-2">
-					<textarea
-						value={draft}
-						onChange={(event) => setDraft(event.target.value)}
-						rows={2}
-						maxLength={5000}
-						placeholder="Write your first message..."
-						className="input-field min-h-[56px] resize-none"
-					/>
-					<button
-						type="submit"
-						disabled={isSending || draft.trim().length === 0}
-						className="btn-accent h-11 shrink-0 px-4 text-sm"
-					>
-						{isSending ? "Sending" : "Send"}
-					</button>
-				</div>
-			</form>
-		</div>
-	) : (
-		<div
-			className={`flex h-full overflow-hidden items-center justify-center p-6 text-center text-[var(--text-muted)] ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			Select a conversation to view messages.
-		</div>
+	const renderThread = (
+		<ChatThreadPanel
+			navigate={navigate}
+			isDesktop={isDesktop}
+			selectedConversation={selectedConversation}
+			targetProfileId={targetProfileId}
+			userId={userId}
+			nowTimestamp={nowTimestamp}
+			presenceResults={presenceResults}
+			isUpdatingConversationState={isUpdatingConversationState}
+			isHeaderActionsMenuOpen={isHeaderActionsMenuOpen}
+			setIsHeaderActionsMenuOpen={setIsHeaderActionsMenuOpen}
+			headerActionsMenuRef={headerActionsMenuRef}
+			togglePin={togglePin}
+			toggleMute={toggleMute}
+			clearLocalHistory={clearLocalHistory}
+			getProfileReturnToChatPath={getProfileReturnToChatPath}
+			isLoadingThread={isLoadingThread}
+			threadConversationId={threadConversationId}
+			threadError={threadError}
+			loadThread={loadThread}
+			threadScrollContainerRef={threadScrollContainerRef}
+			handleThreadScroll={handleThreadScroll}
+			messagePageKey={messagePageKey}
+			isLoadingOlderMessages={isLoadingOlderMessages}
+			threadMessages={threadMessages}
+			threadLastReadTimestamp={threadLastReadTimestamp}
+			messageElementRefs={messageElementRefs}
+			handleMessageTap={handleMessageTap}
+			startMessageLongPress={startMessageLongPress}
+			endMessageLongPress={endMessageLongPress}
+			messageLongPressTriggeredRef={messageLongPressTriggeredRef}
+			openFullScreenImage={openFullScreenImage}
+			openAlbumViewerById={openAlbumViewerById}
+			selectedThreadMessageMatches={selectedThreadMessageMatches}
+			activeThreadSearchIndex={activeThreadSearchIndex}
+			openMessageActionId={openMessageActionId}
+			setOpenMessageActionId={setOpenMessageActionId}
+			isMutatingMessageId={isMutatingMessageId}
+			reactionBurstMessageId={reactionBurstMessageId}
+			handleReact={handleReact}
+			handleUnsend={handleUnsend}
+			handleDelete={handleDelete}
+			handleRetry={handleRetry}
+			threadBottomRef={threadBottomRef}
+			handleSend={handleSend}
+			toggleAlbumPicker={toggleAlbumPicker}
+			attachmentInputRef={attachmentInputRef}
+			onAttachmentInput={onAttachmentInput}
+			isUploadingAttachment={isUploadingAttachment}
+			pendingAttachmentFile={pendingAttachmentFile}
+			attachmentLooping={attachmentLooping}
+			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			setAttachmentLooping={setAttachmentLooping}
+			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			confirmPendingAttachment={confirmPendingAttachment}
+			cancelPendingAttachment={cancelPendingAttachment}
+			isAlbumPickerOpen={isAlbumPickerOpen}
+			isLoadingAlbums={isLoadingAlbums}
+			shareableAlbums={shareableAlbums}
+			isSharingAlbum={isSharingAlbum}
+				pendingAlbumShare={pendingAlbumShare}
+			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
+			confirmPendingAlbumShare={confirmPendingAlbumShare}
+			closePendingAlbumShare={closePendingAlbumShare}
+			uploadProgress={uploadProgress}
+			draft={draft}
+			setDraft={setDraft}
+			isSending={isSending}
+			selectedActionMessage={selectedActionMessage}
+			selectedActionMessageMine={selectedActionMessageMine}
+			albumViewer={albumViewer}
+		/>
 	);
 
 	return (
@@ -3779,7 +2367,7 @@ export function ChatPage() {
 			{isAlbumViewerLoading ? (
 				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
 					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> Loading album...
+						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
 					</div>
 				</div>
 			) : null}

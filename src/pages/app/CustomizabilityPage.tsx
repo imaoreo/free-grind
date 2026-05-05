@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePreferences, ACCENT_PRESETS, type ColorScheme } from "../../contexts/PreferencesContext";
 import { BackToSettings } from "../../components/BackToSettings";
-
-const SCHEME_OPTIONS: { value: ColorScheme; label: string; icon: React.ReactNode }[] = [
-	{ value: "system", label: "System", icon: <Monitor className="h-5 w-5" /> },
-	{ value: "light", label: "Light", icon: <Sun className="h-5 w-5" /> },
-	{ value: "dark", label: "Dark", icon: <Moon className="h-5 w-5" /> },
-];
+import {
+	readAnalyticsConsentChoice,
+	writeAnalyticsConsentChoice,
+	type AnalyticsConsentChoice,
+} from "../../utils/analyticsConsent";
+import { useTranslation } from "react-i18next";
+import {
+	SUPPORTED_LOCALE_OPTIONS,
+	resolveSupportedLocale,
+} from "../../utils/locales";
 
 function normalizeHex(value: string): string {
 	const cleaned = value.trim().replace(/^#/, "");
@@ -51,9 +56,38 @@ function getContrastForHex(hexColor: string): "#1a1a1a" | "#ffffff" {
 }
 
 export function CustomizabilityPage() {
+	const { i18n, t } = useTranslation();
 	const { colorScheme, accentColor, mobileGridColumns, setPreferences } = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
+	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
+		() => readAnalyticsConsentChoice(),
+	);
+	const schemeOptions: {
+		value: ColorScheme;
+		label: string;
+		icon: React.ReactNode;
+	}[] = useMemo(
+		() => [
+			{
+				value: "system",
+				label: t("customizability.schemes.system"),
+				icon: <Monitor className="h-5 w-5" />,
+			},
+			{
+				value: "light",
+				label: t("customizability.schemes.light"),
+				icon: <Sun className="h-5 w-5" />,
+			},
+			{
+				value: "dark",
+				label: t("customizability.schemes.dark"),
+				icon: <Moon className="h-5 w-5" />,
+			},
+		],
+		[t],
+	);
+	const selectedLocale = resolveSupportedLocale(i18n.language);
 
 	useEffect(() => {
 		setCustomHex(accentColor);
@@ -70,7 +104,7 @@ export function CustomizabilityPage() {
 	const handleApplyCustomHex = () => {
 		const normalized = normalizeHex(customHex);
 		if (!normalized) {
-			setHexError("Enter a valid hex color like #22c55e or 22c55e");
+			setHexError(t("customizability.hex_error"));
 			return;
 		}
 
@@ -95,22 +129,121 @@ export function CustomizabilityPage() {
 		});
 	};
 
+	const handleLocaleChange = async (locale: string) => {
+		try {
+			const nextLocale = resolveSupportedLocale(locale);
+			await i18n.changeLanguage(nextLocale);
+			document.documentElement.lang = nextLocale;
+		} catch (error) {
+			const message =
+				error instanceof Error && error.message
+					? error.message
+					: "Failed to change language.";
+			toast.error(message);
+		}
+	};
+
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
 				<BackToSettings />
-				<h1 className="app-title mb-2">Customizability</h1>
-				<p className="app-subtitle">Personalize the look and feel of the app.</p>
+				<h1 className="app-title mb-2">{t("settings.customizability")}</h1>
+				<p className="app-subtitle">{t("customizability.subtitle")}</p>
 			</header>
 
 			<div className="grid gap-6">
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("settings.language")}
+					</p>
+					<p className="mb-3 text-sm text-[var(--text-muted)]">
+						{t("settings.language_description")}
+					</p>
+					<select
+						value={selectedLocale}
+						onChange={(event) => void handleLocaleChange(event.target.value)}
+						className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+					>
+						{SUPPORTED_LOCALE_OPTIONS.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))}
+					</select>
+				</div>
+
+				{/* Analytics & FreeGrind Discovery */}
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("customizability.analytics.title")}
+					</p>
+					<p className="text-sm text-[var(--text-muted)]">
+						{t("customizability.analytics.description")}
+					</p>
+					<p className="mt-2 text-xs text-[var(--text-muted)]">
+						{t("customizability.analytics.note")}
+					</p>
+					<div className="mt-4 flex flex-wrap gap-2">
+						<button
+							type="button"
+							onClick={() => {
+								writeAnalyticsConsentChoice("granted");
+								setAnalyticsConsent("granted");
+							}}
+							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+							style={{
+								borderColor:
+									analyticsConsent === "granted" ? "var(--accent)" : "var(--border)",
+								background:
+									analyticsConsent === "granted"
+										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+										: "var(--surface-2)",
+								color:
+									analyticsConsent === "granted"
+										? "var(--accent-readable)"
+										: "var(--text)",
+							}}
+						>
+							{t("customizability.analytics.allow")}
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								writeAnalyticsConsentChoice("denied");
+								setAnalyticsConsent("denied");
+							}}
+							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+							style={{
+								borderColor:
+									analyticsConsent === "denied" ? "var(--accent)" : "var(--border)",
+								background:
+									analyticsConsent === "denied"
+										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+										: "var(--surface-2)",
+								color:
+									analyticsConsent === "denied"
+										? "var(--accent-readable)"
+										: "var(--text)",
+							}}
+						>
+							{t("customizability.analytics.deny")}
+						</button>
+					</div>
+					<p className="mt-3 text-xs text-[var(--text-muted)]">
+						{t("customizability.analytics.current")}: {" "}
+						{analyticsConsent === null
+							? t("customizability.analytics.not_selected")
+							: analyticsConsent}
+					</p>
+				</div>
+
 				{/* Color Scheme */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						Color Scheme
+						{t("customizability.color_scheme")}
 					</p>
 					<div className="grid grid-cols-3 gap-2">
-						{SCHEME_OPTIONS.map(({ value, label, icon }) => {
+						{schemeOptions.map(({ value, label, icon }) => {
 							const isActive = colorScheme === value;
 							return (
 								<button
@@ -139,7 +272,7 @@ export function CustomizabilityPage() {
 				{/* Accent Color */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						Accent Color
+						{t("customizability.accent_color")}
 					</p>
 					<div className="flex flex-wrap gap-3">
 						{ACCENT_PRESETS.map((preset) => {
@@ -175,15 +308,16 @@ export function CustomizabilityPage() {
 						})}
 					</div>
 					<p className="mt-3 text-xs text-[var(--text-muted)]">
-						Selected:{" "}
+						{t("customizability.selected")}: {" "}
 						<span className="font-semibold" style={{ color: "var(--accent-readable)" }}>
-							{ACCENT_PRESETS.find((p) => p.color === accentColor)?.name ?? "Custom"}
+							{ACCENT_PRESETS.find((p) => p.color === accentColor)?.name ??
+								t("customizability.custom")}
 						</span>
 					</p>
 					<div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
 						<div className="inline-flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1">
 							<label htmlFor="accent-color-picker" className="text-xs font-medium text-[var(--text-muted)]">
-								Picker
+								{t("customizability.picker")}
 							</label>
 							<input
 								id="accent-color-picker"
@@ -210,7 +344,7 @@ export function CustomizabilityPage() {
 							onClick={handleApplyCustomHex}
 							className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
 						>
-							Apply Hex
+							{t("customizability.apply_hex")}
 						</button>
 					</div>
 					{hexError ? <p className="mt-2 text-xs text-red-400">{hexError}</p> : null}
@@ -219,7 +353,7 @@ export function CustomizabilityPage() {
 				{/* Browse Grid (Mobile) */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						Browse Grid (Mobile)
+						{t("customizability.browse_grid_mobile")}
 					</p>
 					<div className="grid grid-cols-2 gap-2">
 						<button
@@ -239,7 +373,7 @@ export function CustomizabilityPage() {
 										: "var(--text-muted)",
 							}}
 						>
-							2 Columns
+							{t("customizability.columns_2")}
 						</button>
 						<button
 							type="button"
@@ -258,7 +392,7 @@ export function CustomizabilityPage() {
 										: "var(--text-muted)",
 							}}
 						>
-							3 Columns
+							{t("customizability.columns_3")}
 						</button>
 					</div>
 				</div>
@@ -266,7 +400,7 @@ export function CustomizabilityPage() {
 				{/* Preview */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						Preview
+						{t("customizability.preview")}
 					</p>
 					<div className="flex flex-wrap gap-2">
 						<span
@@ -276,7 +410,7 @@ export function CustomizabilityPage() {
 								color: "var(--accent-contrast)",
 							}}
 						>
-							Primary Button
+							{t("customizability.preview_primary")}
 						</span>
 						<span
 							className="inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold"
@@ -285,7 +419,7 @@ export function CustomizabilityPage() {
 								color: "var(--accent-readable)",
 							}}
 						>
-							Outlined
+							{t("customizability.preview_outlined")}
 						</span>
 						<span
 							className="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold"
@@ -294,7 +428,7 @@ export function CustomizabilityPage() {
 								color: "var(--accent-readable)",
 							}}
 						>
-							Subtle
+							{t("customizability.preview_subtle")}
 						</span>
 					</div>
 				</div>

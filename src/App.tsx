@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
 import { RootLayout } from "./layouts/RootLayout";
@@ -25,22 +26,52 @@ import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
+import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
+import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
+import { PushNotificationBridge } from "./components/PushNotificationBridge";
+import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
+import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
+import { usePreferences } from "./contexts/PreferencesContext";
 
 function ErrorPage() {
+	const { t } = useTranslation();
+
 	return (
 		<div className="app-screen flex items-center justify-center">
 			<div className="surface-card w-full max-w-md p-6 text-center sm:p-8">
-				<h1 className="text-4xl font-bold mb-4">Error</h1>
-				<p className="text-[var(--text-muted)]">Something went wrong</p>
+				<h1 className="text-4xl font-bold mb-4">{t("errors.title")}</h1>
+				<p className="text-[var(--text-muted)]">{t("errors.subtitle")}</p>
+				<div className="mt-5">
+					<Link
+						to="/"
+						className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+					>
+						{t("errors.action_home")}
+					</Link>
+				</div>
 			</div>
 		</div>
 	);
+}
+
+function DeveloperModeRoute({ children }: { children: React.ReactNode }) {
+	const { developerMode } = usePreferences();
+
+	if (!developerMode) {
+		return <Navigate to="/settings" replace />;
+	}
+
+	return <>{children}</>;
 }
 
 export default function App() {
 	return (
 		<AuthProvider>
 			<PreferencesProvider>
+				<PushNotificationBridge />
+				<ChatRealtimeBridge />
+				<ActiveRouteBridge />
+				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
 						{/* Auth Routes */}
@@ -75,7 +106,11 @@ export default function App() {
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 							<Route
 								path="/settings/api-inspector"
-								element={<ApiInspectorPage />}
+								element={
+									<DeveloperModeRoute>
+										<ApiInspectorPage />
+									</DeveloperModeRoute>
+								}
 							/>
 							<Route
 								path="/settings/shared-albums"
@@ -88,6 +123,10 @@ export default function App() {
 							<Route
 								path="/settings/customizability"
 								element={<CustomizabilityPage />}
+							/>
+							<Route
+								path="/settings/report-issue"
+								element={<ReportIssuePage />}
 							/>
 							<Route
 								path="/settings/profile-editor"

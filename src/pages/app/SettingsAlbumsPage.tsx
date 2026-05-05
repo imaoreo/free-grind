@@ -16,6 +16,7 @@ import {
 	useState,
 	type ChangeEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { Button } from "../../components/ui/button";
@@ -30,64 +31,13 @@ import {
 	type AlbumDetail,
 	type AlbumMedia,
 } from "../../types/albums";
-
-function countAlbumMedia(detail: AlbumDetail | undefined): {
-	total: number;
-	images: number;
-	nonImages: number;
-} {
-	const content = detail?.content ?? [];
-	const images = content.filter((item) =>
-		(item.contentType ?? "").toLowerCase().startsWith("image/"),
-	).length;
-	const total = content.length;
-	return {
-		total,
-		images,
-		nonImages: Math.max(0, total - images),
-	};
-}
-
-function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
-	const totalBytes = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-	const output = new Uint8Array(totalBytes);
-	let offset = 0;
-
-	for (const chunk of chunks) {
-		output.set(chunk, offset);
-		offset += chunk.length;
-	}
-
-	return output;
-}
-
-async function buildMultipartBody(file: File): Promise<{
-	body: Uint8Array;
-	contentType: string;
-}> {
-	const encoder = new TextEncoder();
-	const boundary = `----opengrind-${crypto.randomUUID?.() ?? Date.now().toString(16)}`;
-	const safeFilename = file.name.replace(/"/g, "_");
-	const header =
-		`--${boundary}\r\n` +
-		`Content-Disposition: form-data; name="content"; filename="${safeFilename}"\r\n` +
-		`Content-Type: ${file.type || "application/octet-stream"}\r\n\r\n`;
-	const footer = `\r\n--${boundary}--\r\n`;
-
-	const fileBytes = new Uint8Array(await file.arrayBuffer());
-	const body = concatUint8Arrays([
-		encoder.encode(header),
-		fileBytes,
-		encoder.encode(footer),
-	]);
-
-	return {
-		body,
-		contentType: `multipart/form-data; boundary=${boundary}`,
-	};
-}
+import {
+	buildMultipartBody,
+	countAlbumMedia,
+} from "./settings-albums/settingsAlbumsUtils";
 
 export function SettingsAlbumsPage() {
+	const { t } = useTranslation();
 	const apiFunctions = useApiFunctions();
 	const [albums, setAlbums] = useState<Album[]>([]);
 	const [maxAlbums, setMaxAlbums] = useState<number>(1);
@@ -138,7 +88,7 @@ export function SettingsAlbumsPage() {
 			setError(
 				loadError instanceof Error
 					? loadError.message
-					: "Failed to load albums",
+					: t("settings_albums.error_load_fallback"),
 			);
 		} finally {
 			setIsLoading(false);
@@ -158,11 +108,11 @@ export function SettingsAlbumsPage() {
 		const isFreeLikePlan = lowered.includes("free") || maxAlbums <= 1;
 
 		if (isFreeLikePlan) {
-			return "Free tier supports 1 album.";
+			return t("settings_albums.subtitle_free");
 		}
 
-		return "Album capacity depends on your current subscription.";
-	}, [maxAlbums, subscriptionType]);
+		return t("settings_albums.subtitle_paid");
+	}, [maxAlbums, subscriptionType, t]);
 
 	const handleCreateAlbum = async () => {
 		if (!canCreateAlbum || isCreating) {
@@ -176,20 +126,18 @@ export function SettingsAlbumsPage() {
 			await apiFunctions.createOwnAlbum({ albumName });
 
 			setCreateName("");
-			toast.success("Album created");
+			toast.success(t("settings_albums.toast_created"));
 			await loadAlbumsAndLimits();
 		} catch (createError) {
 			if (createError instanceof ApiFunctionError && createError.status === 402) {
-				toast.error(
-					"You reached your current album limit. Upgrade to create more albums.",
-				);
+				toast.error(t("settings_albums.limit_reached_toast"));
 				return;
 			}
 
 			toast.error(
 				createError instanceof Error
 					? createError.message
-					: "Failed to create album",
+					: t("settings_albums.error_create_fallback"),
 			);
 		} finally {
 			setIsCreating(false);
@@ -226,13 +174,13 @@ export function SettingsAlbumsPage() {
 						: album,
 				),
 			);
-			toast.success("Album renamed");
+			toast.success(t("settings_albums.toast_renamed"));
 			cancelEditing();
 		} catch (saveError) {
 			toast.error(
 				saveError instanceof Error
 					? saveError.message
-					: "Failed to rename album",
+					: t("settings_albums.error_rename_fallback"),
 			);
 		} finally {
 			setIsSavingEdit(false);
@@ -255,12 +203,12 @@ export function SettingsAlbumsPage() {
 			setConfirmDeleteAlbumId((previous) =>
 				previous === albumId ? null : previous,
 			);
-			toast.success("Album deleted");
+			toast.success(t("settings_albums.toast_deleted"));
 		} catch (deleteError) {
 			toast.error(
 				deleteError instanceof Error
 					? deleteError.message
-					: "Failed to delete album",
+					: t("settings_albums.error_delete_fallback"),
 			);
 		} finally {
 			setDeletingAlbumId(null);
@@ -285,7 +233,7 @@ export function SettingsAlbumsPage() {
 				toast.error(
 					loadError instanceof Error
 						? loadError.message
-						: "Failed to load album details",
+						: t("settings_albums.error_load_details_fallback"),
 				);
 			} finally {
 				setLoadingAlbumDetailsId((previous) =>
@@ -319,13 +267,15 @@ export function SettingsAlbumsPage() {
 				await apiFunctions.uploadOwnAlbumContent({ albumId, multipart });
 			}
 
-			toast.success(files.length === 1 ? "Picture added" : "Pictures added");
+			toast.success(
+				t("settings_albums.toast_picture_added", { count: files.length }),
+			);
 			await loadAlbumDetails(albumId, true);
 		} catch (uploadError) {
 			toast.error(
 				uploadError instanceof Error
 					? uploadError.message
-					: "Failed to upload picture",
+					: t("settings_albums.error_upload_fallback"),
 			);
 		} finally {
 			setUploadingAlbumId(null);
@@ -363,7 +313,7 @@ export function SettingsAlbumsPage() {
 			Number.parseInt(item.contentId, 10),
 		);
 		if (contentIds.some((value) => Number.isNaN(value))) {
-			toast.error("Cannot reorder this album due to unsupported media IDs");
+			toast.error(t("settings_albums.error_reorder_unsupported"));
 			return;
 		}
 
@@ -390,7 +340,7 @@ export function SettingsAlbumsPage() {
 			toast.error(
 				reorderError instanceof Error
 					? reorderError.message
-					: "Failed to reorder media",
+					: t("settings_albums.error_reorder_fallback"),
 			);
 		} finally {
 			setReorderingAlbumId(null);
@@ -427,12 +377,12 @@ export function SettingsAlbumsPage() {
 			setConfirmDeleteContentKey((previous) =>
 				previous === deleteKey ? null : previous,
 			);
-			toast.success("Picture removed");
+			toast.success(t("settings_albums.toast_picture_removed"));
 		} catch (deleteError) {
 			toast.error(
 				deleteError instanceof Error
 					? deleteError.message
-					: "Failed to delete media",
+					: t("settings_albums.error_delete_content_fallback"),
 			);
 		} finally {
 			setDeletingContentKey(null);
@@ -449,15 +399,15 @@ export function SettingsAlbumsPage() {
 						<div className="flex flex-wrap items-start justify-between gap-3">
 							<div>
 								<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-									Albums
+									{t("settings_albums.label")}
 								</p>
-								<h1 className="app-title mt-2">Manage your private albums</h1>
+								<h1 className="app-title mt-2">{t("settings_albums.title")}</h1>
 								<p className="app-subtitle mt-2">
-									{freePlanHint} You are using {albums.length} / {maxAlbums}.
+									{freePlanHint} {t("settings_albums.usage", { count: albums.length, max: maxAlbums })}
 								</p>
 							</div>
 							<div className="rounded-2xl bg-[var(--surface-2)] p-3 text-sm font-medium">
-								{subscriptionType ?? "Unknown plan"}
+								{subscriptionType ?? t("settings_albums.unknown_plan")}
 							</div>
 						</div>
 					</div>
@@ -469,7 +419,7 @@ export function SettingsAlbumsPage() {
 							type="text"
 							value={createName}
 							onChange={(event) => setCreateName(event.target.value)}
-							placeholder="New album name"
+							placeholder={t("settings_albums.new_album_placeholder")}
 							className="input-field max-w-md"
 							maxLength={255}
 						/>
@@ -480,13 +430,13 @@ export function SettingsAlbumsPage() {
 							variant="primary"
 						>
 							<Plus className="h-4 w-4" />
-							{isCreating ? "Creating..." : "Create album"}
+							{isCreating ? t("settings_albums.creating") : t("settings_albums.create")}
 						</Button>
 					</div>
 
 					{!canCreateAlbum && (
 						<p className="mt-3 text-sm text-[var(--text-muted)]">
-							You reached your album limit for the current plan.
+							{t("settings_albums.limit_reached")}
 						</p>
 					)}
 				</section>
@@ -494,18 +444,18 @@ export function SettingsAlbumsPage() {
 				<section className="surface-card p-5 sm:p-6">
 					<div className="mb-4 flex items-center gap-2">
 						<Images className="h-5 w-5" />
-						<h2 className="text-lg font-semibold">Your albums</h2>
+						<h2 className="text-lg font-semibold">{t("settings_albums.your_albums")}</h2>
 					</div>
 
 					{isLoading ? (
 						<LoadingState
-							title="Loading albums"
-							description="Fetching your album collection and plan limits."
+							title={t("settings_albums.loading")}
+							description={t("settings_albums.loading_desc")}
 							compact
 						/>
 					) : error ? (
 						<ErrorState
-							title="Could not load albums"
+							title={t("settings_albums.error_load")}
 							description={error}
 							onRetry={() => {
 								void loadAlbumsAndLimits();
@@ -513,8 +463,8 @@ export function SettingsAlbumsPage() {
 						/>
 					) : albums.length === 0 ? (
 						<EmptyState
-							title="No albums yet"
-							description="Create your first private album using the form above."
+							title={t("settings_albums.empty")}
+							description={t("settings_albums.empty_desc")}
 						/>
 					) : (
 						<div className="grid gap-3">
@@ -534,7 +484,7 @@ export function SettingsAlbumsPage() {
 										key={album.albumId}
 										className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
 									>
-										<div className="flex flex-wrap items-center justify-between gap-3">
+										<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 											{isEditing ? (
 												<input
 													type="text"
@@ -542,21 +492,21 @@ export function SettingsAlbumsPage() {
 													onChange={(event) =>
 														setEditingName(event.target.value)
 													}
-													className="input-field max-w-md"
+													className="input-field w-full sm:max-w-md"
 													maxLength={255}
 												/>
 											) : (
-												<div className="grid gap-1">
-													<p className="text-base font-semibold">
-														{album.albumName?.trim() || "Untitled album"}
+												<div className="min-w-0 flex-1">
+													<p className="truncate text-base font-semibold">
+														{album.albumName?.trim() || t("settings_albums.untitled")}
 													</p>
-													<p className="text-xs text-[var(--text-muted)]">
-														Album ID: {album.albumId}
+													<p className="break-all text-xs text-[var(--text-muted)]">
+														{t("settings_albums.album_id", { id: album.albumId })}
 													</p>
 												</div>
 											)}
 
-											<div className="flex items-center gap-2">
+											<div className="flex flex-wrap items-center gap-2 sm:justify-end">
 												{isEditing ? (
 													<>
 														<button
@@ -567,14 +517,14 @@ export function SettingsAlbumsPage() {
 															disabled={isSavingEdit}
 															className="btn-accent rounded-xl px-3 py-2 text-sm"
 														>
-															{isSavingEdit ? "Saving..." : "Save"}
+															{isSavingEdit ? t("settings_albums.saving") : t("settings_albums.save")}
 														</button>
 														<button
 															type="button"
 															onClick={cancelEditing}
 															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 														>
-															Cancel
+															{t("settings_albums.cancel")}
 														</button>
 													</>
 												) : (
@@ -585,14 +535,14 @@ export function SettingsAlbumsPage() {
 															className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 														>
 															<FolderOpen className="h-3.5 w-3.5" />
-															{isOpen ? "Close" : "Open"}
+															{isOpen ? t("settings_albums.close") : t("settings_albums.open")}
 														</button>
 														<button
 															type="button"
 															onClick={() => startEditingAlbum(album)}
 															className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 														>
-															<Pencil className="h-3.5 w-3.5" /> Rename
+															<Pencil className="h-3.5 w-3.5" /> {t("settings_albums.rename")}
 														</button>
 														<button
 															type="button"
@@ -609,10 +559,10 @@ export function SettingsAlbumsPage() {
 														>
 															<Trash2 className="h-3.5 w-3.5" />
 															{deletingAlbumId === album.albumId
-																? "Deleting..."
+																? t("settings_albums.deleting")
 																: isConfirmingAlbumDelete
-																	? "Confirm delete"
-																	: "Delete"}
+																	? t("settings_albums.confirm_delete")
+																	: t("settings_albums.delete")}
 														</button>
 														{isConfirmingAlbumDelete && (
 															<button
@@ -620,7 +570,7 @@ export function SettingsAlbumsPage() {
 																onClick={() => setConfirmDeleteAlbumId(null)}
 																className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 															>
-																Cancel
+																{t("settings_albums.cancel")}
 															</button>
 														)}
 													</>
@@ -632,14 +582,13 @@ export function SettingsAlbumsPage() {
 											<div className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
 												<div className="flex flex-wrap items-center justify-between gap-3">
 													<div>
-														<p className="text-sm font-semibold">Album media</p>
+														<p className="text-sm font-semibold">{t("settings_albums.media_title")}</p>
 														<p className="text-xs text-[var(--text-muted)]">
-															{mediaCounts.images} images
+															{t("settings_albums.media_counts_images", { count: mediaCounts.images })}
 															{mediaCounts.nonImages > 0
-																? ` · ${mediaCounts.total} total media`
+																? t("settings_albums.media_counts_total", { count: mediaCounts.total })
 																: ""}
-															. Add images, remove them, or reorder display
-															order.
+															{t("settings_albums.media_desc")}
 														</p>
 													</div>
 
@@ -663,8 +612,8 @@ export function SettingsAlbumsPage() {
 														>
 															<Upload className="h-3.5 w-3.5" />
 															{uploadingAlbumId === album.albumId
-																? "Uploading..."
-																: "Add images"}
+																? t("settings_albums.uploading")
+																: t("settings_albums.upload")}
 														</label>
 														<button
 															type="button"
@@ -673,18 +622,18 @@ export function SettingsAlbumsPage() {
 															}
 															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
 														>
-															Refresh
+															{t("settings_albums.refresh")}
 														</button>
 													</div>
 												</div>
 
 												{isLoadingDetails ? (
 													<p className="text-sm text-[var(--text-muted)]">
-														Loading album media...
+														{t("settings_albums.loading_media")}
 													</p>
 												) : !detail || detail.content.length === 0 ? (
 													<p className="text-sm text-[var(--text-muted)]">
-														No media in this album yet.
+														{t("settings_albums.no_media")}
 													</p>
 												) : (
 													<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -709,7 +658,7 @@ export function SettingsAlbumsPage() {
 																	{imageUrl ? (
 																		<img
 																			src={imageUrl}
-																			alt={`Album media ${index + 1}`}
+																			alt={t("settings_albums.media_alt", { index: index + 1 })}
 																			className="aspect-square w-full object-cover"
 																		/>
 																	) : (
@@ -781,7 +730,7 @@ export function SettingsAlbumsPage() {
 																				}
 																				className="col-span-3 rounded-md border border-[var(--border)] py-1 text-xs"
 																			>
-																				Cancel delete
+																				{t("settings_albums.cancel_delete_content")}
 																			</button>
 																		)}
 																	</div>

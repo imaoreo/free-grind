@@ -26,6 +26,12 @@ export const methodSchemas = {
 		request: z.undefined(),
 		response: z.string().min(1).nullable(),
 	},
+	sync_push_token: {
+		request: z.object({
+			token: z.string().min(1),
+		}),
+		response: z.undefined(),
+	},
 	logout: {
 		request: z.undefined(),
 		response: z.undefined(),

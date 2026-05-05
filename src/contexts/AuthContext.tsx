@@ -1,33 +1,27 @@
 import {
-	createContext,
-	useContext,
 	useReducer,
 	useEffect,
 	ReactNode,
 } from "react";
 import { useApi } from "../hooks/useApi";
+import { useApiFunctions } from "../hooks/useApiFunctions";
 import toast from "react-hot-toast";
+import {
+	AuthContext,
+	type AuthContextType,
+	type AuthState,
+} from "./auth-context";
+import { appLog } from "../utils/logger";
 
-interface AuthState {
-	userId: number | null;
-	isLoading: boolean;
-	error: string | null;
-}
+const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
+const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
+const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
 
 type AuthAction =
 	| { type: "SET_USER"; payload: number }
 	| { type: "CLEAR_USER" }
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_ERROR"; payload: string | null };
-
-interface AuthContextType extends AuthState {
-	login: (email: string, password: string) => Promise<void>;
-	loginWithJwt: (token: string) => Promise<void>;
-	logout: () => Promise<void>;
-	checkAuth: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
 	switch (action.type) {
@@ -52,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	});
 
 	const { callMethod, asAppError } = useApi();
+	const apiFunctions = useApiFunctions();
 
 	const checkAuth = async () => {
 		try {
@@ -136,6 +131,128 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		checkAuth();
 	}, []);
 
+	// Register presence with Free Grind backend when a logged-in session is active.
+	// This must not depend only on `state.userId`, because consent/discovery settings can
+	// change after login while the user id stays the same.
+	useEffect(() => {
+		if (state.isLoading || !state.userId) {
+			return;
+		}
+
+		void apiFunctions.registerPresence(state.userId);
+	});
+
+	// Receive Android native FCM token and sync it to Grindr once authenticated.
+	useEffect(() => {
+		const onFcmToken = (event: Event) => {
+			const token =
+				typeof (event as CustomEvent).detail?.token === "string"
+					? (event as CustomEvent<{ token: string }>).detail.token
+					: null;
+
+			if (!token) {
+				appLog.debug("[PUSH_SYNC] Received fg:fcm-token event without token payload");
+				return;
+			}
+
+			appLog.debug(`[PUSH_SYNC] Received native FCM token event (len=${token.length})`);
+
+			window.localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
+
+			if (!state.userId || state.isLoading) {
+				appLog.debug("[PUSH_SYNC] Token cached; waiting for authenticated session before sync");
+				return;
+			}
+
+			appLog.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
+			void callMethod("sync_push_token", { token }).catch((error) => {
+				const appError = asAppError(error);
+				appLog.warn(
+					"[PUSH_SYNC] Failed to sync push token",
+					appError?.prettyMessage || error,
+				);
+			}).then(() => {
+				appLog.debug("[PUSH_SYNC] Push token sync succeeded");
+			});
+		};
+
+		window.addEventListener("fg:fcm-token", onFcmToken as EventListener);
+		return () => {
+			window.removeEventListener("fg:fcm-token", onFcmToken as EventListener);
+		};
+	}, [callMethod, asAppError, state.userId, state.isLoading]);
+
+	// Retry sync after login if we already captured a token from native code.
+	useEffect(() => {
+		if (state.isLoading || !state.userId) {
+			return;
+		}
+
+		let cancelled = false;
+
+		const trySync = () => {
+			if (cancelled) {
+				return;
+			}
+
+			const token = window.localStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
+			const fallbackToken =
+				typeof (window as Window & { __FG_FCM_TOKEN?: unknown }).__FG_FCM_TOKEN ===
+				"string"
+					? ((window as Window & { __FG_FCM_TOKEN?: string }).__FG_FCM_TOKEN ?? null)
+					: null;
+			const effectiveToken = token || fallbackToken;
+
+			if (!effectiveToken) {
+				appLog.debug("[PUSH_SYNC] No cached token found while logged in");
+				return;
+			}
+
+			if (!token && fallbackToken) {
+				window.localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, fallbackToken);
+			}
+
+			const lastSyncedToken = window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY);
+			if (lastSyncedToken === effectiveToken) {
+				return;
+			}
+
+			appLog.debug("[PUSH_SYNC] Syncing cached push token (retry loop)");
+			void callMethod("sync_push_token", { token: effectiveToken })
+				.then(() => {
+					window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, effectiveToken);
+					appLog.debug("[PUSH_SYNC] Cached push token sync succeeded");
+				})
+				.catch((error) => {
+					const appError = asAppError(error);
+					appLog.warn(
+						"[PUSH_SYNC] Failed to sync push token in retry loop",
+						appError?.prettyMessage || error,
+					);
+				});
+		};
+
+		trySync();
+		const interval = window.setInterval(trySync, 5000);
+		return () => {
+			cancelled = true;
+			window.clearInterval(interval);
+		};
+	}, [callMethod, asAppError, state.userId, state.isLoading]);
+
+	// Persist current user id so non-React services (e.g. hotswap) can re-register after updates.
+	useEffect(() => {
+		if (state.isLoading) {
+			return;
+		}
+
+		if (state.userId) {
+			window.localStorage.setItem(AUTH_USER_ID_STORAGE_KEY, String(state.userId));
+		} else {
+			window.localStorage.removeItem(AUTH_USER_ID_STORAGE_KEY);
+		}
+	}, [state.userId, state.isLoading]);
+
 	const value: AuthContextType = {
 		...state,
 		login,
@@ -145,12 +262,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	};
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-	const context = useContext(AuthContext);
-	if (!context) {
-		throw new Error("useAuth must be used within AuthProvider");
-	}
-	return context;
 }

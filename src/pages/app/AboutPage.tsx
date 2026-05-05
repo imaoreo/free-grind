@@ -10,58 +10,96 @@ import {
 	Shield,
 	Users,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/chip";
 import { BackToSettings } from "../../components/BackToSettings";
+import { usePreferences } from "../../contexts/PreferencesContext";
 
-const resourceLinks = [
-	{
-		title: "Documentation",
-		href: "https://freegrind.imaoreo.dev",
-		description: "Reverse-engineered API notes and developer-facing reference.",
-		icon: BookOpen,
-		external: true,
-	},
-	{
-		title: "Source Code",
-		href: "https://github.com/kezza2k7/free-grind",
-		description: "Track progress, inspect the code, and follow releases.",
-		icon: GitBranch,
-		external: true,
-	},
-	{
-		title: "Contributing",
-		href: "https://github.com/kezza2k7/free-grind/blob/main/CONTRIBUTING.md",
-		description:
-			"Project structure, contribution rules, and collaboration notes.",
-		icon: HeartHandshake,
-		external: true,
-	},
-	{
-		title: "Licence",
-		href: "https://github.com/kezza2k7/free-grind/blob/main/LICENSE",
-		description: "Personal-use licence and attribution requirements.",
-		icon: FileText,
-		external: true,
-	},
-	{
-		title: "Discord",
-		href: "https://discord.gg/cJqTaWPMFF",
-		description: "Join the community Discord server for support and discussion.",
-		icon: MessageCircle,
-		external: true,
-	},
-	{
-		title: "Telegram",
-		href: "https://t.me/freegrind",
-		description: "Follow updates and announcements on Telegram.",
-		icon: Send,
-		external: true,
-	},
-];
+const DEV_TAP_TARGET = 7;
 
 export function AboutPage() {
+	const { t } = useTranslation();
+	const { developerMode, setPreferences } = usePreferences();
 	const appVersion = import.meta.env.VITE_APP_VERSION;
+	const [devTapCount, setDevTapCount] = useState(0);
+	const [lastDevTapAt, setLastDevTapAt] = useState(0);
+
+	const handleVersionTap = () => {
+		const now = Date.now();
+		const withinWindow = now - lastDevTapAt < 3000;
+		const nextCount = withinWindow ? devTapCount + 1 : 1;
+		setDevTapCount(nextCount);
+		setLastDevTapAt(now);
+
+		const remaining = DEV_TAP_TARGET - nextCount;
+		if (remaining <= 0) {
+			const nextMode = !developerMode;
+			void setPreferences({ developerMode: nextMode });
+			toast.success(
+				nextMode ? "Developer Mode enabled" : "Developer Mode disabled",
+			);
+			setDevTapCount(0);
+			setLastDevTapAt(0);
+			return;
+		}
+
+		if (remaining <= 3) {
+			toast(
+				`Tap ${remaining} more ${remaining === 1 ? "time" : "times"} to ${developerMode ? "disable" : "enable"} Developer Mode`,
+			);
+		}
+	};
+
+	const resourceLinks = useMemo(
+		() => [
+			{
+				title: t("about_page.resources.documentation_title"),
+				href: "https://freegrind.imaoreo.dev",
+				description: t("about_page.resources.documentation_desc"),
+				icon: BookOpen,
+				external: true,
+			},
+			{
+				title: t("about_page.resources.source_code_title"),
+				href: "https://github.com/kezza2k7/free-grind",
+				description: t("about_page.resources.source_code_desc"),
+				icon: GitBranch,
+				external: true,
+			},
+			{
+				title: t("about_page.resources.contributing_title"),
+				href: "https://github.com/kezza2k7/free-grind/blob/main/CONTRIBUTING.md",
+				description: t("about_page.resources.contributing_desc"),
+				icon: HeartHandshake,
+				external: true,
+			},
+			{
+				title: t("about_page.resources.licence_title"),
+				href: "https://github.com/kezza2k7/free-grind/blob/main/LICENSE",
+				description: t("about_page.resources.licence_desc"),
+				icon: FileText,
+				external: true,
+			},
+			{
+				title: t("about_page.resources.discord_title"),
+				href: "https://discord.gg/cJqTaWPMFF",
+				description: t("about_page.resources.discord_desc"),
+				icon: MessageCircle,
+				external: true,
+			},
+			{
+				title: t("about_page.resources.telegram_title"),
+				href: "https://t.me/freegrind",
+				description: t("about_page.resources.telegram_desc"),
+				icon: Send,
+				external: true,
+			},
+		],
+		[t],
+	);
 
 	return (
 		<section className="app-screen">
@@ -73,35 +111,39 @@ export function AboutPage() {
 						<div className="grid gap-0 lg:grid-cols-[1.25fr_0.75fr]">
 							<div className="grid gap-5 p-6 sm:p-8">
 								<div className="flex flex-wrap items-center gap-2">
-									<Badge>About Free Grind</Badge>
-									<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--text-muted)]">
+									<Badge>{t("about_page.badge")}</Badge>
+									<button
+										type="button"
+										onClick={handleVersionTap}
+										className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									>
 										v{appVersion}
-									</span>
+									</button>
 								</div>
 
 								<div className="grid gap-3">
 									<h1 className="app-title max-w-[14ch]">
-										Free Grind is a privacy-first, community-built client.
+										{t("about_page.title")}
 									</h1>
 									<p className="max-w-[68ch] text-sm leading-6 text-[var(--text-muted)] sm:text-base">
-										Built for personal use with a cleaner interface, no ads, and
-										open documentation around how things work. The goal is practical
-										freedom, not platform lock-in.
+										{t("about_page.description")}
 									</p>
 								</div>
 
 								<div className="grid gap-3 sm:grid-cols-2">
 									<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
 										<p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-											Platform
+											{t("about_page.platform")}
 										</p>
 										<p className="mt-1 text-base font-semibold">Tauri + React</p>
 									</div>
 									<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4">
 										<p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-											Licence
+											{t("about_page.licence")}
 										</p>
-										<p className="mt-1 text-base font-semibold">Personal Use</p>
+										<p className="mt-1 text-base font-semibold">
+											{t("about_page.licence_value")}
+										</p>
 									</div>
 								</div>
 							</div>
@@ -109,11 +151,13 @@ export function AboutPage() {
 							<div className="grid gap-4 border-t border-[var(--border)] bg-[var(--surface-2)] p-6 sm:p-8 lg:border-l lg:border-t-0">
 								<div className="rounded-2xl bg-[var(--surface)] p-4">
 									<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-										Maintainer
+										{t("about_page.maintainer")}
 									</p>
-									<p className="mt-2 text-lg font-semibold leading-snug">Jay Brammeld</p>
+									<p className="mt-2 text-lg font-semibold leading-snug">
+										Jay Brammeld
+									</p>
 									<p className="mt-2 text-sm leading-6 text-[var(--text-muted)]">
-										Credit stays visible in-app to honor ownership and attribution.
+										{t("about_page.maintainer_credit")}
 									</p>
 								</div>
 
@@ -123,8 +167,7 @@ export function AboutPage() {
 											<Shield className="h-5 w-5" />
 										</div>
 										<p className="text-sm leading-6 text-[var(--text-muted)]">
-											Commercial usage is reserved. Personal use, learning, and
-											private experimentation are supported by the included licence.
+											{t("about_page.commercial_note")}
 										</p>
 									</div>
 								</div>
@@ -135,15 +178,19 @@ export function AboutPage() {
 
 				<div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
 					<Card className="p-5 sm:p-6">
-						<h2 className="text-lg font-semibold">Core Principles</h2>
+						<h2 className="text-lg font-semibold">
+							{t("about_page.principles_title")}
+						</h2>
 						<div className="mt-4 grid gap-3">
 							<div className="rounded-2xl bg-[var(--surface-2)] p-4">
 								<div className="flex items-start gap-3">
 									<LockKeyhole className="mt-0.5 h-4.5 w-4.5 text-[var(--text)]" />
 									<div className="grid gap-1">
-										<p className="text-sm font-semibold">Privacy over engagement tricks</p>
+										<p className="text-sm font-semibold">
+											{t("about_page.principles.privacy_title")}
+										</p>
 										<p className="text-sm leading-6 text-[var(--text-muted)]">
-											The interface prioritizes control and clarity instead of ad-driven loops.
+											{t("about_page.principles.privacy_desc")}
 										</p>
 									</div>
 								</div>
@@ -152,9 +199,11 @@ export function AboutPage() {
 								<div className="flex items-start gap-3">
 									<Users className="mt-0.5 h-4.5 w-4.5 text-[var(--text)]" />
 									<div className="grid gap-1">
-										<p className="text-sm font-semibold">Community-first documentation</p>
+										<p className="text-sm font-semibold">
+											{t("about_page.principles.community_title")}
+										</p>
 										<p className="text-sm leading-6 text-[var(--text-muted)]">
-											Reverse-engineered notes stay public so users and contributors can learn together.
+											{t("about_page.principles.community_desc")}
 										</p>
 									</div>
 								</div>
@@ -163,9 +212,11 @@ export function AboutPage() {
 								<div className="flex items-start gap-3">
 									<Rocket className="mt-0.5 h-4.5 w-4.5 text-[var(--text)]" />
 									<div className="grid gap-1">
-										<p className="text-sm font-semibold">Practical roadmap</p>
+										<p className="text-sm font-semibold">
+											{t("about_page.principles.roadmap_title")}
+										</p>
 										<p className="text-sm leading-6 text-[var(--text-muted)]">
-											Current focus includes browse, profile management, messaging foundations, and reliability.
+											{t("about_page.principles.roadmap_desc")}
 										</p>
 									</div>
 								</div>
@@ -174,9 +225,11 @@ export function AboutPage() {
 					</Card>
 
 					<Card className="p-5 sm:p-6">
-						<h2 className="text-lg font-semibold">Support the project</h2>
+						<h2 className="text-lg font-semibold">
+							{t("about_page.support_title")}
+						</h2>
 						<div className="mt-4 grid gap-3 text-sm text-[var(--text-muted)]">
-							<p>Donation links currently listed by the project team:</p>
+							<p>{t("about_page.support_text")}</p>
 							<a
 								href="https://imaoreo.dev/donate"
 								target="_blank"
@@ -214,7 +267,9 @@ export function AboutPage() {
 										<Icon className="h-5 w-5" />
 									</div>
 									<span className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-										{resource.external ? "External" : "Local"}
+										{resource.external
+											? t("about_page.resources.external")
+											: t("about_page.resources.local")}
 									</span>
 								</div>
 								<div className="grid gap-2">

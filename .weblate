@@ -1,0 +1,8 @@
+[weblate]
+format = 1
+
+[component:open-grind-ui]
+name = Open Grind UI
+filemask = public/locales/*/translation.json
+template = public/locales/en/translation.json
+new_base = en

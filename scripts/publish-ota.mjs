@@ -2,6 +2,41 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+function parseCliArgs(argv) {
+  let channelOverride;
+
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      console.log("Usage: npm run ota -- [-main|-development|--channel <name>]");
+      console.log("  -main          Publish to the main OTA channel");
+      console.log("  -development   Publish to the development OTA channel");
+      console.log("  --channel      Publish to a custom OTA channel");
+      process.exit(0);
+    }
+
+    if (arg === "-main") {
+      channelOverride = "main";
+      continue;
+    }
+
+    if (arg === "-development") {
+      channelOverride = "development";
+      continue;
+    }
+  }
+
+  const channelFlagIndex = argv.findIndex((arg) => arg === "--channel");
+  if (channelFlagIndex !== -1) {
+    const value = argv[channelFlagIndex + 1];
+    if (!value) {
+      throw new Error("--channel requires a value");
+    }
+    channelOverride = value;
+  }
+
+  return { channelOverride };
+}
+
 function loadEnvFile(filePath) {
   if (!existsSync(filePath)) {
     return;
@@ -38,6 +73,8 @@ function loadEnvFile(filePath) {
 loadEnvFile(".env.local");
 loadEnvFile(".env");
 
+const { channelOverride } = parseCliArgs(process.argv.slice(2));
+
 function requireEnv(name) {
   const value = process.env[name];
   if (!value) {
@@ -57,7 +94,7 @@ const backendUrl = requireEnv("OTA_BACKEND_URL").replace(/\/$/, "");
 const backendToken =
   process.env.OTA_BACKEND_TOKEN || process.env.CI_UPLOAD_TOKEN || requireEnv("OTA_BACKEND_TOKEN");
 const keyPassword = process.env.HOTSWAP_PRIVATE_KEY_PASSWORD ?? "";
-const otaChannel = process.env.OTA_CHANNEL || "testingwjay";
+const otaChannel = channelOverride || process.env.OTA_CHANNEL || "testingwjay";
 const otaMandatory = process.env.OTA_MANDATORY === "true" ? "true" : "false";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));

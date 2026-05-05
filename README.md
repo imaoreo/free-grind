@@ -7,7 +7,7 @@
   <a href="https://t.me/fre-grind"><img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram"></a>
   <a href="https://github.com/kezza2k7/free-grind/releases"><img src="https://img.shields.io/github/v/release/kezza2k7/free-grind?logo=github&label=Release" alt="Latest Release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Personal%20Use-blue" alt="License"></a>
-  <a href="https://github.com/kezza2k7/free-grind/issues"><img src="https://img.shields.io/github/issues/kezza2k7/free-grind?label=Issues" alt="Issues"></a>
+  <a href="https://freegrind.imaoreo.dev/issues"><img src="https://img.shields.io/badge/Issues-freegrind.imaoreo.dev-blue?logo=bugatti" alt="Issues"></a>
 </p>
 
 <h1 align="center">Free Grind</h1>
@@ -88,7 +88,7 @@ Free Grind does not collect personal data, display ads, or generate revenue of a
 - **Profile fields**: Some server-side fields are undocumented and may display incorrectly.
 
 > [!TIP]
-> Before reporting a bug, check the [issues](https://github.com/kezza2k7/free-grind/issues) page to see if it's already known.
+> Bug reports and feature requests are tracked on our website: [freegrind.imaoreo.dev/issues](https://freegrind.imaoreo.dev/issues). Please check there first to see if your issue is already known before opening a new one. For community discussion, join us on [Discord](https://discord.gg/cJqTaWPMFF).
 
 ## Development
 
@@ -96,7 +96,7 @@ Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get 
 
 All contributions must be aligned with [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
-The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://opengrind.imaoreo.dev/](https://opengrind.imaoreo.dev/) — contributions to reverse engineering and documentation are especially valued.
+The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://freegrind.imaoreo.dev/](https://freegrind.imaoreo.dev/) — contributions to reverse engineering and documentation are especially valued.
 
 ## FAQ & Troubleshooting
 
@@ -115,7 +115,7 @@ The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) a
 <details>
   <summary>Why isn't feature X implemented yet?</summary>
 
-  Free Grind is community-driven and under active development. Check the [ROADMAP.md](./ROADMAP.md) for planned features, or open a [feature request](https://github.com/kezza2k7/free-grind/issues).
+  Free Grind is community-driven and under active development. Check the [ROADMAP.md](./ROADMAP.md) for planned features, or open a [feature request](https://freegrind.imaoreo.dev/issues).
 </details>
 
 <details>
@@ -126,7 +126,11 @@ The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) a
 
 ## Contributing
 
-This project is open to all kinds of contributions — code, documentation, bug reports, and reverse engineering. Feel free to [open a pull request](https://github.com/kezza2k7/free-grind/pulls) or [submit an issue](https://github.com/kezza2k7/free-grind/issues).
+This project is open to all kinds of contributions — code, documentation, bug reports, and reverse engineering.
+
+- **Code contributions:** [open a pull request](https://github.com/kezza2k7/free-grind/pulls) on GitHub.
+- **Bug reports & feature requests:** submit them on our website at [freegrind.imaoreo.dev/issues](https://freegrind.imaoreo.dev/issues).
+- **Community discussion & support:** join us on [Discord](https://discord.gg/cJqTaWPMFF).
 
 ## Donate
 

@@ -1,12 +1,15 @@
 import type { BrowseCard } from "../../GridPage.types";
 import { MapPin } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
+	getOnlineStatusMeta,
 	getDisplayName,
-	isCurrentlyOnline,
 } from "../utils";
 import { cn } from "../../../../utils/cn";
 import blankProfileImage from "../../../../images/blank-profile.png";
+import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
@@ -20,9 +23,11 @@ export function BrowseCardTile({
 	onSelectProfile,
 	isDesktop = false,
 }: BrowseCardTileProps) {
+	const { t } = useTranslation();
 	const name = getDisplayName(card);
-	const online = isCurrentlyOnline(card.onlineUntil);
+	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
+	const usesFreegrind = usePresenceCheck(card.profileId);
 
 	return (
 		<button
@@ -39,7 +44,7 @@ export function BrowseCardTile({
 			<div className="relative aspect-[5/5] bg-[var(--surface-2)]">
 				<img
 					src={card.primaryImageUrl ?? blankProfileImage}
-					alt={name}
+					alt={t("browse_page.profile_photo_alt", { name })}
 					className="h-full w-full object-cover"
 				/>
 				
@@ -51,15 +56,26 @@ export function BrowseCardTile({
 				</p>
 			</div>
 
-			{/* Top-right: Online Status */}
-			{online && (
-				<div className="absolute right-2 top-1">
-					{/* Dot on mobile */}
-					<span className="inline-flex sm:hidden h-3 w-3 rounded-full bg-green-500 shadow-lg" />
-					{/* Badge on larger screens */}
-					<span className="hidden sm:inline-flex items-center rounded-full bg-green-500/90 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-white shadow-lg">
-						Online
+			{/* Top-right: Online / last seen status */}
+			<div className="absolute right-2 top-2">
+				{onlineStatus.isOnline ? (
+					<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
+				) : (
+					<span className="inline-flex items-center rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg backdrop-blur-sm sm:text-[11px]">
+						{t(onlineStatus.labelKey, { count: onlineStatus.count })}
 					</span>
+				)}
+			</div>
+
+			{/* Bottom-right: Free Grind Badge */}
+			{usesFreegrind && (
+				<div className="absolute bottom-2 right-2">
+					<img
+						src={freegrindLogo}
+						alt={t("browse_page.uses_free_grind")}
+						title={t("browse_page.uses_free_grind")}
+						className="h-6 w-6 rounded-full border-2 border-black/30 shadow-lg"
+					/>
 				</div>
 			)}
 
@@ -67,7 +83,7 @@ export function BrowseCardTile({
 				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
 					<span className="inline-flex items-center gap-1 text-xs font-semibold">
 						<MapPin className="h-3.5 w-3.5" />
-						{formatDistance(card.distanceMeters)}
+						{formatDistance(card.distanceMeters, t)}
 					</span>
 				</div>
 			</div>

@@ -1,13 +1,14 @@
 import { ArrowLeft } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { RangeSlider } from "../../components/ui/range-slider";
-import { sexualPositionLabels } from "../../types/grid";
 import { cn } from "../../utils/cn";
 import {
 	loadRightNowFiltersDraft,
 	type RightNowFiltersDraft,
 } from "./rightnow-filters-storage";
+import { getSexualPositionFilterOptions } from "./profile-option-builders";
 
 function parseState(state: unknown): {
 	draft: RightNowFiltersDraft;
@@ -53,14 +54,8 @@ function parseState(state: unknown): {
 	};
 }
 
-const positionFilterOptions = [
-	{ value: "", label: "Any" },
-	...Object.entries(sexualPositionLabels)
-		.sort(([left], [right]) => Number(left) - Number(right))
-		.map(([value, label]) => ({ value, label })),
-];
-
 export function RightNowFiltersPage() {
+	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const initialState = useMemo(() => parseState(location.state), [location.state]);
@@ -68,6 +63,11 @@ export function RightNowFiltersPage() {
 	const [ageMin, setAgeMin] = useState(initialState.draft.ageMin);
 	const [ageMax, setAgeMax] = useState(initialState.draft.ageMax);
 	const [positionFilter, setPositionFilter] = useState(initialState.draft.positionFilter);
+
+	const positionFilterOptions = useMemo(
+		() => getSexualPositionFilterOptions(t, t("right_now.any_position")),
+		[t],
+	);
 
 	const applyAndReturn = () => {
 		navigate(initialState.returnTo, {
@@ -90,13 +90,13 @@ export function RightNowFiltersPage() {
 							type="button"
 							onClick={() => navigate(-1)}
 							className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							aria-label="Back"
+							aria-label={t("right_now_filters.back_aria")}
 						>
 							<ArrowLeft className="h-4 w-4" />
 						</button>
 						<div>
-							<h1 className="app-title">Right Now Filters</h1>
-							<p className="app-subtitle">Refine the Right Now feed</p>
+							<h1 className="app-title">{t("right_now_filters.title")}</h1>
+							<p className="app-subtitle">{t("right_now_filters.subtitle")}</p>
 						</div>
 					</div>
 					<button
@@ -104,14 +104,14 @@ export function RightNowFiltersPage() {
 						onClick={applyAndReturn}
 						className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 					>
-						Apply
+						{t("right_now_filters.apply")}
 					</button>
 				</header>
 
 				<div className="surface-card space-y-5 p-4 sm:p-5">
 					<div>
 						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-							Position
+							{t("right_now_filters.position")}
 						</p>
 						<div className="mt-2 flex flex-wrap gap-2">
 							{positionFilterOptions.map((option) => (
@@ -133,7 +133,7 @@ export function RightNowFiltersPage() {
 					</div>
 
 					<RangeSlider
-						label="Age Range"
+						label={t("right_now_filters.age_range")}
 						min={18}
 						max={102}
 						step={1}

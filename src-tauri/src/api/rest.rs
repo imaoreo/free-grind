@@ -29,30 +29,43 @@ impl GrindrClient {
         TReq: Serialize + ?Sized,
         TResp: DeserializeOwned,
     {
-        let mut request = self.http.request(method, format!("{BASE_URL}{path}"));
+        let url = format!("{BASE_URL}{path}");
+        let mut request = self.http.request(method.clone(), &url);
 
         if let Some(body) = body {
             request = request.json(body);
         }
 
+        eprintln!("Request: {} {} on {:?}", method, url, std::env::consts::OS);
+
         let response = request.send().await?;
 
         if !response.status().is_success() {
-            let json: serde_json::Value = response.json().await.unwrap_or_default();
-            return Err(AppError::Api {
-                code: json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32,
-                message: json
-                    .get("message")
-                    .and_then(|m| m.as_str())
-                    .unwrap_or("Unknown error")
-                    .to_owned(),
-            });
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            eprintln!("API error: status={}, body={}", status, text);
+
+            let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
+            let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
+            let message = json
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or_else(|| {
+                    if text.is_empty() {
+                        "Unknown error"
+                    } else {
+                        &text
+                    }
+                })
+                .to_owned();
+
+            return Err(AppError::Api { code, message });
         }
 
         response.json::<TResp>().await.map_err(Into::into)
     }
 
-    async fn request_raw(
+    pub(super) async fn request_raw(
         &self,
         method: Method,
         path: &str,

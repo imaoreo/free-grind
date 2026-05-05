@@ -119,7 +119,13 @@ export function useApi() {
 						body: Array.from(options.rawBody),
 					}),
 					...(options.contentType && { contentType: options.contentType }),
-				}).then((res) => z.instanceof(ArrayBuffer).parse(res));
+				}).then((res) => {
+					// Tauri delivers ArrayBuffer on most platforms, but on Windows it may
+					// return a plain number[] array. Normalise to ArrayBuffer in both cases.
+					if (res instanceof ArrayBuffer) return res;
+					if (Array.isArray(res)) return new Uint8Array(res as number[]).buffer as ArrayBuffer;
+					return z.instanceof(ArrayBuffer).parse(res);
+				});
 
 				const decoded = decode(packed);
 				const { status, body } = z

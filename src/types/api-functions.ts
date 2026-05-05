@@ -5,6 +5,7 @@ import type {
 	SharedAlbum,
 	SharedAlbumView,
 } from "./albums";
+import type { InterestTapsResponse, InterestViewsResponse } from "./interest";
 import type { MultipartUpload } from "./chat-service";
 
 export type ApiFunctionName =
@@ -19,7 +20,10 @@ export type ApiFunctionName =
 	| "deleteOwnAlbumContent"
 	| "getSharedAlbums"
 	| "getSharedAlbumsForProfile"
-	| "openSharedAlbum";
+	| "openSharedAlbum"
+	| "getViews"
+	| "getTaps"
+	| "tap";
 
 export interface CreateOwnAlbumInput {
 	albumName: string;
@@ -65,6 +69,10 @@ export interface OpenSharedAlbumResult {
 	status: number;
 }
 
+export interface TapResult {
+	isMutual: boolean;
+}
+
 export interface ApiFunctionResultMap {
 	getOwnAlbums: Album[];
 	getOwnAlbumDetails: AlbumDetail;
@@ -78,6 +86,9 @@ export interface ApiFunctionResultMap {
 	getSharedAlbums: SharedAlbumView;
 	getSharedAlbumsForProfile: SharedAlbum[];
 	openSharedAlbum: OpenSharedAlbumResult;
+	getViews: InterestViewsResponse;
+	getTaps: InterestTapsResponse;
+	tap: TapResult;
 }
 
 export type ApiFunctionResult<T extends ApiFunctionName> = ApiFunctionResultMap[T];
