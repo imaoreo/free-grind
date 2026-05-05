@@ -185,9 +185,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		);
 	const renderThread = selectedConversation ? (
 		<div
-			className={`flex h-full flex-col ${!isDesktop ? "overflow-visible p-0" : "overflow-hidden p-3 sm:p-4"} ${
+			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
 				isDesktop ? "surface-card" : ""
 			}`}
+			style={
+				!isDesktop
+					? {
+						height:
+							"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+					}
+					: undefined
+			}
 		>
 			{(() => {
 				const otherParticipant = getOtherParticipant(

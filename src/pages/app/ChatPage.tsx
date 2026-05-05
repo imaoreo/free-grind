@@ -912,6 +912,22 @@ export function ChatPage() {
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 
+				// For fresh thread loads, imperatively scroll to the bottom once React has
+				// committed the new messages.  Two RAFs ensure layout (images etc.) has
+				// settled before measuring scrollHeight.  Guard stale-closure with ref.
+				if (!older) {
+					const targetConvId = conversationId;
+					window.requestAnimationFrame(() => {
+						window.requestAnimationFrame(() => {
+							if (selectedConversationIdRef.current !== targetConvId) return;
+							const container = threadScrollContainerRef.current;
+							if (container) {
+								container.scrollTop = container.scrollHeight;
+							}
+						});
+					});
+				}
+
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
 				if (!older && response.messages.length > 0) {
@@ -1030,6 +1046,23 @@ export function ChatPage() {
 		[service, syncConversation],
 	);
 
+	const scrollThreadToBottom = useCallback((attempts = 4) => {
+		const container = threadScrollContainerRef.current;
+		if (container) {
+			container.scrollTop = container.scrollHeight;
+		} else {
+			threadBottomRef.current?.scrollIntoView({ block: "end" });
+		}
+
+		if (attempts <= 1) {
+			return;
+		}
+
+		window.requestAnimationFrame(() => {
+			scrollThreadToBottom(attempts - 1);
+		});
+	}, []);
+
 	const handleThreadScroll = useCallback(() => {
 		const container = threadScrollContainerRef.current;
 		if (
@@ -1040,7 +1073,7 @@ export function ChatPage() {
 			return;
 		}
 
-		if (container.scrollTop <= 40 && selectedConversationIdRef.current) {
+		if (container.scrollTop <= 150 && selectedConversationIdRef.current) {
 			void loadThread({
 				conversationId: selectedConversationIdRef.current,
 				older: true,
@@ -1132,8 +1165,18 @@ export function ChatPage() {
 			return;
 		}
 
-		threadBottomRef.current?.scrollIntoView({ block: "end" });
-	}, [threadMessages.length]);
+		// Direct scrollTop is synchronous and does not emit scroll events, preventing
+		// the upward-load handler from misfiring during the initial jump.
+		scrollThreadToBottom();
+	}, [threadMessages.length, scrollThreadToBottom]);
+
+	useEffect(() => {
+		if (!selectedConversationId || isLoadingThread) {
+			return;
+		}
+
+		scrollThreadToBottom();
+	}, [selectedConversationId, isLoadingThread, scrollThreadToBottom]);
 
 	useEffect(() => {
 		indexConversations(conversations);
