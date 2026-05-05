@@ -228,6 +228,11 @@ jobs:
       - name: Initialize Android project
         run: bunx tauri android init --ci --skip-targets-install
 
+      - name: Add custom Android notification sound
+        run: |
+          mkdir -p src-tauri/gen/android/app/src/main/res/raw
+          install -m 0644 src-tauri/sounds/free_grind_message.mp3 src-tauri/gen/android/app/src/main/res/raw/free_grind_message.mp3
+
       - name: Restore Android keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
