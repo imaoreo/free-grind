@@ -132,6 +132,14 @@
             "favorites": "Favoritos",
             "hot": "Popular",
             "shuffle": "Mezclado"
+        },
+        "sort": {
+            "oldest": "",
+            "popular": "",
+            "name_az": "",
+            "youngest": "",
+            "default": "",
+            "distance": ""
         }
     },
     "about_page": {
@@ -443,19 +451,46 @@
         }
     },
     "browse_page": {
-        "refreshing_feed": ""
+        "refreshing_feed": "",
+        "title": "",
+        "subtitle": "",
+        "sort": "",
+        "filter": "",
+        "location": "",
+        "current_location": "",
+        "open_settings": "",
+        "settings": ""
     },
     "auth": {
         "sign_in": {
-            "signing_in": ""
+            "signing_in": "",
+            "title": "",
+            "subtitle": "",
+            "no_account": "",
+            "method_token": "",
+            "method_password": "",
+            "token_help": "",
+            "jwt_label": "",
+            "sign_in_with_token": "",
+            "submit": ""
         },
         "sign_up": {
-            "opening_issue": ""
+            "opening_issue": "",
+            "title": "",
+            "subtitle": "",
+            "have_account": "",
+            "open_issue": ""
+        },
+        "common": {
+            "email": "",
+            "password": ""
         }
     },
     "chat": {
         "new_conversation": {
-            "write_first_message": ""
+            "write_first_message": "",
+            "title": "",
+            "subtitle": ""
         },
         "loading_albums": "",
         "loading": "",
@@ -464,10 +499,198 @@
         "refreshing_inbox": "",
         "write_message": "",
         "sending": "",
-        "loading_album": ""
+        "loading_album": "",
+        "tabs": {
+            "inbox": "",
+            "albums": ""
+        },
+        "your_conversations": "",
+        "pinned": "",
+        "muted": "",
+        "conversation": "",
+        "unknown": "",
+        "you": "",
+        "today": "",
+        "yesterday": "",
+        "retry": "",
+        "load_more": "",
+        "clear_filters": "",
+        "open_search": "",
+        "open_filters": "",
+        "profile": "",
+        "no_conversations_match": "",
+        "no_conversations": "",
+        "no_messages_yet": "",
+        "pin": "",
+        "unpin": "",
+        "mute": "",
+        "unmute": "",
+        "open_conversation_actions": "",
+        "share_album": "",
+        "attach_media": "",
+        "manage_albums": "",
+        "no_albums_available": "",
+        "share": "",
+        "send": "",
+        "open": "",
+        "album_fallback": "",
+        "select_conversation": "",
+        "time": {
+            "one_min_ago": "",
+            "mins_ago": ""
+        },
+        "preview": {
+            "sent_image": "",
+            "shared_album": "",
+            "sent_audio": "",
+            "reacted_album_content": "",
+            "sent_video": "",
+            "sent_message": ""
+        },
+        "thread": {
+            "unsent": "",
+            "image_placeholder": "",
+            "video_placeholder": "",
+            "audio_placeholder": "",
+            "unsupported_placeholder": "",
+            "shared_image": "",
+            "shared_video": "",
+            "shared_audio": "",
+            "failed": "",
+            "from_local_history": "",
+            "shared_alt": "",
+            "taken_on_grindr": "",
+            "album_cover": "",
+            "album_share": ""
+        },
+        "actions": {
+            "title": "",
+            "unsend": "",
+            "delete": "",
+            "cancel": ""
+        },
+        "realtime": {
+            "connected": "",
+            "connecting": "",
+            "reconnecting": "",
+            "polling": "",
+            "idle": "",
+            "offline": "",
+            "error": ""
+        },
+        "attachments": {
+            "ready_to_send": "",
+            "looping": "",
+            "taken_on_grindr": "",
+            "send_attachment": "",
+            "uploading": "",
+            "too_large": "",
+            "only_image_video": ""
+        },
+        "errors": {
+            "load_albums": "",
+            "load_inbox": "",
+            "load_messages": "",
+            "update_pin_state": "",
+            "update_mute_state": "",
+            "missing_recipient": "",
+            "send_failed": "",
+            "rate_limited": "",
+            "attachment_upload_send_failed": "",
+            "reupload_image": "",
+            "react_failed": "",
+            "unsend_failed": "",
+            "delete_failed": "",
+            "album_share_missing_recipient": "",
+            "album_share_failed": "",
+            "album_open_failed": ""
+        },
+        "toasts": {
+            "cleared_local_history": "",
+            "album_shared": ""
+        },
+        "clear_local_history": ""
     },
     "profile_details": {
         "loading": "",
-        "locating": ""
+        "locating": "",
+        "title": "",
+        "profile_fallback": "",
+        "last_online": "",
+        "close_photo_viewer": "",
+        "previous_photo": "",
+        "next_photo": "",
+        "photo_alt": "",
+        "previous_profile": "",
+        "next_profile": "",
+        "uses_free_grind": "",
+        "est_created": "",
+        "status": "",
+        "message": "",
+        "tap_profile": "",
+        "tap_sent_recent": "",
+        "tap_active": "",
+        "send_tap": "",
+        "run_location_finder": "",
+        "location_finder_running": "",
+        "locate": "",
+        "about": "",
+        "genders": "",
+        "sexual_health": "",
+        "stats": "",
+        "instagram": "",
+        "x": "",
+        "facebook": "",
+        "close_profile_details": "",
+        "default_profile": "",
+        "open_photo": "",
+        "location_finder": ""
+    },
+    "nav": {
+        "browse": "",
+        "right_now": "",
+        "interest": "",
+        "inbox": ""
+    },
+    "customizability": {
+        "accent_color": "",
+        "selected": "",
+        "custom": "",
+        "picker": "",
+        "apply_hex": "",
+        "hex_error": "",
+        "browse_grid_mobile": "",
+        "columns_2": "",
+        "columns_3": "",
+        "preview": "",
+        "preview_primary": "",
+        "preview_outlined": "",
+        "preview_subtle": "",
+        "schemes": {
+            "system": "",
+            "light": "",
+            "dark": ""
+        },
+        "analytics": {
+            "title": "",
+            "note": "",
+            "allow": "",
+            "deny": "",
+            "current": "",
+            "not_selected": "",
+            "description": ""
+        },
+        "subtitle": "",
+        "color_scheme": ""
+    },
+    "chat_filters": {
+        "title": "",
+        "subtitle": "",
+        "back": "",
+        "max_distance": "",
+        "options": {
+            "unread": "",
+            "chemistry": ""
+        }
     }
 }
