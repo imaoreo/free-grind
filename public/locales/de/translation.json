@@ -68,13 +68,13 @@
         "next": "Weiter"
     },
     "right_now": {
-        "title": "Right Now",
-        "refreshing": "Aktualisiere Right Now…",
+        "title": "Jetzt gerade",
+        "refreshing": "Aktualisiere Jetzt gerade…",
         "anonymous": "Anonym",
         "hosting_subtitle": "{{name}} hostet gerade",
         "member_subtitle": "{{name}} ist gerade right now",
         "distance": "Entfernung",
-        "recent": "Neueste",
+        "recent": "Letzte",
         "hosting": "Hosting",
         "filters": "Filter",
         "filter_summary": "Position: {{position}} · Alter: {{age}}",
@@ -124,7 +124,7 @@
             "face": "Gesicht",
             "no_recent_chat": "Noch nicht gechattet",
             "fresh": "Neu",
-            "right_now": "Right Now",
+            "right_now": "Jetzt gerade",
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
@@ -648,7 +648,7 @@
         "new_conversation": {
             "title": "Neue Konversation",
             "subtitle": "Sende eine Nachricht an Profil #{{profileId}}, um den Chat zu starten.",
-            "write_first_message": "Schreibe deine erste Nachricht..."
+            "write_first_message": ""
         }
     },
     "profile_details": {
@@ -662,7 +662,7 @@
         "previous_profile": "Vorheriges Profil",
         "next_profile": "Nächstes Profil",
         "uses_free_grind": "Nutzt Free Grind",
-        "loading": "Profildetails werden geladen...",
+        "loading": "",
         "est_created": "Vorauss. erstellt",
         "user_id": "Benutzer-ID",
         "status": "Status",
@@ -682,7 +682,7 @@
         "location_finder_error_estimate": "Runde {{round}} abgeschlossen. Geschätzter Fehler: ~{{error}}m",
         "location_finder_final_location": "Der Benutzer befindet sich etwa bei Lat:{{lat}}, Lon:{{lon}}. Geschätzter Fehler: ~{{error}} Meter vom endgültigen geschätzten Standort entfernt.",
         "location_finder_error_general": "Während der Triangulation ist ein Fehler aufgetreten",
-        "locating": "Suche...",
+        "locating": "",
         "locate": "Suchen",
         "about": "Über mich",
         "genders": "Geschlecht",
