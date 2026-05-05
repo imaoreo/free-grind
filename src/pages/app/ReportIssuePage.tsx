@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { BackToSettings } from "../../components/BackToSettings";
 import { submitIssueReport } from "../../services/apiFunctions";
 import { useTranslation } from "react-i18next";
+import { collectIssueLogs, getIssueAppInfo } from "../../utils/issueTelemetry";
 
 type ReportType = "BUG" | "FEATURE";
 
@@ -13,28 +14,17 @@ export function ReportIssuePage() {
   const [description, setDescription] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [reporterContact, setReporterContact] = useState("");
+  const [includeAppInfo, setIncludeAppInfo] = useState(true);
+  const [includeLogs, setIncludeLogs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const appVersion = useMemo(() => import.meta.env.VITE_APP_VERSION || "unknown", []);
-  const platform = useMemo(() => {
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.includes("android")) {
-      return "android";
+  const appInfo = useMemo(() => getIssueAppInfo(), []);
+
+  useEffect(() => {
+    if (kind !== "BUG" && includeLogs) {
+      setIncludeLogs(false);
     }
-    if (ua.includes("iphone") || ua.includes("ipad")) {
-      return "ios";
-    }
-    if (ua.includes("mac")) {
-      return "macos";
-    }
-    if (ua.includes("win")) {
-      return "windows";
-    }
-    if (ua.includes("linux")) {
-      return "linux";
-    }
-    return "web";
-  }, []);
+  }, [kind, includeLogs]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -51,6 +41,7 @@ export function ReportIssuePage() {
 
     setIsSubmitting(true);
     try {
+      const clientLogs = kind === "BUG" && includeLogs ? await collectIssueLogs() : undefined;
       const result = await submitIssueReport(
         {
           kind,
@@ -58,8 +49,10 @@ export function ReportIssuePage() {
           description: description.trim(),
           reporterName: reporterName.trim() || undefined,
           reporterContact: reporterContact.trim() || undefined,
-          appVersion,
-          platform,
+          appVersion: includeAppInfo ? appInfo.appVersion : undefined,
+          platform: includeAppInfo ? appInfo.platform : undefined,
+          otaChannel: includeAppInfo ? appInfo.otaChannel : undefined,
+          clientLogs,
         },
         t,
       );
@@ -175,8 +168,55 @@ export function ReportIssuePage() {
           </div>
         </div>
 
+        <div className="grid gap-2">
+          <p className="text-sm font-semibold text-[var(--text-muted)]">
+            {t("issues_form.include_data_label")}
+          </p>
+          <label className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={includeAppInfo}
+              onChange={(event) => setIncludeAppInfo(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="block text-sm font-medium text-[var(--text)]">
+                {t("issues_form.include_app_info")}
+              </span>
+              <span className="block text-xs text-[var(--text-muted)]">
+                {t("issues_form.include_app_info_hint")}
+              </span>
+            </span>
+          </label>
+
+          {kind === "BUG" ? (
+            <label className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
+              <input
+                type="checkbox"
+                checked={includeLogs}
+                onChange={(event) => setIncludeLogs(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                <span className="block text-sm font-medium text-[var(--text)]">
+                  {t("issues_form.include_logs")}
+                </span>
+                <span className="block text-xs text-[var(--text-muted)]">
+                  {t("issues_form.include_logs_hint")}
+                </span>
+              </span>
+            </label>
+          ) : null}
+        </div>
+
         <p className="text-xs text-[var(--text-muted)]">
-          {t("issues_form.meta", { version: appVersion, platform })}
+          {includeAppInfo
+            ? t("issues_form.meta", {
+                version: appInfo.appVersion,
+                platform: appInfo.platform,
+                otaChannel: appInfo.otaChannel,
+              })
+            : t("issues_form.meta_opt_out")}
         </p>
 
         <button
