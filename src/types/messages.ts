@@ -129,7 +129,7 @@ export const sendMessagePayloadSchema = z.object({
 
 export const sendTextPayloadSchema = z.object({
 	targetProfileId: z.coerce.number().int(),
-	text: z.string().trim().min(1).max(5000),
+	text: z.string().trim().min(1).max(1000),
 });
 
 export const chatMessageMutationSchema = z.object({

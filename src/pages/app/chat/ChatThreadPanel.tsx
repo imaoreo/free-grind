@@ -616,7 +616,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								value={draft}
 								onChange={(event) => setDraft(event.target.value)}
 								rows={2}
-								maxLength={5000}
+								maxLength={1000}
 								placeholder={t("chat.write_message")}
 								className="input-field min-h-[56px] resize-none"
 							/>
@@ -858,7 +858,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						value={draft}
 						onChange={(event) => setDraft(event.target.value)}
 						rows={2}
-						maxLength={5000}
+						maxLength={1000}
 						placeholder={t("chat.new_conversation.write_first_message")}
 						className="input-field min-h-[56px] resize-none"
 					/>
