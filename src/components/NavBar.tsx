@@ -204,10 +204,10 @@ export function NavBar() {
 										</span>
 										{(item.value === "inbox" && unreadCount > 0) ||
 										(item.value === "interest" && interestUnseen) ? (
-											<span
-												aria-label="New activity"
-												className="absolute -right-2.5 -top-1 inline-block h-2 w-2 rounded-full bg-red-500 ring-2 ring-[var(--surface)]"
-											/>
+											<span className="absolute right-1 -top-6 flex h-2 w-2">
+                                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75"></span>
+                                              <span className="relative inline-block h-2 w-2 rounded-full bg-[var(--accent)] ring-1 ring-[var(--surface)]"></span>
+                                            </span>
 										) : null}
 									</div>
 								</TabsTrigger>
