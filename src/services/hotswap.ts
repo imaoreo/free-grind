@@ -10,17 +10,18 @@ import {
 	registerPresence as registerPresenceApi,
 	trackUpdateCheck as trackUpdateCheckApi,
 } from "./apiFunctions";
+import { appLog } from "../utils/logger";
 
 // Subscribe to hotswap lifecycle events for debugging
 if (typeof window !== "undefined") {
 	void (async () => {
 		if (!isTauri()) return;
 		await listen("hotswap://lifecycle", (event) => {
-			console.log("[hotswap-lifecycle]", JSON.stringify(event.payload));
+			appLog.debug("[hotswap-lifecycle]", JSON.stringify(event.payload));
 		});
 		await listen("hotswap://download-progress", (event) => {
 			const p = event.payload as { downloaded: number; total?: number };
-			console.log(`[hotswap-progress] ${p.downloaded}/${p.total ?? "?"}`);
+			appLog.debug(`[hotswap-progress] ${p.downloaded}/${p.total ?? "?"}`);
 		});
 	})();
 }
@@ -29,6 +30,7 @@ let startupReadyNotified = false;
 const HOTSWAP_CHANNEL_STORAGE_KEY = "hotswap-channel";
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const HOTSWAP_CHANNELS = ["main", "development", "testingwjay"] as const;
+const DEV_ONLY_CHANNEL: HotswapChannel = "testingwjay";
 
 export type HotswapChannel = (typeof HOTSWAP_CHANNELS)[number];
 
@@ -91,8 +93,14 @@ function parseBinaryRequiredNotes(notes: string | null): {
 	};
 }
 
-export function getHotswapChannels(): readonly HotswapChannel[] {
-	return HOTSWAP_CHANNELS;
+export function getHotswapChannels(options?: {
+	includeDevChannels?: boolean;
+}): readonly HotswapChannel[] {
+	if (options?.includeDevChannels) {
+		return HOTSWAP_CHANNELS;
+	}
+
+	return HOTSWAP_CHANNELS.filter((channel) => channel !== DEV_ONLY_CHANNEL);
 }
 
 export function getCurrentHotswapChannel(): HotswapChannel {
@@ -155,15 +163,15 @@ async function trackUpdateCheck(): Promise<void> {
 		};
 
 		await trackUpdateCheckApi(analyticsData);
-		console.log("[hotswap-analytics] Tracked update check:", analyticsData);
+		appLog.debug("[hotswap-analytics] Tracked update check:", analyticsData);
 	} catch (error) {
-		console.warn("[hotswap-analytics] Error tracking update check:", error);
+		appLog.warn("[hotswap-analytics] Error tracking update check:", error);
 	}
 }
 
 async function runPostUpdateCallbacks(): Promise<void> {
 	const userId = readStoredUserId();
-	console.log("[hotswap-post-update] starting callbacks", {
+	appLog.debug("[hotswap-post-update] starting callbacks", {
 		hasUserId: Boolean(userId),
 		channel: currentChannel,
 	});
@@ -173,17 +181,17 @@ async function runPostUpdateCallbacks(): Promise<void> {
 	if (userId) {
 		requests.push(registerPresenceApi(userId));
 	} else {
-		console.warn("[hotswap-post-update] registerPresence skipped (no stored user id)");
+		appLog.warn("[hotswap-post-update] registerPresence skipped (no stored user id)");
 	}
 
 	const results = await Promise.allSettled(requests);
 	const hasError = results.some((result) => result.status === "rejected");
 
 	if (hasError) {
-		console.warn("[hotswap-post-update] callback errors detected", results);
+		appLog.warn("[hotswap-post-update] callback errors detected", results);
 	}
 
-	console.log("[hotswap-post-update] callbacks complete", {
+	appLog.debug("[hotswap-post-update] callbacks complete", {
 		total: results.length,
 		hasError,
 	});
@@ -199,7 +207,7 @@ export async function autoCheckAndInstallUpdate(): Promise<void> {
 
 		// Skip if binary update is required (user needs to manually download APK)
 		if (result.requiresBinaryUpdate) {
-			console.log(
+			appLog.debug(
 				"[hotswap] Binary update required, skipping auto-install:",
 				result.notes,
 			);
@@ -207,14 +215,14 @@ export async function autoCheckAndInstallUpdate(): Promise<void> {
 		}
 
 		if (result.available) {
-			console.log("[hotswap] Auto-installing available update...");
+			appLog.debug("[hotswap] Auto-installing available update...");
 			await installHotswapUpdate();
 
-			console.log("[hotswap] Applying update immediately...");
+			appLog.debug("[hotswap] Applying update immediately...");
 			window.location.reload();
 		}
 	} catch (error) {
-		console.error("[hotswap] Auto-update check failed:", error);
+		appLog.error("[hotswap] Auto-update check failed:", error);
 	}
 }
 
@@ -258,7 +266,7 @@ export async function installHotswapUpdate(): Promise<void> {
 	try {
 		await runPostUpdateCallbacks();
 	} catch (error) {
-		console.warn("[hotswap-post-update] first attempt failed, retrying", error);
+		appLog.warn("[hotswap-post-update] first attempt failed, retrying", error);
 		await runPostUpdateCallbacks();
 	}
 }

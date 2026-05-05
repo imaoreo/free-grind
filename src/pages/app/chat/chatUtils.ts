@@ -7,6 +7,7 @@ import {
 	validateMediaHash,
 } from "../../../utils/media";
 import blankProfileImage from "../../../images/blank-profile.png";
+import { appLog } from "../../../utils/logger";
 
 export type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -391,7 +392,7 @@ export function getMessageImageUrl(message: UiMessage): string | null {
 		if (typeof candidate === "string" && candidate.length > 0) {
 			const normalized = normalizeUrlCandidate(candidate);
 			if (normalized) {
-				console.log("Found image URL candidate:", { candidate, normalized });
+				appLog.debug("Found image URL candidate:", { candidate, normalized });
 				return normalized;
 			}
 		}
@@ -557,7 +558,7 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 
 	for (const candidate of candidates) {
 		if (typeof candidate === "string" && candidate.length > 0) {
-			console.log("Found video URL candidate:", { candidate });
+			appLog.debug("Found video URL candidate:", { candidate });
 			return candidate;
 		}
 	}

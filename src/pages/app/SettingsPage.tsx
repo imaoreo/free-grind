@@ -17,6 +17,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { exportAllLogs } from "../../services/chatLog";
 import {
 	checkForHotswapUpdate,
@@ -55,6 +56,7 @@ export function SettingsPage() {
 	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const { callMethod, asAppError } = useApi();
+	const { developerMode } = usePreferences();
 	const [isExporting, setIsExporting] = useState(false);
 	const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 	const [isSwitchingChannel, setIsSwitchingChannel] = useState(false);
@@ -87,6 +89,16 @@ export function SettingsPage() {
 	}, []);
 	const [updateChannel, setUpdateChannel] =
 		useState<HotswapChannel>(getCurrentHotswapChannel());
+	const visibleChannels = getHotswapChannels({ includeDevChannels: developerMode });
+
+	useEffect(() => {
+		if (!developerMode && updateChannel === "testingwjay") {
+			void setHotswapChannel("main").then(() => {
+				setUpdateChannel("main");
+				toast("Developer-only update channel disabled; switched to main.");
+			});
+		}
+	}, [developerMode, updateChannel]);
 
 	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
 		const tokenToSync = overrideToken ?? fcmToken;
@@ -113,7 +125,8 @@ export function SettingsPage() {
 			await logout();
 			navigate("/auth/sign-in");
 		} catch (error) {
-			console.error("Logout failed:", error);
+			const message = getErrorMessage(error, "Failed to log out.");
+			toast.error(message);
 		}
 	};
 
@@ -131,8 +144,10 @@ export function SettingsPage() {
 			a.click();
 			document.body.removeChild(a);
 			URL.revokeObjectURL(url);
+			toast.success("Chat export downloaded.");
 		} catch (error) {
-			console.error("Export failed:", error);
+			const message = getErrorMessage(error, "Failed to export chat data.");
+			toast.error(message);
 		} finally {
 			setIsExporting(false);
 		}
@@ -165,7 +180,9 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			const msg = getErrorMessage(error, t("settings.failed_update_check"));
-			console.error("Update check failed:", error, "| message:", msg);
+			if (import.meta.env.DEV) {
+				console.error("Update check failed:", error, "| message:", msg);
+			}
 			toast.error(msg, { duration: 10000 });
 		} finally {
 			setIsCheckingUpdates(false);
@@ -173,6 +190,11 @@ export function SettingsPage() {
 	};
 
 	const handleSwitchUpdateChannel = async (channel: HotswapChannel) => {
+		if (!developerMode && channel === "testingwjay") {
+			toast.error("Enable Developer Mode to use this update branch.");
+			return;
+		}
+
 		if (!isHotswapAvailable()) {
 			toast.error(t("settings.ota_available_only_tauri"));
 			return;
@@ -198,7 +220,9 @@ export function SettingsPage() {
 			toast.success(t("settings.switched_channel", { channel }));
 			window.location.reload();
 		} catch (error) {
-			console.error("Switch update environment failed:", error);
+			if (import.meta.env.DEV) {
+				console.error("Switch update environment failed:", error);
+			}
 			toast.error(t("settings.failed_switch_env"));
 		} finally {
 			setIsSwitchingChannel(false);
@@ -210,6 +234,11 @@ export function SettingsPage() {
 			<header className="mb-6">
 				<h1 className="app-title mb-2">{t("settings.title")}</h1>
 				<p className="app-subtitle">{t("settings.subtitle")}</p>
+				{developerMode ? (
+					<p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
+						Developer Mode
+					</p>
+				) : null}
 			</header>
 
 			<div className="grid gap-4">
@@ -318,26 +347,28 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
 
-				<button
-					type="button"
-					onClick={() => navigate("/settings/api-inspector")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Radar className="h-5 w-5" />
+				{developerMode ? (
+					<button
+						type="button"
+						onClick={() => navigate("/settings/api-inspector")}
+						className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+					>
+						<div className="flex items-center gap-3">
+							<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+								<Radar className="h-5 w-5" />
+							</div>
+							<div>
+								<p className="text-base font-semibold">
+									{t("settings.api_inspector")}
+								</p>
+								<p className="text-sm text-[var(--text-muted)]">
+									{t("settings.api_inspector_desc")}
+								</p>
+							</div>
 						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.api_inspector")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.api_inspector_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
+						<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+					</button>
+				) : null}
 
 				<button
 					type="button"
@@ -397,7 +428,7 @@ export function SettingsPage() {
 								{t("settings.environment")}: <strong>{updateChannel}</strong>
 							</p>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
-								{getHotswapChannels().map((channel) => (
+								{visibleChannels.map((channel) => (
 									<button
 										key={channel}
 										type="button"
@@ -434,7 +465,8 @@ export function SettingsPage() {
 					)}
 				</div>
 
-				<div className="surface-card p-4 sm:p-5">
+				{developerMode ? (
+					<div className="surface-card p-4 sm:p-5">
 					<div className="flex items-start gap-3">
 						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
 							<Bell className="h-5 w-5" />
@@ -514,7 +546,8 @@ export function SettingsPage() {
 							</div>
 						</div>
 					</div>
-				</div>
+					</div>
+				) : null}
 
 				<div className="mt-2 flex flex-wrap items-center gap-3">
 					<Button type="button" onClick={() => navigate("/")}>

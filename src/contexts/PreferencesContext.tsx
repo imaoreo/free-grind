@@ -143,6 +143,7 @@ const preferencesSchema = z.object({
 	accentColor: z.string().default("#ffcc01"),
 	accentContrast: z.string().default("#1a1a1a"),
 	mobileGridColumns: z.enum(["2", "3"]).default("3"),
+	developerMode: z.boolean().default(false),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -162,6 +163,7 @@ type PreferencesAction =
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_COLOR_SCHEME"; payload: ColorScheme }
 	| { type: "SET_MOBILE_GRID_COLUMNS"; payload: "2" | "3" }
+	| { type: "SET_DEVELOPER_MODE"; payload: boolean }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
 function preferencesReducer(
@@ -179,6 +181,8 @@ function preferencesReducer(
 			return { ...state, colorScheme: action.payload };
 		case "SET_MOBILE_GRID_COLUMNS":
 			return { ...state, mobileGridColumns: action.payload };
+		case "SET_DEVELOPER_MODE":
+			return { ...state, developerMode: action.payload };
 		case "SET_ACCENT":
 			return {
 				...state,
@@ -220,6 +224,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		accentColor: "#ffcc01",
 		accentContrast: "#1a1a1a",
 		mobileGridColumns: "3",
+		developerMode: false,
 		isLoading: true,
 	});
 
@@ -235,6 +240,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_LOCATION_NAME", payload: parsed.locationName ?? null });
 					dispatch({ type: "SET_COLOR_SCHEME", payload: parsed.colorScheme });
 					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
+					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
 					dispatch({
 						type: "SET_ACCENT",
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
@@ -260,6 +266,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				accentColor: state.accentColor,
 				accentContrast: state.accentContrast,
 				mobileGridColumns: state.mobileGridColumns,
+				developerMode: state.developerMode,
 			};
 			const preferences: Preferences = {
 				...oldValues,
@@ -281,6 +288,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.mobileGridColumns !== undefined) {
 				dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: newValues.mobileGridColumns });
+			}
+			if (newValues.developerMode !== undefined) {
+				dispatch({ type: "SET_DEVELOPER_MODE", payload: newValues.developerMode });
 			}
 			if (newValues.accentColor !== undefined || newValues.accentContrast !== undefined) {
 				dispatch({
@@ -308,6 +318,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			state.accentColor,
 			state.accentContrast,
 			state.mobileGridColumns,
+			state.developerMode,
 		],
 	);
 
@@ -318,6 +329,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		accentColor: state.accentColor,
 		accentContrast: state.accentContrast,
 		mobileGridColumns: state.mobileGridColumns,
+		developerMode: state.developerMode,
 		setPreferences,
 		isLoading: state.isLoading,
 	};

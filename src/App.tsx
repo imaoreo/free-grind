@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
@@ -31,6 +31,7 @@ import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
+import { usePreferences } from "./contexts/PreferencesContext";
 
 function ErrorPage() {
 	const { t } = useTranslation();
@@ -51,6 +52,16 @@ function ErrorPage() {
 			</div>
 		</div>
 	);
+}
+
+function DeveloperModeRoute({ children }: { children: React.ReactNode }) {
+	const { developerMode } = usePreferences();
+
+	if (!developerMode) {
+		return <Navigate to="/settings" replace />;
+	}
+
+	return <>{children}</>;
 }
 
 export default function App() {
@@ -95,7 +106,11 @@ export default function App() {
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 							<Route
 								path="/settings/api-inspector"
-								element={<ApiInspectorPage />}
+								element={
+									<DeveloperModeRoute>
+										<ApiInspectorPage />
+									</DeveloperModeRoute>
+								}
 							/>
 							<Route
 								path="/settings/shared-albums"

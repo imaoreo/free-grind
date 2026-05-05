@@ -13,6 +13,7 @@ import {
 } from "@tauri-apps/plugin-notification";
 import { platform } from "@tauri-apps/plugin-os";
 import { isTauriRuntime } from "./tauriWebSocket";
+import { appLog } from "../utils/logger";
 
 let permissionPromise: Promise<boolean> | null = null;
 let cachedIsDesktop: boolean | null = null;
@@ -27,7 +28,7 @@ function detectDesktop(): boolean {
 		const p = platform();
 		cachedIsDesktop = p === "macos" || p === "windows" || p === "linux";
 	} catch (error) {
-		console.warn("[notify] platform() failed", error);
+		appLog.warn("[notify] platform() failed", error);
 		cachedIsDesktop = false;
 	}
 	return cachedIsDesktop;
@@ -38,14 +39,14 @@ async function ensurePermission(): Promise<boolean> {
 		permissionPromise = (async () => {
 			try {
 				const already = await isPermissionGranted();
-				console.log("[notify] isPermissionGranted ->", already);
+				appLog.debug("[notify] isPermissionGranted ->", already);
 				if (already) return true;
-				console.log("[notify] requesting permission…");
+				appLog.debug("[notify] requesting permission");
 				const result = await requestPermission();
-				console.log("[notify] requestPermission ->", result);
+				appLog.debug("[notify] requestPermission ->", result);
 				return result === "granted";
 			} catch (error) {
-				console.warn("[notify] permission check failed", error);
+				appLog.warn("[notify] permission check failed", error);
 				return false;
 			}
 		})();
@@ -60,10 +61,10 @@ async function ensurePermission(): Promise<boolean> {
  */
 export async function primeDesktopNotifications(): Promise<boolean> {
 	if (!detectDesktop()) {
-		console.log("[notify] prime skipped (not desktop)");
+		appLog.debug("[notify] prime skipped (not desktop)");
 		return false;
 	}
-	console.log("[notify] priming permission");
+	appLog.debug("[notify] priming permission");
 	return ensurePermission();
 }
 
@@ -78,7 +79,7 @@ export async function notifyMessage(
 	options: DesktopNotifyOptions,
 ): Promise<void> {
 	if (options.suppress) {
-		console.log("[notify] suppressed", options.title);
+		appLog.debug("[notify] suppressed", options.title);
 		return;
 	}
 	if (!detectDesktop()) {
@@ -86,13 +87,13 @@ export async function notifyMessage(
 	}
 	const granted = await ensurePermission();
 	if (!granted) {
-		console.log("[notify] permission not granted, skipping");
+		appLog.debug("[notify] permission not granted, skipping");
 		return;
 	}
 	try {
-		console.log("[notify] sending", options.title);
+		appLog.debug("[notify] sending", options.title);
 		sendNotification({ title: options.title, body: options.body });
 	} catch (error) {
-		console.warn("[notify] sendNotification failed", error);
+		appLog.warn("[notify] sendNotification failed", error);
 	}
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
+import toast from "react-hot-toast";
 import { usePreferences, ACCENT_PRESETS, type ColorScheme } from "../../contexts/PreferencesContext";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
@@ -134,7 +135,11 @@ export function CustomizabilityPage() {
 			await i18n.changeLanguage(nextLocale);
 			document.documentElement.lang = nextLocale;
 		} catch (error) {
-			console.error("Locale change failed:", error);
+			const message =
+				error instanceof Error && error.message
+					? error.message
+					: "Failed to change language.";
+			toast.error(message);
 		}
 	};
 

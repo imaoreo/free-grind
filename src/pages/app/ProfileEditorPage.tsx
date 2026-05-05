@@ -570,7 +570,11 @@ export function ProfileEditorPage() {
 			await logout();
 			navigate("/auth/sign-in");
 		} catch (error) {
-			console.error("Logout failed:", error);
+			const message =
+				error instanceof Error && error.message
+					? error.message
+					: "Failed to log out.";
+			toast.error(message);
 		}
 	};
 

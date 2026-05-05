@@ -23,6 +23,7 @@ import { TauriWebSocket, isTauriRuntime } from "../services/tauriWebSocket";
 import * as chatLog from "../services/chatLog";
 import { messageSchema, type Message } from "../types/messages";
 import type { RealtimeEnvelope, RealtimeStatus } from "../types/chat-realtime";
+import { appLog } from "../utils/logger";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
@@ -136,7 +137,7 @@ export function ChatRealtimeBridge() {
 					detail: "idle",
 				}),
 			);
-			console.log("[chat-ws:bridge] no user; skipping token fetch");
+			appLog.debug("[chat-ws:bridge] no user; skipping token fetch");
 			return;
 		}
 
@@ -146,7 +147,7 @@ export function ChatRealtimeBridge() {
 				if (!active) return;
 				const value = (tok as string | null) ?? null;
 				setToken(value);
-				console.log("[chat-ws:bridge] token", {
+				appLog.debug("[chat-ws:bridge] token", {
 					hasToken: Boolean(value),
 					tokenLength: value?.length ?? 0,
 				});
@@ -166,7 +167,7 @@ export function ChatRealtimeBridge() {
 						detail: "polling",
 					}),
 				);
-				console.warn("[chat-ws:bridge] token fetch failed");
+				appLog.warn("[chat-ws:bridge] token fetch failed");
 			});
 
 		return () => {
@@ -178,7 +179,7 @@ export function ChatRealtimeBridge() {
 	useEffect(() => {
 		if (!token) return;
 
-		console.log("[chat-ws:bridge] starting manager", {
+		appLog.debug("[chat-ws:bridge] starting manager", {
 			transport: isTauriRuntime() ? "tauri" : "browser",
 		});
 
@@ -214,7 +215,7 @@ export function ChatRealtimeBridge() {
 								detail: tap,
 							}),
 						);
-						console.log("[chat-ws:bridge] tap", { from: tap.displayName });
+							appLog.debug("[chat-ws:bridge] tap", { from: tap.displayName });
 					}
 				}
 
@@ -234,10 +235,10 @@ export function ChatRealtimeBridge() {
 				}
 			},
 			onRawMessage: (raw) => {
-				console.log("[chat-ws:bridge:raw]", raw);
+				appLog.debug("[chat-ws:bridge:raw]", raw);
 			},
 			onParseError: (raw, error) => {
-				console.warn("[chat-ws:bridge:parse-error]", { raw, error });
+				appLog.warn("[chat-ws:bridge:parse-error]", { raw, error });
 			},
 			buildSocket: isTauriRuntime()
 				? (url) => new TauriWebSocket(url) as unknown as WebSocket
@@ -247,7 +248,7 @@ export function ChatRealtimeBridge() {
 		manager.start();
 
 		return () => {
-			console.log("[chat-ws:bridge] stopping manager");
+			appLog.debug("[chat-ws:bridge] stopping manager");
 			manager.stop({ suppressStatus: true });
 		};
 	}, [token]);

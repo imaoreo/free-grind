@@ -62,6 +62,7 @@ import {
 	parseChatFiltersFromLocationState,
 	useDesktopBreakpoint,
 } from "./chat/chatUtils";
+import { appLog } from "../../utils/logger";
 
 
 export function ChatPage() {
@@ -603,14 +604,14 @@ export function ChatPage() {
 
 	const handleRealtimeEvent = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			console.log("[chat-ws:event]", envelope);
+			appLog.debug("[chat-ws:event]", envelope);
 			applyRealtimeEnvelope(envelope);
 		},
 		[applyRealtimeEnvelope],
 	);
 
 	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
-		console.log("[chat-ws:status]", status);
+		appLog.debug("[chat-ws:status]", status);
 		setRealtimeStatus(status);
 	}, []);
 

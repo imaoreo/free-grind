@@ -10,15 +10,48 @@ import {
 	Shield,
 	Users,
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/chip";
 import { BackToSettings } from "../../components/BackToSettings";
+import { usePreferences } from "../../contexts/PreferencesContext";
+
+const DEV_TAP_TARGET = 7;
 
 export function AboutPage() {
 	const { t } = useTranslation();
+	const { developerMode, setPreferences } = usePreferences();
 	const appVersion = import.meta.env.VITE_APP_VERSION;
+	const [devTapCount, setDevTapCount] = useState(0);
+	const [lastDevTapAt, setLastDevTapAt] = useState(0);
+
+	const handleVersionTap = () => {
+		const now = Date.now();
+		const withinWindow = now - lastDevTapAt < 3000;
+		const nextCount = withinWindow ? devTapCount + 1 : 1;
+		setDevTapCount(nextCount);
+		setLastDevTapAt(now);
+
+		const remaining = DEV_TAP_TARGET - nextCount;
+		if (remaining <= 0) {
+			const nextMode = !developerMode;
+			void setPreferences({ developerMode: nextMode });
+			toast.success(
+				nextMode ? "Developer Mode enabled" : "Developer Mode disabled",
+			);
+			setDevTapCount(0);
+			setLastDevTapAt(0);
+			return;
+		}
+
+		if (remaining <= 3) {
+			toast(
+				`Tap ${remaining} more ${remaining === 1 ? "time" : "times"} to ${developerMode ? "disable" : "enable"} Developer Mode`,
+			);
+		}
+	};
 
 	const resourceLinks = useMemo(
 		() => [
@@ -79,9 +112,13 @@ export function AboutPage() {
 							<div className="grid gap-5 p-6 sm:p-8">
 								<div className="flex flex-wrap items-center gap-2">
 									<Badge>{t("about_page.badge")}</Badge>
-									<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--text-muted)]">
+									<button
+										type="button"
+										onClick={handleVersionTap}
+										className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									>
 										v{appVersion}
-									</span>
+									</button>
 								</div>
 
 								<div className="grid gap-3">

@@ -11,6 +11,7 @@ import {
 	type AuthContextType,
 	type AuthState,
 } from "./auth-context";
+import { appLog } from "../utils/logger";
 
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
@@ -150,28 +151,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 					: null;
 
 			if (!token) {
-				console.debug("[PUSH_SYNC] Received fg:fcm-token event without token payload");
+				appLog.debug("[PUSH_SYNC] Received fg:fcm-token event without token payload");
 				return;
 			}
 
-			console.debug(`[PUSH_SYNC] Received native FCM token event (len=${token.length})`);
+			appLog.debug(`[PUSH_SYNC] Received native FCM token event (len=${token.length})`);
 
 			window.localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
 
 			if (!state.userId || state.isLoading) {
-				console.debug("[PUSH_SYNC] Token cached; waiting for authenticated session before sync");
+				appLog.debug("[PUSH_SYNC] Token cached; waiting for authenticated session before sync");
 				return;
 			}
 
-			console.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
+			appLog.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
 			void callMethod("sync_push_token", { token }).catch((error) => {
 				const appError = asAppError(error);
-				console.warn(
+				appLog.warn(
 					"[PUSH_SYNC] Failed to sync push token",
 					appError?.prettyMessage || error,
 				);
 			}).then(() => {
-				console.debug("[PUSH_SYNC] Push token sync succeeded");
+				appLog.debug("[PUSH_SYNC] Push token sync succeeded");
 			});
 		};
 
@@ -203,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			const effectiveToken = token || fallbackToken;
 
 			if (!effectiveToken) {
-				console.debug("[PUSH_SYNC] No cached token found while logged in");
+				appLog.debug("[PUSH_SYNC] No cached token found while logged in");
 				return;
 			}
 
@@ -216,15 +217,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				return;
 			}
 
-			console.debug("[PUSH_SYNC] Syncing cached push token (retry loop)");
+			appLog.debug("[PUSH_SYNC] Syncing cached push token (retry loop)");
 			void callMethod("sync_push_token", { token: effectiveToken })
 				.then(() => {
 					window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, effectiveToken);
-					console.debug("[PUSH_SYNC] Cached push token sync succeeded");
+					appLog.debug("[PUSH_SYNC] Cached push token sync succeeded");
 				})
 				.catch((error) => {
 					const appError = asAppError(error);
-					console.warn(
+					appLog.warn(
 						"[PUSH_SYNC] Failed to sync push token in retry loop",
 						appError?.prettyMessage || error,
 					);

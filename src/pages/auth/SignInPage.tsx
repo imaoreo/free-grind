@@ -28,8 +28,8 @@ export function SignInPage() {
 		try {
 			await loginWithJwt(jwtToken.trim());
 			navigate("/");
-		} catch (err) {
-			console.error("Token login failed:", err);
+		} catch {
+			// AuthContext updates `error`, which is rendered in the form.
 		} finally {
 			setIsTokenLoading(false);
 		}
@@ -41,8 +41,8 @@ export function SignInPage() {
 		try {
 			await login(email, password);
 			navigate("/");
-		} catch (err) {
-			console.error("Login failed:", err);
+		} catch {
+			// AuthContext updates `error`, which is rendered in the form.
 		} finally {
 			setIsPasswordLoading(false);
 		}
