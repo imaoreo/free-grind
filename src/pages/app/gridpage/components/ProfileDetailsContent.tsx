@@ -1,5 +1,5 @@
 import { Flame, MessageCircle, Triangle } from "lucide-react";
-import type { RefObject, UIEvent } from "react";
+import { type RefObject, type UIEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
@@ -108,6 +108,14 @@ export function ProfileDetailsContent({
 	relationshipStatusLabels,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
+	const [isIgniting, setIsIgniting] = useState(false);
+	useEffect(() => {
+		if (isTapActive) {
+			setIsIgniting(true);
+			const timer = setTimeout(() => setIsIgniting(false),400);
+			return () => clearTimeout(timer);
+		}
+	}, [isTapActive]);
 
 	return (
 		<div className="grid gap-6">
@@ -131,7 +139,7 @@ export function ProfileDetailsContent({
 												type="button"
 												key={hash}
 												onClick={() => openPhotoViewer(index)}
-												className="aspect-[2/3] w-full shrink-0 snap-center overflow-hidden"
+												className="aspect-[3/3] w-full shrink-0 snap-center overflow-hidden"
 												aria-label={t("profile_details.open_photo", { index: index + 1 })}
 											>
 												<img
@@ -211,22 +219,24 @@ export function ProfileDetailsContent({
 					<div>
 						<p className="text-lg font-semibold sm:text-xl">
 							{activeProfileName}
-							<span className="ml-2 text-sm font-medium text-[var(--text-muted)]">
+							<span className="ml-2 text font-medium text-[var(--text-muted)]">
 								({formatOptionalNumber(activeProfile.age, t)})
 							</span>
 						</p>
 						<p className="mt-1 text-xs text-[var(--text-muted)]">
-							{t("profile_details.user_id")}: {activeProfile.profileId}
+							<span className="font-semibold text-[var(--text)]">{t("profile_details.user_id")}:</span> {activeProfile.profileId}
 						</p>
 						<p className="mt-1 text-xs text-[var(--text-muted)]">
-							{t("profile_details.est_created")}: {estimatedCreatedAt}
+							<span className="font-semibold text-[var(--text)]">{t("profile_details.est_created")}:</span> {estimatedCreatedAt}
 						</p>
 					</div>
 					<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
 						<p>
-							{t("profile_details.status")}: {profileStatusLabel}
+							<span className="font-semibold text-[var(--text)]">{t("profile_details.status")}:</span> {profileStatusLabel}
 						</p>
-						<p>{t("profile_details.distance")}: {formatDistance(profileDistance, t)}</p>
+						<p>
+							<span className="font-semibold text-[var(--text)]">{t("profile_details.distance")}:</span> {formatDistance(profileDistance, t)}
+						</p>
 					</div>
 				</div>
 				{usesFreegrind && (
@@ -263,11 +273,29 @@ export function ProfileDetailsContent({
 										: "Send tap"
 							}
 						>
-							{isTapActive ? (
-								"🔥"
-							) : (
-								<Flame className="h-7 w-7" strokeWidth={1.8} />
+							{/* Background Overlay to avoid color-mix incompatibility in WebView */}
+							{isTapActive && (
+								<>
+									<div className="absolute inset-0 bg-[var(--accent)] opacity-15 pointer-events-none" />
+									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+										<div
+											key={isIgniting ? "ignite" : "loop"}
+											className={`h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(255,140,0,0.8)_0%,rgba(2,6,23,0)_75%)] ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
+										/>
+									</div>
+								</>
 							)}
+							<div className="relative z-10 flex h-7 w-7 items-center justify-center">
+								<div
+									className={`relative inline-block origin-bottom transition-all duration-300 ${isTapActive ? `flame-active text-2xl ${isIgniting ? "animate-ignite" : "animate-flame-loop"}` : ""}`}
+								>
+									{isTapActive ? (
+										"🔥"
+									) : (
+										<Flame className="h-7 w-7" strokeWidth={1.8} />
+									)}
+								</div>
+							</div>
 						</button>
 						<button
 							type="button"
@@ -332,7 +360,9 @@ export function ProfileDetailsContent({
 									),
 								) && (
 									<p>
-										{t("profile_details.looking_for")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.looking_for")}:
+										</span>{" "}
 										{formatEnumArray(
 											activeProfile.lookingFor,
 											lookingForLabels,
@@ -344,7 +374,9 @@ export function ProfileDetailsContent({
 									formatEnumArray(activeProfile.meetAt, meetAtLabels, t),
 								) && (
 									<p>
-										{t("profile_details.meet_at")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.meet_at")}:
+										</span>{" "}
 										{formatEnumArray(
 											activeProfile.meetAt,
 											meetAtLabels,
@@ -360,7 +392,9 @@ export function ProfileDetailsContent({
 									),
 								) && (
 									<p>
-										{t("profile_details.tribes")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.tribes")}:
+										</span>{" "}
 										{formatEnumArray(
 											activeProfile.grindrTribes,
 											tribeLabels,
@@ -369,16 +403,29 @@ export function ProfileDetailsContent({
 									</p>
 								)}
 								{!shouldHideField(formattedActiveGenders) && (
-									<p>{t("profile_details.genders")}: {formattedActiveGenders}</p>
+									<p>
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.genders")}:
+										</span>{" "}
+										{formattedActiveGenders}
+									</p>
 								)}
 								{!shouldHideField(formattedActivePronouns) && (
-									<p>{t("profile_details.pronouns")}: {formattedActivePronouns}</p>
+									<p>
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.pronouns")}:
+										</span>{" "}
+										{formattedActivePronouns}
+									</p>
 								)}
 								{!shouldHideField(
 									activeProfile.rightNowText?.trim(),
 								) && (
 									<p>
-										{t("profile_details.right_now")}: {activeProfile.rightNowText?.trim()}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.right_now")}:
+										</span>{" "}
+										{activeProfile.rightNowText?.trim()}
 									</p>
 								)}
 							</div>
@@ -398,7 +445,9 @@ export function ProfileDetailsContent({
 									),
 								) && (
 									<p>
-										{t("profile_details.hiv_status")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.hiv_status")}:
+										</span>{" "}
 										{formatEnumValue(
 											activeProfile.hivStatus,
 											hivStatusLabels,
@@ -408,7 +457,9 @@ export function ProfileDetailsContent({
 								)}
 								{activeProfile.lastTestedDate && (
 									<p>
-										{t("profile_details.last_tested")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.last_tested")}:
+										</span>{" "}
 										{formatTimeAgo(activeProfile.lastTestedDate, t)}
 									</p>
 								)}
@@ -420,7 +471,9 @@ export function ProfileDetailsContent({
 									),
 								) && (
 									<p>
-										{t("profile_details.sexual_health")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.sexual_health")}:
+										</span>{" "}
 										{formatEnumArray(
 											activeProfile.sexualHealth,
 											sexualHealthLabels,
@@ -436,7 +489,9 @@ export function ProfileDetailsContent({
 									),
 								) && (
 									<p>
-										{t("profile_details.vaccines")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.vaccines")}:
+										</span>{" "}
 										{formatEnumArray(
 											activeProfile.vaccines,
 											vaccineLabels,
@@ -462,7 +517,7 @@ export function ProfileDetailsContent({
 										sexualPositionLabels,
 									),
 								) && (
-									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.position")}
 										</p>
@@ -478,7 +533,7 @@ export function ProfileDetailsContent({
 								{!shouldHideField(
 									formatHeightCm(activeProfile.height, t),
 								) && (
-									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.height")}
 										</p>
@@ -490,7 +545,7 @@ export function ProfileDetailsContent({
 								{!shouldHideField(
 									formatWeightKg(activeProfile.weight, t),
 								) && (
-									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.weight")}
 										</p>
@@ -506,7 +561,7 @@ export function ProfileDetailsContent({
 										t
 									),
 								) && (
-									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.body_type")}
 										</p>
@@ -526,7 +581,7 @@ export function ProfileDetailsContent({
 										t
 									),
 								) && (
-									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
+									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.ethnicity")}
 										</p>
@@ -571,7 +626,9 @@ export function ProfileDetailsContent({
 							<div className="mt-2 grid gap-1 text-sm text-[var(--text-muted)]">
 								{activeProfile.socialNetworks?.instagram?.userId && (
 									<p>
-										{t("profile_details.instagram")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.instagram")}:
+										</span>{" "}
 										<a
 											href={`https://instagram.com/${activeProfile.socialNetworks.instagram.userId}`}
 											target="_blank"
@@ -584,7 +641,9 @@ export function ProfileDetailsContent({
 								)}
 								{activeProfile.socialNetworks?.twitter?.userId && (
 									<p>
-										{t("profile_details.x")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.x")}:
+										</span>{" "}
 										<a
 											href={`https://x.com/${activeProfile.socialNetworks.twitter.userId}`}
 											target="_blank"
@@ -597,7 +656,9 @@ export function ProfileDetailsContent({
 								)}
 								{activeProfile.socialNetworks?.facebook?.userId && (
 									<p>
-										{t("profile_details.facebook")}:{" "}
+										<span className="font-semibold text-[var(--text)]">
+											{t("profile_details.facebook")}:
+										</span>{" "}
 										<a
 											href={`https://facebook.com/${activeProfile.socialNetworks.facebook.userId}`}
 											target="_blank"

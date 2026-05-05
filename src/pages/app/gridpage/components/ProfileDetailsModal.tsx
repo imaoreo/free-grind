@@ -122,7 +122,7 @@ export function ProfileDetailsModal({
 		!onTriangleProfile || !messageProfileId || isLocatingProfile;
 	const tapButtonClassName =
 		isTapActive
-			? "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_20%,var(--surface))] text-4xl leading-none text-[var(--text)] transition hover:brightness-110"
+			? "inline-flex h-16 w-16 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] text-4xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative"
 			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
 	const triangleButtonClassName = isTriangleDisabled
 		? "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
@@ -405,8 +405,8 @@ export function ProfileDetailsModal({
 			<section className="min-h-screen bg-[var(--bg)] pb-24">
 				<div className="w-full">
 					{/* Sticky header container using --app-px for consistent horizontal alignment with the main browse page */}
-					<div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
-						<div className="flex items-center gap-2">
+					<div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+						<div className="flex flex-1 justify-start">
 							<button
 								type="button"
 								onClick={onClose}
@@ -415,44 +415,44 @@ export function ProfileDetailsModal({
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</button>
-							{(onPrevProfile || onNextProfile) && (
-								<div className="flex items-center gap-1">
-									<button
-										type="button"
-										onClick={onPrevProfile}
-										disabled={!onPrevProfile}
-										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
-										aria-label={t("profile_details.previous_profile")}
-									>
-										<ChevronLeft className="h-4 w-4" />
-									</button>
-									<button
-										type="button"
-										onClick={onNextProfile}
-										disabled={!onNextProfile}
-										className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
-										aria-label={t("profile_details.next_profile")}
-									>
-										<ChevronRight className="h-4 w-4" />
-									</button>
-								</div>
-							)}
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-									{t("profile_details.title")}
-								</p>
-								<div className="flex items-center gap-2">
-									<p className="text-base font-semibold">{activeProfileName}</p>
-									{usesFreegrind && (
-										<img
-											src={freegrindLogo}
-											alt="Free Grind user"
-											title={t("profile_details.uses_free_grind")}
-											className="h-5 w-5 rounded-full border border-[var(--border)]"
-										/>
-									)}
-								</div>
+						</div>
+
+						<div className="min-w-0 max-w-[50%] text-center">
+							<p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+								{t("profile_details.title")}
+							</p>
+							<div className="flex items-center justify-center gap-2 min-w-0">
+								<p className="truncate text-base font-semibold">{activeProfileName}</p>
+								{usesFreegrind && (
+									<img
+										src={freegrindLogo}
+										alt="Free Grind user"
+										title={t("profile_details.uses_free_grind")}
+										className="h-5 w-5 shrink-0 rounded-full border border-[var(--border)]"
+									/>
+								)}
 							</div>
+						</div>
+
+						<div className="flex flex-1 items-center justify-end gap-1">
+							<button
+								type="button"
+								onClick={onPrevProfile}
+								disabled={!onPrevProfile}
+								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+								aria-label={t("profile_details.previous_profile")}
+							>
+								<ChevronLeft className="h-4 w-4" />
+							</button>
+							<button
+								type="button"
+								onClick={onNextProfile}
+								disabled={!onNextProfile}
+								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+								aria-label={t("profile_details.next_profile")}
+							>
+								<ChevronRight className="h-4 w-4" />
+							</button>
 						</div>
 					</div>
 

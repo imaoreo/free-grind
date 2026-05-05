@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import type { BrowseCard, ManagedOption } from "../GridPage.types";
 
 type AccountCreationAnchor = {
@@ -80,6 +81,16 @@ export function estimateAccountCreationTimestamp(
 	return Math.round(estimateSeconds * 1000);
 }
 
+const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getDateTimeFormatter(lng: string, options: Intl.DateTimeFormatOptions) {
+	const key = `${lng}-${JSON.stringify(options)}`;
+	if (!dateTimeFormatterCache.has(key)) {
+		dateTimeFormatterCache.set(key, new Intl.DateTimeFormat(lng, options));
+	}
+	return dateTimeFormatterCache.get(key)!;
+}
+
 export function formatEstimatedAccountCreation(
 	profileId: string | number | null | undefined,
 	t?: (key: string, options?: any) => string,
@@ -89,11 +100,13 @@ export function formatEstimatedAccountCreation(
 		return t ? t("browse_page.unknown") : "Unknown";
 	}
 
-	return new Intl.DateTimeFormat(undefined, {
+	const formatter = getDateTimeFormatter(i18n.language, {
 		year: "numeric",
 		month: "short",
 		day: "numeric",
-	}).format(new Date(timestamp));
+	});
+
+	return formatter.format(new Date(timestamp));
 }
 
 export function formatDistance(

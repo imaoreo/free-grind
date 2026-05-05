@@ -1,5 +1,75 @@
 @import "tailwindcss";
 
+@theme {
+	--color-accent: var(--accent);
+	--animate-ignite: ignite-vertical 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	--animate-flash: flash-burst 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-flame-loop: living-flame 4s ease-in-out infinite;
+	--animate-halo-loop: halo-loop 4s ease-in-out infinite;
+
+	@keyframes ignite-vertical {
+		0% {
+			transform: scale(1) translateY(0) rotate(0deg);
+		}
+		10% {
+			transform: scale(1.2) translateY(-1px) rotate(-10deg);
+		}
+		20% {
+			transform: scale(1.05) translateY(4px) rotate(0deg);
+		}
+        30% {
+            transform: scale(1.1) translateY(2px) rotate(0deg);
+        }
+		100% {
+			transform: scale(1.15) translateY(2px) rotate(0deg);
+		}
+	}
+	@keyframes flash-burst {
+		0% {
+			transform: scale(0.6);
+			opacity: 0;
+			filter: blur(2px);
+		}
+		15% {
+			transform: scale(2.2);
+			opacity: 1;
+			filter: blur(4px);
+		}
+		45% {
+			transform: scale(1.4);
+			opacity: 0.5;
+			filter: blur(8px);
+		}
+		100% {
+			transform: scale(0.6);
+			opacity: 0.3;
+			filter: blur(4px);
+		}
+	}
+	@keyframes living-flame {
+		0%,
+		100% {
+			transform: scale(1.15) translateY(2px) rotate(0deg);
+		}
+		50% {
+			transform: scale(1.2) translateY(0px) rotate(3deg);
+		}
+	}
+	@keyframes halo-loop {
+		0%,
+		100% {
+			opacity: 0.3;
+			transform: scale(0.6);
+			filter: blur(4px);
+		}
+		50% {
+			opacity: 0.45;
+			transform: scale(1.25);
+			filter: blur(6px);
+		}
+	}
+}
+
 @source "./**/*.{ts,tsx}";
 @source "../index.html";
 
@@ -184,6 +254,15 @@
 			transition: none !important;
 		}
 	}
+
+	.flame-active {
+		text-shadow:
+			0 0 12px #ff8800,
+			0 0 25px rgba(255, 69, 0, 0.6);
+		filter: grayscale(0) brightness(1.2);
+		transition: all 0.2s ease;
+	}
+
 
 	.app-shell {
 		position: relative;
