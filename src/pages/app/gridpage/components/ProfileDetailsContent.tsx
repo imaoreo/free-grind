@@ -139,7 +139,7 @@ export function ProfileDetailsContent({
 												type="button"
 												key={hash}
 												onClick={() => openPhotoViewer(index)}
-												className="aspect-[3/3] w-full shrink-0 snap-center overflow-hidden"
+												className="aspect-[2/3] w-full shrink-0 snap-center overflow-hidden"
 												aria-label={t("profile_details.open_photo", { index: index + 1 })}
 											>
 												<img
