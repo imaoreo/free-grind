@@ -306,7 +306,8 @@
         "error_upload_fallback": "Failed to upload picture",
         "error_reorder_unsupported": "Cannot reorder this album due to unsupported media IDs",
         "error_reorder_fallback": "Failed to reorder media",
-        "error_delete_content_fallback": "Failed to delete media"
+        "error_delete_content_fallback": "Failed to delete media",
+        "unknown_plan": "Unknown plan"
     },
     "profile_editor": {
         "title": "Profile Editor",
@@ -806,7 +807,11 @@
             "hot": "Hot",
             "looking": "Looking",
             "default": "Tap"
-        }
+        },
+        "empty_views": "No views yet",
+        "empty_views_desc": "Profiles that view you will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tap you will appear here."
     },
     "api": {
         "errors": {

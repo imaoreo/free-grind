@@ -222,7 +222,8 @@
         "error_upload_fallback": "",
         "error_reorder_unsupported": "",
         "error_reorder_fallback": "",
-        "error_delete_content_fallback": ""
+        "error_delete_content_fallback": "",
+        "unknown_plan": "Unknown plan"
     },
     "profile_editor": {
         "title": "",
@@ -570,5 +571,11 @@
             "unread": "",
             "chemistry": ""
         }
+    },
+    "interest_page": {
+        "empty_views": "No views yet",
+        "empty_views_desc": "Profiles that view you will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tap you will appear here."
     }
 }

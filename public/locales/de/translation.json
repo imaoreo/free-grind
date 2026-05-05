@@ -306,7 +306,8 @@
         "error_upload_fallback": "Bild konnte nicht hochgeladen werden",
         "error_reorder_unsupported": "Reihenfolge kann nicht geändert werden (nicht unterstützte Medien-IDs)",
         "error_reorder_fallback": "Reihenfolge konnte nicht geändert werden",
-        "error_delete_content_fallback": "Medium konnte nicht gelöscht werden"
+        "error_delete_content_fallback": "Medium konnte nicht gelöscht werden",
+        "unknown_plan": "Unknown plan"
     },
     "profile_editor": {
         "title": "Profil-Editor",
@@ -806,7 +807,11 @@
             "hot": "Heiß",
             "looking": "Suchend",
             "default": "Tap"
-        }
+        },
+        "empty_views": "No views yet",
+        "empty_views_desc": "Profiles that view you will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tap you will appear here."
     },
     "api": {
         "errors": {

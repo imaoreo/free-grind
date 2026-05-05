@@ -222,7 +222,8 @@
         "error_upload_fallback": "Error al subir imagen",
         "error_reorder_unsupported": "No se pudo reorganizar este álbum debido a que el ID del contenido no está soportado",
         "error_reorder_fallback": "Error al reorganizar contenido",
-        "error_delete_content_fallback": "Error al borrar el contenido"
+        "error_delete_content_fallback": "Error al borrar el contenido",
+        "unknown_plan": "Unknown plan"
     },
     "profile_editor": {
         "title": "Editor de perfil",
@@ -570,5 +571,11 @@
             "unread": "",
             "chemistry": ""
         }
+    },
+    "interest_page": {
+        "empty_views": "No views yet",
+        "empty_views_desc": "Profiles that view you will appear here.",
+        "empty_taps": "No taps yet",
+        "empty_taps_desc": "People who tap you will appear here."
     }
 }
