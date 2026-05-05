@@ -1,5 +1,5 @@
 import { Album, Ellipsis, Hourglass, Lock } from "lucide-react";
-import { Fragment, useEffect, useState, useMemo } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
@@ -144,15 +144,6 @@ export function ChatThreadMessages({
 		.reverse()
 		.find((m) => userId != null && Number(m.senderId) === Number(userId))?.messageId;
 
-	const latestMessageIdByAlbum = useMemo(() => {
-		const map = new Map<number, string>();
-		for (const m of threadMessages) {
-			const aid = getMessageAlbumId(m);
-			if (aid) map.set(aid, m.messageId);
-		}
-		return map;
-	}, [threadMessages]);
-
 	return (
 		<div
 			ref={threadScrollContainerRef}
@@ -209,6 +200,8 @@ export function ChatThreadMessages({
 									message.type === "Album" ||
 									message.type === "ExpiringAlbum" ||
 									message.type === "ExpiringAlbumV2";
+                                const isExpiringAlbum = message.type === "ExpiringAlbum" || message.type === "ExpiringAlbumV2";
+                                const isExpiringMedia = isExpiringImage || isExpiringAlbum;
 								const isImageOnlyBubble =
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
@@ -234,15 +227,17 @@ export function ChatThreadMessages({
 									? "absolute -left-3 -top-2"
 									: "absolute -right-3 -top-2";
 
-								const isLatestShare = albumId ? latestMessageIdByAlbum.get(albumId) === message.messageId : true;
 								const msgBody = message.body as any;
 								const rawExpiresAt = msgBody?.viewableUntil || msgBody?.expiresAt || msgBody?.expiresat;
 								let expiresAt = Number(rawExpiresAt || 0);
 								if (expiresAt > 0 && expiresAt < 100_000_000_000) expiresAt *= 1000;
 								const totalLifetimeSec = expiresAt > 0 ? Math.round((expiresAt - message.timestamp) / 1000) : 0;
 								const isOnce = msgBody?.expirationType === "ONCE" || msgBody?.expirationType === 1 || (totalLifetimeSec > 1700 && totalLifetimeSec < 1900);
-								const isExpired = expiresAt > 0 && expiresAt <= Date.now();
-								const isLocked = isAlbumMessage && (!isLatestShare || isExpired || msgBody?.isViewable === false);
+								// isViewable is the explicit API field for whether the album can be opened.
+								// ownerProfileId is null when expired/locked, but isViewable is more reliable
+								// (e.g. sender may lock the album while ownerProfileId is still present).
+								// My own sent albums are never locked from my perspective.
+								const isLocked = isAlbumMessage && !msgBody?.isViewable && message.senderId !== userId;
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
@@ -335,13 +330,14 @@ export function ChatThreadMessages({
 
 															{isImageOnlyBubble ? (
 																<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
-																	{(expiresAt > Date.now() || isOnce) && (
+																	{(expiresAt > Date.now() || isOnce) && isExpiringMedia && (
 																		<AlbumExpirationCountdown
 																			expiresAt={expiresAt}
 																			isOnce={isOnce}
 																			t={t}
 																		/>
 																	)}
+
 																	<div className="flex items-center justify-between gap-2 text-[10px]">
 																		<div className="flex items-center gap-2">
 																			{pending ? <span>{t("chat.sending")}</span> : null}
@@ -404,6 +400,7 @@ export function ChatThreadMessages({
 																	}}
 																/>
 															) : null}
+
 															{isLocked && (
 																<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[15px]">
 																	<Lock className="h-10 w-10 text-white/90 drop-shadow-lg" />
@@ -424,7 +421,7 @@ export function ChatThreadMessages({
 																</p>
 															</div>
 															<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
-																{!isLocked && (expiresAt > Date.now() || isOnce) && (
+																{!isLocked && isExpiringMedia && (expiresAt > Date.now() || isOnce) && (
 																	<AlbumExpirationCountdown
 																		expiresAt={expiresAt}
 																		isOnce={isOnce}
@@ -516,7 +513,7 @@ export function ChatThreadMessages({
 																{t("chat.open")}
 															</button>
 														</div>
-														{!isLocked && (expiresAt > Date.now() || isOnce) && (
+														{!isLocked && isExpiringMedia && (expiresAt > Date.now() || isOnce) && (
 															<AlbumExpirationCountdown
 																expiresAt={expiresAt}
 																isOnce={isOnce}
