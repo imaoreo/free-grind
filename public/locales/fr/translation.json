@@ -46,8 +46,12 @@
     "shared_albums": {
         "title": "",
         "subtitle": "",
-        "albums_count": "",
-        "people_count": "",
+        "albums_count_one": "",
+        "albums_count_many": "",
+        "albums_count_other": "",
+        "people_count_one": "",
+        "people_count_many": "",
+        "people_count_other": "",
         "refresh": "",
         "loading_title": "",
         "loading_desc": "",
@@ -60,7 +64,9 @@
         "preview_alt": "",
         "opening": "",
         "album_label": "",
-        "items_count": "",
+        "items_count_one": "",
+        "items_count_many": "",
+        "items_count_other": "",
         "all_media": "",
         "empty_album_title": "",
         "empty_album_desc": "",
@@ -126,6 +132,14 @@
             "favorites": "",
             "hot": "",
             "shuffle": ""
+        },
+        "sort": {
+            "default": "",
+            "distance": "",
+            "youngest": "",
+            "oldest": "",
+            "popular": "",
+            "name_az": ""
         }
     },
     "about_page": {
@@ -208,7 +222,9 @@
         "toast_created": "",
         "toast_renamed": "",
         "toast_deleted": "",
-        "toast_picture_added": "",
+        "toast_picture_added_one": "",
+        "toast_picture_added_many": "",
+        "toast_picture_added_other": "",
         "toast_picture_removed": "",
         "error_load_fallback": "",
         "error_create_fallback": "",
@@ -227,7 +243,9 @@
         "loading": "",
         "error_load": "",
         "summary": "",
-        "tags_count": "",
+        "tags_count_one": "",
+        "tags_count_many": "",
+        "tags_count_other": "",
         "no_tags": "",
         "completion_title": "",
         "completion_signals": "",
@@ -430,6 +448,235 @@
                 "trans": "",
                 "twink": ""
             }
+        }
+    },
+    "customizability": {
+        "selected": "",
+        "custom": "",
+        "picker": "",
+        "apply_hex": "",
+        "hex_error": "",
+        "browse_grid_mobile": "",
+        "columns_2": "",
+        "columns_3": "",
+        "preview": "",
+        "preview_primary": "",
+        "preview_outlined": "",
+        "preview_subtle": "",
+        "schemes": {
+            "system": "",
+            "light": "",
+            "dark": ""
+        },
+        "analytics": {
+            "title": "",
+            "description": "",
+            "note": "",
+            "allow": "",
+            "deny": "",
+            "current": "",
+            "not_selected": ""
+        },
+        "subtitle": "",
+        "color_scheme": "",
+        "accent_color": ""
+    },
+    "auth": {
+        "common": {
+            "email": "",
+            "password": ""
+        },
+        "sign_in": {
+            "title": "",
+            "subtitle": "",
+            "no_account": "",
+            "method_token": "",
+            "method_password": "",
+            "token_help": "",
+            "jwt_label": "",
+            "sign_in_with_token": "",
+            "submit": ""
+        },
+        "sign_up": {
+            "title": "",
+            "subtitle": "",
+            "have_account": "",
+            "open_issue": ""
+        }
+    },
+    "chat": {
+        "open_filters": "",
+        "profile": "",
+        "no_conversations_match": "",
+        "no_conversations": "",
+        "no_messages_yet": "",
+        "pin": "",
+        "unpin": "",
+        "mute": "",
+        "unmute": "",
+        "clear_local_history": "",
+        "open_conversation_actions": "",
+        "share_album": "",
+        "attach_media": "",
+        "manage_albums": "",
+        "no_albums_available": "",
+        "share": "",
+        "send": "",
+        "open": "",
+        "album_fallback": "",
+        "select_conversation": "",
+        "time": {
+            "one_min_ago": "",
+            "mins_ago": ""
+        },
+        "preview": {
+            "sent_image": "",
+            "shared_album": "",
+            "sent_audio": "",
+            "reacted_album_content": "",
+            "sent_video": "",
+            "sent_message": ""
+        },
+        "thread": {
+            "unsent": "",
+            "image_placeholder": "",
+            "video_placeholder": "",
+            "audio_placeholder": "",
+            "unsupported_placeholder": "",
+            "shared_image": "",
+            "shared_video": "",
+            "shared_audio": "",
+            "failed": "",
+            "from_local_history": "",
+            "shared_alt": "",
+            "taken_on_grindr": "",
+            "album_cover": "",
+            "album_share": ""
+        },
+        "actions": {
+            "title": "",
+            "unsend": "",
+            "cancel": "",
+            "delete": ""
+        },
+        "realtime": {
+            "connected": "",
+            "connecting": "",
+            "reconnecting": "",
+            "polling": "",
+            "idle": "",
+            "offline": "",
+            "error": ""
+        },
+        "attachments": {
+            "only_image_video": "",
+            "ready_to_send": "",
+            "looping": "",
+            "taken_on_grindr": "",
+            "send_attachment": "",
+            "uploading": "",
+            "too_large": ""
+        },
+        "errors": {
+            "load_albums": "",
+            "load_inbox": "",
+            "load_messages": "",
+            "update_pin_state": "",
+            "update_mute_state": "",
+            "missing_recipient": "",
+            "send_failed": "",
+            "rate_limited": "",
+            "attachment_upload_send_failed": "",
+            "reupload_image": "",
+            "react_failed": "",
+            "unsend_failed": "",
+            "delete_failed": "",
+            "album_share_missing_recipient": "",
+            "album_share_failed": "",
+            "album_open_failed": ""
+        },
+        "toasts": {
+            "cleared_local_history": "",
+            "album_shared": ""
+        },
+        "new_conversation": {
+            "title": "",
+            "subtitle": ""
+        },
+        "tabs": {
+            "inbox": "",
+            "albums": ""
+        },
+        "your_conversations": "",
+        "pinned": "",
+        "muted": "",
+        "conversation": "",
+        "unknown": "",
+        "you": "",
+        "today": "",
+        "yesterday": "",
+        "retry": "",
+        "load_more": "",
+        "clear_filters": "",
+        "open_search": ""
+    },
+    "profile_details": {
+        "title": "",
+        "profile_fallback": "",
+        "last_online": "",
+        "close_photo_viewer": "",
+        "previous_photo": "",
+        "next_photo": "",
+        "photo_alt": "",
+        "previous_profile": "",
+        "next_profile": "",
+        "est_created": "",
+        "status": "",
+        "message": "",
+        "tap_profile": "",
+        "tap_sent_recent": "",
+        "tap_active": "",
+        "send_tap": "",
+        "run_location_finder": "",
+        "location_finder_running": "",
+        "location_finder": "",
+        "locate": "",
+        "about": "",
+        "genders": "",
+        "sexual_health": "",
+        "stats": "",
+        "instagram": "",
+        "x": "",
+        "facebook": "",
+        "close_profile_details": "",
+        "default_profile": "",
+        "open_photo": "",
+        "uses_free_grind": ""
+    },
+    "nav": {
+        "browse": "",
+        "right_now": "",
+        "interest": "",
+        "inbox": ""
+    },
+    "browse_page": {
+        "title": "",
+        "subtitle": "",
+        "sort": "",
+        "filter": "",
+        "location": "",
+        "current_location": "",
+        "open_settings": "",
+        "settings": ""
+    },
+    "chat_filters": {
+        "title": "",
+        "subtitle": "",
+        "back": "",
+        "max_distance": "",
+        "options": {
+            "unread": "",
+            "chemistry": ""
         }
     }
 }
