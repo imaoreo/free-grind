@@ -32,19 +32,7 @@
         "switched_channel": "",
         "failed_switch_env": ""
     },
-    "browse": {
-        "online": "",
-        "offline": "",
-        "online_left": "",
-        "minutes_ago": "",
-        "hours_ago": "",
-        "days_ago": "",
-        "just_now": "",
-        "hidden": "",
-        "unknown": ""
-    },
     "shared_albums": {
-        "title": "",
         "subtitle": "",
         "albums_count_one": "",
         "albums_count_many": "",
@@ -356,98 +344,6 @@
         "errors": {
             "display_name_length": "",
             "about_me_length": ""
-        },
-        "labels": {
-            "looking_for": {
-                "chat": "",
-                "dates": "",
-                "friends": "",
-                "networking": "",
-                "relationship": "",
-                "hookups": ""
-            },
-            "relationship_status": {
-                "single": "",
-                "dating": "",
-                "exclusive": "",
-                "committed": "",
-                "partnered": "",
-                "engaged": "",
-                "married": "",
-                "open_relationship": ""
-            },
-            "body_type": {
-                "toned": "",
-                "average": "",
-                "large": "",
-                "muscular": "",
-                "slim": "",
-                "stocky": ""
-            },
-            "ethnicity": {
-                "asian": "",
-                "black": "",
-                "latino": "",
-                "middle_eastern": "",
-                "mixed": "",
-                "native_american": "",
-                "white": "",
-                "other": "",
-                "south_asian": ""
-            },
-            "sexual_position": {
-                "top": "",
-                "bottom": "",
-                "versatile": "",
-                "vers_bottom": "",
-                "vers_top": "",
-                "side": ""
-            },
-            "meet_at": {
-                "my_place": "",
-                "your_place": "",
-                "bar": "",
-                "coffee_shop": "",
-                "restaurant": ""
-            },
-            "hiv_status": {
-                "negative": "",
-                "negative_prep": "",
-                "positive": "",
-                "positive_undetectable": ""
-            },
-            "nsfw": {
-                "never": "",
-                "not_at_first": "",
-                "yes_please": ""
-            },
-            "sexual_health": {
-                "condoms": "",
-                "doxy_pep": "",
-                "prep": "",
-                "hiv_undetectable": "",
-                "discuss": ""
-            },
-            "vaccines": {
-                "covid": "",
-                "monkeypox": "",
-                "meningitis": ""
-            },
-            "tribes": {
-                "bear": "",
-                "clean_cut": "",
-                "daddy": "",
-                "discreet": "",
-                "geek": "",
-                "jock": "",
-                "leather": "",
-                "otter": "",
-                "poz": "",
-                "rugged": "",
-                "sober": "",
-                "trans": "",
-                "twink": ""
-            }
         }
     },
     "customizability": {
@@ -512,12 +408,6 @@
         "no_conversations_match": "",
         "no_conversations": "",
         "no_messages_yet": "",
-        "pin": "",
-        "unpin": "",
-        "mute": "",
-        "unmute": "",
-        "clear_local_history": "",
-        "open_conversation_actions": "",
         "share_album": "",
         "attach_media": "",
         "manage_albums": "",
@@ -571,7 +461,6 @@
             "error": ""
         },
         "attachments": {
-            "only_image_video": "",
             "ready_to_send": "",
             "looping": "",
             "taken_on_grindr": "",
@@ -613,7 +502,6 @@
         "your_conversations": "",
         "pinned": "",
         "muted": "",
-        "conversation": "",
         "unknown": "",
         "you": "",
         "today": "",
@@ -628,7 +516,6 @@
         "loading_album": "",
         "loading": "",
         "loading_inbox": "",
-        "loading_messages": "",
         "refreshing_inbox": ""
     },
     "profile_details": {
@@ -644,14 +531,6 @@
         "est_created": "",
         "status": "",
         "message": "",
-        "tap_profile": "",
-        "tap_sent_recent": "",
-        "tap_active": "",
-        "send_tap": "",
-        "run_location_finder": "",
-        "location_finder_running": "",
-        "location_finder": "",
-        "locate": "",
         "about": "",
         "genders": "",
         "sexual_health": "",
@@ -663,8 +542,7 @@
         "default_profile": "",
         "open_photo": "",
         "uses_free_grind": "",
-        "loading": "",
-        "locating": ""
+        "loading": ""
     },
     "nav": {
         "browse": "",
