@@ -495,13 +495,15 @@
             "token_help": "",
             "jwt_label": "",
             "sign_in_with_token": "",
-            "submit": ""
+            "submit": "",
+            "signing_in": ""
         },
         "sign_up": {
             "title": "",
             "subtitle": "",
             "have_account": "",
-            "open_issue": ""
+            "open_issue": "",
+            "opening_issue": ""
         }
     },
     "chat": {
@@ -601,7 +603,8 @@
         },
         "new_conversation": {
             "title": "",
-            "subtitle": ""
+            "subtitle": "",
+            "write_first_message": ""
         },
         "tabs": {
             "inbox": "",
@@ -618,7 +621,15 @@
         "retry": "",
         "load_more": "",
         "clear_filters": "",
-        "open_search": ""
+        "open_search": "",
+        "loading_albums": "",
+        "write_message": "",
+        "sending": "",
+        "loading_album": "",
+        "loading": "",
+        "loading_inbox": "",
+        "loading_messages": "",
+        "refreshing_inbox": ""
     },
     "profile_details": {
         "title": "",
@@ -651,7 +662,9 @@
         "close_profile_details": "",
         "default_profile": "",
         "open_photo": "",
-        "uses_free_grind": ""
+        "uses_free_grind": "",
+        "loading": "",
+        "locating": ""
     },
     "nav": {
         "browse": "",
@@ -667,7 +680,8 @@
         "location": "",
         "current_location": "",
         "open_settings": "",
-        "settings": ""
+        "settings": "",
+        "refreshing_feed": ""
     },
     "chat_filters": {
         "title": "",
