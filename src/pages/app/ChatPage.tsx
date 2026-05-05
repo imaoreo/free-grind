@@ -140,6 +140,7 @@ export function ChatPage() {
 		string | null
 	>(null);
 	const [threadMessages, setThreadMessages] = useState<UiMessage[]>([]);
+	const [threadLastReadTimestamp, setThreadLastReadTimestamp] = useState<number | null>(null);
 	const [messagePageKey, setMessagePageKey] = useState<string | null>(null);
 	const [isLoadingThread, setIsLoadingThread] = useState(false);
 	const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
@@ -555,6 +556,28 @@ export function ChatPage() {
 				return;
 			}
 
+			if (
+				envelope.type === "chat.v1.read" &&
+				envelope.payload &&
+				typeof envelope.payload === "object"
+			) {
+				const record = envelope.payload as Record<string, unknown>;
+				const cid = record.conversationId as string | undefined;
+				const ts = Number(record.timestamp);
+				const senderId = Number(record.profileId);
+
+				if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
+					// If the other person read our messages
+					if (userId != null && senderId !== userId) {
+						if (cid === selectedConversationIdRef.current) {
+							setThreadLastReadTimestamp(ts);
+						}
+						void chatLog.appendMessages(cid, [], ts);
+					}
+				}
+				return;
+			}
+
 			const candidates: Message[] = [];
 
 			// Try envelope.payload directly as a Message (chat.v1.message_sent payload IS the message)
@@ -736,6 +759,13 @@ export function ChatPage() {
 				setIsLoadingThread(true);
 				setThreadError(null);
 				setThreadConversationId(conversationId);
+
+				// Load initial state from local log if available.
+				void chatLog.readLog(conversationId).then((localData) => {
+					if (selectedConversationIdRef.current === conversationId) {
+						setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
+					}
+				});
 			}
 
 			try {
@@ -745,7 +775,8 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
-				const localMessages = await chatLog.readLog(conversationId);
+				const localData = await chatLog.readLog(conversationId);
+				const localMessages = localData.messages;
 				const localMessageMap = new Map(
 					localMessages.map((message) => [message.messageId, message] as const),
 				);
@@ -771,9 +802,14 @@ export function ChatPage() {
 				});
 
 				// Persist API messages to the local log.
-				void chatLog.appendMessages(conversationId, responseMessages);
+				void chatLog.appendMessages(
+					conversationId,
+					responseMessages,
+					older ? undefined : (response.lastReadTimestamp ?? null),
+				);
 
 				if (!older) {
+					setThreadLastReadTimestamp(response.lastReadTimestamp ?? null);
 					const mediaIdImageMessages = responseMessages.filter((message) => {
 						const imageType = message.chat1Type?.toLowerCase();
 						const isImageLike =
@@ -935,7 +971,8 @@ export function ChatPage() {
 					const windowEnd =
 						response.messages[response.messages.length - 1].timestamp;
 					const apiIds = new Set(response.messages.map((m) => m.messageId));
-					void chatLog.readLog(conversationId).then(async (localMessages) => {
+					void chatLog.readLog(conversationId).then(async (localData) => {
+						const localMessages = localData.messages;
 						const localCandidates = localMessages.filter(
 							(m) =>
 								!apiIds.has(m.messageId) &&
@@ -1967,7 +2004,7 @@ export function ChatPage() {
 		setPendingAlbumShare(null);
 	}, [isSharingAlbum]);
 
-	const confirmPendingAlbumShare = useCallback(async () => {
+	const confirmPendingAlbumShare = useCallback(async (expirationType: any = "INDEFINITE") => {
 		if (!selectedConversation || !userId || !pendingAlbumShare) {
 			return;
 		}
@@ -1985,7 +2022,7 @@ export function ChatPage() {
 				profiles: [
 					{
 						profileId: targetProfile.profileId,
-						expirationType: "INDEFINITE",
+						expirationType,
 					},
 				],
 			});
@@ -2251,6 +2288,7 @@ export function ChatPage() {
 			messagePageKey={messagePageKey}
 			isLoadingOlderMessages={isLoadingOlderMessages}
 			threadMessages={threadMessages}
+			threadLastReadTimestamp={threadLastReadTimestamp}
 			messageElementRefs={messageElementRefs}
 			handleMessageTap={handleMessageTap}
 			startMessageLongPress={startMessageLongPress}

@@ -219,6 +219,22 @@ export function ChatRealtimeBridge() {
 					}
 				}
 
+				if (envelope.type === "chat.v1.read") {
+					const record = (envelope.payload ?? {}) as Record<string, unknown>;
+					const cid = record.conversationId as string | undefined;
+					const ts = Number(record.timestamp);
+					const senderId = Number(record.profileId);
+					if (
+						cid &&
+						!Number.isNaN(ts) &&
+						!Number.isNaN(senderId) &&
+						userIdRef.current != null &&
+						senderId !== userIdRef.current
+					) {
+						void chatLog.appendMessages(cid, [], ts);
+					}
+				}
+
 				const messages = extractMessages(envelope);
 				if (!messages.length) return;
 

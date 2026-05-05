@@ -35,39 +35,57 @@ function logPath(conversationId: string): string {
 	return `${LOG_DIR}/${safeId(conversationId)}.json`;
 }
 
+export type ChatLogData = {
+	messages: Message[];
+	lastReadTimestamp?: number | null;
+};
+
 /**
- * Read all locally stored messages for a conversation.
- * Returns an empty array on any error or if no log exists yet.
+ * Read all locally stored messages and metadata for a conversation.
+ * Returns an empty structure if no log exists yet.
  */
-export async function readLog(conversationId: string): Promise<Message[]> {
+export async function readLog(conversationId: string): Promise<ChatLogData> {
 	try {
 		const path = logPath(conversationId);
 		const fileExists = await exists(path, { baseDir: BaseDirectory.AppData });
-		if (!fileExists) return [];
+		if (!fileExists) return { messages: [] };
 		const text = await readTextFile(path, { baseDir: BaseDirectory.AppData });
 		const parsed: unknown = JSON.parse(text);
-		return Array.isArray(parsed) ? (parsed as Message[]) : [];
+
+		if (Array.isArray(parsed)) {
+			// Backward compatibility: old format was just the array of messages.
+			return { messages: parsed as Message[] };
+		}
+
+		if (parsed && typeof parsed === "object" && "messages" in parsed) {
+			return parsed as ChatLogData;
+		}
+
+		return { messages: [] };
 	} catch {
-		return [];
+		return { messages: [] };
 	}
 }
 
 /**
- * Merge incoming messages into the persisted log for a conversation.
+ * Merge incoming messages and metadata into the persisted log for a conversation.
  *
  * - New messages are added.
  * - Existing messages are updated, except: if the stored copy has a resolved
  *   image URL (body.url) and the incoming copy does not, the stored URL is
  *   preserved so cached media survives API expiry.
+ * - lastReadTimestamp is updated if provided.
  */
 export async function appendMessages(
 	conversationId: string,
 	messages: Message[],
+	lastReadTimestamp?: number | null,
 ): Promise<void> {
-	if (!messages.length) return;
+	if (!messages.length && lastReadTimestamp === undefined) return;
 	try {
 		await ensureDir();
-		const existing = await readLog(conversationId);
+		const existingData = await readLog(conversationId);
+		const existing = existingData.messages;
 		const map = new Map<string, Message>();
 		for (const m of existing) {
 			map.set(m.messageId, m);
@@ -94,7 +112,16 @@ export async function appendMessages(
 			}
 		}
 		const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-		await writeTextFile(logPath(conversationId), JSON.stringify(sorted), {
+
+		const newData: ChatLogData = {
+			messages: sorted,
+			lastReadTimestamp:
+				lastReadTimestamp !== undefined
+					? lastReadTimestamp
+					: (existingData.lastReadTimestamp ?? null),
+		};
+
+		await writeTextFile(logPath(conversationId), JSON.stringify(newData), {
 			baseDir: BaseDirectory.AppData,
 		});
 	} catch {
@@ -130,6 +157,13 @@ export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 						const parsed: unknown = JSON.parse(text);
 						if (Array.isArray(parsed) && parsed.length > 0) {
 							result[conversationId] = parsed as Message[];
+						} else if (
+							parsed &&
+							typeof parsed === "object" &&
+							"messages" in parsed &&
+							Array.isArray((parsed as any).messages)
+						) {
+							result[conversationId] = (parsed as any).messages;
 						}
 					} catch {
 						// Skip unreadable files.

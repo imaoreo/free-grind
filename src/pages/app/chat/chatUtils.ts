@@ -1,3 +1,4 @@
+import i18n from "../../../i18n";
 import { useEffect, useState } from "react";
 import type { ConversationEntry, InboxFilters, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
@@ -84,6 +85,25 @@ export async function buildBinaryUpload(file: File): Promise<{
 	};
 }
 
+const relativeTimeFormatterCache = new Map<string, Intl.RelativeTimeFormat>();
+const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+function getRelativeTimeFormatter(lng: string, options: Intl.RelativeTimeFormatOptions) {
+	const key = `${lng}-${JSON.stringify(options)}`;
+	if (!relativeTimeFormatterCache.has(key)) {
+		relativeTimeFormatterCache.set(key, new Intl.RelativeTimeFormat(lng, options));
+	}
+	return relativeTimeFormatterCache.get(key)!;
+}
+
+function getDateTimeFormatter(lng: string, options: Intl.DateTimeFormatOptions) {
+	const key = `${lng}-${JSON.stringify(options)}`;
+	if (!dateTimeFormatterCache.has(key)) {
+		dateTimeFormatterCache.set(key, new Intl.DateTimeFormat(lng, options));
+	}
+	return dateTimeFormatterCache.get(key)!;
+}
+
 export function formatConversationTime(
 	timestamp: number | null | undefined,
 	locale?: string,
@@ -92,7 +112,8 @@ export function formatConversationTime(
 		return "";
 	}
 
-	const inboxRelativeTime = new Intl.RelativeTimeFormat(locale, {
+	const lang = locale || i18n.language;
+	const inboxRelativeTime = getRelativeTimeFormatter(lang, {
 		numeric: "auto",
 	});
 
@@ -182,17 +203,18 @@ export function formatDateHeader(
 	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
 	if (msgDate > oneWeekAgo) {
-		return new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
-			msgDate,
-		);
+		const formatter = getDateTimeFormatter(i18n.language, { weekday: "long" });
+		return formatter.format(msgDate);
 	}
 
-	return new Intl.DateTimeFormat(undefined, {
+	const formatter = getDateTimeFormatter(i18n.language, {
 		day: "numeric",
 		month: "long",
 		year:
 			msgDate.getFullYear() === nowDate.getFullYear() ? undefined : "numeric",
-	}).format(msgDate);
+	});
+
+	return formatter.format(msgDate);
 }
 
 export function getPreviewText(conversation: ConversationEntry, t: TranslateFn): string {

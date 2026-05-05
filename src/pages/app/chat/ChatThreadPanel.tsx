@@ -1,13 +1,18 @@
 import {
+	ChevronDown,
 	Ellipsis,
+	Hourglass,
 	ImagePlus,
+	Infinity,
 	Loader2,
 	Pin,
 	Share2,
+	TimerOff,
 	Volume2,
 	VolumeX,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import {
 	createBackdropCloseHandler,
@@ -49,6 +54,7 @@ type ChatThreadPanelProps = {
 	messagePageKey: string | null;
 	isLoadingOlderMessages: boolean;
 	threadMessages: UiMessage[];
+	threadLastReadTimestamp: number | null;
 	messageElementRefs: { current: Map<string, HTMLDivElement> };
 	handleMessageTap: (message: Message) => void | Promise<void>;
 	startMessageLongPress: (messageId: string) => void;
@@ -91,7 +97,7 @@ type ChatThreadPanelProps = {
 		albumId: number,
 		albumName?: string | null,
 	) => void | Promise<void>;
-		confirmPendingAlbumShare: () => void | Promise<void>;
+		confirmPendingAlbumShare: (expirationType: string) => void | Promise<void>;
 		closePendingAlbumShare: () => void;
 	uploadProgress: number;
 	draft: string;
@@ -103,6 +109,9 @@ type ChatThreadPanelProps = {
 };
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
+	const { t } = useTranslation();
+	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
+
 	const {
 		navigate,
 		isDesktop,
@@ -128,6 +137,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		messagePageKey,
 		isLoadingOlderMessages,
 		threadMessages,
+		threadLastReadTimestamp,
 		messageElementRefs,
 		handleMessageTap,
 		startMessageLongPress,
@@ -174,15 +184,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessageMine,
 		albumViewer,
 	} = props;
-	const { t } = useTranslation();
-		useModalClose({
-			isOpen: pendingAlbumShare !== null,
-			onClose: closePendingAlbumShare,
-			escapeKey: !isSharingAlbum,
-		});
-		const handlePendingAlbumShareBackdropClose = createBackdropCloseHandler(
-			closePendingAlbumShare,
-		);
+
+	useModalClose({
+		isOpen: pendingAlbumShare !== null,
+		onClose: closePendingAlbumShare,
+		escapeKey: !isSharingAlbum,
+	});
+
+	const handlePendingAlbumShareBackdropClose = createBackdropCloseHandler(
+		closePendingAlbumShare,
+	);
 	const renderThread = selectedConversation ? (
 		<div
 			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
@@ -439,6 +450,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						threadScrollContainerRef={threadScrollContainerRef}
 						handleThreadScroll={handleThreadScroll}
 						threadMessages={threadMessages}
+						threadLastReadTimestamp={threadLastReadTimestamp}
 						messageElementRefs={messageElementRefs}
 						handleMessageTap={handleMessageTap}
 						startMessageLongPress={startMessageLongPress}
@@ -688,7 +700,35 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										album: pendingAlbumShare.albumName,
 									})}
 								</p>
-								<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+
+								<div className="mt-4">
+									<label className="mb-1.5 block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+										{t("chat.expiration.title")}
+									</label>
+									<div className="relative">
+										<select
+											value={selectedExpirationType}
+											onChange={(e) => setSelectedExpirationType(e.target.value)}
+											className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--text)] transition focus:border-[var(--accent)] focus:outline-none"
+										>
+											<option value="INDEFINITE">{t("chat.expiration.indefinite")}</option>
+											<option value="ONCE">{t("chat.expiration.once")}</option>
+											<option value="TEN_MINUTES">{t("chat.expiration.ten_minutes")}</option>
+											<option value="ONE_HOUR">{t("chat.expiration.one_hour")}</option>
+											<option value="ONE_DAY">{t("chat.expiration.one_day")}</option>
+										</select>
+										<div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+											{selectedExpirationType === "INDEFINITE" && <Infinity className="h-4 w-4" />}
+											{selectedExpirationType === "ONCE" && <TimerOff className="h-4 w-4" />}
+											{(selectedExpirationType === "TEN_MINUTES" || selectedExpirationType === "ONE_HOUR" || selectedExpirationType === "ONE_DAY") && <Hourglass className="h-4 w-4" />}
+										</div>
+										<div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+											<ChevronDown className="h-4 w-4" />
+										</div>
+									</div>
+								</div>
+
+								<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 									<button
 										type="button"
 										onClick={closePendingAlbumShare}
@@ -699,7 +739,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									<button
 										type="button"
-										onClick={() => void confirmPendingAlbumShare()}
+										onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
 										disabled={isSharingAlbum}
 										className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 									>
