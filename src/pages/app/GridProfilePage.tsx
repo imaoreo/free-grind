@@ -232,8 +232,9 @@ export function GridProfilePage() {
 			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
 			isWithinTapWindow(activeProfile.lastReceivedTapTimestamp);
 
-		if (hasSentTap || hasReceivedTap) {
-			return "single" as const;
+		if (hasSentTap) {
+			const isMutual = tapVisualState === "mutual" || hasReceivedTap;
+			return isMutual ? ("mutual" as const) : ("single" as const);
 		}
 
 		return "none" as const;
