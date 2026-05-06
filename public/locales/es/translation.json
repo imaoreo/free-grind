@@ -1,7 +1,7 @@
 {
     "settings": {
         "title": "Ajustes",
-        "subtitle": "Elige qué quieres manejar.",
+        "subtitle": "Elige qué quieres gestionar.",
         "language": "Idioma",
         "language_description": "Elige tu idioma preferido.",
         "profile_editor": "Editor de perfil",
@@ -30,7 +30,9 @@
         "failed_update_check": "Error al comprobar o aplicar la actualización.",
         "switched_and_updated": "Cambiado a {{channel}} y actualización aplicada. Recargando…",
         "switched_channel": "Cambiado a {{channel}}. Recargando…",
-        "failed_switch_env": "Error al cambiar el entorno de actualización."
+        "failed_switch_env": "Error al cambiar el entorno de actualización.",
+        "report_issue": "Informar de un error o sugerencias",
+        "report_issue_desc": "Envía informes de errores y solicitudes de sugerencias para el equipo."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -65,7 +67,8 @@
         "media_unavailable": "Este contenido no está disponible.",
         "content_alt": "Contenido de álbum {{index}}",
         "previous": "Anterior",
-        "next": "Siguiente"
+        "next": "Siguiente",
+        "title": "Álbumes compartidos"
     },
     "right_now": {
         "title": "Right Now",
@@ -75,7 +78,7 @@
         "member_subtitle": "{{name}} está en Right Now",
         "distance": "Distancia",
         "recent": "Reciente",
-        "hosting": "Hospedar",
+        "hosting": "Hospedando",
         "filters": "Filtros",
         "filter_summary": "Posición: {{position}} · Edad: {{age}}",
         "try_again": "Inténtalo de nuevo",
@@ -90,7 +93,7 @@
     },
     "right_now_filters": {
         "title": "Filtros Right Now",
-        "subtitle": "Redefinir el contenido de Right Now",
+        "subtitle": "Afina la página de Right Now",
         "apply": "Aplicar",
         "position": "Posición",
         "age_range": "Rango de edad",
@@ -98,7 +101,7 @@
     },
     "browse_filters": {
         "title": "Filtros de Navegar",
-        "subtitle": "Elige quién aparece en tu cuadrícula",
+        "subtitle": "Elige quién aparece en tu página",
         "quick_filters": "Filtros rápidos",
         "age": "Edad",
         "height": "Altura",
@@ -115,19 +118,19 @@
             "photo": "Foto",
             "face": "Cara",
             "no_recent_chat": "No ha chateado recientemente",
-            "fresh": "Recargar",
+            "fresh": "Nuevo",
             "right_now": "Right Now",
             "favorites": "Favoritos",
             "hot": "Popular",
             "shuffle": "Mezclado"
         },
         "sort": {
-            "oldest": "",
-            "popular": "",
-            "name_az": "",
-            "youngest": "",
-            "default": "",
-            "distance": ""
+            "oldest": "Más maduro",
+            "popular": "Popular",
+            "name_az": "Nombre (A-Z)",
+            "youngest": "Más joven",
+            "default": "Por defecto",
+            "distance": "Distancia"
         }
     },
     "about_page": {
@@ -348,39 +351,75 @@
         }
     },
     "browse_page": {
-        "refreshing_feed": "",
-        "title": "",
-        "subtitle": "",
-        "sort": "",
-        "filter": "",
-        "location": "",
-        "current_location": "",
-        "open_settings": "",
-        "settings": ""
+        "refreshing_feed": "Recargando página...",
+        "title": "Buscar perfiles",
+        "subtitle": "Descubre gente cerca de ti y salta a los chats desde la página principal.",
+        "sort": "Ordenar",
+        "filter": "Filtros",
+        "location": "Ubicación",
+        "current_location": "Ubicación actual",
+        "open_settings": "Abrir configuración",
+        "settings": "Configuración",
+        "your_profile_photo": "Tu foto de perfil",
+        "uses_free_grind": "Usa Free Grind",
+        "profile_photo_alt": "{{name}} foto",
+        "status_online": "En línea",
+        "status_offline": "Desconectado",
+        "status_online_left": "En línea ({{count}}m restantes)",
+        "status_minutes_ago": "Hace {{count}}m",
+        "status_hours_ago": "Hace {{count}}h",
+        "status_days_ago": "Hace {{count}}d",
+        "status_just_now": "Justo ahora",
+        "distance_hidden": "Oculto",
+        "unknown": "Desconocido",
+        "not_set": "No establecido",
+        "loading_nearby": "Cargando perfiles cercanos",
+        "fetching_feed": "Buscando perfiles locales para tu página.",
+        "error_load_feed": "No se pudo cargar tu página principal",
+        "empty_title": "No se pudo obtener perfiles cercanos",
+        "empty_desc": "Intenta refrescando la página principal después de actualizar tu ubicación.",
+        "loading": "Cargando",
+        "errors": {
+            "load_timeout": "El tiempo de búsqueda para la página se ha agotado. Por favor, comprueba tu conexión e intenta de nuevo.",
+            "set_location": "Pulsa el marcador de ubicación (📍) de arriba para establecer tu ubicación.",
+            "loading_slow": "La carga de perfiles cercanos está tardando más de lo esperado. Prueba a refrescar o actualizar tu ubicación.",
+            "load_profiles": "Error al cargar perfiles de la página",
+            "load_profile_details": "Error al cargar detalles del perfil",
+            "location_required": "Establece tu ubicación de navegar primero",
+            "location_read_failed": "No se pudo leer tu ubicación de navegar guardada"
+        },
+        "toasts": {
+            "distance_info": "Ubicación de navegar {{lat}}, {{lon}}. {{id}} está a {{distance}}m.",
+            "distance_unavailable": "Ubicación de navegar {{lat}},{{lon}}. La distancia no está disponible para {{id}}.",
+            "tap_limit": "Ya has enviado un tap a este perfil en las últimas 24 horas",
+            "tap_mutual": "Tap enviado. Es mutuo.",
+            "tap_sent": "Tap enviado",
+            "tap_failed": "Error al enviar tap"
+        }
     },
     "auth": {
         "sign_in": {
-            "signing_in": "",
-            "title": "",
-            "subtitle": "",
-            "no_account": "",
-            "method_token": "",
-            "method_password": "",
-            "token_help": "",
-            "jwt_label": "",
-            "sign_in_with_token": "",
-            "submit": ""
+            "signing_in": "Iniciando sesión...",
+            "title": "Iniciar sesión",
+            "subtitle": "Bienvenido de nuevo a Free Grind.",
+            "no_account": "¿No tienes cuenta? Regístrate",
+            "method_token": "Token",
+            "method_password": "Correo y contraseña",
+            "token_help": "Cómo conseguir tu token de autentificación",
+            "jwt_label": "Token JWT",
+            "sign_in_with_token": "Iniciar sesión con Token",
+            "submit": "Iniciar sesión"
         },
         "sign_up": {
-            "opening_issue": "",
-            "title": "",
-            "subtitle": "",
-            "have_account": "",
-            "open_issue": ""
+            "opening_issue": "Abriendo Problema...",
+            "title": "Registrarse",
+            "subtitle": "El registro aún no se ha implementado. Sigue el progreso en Problema #2.",
+            "have_account": "¿Ya tienes cuenta? Inicia sesión",
+            "open_issue": "Abrir Problema #2"
         },
         "common": {
-            "email": "",
-            "password": ""
+            "email": "Correo",
+            "password": "Contraseña"
         }
     },
     "chat": {
@@ -389,48 +428,48 @@
             "title": "",
             "subtitle": ""
         },
-        "loading_albums": "",
-        "loading": "",
-        "loading_inbox": "",
-        "refreshing_inbox": "",
-        "write_message": "",
-        "sending": "",
-        "loading_album": "",
+        "loading_albums": "Cargando álbumes...",
+        "loading": "Cargando...",
+        "loading_inbox": "Cargando buzón...",
+        "refreshing_inbox": "Recargando buzón...",
+        "write_message": "Escribe un mensaje...",
+        "sending": "Enviando...",
+        "loading_album": "Cargando álbum...",
         "tabs": {
-            "inbox": "",
-            "albums": ""
+            "inbox": "Buzón",
+            "albums": "Álbumes"
         },
-        "your_conversations": "",
-        "pinned": "",
-        "muted": "",
-        "unknown": "",
-        "you": "",
-        "today": "",
-        "yesterday": "",
-        "retry": "",
-        "load_more": "",
-        "clear_filters": "",
-        "open_search": "",
-        "open_filters": "",
-        "profile": "",
-        "no_conversations_match": "",
-        "no_conversations": "",
-        "no_messages_yet": "",
-        "share_album": "",
-        "attach_media": "",
-        "manage_albums": "",
-        "no_albums_available": "",
-        "share": "",
-        "send": "",
-        "open": "",
-        "album_fallback": "",
-        "select_conversation": "",
+        "your_conversations": "Tus conversaciones",
+        "pinned": "Anclados",
+        "muted": "Silenciado",
+        "unknown": "Desconocido",
+        "you": "Tú",
+        "today": "Hoy",
+        "yesterday": "Ayer",
+        "retry": "Volver a intentar",
+        "load_more": "Cargar más",
+        "clear_filters": "Limpiar filtros",
+        "open_search": "Abrir buscar",
+        "open_filters": "Abrir filtros",
+        "profile": "Perfil",
+        "no_conversations_match": "No hay conversaciones que coincidan con tus filtros.",
+        "no_conversations": "No tienes conversaciones todavía.",
+        "no_messages_yet": "No tienes mensajes todavía.",
+        "share_album": "Compartir álbum",
+        "attach_media": "Adjuntar contenido",
+        "manage_albums": "Gestionar álbumes",
+        "no_albums_available": "No hay álbumes disponibles. Crea uno en Configuración primero.",
+        "share": "Compartir",
+        "send": "Enviar",
+        "open": "Abrir",
+        "album_fallback": "Álbum {{id}}",
+        "select_conversation": "Elige una conversación para ver mensajes.",
         "time": {
-            "one_min_ago": "",
-            "mins_ago": ""
+            "one_min_ago": "Hace 1 min",
+            "mins_ago": "Hace {{count}}min"
         },
         "preview": {
-            "sent_image": "",
+            "sent_image": "Envió una imagen",
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
@@ -497,7 +536,28 @@
         "toasts": {
             "cleared_local_history": "",
             "album_shared": ""
-        }
+        },
+        "conversation": "Conversación",
+        "read": "Leído",
+        "unread": "No leído",
+        "loading_messages": "Cargando tus mensajes...",
+        "pin": "Fijar",
+        "unpin": "Desfijar",
+        "mute": "Silenciar",
+        "unmute": "Desilenciar",
+        "clear_local_history": "Limpiar historial local",
+        "open_conversation_actions": "Abrir acciones de conversación",
+        "expiration": {
+            "title": "Duración del acceso",
+            "indefinite": "Indefinido",
+            "once": "Una vez",
+            "ten_minutes": "10 minutos",
+            "one_hour": "1 hora",
+            "one_day": "1 día",
+            "remaining": "restante",
+            "expired": "caducado"
+        },
+        "confirm_share_album": "¿Compartir \"{{album}}\" en este chat?"
     },
     "profile_details": {
         "loading": "",
@@ -526,50 +586,50 @@
         "open_photo": ""
     },
     "nav": {
-        "browse": "",
-        "right_now": "",
-        "interest": "",
-        "inbox": ""
+        "browse": "Navegar",
+        "right_now": "Right Now",
+        "interest": "Interés",
+        "inbox": "Buzón"
     },
     "customizability": {
-        "accent_color": "",
-        "selected": "",
-        "custom": "",
-        "picker": "",
-        "apply_hex": "",
-        "hex_error": "",
-        "browse_grid_mobile": "",
-        "columns_2": "",
-        "columns_3": "",
-        "preview": "",
-        "preview_primary": "",
-        "preview_outlined": "",
-        "preview_subtle": "",
+        "accent_color": "Color de énfasis",
+        "selected": "Seleccionado",
+        "custom": "personalizado",
+        "picker": "Selector",
+        "apply_hex": "Aplicar hex",
+        "hex_error": "Envía un color hexadecimal válido como #22c55e o 22c55e",
+        "browse_grid_mobile": "Cuadrícula de Navegar (Móvil)",
+        "columns_2": "2 Columnas",
+        "columns_3": "3 Columnas",
+        "preview": "Previsualización",
+        "preview_primary": "Botón principal",
+        "preview_outlined": "Contorno",
+        "preview_subtle": "Sútil",
         "schemes": {
-            "system": "",
-            "light": "",
-            "dark": ""
+            "system": "Sistema",
+            "light": "Claro",
+            "dark": "Oscuro"
         },
         "analytics": {
             "title": "",
-            "note": "",
-            "allow": "",
-            "deny": "",
-            "current": "",
-            "not_selected": "",
-            "description": ""
+            "note": "Tu elección de permitir/denegar se guarda en este dispositivo. Si está habilitada, la aplicación puede enviar tu identificador de perfil en las solicitudes de API utilizadas para la detección de presencia y el descubrimiento de usuarios.",
+            "allow": "Permitir",
+            "deny": "Denegar",
+            "current": "Actual",
+            "not_selected": "Sin seleccionar todavía",
+            "description": "Esto controla el análisis anónimo y la detección de usuarios de FreeGrind. Si se desactiva, la aplicación no utilizará la API para encontrar otros usuarios de FreeGrind."
         },
-        "subtitle": "",
-        "color_scheme": ""
+        "subtitle": "Personaliza cómo se ve y se siente la app.",
+        "color_scheme": "Modo de color"
     },
     "chat_filters": {
-        "title": "",
-        "subtitle": "",
-        "back": "",
-        "max_distance": "",
+        "title": "Filtros de chat",
+        "subtitle": "Define qué conversaciones aparecen en el buzón",
+        "back": "Volver",
+        "max_distance": "Distancia máxima",
         "options": {
-            "unread": "",
-            "chemistry": ""
+            "unread": "Sin leer",
+            "chemistry": "Química"
         }
     },
     "interest_page": {
@@ -577,5 +637,59 @@
         "empty_views_desc": "Profiles that view you will appear here.",
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
+    },
+    "browse_location": {
+        "title": "Buscar ubicación",
+        "subtitle": "Elige de dónde tu página principal cargará de.",
+        "error_geolocation": "La geolocalización no está disponible en este dispositivo.",
+        "error_access": "No se pudo acceder a tu ubicación. Revisa los permisos de ubicación y vuelve a intentarlo.",
+        "error_search_failed": "Error al buscar ubicación. Inténtalo de nuevo en un rato.",
+        "error_search_failed_general": "Error al buscar ubicación",
+        "current_location_label": "Ubicación actual",
+        "lat_lon_label": "Lat. {{lat}}, Long. {{lon}}",
+        "panel_title": "Establece tu búsqueda de ubicación",
+        "panel_subtitle": "Busca un lugar o usa el GPS en dispositivos móviles.",
+        "detecting_location": "Detectando ubicación...",
+        "use_current_location": "Usa tu ubicación actual",
+        "search_label": "Busca por ciudad o área",
+        "search_placeholder": "Ej: Berlín, Londres, Manila",
+        "selected_label": "Seleccionado: {{label}}",
+        "map_picker_title": "Seleccionar en mapa",
+        "map_picker_error_load": "Error al seleccionar en mapa en este dispositivo. Usa la búsqueda de ubicación o la ubicación actual.",
+        "map_picker_hide": "Ocultar",
+        "map_picker_open": "Abrir",
+        "map_picker_instructions": "Abre el mapa para marcar un punto y guardar esa ubicación.",
+        "map_picker_tap_hint": "Toca el mapa para marcarlo.",
+        "use_selected_location": "Usa esta ubicación"
+    },
+    "issues_form": {
+        "title": "Informar de error o sugerencia",
+        "subtitle": "Este informe se envía al tablón de incidencias internos y puede sincronizarse con Discord.",
+        "type_label": "Tipo",
+        "type_bug": "Error",
+        "type_feature": "Sugerir una característica",
+        "title_label": "Título",
+        "title_placeholder": "Un breve resumen",
+        "description_label": "Descripción",
+        "description_placeholder": "Qué pasó, qué esperabas, y cómo reproducir de nuevo el error.",
+        "name_label": "Nombre (opcional)",
+        "name_placeholder": "¿Cómo deberíamos dirigirnos a ti?",
+        "contact_label": "Contacto (opcional)",
+        "contact_placeholder": "Usuario de Discord, Telegram o correo electrónico",
+        "include_data_label": "Incluir diagnóstico de datos",
+        "include_app_info": "Incluir versión de aplicación y plataforma",
+        "include_app_info_hint": "Recomendado para facilitar la búsqueda. Esta información sobre el problema es pública, incluyendo la rama OTA.",
+        "include_logs": "Incluir registros locales de la app",
+        "include_logs_hint": "Envía las últimas 100 entradas del registro de la aplicación y los diagnósticos de tiempo de ejecución. Visible solo para colaboradores y administradores.",
+        "meta": "App {{version}} en {{platform}} · OTA {{otaChannel}}",
+        "meta_opt_out": "La versión de la app y plataforma no están incluidas en este informe.",
+        "submit": "Enviar informe",
+        "submitting": "Entregando...",
+        "success": "Informe enviado: {{id}}",
+        "error": "Error al enviar informe",
+        "submit_error": "Error al enviar informe",
+        "no_id_error": "Informe enviado, pero no se muestra el ID",
+        "validation_title": "Por favor, introduce un título de al menos 3 caracteres.",
+        "validation_description": "Por favor, añade una descripción con al menos 10 caracteres."
     }
 }
