@@ -56,8 +56,9 @@ export function useTapProfile({
 			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
 			isWithinWindow(activeProfile.lastReceivedTapTimestamp, TAP_WINDOW_MS);
 
-		if (hasSentTap || hasReceivedTap) {
-			return "single" as const;
+		if (hasSentTap) {
+			const isMutual = localStateWithinWindow?.visualState === "mutual" || hasReceivedTap;
+			return isMutual ? ("mutual" as const) : ("single" as const);
 		}
 
 		return "none" as const;
