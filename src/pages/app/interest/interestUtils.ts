@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
+import i18n from "../../../i18n";
 import type { StoredInterestView } from "../../../services/interestViewsStore";
 import { validateMediaHash } from "../../../utils/media";
-import { formatRelativeTime } from "../../../utils/relativeTime";
 
 export type InterestTab = "views" | "taps";
 
@@ -330,15 +330,50 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 		.filter((entry): entry is InterestItem => entry !== null);
 }
 
+const relativeTimeFormatterCache = new Map<string, Intl.RelativeTimeFormat>();
+
+function getRelativeTimeFormatter(lng: string, options: Intl.RelativeTimeFormatOptions) {
+	const key = `${lng}-${JSON.stringify(options)}`;
+	if (!relativeTimeFormatterCache.has(key)) {
+		relativeTimeFormatterCache.set(key, new Intl.RelativeTimeFormat(lng, options));
+	}
+	return relativeTimeFormatterCache.get(key)!;
+}
+
 export function formatTimestamp(
 	timestamp: number | null,
 	t: TFunction,
 	now: number = Date.now(),
 ): string {
-	if (!timestamp) {
+	if (!timestamp || !Number.isFinite(timestamp)) {
 		return t("interest_page.unknown_time");
 	}
-	return formatRelativeTime(timestamp, now);
+
+	const lang = i18n.language;
+	const formatter = getRelativeTimeFormatter(lang, {
+		numeric: "auto",
+	});
+
+	const diffMs = timestamp - now;
+	const minuteMs = 60 * 1000;
+	const hourMs = 60 * minuteMs;
+	const dayMs = 24 * hourMs;
+
+	if (Math.abs(diffMs) < hourMs) {
+		const mins = Math.round(diffMs / minuteMs);
+		if (mins === 0) return t("browse_page.status_just_now");
+		return formatter.format(mins, "minute");
+	}
+
+	if (Math.abs(diffMs) < dayMs) {
+		return formatter.format(Math.round(diffMs / hourMs), "hour");
+	}
+
+	if (Math.abs(diffMs) < dayMs * 7) {
+		return formatter.format(Math.round(diffMs / dayMs), "day");
+	}
+
+	return new Date(timestamp).toLocaleDateString();
 }
 
 export function tapLabel(tapType: number | null, t: TFunction): string {
@@ -351,5 +386,18 @@ export function tapLabel(tapType: number | null, t: TFunction): string {
 			return t("interest_page.tap_labels.looking");
 		default:
 			return t("interest_page.tap_labels.default");
+	}
+}
+
+export function getTapEmoji(tapType: number | null): string {
+	switch (tapType) {
+		case 0:
+			return "👋";
+		case 1:
+			return "🔥";
+		case 2:
+			return "😈";
+		default:
+			return "🔥";
 	}
 }
