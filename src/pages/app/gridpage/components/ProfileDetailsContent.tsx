@@ -1,5 +1,5 @@
-import { Flame, MessageCircle, Triangle } from "lucide-react";
-import { type RefObject, type UIEvent, useEffect, useState } from "react";
+import { MessageCircle, Triangle } from "lucide-react";
+import { type RefObject, type UIEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
@@ -15,6 +15,7 @@ import {
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { TapSelector } from "./TapSelector";
 
 type LabelMap = Record<number, string>;
 
@@ -34,10 +35,11 @@ type ProfileDetailsContentProps = {
 	messageProfileId: string | null;
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
-	onTapProfile?: (profileId: string) => void;
+	onTapProfile?: (profileId: string, tapId?: number) => void;
 	isTapDisabled: boolean;
 	isTapBlocked: boolean;
 	isTapActive: boolean;
+	tapId: number;
 	tapButtonClassName: string;
 	onTriangleProfile?: (profileId: string) => void;
 	isTriangleDisabled: boolean;
@@ -83,6 +85,7 @@ export function ProfileDetailsContent({
 	isTapDisabled,
 	isTapBlocked,
 	isTapActive,
+	tapId,
 	tapButtonClassName,
 	onTriangleProfile,
 	isTriangleDisabled,
@@ -108,14 +111,6 @@ export function ProfileDetailsContent({
 	relationshipStatusLabels,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
-	const [isIgniting, setIsIgniting] = useState(false);
-	useEffect(() => {
-		if (isTapActive) {
-			setIsIgniting(true);
-			const timer = setTimeout(() => setIsIgniting(false),400);
-			return () => clearTimeout(timer);
-		}
-	}, [isTapActive]);
 
 	return (
 		<div className="grid gap-6">
@@ -259,44 +254,15 @@ export function ProfileDetailsContent({
 							<MessageCircle className="h-4 w-4" />
 							{t("profile_details.message")}
 						</button>
-						<button
-							type="button"
-							onClick={() => onTapProfile?.(messageProfileId)}
-							disabled={isTapDisabled}
-							className={tapButtonClassName}
-							aria-label="Tap profile"
-							title={
-								isTapBlocked
-									? "Tap already sent in the last 24 hours"
-									: isTapActive
-										? "Tap active"
-										: "Send tap"
-							}
-						>
-							{/* Background Overlay to avoid color-mix incompatibility in WebView */}
-							{isTapActive && (
-								<>
-									<div className="absolute inset-0 bg-[var(--accent)] opacity-15 pointer-events-none" />
-									<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-										<div
-											key={isIgniting ? "ignite" : "loop"}
-											className={`h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(255,140,0,0.8)_0%,rgba(2,6,23,0)_75%)] ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
-										/>
-									</div>
-								</>
-							)}
-							<div className="relative z-10 flex h-7 w-7 items-center justify-center">
-								<div
-									className={`relative inline-block origin-bottom transition-all duration-300 ${isTapActive ? `flame-active text-2xl ${isIgniting ? "animate-ignite" : "animate-flame-loop"}` : ""}`}
-								>
-									{isTapActive ? (
-										"🔥"
-									) : (
-										<Flame className="h-7 w-7" strokeWidth={1.8} />
-									)}
-								</div>
-							</div>
-						</button>
+						<TapSelector
+							profileId={messageProfileId}
+							onTapProfile={onTapProfile!}
+							isTapDisabled={isTapDisabled}
+							isTapBlocked={isTapBlocked}
+							isTapActive={isTapActive}
+							tapId={tapId}
+							tapButtonClassName={tapButtonClassName}
+						/>
 						<button
 							type="button"
 							onClick={() => {

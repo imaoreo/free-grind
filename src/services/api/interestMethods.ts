@@ -22,7 +22,7 @@ export function createInterestMethods(fetchRest: RestFetcher, t: (key: string) =
 			return interestTapsResponseSchema.parse(await parseJsonSafe(response));
 		},
 
-		async tap(profileId: string | number): Promise<TapResult> {
+		async tap(profileId: string | number, tapType: number = 0): Promise<TapResult> {
 			const recipientId =
 				typeof profileId === "number" ? profileId : Number(profileId);
 
@@ -34,7 +34,7 @@ export function createInterestMethods(fetchRest: RestFetcher, t: (key: string) =
 				method: "POST",
 				body: {
 					recipientId,
-					tapType: 0,
+					tapType,
 				},
 			});
 			await assertSuccess(response, t("api.errors.send_tap"));

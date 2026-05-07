@@ -2,11 +2,27 @@
 
 @theme {
 	--color-accent: var(--accent);
-	--animate-ignite: ignite-vertical 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+
+	/* Tap animations */
+	--animate-ignite: ignite-vertical 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 	--animate-flash: flash-burst 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-	--animate-flame-loop: living-flame 4s ease-in-out infinite;
+	--animate-ripple: ripple-out 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+	--animate-living-loop: living-emoji 4s ease-in-out infinite;
+	--animate-living-flame-loop: living-emoji 4s ease-in-out infinite, super-pulse 4s ease-in-out infinite;
 	--animate-halo-loop: halo-loop 4s ease-in-out infinite;
 
+	@keyframes ripple-out {
+		0% {
+			transform: scale(1);
+			opacity: 1;
+			border-width: 3px;
+		}
+		100% {
+			transform: scale(2.4);
+			opacity: 0;
+			border-width: 0px;
+		}
+	}
 	@keyframes ignite-vertical {
 		0% {
 			transform: scale(1) translateY(0) rotate(0deg);
@@ -36,38 +52,91 @@
 			filter: blur(4px);
 		}
 		45% {
-			transform: scale(1.4);
+			transform: scale(1);
 			opacity: 0.5;
 			filter: blur(8px);
 		}
 		100% {
-			transform: scale(0.6);
+			transform: scale(0.9);
 			opacity: 0.3;
 			filter: blur(4px);
 		}
 	}
-	@keyframes living-flame {
-		0%,
-		100% {
-			transform: scale(1.15) translateY(2px) rotate(0deg);
-		}
-		50% {
-			transform: scale(1.2) translateY(0px) rotate(3deg);
-		}
-	}
+	@keyframes living-emoji {
+    		0%,
+    		100% {
+    			transform: scale(1.15) translateY(2px) rotate(0deg);
+
+    		}
+    		50% {
+    			transform: scale(1.2) translateY(0px) rotate(3deg);
+
+
+    		}
+    	}
+    @keyframes super-pulse {
+        0%, 100% {
+            filter: brightness(1.2) saturate(1);
+        }
+        50% {
+            filter: brightness(1.8) saturate(1.4);
+        }
+    }
 	@keyframes halo-loop {
 		0%,
 		100% {
 			opacity: 0.3;
-			transform: scale(0.6);
+			transform: scale(0.9);
 			filter: blur(4px);
 		}
 		50% {
 			opacity: 0.45;
-			transform: scale(1.25);
+			transform: scale(1.1);
 			filter: blur(6px);
 		}
 	}
+
+    /* Chat animations */
+	@keyframes fire-pill-pop {
+
+		0% {
+			transform: translateY(1px) scale(0.92);
+		}
+		55% {
+			transform: translateY(-1px) scale(1.08);
+		}
+		100% {
+			transform: translateY(0) scale(1);
+		}
+	}
+	@keyframes fire-flame-flicker {
+		0% {
+			transform: rotate(-14deg) scale(0.82);
+			filter: saturate(1.1);
+		}
+		40% {
+			transform: rotate(10deg) scale(1.2);
+			filter: saturate(1.45);
+		}
+		70% {
+			transform: rotate(-4deg) scale(1.02);
+		}
+		100% {
+			transform: rotate(0deg) scale(1);
+			filter: saturate(1);
+		}
+	}
+	@keyframes fire-ring {
+		0% {
+			transform: scale(0.55);
+			opacity: 0.78;
+		}
+		100% {
+			transform: scale(1.45);
+			opacity: 0;
+		}
+	}
+
 }
 
 @source "./**/*.{ts,tsx}";
@@ -172,6 +241,8 @@
 }
 
 @layer components {
+
+    /* Chat */
 	.chat-reaction-pill {
 		will-change: transform;
 		transition:
@@ -203,47 +274,6 @@
 		pointer-events: none;
 	}
 
-	@keyframes fire-pill-pop {
-		0% {
-			transform: translateY(1px) scale(0.92);
-		}
-		55% {
-			transform: translateY(-1px) scale(1.08);
-		}
-		100% {
-			transform: translateY(0) scale(1);
-		}
-	}
-
-	@keyframes fire-flame-flicker {
-		0% {
-			transform: rotate(-14deg) scale(0.82);
-			filter: saturate(1.1);
-		}
-		40% {
-			transform: rotate(10deg) scale(1.2);
-			filter: saturate(1.45);
-		}
-		70% {
-			transform: rotate(-4deg) scale(1.02);
-		}
-		100% {
-			transform: rotate(0deg) scale(1);
-			filter: saturate(1);
-		}
-	}
-
-	@keyframes fire-ring {
-		0% {
-			transform: scale(0.55);
-			opacity: 0.78;
-		}
-		100% {
-			transform: scale(1.45);
-			opacity: 0;
-		}
-	}
-
 	@media (prefers-reduced-motion: reduce) {
 		.chat-reaction-pill,
 		.chat-reaction-pill--burst,
@@ -255,14 +285,97 @@
 		}
 	}
 
-	.flame-active {
-		text-shadow:
-			0 0 12px #ff8800,
-			0 0 25px rgba(255, 69, 0, 0.6);
-		filter: grayscale(0) brightness(1.2);
-		transition: all 0.2s ease;
+    /* Taps */
+	.tap-btn-base {
+		touch-action: none;
+		user-select: none;
+		-webkit-user-select: none;
+		transition:
+			border-color 0.2s ease,
+			transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 	}
 
+	.tap-btn-outer-halo {
+		background: radial-gradient(circle, var(--halo-color) 0%, rgba(2, 6, 23, 0) 70%);
+		transition: background 0.4s ease;
+	}
+
+	.tap-btn-emoji-container {
+    		display: inline-block;
+    		transition:
+    			transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    			filter 0.3s ease,
+    			text-shadow 0.3s ease,
+    			opacity 0.2s ease;
+    		will-change: transform, filter;
+    	}
+
+    .tap-btn-emoji-hidden {
+        transform: translateY(30px) scale(0.3) rotate(15deg) !important;
+        opacity: 0 !important;
+        transition: none !important;
+    }
+
+    .tap-btn-emoji-active {
+        text-shadow:
+            0 0 15px var(--halo-color),
+            0 0 30px var(--halo-color);
+        filter: grayscale(0) brightness(1.2);
+        will-change: transform, filter;
+        transition:
+            filter 0.3s ease,
+            text-shadow 0.3s ease,
+            transform 0.2s ease;
+    }
+
+    .tap-btn-ripple {
+        border-color: var(--halo-color);
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+        border-radius: 9999px;
+        opacity: 0;
+        z-index: 5;
+        border-style: solid;
+    }
+
+	.tab-menu {
+		background: radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 80%);
+		backdrop-filter: blur(12px);
+		transform: rotate(-15deg) translateY(20px) translateX(-50%);
+		transform-origin: left bottom;
+		opacity: 0;
+		pointer-events: none;
+		transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		padding: 2.5rem 3rem; /* Increased padding for larger shadows */
+	}
+
+	.tab-menu.active {
+		opacity: 1;
+		transform: rotate(-10deg) translateY(0) translateX(-50%);
+		pointer-events: auto;
+	}
+
+	.tab-menu-emoji {
+		transition:
+			transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+			filter 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+		will-change: transform, filter;
+	}
+
+	.tab-menu-emoji.highlight {
+		transform: scale(1.8) translateY(-10px) translateZ(0);
+		/* Base shadow for mobile/small screens (Android WebView is very sensitive to blur radii) */
+		filter: brightness(1.2) drop-shadow(0 0 10px var(--halo-color));
+		will-change: transform, filter;
+	}
+
+	@media (min-width: 1024px) {
+		.tab-menu-emoji.highlight {
+			/* Larger shadow for desktop where rendering is more conservative */
+			filter: brightness(1.2) drop-shadow(0 0 45px var(--halo-color));
+		}
+	}
 
 	.app-shell {
 		position: relative;
