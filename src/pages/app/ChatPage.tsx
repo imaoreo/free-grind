@@ -146,6 +146,7 @@ export function ChatPage() {
 	const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
 	const [threadError, setThreadError] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
+	const [replyTargetMessageId, setReplyTargetMessageId] = useState<string | null>(null);
 	const [isSending, setIsSending] = useState(false);
 	const [isUpdatingConversationState, setIsUpdatingConversationState] =
 		useState(false);
@@ -1179,11 +1180,24 @@ export function ChatPage() {
 			setThreadConversationId(null);
 			setThreadMessages([]);
 			setThreadError(null);
+			setReplyTargetMessageId(null);
 			return;
 		}
 
 		void loadThread({ conversationId: selectedConversationId, older: false });
 	}, [loadThread, selectedConversationId]);
+
+	useEffect(() => {
+		if (!replyTargetMessageId) {
+			return;
+		}
+		const hasTarget = threadMessages.some(
+			(message) => message.messageId === replyTargetMessageId,
+		);
+		if (!hasTarget) {
+			setReplyTargetMessageId(null);
+		}
+	}, [replyTargetMessageId, threadMessages]);
 
 	useEffect(() => {
 		if (!threadMessages.length) {
@@ -1304,6 +1318,16 @@ export function ChatPage() {
 		selectedActionMessage != null &&
 		userId != null &&
 		Number(selectedActionMessage.senderId) === Number(userId);
+
+	const replyTargetMessage = useMemo(() => {
+		if (!replyTargetMessageId) {
+			return null;
+		}
+		return (
+			threadMessages.find((message) => message.messageId === replyTargetMessageId) ??
+			null
+		);
+	}, [replyTargetMessageId, threadMessages]);
 
 	const filteredConversations = conversations;
 
@@ -1486,7 +1510,11 @@ export function ChatPage() {
 	}, [selectedConversation]);
 
 	const sendTextMessage = useCallback(
-		async (text: string, retryMessageId?: string) => {
+		async (
+			text: string,
+			retryMessageId?: string,
+			options?: { includeReplyContext?: boolean },
+		) => {
 			if (!userId) {
 				return;
 			}
@@ -1505,6 +1533,19 @@ export function ChatPage() {
 				return;
 			}
 
+			const includeReplyContext = options?.includeReplyContext ?? true;
+			const selectedReplyMessage =
+				includeReplyContext && replyTargetMessageId
+					? (threadMessages.find(
+							(message) => message.messageId === replyTargetMessageId,
+						) ?? null)
+					: null;
+			const replySnippet = selectedReplyMessage
+				? getMessagePreviewLabel(selectedReplyMessage, t).trim()
+				: "";
+			const textWithReplyContext =
+				replySnippet.length > 0 ? `> ${replySnippet}\n${trimmed}` : trimmed;
+
 			setIsSending(true);
 			const localMessageId =
 				retryMessageId ?? `local:${Date.now()}:${Math.random()}`;
@@ -1522,9 +1563,13 @@ export function ChatPage() {
 						reactions: [],
 						type: "Text",
 						chat1Type: "text",
-						body: { text: trimmed },
-						replyToMessage: null,
-						replyPreview: null,
+						body: { text: textWithReplyContext },
+						replyToMessage: selectedReplyMessage
+							? { messageId: selectedReplyMessage.messageId }
+							: null,
+						replyPreview: selectedReplyMessage
+							? { text: replySnippet }
+							: null,
 						dynamic: false,
 						clientState: "pending",
 					},
@@ -1542,7 +1587,7 @@ export function ChatPage() {
 			try {
 				const sentMessage = await service.sendText({
 					targetProfileId: targetProfileIdValue,
-					text: trimmed,
+					text: textWithReplyContext,
 				});
 
 				setThreadMessages((previous) => {
@@ -1582,6 +1627,7 @@ export function ChatPage() {
 				}
 
 				setDraft("");
+				setReplyTargetMessageId(null);
 			} catch (error) {
 				setThreadMessages((previous) =>
 					previous.map((message) =>
@@ -1606,10 +1652,13 @@ export function ChatPage() {
 		[
 			loadInbox,
 			openConversationById,
+			replyTargetMessageId,
 			selectedConversation,
 			service,
 			syncConversation,
 			targetProfileId,
+			threadMessages,
+			t,
 			userId,
 		],
 	);
@@ -1824,8 +1873,18 @@ export function ChatPage() {
 			return;
 		}
 
-		void sendTextMessage(body.text, message.messageId);
+		void sendTextMessage(body.text, message.messageId, {
+			includeReplyContext: false,
+		});
 	};
+
+	const handleReplyToMessage = useCallback((message: UiMessage) => {
+		if (isLocalClientMessageId(message.messageId)) {
+			return;
+		}
+		setReplyTargetMessageId(message.messageId);
+		setOpenMessageActionId(null);
+	}, []);
 
 	const handleReact = async (message: UiMessage) => {
 		if (!selectedConversation || !userId || isMutatingMessageId) {
@@ -2306,6 +2365,7 @@ export function ChatPage() {
 			handleUnsend={handleUnsend}
 			handleDelete={handleDelete}
 			handleRetry={handleRetry}
+			handleReply={handleReplyToMessage}
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
@@ -2330,6 +2390,8 @@ export function ChatPage() {
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
+			replyTargetMessage={replyTargetMessage}
+			clearReplyTarget={() => setReplyTargetMessageId(null)}
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
