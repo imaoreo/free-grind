@@ -1,8 +1,8 @@
-import { Eye, Hand } from "lucide-react";
+import { Eye } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import blankProfileImage from "../../../images/blank-profile.png";
-import { type InterestItem, type InterestTab, formatTimestamp, tapLabel } from "./interestUtils";
+import { type InterestItem, type InterestTab, formatTimestamp, tapLabel, getTapEmoji } from "./interestUtils";
 
 export function InterestTabs({
 	activeTab,
@@ -78,7 +78,7 @@ export function InterestRow({
 			? item.viewCount != null
 				? t("interest_page.view_count", { count: item.viewCount })
 				: t("interest_page.viewed")
-			: tapLabel(item.tapType, t);
+			: null;
 
 	return (
 		<button
@@ -98,9 +98,19 @@ export function InterestRow({
 				<p className="truncate text-sm font-semibold text-[var(--text)]">{item.displayName}</p>
 				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t, now)}</p>
 			</div>
-			<span className="inline-flex items-center gap-1 rounded-full bg-[var(--surface-2)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)]">
-				{mode === "views" ? <Eye className="h-3.5 w-3.5" /> : <Hand className="h-3.5 w-3.5" />}
-				{mode === "views" && !item.canOpenProfile ? t("interest_page.preview") : trailing}
+			<span
+				className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ${
+					mode === "views" ? "bg-[var(--surface-2)]" : ""
+				}`}
+			>
+				{mode === "views" ? (
+					<>
+						<Eye className="h-3.5 w-3.5" />
+						{!item.canOpenProfile ? t("interest_page.preview") : trailing}
+					</>
+				) : (
+					<span className="text-2xl leading-none">{getTapEmoji(item.tapType)}</span>
+				)}
 			</span>
 		</button>
 	);
