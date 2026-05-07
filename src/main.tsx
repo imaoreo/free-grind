@@ -6,11 +6,13 @@ import "@fontsource-variable/ibm-plex-sans/index.css";
 import App from "./App";
 import "./i18n";
 import { markHotswapStartupReady, autoCheckAndInstallUpdate } from "./services/hotswap";
+import { initChatContactIndex } from "./services/chatContactIndex";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 import "./index.css";
 
 // Run sequentially: configure + notifyReady first, then check for updates
 void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+void initChatContactIndex();
 
 ReactDOM.createRoot(document.getElementById("app")!).render(
 	<React.StrictMode>

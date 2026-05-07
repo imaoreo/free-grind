@@ -63,6 +63,7 @@ import {
 	useDesktopBreakpoint,
 } from "./chat/chatUtils";
 import { appLog } from "../../utils/logger";
+import { upsertChatContactIndexFromInbox } from "../../services/chatContactIndex";
 
 
 export function ChatPage() {
@@ -680,6 +681,26 @@ export function ChatPage() {
 				const response = await service.listConversations({
 					page,
 					filters: activeInboxFiltersRef.current,
+				});
+
+				const inboxContactEntries = response.entries
+					.map((entry) => {
+						const otherParticipant = getOtherParticipant(entry, userId);
+						if (!otherParticipant?.profileId) {
+							return null;
+						}
+
+						return {
+							profileId: String(otherParticipant.profileId),
+							conversationId: entry.data.conversationId,
+							lastMessageTimestamp: entry.data.lastActivityTimestamp ?? null,
+							unreadCount: entry.data.unreadCount ?? 0,
+						};
+					})
+					.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+				void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
+					appLog.warn("[chat-index] failed to persist inbox metadata", error);
 				});
 
 				setConversations((previous) => {
