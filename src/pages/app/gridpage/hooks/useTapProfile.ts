@@ -3,13 +3,13 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 
-type TapVisualState = { visualState: "single" | "mutual"; sentAt: number };
+type TapVisualState = { visualState: "single" | "mutual"; sentAt: number; tapId: number };
 
 type UseTapProfileParams = {
 	activeProfile: ProfileDetail | null;
 	setActiveProfile: React.Dispatch<React.SetStateAction<ProfileDetail | null>>;
 	activeProfileId: string | null;
-	tap: (profileId: string | number) => Promise<{ isMutual: boolean }>;
+	tap: (profileId: string | number, tapId?: number) => Promise<{ isMutual: boolean }>;
 	TAP_WINDOW_MS: number;
 };
 
@@ -44,23 +44,29 @@ export function useTapProfile({
 
 	const resolvedTapVisualState = useMemo(() => {
 		if (!activeProfileId) {
-			return "none" as const;
+			return { state: "none" as const, tapId: 1 };
 		}
 
 		const localState = tapVisualStates[activeProfileId] ?? null;
 		const localStateWithinWindow =
 			localState && isWithinWindow(localState.sentAt, TAP_WINDOW_MS) ? localState : null;
 		const hasSentTap =
-			activeProfile?.tapped === true || localStateWithinWindow !== null;
+			(activeProfile?.profileId === activeProfileId && activeProfile?.tapped === true) ||
+			localStateWithinWindow !== null;
 		const hasReceivedTap =
+			activeProfile?.profileId === activeProfileId &&
 			typeof activeProfile?.lastReceivedTapTimestamp === "number" &&
 			isWithinWindow(activeProfile.lastReceivedTapTimestamp, TAP_WINDOW_MS);
 
-		if (hasSentTap || hasReceivedTap) {
-			return "single" as const;
+		if (hasSentTap) {
+			const isMutual = localStateWithinWindow?.visualState === "mutual" || hasReceivedTap;
+			const tapId =
+				localStateWithinWindow?.tapId ??
+				(typeof activeProfile?.tapType === "number" ? activeProfile.tapType : 1);
+			return { state: isMutual ? ("mutual" as const) : ("single" as const), tapId };
 		}
 
-		return "none" as const;
+		return { state: "none" as const, tapId: 1 };
 	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
 
 	const hasSentTapRecently = useMemo(() => {
@@ -68,14 +74,14 @@ export function useTapProfile({
 			return false;
 		}
 
-		const sentFromServer = activeProfile?.tapped === true;
+		const sentFromServer = activeProfile?.profileId === activeProfileId && activeProfile?.tapped === true;
 		const sentLocally = isWithinWindow(tapVisualStates[activeProfileId]?.sentAt, TAP_WINDOW_MS);
 
 		return sentFromServer || sentLocally;
 	}, [activeProfile, activeProfileId, tapVisualStates, TAP_WINDOW_MS]);
 
 	const handleTapProfile = useCallback(
-		async (profileId: string) => {
+		async (profileId: string, tapId: number = 1) => {
 			if (tappingProfileId === profileId) {
 				return;
 			}
@@ -90,10 +96,18 @@ export function useTapProfile({
 
 			setTappingProfileId(profileId);
 			try {
-				const result = await tap(profileId);
+				const result = await tap(profileId, tapId);
+
+                /* Used for debugging taps without sending
+                const result = await new Promise<{ isMutual: boolean }>((resolve) => {
+                    setTimeout(() => {
+                        resolve({ isMutual: Math.random() > 0.5 });
+                    }, 1000);
+                }); */
+
 				setActiveProfile((current) =>
 					current && current.profileId === profileId
-						? { ...current, tapped: true }
+						? { ...current, tapped: true, tapType: tapId }
 						: current,
 				);
 				setTapVisualStates((current) => ({
@@ -101,6 +115,7 @@ export function useTapProfile({
 					[profileId]: {
 						visualState: result.isMutual ? "mutual" : "single",
 						sentAt: Date.now(),
+						tapId,
 					},
 				}));
 				toast.success(
