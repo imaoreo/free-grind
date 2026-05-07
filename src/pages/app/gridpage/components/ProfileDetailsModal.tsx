@@ -43,10 +43,10 @@ type ProfileDetailsModalProps = {
 	onMessageProfile?: (profileId: string) => void;
 	onTriangleProfile?: (profileId: string) => void;
 	isLocatingProfile?: boolean;
-	onTapProfile?: (profileId: string) => void;
+	onTapProfile?: (profileId: string, tapId?: number) => void;
 	isTappingProfile?: boolean;
 	isTapBlocked?: boolean;
-	tapVisualState?: "none" | "single" | "mutual";
+	tapVisualState?: { state: "none" | "single" | "mutual"; tapId: number };
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -68,7 +68,7 @@ export function ProfileDetailsModal({
 	onTapProfile,
 	isTappingProfile = false,
 	isTapBlocked = false,
-	tapVisualState = "none",
+	tapVisualState = { state: "none", tapId: 1 },
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -115,7 +115,8 @@ export function ProfileDetailsModal({
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);
-	const effectiveTapVisualState = isTappingProfile ? "single" : tapVisualState;
+	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
+	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
 	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
 	const isTriangleDisabled =
@@ -487,6 +488,7 @@ export function ProfileDetailsModal({
 								isTapDisabled={isTapDisabled}
 								isTapBlocked={isTapBlocked}
 								isTapActive={isTapActive}
+								tapId={tapVisualState.tapId}
 								tapButtonClassName={tapButtonClassName}
 								onTriangleProfile={onTriangleProfile}
 								isTriangleDisabled={isTriangleDisabled}
@@ -575,6 +577,7 @@ export function ProfileDetailsModal({
 							isTapDisabled={isTapDisabled}
 							isTapBlocked={isTapBlocked}
 							isTapActive={isTapActive}
+							tapId={tapVisualState.tapId}
 							tapButtonClassName={tapButtonClassName}
 							onTriangleProfile={onTriangleProfile}
 							isTriangleDisabled={isTriangleDisabled}
