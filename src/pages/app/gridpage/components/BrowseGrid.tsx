@@ -11,11 +11,13 @@ import {
 } from "../../../../components/ui/states";
 import { LoadMoreButton } from "../../../../components/ui/load-more-button";
 import { getAsyncState } from "../../../../hooks/useAsyncViewState";
+import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
 type BrowseGridProps = {
 	isLoadingCards: boolean;
 	cardsError: string | null;
 	cards: BrowseCard[];
+	chatContactIndexByProfileId?: Record<string, ChatContactIndexRecord>;
 	onSelectProfile: (profileId: string) => void;
 	onMessageProfile: (profileId: string) => void;
 	hasMore?: boolean;
@@ -27,6 +29,7 @@ export function BrowseGrid({
 	isLoadingCards,
 	cardsError,
 	cards,
+	chatContactIndexByProfileId,
 	onSelectProfile,
 	onMessageProfile,
 	hasMore,
@@ -115,6 +118,7 @@ export function BrowseGrid({
 					<BrowseCardTile
 						key={card.profileId}
 						card={card}
+						chatContactStatus={chatContactIndexByProfileId?.[card.profileId] ?? null}
 						onSelectProfile={onSelectProfile}
 						onMessageProfile={onMessageProfile}
 						isDesktop={isDesktop}

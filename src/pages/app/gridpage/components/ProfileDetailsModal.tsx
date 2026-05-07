@@ -36,6 +36,7 @@ import {
 	shouldHideField,
 } from "../utils";
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
+import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -52,6 +53,7 @@ type ProfileDetailsModalProps = {
 	isLoadingActiveProfile: boolean;
 	activeProfileError: string | null;
 	activeProfilePhotoHashes: string[];
+	chatContactStatus?: ChatContactIndexRecord | null;
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
 	variant?: "modal" | "page";
@@ -74,6 +76,7 @@ export function ProfileDetailsModal({
 	isLoadingActiveProfile,
 	activeProfileError,
 	activeProfilePhotoHashes,
+	chatContactStatus,
 	genderOptions,
 	pronounOptions,
 	variant = "modal",
@@ -481,6 +484,7 @@ export function ProfileDetailsModal({
 								estimatedCreatedAt={estimatedCreatedAt}
 								profileStatusLabel={profileStatusLabel}
 								profileDistance={profileDistance}
+								chatContactStatus={chatContactStatus ?? null}
 								messageProfileId={messageProfileId}
 								usesFreegrind={usesFreegrind ?? false}
 								onMessageProfile={onMessageProfile}
@@ -570,6 +574,7 @@ export function ProfileDetailsModal({
 							estimatedCreatedAt={estimatedCreatedAt}
 							profileStatusLabel={profileStatusLabel}
 							profileDistance={profileDistance}
+							chatContactStatus={chatContactStatus ?? null}
 							messageProfileId={messageProfileId}
 								usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}

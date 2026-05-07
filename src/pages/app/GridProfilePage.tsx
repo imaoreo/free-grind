@@ -26,6 +26,9 @@ import {
 	type ManagedOption,
 	type ProfileDetail,
 } from "./GridPage.types";
+import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
+import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
+import { appLog } from "../../utils/logger";
 
 const profileRouteParamsSchema = z.object({
 	profileId: z.string().min(1),
@@ -50,9 +53,33 @@ export function GridProfilePage() {
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
+	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+
+	useEffect(() => {
+		if (!profileId) {
+			setChatContactStatus(null);
+			return;
+		}
+
+		let cancelled = false;
+		void getChatContactIndexForProfiles([profileId])
+			.then((records) => {
+				if (cancelled) {
+					return;
+				}
+				setChatContactStatus(records[0] ?? null);
+			})
+			.catch((error) => {
+				appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [profileId]);
 
 	const {
 		tappingProfileId,
@@ -429,6 +456,7 @@ export function GridProfilePage() {
 			isLoadingActiveProfile={isLoadingActiveProfile}
 			activeProfileError={activeProfileError}
 			activeProfilePhotoHashes={activeProfilePhotoHashes}
+			chatContactStatus={chatContactStatus}
 			genderOptions={genderOptions}
 			pronounOptions={pronounOptions}
 		/>
