@@ -17,7 +17,7 @@
         "export_chat": "Exportar datos de chat",
         "export_chat_desc": "Descarga todos los mensajes localmente almacenados como un archivo JSON.",
         "check_updates": "Comprobar si hay actualizaciones",
-        "check_now": "Comprobar Right Now",
+        "check_now": "Comprobar ahora",
         "environment": "Entorno",
         "switching": "Cambiando…",
         "checking": "Comprobando…",
@@ -202,10 +202,10 @@
         "media_title": "Contenido del álbum",
         "media_counts_images": "{{count}} imágenes",
         "media_counts_total": " · {{count}} contenido total",
-        "media_desc": ". Añade imágenes, elimínelas, cambia el orden de visualización.",
+        "media_desc": ". Añade imágenes, elimínelas o cambia el orden de visualización.",
         "upload": "Añadir imágenes",
         "uploading": "Subiendo…",
-        "refresh": "Recargando",
+        "refresh": "Recargar",
         "loading_media": "Cargando contenido de álbum…",
         "no_media": "No hay contenido en este álbum todavía.",
         "media_alt": "Contenido de álbum {{index}}",
@@ -240,12 +240,12 @@
         "tags_count_other": "{{count}} etiquetas",
         "no_tags": "Sin etiquetas",
         "completion_title": "Perfil completado",
-        "completion_signals": "{{count}}/{{total}} campos de perfil establecidas",
+        "completion_signals": "{{count}}/{{total}} campos de perfil establecidos",
         "sections": {
             "pictures": {
                 "title": "Imágenes",
                 "description": "Espacios para fotos",
-                "usage": "{{count}}/{{total}} fotos usadas",
+                "usage": "{{count}}/{{total}} fotos puestas",
                 "add": "Añadir foto",
                 "uploading": "Subiendo…",
                 "saving": "Guardando cambios de foto…",
@@ -287,12 +287,12 @@
                 "relationship_status": "Situación amorosa",
                 "tribes": "Tribus",
                 "not_set": "Sin especificar",
-                "relationship_not_set": "Situación amorosa sin especificar",
-                "body_type_not_set": "Complexión física sin especificar"
+                "relationship_not_set": "Situación amorosa sin establecer",
+                "body_type_not_set": "Complexión física sin establecer"
             },
             "expectations": {
                 "title": "En busca de",
-                "description": "A qué y cómo estás abierto a",
+                "description": "A qué estás abierto y cómo",
                 "looking_for": "En busca de",
                 "meet_at": "Encontrarnos en",
                 "accept_nsfw": "Aceptar fotos no apropiadas para el trabajo"
@@ -791,7 +791,7 @@
         "view_count_many": "{{count}} visitas",
         "view_count_other": "{{count}} visitas",
         "viewed": "Visto",
-        "preview": "Previsualizar",
+        "preview": "Visitado",
         "private_viewer": "Vista privada",
         "unknown_time": "Tiempo desconocido",
         "tap_labels": {
