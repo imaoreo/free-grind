@@ -146,6 +146,8 @@ export function ChatThreadMessages({
 		.reverse()
 		.find((m) => userId != null && Number(m.senderId) === Number(userId))?.messageId;
 
+	const lastMessageId = threadMessages[threadMessages.length - 1]?.messageId;
+
 	const latestMessageIdByAlbum = useMemo(() => {
 		const map = new Map<number, string>();
 		for (const m of threadMessages) {
@@ -256,6 +258,7 @@ export function ChatThreadMessages({
 									expirationType === 0 ||
 									(typeof expirationType === "string" && expirationType.toUpperCase() === "INDEFINITE");
 
+								const isLastMessage = message.messageId === lastMessageId;
 								const isLatestShare = albumId ? latestMessageIdByAlbum.get(albumId) === message.messageId : true;
 
 								const isOnce = !isIndefinite && (
@@ -298,7 +301,7 @@ export function ChatThreadMessages({
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
+										className={`flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
