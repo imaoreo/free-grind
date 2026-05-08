@@ -304,7 +304,7 @@ export function ChatThreadMessages({
 												onTouchMove={endMessageLongPress}
 												className={`relative group/bubble w-full rounded-2xl text-sm ${
 													isMediaOnlyBubble
-														? "overflow-hidden bg-transparent p-0"
+														? "bg-transparent p-0"
 														: `px-3 py-2 ${
 															mine
 																? "bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -327,7 +327,7 @@ export function ChatThreadMessages({
 															}
 															openFullScreenImage(imageUrl);
 														}}
-														className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 													>
 														<div className="relative">
 														<img
@@ -413,7 +413,7 @@ export function ChatThreadMessages({
 																void openAlbumViewerById(albumId);
 															}
 														}}
-														className="block w-full"
+														className="block w-full overflow-hidden rounded-2xl"
 														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
@@ -564,7 +564,7 @@ export function ChatThreadMessages({
 														type="button"
 														onClick={() => void handleReact(message)}
 														disabled={isMutatingMessageId === message.messageId}
-																className={`${fireButtonClass} cursor-pointer transition-opacity ${
+																className={`${fireButtonClass} z-10 cursor-pointer transition-opacity ${
 															message.reactions.length > 0
 																? "opacity-100"
 																: "opacity-0 group-hover/bubble:opacity-60"
