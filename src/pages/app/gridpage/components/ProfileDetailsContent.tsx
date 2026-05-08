@@ -214,7 +214,13 @@ export function ProfileDetailsContent({
 					<div>
 						<p className="text-lg font-semibold sm:text-xl">
 							{activeProfileName}
-							<span className="ml-2 text font-medium text-[var(--text-muted)]">
+							<span
+								className={`ml-2 font-medium text-[var(--text-muted)] ${
+									!activeProfile.age || !Number.isFinite(activeProfile.age)
+										? "text-sm"
+										: "text-base"
+								}`}
+							>
 								({formatOptionalNumber(activeProfile.age, t)})
 							</span>
 						</p>
