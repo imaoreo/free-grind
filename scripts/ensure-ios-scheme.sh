@@ -11,9 +11,16 @@ SOURCES_DIR="$ROOT_DIR/src-tauri/gen/apple/Sources/free-grind"
 INFO_PLIST="$ROOT_DIR/src-tauri/gen/apple/free-grind_iOS/Info.plist"
 
 # Boot the preferred simulator if it's not running
-SIMULATOR_UDID="5BD78D00-F0F5-466E-B23F-F4C7A65DED82"
-if ! xcrun simctl list | grep -q "$SIMULATOR_UDID.*Booted"; then
-  echo "Booting iPhone 17 Pro simulator..."
+# Resolve the simulator UDID dynamically by name; allow override via $IOS_SIMULATOR
+SIMULATOR_NAME="${IOS_SIMULATOR:-iPhone 17 Pro}"
+SIMULATOR_UDID="$(xcrun simctl list devices available 2>/dev/null \
+  | grep -m1 " ${SIMULATOR_NAME} (" \
+  | sed 's/.*(\([A-F0-9a-f-]*\)).*/\1/' || true)"
+
+if [ -z "$SIMULATOR_UDID" ]; then
+  echo "Simulator '${SIMULATOR_NAME}' not found — skipping boot"
+elif ! xcrun simctl list 2>/dev/null | grep -q "${SIMULATOR_UDID}.*Booted"; then
+  echo "Booting ${SIMULATOR_NAME} simulator (${SIMULATOR_UDID})..."
   xcrun simctl boot "$SIMULATOR_UDID" 2>/dev/null || true
   sleep 3
 fi
@@ -70,6 +77,7 @@ chmod 644 "$SOURCES_DIR/Logger.swift" 2>/dev/null || true
 cat > "$SOURCES_DIR/Logger.swift" << 'LOGGER_EOF'
 // Stub Logger that completely disables stdout redirection which crashes on iOS simulator
 import Foundation
+import os.log
 
 class Logger {
     static func log(_ message: String, category: String = "app", type: OSLogType = .default) {
@@ -89,17 +97,15 @@ class Logger {
 // Completely disable stdout redirection - it crashes on iOS simulator
 class StdoutRedirector {
   static func redirect() { }
-    
-  // Return a DispatchSourceRead that does nothing
-    static func createReader(readPipe: Pipe, writeToOriginal: FileHandle, label: String) -> DispatchSourceRead {
-    // Create a minimal dispatch source and immediately return without setting any handlers
-    // The type is DispatchSourceRead to satisfy the call signature, but we never use it
+
+  // Return a no-op DispatchSourceRead using a valid file descriptor (stdin)
+  // The source is cancelled immediately so it never fires
+  static func createReader(readPipe: Pipe, writeToOriginal: FileHandle, label: String) -> DispatchSourceRead {
     let queue = DispatchQueue(label: "void-\(label)", qos: .utility)
-    let source = DispatchSource.makeReadSource(fileDescriptor: -1, queue: queue)
-    // Don't set any event handler - just return the source
-    // When it tries to read from fd -1, it will fail gracefully
-        return source
-    }
+    let source = DispatchSource.makeReadSource(fileDescriptor: FileHandle.standardInput.fileDescriptor, queue: queue)
+    source.cancel()
+    return source
+  }
 }
 LOGGER_EOF
 

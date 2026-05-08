@@ -60,14 +60,16 @@ export async function upsertChatContactIndexFromInbox(
 	const db = await getDb();
 	const now = Date.now();
 
-	for (const entry of entries) {
-		const profileId = entry.profileId.trim();
-		if (!profileId) {
-			continue;
-		}
+	await db.execute("BEGIN");
+	try {
+		for (const entry of entries) {
+			const profileId = entry.profileId.trim();
+			if (!profileId) {
+				continue;
+			}
 
-		await db.execute(
-			`
+			await db.execute(
+				`
 			INSERT INTO chat_contact_index (
 				profile_id,
 				conversation_id,
@@ -88,14 +90,19 @@ export async function upsertChatContactIndexFromInbox(
 				has_chatted = 1,
 				updated_at = excluded.updated_at
 			`,
-			[
-				profileId,
-				entry.conversationId,
-				entry.lastMessageTimestamp,
-				Math.max(0, entry.unreadCount ?? 0),
-				now,
-			],
-		);
+				[
+					profileId,
+					entry.conversationId,
+					entry.lastMessageTimestamp,
+					Math.max(0, entry.unreadCount ?? 0),
+					now,
+				],
+			);
+		}
+		await db.execute("COMMIT");
+	} catch (error) {
+		await db.execute("ROLLBACK").catch(() => {});
+		throw error;
 	}
 
 	appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
@@ -111,16 +118,18 @@ export async function upsertChatContactIndexFromGrid(
 	const db = await getDb();
 	const now = Date.now();
 
-	for (const entry of entries) {
-		const profileId = entry.profileId.trim();
-		if (!profileId) {
-			continue;
-		}
+	await db.execute("BEGIN");
+	try {
+		for (const entry of entries) {
+			const profileId = entry.profileId.trim();
+			if (!profileId) {
+				continue;
+			}
 
-		const unreadCount = Math.max(0, entry.unreadCount ?? 0);
+			const unreadCount = Math.max(0, entry.unreadCount ?? 0);
 
-		await db.execute(
-			`
+			await db.execute(
+				`
 			INSERT INTO chat_contact_index (
 				profile_id,
 				conversation_id,
@@ -141,8 +150,13 @@ export async function upsertChatContactIndexFromGrid(
 				END,
 				updated_at = excluded.updated_at
 			`,
-			[profileId, unreadCount, now],
-		);
+				[profileId, unreadCount, now],
+			);
+		}
+		await db.execute("COMMIT");
+	} catch (error) {
+		await db.execute("ROLLBACK").catch(() => {});
+		throw error;
 	}
 }
 
