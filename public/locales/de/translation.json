@@ -587,6 +587,7 @@
             "sent_audio": "Hat eine Sprachnachricht gesendet",
             "reacted_album_content": "Hat auf Albuminhalt reagiert",
             "sent_video": "Hat ein Video gesendet",
+            "sent_location": "Hat einen Standort gesendet",
             "sent_message": "Hat eine Nachricht gesendet"
         },
         "thread": {
@@ -594,10 +595,12 @@
             "image_placeholder": "[Bild]",
             "video_placeholder": "[Video]",
             "audio_placeholder": "[Audio]",
+            "location_placeholder": "[Standort]",
             "unsupported_placeholder": "[Nicht unterstützte Nachricht]",
             "shared_image": "Hat ein Bild geteilt",
             "shared_video": "Hat ein Video geteilt",
             "shared_audio": "Hat eine Sprachnachricht geteilt",
+            "location_shared": "Standort geteilt",
             "failed": "Fehlgeschlagen",
             "from_local_history": "Aus lokalem Verlauf",
             "shared_alt": "Geteilt",

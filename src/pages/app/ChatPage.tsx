@@ -99,6 +99,14 @@ export function ChatPage() {
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
 
+	const [hidePinned, setHidePinned] = useState(() => {
+		return localStorage.getItem("chat_hide_pinned") === "true";
+	});
+
+	useEffect(() => {
+		localStorage.setItem("chat_hide_pinned", String(hidePinned));
+	}, [hidePinned]);
+
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
 		if (nextFilters) {
@@ -1328,7 +1336,12 @@ export function ChatPage() {
 		userId != null &&
 		Number(selectedActionMessage.senderId) === Number(userId);
 
-	const filteredConversations = conversations;
+	const filteredConversations = useMemo(() => {
+		if (hidePinned) {
+			return conversations.filter((c) => !c.data.pinned);
+		}
+		return conversations;
+	}, [conversations, hidePinned]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -2254,6 +2267,7 @@ export function ChatPage() {
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
 			inboxFilters={inboxFilters}
+			hidePinned={hidePinned}
 			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
@@ -2269,6 +2283,7 @@ export function ChatPage() {
 			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onClearInboxFilters={clearInboxFilters}
+			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
 			onOpenFilters={(inboxFiltersDraft) =>
 				navigate("/chat/filters", {
 					state: {
@@ -2363,15 +2378,15 @@ export function ChatPage() {
 	return (
 		<section
 			className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}
-			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
+			style={isDesktop ? { padding: 0, maxWidth: "none" } : { paddingLeft: 0, paddingRight: 0 }}
 		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
+			<div className={isDesktop ? "mx-auto flex h-dvh w-full max-w-6xl flex-col items-center justify-center p-4" : "w-full"}>
 
 				{isSearchRoute ? (
 					renderSearch
 				) : isDesktop ? (
 					<div
-						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
+						className="grid w-full grid-cols-[360px_minmax(0,1fr)] gap-3"
 						style={{
 							height:
 								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",

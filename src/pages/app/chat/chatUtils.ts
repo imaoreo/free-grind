@@ -241,6 +241,8 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 			return t("chat.preview.reacted_album_content");
 		case "Video":
 			return t("chat.preview.sent_video");
+		case "Location":
+			return t("chat.preview.sent_location");
 		default:
 			return t("chat.preview.sent_message");
 	}
@@ -267,6 +269,8 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 			return t("chat.preview.reacted_album_content");
 		case "Video":
 			return t("chat.preview.sent_video");
+		case "Location":
+			return t("chat.preview.sent_location");
 		default:
 			return t("chat.preview.sent_message");
 	}
@@ -285,6 +289,9 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		}
 		if (message.type === "Audio") {
 			return t("chat.thread.audio_placeholder");
+		}
+		if (message.type === "Location") {
+			return t("chat.thread.location_placeholder");
 		}
 		return t("chat.thread.unsupported_placeholder");
 	}
@@ -312,6 +319,10 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 
 	if (message.type === "Audio") {
 		return t("chat.thread.shared_audio");
+	}
+
+	if (message.type === "Location") {
+		return t("chat.preview.sent_location");
 	}
 
 	if (message.type === "AlbumContentReaction") {
@@ -583,6 +594,30 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 			appLog.debug("Found video URL candidate:", { candidate });
 			return candidate;
 		}
+	}
+
+	return null;
+}
+
+export function getMessageLocation(
+	message: UiMessage,
+): { lat: number; lon: number } | null {
+	const isLocation =
+		message.type === "Location" || message.chat1Type?.toLowerCase() === "map";
+	if (!isLocation) {
+		return null;
+	}
+
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+
+	const body = message.body as Record<string, unknown>;
+	const lat = Number(body.lat ?? (body.map as any)?.lat);
+	const lon = Number(body.lon ?? (body.map as any)?.lon);
+
+	if (Number.isFinite(lat) && Number.isFinite(lon)) {
+		return { lat, lon };
 	}
 
 	return null;
