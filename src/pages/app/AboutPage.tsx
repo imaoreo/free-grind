@@ -57,7 +57,7 @@ export function AboutPage() {
 		() => [
 			{
 				title: t("about_page.resources.documentation_title"),
-				href: "https://freegrind.imaoreo.dev",
+				href: "https://freegrinddocs.imaoreo.dev",
 				description: t("about_page.resources.documentation_desc"),
 				icon: BookOpen,
 				external: true,
