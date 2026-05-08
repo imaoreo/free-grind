@@ -2,7 +2,7 @@ import { Eye } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import blankProfileImage from "../../../images/blank-profile.png";
-import { type InterestItem, type InterestTab, formatTimestamp, tapLabel, getTapEmoji } from "./interestUtils";
+import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji } from "./interestUtils";
 
 export function InterestTabs({
 	activeTab,

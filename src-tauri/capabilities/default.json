@@ -7,7 +7,7 @@
 		"core:default",
 		"opener:default",
 		{
-			"identifier": "opener:allow-url",
+			"identifier": "opener:allow-open-url",
 			"allow": [
 				{ "url": "geo:*" },
 				{ "url": "https://www.google.com/maps/*" }

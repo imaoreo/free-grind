@@ -70,7 +70,6 @@ export function ChatInboxPanel({
 	onInboxTouchStart,
 	onInboxTouchEnd,
 	onSelectConversation,
-	onClearInboxFilters,
 	onToggleHidePinned,
 	onOpenFilters,
 	onOpenSearch,

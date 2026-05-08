@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin. Reply } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -321,7 +321,6 @@ export function ChatThreadMessages({
 									(totalLifetimeSec > 1700 && totalLifetimeSec < 1900)
 								);
 
-								const isExpiringAlbum = message.type === "ExpiringAlbum" || message.type === "ExpiringAlbumV2";
 								const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
 								// isViewable is the explicit API field for whether the album can be opened.

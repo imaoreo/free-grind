@@ -38,8 +38,8 @@ export function TapSelector({
 	const [hoveredId, setHoveredId] = useState<number | null>(null);
 	const [isEmojiHidden, setIsEmojiHidden] = useState(false);
 	const [isTappingInternal, setIsTappingInternal] = useState(false);
-	const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-	const switchTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastSwitchedId = useRef<number | null>(null);
 	const lastSeenTapId = useRef<number | null>(isTapActive ? tapId : null);
 
