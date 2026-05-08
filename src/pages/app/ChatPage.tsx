@@ -98,6 +98,14 @@ export function ChatPage() {
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
 
+	const [hidePinned, setHidePinned] = useState(() => {
+		return localStorage.getItem("chat_hide_pinned") === "true";
+	});
+
+	useEffect(() => {
+		localStorage.setItem("chat_hide_pinned", String(hidePinned));
+	}, [hidePinned]);
+
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
 		if (nextFilters) {
@@ -1305,7 +1313,12 @@ export function ChatPage() {
 		userId != null &&
 		Number(selectedActionMessage.senderId) === Number(userId);
 
-	const filteredConversations = conversations;
+	const filteredConversations = useMemo(() => {
+		if (hidePinned) {
+			return conversations.filter((c) => !c.data.pinned);
+		}
+		return conversations;
+	}, [conversations, hidePinned]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -2231,6 +2244,7 @@ export function ChatPage() {
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
 			inboxFilters={inboxFilters}
+			hidePinned={hidePinned}
 			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
@@ -2246,6 +2260,7 @@ export function ChatPage() {
 			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onClearInboxFilters={clearInboxFilters}
+			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
 			onOpenFilters={(inboxFiltersDraft) =>
 				navigate("/chat/filters", {
 					state: {

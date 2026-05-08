@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
 import type { RefObject, TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
@@ -26,6 +26,7 @@ type ChatInboxPanelProps = {
 	isLoadingMoreInbox: boolean;
 	inboxError: string | null;
 	inboxFilters: InboxFilters;
+	hidePinned: boolean;
 	hasActiveInboxFilters: boolean;
 	filteredConversations: ConversationEntry[];
 	nextPage: number | null;
@@ -41,6 +42,7 @@ type ChatInboxPanelProps = {
 	onInboxTouchEnd: TouchEventHandler<HTMLDivElement>;
 	onSelectConversation: (conversation: ConversationEntry) => void;
 	onClearInboxFilters: () => void;
+	onToggleHidePinned: () => void;
 	onOpenFilters: (filtersDraft: ReturnType<typeof buildChatFiltersDraft>) => void;
 	onOpenSearch: () => void;
 	onOpenInbox: () => void;
@@ -53,6 +55,7 @@ export function ChatInboxPanel({
 	isLoadingMoreInbox,
 	inboxError,
 	inboxFilters,
+	hidePinned,
 	hasActiveInboxFilters,
 	filteredConversations,
 	nextPage,
@@ -68,6 +71,7 @@ export function ChatInboxPanel({
 	onInboxTouchEnd,
 	onSelectConversation,
 	onClearInboxFilters,
+	onToggleHidePinned,
 	onOpenFilters,
 	onOpenSearch,
 	onOpenInbox,
@@ -87,49 +91,61 @@ export function ChatInboxPanel({
 			onTouchStartExtra={onInboxTouchStart}
 			onTouchEndExtra={onInboxTouchEnd}
 		>
-			<div className="mb-3 flex items-center justify-between gap-3">
+			<div className="mb-3 flex items-start justify-between gap-3">
 				<div>
 					<InboxAlbumsTabs
 						activeTab="inbox"
 						onInboxClick={onOpenInbox}
 						onAlbumsClick={onOpenAlbums}
-						trailing={
-							<span
-								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-							>
-								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-								<span>{realtimeStatusMeta.label}</span>
-							</span>
-						}
 					/>
 					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
 				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_filters")}
+				<div className="flex flex-col items-end gap-1.5">
+					<span
+						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
 					>
-						<SlidersHorizontal className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={onOpenSearch}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_search")}
-					>
-						<Search className="h-4 w-4" />
-					</button>
-					{hasActiveInboxFilters ? (
+						<span className="leading-none">{realtimeStatusMeta.symbol}</span>
+						<span>{realtimeStatusMeta.label}</span>
+					</span>
+					<div className="flex items-center gap-2">
 						<button
 							type="button"
-							onClick={onClearInboxFilters}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							onClick={onToggleHidePinned}
+							className={`rounded-xl border border-[var(--border)] p-2 transition hover:border-[var(--accent)] ${
+								hidePinned
+									? "bg-[var(--surface-2)] text-[var(--text)]"
+									: "text-[var(--text-muted)] hover:text-[var(--text)]"
+							}`}
+							aria-label={hidePinned ? t("chat.show_pinned") : t("chat.hide_pinned")}
 						>
-							{t("chat.clear_filters")}
+							{hidePinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
 						</button>
-					) : null}
+						<button
+							type="button"
+							onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
+							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_filters")}
+						>
+							<SlidersHorizontal className="h-4 w-4" />
+						</button>
+						<button
+							type="button"
+							onClick={onOpenSearch}
+							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_search")}
+						>
+							<Search className="h-4 w-4" />
+						</button>
+						{hasActiveInboxFilters ? (
+							<button
+								type="button"
+								onClick={onClearInboxFilters}
+								className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							>
+								{t("chat.clear_filters")}
+							</button>
+						) : null}
+					</div>
 				</div>
 			</div>
 
