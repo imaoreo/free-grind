@@ -589,11 +589,22 @@ export function ChatThreadMessages({
 												{location ? (
 													<button
 														type="button"
-														onClick={() => {
-															const url = isDesktop
-																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
-																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
-															window.open(url, "_blank");
+														onClick={async () => {
+															const lat = location.lat;
+															const lon = location.lon;
+															const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+															const geoUrl = `geo:${lat},${lon}?q=${lat},${lon}`;
+
+															if (isDesktop) {
+																window.open(webUrl, "_blank");
+															} else {
+																try {
+																	const { open } = await import("@tauri-apps/plugin-opener");
+																	await open(geoUrl);
+																} catch (error) {
+																	window.open(webUrl, "_blank");
+																}
+															}
 														}}
 														className={`mb-2 flex w-full items-center gap-3 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
 															mine
