@@ -43,6 +43,10 @@ type ProfileDetailsModalProps = {
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
 	onTriangleProfile?: (profileId: string) => void;
+	onBlockProfile?: (profileId: string) => void;
+	onUnblockProfile?: (profileId: string) => void;
+	isBlocked?: boolean;
+	isBlockingProfile?: boolean;
 	isLocatingProfile?: boolean;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
 	isTappingProfile?: boolean;
@@ -66,6 +70,10 @@ export function ProfileDetailsModal({
 	onClose,
 	onMessageProfile,
 	onTriangleProfile,
+	onBlockProfile,
+	onUnblockProfile,
+	isBlocked = false,
+	isBlockingProfile = false,
 	isLocatingProfile = false,
 	onTapProfile,
 	isTappingProfile = false,
@@ -489,6 +497,10 @@ export function ProfileDetailsModal({
 								usesFreegrind={usesFreegrind ?? false}
 								onMessageProfile={onMessageProfile}
 								onTapProfile={onTapProfile}
+								onBlockProfile={onBlockProfile}
+								onUnblockProfile={onUnblockProfile}
+								isBlocked={isBlocked}
+								isBlockingProfile={isBlockingProfile}
 								isTapDisabled={isTapDisabled}
 								isTapBlocked={isTapBlocked}
 								isTapActive={isTapActive}
@@ -579,6 +591,10 @@ export function ProfileDetailsModal({
 								usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}
 							onTapProfile={onTapProfile}
+							onBlockProfile={onBlockProfile}
+							onUnblockProfile={onUnblockProfile}
+							isBlocked={isBlocked}
+							isBlockingProfile={isBlockingProfile}
 							isTapDisabled={isTapDisabled}
 							isTapBlocked={isTapBlocked}
 							isTapActive={isTapActive}

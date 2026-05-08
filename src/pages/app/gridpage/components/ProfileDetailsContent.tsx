@@ -39,6 +39,10 @@ type ProfileDetailsContentProps = {
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
+	onBlockProfile?: (profileId: string) => void;
+	onUnblockProfile?: (profileId: string) => void;
+	isBlocked: boolean;
+	isBlockingProfile: boolean;
 	isTapDisabled: boolean;
 	isTapBlocked: boolean;
 	isTapActive: boolean;
@@ -86,6 +90,10 @@ export function ProfileDetailsContent({
 	usesFreegrind,
 	onMessageProfile,
 	onTapProfile,
+	onBlockProfile,
+	onUnblockProfile,
+	isBlocked,
+	isBlockingProfile,
 	isTapDisabled,
 	isTapBlocked,
 	isTapActive,
@@ -117,6 +125,19 @@ export function ProfileDetailsContent({
 	const { t } = useTranslation();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
+
+	const handleBlockAction = () => {
+		if (!messageProfileId || isBlockingProfile) {
+			return;
+		}
+
+		if (isBlocked) {
+			onUnblockProfile?.(messageProfileId);
+			return;
+		}
+
+		onBlockProfile?.(messageProfileId);
+	};
 
 	return (
 		<div className="grid gap-6">
@@ -266,7 +287,8 @@ export function ProfileDetailsContent({
 					</div>
 				)}
 				{messageProfileId && onMessageProfile ? (
-					<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+					<div className="mt-3 grid gap-2">
+						<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
 						<button
 							type="button"
 							onClick={() => onMessageProfile(messageProfileId)}
@@ -299,6 +321,34 @@ export function ProfileDetailsContent({
 							<Triangle className="h-4 w-4" />
 							{isLocatingProfile ? "Locating..." : "Locate"}
 						</button>
+						</div>
+						{(onBlockProfile || onUnblockProfile) ? (
+							<button
+								type="button"
+								onClick={handleBlockAction}
+								onPointerUp={(event) => {
+									if (event.pointerType === "mouse") {
+										return;
+									}
+									event.preventDefault();
+									handleBlockAction();
+								}}
+								disabled={isBlockingProfile}
+								className={`relative z-20 inline-flex h-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
+									isBlocked
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
+										: "border-red-500/45 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/15"
+								}`}
+							>
+								{isBlockingProfile
+									? isBlocked
+										? t("profile_details.unblock_in_progress")
+										: t("profile_details.block_in_progress")
+									: isBlocked
+										? t("profile_details.unblock")
+										: t("profile_details.block")}
+							</button>
+						) : null}
 					</div>
 				) : null}
 			</div>
