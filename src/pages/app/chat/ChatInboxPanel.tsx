@@ -100,7 +100,10 @@ export function ChatInboxPanel({
 			onTouchStartExtra={onInboxTouchStart}
 			onTouchEndExtra={onInboxTouchEnd}
 		>
-			<div className={`flex shrink-0 items-start justify-between gap-3 p-[var(--app-px)] ${isDesktop ? "border-b border-[var(--border)]" : ""}`}>
+			<div
+				className={`flex shrink-0 items-start justify-between gap-3 p-[var(--app-px)] ${isDesktop ? "border-b border-[var(--border)]" : ""}`}
+				style={!isDesktop ? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" } : undefined}
+			>
 				<div>
 					<InboxAlbumsTabs
 						activeTab="inbox"

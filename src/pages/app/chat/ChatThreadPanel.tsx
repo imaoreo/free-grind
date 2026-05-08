@@ -236,7 +236,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
 						style={!isDesktop ? {
 							top: 0,
-							paddingTop: "max(12px, env(safe-area-inset-top))",
+							paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
 						} : undefined}
 					>
 						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}>
