@@ -68,6 +68,12 @@ export function GridPage() {
 	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
 		Record<string, ChatContactIndexRecord>
 	>({});
+	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
+		null,
+	);
 	const isMountedRef = useRef(true);
 
 	const {
@@ -161,6 +167,27 @@ export function GridPage() {
 		};
 
 		void loadManagedOptions();
+	}, [apiFunctions]);
+
+	useEffect(() => {
+		let cancelled = false;
+		void apiFunctions
+			.getBlockedProfileIds()
+			.then((profileIds) => {
+				if (cancelled || !isMountedRef.current) {
+					return;
+				}
+				setBlockedProfileIds(new Set(profileIds));
+			})
+			.catch(() => {
+				if (!cancelled && isMountedRef.current) {
+					setBlockedProfileIds(new Set());
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [apiFunctions]);
 
 	useEffect(() => {
@@ -610,6 +637,86 @@ export function GridPage() {
 		}
 	};
 
+	const handleBlockProfile = useCallback(
+		async (targetProfileId: string) => {
+			if (mutatingBlockProfileId) {
+				return;
+			}
+
+			const requiresConfirm = window.matchMedia(
+				"(hover: hover) and (pointer: fine)",
+			).matches;
+			const confirmed = requiresConfirm
+				? window.confirm(t("profile_details.block_confirm"))
+				: true;
+			if (!confirmed) {
+				return;
+			}
+
+			setMutatingBlockProfileId(targetProfileId);
+			try {
+				await apiFunctions.blockProfile(targetProfileId);
+				setBlockedProfileIds((prev) => {
+					const next = new Set(prev);
+					next.add(targetProfileId);
+					return next;
+				});
+				setCards((prev) => prev.filter((card) => card.profileId !== targetProfileId));
+				if (activeProfileId === targetProfileId) {
+					setActiveProfileId(null);
+				}
+				toast.success(t("profile_details.block_success"));
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("profile_details.block_failed"),
+				);
+			} finally {
+				setMutatingBlockProfileId(null);
+			}
+		},
+		[activeProfileId, apiFunctions, mutatingBlockProfileId, t],
+	);
+
+	const handleUnblockProfile = useCallback(
+		async (targetProfileId: string) => {
+			if (mutatingBlockProfileId) {
+				return;
+			}
+
+			const requiresConfirm = window.matchMedia(
+				"(hover: hover) and (pointer: fine)",
+			).matches;
+			const confirmed = requiresConfirm
+				? window.confirm(t("profile_details.unblock_confirm"))
+				: true;
+			if (!confirmed) {
+				return;
+			}
+
+			setMutatingBlockProfileId(targetProfileId);
+			try {
+				await apiFunctions.unblockProfile(targetProfileId);
+				setBlockedProfileIds((prev) => {
+					const next = new Set(prev);
+					next.delete(targetProfileId);
+					return next;
+				});
+				toast.success(t("profile_details.unblock_success"));
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("profile_details.unblock_failed"),
+				);
+			} finally {
+				setMutatingBlockProfileId(null);
+			}
+		},
+		[apiFunctions, mutatingBlockProfileId, t],
+	);
+
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
@@ -868,6 +975,12 @@ export function GridPage() {
 				onClose={() => setActiveProfileId(null)}
 				onMessageProfile={handleMessageProfile}
 				onTriangleProfile={handleTriangleProfile}
+				onBlockProfile={handleBlockProfile}
+				onUnblockProfile={handleUnblockProfile}
+				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
+				isBlockingProfile={Boolean(
+					activeProfileId && mutatingBlockProfileId === activeProfileId,
+				)}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				isTapBlocked={hasSentTapRecently}

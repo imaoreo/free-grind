@@ -54,9 +54,36 @@ export function GridProfilePage() {
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
+	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
+		null,
+	);
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+
+	useEffect(() => {
+		let cancelled = false;
+		void apiFunctions
+			.getBlockedProfileIds()
+			.then((profileIds) => {
+				if (cancelled) {
+					return;
+				}
+				setBlockedProfileIds(new Set(profileIds));
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setBlockedProfileIds(new Set());
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!profileId) {
@@ -258,6 +285,75 @@ export function GridProfilePage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
+	const handleBlockProfile = async (targetProfileId: string) => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+
+		const requiresConfirm = window.matchMedia(
+			"(hover: hover) and (pointer: fine)",
+		).matches;
+		const confirmed = requiresConfirm
+			? window.confirm(t("profile_details.block_confirm"))
+			: true;
+		if (!confirmed) {
+			return;
+		}
+
+		setMutatingBlockProfileId(targetProfileId);
+		try {
+			await apiFunctions.blockProfile(targetProfileId);
+			setBlockedProfileIds((prev) => {
+				const next = new Set(prev);
+				next.add(targetProfileId);
+				return next;
+			});
+			toast.success(t("profile_details.block_success"));
+			navigate(safeReturnTo, { replace: true });
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : t("profile_details.block_failed"),
+			);
+		} finally {
+			setMutatingBlockProfileId(null);
+		}
+	};
+
+	const handleUnblockProfile = async (targetProfileId: string) => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+
+		const requiresConfirm = window.matchMedia(
+			"(hover: hover) and (pointer: fine)",
+		).matches;
+		const confirmed = requiresConfirm
+			? window.confirm(t("profile_details.unblock_confirm"))
+			: true;
+		if (!confirmed) {
+			return;
+		}
+
+		setMutatingBlockProfileId(targetProfileId);
+		try {
+			await apiFunctions.unblockProfile(targetProfileId);
+			setBlockedProfileIds((prev) => {
+				const next = new Set(prev);
+				next.delete(targetProfileId);
+				return next;
+			});
+			toast.success(t("profile_details.unblock_success"));
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: t("profile_details.unblock_failed"),
+			);
+		} finally {
+			setMutatingBlockProfileId(null);
+		}
+	};
+
     const solveTrilateration = (points: { lat: number, lon: number, dist: number }[]) => {
         // 1. Convert Lat/Lon to a simple XY grid (meters) relative to the first point
         // This avoids floating point errors with large coordinate numbers
@@ -450,6 +546,12 @@ export function GridProfilePage() {
 			onNextProfile={handleNextProfile}
 			onMessageProfile={handleMessageProfile}
 			onTriangleProfile={handleTriangleProfile}
+			onBlockProfile={handleBlockProfile}
+			onUnblockProfile={handleUnblockProfile}
+			isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
+			isBlockingProfile={Boolean(
+				profileId && mutatingBlockProfileId === profileId,
+			)}
 			isLocatingProfile={isLocatingProfile}
 			onTapProfile={handleTapProfile}
 			isTappingProfile={isTappingProfile}
