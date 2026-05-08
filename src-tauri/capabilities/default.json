@@ -5,7 +5,6 @@
 	"windows": ["main"],
 	"permissions": [
 		"core:default",
-		"hotswap:default",
 		"opener:default",
 		{
 			"identifier": "opener:allow-url",
@@ -79,6 +78,12 @@
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
+		"sql:default",
+		"sql:allow-load",
+		"sql:allow-execute",
+		"sql:allow-select",
+		"sql:allow-close",
+		"hotswap:default",
 		"os:default"
 	]
 }

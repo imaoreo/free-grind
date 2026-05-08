@@ -206,7 +206,8 @@
             "tap_mutual": "Tap sent. It's mutual.",
             "tap_sent": "Tap sent",
             "tap_failed": "Failed to send tap"
-        }
+        },
+        "chatted": "Chatted"
     },
     "chat_filters": {
         "title": "Chat Filters",
@@ -683,6 +684,9 @@
         "status": "Status",
         "distance": "Distance",
         "message": "Message",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before",
         "tap_profile": "Tap profile",
         "tap_sent_recent": "Tap already sent in the last 24 hours",
         "tap_active": "Tap active",
