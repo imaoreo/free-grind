@@ -1,12 +1,15 @@
-pub fn init_keyring() {
+pub fn init_keyring() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use keyring_core::set_default_store;
 
     #[cfg(target_os = "ios")]
     {
         let cfg = std::collections::HashMap::new();
-        let store = apple_native_keyring_store::protected::Store::new_with_configuration(&cfg)
-            .expect("failed to init iOS protected keyring store");
-        set_default_store(store);
+        match apple_native_keyring_store::protected::Store::new_with_configuration(&cfg) {
+            Ok(store) => set_default_store(store),
+            Err(e) => {
+                return Err(Box::new(e));
+            }
+        }
     }
 
     #[cfg(target_os = "android")]
@@ -57,4 +60,6 @@ pub fn init_keyring() {
             linux_keyutils_keyring_store::Store::new().expect("failed to init Linux keyring store");
         set_default_store(store);
     }
+
+    Ok(())
 }
