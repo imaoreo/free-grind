@@ -2355,15 +2355,15 @@ export function ChatPage() {
 	return (
 		<section
 			className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}
-			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
+			style={isDesktop ? { padding: 0, maxWidth: "none" } : { paddingLeft: 0, paddingRight: 0 }}
 		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
+			<div className={isDesktop ? "mx-auto flex h-dvh w-full max-w-6xl flex-col items-center justify-center p-4" : "w-full"}>
 
 				{isSearchRoute ? (
 					renderSearch
 				) : isDesktop ? (
 					<div
-						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
+						className="grid w-full grid-cols-[360px_minmax(0,1fr)] gap-3"
 						style={{
 							height:
 								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
