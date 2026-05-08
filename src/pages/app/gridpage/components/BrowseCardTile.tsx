@@ -7,6 +7,7 @@ import {
 	getDisplayName,
 } from "../utils";
 import { cn } from "../../../../utils/cn";
+import { formatRelativeTime } from "../../../../utils/relativeTime";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
@@ -36,6 +37,15 @@ export function BrowseCardTile({
 		card.unreadCount ?? 0,
 	);
 	const hasChatted = Boolean(chatContactStatus?.hasChatted) || unreadCount > 0;
+	const lastMessageRelative = formatRelativeTime(
+		chatContactStatus?.lastMessageTimestamp ?? null,
+	);
+	const chattedLabel =
+		unreadCount > 0
+			? `${unreadCount} unread`
+			: lastMessageRelative
+				? lastMessageRelative
+				: "Chatted";
 
 	return (
 		<button
@@ -90,7 +100,7 @@ export function BrowseCardTile({
 				{hasChatted ? (
 					<div className="absolute left-2 bottom-8">
 						<span className="inline-flex items-center rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg backdrop-blur-sm sm:text-[11px]">
-							{unreadCount > 0 ? `${unreadCount} unread` : "Chatted"}
+							{chattedLabel}
 						</span>
 					</div>
 				) : null}
