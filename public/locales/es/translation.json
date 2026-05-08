@@ -475,7 +475,8 @@
             "sent_audio": "Envió un mensaje de audio",
             "reacted_album_content": "Reaccionó a contenido de álbum",
             "sent_video": "Envió un vídeo",
-            "sent_message": "Envió un mensaje"
+            "sent_message": "Envió un mensaje",
+            "sent_location": "Envió una ubicación"
         },
         "thread": {
             "unsent": "Este mensaje fue eliminado",
@@ -491,7 +492,9 @@
             "shared_alt": "Compartido",
             "taken_on_grindr": "Tomada en Grindr",
             "album_cover": "Portada de álbum",
-            "album_share": "Compartir álbum"
+            "album_share": "Compartir álbum",
+            "location_placeholder": "[ubicación]",
+            "location_shared": "Ubicación compartida"
         },
         "actions": {
             "title": "Acciones de mensaje",
