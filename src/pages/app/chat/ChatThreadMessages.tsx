@@ -345,21 +345,21 @@ export function ChatThreadMessages({
 																1
 															</div>
 														) : null}
-														{!mine ? (
+														{!mine && (messageTakenOnGrindr || imageCreatedAtLabel) ? (
 															<div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
-																{ messageTakenOnGrindr ? (
+																{messageTakenOnGrindr ? (
 																	<img
 																		src={freegrindLogo}
-																			alt={t("chat.thread.taken_on_grindr")}
+																		alt={t("chat.thread.taken_on_grindr")}
 																		className="h-3.5 w-3.5 rounded-full"
 																	/>
 																) : null}
 
-																<span>
-																	{imageCreatedAtLabel
-																		? ` ${imageCreatedAtLabel}`
-																		: ""}
-																</span>
+																{imageCreatedAtLabel ? (
+																	<span>
+																		{` ${imageCreatedAtLabel}`}
+																	</span>
+																) : null}
 															</div>
 														) : null}
 
