@@ -115,7 +115,16 @@ with this licence shall be subject to the exclusive jurisdiction of
 the Scottish courts.
 
 12. Trademarks
-"Free Grind" and any associated logos or branding are trademarks of Jay Brammeld. You may not use these trademarks without prior written permission. 
+"Free Grind" and any associated logos or branding are trademarks of Jay Brammeld. You may not use these trademarks without prior written permission.
 
 13. Grindr
 Grindr is a registered trademark of Grindr LLC. This project is an independent, unofficial client and is not affiliated with or endorsed by Grindr LLC in any way.
+
+14. Upstream credit
+This project was originally cloned from open-grind/open-grind at:
+https://git.opengrind.org/open-grind/open-grind
+
+Original upstream project copyright and licence attribution:
+- Copyright (c) 2026-present Open Grind Governance (https://opengrind.org/governance)
+- Copyright (c) 2026-2026 Viktor Shchelochkov <hi@hloth.dev> (https://hloth.dev)
+- Upstream licence: MIT
