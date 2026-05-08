@@ -90,8 +90,8 @@ export function ChatInboxPanel({
 
 	return (
 		<PullToRefreshContainer
-			className={`flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
+			className={`flex h-full min-h-0 flex-col overflow-hidden ${
+				isDesktop ? "surface-card" : "p-0"
 			}`}
 			onRefresh={onRefreshInbox}
 			isDisabled={isLoadingInbox || isLoadingMoreInbox}
@@ -100,7 +100,7 @@ export function ChatInboxPanel({
 			onTouchStartExtra={onInboxTouchStart}
 			onTouchEndExtra={onInboxTouchEnd}
 		>
-			<div className="mb-3 flex shrink-0 items-start justify-between gap-3">
+			<div className={`flex shrink-0 items-start justify-between gap-3 p-[var(--app-px)] ${isDesktop ? "border-b border-[var(--border)]" : ""}`}>
 				<div>
 					<InboxAlbumsTabs
 						activeTab="inbox"
@@ -179,7 +179,7 @@ export function ChatInboxPanel({
 					</p>
 				</div>
 			) : (
-				<div ref={inboxListRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+				<div ref={inboxListRef} className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}>
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
 						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
@@ -196,10 +196,12 @@ export function ChatInboxPanel({
 								type="button"
 								key={conversation.data.conversationId}
 								onClick={() => onSelectConversation(conversation)}
-								className={`flex h-24 w-full shrink-0 items-stretch overflow-hidden rounded-2xl border-2 text-left transition ${
+								className={`flex h-24 w-full shrink-0 items-stretch overflow-hidden text-left transition ${
 									isSelected
-										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
-										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
+										? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
+										: "bg-[var(--surface)]"
+								} border-b border-[var(--border)] ${
+									isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
 								}`}
 							>
 								<div
