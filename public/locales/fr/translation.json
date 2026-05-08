@@ -543,7 +543,10 @@
         "default_profile": "",
         "open_photo": "",
         "uses_free_grind": "",
-        "loading": ""
+        "loading": "",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before"
     },
     "nav": {
         "browse": "",
@@ -560,7 +563,8 @@
         "current_location": "",
         "open_settings": "",
         "settings": "",
-        "refreshing_feed": ""
+        "refreshing_feed": "",
+        "chatted": "Chatted"
     },
     "chat_filters": {
         "title": "",

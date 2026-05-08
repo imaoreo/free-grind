@@ -64,6 +64,7 @@ export function GridProfilePage() {
 			return;
 		}
 
+		setChatContactStatus(null);
 		let cancelled = false;
 		void getChatContactIndexForProfiles([profileId])
 			.then((records) => {
@@ -73,6 +74,9 @@ export function GridProfilePage() {
 				setChatContactStatus(records[0] ?? null);
 			})
 			.catch((error) => {
+				if (!cancelled) {
+					setChatContactStatus(null);
+				}
 				appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
 			});
 

@@ -42,10 +42,10 @@ export function BrowseCardTile({
 	);
 	const chattedLabel =
 		unreadCount > 0
-			? `${unreadCount} unread`
+			? `${unreadCount} ${t("chat.unread")}`
 			: lastMessageRelative
 				? lastMessageRelative
-				: "Chatted";
+				: t("browse_page.chatted");
 
 	return (
 		<button

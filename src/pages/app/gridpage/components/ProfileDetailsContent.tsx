@@ -242,10 +242,10 @@ export function ProfileDetailsContent({
 				</div>
 				{hasChatHistory ? (
 					<p className="mt-1 text-xs text-[var(--text-muted)]">
-						<span className="font-semibold text-[var(--text)]">Chat history:</span>{" "}
-						{lastMessageLabel ? `Last message ${lastMessageLabel}` : "Chatted before"}
+						<span className="font-semibold text-[var(--text)]">{t("profile_details.chat_history")}:</span>{" "}
+						{lastMessageLabel ? t("profile_details.last_message", { time: lastMessageLabel }) : t("profile_details.chatted_before")}
 						{(chatContactStatus?.unreadCount ?? 0) > 0
-							? ` • ${chatContactStatus?.unreadCount ?? 0} unread`
+							? ` • ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
 							: ""}
 					</p>
 				) : null}

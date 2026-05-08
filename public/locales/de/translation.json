@@ -206,7 +206,8 @@
             "tap_mutual": "Tap gesendet. Es beruht auf Gegenseitigkeit.",
             "tap_sent": "Tap gesendet",
             "tap_failed": "Fehler beim Senden des Taps"
-        }
+        },
+        "chatted": "Chatted"
     },
     "chat_filters": {
         "title": "Chat-Filter",
@@ -815,7 +816,10 @@
                 "trans": "Trans",
                 "twink": "Twink"
             }
-        }
+        },
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before"
     },
     "interest_page": {
         "title": "Interesse",

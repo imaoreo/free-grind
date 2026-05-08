@@ -1,18 +1,13 @@
-pub fn init_keyring() {
+pub fn init_keyring() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     use keyring_core::set_default_store;
 
     #[cfg(target_os = "ios")]
     {
         let cfg = std::collections::HashMap::new();
-        // Try protected keyring first, fall back to insecure storage on failure
-        // (This is common in simulator/dev builds without proper entitlements)
         match apple_native_keyring_store::protected::Store::new_with_configuration(&cfg) {
             Ok(store) => set_default_store(store),
             Err(e) => {
-                eprintln!("iOS protected keyring init failed: {:?}, using fallback", e);
-                // Fall back to in-memory or unprotected storage
-                // For now, we'll just log and let the app continue
-                // This allows testing in simulator without entitlements
+                return Err(Box::new(e));
             }
         }
     }
@@ -65,4 +60,6 @@ pub fn init_keyring() {
             linux_keyutils_keyring_store::Store::new().expect("failed to init Linux keyring store");
         set_default_store(store);
     }
+
+    Ok(())
 }
