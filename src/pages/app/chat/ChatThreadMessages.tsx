@@ -213,9 +213,9 @@ export function ChatThreadMessages({
 	return (
 		<div
 			ref={threadScrollContainerRef}
-						onScroll={handleThreadScroll}
-						className="flex flex-1 min-h-0 flex-col overflow-x-hidden overflow-y-auto px-3 pt-4 sm:px-4"
-		>
+                onScroll={handleThreadScroll}
+                                        className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
+                        >
 						{messagePageKey ? (
 							<button
 								type="button"
