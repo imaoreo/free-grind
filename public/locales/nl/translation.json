@@ -351,7 +351,8 @@
         "location": "",
         "current_location": "",
         "open_settings": "",
-        "settings": ""
+        "settings": "",
+        "chatted": "Chatted"
     },
     "chat": {
         "loading": "",
@@ -493,7 +494,10 @@
         "close_profile_details": "",
         "default_profile": "",
         "open_photo": "",
-        "close_photo_viewer": ""
+        "close_photo_viewer": "",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before"
     },
     "auth": {
         "sign_in": {

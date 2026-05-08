@@ -16,6 +16,8 @@ import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
+import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+import { formatRelativeTime } from "../../../../utils/relativeTime";
 
 type LabelMap = Record<number, string>;
 
@@ -32,6 +34,7 @@ type ProfileDetailsContentProps = {
 	estimatedCreatedAt: string;
 	profileStatusLabel: string;
 	profileDistance: number | null;
+	chatContactStatus: ChatContactIndexRecord | null;
 	messageProfileId: string | null;
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
@@ -78,6 +81,7 @@ export function ProfileDetailsContent({
 	estimatedCreatedAt,
 	profileStatusLabel,
 	profileDistance,
+	chatContactStatus,
 	messageProfileId,
 	usesFreegrind,
 	onMessageProfile,
@@ -111,6 +115,8 @@ export function ProfileDetailsContent({
 	relationshipStatusLabels,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
+	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
+	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
 
 	return (
 		<div className="grid gap-6">
@@ -234,6 +240,15 @@ export function ProfileDetailsContent({
 						</p>
 					</div>
 				</div>
+				{hasChatHistory ? (
+					<p className="mt-1 text-xs text-[var(--text-muted)]">
+						<span className="font-semibold text-[var(--text)]">{t("profile_details.chat_history")}:</span>{" "}
+						{lastMessageLabel ? t("profile_details.last_message", { time: lastMessageLabel }) : t("profile_details.chatted_before")}
+						{(chatContactStatus?.unreadCount ?? 0) > 0
+							? ` • ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
+							: ""}
+					</p>
+				) : null}
 				{usesFreegrind && (
 					<div className="mt-2 flex items-center gap-2">
 						<img

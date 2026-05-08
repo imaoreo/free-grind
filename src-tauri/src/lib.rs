@@ -18,36 +18,105 @@ pub fn run() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
 
-    storage::init_keyring();
+    // Keyring initialization: non-fatal on iOS (simulator/dev builds commonly lack
+    // protected keychain entitlements); fail-fast on all other platforms.
+    #[cfg(target_os = "ios")]
+    {
+        if let Err(e) = storage::init_keyring() {
+            eprintln!(
+                "Warning: keyring initialization failed on iOS (continuing): {:?}",
+                e
+            );
+        }
+    }
+    #[cfg(not(target_os = "ios"))]
+    storage::init_keyring().expect("failed to initialize keyring store");
 
     let client = GrindrClient::new().ok();
-    let context = tauri::generate_context!();
-    let (hotswap, context) =
-        tauri_plugin_hotswap::init(context).expect("failed to initialize hotswap plugin");
 
-    tauri::Builder::default()
-        .plugin(hotswap)
-        .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_geolocation::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init())
-        .manage(AppState { client })
-        .manage(Arc::new(WsState::new()))
-        .invoke_handler(tauri::generate_handler![
-            api::auth::login,
-            api::auth::login_with_jwt,
-            api::auth::refresh_token,
-            api::auth::logout,
-            api::auth::auth_state,
-            api::auth::websocket_token,
-            api::auth::sync_push_token,
-            api::rest::request,
-            api::websocket::ws_connect,
-            api::websocket::ws_send,
-            api::websocket::ws_disconnect,
-            api::websocket::ws_status,
-        ])
-        .run(context)
-        .expect("error while running tauri application");
+    // Platform-specific setup for plugins
+    #[cfg(not(mobile))]
+    {
+        let context = tauri::generate_context!();
+        let (hotswap, context) = match tauri_plugin_hotswap::init(context) {
+            Ok((h, c)) => (h, c),
+            Err(e) => {
+                panic!("failed to initialize hotswap plugin: {}", e);
+            }
+        };
+
+        tauri::Builder::default()
+            .plugin(hotswap)
+            .plugin(tauri_plugin_notification::init())
+            .plugin(tauri_plugin_os::init())
+            .plugin(tauri_plugin_geolocation::init())
+            .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_sql::Builder::default().build())
+            .plugin(tauri_plugin_opener::init())
+            .manage(AppState { client })
+            .manage(Arc::new(WsState::new()))
+            .invoke_handler(tauri::generate_handler![
+                api::auth::login,
+                api::auth::login_with_jwt,
+                api::auth::refresh_token,
+                api::auth::logout,
+                api::auth::auth_state,
+                api::auth::websocket_token,
+                api::auth::sync_push_token,
+                api::rest::request,
+                api::websocket::ws_connect,
+                api::websocket::ws_send,
+                api::websocket::ws_disconnect,
+                api::websocket::ws_status,
+            ])
+            .run(context)
+            .expect("error while running tauri application");
+    }
+
+    #[cfg(mobile)]
+    {
+        let context = tauri::generate_context!();
+
+        #[cfg(target_os = "android")]
+        let (hotswap, context) = match tauri_plugin_hotswap::init(context) {
+            Ok((h, c)) => (h, c),
+            Err(e) => {
+                panic!("failed to initialize hotswap plugin: {}", e);
+            }
+        };
+
+        let builder = tauri::Builder::default();
+
+        #[cfg(target_os = "android")]
+        let builder = builder.plugin(hotswap);
+
+        #[cfg(not(target_os = "android"))]
+        let builder = builder;
+
+        builder
+            .plugin(tauri_plugin_notification::init())
+            .plugin(tauri_plugin_os::init())
+            .plugin(tauri_plugin_geolocation::init())
+            .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_sql::Builder::default().build())
+            .plugin(tauri_plugin_opener::init())
+            .manage(AppState { client })
+            .manage(Arc::new(WsState::new()))
+            .invoke_handler(tauri::generate_handler![
+                api::auth::login,
+                api::auth::login_with_jwt,
+                api::auth::refresh_token,
+                api::auth::logout,
+                api::auth::auth_state,
+                api::auth::websocket_token,
+                api::auth::sync_push_token,
+                api::rest::request,
+                api::websocket::ws_connect,
+                api::websocket::ws_send,
+                api::websocket::ws_disconnect,
+                api::websocket::ws_status,
+            ])
+            .run(context)
+            .expect("error while running tauri application");
+    }
 }
