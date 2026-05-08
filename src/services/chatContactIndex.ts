@@ -4,6 +4,7 @@ import type {
 	GridContactIndexInput,
 	InboxContactIndexInput,
 } from "../types/chat-contact-index";
+import { appLog } from "../utils/logger";
 
 const CHAT_INDEX_DB = "sqlite:chat_contact_index.sqlite3";
 
@@ -74,7 +75,7 @@ export async function upsertChatContactIndexFromInbox(
 				unread_count,
 				has_chatted,
 				updated_at
-			) VALUES (?1, ?2, ?3, ?4, 1, ?5)
+			) VALUES ($1, $2, $3, $4, 1, $5)
 			ON CONFLICT(profile_id) DO UPDATE SET
 				conversation_id = COALESCE(excluded.conversation_id, chat_contact_index.conversation_id),
 				last_message_timestamp = CASE
@@ -96,6 +97,8 @@ export async function upsertChatContactIndexFromInbox(
 			],
 		);
 	}
+
+	appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
 }
 
 export async function upsertChatContactIndexFromGrid(
@@ -125,7 +128,7 @@ export async function upsertChatContactIndexFromGrid(
 				unread_count,
 				has_chatted,
 				updated_at
-			) VALUES (?1, NULL, NULL, ?2, CASE WHEN ?2 > 0 THEN 1 ELSE 0 END, ?3)
+			) VALUES ($1, NULL, NULL, $2, CASE WHEN $2 > 0 THEN 1 ELSE 0 END, $3)
 			ON CONFLICT(profile_id) DO UPDATE SET
 				unread_count = CASE
 					WHEN excluded.unread_count > chat_contact_index.unread_count THEN excluded.unread_count
@@ -156,7 +159,7 @@ export async function getChatContactIndexForProfiles(
 		return [];
 	}
 
-	const placeholders = ids.map((_, index) => `?${index + 1}`).join(", ");
+	const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
 	const rows = await db.select<ChatContactIndexRow[]>(
 		`
 		SELECT
@@ -171,6 +174,12 @@ export async function getChatContactIndexForProfiles(
 		`,
 		ids,
 	);
+
+	appLog.debug("[chat-index] hydrate", {
+		queried: ids.length,
+		matched: rows.length,
+		hasChattedCount: rows.filter((r) => Boolean(r.has_chatted)).length,
+	});
 
 	return rows.map((row) => ({
 		profileId: row.profile_id,

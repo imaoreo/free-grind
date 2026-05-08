@@ -72,6 +72,10 @@
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
 		"sql:default",
+		"sql:allow-load",
+		"sql:allow-execute",
+		"sql:allow-select",
+		"sql:allow-close",
 		"os:default"
 	]
 }
