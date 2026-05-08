@@ -79,6 +79,16 @@ export function ChatInboxPanel({
 }: ChatInboxPanelProps) {
 	const { t, i18n } = useTranslation();
 
+	const activeFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
+
 	return (
 		<PullToRefreshContainer
 			className={`flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4 ${
@@ -123,10 +133,15 @@ export function ChatInboxPanel({
 						<button
 							type="button"
 							onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
-							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							className="relative rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							aria-label={t("chat.open_filters")}
 						>
 							<SlidersHorizontal className="h-4 w-4" />
+							{hasActiveInboxFilters && activeFilterCount > 0 ? (
+								<span className="absolute -bottom-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)] shadow-sm ring-2 ring-[var(--surface)]">
+									{activeFilterCount}
+								</span>
+							) : null}
 						</button>
 						<button
 							type="button"
@@ -136,15 +151,6 @@ export function ChatInboxPanel({
 						>
 							<Search className="h-4 w-4" />
 						</button>
-						{hasActiveInboxFilters ? (
-							<button
-								type="button"
-								onClick={onClearInboxFilters}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								{t("chat.clear_filters")}
-							</button>
-						) : null}
 					</div>
 				</div>
 			</div>
