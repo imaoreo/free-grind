@@ -52,7 +52,7 @@ rustls = { version = "0.23", features = ["ring"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 
-[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+[target.'cfg(not(target_os = "ios"))'.dependencies]
 tauri-plugin-hotswap = { path = "hotswap-patched" }
 
 [target.'cfg(target_os = "android")'.dependencies]
