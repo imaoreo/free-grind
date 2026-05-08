@@ -151,9 +151,13 @@ jobs:
           - platform: macos-latest
             args: --target universal-apple-darwin
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            artifact_suffix: macos-universal
+            bundle_dir: src-tauri/target/universal-apple-darwin/release/bundle
           - platform: windows-latest
             args: ""
             rust_targets: ""
+            artifact_suffix: windows-x64
+            bundle_dir: src-tauri/target/release/bundle
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -174,14 +178,79 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build and upload desktop artifacts
+      - name: Build desktop artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
           tauriScript: bunx tauri
           args: ${{ matrix.args }}
+
+      - name: Upload desktop artifacts to release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          ARTIFACT_SUFFIX: ${{ matrix.artifact_suffix }}
+          BUNDLE_DIR: ${{ matrix.bundle_dir }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { execSync } = require('child_process');
+
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const version = pkg.version;
+            const suffix = process.env.ARTIFACT_SUFFIX;
+            const bundleDir = process.env.BUNDLE_DIR;
+            const releaseId = Number(process.env.RELEASE_ID);
+
+            const mimeTypes = {
+              '.dmg':    'application/x-apple-diskimage',
+              '.gz':     'application/gzip',
+              '.sig':    'text/plain',
+              '.exe':    'application/vnd.microsoft.portable-executable',
+              '.msi':    'application/x-msi',
+            };
+
+            // Collect installable bundles (skip updater-only .sig unless paired with bundle)
+            const searchDirs = {
+              'macos-universal': ['dmg', 'macos'],
+              'windows-x64':     ['nsis', 'msi'],
+            };
+
+            const subDirs = searchDirs[suffix] ?? [];
+            const uploads = [];
+
+            for (const sub of subDirs) {
+              const dir = path.join(bundleDir, sub);
+              if (!fs.existsSync(dir)) continue;
+              for (const file of fs.readdirSync(dir)) {
+                const ext = path.extname(file);
+                const doubleExt = file.endsWith('.tar.gz') ? '.tar.gz'
+                                : file.endsWith('.tar.gz.sig') ? '.tar.gz.sig'
+                                : null;
+                const finalExt = doubleExt ?? ext;
+                const mime = mimeTypes[finalExt] ?? mimeTypes[ext] ?? 'application/octet-stream';
+                uploads.push({
+                  src: path.join(dir, file),
+                  name: `free-grind-v${version}-${suffix}${finalExt}`,
+                  mime,
+                });
+              }
+            }
+
+            for (const { src, name, mime } of uploads) {
+              const data = fs.readFileSync(src);
+              await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: releaseId,
+                name,
+                data,
+                headers: { 'content-type': mime, 'content-length': data.length },
+              });
+              console.log(`✓ Uploaded ${name}`);
+            }
 
   build-android:
     needs: create-release
@@ -245,6 +314,9 @@ jobs:
 
       - name: Upload Android APK to release
         uses: actions/github-script@v7
+        env:
+          RELEASE_NAME: ${{ needs.create-release.outputs.release_name }}
+          PACKAGE_VERSION: ${{ needs.create-release.outputs.tag_name }}
         with:
           script: |
             const fs = require('fs');
@@ -255,13 +327,17 @@ jobs:
               throw new Error(`APK not found at ${apkPath}`);
             }
             
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const version = pkg.version;
+            const apkName = `free-grind-v${version}.apk`;
+            
             const fileData = fs.readFileSync(apkPath);
             
             await github.rest.repos.uploadReleaseAsset({
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: ${{ needs.create-release.outputs.release_id }},
-              name: 'app-universal-release.apk',
+              name: apkName,
               data: fileData,
               headers: {
                 'content-type': 'application/vnd.android.package-archive',
@@ -269,7 +345,7 @@ jobs:
               }
             });
             
-            console.log('✓ APK uploaded to release');
+            console.log(`✓ APK uploaded to release as ${apkName}`);
 
 
   publish-release:
