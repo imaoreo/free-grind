@@ -6,6 +6,13 @@
 	"permissions": [
 		"core:default",
 		"opener:default",
+		{
+			"identifier": "opener:allow-url",
+			"allow": [
+				{ "url": "geo:*" },
+				{ "url": "https://www.google.com/maps/*" }
+			]
+		},
 		"notification:default",
 		"fs:default",
 		{

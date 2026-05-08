@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
+import { Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
 import type { RefObject, TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
@@ -26,6 +26,7 @@ type ChatInboxPanelProps = {
 	isLoadingMoreInbox: boolean;
 	inboxError: string | null;
 	inboxFilters: InboxFilters;
+	hidePinned: boolean;
 	hasActiveInboxFilters: boolean;
 	filteredConversations: ConversationEntry[];
 	nextPage: number | null;
@@ -41,6 +42,7 @@ type ChatInboxPanelProps = {
 	onInboxTouchEnd: TouchEventHandler<HTMLDivElement>;
 	onSelectConversation: (conversation: ConversationEntry) => void;
 	onClearInboxFilters: () => void;
+	onToggleHidePinned: () => void;
 	onOpenFilters: (filtersDraft: ReturnType<typeof buildChatFiltersDraft>) => void;
 	onOpenSearch: () => void;
 	onOpenInbox: () => void;
@@ -53,6 +55,7 @@ export function ChatInboxPanel({
 	isLoadingMoreInbox,
 	inboxError,
 	inboxFilters,
+	hidePinned,
 	hasActiveInboxFilters,
 	filteredConversations,
 	nextPage,
@@ -68,6 +71,7 @@ export function ChatInboxPanel({
 	onInboxTouchEnd,
 	onSelectConversation,
 	onClearInboxFilters,
+	onToggleHidePinned,
 	onOpenFilters,
 	onOpenSearch,
 	onOpenInbox,
@@ -75,9 +79,19 @@ export function ChatInboxPanel({
 }: ChatInboxPanelProps) {
 	const { t, i18n } = useTranslation();
 
+	const activeFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
+
 	return (
 		<PullToRefreshContainer
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
+			className={`flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4 ${
 				isDesktop ? "surface-card" : ""
 			}`}
 			onRefresh={onRefreshInbox}
@@ -87,49 +101,57 @@ export function ChatInboxPanel({
 			onTouchStartExtra={onInboxTouchStart}
 			onTouchEndExtra={onInboxTouchEnd}
 		>
-			<div className="mb-3 flex items-center justify-between gap-3">
+			<div className="mb-3 flex shrink-0 items-start justify-between gap-3">
 				<div>
 					<InboxAlbumsTabs
 						activeTab="inbox"
 						onInboxClick={onOpenInbox}
 						onAlbumsClick={onOpenAlbums}
-						trailing={
-							<span
-								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-							>
-								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-								<span>{realtimeStatusMeta.label}</span>
-							</span>
-						}
 					/>
 					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
 				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_filters")}
+				<div className="flex flex-col items-end gap-1.5">
+					<span
+						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
 					>
-						<SlidersHorizontal className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={onOpenSearch}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_search")}
-					>
-						<Search className="h-4 w-4" />
-					</button>
-					{hasActiveInboxFilters ? (
+						<span className="leading-none">{realtimeStatusMeta.symbol}</span>
+						<span>{realtimeStatusMeta.label}</span>
+					</span>
+					<div className="flex items-center gap-2">
 						<button
 							type="button"
-							onClick={onClearInboxFilters}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							onClick={onToggleHidePinned}
+							className={`rounded-xl border border-[var(--border)] p-2 transition hover:border-[var(--accent)] ${
+								hidePinned
+									? "bg-[var(--surface-2)] text-[var(--text)]"
+									: "text-[var(--text-muted)] hover:text-[var(--text)]"
+							}`}
+							aria-label={hidePinned ? t("chat.show_pinned") : t("chat.hide_pinned")}
 						>
-							{t("chat.clear_filters")}
+							{hidePinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
 						</button>
-					) : null}
+						<button
+							type="button"
+							onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
+							className="relative rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_filters")}
+						>
+							<SlidersHorizontal className="h-4 w-4" />
+							{hasActiveInboxFilters && activeFilterCount > 0 ? (
+								<span className="absolute -bottom-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)] shadow-sm ring-2 ring-[var(--surface)]">
+									{activeFilterCount}
+								</span>
+							) : null}
+						</button>
+						<button
+							type="button"
+							onClick={onOpenSearch}
+							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_search")}
+						>
+							<Search className="h-4 w-4" />
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -158,7 +180,7 @@ export function ChatInboxPanel({
 					</p>
 				</div>
 			) : (
-				<div ref={inboxListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+				<div ref={inboxListRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
 						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
@@ -175,65 +197,106 @@ export function ChatInboxPanel({
 								type="button"
 								key={conversation.data.conversationId}
 								onClick={() => onSelectConversation(conversation)}
-								className={`w-full rounded-2xl border p-3 text-left transition ${
+								className={`flex h-24 w-full shrink-0 items-stretch overflow-hidden rounded-2xl border-2 text-left transition ${
 									isSelected
-										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
+										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
 										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
 								}`}
 							>
-								<div className="flex items-start gap-3">
-									<div
-										title={otherParticipantOnlineMeta.label}
-										className={`h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] ${
-											isOtherParticipantOnline
-												? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)]"
-												: "border-[var(--border)]"
-										}`}
-									>
-										<img
-											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-											alt={conversation.data.name || t("chat.profile")}
-											className="h-full w-full object-cover"
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-2">
-											<div className="flex min-w-0 items-center gap-1">
-												<p className="truncate font-semibold">
-													{conversation.data.name || t("chat.unknown")}
-												</p>
-												{otherParticipant?.profileId &&
-												presenceResults[otherParticipant.profileId] ? (
-													<img
-														src={freegrindLogo}
-														alt="Free Grind user"
-														title={t("profile_details.uses_free_grind")}
-														className="h-4 w-4 shrink-0 rounded-full border border-[var(--border)]"
-													/>
-												) : null}
-											</div>
-											<span className="text-xs text-[var(--text-muted)]">
-												{formatConversationTime(
-													conversation.data.lastActivityTimestamp,
-													i18n.language,
-												)}
-											</span>
+								<div
+									title={otherParticipantOnlineMeta.label}
+									className={`relative w-24 shrink-0 transition-all ${
+										isSelected
+											? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
+											: "bg-[var(--surface-2)]"
+									} ${
+										isOtherParticipantOnline
+											? "border-r-4 border-emerald-500"
+											: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
+									}`}
+								>
+									<img
+										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+										alt={conversation.data.name || t("chat.profile")}
+										className="h-full w-full object-cover"
+									/>
+									{conversation.data.pinned ? (
+										<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">
+											<Pin className="h-3 w-3 fill-current" />
 										</div>
-										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
+									) : null}
+								</div>
+								<div className="min-w-0 flex-1 p-3">
+									<div className="flex items-center justify-between gap-2">
+										<div className="flex min-w-0 items-center gap-1">
+											<p className="truncate font-semibold">
+												{conversation.data.name || t("chat.unknown")}
+											</p>
+											{otherParticipant?.profileId &&
+											presenceResults[otherParticipant.profileId] ? (
+												<img
+													src={freegrindLogo}
+													alt="Free Grind user"
+													title={t("profile_details.uses_free_grind")}
+													className={`h-4 w-4 shrink-0 rounded-full border ${
+														isSelected
+															? "border-[var(--accent-contrast)]/20"
+															: "border-[var(--border)]"
+													}`}
+												/>
+											) : null}
+										</div>
+										<span
+											className={`text-xs ${
+												isSelected
+													? "text-[var(--accent-contrast)]/70"
+													: "text-[var(--text-muted)]"
+											}`}
+										>
+											{formatConversationTime(
+												conversation.data.lastActivityTimestamp,
+												i18n.language,
+											)}
+										</span>
+									</div>
+									<div className="flex items-center justify-between gap-2">
+										<p
+											className={`mt-0.5 truncate ${
+												conversation.data.unreadCount > 0
+													? isSelected
+														? "font-bold text-[var(--accent-contrast)]"
+														: "font-bold text-[var(--text)]"
+													: isSelected
+														? "text-[var(--accent-contrast)]/80"
+														: "text-[var(--text-muted)]"
+											}`}
+										>
 											{getPreviewText(conversation, t)}
 										</p>
-										<div className="mt-2 flex items-center gap-2">
-											{conversation.data.pinned ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.pinned")}
-												</span>
-											) : null}
-											{conversation.data.muted ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.muted")}
-												</span>
-											) : null}
-										</div>
+										{conversation.data.unreadCount > 0 ? (
+											<span
+												className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[12px] font-bold shadow-sm ${
+													isSelected
+														? "bg-[var(--accent-contrast)] text-[var(--accent)]"
+														: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+												}`}
+											>
+												{conversation.data.unreadCount}
+											</span>
+										) : null}
+									</div>
+									<div className="mt-2 flex items-center gap-2">
+										{conversation.data.muted ? (
+											<span
+												className={`rounded-lg px-2 py-1 text-xs ${
+													isSelected
+														? "bg-[var(--accent-contrast)]/10 text-[var(--accent-contrast)]"
+														: "bg-[var(--surface-2)] text-[var(--text-muted)]"
+												}`}
+											>
+												{t("chat.muted")}
+											</span>
+										) : null}
 									</div>
 								</div>
 							</button>
