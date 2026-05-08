@@ -22,14 +22,17 @@ pub fn run() {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         storage::init_keyring();
     })) {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(e) => {
-            eprintln!("Warning: keyring initialization panicked (continuing): {:?}", e);
+            eprintln!(
+                "Warning: keyring initialization panicked (continuing): {:?}",
+                e
+            );
         }
     }
 
     let client = GrindrClient::new().ok();
-    
+
     // Platform-specific setup for plugins
     #[cfg(not(mobile))]
     {
@@ -72,7 +75,24 @@ pub fn run() {
     #[cfg(mobile)]
     {
         let context = tauri::generate_context!();
-        tauri::Builder::default()
+
+        #[cfg(target_os = "android")]
+        let (hotswap, context) = match tauri_plugin_hotswap::init(context) {
+            Ok((h, c)) => (h, c),
+            Err(e) => {
+                panic!("failed to initialize hotswap plugin: {}", e);
+            }
+        };
+
+        let builder = tauri::Builder::default();
+
+        #[cfg(target_os = "android")]
+        let builder = builder.plugin(hotswap);
+
+        #[cfg(not(target_os = "android"))]
+        let builder = builder;
+
+        builder
             .plugin(tauri_plugin_notification::init())
             .plugin(tauri_plugin_os::init())
             .plugin(tauri_plugin_geolocation::init())
