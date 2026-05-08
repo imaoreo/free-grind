@@ -233,13 +233,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					: null;
 				return (
 					<div
-						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
+						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
 						style={!isDesktop ? {
 							top: 0,
 							paddingTop: "max(12px, env(safe-area-inset-top))",
 						} : undefined}
 					>
-						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-3 sm:pl-4" : ""}`}>
+						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}>
 							<button
 								type="button"
 								onClick={() => {
@@ -348,7 +348,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						) : (
 							<div
 								ref={headerActionsMenuRef}
-								className="relative pr-3 sm:pr-4"
+								className={`relative ${!isDesktop ? "pr-0" : "pr-3 sm:pr-4"}`}
 							>
 								<button
 									type="button"
@@ -483,7 +483,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					<form
 						onSubmit={handleSend}
-						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 p-3 sm:p-4" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
 						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
 					>
 						<div className="mb-2 flex flex-wrap items-center gap-2">

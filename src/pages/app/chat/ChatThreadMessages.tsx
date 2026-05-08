@@ -214,7 +214,7 @@ export function ChatThreadMessages({
 		<div
 			ref={threadScrollContainerRef}
                 onScroll={handleThreadScroll}
-                                        className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
+										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[200px] pt-[140px]" : ""}`}
                         >
 						{messagePageKey ? (
 							<button
@@ -232,7 +232,7 @@ export function ChatThreadMessages({
 							</button>
 						) : null}
 
-						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
+						<div className={`flex flex-col gap-2 ${!isDesktop ? "px-[var(--app-px)] pt-4" : ""}`}>
                         {(() => {
                             // Track the last header label to detect day transitions during rendering
                             let lastHeader = "";
@@ -333,7 +333,7 @@ export function ChatThreadMessages({
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
                                 <Fragment key={message.messageId}>
                                     {isNewDay && (
-                                        <div className="my-6 flex items-center gap-4 px-4 opacity-80">
+                                        <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
                                             <div className="h-px flex-1 bg-[var(--border)]" />
                                             <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
                                                 {currentHeader}
@@ -589,22 +589,11 @@ export function ChatThreadMessages({
 												{location ? (
 													<button
 														type="button"
-														onClick={async () => {
-															const lat = location.lat;
-															const lon = location.lon;
-															const webUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
-															const geoUrl = `geo:${lat},${lon}?q=${lat},${lon}`;
-
-															if (isDesktop) {
-																window.open(webUrl, "_blank");
-															} else {
-																try {
-																	const { open } = await import("@tauri-apps/plugin-opener");
-																	await open(geoUrl);
-																} catch (error) {
-																	window.open(webUrl, "_blank");
-																}
-															}
+														onClick={() => {
+															const url = isDesktop
+																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
+															window.open(url, "_blank");
 														}}
 														className={`mb-2 flex w-full items-center gap-3 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
 															mine
