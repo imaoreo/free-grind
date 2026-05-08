@@ -206,7 +206,8 @@
             "tap_mutual": "Tap sent. It's mutual.",
             "tap_sent": "Tap sent",
             "tap_failed": "Failed to send tap"
-        }
+        },
+        "chatted": "Chatted"
     },
     "chat_filters": {
         "title": "Chat Filters",
@@ -586,6 +587,7 @@
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
             "sent_video": "Sent a video",
+            "sent_location": "Sent a location",
             "sent_message": "Sent a message"
         },
         "thread": {
@@ -593,10 +595,12 @@
             "image_placeholder": "[image]",
             "video_placeholder": "[video]",
             "audio_placeholder": "[audio]",
+            "location_placeholder": "[location]",
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
             "shared_video": "Shared a video",
             "shared_audio": "Shared an audio message",
+            "location_shared": "Location shared",
             "failed": "Failed",
             "from_local_history": "From local history",
             "shared_alt": "Shared",
@@ -680,6 +684,9 @@
         "status": "Status",
         "distance": "Distance",
         "message": "Message",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before",
         "tap_profile": "Tap profile",
         "tap_sent_recent": "Tap already sent in the last 24 hours",
         "tap_active": "Tap active",

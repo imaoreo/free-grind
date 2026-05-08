@@ -395,7 +395,8 @@
             "tap_mutual": "Tap enviado. Es mutuo.",
             "tap_sent": "Tap enviado",
             "tap_failed": "Error al enviar tap"
-        }
+        },
+        "chatted": "Chatted"
     },
     "auth": {
         "sign_in": {
@@ -719,7 +720,10 @@
                 "twink": "Jovencito",
                 "clean_cut": "Pulcro"
             }
-        }
+        },
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before"
     },
     "nav": {
         "browse": "Navegar",

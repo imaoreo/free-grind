@@ -5,8 +5,14 @@
 	"windows": ["main"],
 	"permissions": [
 		"core:default",
-		"hotswap:default",
 		"opener:default",
+		{
+			"identifier": "opener:allow-url",
+			"allow": [
+				{ "url": "geo:*" },
+				{ "url": "https://www.google.com/maps/*" }
+			]
+		},
 		"notification:default",
 		"fs:default",
 		{
@@ -72,6 +78,12 @@
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
+		"sql:default",
+		"sql:allow-load",
+		"sql:allow-execute",
+		"sql:allow-select",
+		"sql:allow-close",
+		"hotswap:default",
 		"os:default"
 	]
 }

@@ -205,23 +205,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	);
 	const renderThread = selectedConversation ? (
 		<div
-			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
-				isDesktop ? "surface-card" : ""
+			className={`flex h-full flex-col overflow-hidden ${
+				isDesktop ? "surface-card p-3 sm:p-4" : "bg-[var(--surface)] p-0"
 			}`}
 			style={
 				!isDesktop
 					? {
-						height:
-							"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
-					}
+							height:
+								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+						}
 					: undefined
 			}
 		>
 			{(() => {
-				const otherParticipant = getOtherParticipant(
-					selectedConversation,
-					userId,
-				);
+				const otherParticipant = getOtherParticipant(selectedConversation, userId);
 				const otherParticipantOnlineMeta = getParticipantOnlineMeta(
 					otherParticipant?.lastOnline,
 					otherParticipant?.onlineUntil,
@@ -232,12 +229,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					? formatDistance(otherParticipant.distanceMetres)
 					: null;
 				return (
-					<div 
-						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-3 sm:px-4" : ""}`}
-						style={!isDesktop ? {
-							top: 0,
-							paddingTop: "max(12px, env(safe-area-inset-top))",
-						} : undefined}
+					<div
+						className={`flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${
+							!isDesktop ? "px-3 py-3 sm:px-4" : "mb-3"
+						}`}
+						style={
+							!isDesktop
+								? {
+										paddingTop: "max(12px, env(safe-area-inset-top))",
+									}
+								: undefined
+						}
 					>
 						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-3 sm:pl-4" : ""}`}>
 							<button
@@ -483,8 +485,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					<form
 						onSubmit={handleSend}
-						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 p-3 sm:p-4" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
-						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
+						className={`shrink-0 border-t border-[var(--border)] bg-[var(--surface)] ${
+							!isDesktop ? "p-3 sm:p-4" : "mt-3 pt-3"
+						}`}
+						style={
+							!isDesktop
+								? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" }
+								: undefined
+						}
 					>
 						<div className="mb-2 flex flex-wrap items-center gap-2">
 							<button
@@ -824,7 +832,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			<div className="flex-1" />
 			<form
 				onSubmit={handleSend}
-				className="border-t border-[var(--border)] pt-3"
+				className="shrink-0 border-t border-[var(--border)] pt-3"
 			>
 				<div className="mb-2 flex flex-wrap items-center gap-2">
 					<button

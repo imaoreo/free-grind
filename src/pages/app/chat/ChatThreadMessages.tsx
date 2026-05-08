@@ -1,5 +1,5 @@
-import { Album, Ellipsis, Hourglass, Lock, Reply } from "lucide-react";
-import { Fragment, useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin. Reply } from "lucide-react";
+import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, Message } from "../../../types/messages";
@@ -17,6 +17,7 @@ import {
 	getMessageAudioUrl,
 	getMessageImageCreatedAt,
 	getMessageImageUrl,
+	getMessageLocation,
 	getMessageTakenOnGrindr,
 	getMessageText,
 	getMessageVideoUrl,
@@ -147,6 +148,8 @@ export function ChatThreadMessages({
 		.reverse()
 		.find((m) => userId != null && Number(m.senderId) === Number(userId))?.messageId;
 
+	const lastMessageId = threadMessages[threadMessages.length - 1]?.messageId;
+
 	const latestMessageIdByAlbum = useMemo(() => {
 		const map = new Map<number, string>();
 		for (const m of threadMessages) {
@@ -211,7 +214,7 @@ export function ChatThreadMessages({
 		<div
 			ref={threadScrollContainerRef}
 						onScroll={handleThreadScroll}
-						className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
+						className="flex flex-1 min-h-0 flex-col overflow-x-hidden overflow-y-auto px-3 pt-4 sm:px-4"
 		>
 						{messagePageKey ? (
 							<button
@@ -255,6 +258,7 @@ export function ChatThreadMessages({
 										: null;
 								const videoUrl = getMessageVideoUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
+								const location = getMessageLocation(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
@@ -267,7 +271,10 @@ export function ChatThreadMessages({
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
-								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
+								const isLocationOnlyBubble =
+									Boolean(location) && messageText === t("chat.preview.sent_location");
+								const isMediaOnlyBubble =
+									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
 								const senderParticipant =
 									selectedConversation.data.participants.find(
 										(participant) =>
@@ -304,6 +311,7 @@ export function ChatThreadMessages({
 									expirationType === 0 ||
 									(typeof expirationType === "string" && expirationType.toUpperCase() === "INDEFINITE");
 
+								const isLastMessage = message.messageId === lastMessageId;
 								const isLatestShare = albumId ? latestMessageIdByAlbum.get(albumId) === message.messageId : true;
 
 								const isOnce = !isIndefinite && (
@@ -346,7 +354,7 @@ export function ChatThreadMessages({
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
+										className={`flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
@@ -357,7 +365,7 @@ export function ChatThreadMessages({
 												onTouchMove={(event) => handleMobileTouchMove(event, message)}
 												className={`relative group/bubble w-full rounded-2xl text-sm ${
 													isMediaOnlyBubble
-														? "overflow-hidden bg-transparent p-0"
+														? "bg-transparent p-0"
 														: `px-3 py-2 ${
 															mine
 																? "bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -380,7 +388,7 @@ export function ChatThreadMessages({
 															}
 															openFullScreenImage(imageUrl);
 														}}
-														className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 													>
 														<div className="relative">
 														<img
@@ -393,21 +401,21 @@ export function ChatThreadMessages({
 																1
 															</div>
 														) : null}
-														{!mine ? (
+														{!mine && (messageTakenOnGrindr || imageCreatedAtLabel) ? (
 															<div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
-																{ messageTakenOnGrindr ? (
+																{messageTakenOnGrindr ? (
 																	<img
 																		src={freegrindLogo}
-																			alt={t("chat.thread.taken_on_grindr")}
+																		alt={t("chat.thread.taken_on_grindr")}
 																		className="h-3.5 w-3.5 rounded-full"
 																	/>
 																) : null}
 
-																<span>
-																	{imageCreatedAtLabel
-																		? ` ${imageCreatedAtLabel}`
-																		: ""}
-																</span>
+																{imageCreatedAtLabel ? (
+																	<span>
+																		{` ${imageCreatedAtLabel}`}
+																	</span>
+																) : null}
 															</div>
 														) : null}
 
@@ -480,7 +488,7 @@ export function ChatThreadMessages({
 																void openAlbumViewerById(albumId);
 															}
 														}}
-														className="block w-full"
+														className="block w-full overflow-hidden rounded-2xl"
 														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
@@ -579,6 +587,35 @@ export function ChatThreadMessages({
 													</div>
 												) : null}
 
+												{location ? (
+													<button
+														type="button"
+														onClick={() => {
+															const url = isDesktop
+																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
+															window.open(url, "_blank");
+														}}
+														className={`mb-2 flex w-full items-center gap-3 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+															mine
+																? "bg-white/10 text-white"
+																: "bg-[var(--surface)] text-[var(--text)]"
+														}`}
+													>
+														<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
+															<MapPin className="h-5 w-5" />
+														</div>
+														<div className="min-w-0">
+															<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+																{t("chat.thread.location_shared")}
+															</p>
+															<p className="truncate text-sm font-semibold opacity-90">
+																{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
+															</p>
+														</div>
+													</button>
+												) : null}
+
 												{isAlbumMessage && !isAlbumOnlyBubble ? (
 													<div className={`mb-2 rounded-xl border border-black/10 p-2 ${isLocked ? "bg-[var(--surface-2)] opacity-60" : "bg-[color-mix(in_srgb,var(--surface)_76%,transparent)]"}`}>
 														{albumCover ? (
@@ -631,7 +668,7 @@ export function ChatThreadMessages({
 														type="button"
 														onClick={() => void handleReact(message)}
 														disabled={isMutatingMessageId === message.messageId}
-																className={`${fireButtonClass} cursor-pointer transition-opacity ${
+																className={`${fireButtonClass} z-10 cursor-pointer transition-opacity ${
 															message.reactions.length > 0
 																? "opacity-100"
 																: "opacity-0 group-hover/bubble:opacity-60"

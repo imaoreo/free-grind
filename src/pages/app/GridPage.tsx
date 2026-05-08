@@ -30,6 +30,13 @@ import {
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
+import {
+	getChatContactIndexForProfiles,
+	indexChatContactRecordsByProfileId,
+	upsertChatContactIndexFromGrid,
+} from "../../services/chatContactIndex";
+import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
+import { appLog } from "../../utils/logger";
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -58,6 +65,9 @@ export function GridPage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
+	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
+		Record<string, ChatContactIndexRecord>
+	>({});
 	const isMountedRef = useRef(true);
 
 	const {
@@ -275,6 +285,15 @@ export function GridPage() {
 					filters: browseRequestFilters,
 				});
 
+				void upsertChatContactIndexFromGrid(
+					parsed.cards.map((card) => ({
+						profileId: card.profileId,
+						unreadCount: card.unreadCount ?? 0,
+					})),
+				).catch((error) => {
+					appLog.warn("[chat-index] failed to persist grid metadata", error);
+				});
+
 				if (!isMountedRef.current) {
 					return;
 				}
@@ -319,6 +338,30 @@ export function GridPage() {
 	}, [loadBrowseCards]);
 
 	useEffect(() => {
+		const profileIds = cards.map((card) => card.profileId);
+		if (profileIds.length === 0) {
+			setChatContactIndexByProfileId({});
+			return;
+		}
+
+		let cancelled = false;
+		void getChatContactIndexForProfiles(profileIds)
+			.then((records) => {
+				if (cancelled || !isMountedRef.current) {
+					return;
+				}
+				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
+			})
+			.catch((error) => {
+				appLog.warn("[chat-index] failed to hydrate grid contact index", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [cards]);
+
+	useEffect(() => {
 		if (!isLoadingCards || cardsError || isLoadingPreferences) {
 			return;
 		}
@@ -347,6 +390,14 @@ export function GridPage() {
 				geohash,
 				page: nextPage,
 				filters: browseRequestFilters,
+			});
+			void upsertChatContactIndexFromGrid(
+				parsed.cards.map((card) => ({
+					profileId: card.profileId,
+					unreadCount: card.unreadCount ?? 0,
+				})),
+			).catch((error) => {
+				appLog.warn("[chat-index] failed to persist load-more grid metadata", error);
 			});
 			if (!cancelled) {
 				setCards((prev) => [...prev, ...parsed.cards]);
@@ -467,6 +518,14 @@ export function GridPage() {
 
 		return cards.find((card) => card.profileId === activeProfileId) ?? null;
 	}, [activeProfileId, cards]);
+
+	const selectedProfileChatContact = useMemo(() => {
+		if (!activeProfileId) {
+			return null;
+		}
+
+		return chatContactIndexByProfileId[activeProfileId] ?? null;
+	}, [activeProfileId, chatContactIndexByProfileId]);
 
 	const activeProfilePhotoHashes = useMemo(() => {
 		if (!activeProfile) {
@@ -794,6 +853,7 @@ export function GridPage() {
 				isLoadingCards={isLoadingCards}
 				cardsError={cardsError}
 				cards={sortedCards}
+				chatContactIndexByProfileId={chatContactIndexByProfileId}
 				onSelectProfile={handleSelectProfile}
 				onMessageProfile={handleMessageProfile}
 				hasMore={nextPage !== null}
@@ -817,6 +877,7 @@ export function GridPage() {
 				isLoadingActiveProfile={isLoadingActiveProfile}
 				activeProfileError={activeProfileError}
 				activeProfilePhotoHashes={activeProfilePhotoHashes}
+				chatContactStatus={selectedProfileChatContact}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
 			/>

@@ -63,6 +63,7 @@ import {
 	useDesktopBreakpoint,
 } from "./chat/chatUtils";
 import { appLog } from "../../utils/logger";
+import { upsertChatContactIndexFromInbox } from "../../services/chatContactIndex";
 
 
 export function ChatPage() {
@@ -97,6 +98,14 @@ export function ChatPage() {
 	const [inboxFilters, setInboxFilters] = useState<InboxFilters>({});
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
+
+	const [hidePinned, setHidePinned] = useState(() => {
+		return localStorage.getItem("chat_hide_pinned") === "true";
+	});
+
+	useEffect(() => {
+		localStorage.setItem("chat_hide_pinned", String(hidePinned));
+	}, [hidePinned]);
 
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
@@ -683,6 +692,28 @@ export function ChatPage() {
 					filters: activeInboxFiltersRef.current,
 				});
 
+				if (userId != null) {
+					const inboxContactEntries = response.entries
+						.map((entry) => {
+							const otherParticipant = getOtherParticipant(entry, userId);
+							if (!otherParticipant?.profileId) {
+								return null;
+							}
+
+							return {
+								profileId: String(otherParticipant.profileId),
+								conversationId: entry.data.conversationId,
+								lastMessageTimestamp: entry.data.lastActivityTimestamp ?? null,
+								unreadCount: entry.data.unreadCount ?? 0,
+							};
+						})
+						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
+						appLog.warn("[chat-index] failed to persist inbox metadata", error);
+					});
+				}
+
 				setConversations((previous) => {
 					if (replace) {
 						return response.entries;
@@ -731,7 +762,7 @@ export function ChatPage() {
 				setIsLoadingMoreInbox(false);
 			}
 		},
-		[service, targetProfileId],
+		[service, targetProfileId, t, userId],
 	);
 
 	const loadThread = useCallback(
@@ -1329,7 +1360,12 @@ export function ChatPage() {
 		);
 	}, [replyTargetMessageId, threadMessages]);
 
-	const filteredConversations = conversations;
+	const filteredConversations = useMemo(() => {
+		if (hidePinned) {
+			return conversations.filter((c) => !c.data.pinned);
+		}
+		return conversations;
+	}, [conversations, hidePinned]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -2290,6 +2326,7 @@ export function ChatPage() {
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
 			inboxFilters={inboxFilters}
+			hidePinned={hidePinned}
 			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
@@ -2305,6 +2342,7 @@ export function ChatPage() {
 			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onClearInboxFilters={clearInboxFilters}
+			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
 			onOpenFilters={(inboxFiltersDraft) =>
 				navigate("/chat/filters", {
 					state: {
@@ -2402,15 +2440,15 @@ export function ChatPage() {
 	return (
 		<section
 			className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}
-			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
+			style={isDesktop ? { padding: 0, maxWidth: "none" } : { paddingLeft: 0, paddingRight: 0 }}
 		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
+			<div className={isDesktop ? "mx-auto flex h-dvh w-full max-w-6xl flex-col items-center justify-center p-4" : "w-full"}>
 
 				{isSearchRoute ? (
 					renderSearch
 				) : isDesktop ? (
 					<div
-						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
+						className="grid w-full grid-cols-[360px_minmax(0,1fr)] gap-3"
 						style={{
 							height:
 								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
