@@ -2439,10 +2439,9 @@ export function ChatPage() {
 
 	return (
 		<section
-        			className={`app-screen${isDesktop ? " overflow-hidden" : ""}`}
-        			style={isDesktop ? undefined : { paddingLeft: 0, paddingRight: 0 }}
-        		>
-        			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
+			className={`app-screen ${isDesktop ? "overflow-hidden" : "!p-0 !max-w-none !w-full"}`}
+		>
+			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
 
         				{isSearchRoute ? (
         					renderSearch
