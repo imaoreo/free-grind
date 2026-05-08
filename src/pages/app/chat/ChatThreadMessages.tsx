@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin } from "lucide-react";
 import { Fragment, useEffect, useState, useMemo } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -17,6 +17,7 @@ import {
 	getMessageAudioUrl,
 	getMessageImageCreatedAt,
 	getMessageImageUrl,
+	getMessageLocation,
 	getMessageTakenOnGrindr,
 	getMessageText,
 	getMessageVideoUrl,
@@ -202,6 +203,7 @@ export function ChatThreadMessages({
 										: null;
 								const videoUrl = getMessageVideoUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
+								const location = getMessageLocation(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
@@ -214,7 +216,10 @@ export function ChatThreadMessages({
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
-								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
+								const isLocationOnlyBubble =
+									Boolean(location) && messageText === t("chat.preview.sent_location");
+								const isMediaOnlyBubble =
+									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
 								const senderParticipant =
 									selectedConversation.data.participants.find(
 										(participant) =>
@@ -510,6 +515,35 @@ export function ChatThreadMessages({
 															className="w-full"
 														/>
 													</div>
+												) : null}
+
+												{location ? (
+													<button
+														type="button"
+														onClick={() => {
+															const url = isDesktop
+																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
+															window.open(url, "_blank");
+														}}
+														className={`mb-2 flex w-full items-center gap-3 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+															mine
+																? "bg-white/10 text-white"
+																: "bg-[var(--surface)] text-[var(--text)]"
+														}`}
+													>
+														<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
+															<MapPin className="h-5 w-5" />
+														</div>
+														<div className="min-w-0">
+															<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+																{t("chat.thread.location_shared")}
+															</p>
+															<p className="truncate text-sm font-semibold opacity-90">
+																{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
+															</p>
+														</div>
+													</button>
 												) : null}
 
 												{isAlbumMessage && !isAlbumOnlyBubble ? (
