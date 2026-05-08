@@ -19,7 +19,7 @@
     - [ ] Audio message recording
     - [x] Albums (view, share, manage)
     - [ ] GIF / Gaymoji
-  - [ ] Location messages
+  - [x] Location messages
   - [ ] Saved phrases
   - [ ] Voice message recording
   - [x] Reactions (send & receive)
@@ -31,19 +31,19 @@
   - [x] Conversation search (local)
   - [x] Message search (local)
   - [x] Profile search from chat
-  - [ ] Replies (UI)
+  - [x] Replies (UI)
 - [x] Profiles
   - [x] Fetching & viewing
   - [x] Full profile detail modal (stats, health, tribes, tags, photos)
   - [ ] Favoriting/unfavoriting
   - [ ] Blocking/unblocking
-  - [ ] Taps
+  - [x] Taps
   - [ ] Reports
 - [x] Grid
   - [x] Cascade profile grid
   - [x] Profile detail from grid
   - [x] Limit bypass
-  - [ ] Filtering
+  - [x] Filtering
 - [x] Albums
   - [x] View own albums
   - [x] Create albums
@@ -53,18 +53,18 @@
   - [x] Delete albums
   - [x] Share albums in chat
 - [ ] Interest section
-  - [ ] Views history
+  - [x] Views history
   - [ ] Profile view self-reporting
-  - [ ] Taps history
+  - [x] Taps history
 - [ ] "Right now"
-  - [ ] Fetching
-  - [ ] Filtering
-  - [ ] Sorting
+  - [x] Fetching
+  - [x] Filtering
+  - [x] Sorting
   - [ ] Posting
 - [x] Account
   - [x] Profile editing (bio, stats, health, tribes, tags, social links)
   - [x] Manage profile photos (upload, reorder, delete)
   - [ ] Settings management (email, password, privacy)
-- [ ] Push notifications
+- [x] Push notifications
 
 ## Known issues
