@@ -6,10 +6,12 @@ import {
 	Infinity,
 	Loader2,
 	Pin,
+	Reply,
 	Share2,
 	TimerOff,
 	Volume2,
 	VolumeX,
+	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
@@ -22,6 +24,7 @@ import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/
 import type { ConversationEntry, Message } from "../../../types/messages";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import {
+	getMessagePreviewLabel,
 	getOtherParticipant,
 	getParticipantAvatarUrl,
 	getParticipantOnlineMeta,
@@ -72,6 +75,7 @@ type ChatThreadPanelProps = {
 	handleUnsend: (message: Message) => void | Promise<void>;
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
+	handleReply: (message: Message) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
@@ -102,6 +106,8 @@ type ChatThreadPanelProps = {
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
+	replyTargetMessage: UiMessage | null;
+	clearReplyTarget: () => void;
 	isSending: boolean;
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
@@ -155,6 +161,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleUnsend,
 		handleDelete,
 		handleRetry,
+		handleReply,
 		threadBottomRef,
 		handleSend,
 		toggleAlbumPicker,
@@ -179,6 +186,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		uploadProgress,
 		draft,
 		setDraft,
+		replyTargetMessage,
+		clearReplyTarget,
 		isSending,
 		selectedActionMessage,
 		selectedActionMessageMine,
@@ -470,6 +479,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleUnsend={handleUnsend}
 						handleDelete={handleDelete}
 						handleRetry={handleRetry}
+						handleReply={handleReply}
 						threadBottomRef={threadBottomRef}
 					/>
 
@@ -619,6 +629,42 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						) : null}
 
+						{replyTargetMessage ? (
+							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
+								<div className="flex items-stretch">
+									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
+									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
+										<div className="min-w-0">
+											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+												<Reply className="h-3 w-3" />
+												<span>
+													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
+														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
+															? t("chat.you")
+															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
+													}`}
+												</span>
+											</p>
+											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
+												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
+													{getMessagePreviewLabel(replyTargetMessage, t)}
+												</p>
+											</div>
+										</div>
+										<button
+											type="button"
+											onClick={clearReplyTarget}
+											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											aria-label={t("chat.actions.cancel")}
+											title={t("chat.actions.cancel")}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
+									</div>
+								</div>
+							</div>
+						) : null}
+
 						<div className="flex items-end gap-2">
 							<textarea
 								value={draft}
@@ -651,6 +697,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									{t("chat.actions.title")}
 								</p>
 								<div className="grid gap-2">
+									<button
+										type="button"
+										onClick={() => void handleReply(selectedActionMessage)}
+										disabled={isMutatingMessageId === selectedActionMessage.messageId}
+										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
+									>
+										{t("chat.actions.reply", { defaultValue: "Reply" })}
+									</button>
 									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
 										<button
 											type="button"

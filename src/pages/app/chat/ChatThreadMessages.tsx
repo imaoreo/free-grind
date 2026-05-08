@@ -1,5 +1,5 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin } from "lucide-react";
-import { Fragment, useEffect, useState, useMemo } from "react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin. Reply } from "lucide-react";
+import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, Message } from "../../../types/messages";
@@ -53,6 +53,7 @@ type ChatThreadMessagesProps = {
 	handleUnsend: (message: Message) => void | Promise<void>;
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
+	handleReply: (message: Message) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 };
 
@@ -138,6 +139,7 @@ export function ChatThreadMessages({
 	handleUnsend,
 	handleDelete,
 	handleRetry,
+	handleReply,
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
@@ -156,6 +158,57 @@ export function ChatThreadMessages({
 		}
 		return map;
 	}, [threadMessages]);
+
+	const swipeStateRef = useRef<{
+		messageId: string;
+		startX: number;
+		startY: number;
+		triggered: boolean;
+	} | null>(null);
+
+	const handleMobileTouchStart = useCallback(
+		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
+			startMessageLongPress(message.messageId);
+			if (isDesktop || event.touches.length !== 1 || isLocalClientMessageId(message.messageId)) {
+				swipeStateRef.current = null;
+				return;
+			}
+			const touch = event.touches[0];
+			swipeStateRef.current = {
+				messageId: message.messageId,
+				startX: touch.clientX,
+				startY: touch.clientY,
+				triggered: false,
+			};
+		},
+		[isDesktop, startMessageLongPress],
+	);
+
+	const handleMobileTouchMove = useCallback(
+		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
+			endMessageLongPress();
+			if (isDesktop || event.touches.length !== 1) {
+				return;
+			}
+			const state = swipeStateRef.current;
+			if (!state || state.messageId !== message.messageId || state.triggered) {
+				return;
+			}
+			const touch = event.touches[0];
+			const dx = touch.clientX - state.startX;
+			const dy = Math.abs(touch.clientY - state.startY);
+			if (dx > 72 && dy < 40) {
+				state.triggered = true;
+				void handleReply(message);
+			}
+		},
+		[endMessageLongPress, handleReply, isDesktop],
+	);
+
+	const handleMobileTouchEnd = useCallback(() => {
+		swipeStateRef.current = null;
+		endMessageLongPress();
+	}, [endMessageLongPress]);
 
 	return (
 		<div
@@ -306,10 +359,10 @@ export function ChatThreadMessages({
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
 												onDoubleClick={() => void handleMessageTap(message)}
-												onTouchStart={() => startMessageLongPress(message.messageId)}
-												onTouchEnd={endMessageLongPress}
-												onTouchCancel={endMessageLongPress}
-												onTouchMove={endMessageLongPress}
+												onTouchStart={(event) => handleMobileTouchStart(event, message)}
+												onTouchEnd={handleMobileTouchEnd}
+												onTouchCancel={handleMobileTouchEnd}
+												onTouchMove={(event) => handleMobileTouchMove(event, message)}
 												className={`relative group/bubble w-full rounded-2xl text-sm ${
 													isMediaOnlyBubble
 														? "bg-transparent p-0"
@@ -385,6 +438,20 @@ export function ChatThreadMessages({
 																			<span>
 																				{formatMessageTime(message.timestamp, nowTimestamp, t)}
 																			</span>
+																			{isDesktop &&
+																			!pending &&
+																			!isLocalClientMessageId(message.messageId) ? (
+																				<button
+																					type="button"
+																					onClick={(event) => {
+																						event.stopPropagation();
+																						void handleReply(message);
+																					}}
+																					className="rounded-md p-1 hover:bg-white/10"
+																				>
+																					<Reply className="h-3.5 w-3.5" />
+																				</button>
+																			) : null}
 																			{isDesktop &&
 																			!pending &&
 																			!isLocalClientMessageId(message.messageId) ? (
@@ -625,6 +692,17 @@ export function ChatThreadMessages({
 														<span>
 															{formatMessageTime(message.timestamp, nowTimestamp, t)}
 														</span>
+														{isDesktop &&
+														!pending &&
+														!isLocalClientMessageId(message.messageId) ? (
+															<button
+																type="button"
+																onClick={() => void handleReply(message)}
+																className="rounded-md p-1 hover:bg-black/10"
+															>
+																<Reply className="h-3.5 w-3.5" />
+															</button>
+														) : null}
 														{isDesktop &&
 														!pending &&
 														!isLocalClientMessageId(message.messageId) ? (
