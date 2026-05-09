@@ -1,5 +1,5 @@
 import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
-import type { RefObject, TouchEventHandler } from "react";
+import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
@@ -81,6 +81,62 @@ export function ChatInboxPanel({
 	onOpenAlbums,
 }: ChatInboxPanelProps) {
 	const { t, i18n } = useTranslation();
+	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+	const lastScrollAtRef = useRef(0);
+	const lastRequestedPageRef = useRef<number | null>(null);
+
+	const markUserScroll = () => {
+		lastScrollAtRef.current = Date.now();
+	};
+
+	useEffect(() => {
+		const handleWindowScroll = () => {
+			lastScrollAtRef.current = Date.now();
+		};
+
+		window.addEventListener("scroll", handleWindowScroll, { passive: true });
+		window.addEventListener("touchmove", handleWindowScroll, { passive: true });
+
+		return () => {
+			window.removeEventListener("scroll", handleWindowScroll);
+			window.removeEventListener("touchmove", handleWindowScroll);
+		};
+	}, []);
+
+	useEffect(() => {
+		const sentinel = loadMoreSentinelRef.current;
+		if (!sentinel || !nextPage) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const entry = entries[0];
+				if (!entry?.isIntersecting) {
+					return;
+				}
+
+				if (isLoadingMoreInbox) {
+					return;
+				}
+
+				if (Date.now() - lastScrollAtRef.current > 900) {
+					return;
+				}
+
+				if (lastRequestedPageRef.current === nextPage) {
+					return;
+				}
+
+				lastRequestedPageRef.current = nextPage;
+				onLoadMoreInbox();
+			},
+			{ root: null, rootMargin: "0px 0px 220px 0px", threshold: 0 },
+		);
+
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, [filteredConversations.length, isLoadingMoreInbox, nextPage, onLoadMoreInbox]);
 
 	const activeFilterCount = [
 		inboxFilters.unreadOnly,
@@ -195,7 +251,11 @@ export function ChatInboxPanel({
 					</p>
 				</div>
 			) : (
-				<div ref={inboxListRef} className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}>
+				<div
+					ref={inboxListRef}
+					onScroll={markUserScroll}
+					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}
+				>
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
 						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
@@ -329,14 +389,14 @@ export function ChatInboxPanel({
 					})}
 
 					{nextPage ? (
-						<button
-							type="button"
-							onClick={onLoadMoreInbox}
-							disabled={isLoadingMoreInbox}
-							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-						>
-							{isLoadingMoreInbox ? t("chat.loading") : t("chat.load_more")}
-						</button>
+						<div className="px-3 py-2">
+							<div ref={loadMoreSentinelRef} className="h-8 w-full" aria-hidden="true" />
+							{isLoadingMoreInbox ? (
+								<p className="text-center text-xs text-[var(--text-muted)]">
+									{t("chat.loading")}
+								</p>
+							) : null}
+						</div>
 					) : null}
 				</div>
 			)}

@@ -2,14 +2,13 @@ import type { BrowseCard } from "../../GridPage.types";
 import { BrowseCardTile } from "./BrowseCardTile";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { cn } from "../../../../utils/cn";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	EmptyState,
 	ErrorState,
 	LoadingState,
 } from "../../../../components/ui/states";
-import { LoadMoreButton } from "../../../../components/ui/load-more-button";
 import { getAsyncState } from "../../../../hooks/useAsyncViewState";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
@@ -38,6 +37,7 @@ export function BrowseGrid({
 }: BrowseGridProps) {
 	const { t } = useTranslation();
 	const { mobileGridColumns } = usePreferences();
+	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const [isDesktop, setIsDesktop] = useState(() => {
 		if (typeof window === "undefined") {
 			return false;
@@ -57,6 +57,35 @@ export function BrowseGrid({
 		query.addEventListener("change", update);
 		return () => query.removeEventListener("change", update);
 	}, []);
+
+	useEffect(() => {
+		if (!hasMore || !onLoadMore) {
+			return;
+		}
+
+		const sentinel = loadMoreSentinelRef.current;
+		if (!sentinel) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (!entries.some((entry) => entry.isIntersecting)) {
+					return;
+				}
+
+				if (isLoadingMore) {
+					return;
+				}
+
+				onLoadMore();
+			},
+			{ root: null, rootMargin: "0px 0px 280px 0px", threshold: 0 },
+		);
+
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, [cards.length, hasMore, isLoadingMore, onLoadMore]);
 
 	const viewState = getAsyncState(
 		{ isLoading: isLoadingCards, error: cardsError, data: cards },
@@ -126,13 +155,14 @@ export function BrowseGrid({
 				))}
 			</div>
 			{hasMore && (
-				/* Padding applied to prevent the button from touching the screen edges */
-				<div className="flex justify-center px-[var(--app-px)] pb-8">
-					<LoadMoreButton
-						onClick={onLoadMore}
-						loading={isLoadingMore}
-						loadingLabel={t("browse_page.loading")}
-					/>
+				/* Sentinel triggers automatic pagination before the user reaches the end. */
+				<div className="px-[var(--app-px)] pb-8">
+					<div ref={loadMoreSentinelRef} className="h-8 w-full" aria-hidden="true" />
+					{isLoadingMore ? (
+						<p className="text-center text-sm text-[var(--text-muted)]">
+							{t("browse_page.loading")}
+						</p>
+					) : null}
 				</div>
 			)}
 		</div>
