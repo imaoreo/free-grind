@@ -1181,10 +1181,12 @@ export function ChatPage() {
 	}, [handleRealtimeEvent, handleRealtimeStatus]);
 
 	useEffect(() => {
+		if (realtimeStatus === "connected") {
+			return;
+		}
+
 		const baseIntervalMs =
-			realtimeStatus === "connected"
-				? 60_000
-				: realtimeStatus === "reconnecting" || realtimeStatus === "error"
+			realtimeStatus === "reconnecting" || realtimeStatus === "error"
 					? 12_000
 					: 20_000;
 		const intervalMs = document.hidden
