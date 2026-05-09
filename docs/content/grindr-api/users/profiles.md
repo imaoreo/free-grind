@@ -1,5 +1,19 @@
 # Profiles
 
+## Get Profile By ID
+
+Requires [Authorization](/grindr-api/api-authorization).
+
+```
+GET /v7/profiles/{profileId}
+```
+
+Response:
+
+- `profiles` — array containing a single [Profile](#profile)
+
+Observed payloads for this endpoint currently include `profiles` with exactly one object.
+
 ## RectF
 
 Array of 4 floats or `nulls`:
@@ -84,18 +98,20 @@ When used in query, stringified as follows: `y2,x1,x2,y1`.
 - `hashtags` — unknown array
 - `profileTags` — array of strings, see [Profile tags](#profile-tags)
 - `tapped` — boolean
-- `tapType` — boolean
+- `tapType` — integer, boolean, or `null`
 - `lastReceivedTapTimestamp` — number or `null`
 - `isTeleporting` — boolean
 - `isRoaming` — boolean
 - `arrivalDays` — number or `null`
+- `foundVia` — [ViewSourceEnum](/grindr-api/interest/views#viewsourceenum) or `null`
 - `unreadCount` — number, may be absent
+- `rightNow` — [RightNowStatus](/grindr-api/right-now#RightNowStatus) or `null`
 - `rightNowText` — string or `null`
 - `rightNowPosted` — long number or `null`
 - `rightNowDistance` — long number or `null`
 - `rightNowThumbnailUrl` — string or `null`
 - `rightNowFullImageUrl` — string or `null`
-- `rightNowShareLocation` — `null`
+- `rightNowShareLocation` — unknown or `null`
 - `rightNowMedias` — array of objects
   - `mediaId` — long number or `null`
   - `thumbnailUrl` — string
