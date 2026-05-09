@@ -32,6 +32,7 @@ import {
 } from "./chatUtils";
 import { formatDistance } from "../gridpage/utils";
 import { ChatThreadMessages } from "./ChatThreadMessages";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 
 type ChatThreadPanelProps = {
 	navigate: NavigateFunction;
@@ -48,6 +49,8 @@ type ChatThreadPanelProps = {
 	togglePin: () => void | Promise<void>;
 	toggleMute: () => void | Promise<void>;
 	clearLocalHistory: () => void | Promise<void>;
+	onBlockProfile?: (profileId: number) => void | Promise<void>;
+	isBlockingProfile?: boolean;
 	getProfileReturnToChatPath: (profileId: number) => string;
 	isLoadingThread: boolean;
 	threadConversationId: string | null;
@@ -115,11 +118,21 @@ type ChatThreadPanelProps = {
 	albumViewer: AlbumViewerState | null;
 };
 
+const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
+
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
+	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
+	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
+	});
 
 	const {
 		navigate,
@@ -136,6 +149,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		togglePin,
 		toggleMute,
 		clearLocalHistory,
+		onBlockProfile,
+		isBlockingProfile = false,
 		getProfileReturnToChatPath,
 		isLoadingThread,
 		threadConversationId,
@@ -197,11 +212,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		albumViewer,
 	} = props;
 
+	const closeBlockConfirm = () => {
+		if (isBlockingProfile) {
+			return;
+		}
+		setIsBlockConfirmOpen(false);
+	};
+
 	useModalClose({
 		isOpen: pendingAlbumShare !== null,
 		onClose: closePendingAlbumShare,
 		escapeKey: !isSharingAlbum,
 	});
+
+	useModalClose({
+		isOpen: isBlockConfirmOpen,
+		onClose: closeBlockConfirm,
+		escapeKey: !isBlockingProfile,
+	});
+
+	useEffect(() => {
+		setIsBlockConfirmOpen(false);
+		setDontAskBlockAgain(false);
+	}, [selectedConversation?.data.conversationId]);
 
 	useEffect(() => {
 		if (isDesktop) {
@@ -265,69 +298,53 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				const distanceLabel = otherParticipant?.distanceMetres
 					? formatDistance(otherParticipant.distanceMetres, t, unitsPreset)
 					: null;
+
+				const requestBlockProfile = () => {
+					if (!otherParticipant || isBlockingProfile || !onBlockProfile) {
+						return;
+					}
+
+					setIsHeaderActionsMenuOpen(false);
+					if (skipBlockConfirm) {
+						void onBlockProfile(otherParticipant.profileId);
+						return;
+					}
+
+					setDontAskBlockAgain(false);
+					setIsBlockConfirmOpen(true);
+				};
+
+				const confirmBlockProfile = () => {
+					if (!otherParticipant || isBlockingProfile || !onBlockProfile) {
+						return;
+					}
+
+					if (dontAskBlockAgain && typeof window !== "undefined") {
+						localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
+						setSkipBlockConfirm(true);
+					}
+
+					setIsBlockConfirmOpen(false);
+					void onBlockProfile(otherParticipant.profileId);
+				};
+
 				return (
-					<div
-						className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
-						style={!isDesktop ? {
-							top: 0,
-							paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
-						} : undefined}
-					>
-						<div className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}>
-							<button
-								type="button"
-								onClick={() => {
-									if (!otherParticipant) {
-										return;
+					<>
+						<div
+							className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+							style={
+								!isDesktop
+									? {
+										top: 0,
+										paddingTop:
+											"calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
 									}
-									const returnTo = getProfileReturnToChatPath(
-										otherParticipant.profileId,
-									);
-									const nextParams = new URLSearchParams();
-									nextParams.set("returnTo", returnTo);
-									navigate(
-										`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-										{ state: { returnTo } },
-									);
-								}}
-								disabled={!otherParticipant}
-								aria-label="Open profile"
-								title={otherParticipantOnlineMeta.label}
-								className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
-									isOtherParticipantOnline
-										? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)] hover:border-emerald-400"
-										: "border-[var(--border)] hover:border-[var(--accent)]"
-								}`}
+									: undefined
+							}
+						>
+							<div
+								className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}
 							>
-								<img
-									src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-										alt={selectedConversation.data.name || t("chat.profile")}
-									className="h-full w-full object-cover"
-								/>
-							</button>
-							<div className="min-w-0">
-								<div className="flex items-center gap-1.5 min-w-0">
-									<p className="truncate text-lg font-semibold">
-										{selectedConversation.data.name || "Conversation"}
-									</p>
-									{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] && (
-										<img
-											src={freegrindLogo}
-											alt="Free Grind user"
-											title="Uses Free Grind"
-											className="shrink-0 h-5 w-5 rounded-full border border-[var(--border)]"
-										/>
-									)}
-								</div>
-								<p className="text-sm text-[var(--text-muted)]">
-									{distanceLabel
-										? `${otherParticipantOnlineMeta.label} · ${distanceLabel}`
-										: otherParticipantOnlineMeta.label}
-								</p>
-							</div>
-						</div>
-						{isDesktop ? (
-							<div className="flex items-center gap-2">
 								<button
 									type="button"
 									onClick={() => {
@@ -345,117 +362,208 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										);
 									}}
 									disabled={!otherParticipant}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									aria-label="Open profile"
+									title={otherParticipantOnlineMeta.label}
+									className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
+										isOtherParticipantOnline
+											? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)] hover:border-emerald-400"
+											: "border-[var(--border)] hover:border-[var(--accent)]"
+									}`}
 								>
-									View profile
+									<img
+										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+										alt={selectedConversation.data.name || t("chat.profile")}
+										className="h-full w-full object-cover"
+									/>
 								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={togglePin}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									<Pin className="mr-1 inline h-3.5 w-3.5" />
-									{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-								</button>
-								<button
-									type="button"
-									disabled={isUpdatingConversationState}
-									onClick={toggleMute}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								>
-									{selectedConversation.data.muted ? (
-										<Volume2 className="mr-1 inline h-3.5 w-3.5" />
-									) : (
-										<VolumeX className="mr-1 inline h-3.5 w-3.5" />
-									)}
-									{selectedConversation.data.muted ? "Unmute" : "Mute"}
-								</button>
-								<button
-									type="button"
-									onClick={() => void clearLocalHistory()}
-									className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								>
-									Clear local history
-								</button>
-							</div>
-						) : (
-							<div
-								ref={headerActionsMenuRef}
-								className={`relative ${!isDesktop ? "pr-0" : "pr-3 sm:pr-4"}`}
-							>
-								<button
-									type="button"
-									onClick={() =>
-										setIsHeaderActionsMenuOpen((current) => !current)
-									}
-									className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									aria-label="Open conversation actions"
-									aria-expanded={isHeaderActionsMenuOpen}
-								>
-									<Ellipsis className="h-4 w-4" />
-								</button>
-								{isHeaderActionsMenuOpen ? (
-									<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[180px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												if (!otherParticipant) {
-													return;
-												}
-												const returnTo = getProfileReturnToChatPath(
-													otherParticipant.profileId,
-												);
-												const nextParams = new URLSearchParams();
-												nextParams.set("returnTo", returnTo);
-												navigate(
-													`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
-													{ state: { returnTo } },
-												);
-											}}
-											disabled={!otherParticipant}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											View profile
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void togglePin();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.pinned ? "Unpin" : "Pin"}
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void toggleMute();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-										>
-											{selectedConversation.data.muted ? "Unmute" : "Mute"}
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setIsHeaderActionsMenuOpen(false);
-												void clearLocalHistory();
-											}}
-											className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
-										>
-											Clear local history
-										</button>
+								<div className="min-w-0">
+									<div className="flex items-center gap-1.5 min-w-0">
+										<p className="truncate text-lg font-semibold">
+											{selectedConversation.data.name || "Conversation"}
+										</p>
+										{otherParticipant?.profileId &&
+										presenceResults[otherParticipant.profileId] ? (
+											<img
+												src={freegrindLogo}
+												alt="Free Grind user"
+												title="Uses Free Grind"
+												className="shrink-0 h-5 w-5 rounded-full border border-[var(--border)]"
+											/>
+										) : null}
 									</div>
-								) : null}
+									<p className="text-sm text-[var(--text-muted)]">
+										{distanceLabel
+											? `${otherParticipantOnlineMeta.label} · ${distanceLabel}`
+											: otherParticipantOnlineMeta.label}
+									</p>
+								</div>
 							</div>
-						)}
-					</div>
+							{isDesktop ? (
+								<div className="flex items-center gap-2">
+									<button
+										type="button"
+										onClick={() => {
+											if (!otherParticipant) {
+												return;
+											}
+											const returnTo = getProfileReturnToChatPath(
+												otherParticipant.profileId,
+											);
+											const nextParams = new URLSearchParams();
+											nextParams.set("returnTo", returnTo);
+											navigate(
+												`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+												{ state: { returnTo } },
+											);
+										}}
+										disabled={!otherParticipant}
+										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									>
+										View profile
+									</button>
+									<button
+										type="button"
+										disabled={isUpdatingConversationState}
+										onClick={togglePin}
+										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									>
+										<Pin className="mr-1 inline h-3.5 w-3.5" />
+										{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+									</button>
+									<button
+										type="button"
+										disabled={isUpdatingConversationState}
+										onClick={toggleMute}
+										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									>
+										{selectedConversation.data.muted ? (
+											<Volume2 className="mr-1 inline h-3.5 w-3.5" />
+										) : (
+											<VolumeX className="mr-1 inline h-3.5 w-3.5" />
+										)}
+										{selectedConversation.data.muted ? "Unmute" : "Mute"}
+									</button>
+									<button
+										type="button"
+										onClick={requestBlockProfile}
+										disabled={isBlockingProfile || !otherParticipant || !onBlockProfile}
+										className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-60"
+									>
+										{isBlockingProfile
+											? t("profile_details.block_in_progress")
+											: t("profile_details.block")}
+									</button>
+									<button
+										type="button"
+										onClick={() => void clearLocalHistory()}
+										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									>
+										Clear local history
+									</button>
+								</div>
+							) : (
+								<div
+									ref={headerActionsMenuRef}
+									className={`relative ${!isDesktop ? "pr-0" : "pr-3 sm:pr-4"}`}
+								>
+									<button
+										type="button"
+										onClick={() =>
+											setIsHeaderActionsMenuOpen((current) => !current)
+										}
+										className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+										aria-label="Open conversation actions"
+										aria-expanded={isHeaderActionsMenuOpen}
+									>
+										<Ellipsis className="h-4 w-4" />
+									</button>
+									{isHeaderActionsMenuOpen ? (
+										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[180px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													if (!otherParticipant) {
+														return;
+													}
+													const returnTo = getProfileReturnToChatPath(
+														otherParticipant.profileId,
+													);
+													const nextParams = new URLSearchParams();
+													nextParams.set("returnTo", returnTo);
+													navigate(
+														`/profile/${otherParticipant.profileId}?${nextParams.toString()}`,
+														{ state: { returnTo } },
+													);
+												}}
+												disabled={!otherParticipant}
+												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+											>
+												View profile
+											</button>
+											<button
+												type="button"
+												disabled={isUpdatingConversationState}
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													void togglePin();
+												}}
+												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+											>
+												{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+											</button>
+											<button
+												type="button"
+												disabled={isUpdatingConversationState}
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													void toggleMute();
+												}}
+												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+											>
+												{selectedConversation.data.muted ? "Unmute" : "Mute"}
+											</button>
+											<button
+												type="button"
+												onClick={requestBlockProfile}
+												disabled={isBlockingProfile || !otherParticipant || !onBlockProfile}
+												className="rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
+											>
+												{isBlockingProfile
+													? t("profile_details.block_in_progress")
+													: t("profile_details.block")}
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													void clearLocalHistory();
+												}}
+												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+											>
+												Clear local history
+											</button>
+										</div>
+									) : null}
+								</div>
+							)}
+						</div>
+
+						<ConfirmDialog
+							isOpen={isBlockConfirmOpen}
+							title={t("profile_details.block")}
+							message={t("profile_details.block_confirm")}
+							confirmLabel={t("profile_details.block")}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={confirmBlockProfile}
+							onCancel={closeBlockConfirm}
+							isProcessing={isBlockingProfile}
+							confirmTone="danger"
+							dontAskAgainLabel={t("profile_details.dont_ask_again")}
+							dontAskAgainChecked={dontAskBlockAgain}
+							onDontAskAgainChange={setDontAskBlockAgain}
+						/>
+					</>
 				);
 			})()}
 
