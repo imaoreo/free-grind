@@ -77,7 +77,7 @@ export function useApi() {
 			} else if (data.message) {
 				prettyMessage = `Error ${data.message.code}: ${data.message.message}`;
 			} else if (data.kind === "NotInitialized") {
-				prettyMessage = "The app failed to initialize correctly. Please restart the app.";
+				prettyMessage = "The app failed to start correctly. Please restart the app and try again.";
 			} else {
 				prettyMessage = "An unknown error occurred";
 			}

@@ -737,7 +737,7 @@
         "unblock_confirm": "¿Desbloquear este perfil?",
         "block_success": "Perfil bloqueado",
         "unblock_success": "Perfil desbloqueado",
-        "block_failed": "Error al cargar perfil bloqueado",
+        "block_failed": "Error al bloquear perfil",
         "unblock_failed": "Error al desbloquear perfil"
     },
     "nav": {

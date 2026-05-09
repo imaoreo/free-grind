@@ -7,6 +7,8 @@ import type {
 import { appLog } from "../utils/logger";
 
 const CHAT_INDEX_DB = "sqlite:chat_contact_index.sqlite3";
+const SQLITE_BUSY_TIMEOUT_MS = 5_000;
+const SQLITE_LOCK_RETRY_DELAYS_MS = [30, 80, 180, 350] as const;
 
 type ChatContactIndexRow = {
 	profile_id: string;
@@ -23,6 +25,7 @@ async function getDb(): Promise<Database> {
 	if (!dbPromise) {
 		dbPromise = (async () => {
 			const db = await Database.load(CHAT_INDEX_DB);
+			await db.execute(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
 			await db.execute(`
 				CREATE TABLE IF NOT EXISTS chat_contact_index (
 					profile_id TEXT PRIMARY KEY,
@@ -46,6 +49,61 @@ async function getDb(): Promise<Database> {
 	return dbPromise;
 }
 
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
+}
+
+function isSqliteLockedError(error: unknown): boolean {
+	if (typeof error !== "string") {
+		const message = error instanceof Error ? error.message : JSON.stringify(error);
+		if (!message) {
+			return false;
+		}
+		return /database is locked|\(code:\s*517\)/i.test(message);
+	}
+
+	return /database is locked|\(code:\s*517\)/i.test(error);
+}
+
+async function executeWithLockRetry(
+	db: Database,
+	label: string,
+	run: () => Promise<void>,
+): Promise<void> {
+	const maxAttempts = SQLITE_LOCK_RETRY_DELAYS_MS.length + 1;
+
+	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+		await db.execute("BEGIN");
+		try {
+			await run();
+			await db.execute("COMMIT");
+			if (attempt > 1) {
+				appLog.warn("[chat-index] recovered from sqlite lock", {
+					label,
+					attempt,
+				});
+			}
+			return;
+		} catch (error) {
+			await db.execute("ROLLBACK").catch(() => {});
+			const locked = isSqliteLockedError(error);
+			if (!locked || attempt >= maxAttempts) {
+				throw error;
+			}
+
+			const delayMs = SQLITE_LOCK_RETRY_DELAYS_MS[attempt - 1] ?? 400;
+			appLog.warn("[chat-index] sqlite lock during write, retrying", {
+				label,
+				attempt,
+				delayMs,
+			});
+			await sleep(delayMs);
+		}
+	}
+}
+
 export async function initChatContactIndex(): Promise<void> {
 	await getDb();
 }
@@ -60,8 +118,7 @@ export async function upsertChatContactIndexFromInbox(
 	const db = await getDb();
 	const now = Date.now();
 
-	await db.execute("BEGIN");
-	try {
+	await executeWithLockRetry(db, "upsert-from-inbox", async () => {
 		for (const entry of entries) {
 			const profileId = entry.profileId.trim();
 			if (!profileId) {
@@ -99,11 +156,7 @@ export async function upsertChatContactIndexFromInbox(
 				],
 			);
 		}
-		await db.execute("COMMIT");
-	} catch (error) {
-		await db.execute("ROLLBACK").catch(() => {});
-		throw error;
-	}
+	});
 
 	appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
 }
@@ -118,8 +171,7 @@ export async function upsertChatContactIndexFromGrid(
 	const db = await getDb();
 	const now = Date.now();
 
-	await db.execute("BEGIN");
-	try {
+	await executeWithLockRetry(db, "upsert-from-grid", async () => {
 		for (const entry of entries) {
 			const profileId = entry.profileId.trim();
 			if (!profileId) {
@@ -153,11 +205,7 @@ export async function upsertChatContactIndexFromGrid(
 				[profileId, unreadCount, now],
 			);
 		}
-		await db.execute("COMMIT");
-	} catch (error) {
-		await db.execute("ROLLBACK").catch(() => {});
-		throw error;
-	}
+	});
 }
 
 export async function getChatContactIndexForProfiles(

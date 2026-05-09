@@ -14,7 +14,7 @@ import {
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import {
 	createBackdropCloseHandler,
@@ -117,6 +117,7 @@ type ChatThreadPanelProps = {
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
+	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 
 	const {
 		navigate,
@@ -199,6 +200,37 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onClose: closePendingAlbumShare,
 		escapeKey: !isSharingAlbum,
 	});
+
+	useEffect(() => {
+		if (isDesktop) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		if (typeof window === "undefined" || !window.visualViewport) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		const viewport = window.visualViewport;
+
+		const updateKeyboardInset = () => {
+			const layoutHeight = window.innerHeight;
+			const visibleBottom = viewport.height + viewport.offsetTop;
+			const overlap = Math.max(0, Math.round(layoutHeight - visibleBottom));
+			// Ignore tiny viewport shifts from browser chrome changes.
+			setMobileKeyboardInset(overlap >= 60 ? overlap : 0);
+		};
+
+		updateKeyboardInset();
+		viewport.addEventListener("resize", updateKeyboardInset);
+		viewport.addEventListener("scroll", updateKeyboardInset);
+
+		return () => {
+			viewport.removeEventListener("resize", updateKeyboardInset);
+			viewport.removeEventListener("scroll", updateKeyboardInset);
+		};
+	}, [isDesktop]);
 
 	const handlePendingAlbumShareBackdropClose = createBackdropCloseHandler(
 		closePendingAlbumShare,
@@ -484,7 +516,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					<form
 						onSubmit={handleSend}
 						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
-						style={!isDesktop ? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" } : undefined}
+						style={
+							!isDesktop
+								? {
+									bottom: `${mobileKeyboardInset}px`,
+									paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+								}
+								: undefined
+						}
 					>
 						<div className="mb-2 flex flex-wrap items-center gap-2">
 							<button

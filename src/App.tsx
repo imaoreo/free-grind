@@ -82,6 +82,7 @@ export default function App() {
 							path="/auth/password-reset"
 							element={<PasswordResetPage />}
 						/>
+					<Route path="/report-issue" element={<ReportIssuePage />} />
 
 						{/* Protected Routes */}
 						<Route
