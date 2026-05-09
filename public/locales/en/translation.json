@@ -480,6 +480,7 @@
     },
     "issues_form": {
         "title": "Report a Bug or Suggest a Feature",
+        "title_bug_only": "Report a Bug",
         "subtitle": "This report is sent to the internal issue board and can sync to Discord.",
         "type_label": "Type",
         "type_bug": "Bug",
@@ -524,6 +525,9 @@
             "signing_in": "Signing in...",
             "sign_in_with_token": "Sign In with Token",
             "submit": "Sign In"
+        },
+        "bug_report": {
+            "button": "Report a bug"
         },
         "sign_up": {
             "title": "Sign Up",
