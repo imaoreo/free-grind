@@ -1,5 +1,11 @@
 import i18n from "../../../i18n";
 import type { BrowseCard, ManagedOption } from "../GridPage.types";
+import {
+	formatDistanceForUnits,
+	formatHeightForUnits,
+	formatWeightForUnits,
+	type UnitsPreset,
+} from "../../../utils/units";
 
 type AccountCreationAnchor = {
 	time: number;
@@ -112,16 +118,9 @@ export function formatEstimatedAccountCreation(
 export function formatDistance(
 	distanceMeters: number | null | undefined,
 	t?: (key: string, options?: any) => string,
+	unitsPreset: UnitsPreset = "world",
 ): string {
-	if (distanceMeters == null || !Number.isFinite(distanceMeters)) {
-		return t ? t("browse_page.distance_hidden") : "hidden";
-	}
-
-	if (distanceMeters < 1000) {
-		return `${Math.max(0, Math.round(distanceMeters))} m`;
-	}
-
-	return `${(distanceMeters / 1000).toFixed(1)} km`;
+	return formatDistanceForUnits(distanceMeters, unitsPreset, t);
 }
 
 export function isCurrentlyOnline(
@@ -294,23 +293,17 @@ export function formatEnumArray(
 export function formatHeightCm(
 	value: number | null | undefined,
 	t?: (key: string, options?: any) => string,
+	unitsPreset: UnitsPreset = "world",
 ): string {
-	if (value == null || !Number.isFinite(value)) {
-		return t ? t("browse_page.not_set") : "Not set";
-	}
-
-	return `${value}cm`;
+	return formatHeightForUnits(value, unitsPreset, t);
 }
 
 export function formatWeightKg(
 	value: number | null | undefined,
 	t?: (key: string, options?: any) => string,
+	unitsPreset: UnitsPreset = "world",
 ): string {
-	if (value == null || !Number.isFinite(value)) {
-		return t ? t("browse_page.not_set") : "Not set";
-	}
-
-	return `${(value / 1000).toFixed(0)}kg`;
+	return formatWeightForUnits(value, unitsPreset, t);
 }
 
 export function shouldHideField(formattedValue: string | undefined): boolean {

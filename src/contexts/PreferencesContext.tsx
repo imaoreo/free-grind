@@ -8,6 +8,7 @@ import {
 } from "react";
 import z from "zod";
 import { geohashSchema } from "../utils/geohash";
+import { UNIT_PRESETS, type UnitsPreset } from "../utils/units";
 
 export const COLOR_SCHEMES = ["system", "light", "dark"] as const;
 export type ColorScheme = (typeof COLOR_SCHEMES)[number];
@@ -143,6 +144,7 @@ const preferencesSchema = z.object({
 	accentColor: z.string().default("#ffcc01"),
 	accentContrast: z.string().default("#1a1a1a"),
 	mobileGridColumns: z.enum(["2", "3"]).default("3"),
+	unitsPreset: z.enum(UNIT_PRESETS).default("world"),
 	developerMode: z.boolean().default(false),
 });
 
@@ -163,6 +165,7 @@ type PreferencesAction =
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_COLOR_SCHEME"; payload: ColorScheme }
 	| { type: "SET_MOBILE_GRID_COLUMNS"; payload: "2" | "3" }
+	| { type: "SET_UNITS_PRESET"; payload: UnitsPreset }
 	| { type: "SET_DEVELOPER_MODE"; payload: boolean }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
@@ -181,6 +184,8 @@ function preferencesReducer(
 			return { ...state, colorScheme: action.payload };
 		case "SET_MOBILE_GRID_COLUMNS":
 			return { ...state, mobileGridColumns: action.payload };
+		case "SET_UNITS_PRESET":
+			return { ...state, unitsPreset: action.payload };
 		case "SET_DEVELOPER_MODE":
 			return { ...state, developerMode: action.payload };
 		case "SET_ACCENT":
@@ -224,6 +229,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		accentColor: "#ffcc01",
 		accentContrast: "#1a1a1a",
 		mobileGridColumns: "3",
+		unitsPreset: "world",
 		developerMode: false,
 		isLoading: true,
 	});
@@ -240,6 +246,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_LOCATION_NAME", payload: parsed.locationName ?? null });
 					dispatch({ type: "SET_COLOR_SCHEME", payload: parsed.colorScheme });
 					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
+					dispatch({ type: "SET_UNITS_PRESET", payload: parsed.unitsPreset });
 					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
 					dispatch({
 						type: "SET_ACCENT",
@@ -266,6 +273,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				accentColor: state.accentColor,
 				accentContrast: state.accentContrast,
 				mobileGridColumns: state.mobileGridColumns,
+				unitsPreset: state.unitsPreset,
 				developerMode: state.developerMode,
 			};
 			const preferences: Preferences = {
@@ -288,6 +296,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.mobileGridColumns !== undefined) {
 				dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: newValues.mobileGridColumns });
+			}
+			if (newValues.unitsPreset !== undefined) {
+				dispatch({ type: "SET_UNITS_PRESET", payload: newValues.unitsPreset });
 			}
 			if (newValues.developerMode !== undefined) {
 				dispatch({ type: "SET_DEVELOPER_MODE", payload: newValues.developerMode });
@@ -318,6 +329,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			state.accentColor,
 			state.accentContrast,
 			state.mobileGridColumns,
+			state.unitsPreset,
 			state.developerMode,
 		],
 	);
@@ -329,6 +341,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		accentColor: state.accentColor,
 		accentContrast: state.accentContrast,
 		mobileGridColumns: state.mobileGridColumns,
+		unitsPreset: state.unitsPreset,
 		developerMode: state.developerMode,
 		setPreferences,
 		isLoading: state.isLoading,

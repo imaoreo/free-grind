@@ -23,6 +23,7 @@ import {
 import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
+import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
 	getMessagePreviewLabel,
 	getOtherParticipant,
@@ -116,6 +117,7 @@ type ChatThreadPanelProps = {
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 
@@ -261,7 +263,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				);
 				const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 				const distanceLabel = otherParticipant?.distanceMetres
-					? formatDistance(otherParticipant.distanceMetres)
+					? formatDistance(otherParticipant.distanceMetres, t, unitsPreset)
 					: null;
 				return (
 					<div
