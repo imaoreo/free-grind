@@ -32,7 +32,9 @@
         "switched_channel": "Cambiado a {{channel}}. Recargando…",
         "failed_switch_env": "Error al cambiar el entorno de actualización.",
         "report_issue": "Informar de un error o sugerencias",
-        "report_issue_desc": "Envía informes de errores y solicitudes de sugerencias para el equipo."
+        "report_issue_desc": "Envía informes de errores y solicitudes de sugerencias para el equipo.",
+        "blocked_accounts": "Cuentas bloqueadas",
+        "blocked_accounts_desc": "Mira a quién has bloqueado y desbloquéalos en cualquier momento."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -726,7 +728,17 @@
         },
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before"
+        "chatted_before": "Chatted before",
+        "block": "Bloquear",
+        "unblock": "Desbloquear",
+        "block_in_progress": "Bloqueando...",
+        "unblock_in_progress": "Desbloqueando...",
+        "block_confirm": "¿Bloquear este perfil? Esto eliminará la conversación para ambos usuarios.",
+        "unblock_confirm": "¿Desbloquear este perfil?",
+        "block_success": "Perfil bloqueado",
+        "unblock_success": "Perfil desbloqueado",
+        "block_failed": "Error al cargar perfil bloqueado",
+        "unblock_failed": "Error al desbloquear perfil"
     },
     "nav": {
         "browse": "Navegar",
@@ -940,5 +952,18 @@
         "pull": "Tira para recargar",
         "release": "Suelta para recargar",
         "refreshing": "Recargando..."
+    },
+    "settings_blocked": {
+        "title": "Cuentas bloqueadas",
+        "subtitle": "La gente que bloquees se ocultarán y los chats son eliminados por ambas partes.",
+        "loading": "Cargando cuentas bloqueadas...",
+        "error_load": "Error al cargar cuentas bloqueadas",
+        "empty": "No has bloqueado a nadie.",
+        "refresh": "Recargar",
+        "refreshing": "Recargando...",
+        "profile_id": "ID de perfil: {{id}}",
+        "count_one": "{{count}} cuenta bloqueada",
+        "count_many": "{{count}} cuentas bloqueadas",
+        "count_other": "{{count}} cuentas bloqueadas"
     }
 }
