@@ -17,6 +17,7 @@ import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+import { formatDateTime24 } from "../../chat/chatUtils";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 
@@ -31,6 +32,7 @@ type ProfileDetailsContentProps = {
 	mobileCarouselPhotoIndex: number;
 	handleMobileCarouselScroll: (event: UIEvent<HTMLDivElement>) => void;
 	openPhotoViewer: (index: number) => void;
+	photoCreatedAtByHash: Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }>;
 	activeProfileName: string;
 	estimatedCreatedAt: string;
 	profileStatusLabel: string;
@@ -82,6 +84,7 @@ export function ProfileDetailsContent({
 	mobileCarouselPhotoIndex,
 	handleMobileCarouselScroll,
 	openPhotoViewer,
+	photoCreatedAtByHash,
 	activeProfileName,
 	estimatedCreatedAt,
 	profileStatusLabel,
@@ -128,6 +131,24 @@ export function ProfileDetailsContent({
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
 
+	const renderPhotoCreatedBadge = (hash: string) => {
+		const meta = photoCreatedAtByHash[hash] ?? null;
+		const timeLabel = meta?.createdAt ? formatDateTime24(meta.createdAt) : null;
+		if (!timeLabel && !meta?.takenOnGrindr) return null;
+		return (
+			<div className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
+				{meta?.takenOnGrindr ? (
+					<img
+						src={freegrindLogo}
+						alt={t("chat.thread.taken_on_grindr")}
+						className="h-3.5 w-3.5 rounded-full"
+					/>
+				) : null}
+				{timeLabel ? <span>{timeLabel}</span> : null}
+			</div>
+		);
+	};
+
 	const handleBlockAction = () => {
 		if (!messageProfileId || isBlockingProfile) {
 			return;
@@ -166,6 +187,7 @@ export function ProfileDetailsContent({
 												className="aspect-[2/3] w-full shrink-0 snap-center snap-always overflow-hidden"
 												aria-label={t("profile_details.open_photo", { index: index + 1 })}
 											>
+											<div className="relative h-full w-full">
 												<img
 													/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
 													   on high-density mobile screens, as thumbnails (320x320) appear blurry here. */
@@ -173,6 +195,8 @@ export function ProfileDetailsContent({
 													alt={t("profile_details.photo_alt", { name: activeProfileName })}
 													className="h-full w-full object-cover"
 												/>
+												{renderPhotoCreatedBadge(hash)}
+											</div>
 											</button>
 										))}
 									</div>
@@ -198,11 +222,14 @@ export function ProfileDetailsContent({
 											className="overflow-hidden rounded-xl border border-[var(--border)]"
 											aria-label={t("profile_details.open_photo", { index: index + 1 })}
 										>
-											<img
-												src={getThumbImageUrl(hash, "320x320")}
-												alt={t("profile_details.photo_alt", { name: activeProfileName })}
-												className="aspect-square w-full object-cover"
-											/>
+											<div className="relative">
+												<img
+													src={getThumbImageUrl(hash, "320x320")}
+													alt={t("profile_details.photo_alt", { name: activeProfileName })}
+													className="aspect-square w-full object-cover"
+												/>
+												{renderPhotoCreatedBadge(hash)}
+											</div>
 										</button>
 									))}
 								</div>
@@ -217,11 +244,14 @@ export function ProfileDetailsContent({
 										className="overflow-hidden rounded-xl border border-[var(--border)]"
 										aria-label={t("profile_details.open_photo", { index: index + 1 })}
 									>
-										<img
-											src={getThumbImageUrl(hash, "320x320")}
-											alt={t("profile_details.photo_alt", { name: activeProfileName })}
-											className="aspect-square w-full object-cover"
-										/>
+										<div className="relative">
+											<img
+												src={getThumbImageUrl(hash, "320x320")}
+												alt={t("profile_details.photo_alt", { name: activeProfileName })}
+												className="aspect-square w-full object-cover"
+											/>
+											{renderPhotoCreatedBadge(hash)}
+										</div>
 									</button>
 								))}
 							</div>
