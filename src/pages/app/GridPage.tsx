@@ -37,6 +37,10 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+
+const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
+const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -74,6 +78,23 @@ export function GridPage() {
 	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
 		null,
 	);
+	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
+		action: "block" | "unblock";
+		profileId: string;
+	} | null>(null);
+	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
+	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
+	});
+	const [skipUnblockConfirm, setSkipUnblockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
+	});
 	const isMountedRef = useRef(true);
 
 	const {
@@ -637,22 +658,8 @@ export function GridPage() {
 		}
 	};
 
-	const handleBlockProfile = useCallback(
+	const performBlockProfile = useCallback(
 		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
-				return;
-			}
-
-			const requiresConfirm = window.matchMedia(
-				"(hover: hover) and (pointer: fine)",
-			).matches;
-			const confirmed = requiresConfirm
-				? window.confirm(t("profile_details.block_confirm"))
-				: true;
-			if (!confirmed) {
-				return;
-			}
-
 			setMutatingBlockProfileId(targetProfileId);
 			try {
 				await apiFunctions.blockProfile(targetProfileId);
@@ -676,25 +683,11 @@ export function GridPage() {
 				setMutatingBlockProfileId(null);
 			}
 		},
-		[activeProfileId, apiFunctions, mutatingBlockProfileId, t],
+		[activeProfileId, apiFunctions, t],
 	);
 
-	const handleUnblockProfile = useCallback(
+	const performUnblockProfile = useCallback(
 		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
-				return;
-			}
-
-			const requiresConfirm = window.matchMedia(
-				"(hover: hover) and (pointer: fine)",
-			).matches;
-			const confirmed = requiresConfirm
-				? window.confirm(t("profile_details.unblock_confirm"))
-				: true;
-			if (!confirmed) {
-				return;
-			}
-
 			setMutatingBlockProfileId(targetProfileId);
 			try {
 				await apiFunctions.unblockProfile(targetProfileId);
@@ -714,8 +707,79 @@ export function GridPage() {
 				setMutatingBlockProfileId(null);
 			}
 		},
-		[apiFunctions, mutatingBlockProfileId, t],
+		[apiFunctions, t],
 	);
+
+	const handleBlockProfile = useCallback(
+		async (targetProfileId: string) => {
+			if (mutatingBlockProfileId) {
+				return;
+			}
+
+			if (skipBlockConfirm) {
+				await performBlockProfile(targetProfileId);
+				return;
+			}
+
+			setDontAskAgainChecked(false);
+			setPendingProfileConfirm({ action: "block", profileId: targetProfileId });
+		},
+		[mutatingBlockProfileId, performBlockProfile, skipBlockConfirm],
+	);
+
+	const handleUnblockProfile = useCallback(
+		async (targetProfileId: string) => {
+			if (mutatingBlockProfileId) {
+				return;
+			}
+
+			if (skipUnblockConfirm) {
+				await performUnblockProfile(targetProfileId);
+				return;
+			}
+
+			setDontAskAgainChecked(false);
+			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+		},
+		[mutatingBlockProfileId, performUnblockProfile, skipUnblockConfirm],
+	);
+
+	const handleCancelProfileConfirm = useCallback(() => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+		setPendingProfileConfirm(null);
+	}, [mutatingBlockProfileId]);
+
+	const handleConfirmProfileAction = useCallback(async () => {
+		if (!pendingProfileConfirm || mutatingBlockProfileId) {
+			return;
+		}
+
+		const { action, profileId } = pendingProfileConfirm;
+		if (dontAskAgainChecked && typeof window !== "undefined") {
+			if (action === "block") {
+				localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
+				setSkipBlockConfirm(true);
+			} else {
+				localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
+				setSkipUnblockConfirm(true);
+			}
+		}
+
+		setPendingProfileConfirm(null);
+		if (action === "block") {
+			await performBlockProfile(profileId);
+			return;
+		}
+		await performUnblockProfile(profileId);
+	}, [
+		dontAskAgainChecked,
+		mutatingBlockProfileId,
+		pendingProfileConfirm,
+		performBlockProfile,
+		performUnblockProfile,
+	]);
 
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
@@ -993,6 +1057,35 @@ export function GridPage() {
 				chatContactStatus={selectedProfileChatContact}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
+			/>
+
+			<ConfirmDialog
+				isOpen={pendingProfileConfirm !== null}
+				title={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock")
+						: t("profile_details.block")
+				}
+				message={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock_confirm")
+						: t("profile_details.block_confirm")
+				}
+				confirmLabel={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock")
+						: t("profile_details.block")
+				}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={handleConfirmProfileAction}
+				onCancel={handleCancelProfileConfirm}
+				isProcessing={Boolean(mutatingBlockProfileId)}
+				confirmTone={
+					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
+				}
+				dontAskAgainLabel={t("profile_details.dont_ask_again")}
+				dontAskAgainChecked={dontAskAgainChecked}
+				onDontAskAgainChange={setDontAskAgainChecked}
 			/>
 		</PullToRefreshContainer>
 	);

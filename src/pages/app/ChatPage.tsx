@@ -159,6 +159,9 @@ export function ChatPage() {
 	const [isSending, setIsSending] = useState(false);
 	const [isUpdatingConversationState, setIsUpdatingConversationState] =
 		useState(false);
+	const [isBlockingProfileId, setIsBlockingProfileId] = useState<string | null>(
+		null,
+	);
 
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
@@ -1547,6 +1550,81 @@ export function ChatPage() {
 		toast.success(t("chat.toasts.cleared_local_history"));
 	}, [selectedConversation]);
 
+	const blockProfileFromChat = useCallback(
+		async (profileId: number) => {
+			if (isBlockingProfileId) {
+				return;
+			}
+
+			const targetProfileId = String(profileId);
+			setIsBlockingProfileId(targetProfileId);
+
+			try {
+				await service.blockProfile(targetProfileId);
+				setConversations((previous) =>
+					previous.filter(
+						(conversation) =>
+							!conversation.data.participants.some(
+								(participant) =>
+									String(participant.profileId) === targetProfileId,
+							),
+					),
+				);
+				setSelectedDesktopConversationId((current) => {
+					if (!current) {
+						return null;
+					}
+					const activeConversation = conversationsRef.current.find(
+						(conversation) => conversation.data.conversationId === current,
+					);
+					if (!activeConversation) {
+						return null;
+					}
+					const blockedInSelectedConversation =
+						activeConversation.data.participants.some(
+							(participant) =>
+								String(participant.profileId) === targetProfileId,
+						);
+					return blockedInSelectedConversation ? null : current;
+				});
+				setThreadConversationId((current) => {
+					if (!current) {
+						return null;
+					}
+					const activeConversation = conversationsRef.current.find(
+						(conversation) => conversation.data.conversationId === current,
+					);
+					if (!activeConversation) {
+						return null;
+					}
+					const blockedInSelectedConversation =
+						activeConversation.data.participants.some(
+							(participant) =>
+								String(participant.profileId) === targetProfileId,
+						);
+					return blockedInSelectedConversation ? null : current;
+				});
+				setThreadMessages((previous) =>
+					previous.filter(
+						(message) =>
+							message.conversationId !== selectedConversationIdRef.current,
+					),
+				);
+				toast.success(t("profile_details.block_success"));
+				navigate("/chat", { replace: true });
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("profile_details.block_failed"),
+				);
+			} finally {
+				setIsBlockingProfileId(null);
+			}
+		},
+		[isBlockingProfileId, navigate, service, t],
+	);
+
 	const sendTextMessage = useCallback(
 		async (
 			text: string,
@@ -2377,6 +2455,8 @@ export function ChatPage() {
 			togglePin={togglePin}
 			toggleMute={toggleMute}
 			clearLocalHistory={clearLocalHistory}
+			onBlockProfile={blockProfileFromChat}
+			isBlockingProfile={isBlockingProfileId !== null}
 			getProfileReturnToChatPath={getProfileReturnToChatPath}
 			isLoadingThread={isLoadingThread}
 			threadConversationId={threadConversationId}
