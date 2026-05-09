@@ -11,6 +11,7 @@ import { formatRelativeTime } from "../../../../utils/relativeTime";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
 type BrowseCardTileProps = {
@@ -28,6 +29,7 @@ export function BrowseCardTile({
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
@@ -109,7 +111,7 @@ export function BrowseCardTile({
 				<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
 					<span className="inline-flex items-center gap-1 text-xs font-semibold">
 						<MapPin className="h-3.5 w-3.5" />
-						{formatDistance(card.distanceMeters, t)}
+						{formatDistance(card.distanceMeters, t, unitsPreset)}
 					</span>
 				</div>
 			</div>

@@ -449,6 +449,11 @@
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
+        "units": "Units",
+        "units_description": "Choose how distance and height are displayed.",
+        "units_world": "World (meters + cm)",
+        "units_uk": "UK (meters + feet/inches)",
+        "units_american": "American (miles + feet/inches)",
         "color_scheme": "Color Scheme",
         "accent_color": "Accent Color",
         "selected": "Selected",
