@@ -8,6 +8,7 @@ interface RangeSliderProps {
 	maxDefault: number;
 	label: string;
 	unit?: string;
+	formatValue?: (value: number) => string;
 	onChange: (min: number, max: number) => void;
 }
 
@@ -122,6 +123,7 @@ export function RangeSlider({
 	maxDefault,
 	label,
 	unit = "",
+	formatValue,
 	onChange,
 }: RangeSliderProps) {
 	const [minValue, setMinValue] = useState(minDefault);
@@ -173,7 +175,7 @@ export function RangeSlider({
 					{label}
 				</span>
 				<span className="text-xs font-medium bg-[var(--surface-2)] px-2 py-0.5 rounded-md border border-[var(--border)]">
-					{minValue}{unit} - {maxValue}{maxValue >= max ? "+" : ""}{unit}
+					{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
 				</span>
 			</div>
 

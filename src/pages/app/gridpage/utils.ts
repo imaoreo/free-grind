@@ -3,6 +3,7 @@ import type { BrowseCard, ManagedOption } from "../GridPage.types";
 import {
 	formatDistanceForUnits,
 	formatHeightForUnits,
+	formatWeightForUnits,
 	type UnitsPreset,
 } from "../../../utils/units";
 
@@ -300,12 +301,9 @@ export function formatHeightCm(
 export function formatWeightKg(
 	value: number | null | undefined,
 	t?: (key: string, options?: any) => string,
+	unitsPreset: UnitsPreset = "world",
 ): string {
-	if (value == null || !Number.isFinite(value)) {
-		return t ? t("browse_page.not_set") : "Not set";
-	}
-
-	return `${(value / 1000).toFixed(0)}kg`;
+	return formatWeightForUnits(value, unitsPreset, t);
 }
 
 export function shouldHideField(formattedValue: string | undefined): boolean {
