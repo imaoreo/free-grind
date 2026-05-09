@@ -122,7 +122,16 @@ impl GrindrClient {
             builder.build()?
         };
 
-        let session = AuthStorage::get_session()?;
+        let session = match AuthStorage::get_session() {
+            Ok(session) => session,
+            Err(error) => {
+                eprintln!(
+                    "[AUTH] Failed to restore persisted session (continuing unauthenticated): {}",
+                    error
+                );
+                None
+            }
+        };
 
         Ok(Self {
             http,
