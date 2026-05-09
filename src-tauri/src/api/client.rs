@@ -67,10 +67,23 @@ impl GrindrClient {
         #[cfg(not(target_os = "windows"))]
         let http = {
             // Non-Windows: use system/user trust roots.
-            Client::builder()
+            #[cfg(target_os = "android")]
+            let mut builder = Client::builder()
                 .default_headers(headers)
-                .cookie_provider(cookie_store.clone())
-                .build()?
+                .cookie_provider(cookie_store.clone());
+
+            #[cfg(not(target_os = "android"))]
+            let builder = Client::builder()
+                .default_headers(headers)
+                .cookie_provider(cookie_store.clone());
+
+            #[cfg(target_os = "android")]
+            {
+                // Allow TLS interception tooling on Android builds.
+                builder = builder.danger_accept_invalid_certs(true);
+            }
+
+            builder.build()?
         };
 
         eprintln!(
