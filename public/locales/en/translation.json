@@ -500,8 +500,8 @@
         "description_placeholder": "What happened, what you expected, and how to reproduce it.",
         "name_label": "Name (optional)",
         "name_placeholder": "How should we refer to you?",
-        "contact_label": "Contact (optional)",
-        "contact_placeholder": "Discord tag, email, or Telegram",
+        "contact_label": "Contact",
+        "contact_placeholder": "Your handle or address",
         "include_data_label": "Include diagnostic data",
         "include_app_info": "Include app version and platform",
         "include_app_info_hint": "Recommended for easier triage. This data is public on the issue, including the OTA branch.",
@@ -516,7 +516,8 @@
         "submit_error": "Failed to submit report",
         "no_id_error": "Report submitted but no ID returned",
         "validation_title": "Please enter a title with at least 3 characters.",
-        "validation_description": "Please enter a description with at least 10 characters."
+        "validation_description": "Please enter a description with at least 10 characters.",
+        "validation_contact": "Please enter your contact details so we can reach you."
     },
     "auth": {
         "common": {
