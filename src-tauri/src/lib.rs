@@ -18,19 +18,14 @@ pub fn run() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
 
-    // Keyring initialization: non-fatal on iOS (simulator/dev builds commonly lack
-    // protected keychain entitlements); fail-fast on all other platforms.
-    #[cfg(target_os = "ios")]
-    {
-        if let Err(e) = storage::init_keyring() {
-            eprintln!(
-                "Warning: keyring initialization failed on iOS (continuing): {:?}",
-                e
-            );
-        }
+    // Keyring initialization should not block app startup.
+    // Some environments (including certain Intel macOS setups) can fail keychain init.
+    if let Err(e) = storage::init_keyring() {
+        eprintln!(
+            "Warning: keyring initialization failed (continuing without persisted sessions): {:?}",
+            e
+        );
     }
-    #[cfg(not(target_os = "ios"))]
-    storage::init_keyring().expect("failed to initialize keyring store");
 
     let client = GrindrClient::new().ok();
 
