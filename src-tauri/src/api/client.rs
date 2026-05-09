@@ -122,8 +122,17 @@ impl GrindrClient {
             builder.build()?
         };
 
+        eprintln!("[CLIENT] Initializing GrindrClient on os={}", std::env::consts::OS);
+
         let session = match AuthStorage::get_session() {
-            Ok(session) => session,
+            Ok(Some(session)) => {
+                eprintln!("[CLIENT] Restored session for profile_id={}", session.profile_id);
+                Some(session)
+            }
+            Ok(None) => {
+                eprintln!("[CLIENT] No stored session found; starting unauthenticated.");
+                None
+            }
             Err(error) => {
                 eprintln!(
                     "[AUTH] Failed to restore persisted session (continuing unauthenticated): {}",

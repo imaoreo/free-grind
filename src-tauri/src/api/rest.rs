@@ -36,14 +36,25 @@ impl GrindrClient {
             request = request.json(body);
         }
 
-        eprintln!("Request: {} {} on {:?}", method, url, std::env::consts::OS);
+        let started_at = std::time::Instant::now();
+        eprintln!("[REST] {} {}", method, url);
 
-        let response = request.send().await?;
+        let response = request.send().await.map_err(|e| {
+            eprintln!("[REST] network error on {} {}: {e}", method, url);
+            e
+        })?;
 
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            eprintln!("API error: status={}, body={}", status, text);
+            eprintln!(
+                "[REST] error {} {} -> status={} body={} ({}ms)",
+                method,
+                url,
+                status,
+                text,
+                started_at.elapsed().as_millis()
+            );
 
             let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
             let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
@@ -62,7 +73,17 @@ impl GrindrClient {
             return Err(AppError::Api { code, message });
         }
 
-        response.json::<TResp>().await.map_err(Into::into)
+        let resp = response.json::<TResp>().await.map_err(|e| {
+            eprintln!("[REST] JSON decode error on {} {}: {e}", method, url);
+            AppError::from(e)
+        })?;
+        eprintln!(
+            "[REST] {} {} -> 2xx ({}ms)",
+            method,
+            url,
+            started_at.elapsed().as_millis()
+        );
+        Ok(resp)
     }
 
     pub(super) async fn request_raw(

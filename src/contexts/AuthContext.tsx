@@ -50,18 +50,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const checkAuth = async () => {
 		try {
+			appLog.debug("[Auth] checkAuth: starting");
 			dispatch({ type: "SET_LOADING", payload: true });
 			const result = await callMethod("auth_state");
 			if (result !== null) {
+				appLog.info("[Auth] checkAuth: active session found");
 				dispatch({ type: "SET_USER", payload: result });
 			} else {
+				appLog.info("[Auth] checkAuth: no active session");
 				dispatch({ type: "CLEAR_USER" });
 			}
 		} catch (error) {
 			const appError = asAppError(error);
 			if (appError?.kind === "NotInitialized") {
+				appLog.warn("[Auth] checkAuth: client NotInitialized, clearing user");
 				dispatch({ type: "CLEAR_USER" });
 			} else {
+				appLog.error("[Auth] checkAuth failed", appError ?? error);
 				dispatch({
 					type: "SET_ERROR",
 					payload: appError?.prettyMessage || "Failed to check auth status",
@@ -74,15 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const login = async (email: string, password: string) => {
 		try {
+			appLog.info("[Auth] login: attempting email/password login");
 			dispatch({ type: "SET_LOADING", payload: true });
 			dispatch({ type: "SET_ERROR", payload: null });
 
 			const result = await callMethod("login", { email, password });
+			appLog.info("[Auth] login: succeeded");
 			dispatch({ type: "SET_USER", payload: result.profileId });
 			toast.success("Login successful");
 		} catch (error) {
 			const appError = asAppError(error);
 			const message = appError?.prettyMessage || "Login failed";
+			appLog.error("[Auth] login failed", { kind: appError?.kind, message });
 			dispatch({ type: "SET_ERROR", payload: message });
 			toast.error(message);
 			throw error;
@@ -93,15 +101,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 	const loginWithJwt = async (token: string) => {
 		try {
+			appLog.info("[Auth] loginWithJwt: attempting token login");
 			dispatch({ type: "SET_LOADING", payload: true });
 			dispatch({ type: "SET_ERROR", payload: null });
 
 			const result = await callMethod("login_with_jwt", { token });
+			appLog.info("[Auth] loginWithJwt: succeeded");
 			dispatch({ type: "SET_USER", payload: result.profileId });
 			toast.success("Token login successful");
 		} catch (error) {
 			const appError = asAppError(error);
 			const message = appError?.prettyMessage || "Token login failed";
+			appLog.error("[Auth] loginWithJwt failed", { kind: appError?.kind, message });
 			dispatch({ type: "SET_ERROR", payload: message });
 			toast.error(message);
 			throw error;
