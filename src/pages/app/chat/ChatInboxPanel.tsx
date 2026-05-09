@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
+import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
 import type { RefObject, TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
@@ -43,6 +43,7 @@ type ChatInboxPanelProps = {
 	onSelectConversation: (conversation: ConversationEntry) => void;
 	onClearInboxFilters: () => void;
 	onToggleHidePinned: () => void;
+	onToggleFavoritesOnly: () => void;
 	onOpenFilters: (filtersDraft: ReturnType<typeof buildChatFiltersDraft>) => void;
 	onOpenSearch: () => void;
 	onOpenInbox: () => void;
@@ -71,6 +72,7 @@ export function ChatInboxPanel({
 	onInboxTouchEnd,
 	onSelectConversation,
 	onToggleHidePinned,
+	onToggleFavoritesOnly,
 	onOpenFilters,
 	onOpenSearch,
 	onOpenInbox,
@@ -120,6 +122,15 @@ export function ChatInboxPanel({
 						<span>{realtimeStatusMeta.label}</span>
 					</span>
 					<div className="flex items-center gap-2">
+						<button
+							type="button"
+							onClick={onToggleFavoritesOnly}
+							className={`rounded-xl border p-2 transition ${inboxFilters.favoritesOnly ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]" : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"}`}
+							aria-label={t("browse_filters.options.favorites")}
+							title={t("browse_filters.options.favorites")}
+						>
+							<Heart className="h-4 w-4" />
+						</button>
 						<button
 							type="button"
 							onClick={onToggleHidePinned}

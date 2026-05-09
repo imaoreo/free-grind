@@ -145,6 +145,13 @@ export function ChatPage() {
 		setInboxFilters({});
 	}, []);
 
+	const toggleInboxFavoritesOnly = useCallback(() => {
+		setInboxFilters((previous) => ({
+			...previous,
+			favoritesOnly: previous.favoritesOnly ? undefined : true,
+		}));
+	}, []);
+
 	const [threadConversationId, setThreadConversationId] = useState<
 		string | null
 	>(null);
@@ -2423,6 +2430,7 @@ export function ChatPage() {
 			onSelectConversation={handleSelectConversation}
 			onClearInboxFilters={clearInboxFilters}
 			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
+			onToggleFavoritesOnly={toggleInboxFavoritesOnly}
 			onOpenFilters={(inboxFiltersDraft) =>
 				navigate("/chat/filters", {
 					state: {
