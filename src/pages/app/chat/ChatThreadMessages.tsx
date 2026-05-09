@@ -7,6 +7,7 @@ import type { UiMessage } from "../../../types/chat-page";
 import { Avatar } from "../../../components/ui/avatar";
 import blankProfileImage from "../../../images/blank-profile.png";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
+import { usePreferences } from "../../../contexts/PreferencesContext";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
 import {
 	formatDateHeader,
@@ -143,6 +144,47 @@ export function ChatThreadMessages({
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
+	const { blurIncomingMedia } = usePreferences();
+	const [revealedMediaMessageIds, setRevealedMediaMessageIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
+
+	useEffect(() => {
+		setRevealedMediaMessageIds(new Set());
+		setHoveredMediaMessageId(null);
+	}, [selectedConversation.data.conversationId]);
+
+	const revealMediaMessage = useCallback((messageId: string) => {
+		setRevealedMediaMessageIds((previous) => {
+			if (previous.has(messageId)) {
+				return previous;
+			}
+			const next = new Set(previous);
+			next.add(messageId);
+			return next;
+		});
+	}, []);
+
+	const handleMediaMouseEnter = useCallback(
+		(messageId: string) => {
+			if (!isDesktop) {
+				return;
+			}
+			setHoveredMediaMessageId(messageId);
+		},
+		[isDesktop],
+	);
+
+	const handleMediaMouseLeave = useCallback(
+		(messageId: string) => {
+			if (!isDesktop) {
+				return;
+			}
+			setHoveredMediaMessageId((current) => (current === messageId ? null : current));
+		},
+		[isDesktop],
+	);
 
 	const lastMyMessageId = [...threadMessages]
 		.reverse()
@@ -275,6 +317,14 @@ export function ChatThreadMessages({
 									Boolean(location) && messageText === t("chat.preview.sent_location");
 								const isMediaOnlyBubble =
 									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
+								const shouldBlurIncomingMedia =
+									blurIncomingMedia &&
+									!mine &&
+									!revealedMediaMessageIds.has(message.messageId) &&
+									(!isDesktop || hoveredMediaMessageId !== message.messageId);
+								const mediaBlurClassName = shouldBlurIncomingMedia
+									? "blur-xl transition"
+									: "";
 								const senderParticipant =
 									selectedConversation.data.participants.find(
 										(participant) =>
@@ -385,15 +435,21 @@ export function ChatThreadMessages({
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
+															if (shouldBlurIncomingMedia && !isDesktop) {
+																revealMediaMessage(message.messageId);
+																return;
+															}
 															openFullScreenImage(imageUrl);
 														}}
-														className={`${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
 														<div className="relative">
 														<img
 															src={imageUrl}
 															alt={t("chat.thread.shared_alt")}
-																className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
+															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
 														/>
 														{isExpiringImage ? (
 															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
@@ -479,6 +535,10 @@ export function ChatThreadMessages({
 													<button
 														type="button"
 														onClick={() => {
+															if (shouldBlurIncomingMedia && !isDesktop) {
+																revealMediaMessage(message.messageId);
+																return;
+															}
 															if (messageLongPressTriggeredRef.current) {
 																messageLongPressTriggeredRef.current = false;
 																return;
@@ -487,7 +547,9 @@ export function ChatThreadMessages({
 																void openAlbumViewerById(albumId);
 															}
 														}}
-														className="block w-full overflow-hidden rounded-2xl"
+														className="group/media block w-full overflow-hidden rounded-2xl"
+														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
@@ -498,7 +560,7 @@ export function ChatThreadMessages({
 																<img
 																	src={albumCover}
 																alt={t("chat.thread.album_cover")}
-																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""}`}
+																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""} ${mediaBlurClassName}`}
 																	onError={(event) => {
 																		event.currentTarget.style.display = "none";
 																	}}
@@ -565,12 +627,21 @@ export function ChatThreadMessages({
 												) : null}
 
 												{videoUrl ? (
-													<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
+														<div
+															className="group/media mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
+															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
+															onClick={() => {
+																if (shouldBlurIncomingMedia && !isDesktop) {
+																	revealMediaMessage(message.messageId);
+																}
+															}}
+														>
 														<video
 															controls
 															preload="metadata"
 															src={videoUrl}
-															className="max-h-72 w-full"
+																className={`max-h-72 w-full ${mediaBlurClassName} ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`}
 														/>
 													</div>
 												) : null}
