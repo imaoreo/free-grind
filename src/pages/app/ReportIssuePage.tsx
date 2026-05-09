@@ -9,6 +9,13 @@ import { collectIssueLogs, getIssueAppInfo } from "../../utils/issueTelemetry";
 
 type ReportType = "BUG" | "FEATURE";
 
+const REPORTER_DETAILS_STORAGE_KEY = "issue_form_reporter_details";
+
+type StoredReporterDetails = {
+  reporterName: string;
+  reporterContact: string;
+};
+
 export function ReportIssuePage() {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
@@ -23,6 +30,45 @@ export function ReportIssuePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const appInfo = useMemo(() => getIssueAppInfo(), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(REPORTER_DETAILS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<StoredReporterDetails>;
+      if (typeof parsed.reporterName === "string") {
+        setReporterName(parsed.reporterName);
+      }
+      if (typeof parsed.reporterContact === "string") {
+        setReporterContact(parsed.reporterContact);
+      }
+    } catch {
+      // Ignore malformed stored data and keep empty defaults.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const payload: StoredReporterDetails = {
+      reporterName,
+      reporterContact,
+    };
+
+    try {
+      window.localStorage.setItem(REPORTER_DETAILS_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [reporterName, reporterContact]);
 
   useEffect(() => {
     if (kind !== "BUG" && includeLogs) {
