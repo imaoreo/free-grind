@@ -285,10 +285,22 @@ impl AuthStorage {
 
 impl GrindrClient {
     async fn create_session(&self, body: &impl AuthRequest) -> Result<Session, AppError> {
+        eprintln!("[AUTH] POST /v8/sessions for email={}", body.email());
         let session_resp: SessionResponse = self
             .request_json(reqwest::Method::POST, "/v8/sessions", Some(body))
-            .await?;
-        let claims = decode_session_jwt(&session_resp.session_id)?;
+            .await
+            .map_err(|e| {
+                eprintln!("[AUTH] /v8/sessions request failed: {e}");
+                e
+            })?;
+        eprintln!(
+            "[AUTH] /v8/sessions success; profile_id={}",
+            session_resp.profile_id
+        );
+        let claims = decode_session_jwt(&session_resp.session_id).map_err(|e| {
+            eprintln!("[AUTH] JWT decode for session_id failed: {e}");
+            e
+        })?;
 
         let session = Session {
             email: body.email().to_owned(),
@@ -298,15 +310,30 @@ impl GrindrClient {
             expires_at: claims.exp,
         };
 
-        AuthStorage::set_session(&session)?;
+        eprintln!(
+            "[AUTH] Saving session to storage; profile_id={}, expires_at={}",
+            session.profile_id, session.expires_at
+        );
+        AuthStorage::set_session(&session).map_err(|e| {
+            eprintln!("[AUTH] Failed to save session: {e}");
+            e
+        })?;
 
         Ok(session)
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResult, AppError> {
+        eprintln!(
+            "[AUTH] login attempt for email={}***",
+            email.chars().next().unwrap_or('?')
+        );
         let body = LoginRequest::new(email.to_owned(), password.to_owned());
-        let session = self.create_session(&body).await?;
+        let session = self.create_session(&body).await.map_err(|e| {
+            eprintln!("[AUTH] login failed: {e}");
+            e
+        })?;
         let profile_id = session.profile_id.clone();
+        eprintln!("[AUTH] login succeeded; profile_id={profile_id}");
 
         *self.session.write().await = Some(session);
 
@@ -314,7 +341,11 @@ impl GrindrClient {
     }
 
     pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
-        let claims = decode_session_jwt(token)?;
+        eprintln!("[AUTH] login_with_jwt attempt; token_len={}", token.len());
+        let claims = decode_session_jwt(token).map_err(|e| {
+            eprintln!("[AUTH] JWT decode failed: {e}");
+            e
+        })?;
 
         let session = Session {
             email: String::new(),
@@ -326,6 +357,10 @@ impl GrindrClient {
 
         AuthStorage::set_session(&session)?;
         *self.session.write().await = Some(session);
+        eprintln!(
+            "[AUTH] login_with_jwt succeeded; profile_id={}",
+            claims.profile_id
+        );
 
         Ok(LoginResult {
             profile_id: claims.profile_id,
