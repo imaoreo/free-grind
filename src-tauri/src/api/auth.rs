@@ -461,7 +461,7 @@ impl AuthStorage {
             }
         };
         if let Some(entry) = entry {
-            match entry.delete_secret() {
+            match entry.delete_credential() {
                 Ok(()) | Err(keyring_core::Error::NoEntry) => {}
                 Err(error) => {
                     #[cfg(not(target_os = "macos"))]
