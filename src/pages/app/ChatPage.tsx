@@ -2428,6 +2428,12 @@ export function ChatPage() {
 			onInboxTouchStart={handleInboxTouchStart}
 			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
+			onViewProfile={(profileId) => {
+				const returnTo = getProfileReturnToChatPath(profileId);
+				const nextParams = new URLSearchParams();
+				nextParams.set("returnTo", returnTo);
+				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
+			}}
 			onClearInboxFilters={clearInboxFilters}
 			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
 			onToggleFavoritesOnly={toggleInboxFavoritesOnly}

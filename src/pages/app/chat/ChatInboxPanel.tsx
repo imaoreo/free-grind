@@ -41,6 +41,7 @@ type ChatInboxPanelProps = {
 	onInboxTouchStart: TouchEventHandler<HTMLDivElement>;
 	onInboxTouchEnd: TouchEventHandler<HTMLDivElement>;
 	onSelectConversation: (conversation: ConversationEntry) => void;
+	onViewProfile: (profileId: number) => void;
 	onClearInboxFilters: () => void;
 	onToggleHidePinned: () => void;
 	onToggleFavoritesOnly: () => void;
@@ -71,6 +72,7 @@ export function ChatInboxPanel({
 	onInboxTouchStart,
 	onInboxTouchEnd,
 	onSelectConversation,
+	onViewProfile,
 	onToggleHidePinned,
 	onToggleFavoritesOnly,
 	onOpenFilters,
@@ -218,8 +220,16 @@ export function ChatInboxPanel({
 									isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
 								}`}
 							>
-								<div
-									title={otherParticipantOnlineMeta.label}
+							<button
+								type="button"
+								title={conversation.data.name || t("chat.profile")}
+								aria-label={conversation.data.name || t("chat.profile")}
+								onClick={(event) => {
+									event.stopPropagation();
+									if (otherParticipant?.profileId) {
+										onViewProfile(otherParticipant.profileId);
+									}
+								}}
 									className={`relative w-24 shrink-0 transition-all ${
 										isSelected
 											? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
@@ -240,7 +250,7 @@ export function ChatInboxPanel({
 											<Pin className="h-3 w-3 fill-current" />
 										</div>
 									) : null}
-								</div>
+							</button>
 								<div className="min-w-0 flex-1 p-3">
 									<div className="flex items-center justify-between gap-2">
 										<div className="flex min-w-0 items-center gap-1">
