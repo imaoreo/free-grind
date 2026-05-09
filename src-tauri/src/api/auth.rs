@@ -414,9 +414,7 @@ impl AuthStorage {
                 }
             }
         };
-        match entry
-            .set_secret(&session_bytes)
-        {
+        match entry.set_secret(&session_bytes) {
             Ok(()) => {
                 #[cfg(target_os = "macos")]
                 {
