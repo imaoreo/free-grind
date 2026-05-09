@@ -115,6 +115,25 @@ export function formatEstimatedAccountCreation(
 	return formatter.format(new Date(timestamp));
 }
 
+export function formatProfilePhotoCreatedAt(
+	timestamp: number | null | undefined,
+	t?: (key: string, options?: any) => string,
+): string {
+	if (!timestamp || !Number.isFinite(timestamp)) {
+		return t ? t("browse_page.unknown") : "Unknown";
+	}
+
+	const formatter = getDateTimeFormatter(i18n.language, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
+
+	return formatter.format(new Date(timestamp));
+}
+
 export function formatDistance(
 	distanceMeters: number | null | undefined,
 	t?: (key: string, options?: any) => string,

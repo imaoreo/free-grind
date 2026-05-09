@@ -26,6 +26,7 @@ import {
 import { getProfileImageUrl } from "../../../../utils/media";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
+import { formatDateTime24 } from "../../chat/chatUtils";
 import {
 	formatEstimatedAccountCreation,
 	formatEnumArray,
@@ -65,6 +66,20 @@ type ProfileDetailsModalProps = {
 	onPrevProfile?: () => void;
 	onNextProfile?: () => void;
 };
+
+function normalizeMediaCreatedAt(value: unknown): number | null {
+	if (typeof value !== "number" && typeof value !== "string") {
+		return null;
+	}
+
+	const numeric = typeof value === "number" ? value : Number(value.trim());
+	if (!Number.isFinite(numeric) || numeric <= 0) {
+		return null;
+	}
+
+	// Most API timestamps are in milliseconds; seconds are normalized.
+	return numeric < 1_000_000_000_000 ? Math.round(numeric * 1000) : Math.round(numeric);
+}
 
 export function ProfileDetailsModal({
 	isOpen,
@@ -303,6 +318,29 @@ export function ProfileDetailsModal({
 		selectedPhotoIndex === null
 			? null
 			: (activeProfilePhotoHashes[selectedPhotoIndex] ?? null);
+	const photoCreatedAtByHash = useMemo(() => {
+		if (!activeProfile) {
+			return {} as Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }>;
+		}
+
+		const createdMap: Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }> = {};
+		for (const media of activeProfile.medias) {
+			const hash = media.mediaHash;
+			if (!hash) {
+				continue;
+			}
+
+			createdMap[hash] = {
+				createdAt: normalizeMediaCreatedAt(media.createdAt),
+				takenOnGrindr: media.takenOnGrindr ?? null,
+			};
+		}
+
+		return createdMap;
+	}, [activeProfile]);
+	const selectedPhotoMeta = selectedPhotoHash
+		? (photoCreatedAtByHash[selectedPhotoHash] ?? null)
+		: null;
 
 	const openPhotoViewer = (index: number) => {
 		setSelectedPhotoIndex(index);
@@ -406,6 +444,20 @@ export function ProfileDetailsModal({
 				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 					{(selectedPhotoIndex ?? 0) + 1} / {activeProfilePhotoHashes.length}
 				</p>
+				<div className="flex items-center gap-2">
+					{(selectedPhotoMeta?.takenOnGrindr || selectedPhotoMeta?.createdAt) ? (
+						<p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+							{selectedPhotoMeta?.takenOnGrindr ? (
+								<img
+									src={freegrindLogo}
+									alt={t("chat.thread.taken_on_grindr")}
+									className="h-3.5 w-3.5 rounded-full"
+								/>
+							) : null}
+							{selectedPhotoMeta?.createdAt ? <span>{formatDateTime24(selectedPhotoMeta.createdAt)}</span> : null}
+						</p>
+					) : null}
+				</div>
 			</div>
 		</div>
 	) : null;
@@ -490,6 +542,7 @@ export function ProfileDetailsModal({
 								mobileCarouselPhotoIndex={mobileCarouselPhotoIndex}
 								handleMobileCarouselScroll={handleMobileCarouselScroll}
 								openPhotoViewer={openPhotoViewer}
+								photoCreatedAtByHash={photoCreatedAtByHash}
 								activeProfileName={activeProfileName}
 								estimatedCreatedAt={estimatedCreatedAt}
 								profileStatusLabel={profileStatusLabel}
@@ -584,6 +637,7 @@ export function ProfileDetailsModal({
 							mobileCarouselPhotoIndex={mobileCarouselPhotoIndex}
 							handleMobileCarouselScroll={handleMobileCarouselScroll}
 							openPhotoViewer={openPhotoViewer}
+							photoCreatedAtByHash={photoCreatedAtByHash}
 							activeProfileName={activeProfileName}
 							estimatedCreatedAt={estimatedCreatedAt}
 							profileStatusLabel={profileStatusLabel}
