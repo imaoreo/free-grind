@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { RangeSlider } from "../../components/ui/range-slider";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { type ManagedOption } from "./GridPage.types";
 import {
 	type BrowseFilters,
@@ -21,6 +22,21 @@ import {
 	getSexualPositionOptions,
 	getTribeOptions,
 } from "./profile-option-builders";
+import {
+	cmToInches,
+	gramsToKg,
+	gramsToPounds,
+	inchesToCm,
+	kgToGrams,
+	poundsToGrams,
+} from "../../utils/units";
+
+function formatInchesAsFeetInches(totalInches: number): string {
+	const safe = Math.max(0, Math.round(totalInches));
+	const feet = Math.floor(safe / 12);
+	const inches = safe % 12;
+	return `${feet}ft ${inches}in`;
+}
 
 function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 	const persisted = loadBrowseFiltersDraft();
@@ -78,6 +94,7 @@ function parseDraftFromLocationState(state: unknown): BrowseFiltersDraft {
 
 export function BrowseFiltersPage() {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const initialDraft = useMemo(
@@ -111,6 +128,39 @@ export function BrowseFiltersPage() {
 	const [nsfwPics, setNsfwPics] = useState<number[]>(initialDraft.nsfwPics);
 	const [tags, setTags] = useState<string[]>(initialDraft.tags);
 	const [tagDraft, setTagDraft] = useState("");
+
+	const isImperialHeight = unitsPreset === "uk" || unitsPreset === "american";
+	const isImperialWeight = unitsPreset === "american";
+
+	const heightRange = isImperialHeight
+		? { min: 35, max: 91, unit: "" }
+		: { min: 90, max: 230, unit: "cm" };
+
+	const weightRange = isImperialWeight
+		? { min: 66, max: 440, unit: "lb" }
+		: { min: 30, max: 200, unit: "kg" };
+
+	const heightMinDefault = heightCmMin
+		? (isImperialHeight
+			? Math.round(cmToInches(Number(heightCmMin)))
+			: Number(heightCmMin))
+		: heightRange.min;
+	const heightMaxDefault = heightCmMax
+		? (isImperialHeight
+			? Math.round(cmToInches(Number(heightCmMax)))
+			: Number(heightCmMax))
+		: heightRange.max;
+
+	const weightMinDefault = weightGramsMin
+		? (isImperialWeight
+			? Math.round(gramsToPounds(Number(weightGramsMin)))
+			: Math.round(gramsToKg(Number(weightGramsMin))))
+		: weightRange.min;
+	const weightMaxDefault = weightGramsMax
+		? (isImperialWeight
+			? Math.round(gramsToPounds(Number(weightGramsMax)))
+			: Math.round(gramsToKg(Number(weightGramsMax))))
+		: weightRange.max;
 
 	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> =
 		useMemo(
@@ -360,30 +410,37 @@ export function BrowseFiltersPage() {
 						/>
 						<RangeSlider
 							label={t("browse_filters.height")}
-							unit="cm"
-							min={90}
-							max={230}
-							minDefault={heightCmMin ? Number(heightCmMin) : 90}
-							maxDefault={heightCmMax ? Number(heightCmMax) : 230}
+							unit={heightRange.unit}
+							formatValue={
+								isImperialHeight ? formatInchesAsFeetInches : undefined
+							}
+							min={heightRange.min}
+							max={heightRange.max}
+							minDefault={heightMinDefault}
+							maxDefault={heightMaxDefault}
 							onChange={(min, max) => {
-								setHeightCmMin(min === 90 ? "" : String(min));
-								setHeightCmMax(max === 230 ? "" : String(max));
+								const minCm = isImperialHeight ? Math.round(inchesToCm(min)) : min;
+								const maxCm = isImperialHeight ? Math.round(inchesToCm(max)) : max;
+								setHeightCmMin(min === heightRange.min ? "" : String(minCm));
+								setHeightCmMax(max === heightRange.max ? "" : String(maxCm));
 							}}
 						/>
 						<RangeSlider
 							label={t("browse_filters.weight")}
-							unit="kg"
-							min={30}
-							max={200}
-							minDefault={
-								weightGramsMin ? Math.round(Number(weightGramsMin) / 1000) : 30
-							}
-							maxDefault={
-								weightGramsMax ? Math.round(Number(weightGramsMax) / 1000) : 200
-							}
+							unit={weightRange.unit}
+							min={weightRange.min}
+							max={weightRange.max}
+							minDefault={weightMinDefault}
+							maxDefault={weightMaxDefault}
 							onChange={(min, max) => {
-								setWeightGramsMin(min === 30 ? "" : String(min * 1000));
-								setWeightGramsMax(max === 200 ? "" : String(max * 1000));
+								const minGrams = isImperialWeight
+									? Math.round(poundsToGrams(min))
+									: Math.round(kgToGrams(min));
+								const maxGrams = isImperialWeight
+									? Math.round(poundsToGrams(max))
+									: Math.round(kgToGrams(max));
+								setWeightGramsMin(min === weightRange.min ? "" : String(minGrams));
+								setWeightGramsMax(max === weightRange.max ? "" : String(maxGrams));
 							}}
 						/>
 					</div>

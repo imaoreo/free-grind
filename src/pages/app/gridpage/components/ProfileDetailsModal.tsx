@@ -25,6 +25,7 @@ import {
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
 import {
 	formatEstimatedAccountCreation,
 	formatEnumArray,
@@ -92,6 +93,7 @@ export function ProfileDetailsModal({
 	onNextProfile,
 }: ProfileDetailsModalProps) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const activeProfileName = useMemo(() => {
 		if (!activeProfile) {
 			return t("profile_details.title");
@@ -210,8 +212,8 @@ export function ProfileDetailsModal({
 		);
 		return (
 			!shouldHideField(positionFormatted) ||
-			!shouldHideField(formatHeightCm(activeProfile.height, t)) ||
-			!shouldHideField(formatWeightKg(activeProfile.weight, t)) ||
+			!shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) ||
+			!shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) ||
 			!shouldHideField(
 				formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t),
 			) ||
@@ -226,7 +228,7 @@ export function ProfileDetailsModal({
 				),
 			)
 		);
-	}, [activeProfile, t]);
+	}, [activeProfile, t, unitsPreset]);
 
 	const hasSocialFields = useMemo(() => {
 		if (!activeProfile) return false;

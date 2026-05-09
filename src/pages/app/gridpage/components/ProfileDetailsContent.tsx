@@ -582,14 +582,14 @@ export function ProfileDetailsContent({
 									</div>
 								)}
 								{!shouldHideField(
-									formatWeightKg(activeProfile.weight, t),
+									formatWeightKg(activeProfile.weight, t, unitsPreset),
 								) && (
 									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.weight")}
 										</p>
 										<p className="mt-1 font-medium text-[var(--text)]">
-											{formatWeightKg(activeProfile.weight, t)}
+											{formatWeightKg(activeProfile.weight, t, unitsPreset)}
 										</p>
 									</div>
 								)}
