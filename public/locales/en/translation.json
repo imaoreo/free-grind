@@ -713,6 +713,7 @@
         "unblock_in_progress": "Unblocking...",
         "block_confirm": "Block this profile? This will remove your conversation for both users.",
         "unblock_confirm": "Unblock this profile?",
+        "dont_ask_again": "Don't ask again",
         "block_success": "Profile blocked",
         "unblock_success": "Profile unblocked",
         "block_failed": "Failed to block profile",
