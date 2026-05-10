@@ -516,5 +516,21 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			const parsed = z.array(itemSchema).safeParse(payload);
 			return parsed.success ? parsed.data : [];
 		},
+
+		async addMediaToDrawer(mediaId: number): Promise<void> {
+			const response = await fetchRest(
+				`/v4/chat/media/drawer/${mediaId}`,
+				{ method: "PUT" },
+			);
+			await assertSuccess(response, t("chat.errors.upload_media_failed"));
+		},
+
+		async deleteDrawerMedia(mediaId: number): Promise<void> {
+			const response = await fetchRest(
+				`/v4/chat/media/drawer/${mediaId}`,
+				{ method: "DELETE" },
+			);
+			await assertSuccess(response, t("chat.errors.delete_failed"));
+		},
 	};
 }

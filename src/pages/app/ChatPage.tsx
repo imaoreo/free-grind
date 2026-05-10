@@ -312,6 +312,8 @@ export function ChatPage() {
 	const [drawerError, setDrawerError] = useState<string | null>(null);
 	const [drawerMedia, setDrawerMedia] = useState<DrawerMedia[]>([]);
 	const [isSendingDrawerMedia, setIsSendingDrawerMedia] = useState(false);
+	const [isAddingDrawerMedia, setIsAddingDrawerMedia] = useState(false);
+	const [deletingDrawerMediaId, setDeletingDrawerMediaId] = useState<number | null>(null);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
@@ -2397,7 +2399,7 @@ export function ChatPage() {
 			}
 
 			setIsSendingDrawerMedia(true);
-			let lastSentMessage: UiMessage | null = null;
+			let finalSentMessage: UiMessage | undefined;
 			try {
 				// Send each media item as a separate image/video message
 				for (const mediaId of mediaIds) {
@@ -2420,24 +2422,25 @@ export function ChatPage() {
 					});
 
 					// Track the last sent message for preview update
-					lastSentMessage = sentMessage;
+					finalSentMessage = sentMessage;
 				}
 
 				// Update conversation preview with the last sent message
-				if (selectedConversation && lastSentMessage) {
+				if (selectedConversation && finalSentMessage) {
+					const finalMessage = finalSentMessage;
 					syncConversation((conversation) => ({
 						...conversation,
 						data: {
 							...conversation.data,
-							lastActivityTimestamp: lastSentMessage.timestamp,
+							lastActivityTimestamp: finalMessage.timestamp,
 							preview: {
 								conversationId: {
 									value: conversation.data.conversationId,
 								},
-								messageId: lastSentMessage.messageId,
-								senderId: lastSentMessage.senderId,
-								type: lastSentMessage.type,
-								chat1Type: lastSentMessage.chat1Type ?? "image",
+								messageId: finalMessage.messageId,
+								senderId: finalMessage.senderId,
+								type: finalMessage.type,
+								chat1Type: finalMessage.chat1Type ?? "image",
 								text: null,
 								albumId: null,
 								imageHash: null,
@@ -2468,6 +2471,59 @@ export function ChatPage() {
 			syncConversation,
 			loadDrawerMedia,
 		],
+	);
+
+	const addDrawerMedia = useCallback(
+		async (file: File, takenOnGrindr: boolean) => {
+			if (!file.type.startsWith("image/")) {
+				toast.error("Only photos are supported in the drawer.");
+				return;
+			}
+
+			if (file.size > 12 * 1024 * 1024) {
+				toast.error(t("chat.attachments.too_large"));
+				return;
+			}
+
+			setIsAddingDrawerMedia(true);
+			try {
+				const binaryUpload = await buildBinaryUpload(file);
+				const uploaded = await service.uploadChatMedia({
+					multipart: binaryUpload,
+					options: {
+						looping: false,
+						takenOnGrindr,
+					},
+				});
+				await service.addMediaToDrawer(uploaded.mediaId);
+
+				await loadDrawerMedia();
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : t("chat.errors.upload_media_failed"),
+				);
+			} finally {
+				setIsAddingDrawerMedia(false);
+			}
+		},
+		[loadDrawerMedia, service, t],
+	);
+
+	const deleteDrawerMedia = useCallback(
+		async (mediaId: number) => {
+			setDeletingDrawerMediaId(mediaId);
+			try {
+				await service.deleteDrawerMedia(mediaId);
+				setDrawerMedia((previous) => previous.filter((item) => item.id !== mediaId));
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : t("chat.errors.delete_failed"),
+				);
+			} finally {
+				setDeletingDrawerMediaId(null);
+			}
+		},
+		[service, t],
 	);
 
 	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -2651,8 +2707,12 @@ export function ChatPage() {
 			drawerError={drawerError}
 			drawerMedia={drawerMedia}
 			isSendingDrawerMedia={isSendingDrawerMedia}
+			isAddingDrawerMedia={isAddingDrawerMedia}
+			deletingDrawerMediaId={deletingDrawerMediaId}
 			onLoadDrawerMedia={loadDrawerMedia}
 			onSendDrawerMedia={sendDrawerMedia}
+			onAddDrawerMedia={addDrawerMedia}
+			onDeleteDrawerMedia={deleteDrawerMedia}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}

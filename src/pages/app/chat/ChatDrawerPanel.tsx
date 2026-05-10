@@ -2,12 +2,15 @@ import {
 	Check,
 	Image as ImageIcon,
 	Loader2,
+	Plus,
 	RefreshCw,
 	Send,
+	X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 
 export interface DrawerMedia {
 	id: number;
@@ -26,6 +29,11 @@ interface ChatDrawerPanelProps {
 	onLoadMedia: () => void;
 	onSendMedia: (mediaIds: number[]) => void | Promise<void>;
 	isSending: boolean;
+	isAdding: boolean;
+	onAddMedia: (file: File, takenOnGrindr: boolean) => void | Promise<void>;
+	deletingMediaId: number | null;
+	onDeleteMedia: (mediaId: number) => void | Promise<void>;
+	isDesktop: boolean;
 }
 
 export function ChatDrawerPanel({
@@ -36,9 +44,20 @@ export function ChatDrawerPanel({
 	onLoadMedia,
 	onSendMedia,
 	isSending,
+	isAdding,
+	onAddMedia,
+	deletingMediaId,
+	onDeleteMedia,
+	isDesktop,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+	const [pendingAddFile, setPendingAddFile] = useState<File | null>(null);
+	const [pendingTakenOnGrindr, setPendingTakenOnGrindr] = useState(false);
+	const [isAddChooserOpen, setIsAddChooserOpen] = useState(false);
+	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
+	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+	const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
 	const toggleSelection = useCallback((id: number) => {
 		setSelectedIds((prev) => {
@@ -73,6 +92,90 @@ export function ChatDrawerPanel({
 
 	const hasSelection = selectedIds.size > 0;
 
+	const onPickDrawerPhoto = useCallback(
+		(event: React.ChangeEvent<HTMLInputElement>) => {
+			const file = event.target.files?.[0] ?? null;
+			event.target.value = "";
+			if (!file) {
+				return;
+			}
+			if (!file.type.startsWith("image/")) {
+				toast.error("Please choose a photo.");
+				return;
+			}
+			setPendingAddFile(file);
+			setPendingTakenOnGrindr(false);
+		},
+		[],
+	);
+
+	const confirmAddPhoto = useCallback(async () => {
+		if (!pendingAddFile) {
+			return;
+		}
+		await onAddMedia(pendingAddFile, pendingTakenOnGrindr);
+		setPendingAddFile(null);
+		setPendingTakenOnGrindr(false);
+	}, [onAddMedia, pendingAddFile, pendingTakenOnGrindr]);
+
+	const cancelAddPhoto = useCallback(() => {
+		setPendingAddFile(null);
+		setPendingTakenOnGrindr(false);
+	}, []);
+
+	const openAddChooser = useCallback(() => {
+		if (isAdding) {
+			return;
+		}
+		if (isDesktop) {
+			uploadInputRef.current?.click();
+			return;
+		}
+		setIsAddChooserOpen(true);
+	}, [isAdding, isDesktop]);
+
+	const pickFromUpload = useCallback(() => {
+		setIsAddChooserOpen(false);
+		uploadInputRef.current?.click();
+	}, []);
+
+	const pickFromCamera = useCallback(() => {
+		setIsAddChooserOpen(false);
+		cameraInputRef.current?.click();
+	}, []);
+
+	const handleDeleteMedia = useCallback(
+		(event: React.MouseEvent<HTMLButtonElement>, mediaId: number) => {
+			event.stopPropagation();
+			setConfirmDeleteMediaId(mediaId);
+		},
+		[],
+	);
+
+	const confirmDeleteMedia = useCallback(async () => {
+		if (confirmDeleteMediaId == null) {
+			return;
+		}
+
+		await onDeleteMedia(confirmDeleteMediaId);
+		setSelectedIds((previous) => {
+			if (!previous.has(confirmDeleteMediaId)) {
+				return previous;
+			}
+			const next = new Set(previous);
+			next.delete(confirmDeleteMediaId);
+			return next;
+		});
+		setConfirmDeleteMediaId(null);
+	}, [confirmDeleteMediaId, onDeleteMedia]);
+
+	const cancelDeleteMedia = useCallback(() => {
+		if (deletingMediaId != null) {
+			return;
+		}
+		setConfirmDeleteMediaId(null);
+	}, [deletingMediaId]);
+
 	return (
 		<div className="mb-2 flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
 			{/* Content Grid */}
@@ -94,15 +197,39 @@ export function ChatDrawerPanel({
 								{t("chat_drawer.retry")}
 						</button>
 					</div>
-				) : media.length === 0 ? (
-					<div className="flex flex-col items-center justify-center gap-2 p-6 text-center py-8">
-						<ImageIcon className="h-6 w-6 text-[var(--text-muted)]" />
-						<p className="text-xs text-[var(--text-muted)]">
-							{t("chat_drawer.empty")}
-						</p>
-					</div>
 				) : (
 					<div className="grid grid-cols-3 gap-0">
+						<button
+							type="button"
+							onClick={openAddChooser}
+							disabled={isAdding}
+							className="relative aspect-square border-0 bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
+							aria-label="Add photo"
+							title="Add photo"
+						>
+							<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+								{isAdding ? (
+									<Loader2 className="h-5 w-5 animate-spin" />
+								) : (
+									<Plus className="h-5 w-5" />
+								)}
+							</div>
+						</button>
+						<input
+							type="file"
+							ref={uploadInputRef}
+							onChange={onPickDrawerPhoto}
+							accept="image/*"
+							className="hidden"
+						/>
+						<input
+							type="file"
+							ref={cameraInputRef}
+							onChange={onPickDrawerPhoto}
+							accept="image/*"
+							capture="environment"
+							className="hidden"
+						/>
 						{media.map((item) => {
 							const isSelected = selectedIds.has(item.id);
 							const isImage = item.contentType.startsWith("image/");
@@ -150,12 +277,90 @@ export function ChatDrawerPanel({
 											✓
 										</div>
 									) : null}
+
+									<button
+										type="button"
+										onClick={(event) => void handleDeleteMedia(event, item.id)}
+										disabled={deletingMediaId === item.id}
+										className="absolute top-0.5 left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 disabled:opacity-60"
+										aria-label="Delete media"
+										title="Delete media"
+									>
+										{deletingMediaId === item.id ? (
+											<Loader2 className="h-3 w-3 animate-spin" />
+										) : (
+											<X className="h-3 w-3" />
+										)}
+									</button>
 								</button>
 							);
 						})}
 					</div>
 				)}
 			</div>
+
+			{isAddChooserOpen ? (
+				<div className="border-t border-[var(--border)] bg-[var(--surface)] p-2">
+					<div className="grid grid-cols-2 gap-2">
+						<button
+							type="button"
+							onClick={pickFromCamera}
+							className="rounded-md border border-[var(--border)] px-2 py-1.5 text-[11px]"
+						>
+							Take photo
+						</button>
+						<button
+							type="button"
+							onClick={pickFromUpload}
+							className="rounded-md border border-[var(--border)] px-2 py-1.5 text-[11px]"
+						>
+							Upload photo
+						</button>
+					</div>
+					<button
+						type="button"
+						onClick={() => setIsAddChooserOpen(false)}
+						className="mt-2 w-full rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+					>
+						{t("chat.actions.cancel")}
+					</button>
+				</div>
+			) : null}
+
+			{pendingAddFile ? (
+				<div className="border-t border-[var(--border)] bg-[var(--surface)] p-2">
+					<p className="text-xs font-medium text-[var(--text)]">
+						{pendingAddFile.name}
+					</p>
+					<label className="mt-2 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+						<input
+							type="checkbox"
+							checked={pendingTakenOnGrindr}
+							onChange={(event) => setPendingTakenOnGrindr(event.target.checked)}
+							disabled={isAdding}
+						/>
+						<span>{t("chat.attachments.taken_on_grindr")}</span>
+					</label>
+					<div className="mt-2 flex gap-2">
+						<button
+							type="button"
+							onClick={confirmAddPhoto}
+							disabled={isAdding}
+							className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
+						>
+							{isAdding ? t("chat_drawer.sending") : "Add to drawer"}
+						</button>
+						<button
+							type="button"
+							onClick={cancelAddPhoto}
+							disabled={isAdding}
+							className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+						>
+							{t("chat.actions.cancel")}
+						</button>
+					</div>
+				</div>
+			) : null}
 
 			{/* Footer - Send button */}
 			{hasSelection ? (
@@ -181,6 +386,18 @@ export function ChatDrawerPanel({
 					</button>
 				</div>
 			) : null}
+
+			<ConfirmDialog
+				isOpen={confirmDeleteMediaId != null}
+				title="Delete from drawer?"
+				message="Are you sure you want to delete this media from your drawer?"
+				confirmLabel="Delete"
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={confirmDeleteMedia}
+				onCancel={cancelDeleteMedia}
+				isProcessing={confirmDeleteMediaId != null && deletingMediaId === confirmDeleteMediaId}
+				confirmTone="danger"
+			/>
 		</div>
 	);
 }

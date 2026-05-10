@@ -117,8 +117,12 @@ type ChatThreadPanelProps = {
 	drawerError: string | null;
 	drawerMedia: DrawerMedia[];
 	isSendingDrawerMedia: boolean;
+	isAddingDrawerMedia: boolean;
+	deletingDrawerMediaId: number | null;
 	onLoadDrawerMedia: () => void | Promise<void>;
 	onSendDrawerMedia: (mediaIds: number[]) => Promise<void>;
+	onAddDrawerMedia: (file: File, takenOnGrindr: boolean) => Promise<void>;
+	onDeleteDrawerMedia: (mediaId: number) => Promise<void>;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -228,8 +232,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		drawerError,
 		drawerMedia,
 		isSendingDrawerMedia,
+		isAddingDrawerMedia,
+		deletingDrawerMediaId,
 		onLoadDrawerMedia,
 		onSendDrawerMedia,
+		onAddDrawerMedia,
+		onDeleteDrawerMedia,
 	} = props;
 
 	const closeBlockConfirm = () => {
@@ -802,9 +810,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								isLoading={isLoadingDrawer}
 								error={drawerError}
 								isSending={isSendingDrawerMedia}
+								isAdding={isAddingDrawerMedia}
+								deletingMediaId={deletingDrawerMediaId}
 								onBack={toggleDrawer}
 								onLoadMedia={onLoadDrawerMedia}
 								onSendMedia={onSendDrawerMedia}
+								onAddMedia={onAddDrawerMedia}
+								onDeleteMedia={onDeleteDrawerMedia}
+								isDesktop={isDesktop}
 							/>
 						) : (
 							<>
