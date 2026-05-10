@@ -100,7 +100,7 @@ export function ChatDrawerPanel({
 				return;
 			}
 			if (!file.type.startsWith("image/")) {
-				toast.error("Please choose a photo.");
+				toast.error(t("chat_drawer.invalid_file_type"));
 				return;
 			}
 			setPendingAddFile(file);
@@ -203,9 +203,9 @@ export function ChatDrawerPanel({
 							type="button"
 							onClick={openAddChooser}
 							disabled={isAdding}
-							className="relative aspect-square border-0 bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
-							aria-label="Add photo"
-							title="Add photo"
+						className="relative aspect-square border-0 bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
+						aria-label={t("chat_drawer.add_photo")}
+						title={t("chat_drawer.add_photo")}
 						>
 							<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
 								{isAdding ? (
@@ -283,8 +283,8 @@ export function ChatDrawerPanel({
 										onClick={(event) => void handleDeleteMedia(event, item.id)}
 										disabled={deletingMediaId === item.id}
 										className="absolute top-0.5 left-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/80 disabled:opacity-60"
-										aria-label="Delete media"
-										title="Delete media"
+								aria-label={t("chat_drawer.delete_media")}
+								title={t("chat_drawer.delete_media")}
 									>
 										{deletingMediaId === item.id ? (
 											<Loader2 className="h-3 w-3 animate-spin" />
@@ -348,7 +348,7 @@ export function ChatDrawerPanel({
 							disabled={isAdding}
 							className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
 						>
-							{isAdding ? t("chat_drawer.sending") : "Add to drawer"}
+							{isAdding ? t("chat_drawer.sending") : t("chat_drawer.add_to_drawer")}
 						</button>
 						<button
 							type="button"
@@ -389,9 +389,9 @@ export function ChatDrawerPanel({
 
 			<ConfirmDialog
 				isOpen={confirmDeleteMediaId != null}
-				title="Delete from drawer?"
-				message="Are you sure you want to delete this media from your drawer?"
-				confirmLabel="Delete"
+				title={t("chat_drawer.delete_confirm_title")}
+				message={t("chat_drawer.delete_confirm_message")}
+				confirmLabel={t("chat_drawer.delete_confirm_label")}
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={confirmDeleteMedia}
 				onCancel={cancelDeleteMedia}
