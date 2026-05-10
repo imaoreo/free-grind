@@ -8,6 +8,7 @@ import {
 	Pin,
 	Reply,
 	Share2,
+	SquareStack,
 	TimerOff,
 	Volume2,
 	VolumeX,
@@ -22,6 +23,8 @@ import {
 } from "../../../hooks/useModalClose";
 import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
 import type { ConversationEntry, Message } from "../../../types/messages";
+import type { DrawerMedia } from "./ChatDrawerPanel";
+import { ChatDrawerPanel } from "./ChatDrawerPanel";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
@@ -33,6 +36,7 @@ import {
 import { formatDistance } from "../gridpage/utils";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+
 
 type ChatThreadPanelProps = {
 	navigate: NavigateFunction;
@@ -83,6 +87,7 @@ type ChatThreadPanelProps = {
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
+	toggleDrawer: () => void;
 	attachmentInputRef: { current: HTMLInputElement | null };
 	onAttachmentInput: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	isUploadingAttachment: boolean;
@@ -97,16 +102,23 @@ type ChatThreadPanelProps = {
 	isLoadingAlbums: boolean;
 	shareableAlbums: AlbumListItem[];
 	isSharingAlbum: boolean;
-		pendingAlbumShare: {
-			albumId: number;
-			albumName: string;
-		} | null;
+	pendingAlbumShare: {
+		albumId: number;
+		albumName: string;
+	} | null;
 	shareAlbumToCurrentConversation: (
 		albumId: number,
 		albumName?: string | null,
 	) => void | Promise<void>;
-		confirmPendingAlbumShare: (expirationType: string) => void | Promise<void>;
-		closePendingAlbumShare: () => void;
+	confirmPendingAlbumShare: (expirationType: string) => void | Promise<void>;
+	closePendingAlbumShare: () => void;
+	isDrawerOpen: boolean;
+	isLoadingDrawer: boolean;
+	drawerError: string | null;
+	drawerMedia: DrawerMedia[];
+	isSendingDrawerMedia: boolean;
+	onLoadDrawerMedia: () => void | Promise<void>;
+	onSendDrawerMedia: (mediaIds: number[]) => Promise<void>;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -210,6 +222,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessage,
 		selectedActionMessageMine,
 		albumViewer,
+		toggleDrawer,
+		isDrawerOpen,
+		isLoadingDrawer,
+		drawerError,
+		drawerMedia,
+		isSendingDrawerMedia,
+		onLoadDrawerMedia,
+		onSendDrawerMedia,
 	} = props;
 
 	const closeBlockConfirm = () => {
@@ -639,17 +659,30 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={toggleAlbumPicker}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label="Share album"
+								title="Share album"
 							>
-								<Share2 className="mr-1 inline h-3.5 w-3.5" /> {t("chat.share_album")}
+								<Share2 className="h-4 w-4" />
 							</button>
 							<button
 								type="button"
 								onClick={() => attachmentInputRef.current?.click()}
 								disabled={isUploadingAttachment}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								aria-label="Attach media"
+								title="Attach media"
 							>
-								<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
+								<ImagePlus className="h-4 w-4" />
+							</button>
+							<button
+								type="button"
+								onClick={toggleDrawer}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label="Drawer"
+								title="Drawer"
+							>
+								<SquareStack className="h-4 w-4" />
 							</button>
 							<input
 								type="file"
@@ -658,13 +691,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								accept="image/*,video/*"
 								className="hidden"
 							/>
-							<button
-								type="button"
-								onClick={() => navigate("/settings/albums")}
-								className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								{t("chat.manage_albums")}
-							</button>
 						</div>
 
 						{pendingAttachmentFile ? (
@@ -770,59 +796,73 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						) : null}
 
-						{replyTargetMessage ? (
-							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-								<div className="flex items-stretch">
-									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
-									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
-										<div className="min-w-0">
-											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-												<Reply className="h-3 w-3" />
-												<span>
-													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
-														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-															? t("chat.you")
-															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
-													}`}
-												</span>
-											</p>
-											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
-												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
-													{getMessagePreviewLabel(replyTargetMessage, t)}
-												</p>
+						{isDrawerOpen ? (
+							<ChatDrawerPanel
+								media={drawerMedia}
+								isLoading={isLoadingDrawer}
+								error={drawerError}
+								isSending={isSendingDrawerMedia}
+								onBack={toggleDrawer}
+								onLoadMedia={onLoadDrawerMedia}
+								onSendMedia={onSendDrawerMedia}
+							/>
+						) : (
+							<>
+								{replyTargetMessage ? (
+									<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
+										<div className="flex items-stretch">
+											<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
+											<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
+												<div className="min-w-0">
+													<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+														<Reply className="h-3 w-3" />
+														<span>
+															{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
+																userId != null && Number(replyTargetMessage.senderId) === Number(userId)
+																	? t("chat.you")
+																	: (selectedConversation.data.name?.trim() || t("chat.unknown"))
+															}`}
+														</span>
+													</p>
+													<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
+														<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
+															{getMessagePreviewLabel(replyTargetMessage, t)}
+														</p>
+													</div>
+												</div>
+												<button
+													type="button"
+													onClick={clearReplyTarget}
+													className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+													aria-label={t("chat.actions.cancel")}
+													title={t("chat.actions.cancel")}
+												>
+													<X className="h-3.5 w-3.5" />
+												</button>
 											</div>
 										</div>
-										<button
-											type="button"
-											onClick={clearReplyTarget}
-											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-											aria-label={t("chat.actions.cancel")}
-											title={t("chat.actions.cancel")}
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
 									</div>
-								</div>
-							</div>
-						) : null}
+								) : null}
 
-						<div className="flex items-end gap-2">
-							<textarea
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								rows={2}
-								maxLength={1000}
-								placeholder={t("chat.write_message")}
-								className="input-field min-h-[56px] resize-none"
-							/>
-							<button
-								type="submit"
-								disabled={isSending || draft.trim().length === 0}
-								className="btn-accent h-11 shrink-0 px-4 text-sm"
-							>
-								{isSending ? t("chat.sending") : t("chat.send")}
-							</button>
-						</div>
+								<div className="flex items-end gap-2">
+									<textarea
+										value={draft}
+										onChange={(event) => setDraft(event.target.value)}
+										rows={2}
+										maxLength={1000}
+										placeholder={t("chat.write_message")}
+										className="input-field min-h-[56px] resize-none"
+									/>
+									<button
+										type="submit"
+										disabled={isSending || draft.trim().length === 0}
+										className="btn-accent h-11 shrink-0 px-4 text-sm"
+									>
+										{isSending ? t("chat.sending") : t("chat.send")}
+									</button>
+								</div>
+							</>
+						)}
 					</form>
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
@@ -896,7 +936,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									id="chat-album-share-confirm-title"
 									className="text-sm font-semibold text-[var(--text)]"
 								>
-									{t("chat.share_album")}
+									Share album
 								</p>
 								<p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
 									{t("chat.confirm_share_album", {
@@ -982,7 +1022,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						disabled={isUploadingAttachment}
 						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
-						<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
+							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
 					</button>
 					<input
 						type="file"

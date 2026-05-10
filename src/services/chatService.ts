@@ -488,5 +488,33 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			);
 			await assertSuccess(response, t("chat.errors.album_share_failed"));
 		},
+
+		async getDrawerMedia(
+			conversationId: string,
+		): Promise<Array<{
+			id: number;
+			url: string;
+			contentType: string;
+			createdTs: number;
+			used: boolean;
+			takenOnGrindr: boolean;
+		}>> {
+			const response = await fetchRest(
+				`/v4/chat/media/drawer/${conversationId}`,
+			);
+			await assertSuccess(response, t("chat.errors.load_drawer_media"));
+			const payload = await parseJsonSafe(response);
+			const itemSchema = z.object({
+				id: z.coerce.number().int(),
+				url: z.string(),
+				contentType: z.string(),
+				createdTs: z.coerce.number().int(),
+				used: z.boolean().optional().default(false),
+				takenOnGrindr: z.boolean().optional().default(false),
+			});
+
+			const parsed = z.array(itemSchema).safeParse(payload);
+			return parsed.success ? parsed.data : [];
+		},
 	};
 }

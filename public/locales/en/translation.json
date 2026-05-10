@@ -603,7 +603,6 @@
         "unmute": "Unmute",
         "clear_local_history": "Clear local history",
         "open_conversation_actions": "Open conversation actions",
-        "share_album": "Share album",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",
@@ -614,8 +613,6 @@
             "remaining": "remaining",
             "expired": "expired"
         },
-        "attach_media": "Attach media",
-        "manage_albums": "Manage albums",
         "loading_albums": "Loading albums...",
         "no_albums_available": "No albums available. Create one in Settings first.",
         "confirm_share_album": "Share \"{{album}}\" in this chat?",
@@ -705,17 +702,28 @@
             "load_shared_images": "Failed to load shared conversation images",
             "create_album_failed": "Failed to create album",
             "load_album_details": "Failed to load album details",
-            "upload_media_failed": "Failed to upload media"
+            "upload_media_failed": "Failed to upload media",
+            "load_drawer_media": "Failed to load drawer media",
+            "send_drawer_media": "Failed to send media from drawer"
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
-            "album_shared": "Album shared"
+            "album_shared": "Album shared",
+            "media_sent": "Media sent"
         },
         "new_conversation": {
             "title": "New conversation",
             "subtitle": "Message profile #{{profileId}} to start chatting.",
             "write_first_message": "Write your first message..."
         }
+    },
+    "chat_drawer": {
+        "empty": "Your drawer is empty.",
+        "retry": "Try again",
+        "send": "Send {{count}}",
+        "sending": "Sending...",
+        "error_no_selection": "Please select at least one image.",
+        "error_send_failed": "Failed to send media."
     },
     "profile_details": {
         "title": "Profile details",

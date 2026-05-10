@@ -42,6 +42,7 @@ import type {
 	AlbumViewerState,
 	UiMessage,
 } from "../../types/chat-page";
+import type { DrawerMedia } from "./chat/ChatDrawerPanel";
 import {
 	indexConversations,
 	indexMessages,
@@ -306,6 +307,11 @@ export function ChatPage() {
 		useState<File | null>(null);
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
+	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
+	const [drawerError, setDrawerError] = useState<string | null>(null);
+	const [drawerMedia, setDrawerMedia] = useState<DrawerMedia[]>([]);
+	const [isSendingDrawerMedia, setIsSendingDrawerMedia] = useState(false);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
@@ -2346,6 +2352,124 @@ export function ChatPage() {
 		shareableAlbums,
 	]);
 
+	const loadDrawerMedia = useCallback(async () => {
+		if (!selectedConversationId) {
+			return;
+		}
+
+		setIsLoadingDrawer(true);
+		setDrawerError(null);
+		try {
+			const media = await service.getDrawerMedia(selectedConversationId);
+			setDrawerMedia(media);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
+			setDrawerError(message);
+			toast.error(message);
+		} finally {
+			setIsLoadingDrawer(false);
+		}
+	}, [selectedConversationId, service, t]);
+
+	const toggleDrawer = useCallback(async () => {
+		if (isDrawerOpen) {
+			setIsDrawerOpen(false);
+			return;
+		}
+
+		setIsDrawerOpen(true);
+		if (drawerMedia.length === 0) {
+			await loadDrawerMedia();
+		}
+	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
+
+	const sendDrawerMedia = useCallback(
+		async (mediaIds: number[]) => {
+			if (!selectedConversation || !userId || mediaIds.length === 0) {
+				return;
+			}
+
+			const targetProfileIdValue = getOtherParticipant(selectedConversation, userId)
+				?.profileId ?? null;
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSendingDrawerMedia(true);
+			let lastSentMessage: UiMessage | null = null;
+			try {
+				// Send each media item as a separate image/video message
+				for (const mediaId of mediaIds) {
+					const media = drawerMedia.find((m) => m.id === mediaId);
+					if (!media) continue;
+
+					const messageType = media.contentType.startsWith("video") ? "Video" : "Image";
+					const sentMessage = await service.sendMessage({
+						type: messageType,
+						target: {
+							type: "Direct",
+							targetId: targetProfileIdValue,
+						},
+						body: {
+							mediaId,
+							width: null,
+							height: null,
+							url: media.url,
+						},
+					});
+
+					// Track the last sent message for preview update
+					lastSentMessage = sentMessage;
+				}
+
+				// Update conversation preview with the last sent message
+				if (selectedConversation && lastSentMessage) {
+					syncConversation((conversation) => ({
+						...conversation,
+						data: {
+							...conversation.data,
+							lastActivityTimestamp: lastSentMessage.timestamp,
+							preview: {
+								conversationId: {
+									value: conversation.data.conversationId,
+								},
+								messageId: lastSentMessage.messageId,
+								senderId: lastSentMessage.senderId,
+								type: lastSentMessage.type,
+								chat1Type: lastSentMessage.chat1Type ?? "image",
+								text: null,
+								albumId: null,
+								imageHash: null,
+							},
+						},
+					}));
+				}
+
+				toast.success(t("chat.toasts.media_sent"));
+				setIsDrawerOpen(false);
+
+				// Reload drawer media to update "used" status
+				await loadDrawerMedia();
+			} catch (error) {
+				toast.error(
+					error instanceof Error ? error.message : t("chat.errors.send_drawer_media"),
+				);
+			} finally {
+				setIsSendingDrawerMedia(false);
+			}
+		},
+		[
+			selectedConversation,
+			userId,
+			drawerMedia,
+			service,
+			t,
+			syncConversation,
+			loadDrawerMedia,
+		],
+	);
+
 	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		event.target.value = "";
@@ -2503,6 +2627,7 @@ export function ChatPage() {
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
+			toggleDrawer={toggleDrawer}
 			attachmentInputRef={attachmentInputRef}
 			onAttachmentInput={onAttachmentInput}
 			isUploadingAttachment={isUploadingAttachment}
@@ -2521,6 +2646,13 @@ export function ChatPage() {
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
 			confirmPendingAlbumShare={confirmPendingAlbumShare}
 			closePendingAlbumShare={closePendingAlbumShare}
+			isDrawerOpen={isDrawerOpen}
+			isLoadingDrawer={isLoadingDrawer}
+			drawerError={drawerError}
+			drawerMedia={drawerMedia}
+			isSendingDrawerMedia={isSendingDrawerMedia}
+			onLoadDrawerMedia={loadDrawerMedia}
+			onSendDrawerMedia={sendDrawerMedia}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
