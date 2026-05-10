@@ -170,6 +170,7 @@ export function ChatPage() {
 	const [isBlockingProfileId, setIsBlockingProfileId] = useState<string | null>(
 		null,
 	);
+	const [isTogglingFavoriteProfileId, setIsTogglingFavoriteProfileId] = useState<string | null>(null);
 
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
@@ -1640,6 +1641,49 @@ export function ChatPage() {
 		[isBlockingProfileId, navigate, service, t],
 	);
 
+	const toggleFavoriteFromChat = useCallback(
+		async (profileId: number, currentlyFavorite: boolean) => {
+			if (isTogglingFavoriteProfileId) return;
+			const strId = String(profileId);
+			setIsTogglingFavoriteProfileId(strId);
+			try {
+				if (currentlyFavorite) {
+					await service.removeFavorite(strId);
+				} else {
+					await service.addFavorite(strId);
+				}
+				setConversations((previous) =>
+					previous.map((conv) => {
+						const isMatch = conv.data.participants.some(
+							(p) => String(p.profileId) === strId,
+						);
+						if (!isMatch) return conv;
+						return {
+							...conv,
+							data: { ...conv.data, favorite: !currentlyFavorite },
+						};
+					}),
+				);
+				toast.success(
+					currentlyFavorite
+						? t("favorites.removed")
+						: t("favorites.added"),
+				);
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: currentlyFavorite
+						? t("favorites.remove_failed")
+						: t("favorites.add_failed"),
+				);
+			} finally {
+				setIsTogglingFavoriteProfileId(null);
+			}
+		},
+		[isTogglingFavoriteProfileId, service, t],
+	);
+
 	const sendTextMessage = useCallback(
 		async (
 			text: string,
@@ -2651,6 +2695,9 @@ export function ChatPage() {
 			clearLocalHistory={clearLocalHistory}
 			onBlockProfile={blockProfileFromChat}
 			isBlockingProfile={isBlockingProfileId !== null}
+			onToggleFavorite={toggleFavoriteFromChat}
+			isFavorite={selectedConversation?.data.favorite ?? false}
+			isTogglingFavorite={isTogglingFavoriteProfileId !== null}
 			getProfileReturnToChatPath={getProfileReturnToChatPath}
 			isLoadingThread={isLoadingThread}
 			threadConversationId={threadConversationId}
