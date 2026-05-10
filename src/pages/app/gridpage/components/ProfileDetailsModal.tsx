@@ -47,6 +47,12 @@ type ProfileDetailsModalProps = {
 	onTriangleProfile?: (profileId: string) => void;
 	onBlockProfile?: (profileId: string) => void;
 	onUnblockProfile?: (profileId: string) => void;
+	onToggleFavoriteProfile?: (
+		profileId: string,
+		currentlyFavorite: boolean,
+	) => void | Promise<void>;
+	isFavorite?: boolean;
+	isTogglingFavorite?: boolean;
 	isBlocked?: boolean;
 	isBlockingProfile?: boolean;
 	isLocatingProfile?: boolean;
@@ -88,6 +94,9 @@ export function ProfileDetailsModal({
 	onTriangleProfile,
 	onBlockProfile,
 	onUnblockProfile,
+	onToggleFavoriteProfile,
+	isFavorite = false,
+	isTogglingFavorite = false,
 	isBlocked = false,
 	isBlockingProfile = false,
 	isLocatingProfile = false,
@@ -554,6 +563,9 @@ export function ProfileDetailsModal({
 								onTapProfile={onTapProfile}
 								onBlockProfile={onBlockProfile}
 								onUnblockProfile={onUnblockProfile}
+								onToggleFavoriteProfile={onToggleFavoriteProfile}
+								isFavorite={isFavorite}
+								isTogglingFavorite={isTogglingFavorite}
 								isBlocked={isBlocked}
 								isBlockingProfile={isBlockingProfile}
 								isTapDisabled={isTapDisabled}
@@ -649,6 +661,9 @@ export function ProfileDetailsModal({
 							onTapProfile={onTapProfile}
 							onBlockProfile={onBlockProfile}
 							onUnblockProfile={onUnblockProfile}
+							onToggleFavoriteProfile={onToggleFavoriteProfile}
+							isFavorite={isFavorite}
+							isTogglingFavorite={isTogglingFavorite}
 							isBlocked={isBlocked}
 							isBlockingProfile={isBlockingProfile}
 							isTapDisabled={isTapDisabled}

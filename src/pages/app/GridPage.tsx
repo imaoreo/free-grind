@@ -78,6 +78,9 @@ export function GridPage() {
 	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
 		null,
 	);
+	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
+		null,
+	);
 	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
 		action: "block" | "unblock";
 		profileId: string;
@@ -744,6 +747,60 @@ export function GridPage() {
 		[mutatingBlockProfileId, performUnblockProfile, skipUnblockConfirm],
 	);
 
+	const handleToggleFavoriteProfile = useCallback(
+		async (targetProfileId: string, currentlyFavorite: boolean) => {
+			if (mutatingFavoriteProfileId) {
+				return;
+			}
+
+			setMutatingFavoriteProfileId(targetProfileId);
+			try {
+				if (currentlyFavorite) {
+					await apiFunctions.removeFavorite(targetProfileId);
+				} else {
+					await apiFunctions.addFavorite(targetProfileId);
+				}
+
+				setCards((previous) =>
+					previous.map((card) => {
+						if (card.profileId !== targetProfileId) {
+							return card;
+						}
+						return {
+							...card,
+							isFavorite: !currentlyFavorite,
+						};
+					}),
+				);
+
+				setActiveProfile((previous) => {
+					if (!previous || previous.profileId !== targetProfileId) {
+						return previous;
+					}
+					return {
+						...previous,
+						isFavorite: !currentlyFavorite,
+					};
+				});
+
+				toast.success(
+					currentlyFavorite ? t("favorites.removed") : t("favorites.added"),
+				);
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: currentlyFavorite
+							? t("favorites.remove_failed")
+							: t("favorites.add_failed"),
+				);
+			} finally {
+				setMutatingFavoriteProfileId(null);
+			}
+		},
+		[apiFunctions, mutatingFavoriteProfileId, t],
+	);
+
 	const handleCancelProfileConfirm = useCallback(() => {
 		if (mutatingBlockProfileId) {
 			return;
@@ -1041,6 +1098,11 @@ export function GridPage() {
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}
+				onToggleFavoriteProfile={handleToggleFavoriteProfile}
+				isFavorite={Boolean(activeProfile?.isFavorite)}
+				isTogglingFavorite={Boolean(
+					activeProfileId && mutatingFavoriteProfileId === activeProfileId,
+				)}
 				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
 				isBlockingProfile={Boolean(
 					activeProfileId && mutatingBlockProfileId === activeProfileId,

@@ -767,6 +767,7 @@
         "message": "Message",
         "block": "Block",
         "unblock": "Unblock",
+        "unfavorite": "Unfavorite",
         "block_in_progress": "Blocking...",
         "unblock_in_progress": "Unblocking...",
         "block_confirm": "Block this profile? This will remove your conversation for both users.",

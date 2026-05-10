@@ -64,6 +64,9 @@ export function GridProfilePage() {
 	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
 		null,
 	);
+	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
+		null,
+	);
 	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
 		action: "block" | "unblock";
 		profileId: string;
@@ -371,6 +374,48 @@ export function GridProfilePage() {
 		setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
 	};
 
+	const handleToggleFavoriteProfile = async (
+		targetProfileId: string,
+		currentlyFavorite: boolean,
+	) => {
+		if (mutatingFavoriteProfileId) {
+			return;
+		}
+
+		setMutatingFavoriteProfileId(targetProfileId);
+		try {
+			if (currentlyFavorite) {
+				await apiFunctions.removeFavorite(targetProfileId);
+			} else {
+				await apiFunctions.addFavorite(targetProfileId);
+			}
+
+			setActiveProfile((previous) => {
+				if (!previous || previous.profileId !== targetProfileId) {
+					return previous;
+				}
+				return {
+					...previous,
+					isFavorite: !currentlyFavorite,
+				};
+			});
+
+			toast.success(
+				currentlyFavorite ? t("favorites.removed") : t("favorites.added"),
+			);
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: currentlyFavorite
+						? t("favorites.remove_failed")
+						: t("favorites.add_failed"),
+			);
+		} finally {
+			setMutatingFavoriteProfileId(null);
+		}
+	};
+
 	const handleCancelProfileConfirm = () => {
 		if (mutatingBlockProfileId) {
 			return;
@@ -597,6 +642,11 @@ export function GridProfilePage() {
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}
+				onToggleFavoriteProfile={handleToggleFavoriteProfile}
+				isFavorite={Boolean(activeProfile?.isFavorite)}
+				isTogglingFavorite={Boolean(
+					profileId && mutatingFavoriteProfileId === profileId,
+				)}
 				isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
 				isBlockingProfile={Boolean(
 					profileId && mutatingBlockProfileId === profileId,
