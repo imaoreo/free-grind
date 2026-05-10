@@ -174,6 +174,9 @@ export function ChatPage() {
 	const [isBlockingProfileId, setIsBlockingProfileId] = useState<string | null>(
 		null,
 	);
+	const [isDeletingConversationId, setIsDeletingConversationId] = useState<string | null>(
+		null,
+	);
 	const [isTogglingFavoriteProfileId, setIsTogglingFavoriteProfileId] = useState<string | null>(null);
 	const [localNicknamesByProfileId, setLocalNicknamesByProfileId] = useState<
 		Record<string, string>
@@ -1618,6 +1621,54 @@ export function ChatPage() {
 		toast.success(t("chat.toasts.cleared_local_history"));
 	}, [selectedConversation]);
 
+	const deleteConversationFromChat = useCallback(
+		async (conversationId: string) => {
+			if (isDeletingConversationId) {
+				return;
+			}
+
+			setIsDeletingConversationId(conversationId);
+			try {
+				await service.deleteConversation(conversationId);
+				const remainingConversations = conversationsRef.current.filter(
+					(conversation) => conversation.data.conversationId !== conversationId,
+				);
+				setConversations(remainingConversations);
+				setThreadMessages((previous) =>
+					previous.filter(
+						(message) => message.conversationId !== conversationId,
+					),
+				);
+
+				setThreadConversationId((current) =>
+					current === conversationId ? null : current,
+				);
+
+				if (isDesktop) {
+					setSelectedDesktopConversationId((current) => {
+						if (current !== conversationId) {
+							return current;
+						}
+						return remainingConversations[0]?.data.conversationId ?? null;
+					});
+				} else {
+					navigate("/chat", { replace: true });
+				}
+
+				toast.success(t("chat.toasts.conversation_deleted"));
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("chat.errors.delete_conversation"),
+				);
+			} finally {
+				setIsDeletingConversationId(null);
+			}
+		},
+		[isDeletingConversationId, isDesktop, navigate, service, t],
+	);
+
 	const blockProfileFromChat = useCallback(
 		async (profileId: number) => {
 			if (isBlockingProfileId) {
@@ -2792,6 +2843,8 @@ export function ChatPage() {
 			togglePin={togglePin}
 			toggleMute={toggleMute}
 			clearLocalHistory={clearLocalHistory}
+			onDeleteConversation={deleteConversationFromChat}
+			isDeletingConversation={isDeletingConversationId !== null}
 			onBlockProfile={blockProfileFromChat}
 			isBlockingProfile={isBlockingProfileId !== null}
 			onToggleFavorite={toggleFavoriteFromChat}

@@ -316,6 +316,16 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			await assertSuccess(response, t("chat.errors.update_mute_state"));
 		},
 
+		async deleteConversation(conversationId: string): Promise<void> {
+			const response = await fetchRest(
+				`/v4/chat/conversation/${conversationId}`,
+				{
+					method: "DELETE",
+				},
+			);
+			await assertSuccess(response, t("chat.errors.delete_conversation"));
+		},
+
 		async markRead(conversationId: string, messageId: string): Promise<void> {
 			const response = await fetchRest(
 				`/v4/chat/conversation/${conversationId}/read/${messageId}`,
