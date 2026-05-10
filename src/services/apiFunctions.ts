@@ -12,6 +12,7 @@ import { createInterestMethods } from "./api/interestMethods";
 import { createAgeVerificationMethods } from "./api/ageVerificationMethods";
 import { createFeedMethods, type RightNowFeedItem } from "./api/feedMethods";
 import { createPresenceMethods } from "./api/presenceMethods";
+import { createFavoritesMethods } from "./api/favoritesMethods";
 
 export {
 	ApiFunctionError,
@@ -33,6 +34,7 @@ export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => s
 		...createAgeVerificationMethods(fetchRest, t),
 		...createFeedMethods(fetchRest, t),
 		...createPresenceMethods(),
+		...createFavoritesMethods(fetchRest, t),
 
 		async request(
 			path: string,

@@ -1,6 +1,7 @@
 import {
 	ChevronDown,
 	Ellipsis,
+	Heart,
 	Hourglass,
 	ImagePlus,
 	Infinity,
@@ -55,6 +56,9 @@ type ChatThreadPanelProps = {
 	clearLocalHistory: () => void | Promise<void>;
 	onBlockProfile?: (profileId: number) => void | Promise<void>;
 	isBlockingProfile?: boolean;
+	onToggleFavorite?: (profileId: number, currentlyFavorite: boolean) => void | Promise<void>;
+	isFavorite?: boolean;
+	isTogglingFavorite?: boolean;
 	getProfileReturnToChatPath: (profileId: number) => string;
 	isLoadingThread: boolean;
 	threadConversationId: string | null;
@@ -167,6 +171,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		clearLocalHistory,
 		onBlockProfile,
 		isBlockingProfile = false,
+		onToggleFavorite,
+		isFavorite = false,
+		isTogglingFavorite = false,
 		getProfileReturnToChatPath,
 		isLoadingThread,
 		threadConversationId,
@@ -451,6 +458,26 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									<button
 										type="button"
+										onClick={() => {
+											if (!otherParticipant || !onToggleFavorite) return;
+											void onToggleFavorite(otherParticipant.profileId, isFavorite);
+										}}
+										disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
+										className={`rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60 ${
+											isFavorite
+												? "border-pink-500/40 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20"
+												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										{isTogglingFavorite ? (
+											<Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
+										) : (
+											<Heart className={`mr-1 inline h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
+										)}
+										{isFavorite ? "Unfavorite" : "Favorite"}
+									</button>
+									<button
+										type="button"
 										disabled={isUpdatingConversationState}
 										onClick={togglePin}
 										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
@@ -528,6 +555,25 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 											>
 												View profile
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													if (!otherParticipant || !onToggleFavorite) return;
+													void onToggleFavorite(otherParticipant.profileId, isFavorite);
+												}}
+												disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
+												className={`rounded-lg px-2 py-2 text-left text-sm transition disabled:opacity-60 ${
+													isFavorite ? "text-pink-400 hover:bg-pink-500/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+												}`}
+											>
+												{isTogglingFavorite ? (
+													<Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin" />
+												) : (
+													<Heart className={`mr-2 inline h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
+												)}
+												{isFavorite ? "Unfavorite" : "Favorite"}
 											</button>
 											<button
 												type="button"

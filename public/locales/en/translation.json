@@ -734,6 +734,12 @@
         "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
         "delete_confirm_label": "Delete"
     },
+    "favorites": {
+        "added": "Added to favorites",
+        "removed": "Removed from favorites",
+        "add_failed": "Failed to add favorite",
+        "remove_failed": "Failed to remove favorite"
+    },
     "profile_details": {
         "title": "Profile details",
         "profile_fallback": "Profile {{id}}",
