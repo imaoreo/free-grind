@@ -59,6 +59,8 @@ type ChatThreadPanelProps = {
 	onToggleFavorite?: (profileId: number, currentlyFavorite: boolean) => void | Promise<void>;
 	isFavorite?: boolean;
 	isTogglingFavorite?: boolean;
+	localNickname?: string | null;
+	onEditLocalNickname?: (profileId: number, defaultName: string) => void | Promise<void>;
 	getProfileReturnToChatPath: (profileId: number) => string;
 	isLoadingThread: boolean;
 	threadConversationId: string | null;
@@ -174,6 +176,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onToggleFavorite,
 		isFavorite = false,
 		isTogglingFavorite = false,
+		localNickname = null,
+		onEditLocalNickname,
 		getProfileReturnToChatPath,
 		isLoadingThread,
 		threadConversationId,
@@ -333,6 +337,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				const distanceLabel = otherParticipant?.distanceMetres
 					? formatDistance(otherParticipant.distanceMetres, t, unitsPreset)
 					: null;
+				const displayName =
+					localNickname || selectedConversation.data.name || "Conversation";
 
 				const requestBlockProfile = () => {
 					if (!otherParticipant || isBlockingProfile || !onBlockProfile) {
@@ -407,14 +413,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								>
 									<img
 										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-										alt={selectedConversation.data.name || t("chat.profile")}
+										alt={displayName}
 										className="h-full w-full object-cover"
 									/>
 								</button>
 								<div className="min-w-0">
 									<div className="flex items-center gap-1.5 min-w-0">
 										<p className="truncate text-lg font-semibold">
-											{selectedConversation.data.name || "Conversation"}
+											{displayName}
 										</p>
 										{otherParticipant?.profileId &&
 										presenceResults[otherParticipant.profileId] ? (
@@ -455,6 +461,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 									>
 										View profile
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											if (!otherParticipant || !onEditLocalNickname) {
+												return;
+											}
+											void onEditLocalNickname(otherParticipant.profileId, displayName);
+										}}
+										disabled={!otherParticipant || !onEditLocalNickname}
+										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+									>
+										{localNickname ? t("chat.nicknames.edit") : t("chat.nicknames.set")}
 									</button>
 									<button
 										type="button"
@@ -555,6 +574,18 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 											>
 												View profile
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													if (!otherParticipant || !onEditLocalNickname) return;
+													void onEditLocalNickname(otherParticipant.profileId, displayName);
+												}}
+												disabled={!otherParticipant || !onEditLocalNickname}
+												className="rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+											>
+												{localNickname ? t("chat.nicknames.edit") : t("chat.nicknames.set")}
 											</button>
 											<button
 												type="button"

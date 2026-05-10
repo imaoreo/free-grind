@@ -679,6 +679,14 @@
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."
         },
+        "nicknames": {
+            "set": "Set nickname",
+            "edit": "Edit nickname",
+            "prompt": "Set a local nickname for this profile. Leave blank to clear.",
+            "saved": "Nickname saved",
+            "cleared": "Nickname cleared",
+            "save_failed": "Failed to save nickname"
+        },
         "errors": {
             "load_albums": "Failed to load albums",
             "load_inbox": "Failed to load inbox",

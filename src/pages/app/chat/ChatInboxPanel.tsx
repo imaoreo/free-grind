@@ -33,6 +33,7 @@ type ChatInboxPanelProps = {
 	realtimeStatusMeta: RealtimeStatusMeta;
 	selectedConversationId: string | null;
 	userId: number | null;
+	localNicknamesByProfileId: Record<string, string>;
 	nowTimestamp: number;
 	presenceResults: Record<string, boolean>;
 	inboxListRef: RefObject<HTMLDivElement | null>;
@@ -64,6 +65,7 @@ export function ChatInboxPanel({
 	realtimeStatusMeta,
 	selectedConversationId,
 	userId,
+	localNicknamesByProfileId,
 	nowTimestamp,
 	presenceResults,
 	inboxListRef,
@@ -258,6 +260,14 @@ export function ChatInboxPanel({
 				>
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
+						const otherProfileId = otherParticipant?.profileId
+							? String(otherParticipant.profileId)
+							: null;
+						const localNickname = otherProfileId
+							? localNicknamesByProfileId[otherProfileId]
+							: null;
+						const displayName =
+							localNickname || conversation.data.name || t("chat.unknown");
 						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
 							otherParticipant?.lastOnline,
 							otherParticipant?.onlineUntil,
@@ -282,8 +292,8 @@ export function ChatInboxPanel({
 							>
 							<button
 								type="button"
-								title={conversation.data.name || t("chat.profile")}
-								aria-label={conversation.data.name || t("chat.profile")}
+								title={displayName}
+								aria-label={displayName}
 								onClick={(event) => {
 									event.stopPropagation();
 									if (otherParticipant?.profileId) {
@@ -302,7 +312,7 @@ export function ChatInboxPanel({
 								>
 									<img
 										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-										alt={conversation.data.name || t("chat.profile")}
+										alt={displayName}
 										className="h-full w-full object-cover"
 									/>
 									{conversation.data.pinned ? (
@@ -315,7 +325,7 @@ export function ChatInboxPanel({
 									<div className="flex items-center justify-between gap-2">
 										<div className="flex min-w-0 items-center gap-1">
 											<p className="truncate font-semibold">
-												{conversation.data.name || t("chat.unknown")}
+												{displayName}
 											</p>
 											{otherParticipant?.profileId &&
 											presenceResults[otherParticipant.profileId] ? (

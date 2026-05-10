@@ -64,7 +64,11 @@ import {
 	useDesktopBreakpoint,
 } from "./chat/chatUtils";
 import { appLog } from "../../utils/logger";
-import { upsertChatContactIndexFromInbox } from "../../services/chatContactIndex";
+import {
+	getLocalNicknamesForProfiles,
+	setLocalNicknameForProfile,
+	upsertChatContactIndexFromInbox,
+} from "../../services/chatContactIndex";
 
 
 export function ChatPage() {
@@ -171,6 +175,9 @@ export function ChatPage() {
 		null,
 	);
 	const [isTogglingFavoriteProfileId, setIsTogglingFavoriteProfileId] = useState<string | null>(null);
+	const [localNicknamesByProfileId, setLocalNicknamesByProfileId] = useState<
+		Record<string, string>
+	>({});
 
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
@@ -403,6 +410,51 @@ export function ChatPage() {
 			) ?? null,
 		[conversations, selectedConversationId],
 	);
+
+	const selectedConversationOtherProfileId = useMemo(() => {
+		if (!selectedConversation || userId == null) {
+			return null;
+		}
+		const otherParticipant = getOtherParticipant(selectedConversation, userId);
+		return otherParticipant?.profileId != null
+			? String(otherParticipant.profileId)
+			: null;
+	}, [selectedConversation, userId]);
+
+	useEffect(() => {
+		const profileIds = conversations
+			.map((conversation) => {
+				if (userId == null) {
+					return null;
+				}
+				const otherParticipant = getOtherParticipant(conversation, userId);
+				return otherParticipant?.profileId != null
+					? String(otherParticipant.profileId)
+					: null;
+			})
+			.filter((id): id is string => id !== null);
+
+		if (profileIds.length === 0) {
+			setLocalNicknamesByProfileId({});
+			return;
+		}
+
+		let cancelled = false;
+		void getLocalNicknamesForProfiles(profileIds)
+			.then((nicknames) => {
+				if (cancelled) {
+					return;
+				}
+				setLocalNicknamesByProfileId(nicknames);
+			})
+			.catch((error) => {
+				appLog.warn("[chat] failed to hydrate local nicknames", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [conversations, userId]);
 
 	const handleInboxTouchStart = useCallback(
 		(event: TouchEvent<HTMLDivElement>) => {
@@ -1684,6 +1736,52 @@ export function ChatPage() {
 		[isTogglingFavoriteProfileId, service, t],
 	);
 
+	const editLocalNicknameFromChat = useCallback(
+		async (profileId: number, defaultName: string) => {
+			const profileKey = String(profileId);
+			const existingNickname = localNicknamesByProfileId[profileKey] ?? "";
+			const input = window.prompt(
+				t("chat.nicknames.prompt"),
+				existingNickname || defaultName,
+			);
+			if (input === null) {
+				return;
+			}
+
+			const normalized = input.trim();
+			try {
+				await setLocalNicknameForProfile(profileKey, normalized || null);
+				setLocalNicknamesByProfileId((previous) => {
+					const next = { ...previous };
+					if (normalized) {
+						next[profileKey] = normalized;
+					} else {
+						delete next[profileKey];
+					}
+					return next;
+				});
+				toast.success(
+					normalized
+						? t("chat.nicknames.saved")
+						: t("chat.nicknames.cleared"),
+				);
+			} catch (error) {
+				appLog.warn("[chat] failed to save local nickname", error);
+				const fallbackMessage = t("chat.nicknames.save_failed");
+				const message =
+					error instanceof Error
+						? error.message
+						: typeof error === "string"
+							? error
+							: JSON.stringify(error) || fallbackMessage;
+				toast.error(
+					message || fallbackMessage,
+				);
+			}
+		},
+		[localNicknamesByProfileId, t],
+	);
+
 	const sendTextMessage = useCallback(
 		async (
 			text: string,
@@ -2644,6 +2742,7 @@ export function ChatPage() {
 			realtimeStatusMeta={realtimeStatusMeta}
 			selectedConversationId={selectedConversationId}
 			userId={userId}
+			localNicknamesByProfileId={localNicknamesByProfileId}
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}
@@ -2698,6 +2797,12 @@ export function ChatPage() {
 			onToggleFavorite={toggleFavoriteFromChat}
 			isFavorite={selectedConversation?.data.favorite ?? false}
 			isTogglingFavorite={isTogglingFavoriteProfileId !== null}
+			localNickname={
+				selectedConversationOtherProfileId
+					? localNicknamesByProfileId[selectedConversationOtherProfileId] ?? null
+					: null
+			}
+			onEditLocalNickname={editLocalNicknameFromChat}
 			getProfileReturnToChatPath={getProfileReturnToChatPath}
 			isLoadingThread={isLoadingThread}
 			threadConversationId={threadConversationId}

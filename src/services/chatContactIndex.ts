@@ -19,7 +19,26 @@ type ChatContactIndexRow = {
 	updated_at: number;
 };
 
+type LocalNicknameRow = {
+	profile_id: string;
+	local_nickname: string;
+};
+
 let dbPromise: Promise<Database> | null = null;
+let writeQueue: Promise<void> = Promise.resolve();
+
+async function ensureLocalNicknameTable(db: Database): Promise<void> {
+	await db.execute(`
+		CREATE TABLE IF NOT EXISTS chat_local_profile_meta (
+			profile_id TEXT PRIMARY KEY,
+			local_nickname TEXT NOT NULL,
+			updated_at INTEGER NOT NULL
+		)
+	`);
+	await db.execute(
+		"CREATE INDEX IF NOT EXISTS idx_chat_local_profile_meta_updated_at ON chat_local_profile_meta(updated_at DESC)",
+	);
+}
 
 async function getDb(): Promise<Database> {
 	if (!dbPromise) {
@@ -42,6 +61,7 @@ async function getDb(): Promise<Database> {
 			await db.execute(
 				"CREATE INDEX IF NOT EXISTS idx_chat_contact_index_last_message ON chat_contact_index(last_message_timestamp DESC)",
 			);
+			await ensureLocalNicknameTable(db);
 			return db;
 		})();
 	}
@@ -72,36 +92,42 @@ async function executeWithLockRetry(
 	label: string,
 	run: () => Promise<void>,
 ): Promise<void> {
-	const maxAttempts = SQLITE_LOCK_RETRY_DELAYS_MS.length + 1;
+	const queuedRun = async () => {
+		const maxAttempts = SQLITE_LOCK_RETRY_DELAYS_MS.length + 1;
 
-	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		await db.execute("BEGIN");
-		try {
-			await run();
-			await db.execute("COMMIT");
-			if (attempt > 1) {
-				appLog.warn("[chat-index] recovered from sqlite lock", {
+		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+			await db.execute("BEGIN");
+			try {
+				await run();
+				await db.execute("COMMIT");
+				if (attempt > 1) {
+					appLog.warn("[chat-index] recovered from sqlite lock", {
+						label,
+						attempt,
+					});
+				}
+				return;
+			} catch (error) {
+				await db.execute("ROLLBACK").catch(() => {});
+				const locked = isSqliteLockedError(error);
+				if (!locked || attempt >= maxAttempts) {
+					throw error;
+				}
+
+				const delayMs = SQLITE_LOCK_RETRY_DELAYS_MS[attempt - 1] ?? 400;
+				appLog.warn("[chat-index] sqlite lock during write, retrying", {
 					label,
 					attempt,
+					delayMs,
 				});
+				await sleep(delayMs);
 			}
-			return;
-		} catch (error) {
-			await db.execute("ROLLBACK").catch(() => {});
-			const locked = isSqliteLockedError(error);
-			if (!locked || attempt >= maxAttempts) {
-				throw error;
-			}
-
-			const delayMs = SQLITE_LOCK_RETRY_DELAYS_MS[attempt - 1] ?? 400;
-			appLog.warn("[chat-index] sqlite lock during write, retrying", {
-				label,
-				attempt,
-				delayMs,
-			});
-			await sleep(delayMs);
 		}
-	}
+	};
+
+	const current = writeQueue.then(queuedRun, queuedRun);
+	writeQueue = current.then(() => undefined, () => undefined);
+	await current;
 }
 
 export async function initChatContactIndex(): Promise<void> {
@@ -260,5 +286,78 @@ export function indexChatContactRecordsByProfileId(
 	for (const record of records) {
 		next[record.profileId] = record;
 	}
+	return next;
+}
+
+export async function setLocalNicknameForProfile(
+	profileId: string,
+	nickname: string | null,
+): Promise<void> {
+	const normalizedProfileId = profileId.trim();
+	if (!normalizedProfileId) {
+		return;
+	}
+
+	const normalizedNickname = nickname?.trim() ?? "";
+	const db = await getDb();
+	await ensureLocalNicknameTable(db);
+
+	await executeWithLockRetry(db, "set-local-nickname", async () => {
+		if (!normalizedNickname) {
+			await db.execute(
+				"DELETE FROM chat_local_profile_meta WHERE profile_id = $1",
+				[normalizedProfileId],
+			);
+			return;
+		}
+
+		await db.execute(
+			`
+			INSERT INTO chat_local_profile_meta (
+				profile_id,
+				local_nickname,
+				updated_at
+			) VALUES ($1, $2, $3)
+			ON CONFLICT(profile_id) DO UPDATE SET
+				local_nickname = excluded.local_nickname,
+				updated_at = excluded.updated_at
+			`,
+			[normalizedProfileId, normalizedNickname, Date.now()],
+		);
+	});
+}
+
+export async function getLocalNicknamesForProfiles(
+	profileIds: string[],
+): Promise<Record<string, string>> {
+	if (profileIds.length === 0) {
+		return {};
+	}
+
+	const ids = profileIds.map((id) => id.trim()).filter(Boolean);
+	if (ids.length === 0) {
+		return {};
+	}
+
+	const db = await getDb();
+	await ensureLocalNicknameTable(db);
+	const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
+	const rows = await db.select<LocalNicknameRow[]>(
+		`
+		SELECT profile_id, local_nickname
+		FROM chat_local_profile_meta
+		WHERE profile_id IN (${placeholders})
+		`,
+		ids,
+	);
+
+	const next: Record<string, string> = {};
+	for (const row of rows) {
+		const nickname = row.local_nickname.trim();
+		if (nickname) {
+			next[row.profile_id] = nickname;
+		}
+	}
+
 	return next;
 }
