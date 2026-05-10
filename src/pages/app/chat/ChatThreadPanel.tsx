@@ -54,6 +54,8 @@ type ChatThreadPanelProps = {
 	togglePin: () => void | Promise<void>;
 	toggleMute: () => void | Promise<void>;
 	clearLocalHistory: () => void | Promise<void>;
+	onDeleteConversation?: (conversationId: string) => void | Promise<void>;
+	isDeletingConversation?: boolean;
 	onBlockProfile?: (profileId: number) => void | Promise<void>;
 	isBlockingProfile?: boolean;
 	onToggleFavorite?: (profileId: number, currentlyFavorite: boolean) => void | Promise<void>;
@@ -148,6 +150,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
+	const [isDeleteConversationConfirmOpen, setIsDeleteConversationConfirmOpen] =
+		useState(false);
 	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
 	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
 		if (typeof window === "undefined") {
@@ -171,6 +175,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		togglePin,
 		toggleMute,
 		clearLocalHistory,
+		onDeleteConversation,
+		isDeletingConversation = false,
 		onBlockProfile,
 		isBlockingProfile = false,
 		onToggleFavorite,
@@ -258,6 +264,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 	};
 
+	const closeDeleteConversationConfirm = () => {
+		if (isDeletingConversation) {
+			return;
+		}
+		setIsDeleteConversationConfirmOpen(false);
+	};
+
 	useModalClose({
 		isOpen: pendingAlbumShare !== null,
 		onClose: closePendingAlbumShare,
@@ -270,8 +283,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		escapeKey: !isBlockingProfile,
 	});
 
+	useModalClose({
+		isOpen: isDeleteConversationConfirmOpen,
+		onClose: closeDeleteConversationConfirm,
+		escapeKey: !isDeletingConversation,
+	});
+
 	useEffect(() => {
 		setIsBlockConfirmOpen(false);
+		setIsDeleteConversationConfirmOpen(false);
 		setDontAskBlockAgain(false);
 	}, [selectedConversation?.data.conversationId]);
 
@@ -367,6 +387,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					setIsBlockConfirmOpen(false);
 					void onBlockProfile(otherParticipant.profileId);
+				};
+
+				const requestDeleteConversation = () => {
+					if (!onDeleteConversation || isDeletingConversation) {
+						return;
+					}
+					setIsHeaderActionsMenuOpen(false);
+					setIsDeleteConversationConfirmOpen(true);
+				};
+
+				const confirmDeleteConversation = () => {
+					if (!onDeleteConversation || isDeletingConversation) {
+						return;
+					}
+					setIsDeleteConversationConfirmOpen(false);
+					void onDeleteConversation(selectedConversation.data.conversationId);
 				};
 
 				return (
@@ -534,6 +570,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									>
 										Clear local history
 									</button>
+									<button
+										type="button"
+										onClick={requestDeleteConversation}
+										disabled={!onDeleteConversation || isDeletingConversation}
+										className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-60"
+									>
+										{isDeletingConversation
+											? t("chat.delete_conversation_in_progress")
+											: t("chat.delete_conversation")}
+									</button>
 								</div>
 							) : (
 								<div
@@ -648,6 +694,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											>
 												Clear local history
 											</button>
+											<button
+												type="button"
+												onClick={requestDeleteConversation}
+												disabled={!onDeleteConversation || isDeletingConversation}
+												className="rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
+											>
+												{isDeletingConversation
+													? t("chat.delete_conversation_in_progress")
+													: t("chat.delete_conversation")}
+											</button>
 										</div>
 									) : null}
 								</div>
@@ -667,6 +723,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							dontAskAgainLabel={t("profile_details.dont_ask_again")}
 							dontAskAgainChecked={dontAskBlockAgain}
 							onDontAskAgainChange={setDontAskBlockAgain}
+						/>
+						<ConfirmDialog
+							isOpen={isDeleteConversationConfirmOpen}
+							title={t("chat.delete_conversation")}
+							message={t("chat.delete_conversation_confirm")}
+							confirmLabel={t("chat.delete_conversation")}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={confirmDeleteConversation}
+							onCancel={closeDeleteConversationConfirm}
+							isProcessing={isDeletingConversation}
+							confirmTone="danger"
 						/>
 					</>
 				);

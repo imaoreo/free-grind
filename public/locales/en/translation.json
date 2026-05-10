@@ -602,6 +602,9 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "clear_local_history": "Clear local history",
+        "delete_conversation": "Delete conversation",
+        "delete_conversation_in_progress": "Deleting conversation...",
+        "delete_conversation_confirm": "Delete this conversation? This cannot be undone.",
         "open_conversation_actions": "Open conversation actions",
         "expiration": {
             "title": "Access Duration",
@@ -712,12 +715,14 @@
             "load_album_details": "Failed to load album details",
             "upload_media_failed": "Failed to upload media",
             "load_drawer_media": "Failed to load drawer media",
-            "send_drawer_media": "Failed to send media from drawer"
+            "send_drawer_media": "Failed to send media from drawer",
+            "delete_conversation": "Failed to delete conversation"
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
             "album_shared": "Album shared",
-            "media_sent": "Media sent"
+            "media_sent": "Media sent",
+            "conversation_deleted": "Conversation deleted"
         },
         "new_conversation": {
             "title": "New conversation",
