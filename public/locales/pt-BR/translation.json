@@ -1,11 +1,11 @@
 {
     "settings": {
-        "title": "",
-        "subtitle": "",
-        "language": "",
-        "language_description": "",
-        "profile_editor": "",
-        "profile_editor_desc": "",
+        "title": "Configurações",
+        "subtitle": "Escolha o que você deseja gerenciar.",
+        "language": "Linguagem",
+        "language_description": "Escolha o seu idioma preferido.",
+        "profile_editor": "Editor de Perfil",
+        "profile_editor_desc": "Editar detalhes do perfil, identidade e preferências.",
         "customizability": "",
         "customizability_desc": "",
         "report_issue": "",
