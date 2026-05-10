@@ -1,4 +1,4 @@
-import { MessageCircle, Triangle } from "lucide-react";
+import { Heart, Loader2, MessageCircle, Triangle } from "lucide-react";
 import { type RefObject, type UIEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
@@ -44,6 +44,12 @@ type ProfileDetailsContentProps = {
 	onTapProfile?: (profileId: string, tapId?: number) => void;
 	onBlockProfile?: (profileId: string) => void;
 	onUnblockProfile?: (profileId: string) => void;
+	onToggleFavoriteProfile?: (
+		profileId: string,
+		currentlyFavorite: boolean,
+	) => void | Promise<void>;
+	isFavorite: boolean;
+	isTogglingFavorite: boolean;
 	isBlocked: boolean;
 	isBlockingProfile: boolean;
 	isTapDisabled: boolean;
@@ -96,6 +102,9 @@ export function ProfileDetailsContent({
 	onTapProfile,
 	onBlockProfile,
 	onUnblockProfile,
+	onToggleFavoriteProfile,
+	isFavorite,
+	isTogglingFavorite,
 	isBlocked,
 	isBlockingProfile,
 	isTapDisabled,
@@ -160,6 +169,14 @@ export function ProfileDetailsContent({
 		}
 
 		onBlockProfile?.(messageProfileId);
+	};
+
+	const handleFavoriteAction = () => {
+		if (!messageProfileId || !onToggleFavoriteProfile || isTogglingFavorite) {
+			return;
+		}
+
+		void onToggleFavoriteProfile(messageProfileId, isFavorite);
 	};
 
 	return (
@@ -354,6 +371,27 @@ export function ProfileDetailsContent({
 							{isLocatingProfile ? "Locating..." : "Locate"}
 						</button>
 						</div>
+						{onToggleFavoriteProfile ? (
+							<button
+								type="button"
+								onClick={handleFavoriteAction}
+								disabled={isTogglingFavorite}
+								className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
+									isFavorite
+										? "border-pink-500/45 bg-pink-500/10 text-pink-300 hover:border-pink-400 hover:bg-pink-500/15"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
+								}`}
+							>
+								{isTogglingFavorite ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+								)}
+								{isFavorite
+									? t("profile_details.unfavorite")
+									: t("browse_filters.options.favorites")}
+							</button>
+						) : null}
 						{(onBlockProfile || onUnblockProfile) ? (
 							<button
 								type="button"
