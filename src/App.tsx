@@ -28,6 +28,7 @@ import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
+import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
@@ -128,9 +129,13 @@ export default function App() {
 								element={<CustomizabilityPage />}
 							/>
 							<Route
-								path="/settings/report-issue"
-								element={<ReportIssuePage />}
-							/>
+							path="/settings/report-issue"
+							element={<ReportIssuePage />}
+						/>
+						<Route
+							path="/settings/issues"
+							element={<IssueSearchPage />}
+						/>
 							<Route
 								path="/settings/profile-editor"
 								element={<ProfileEditorPage />}

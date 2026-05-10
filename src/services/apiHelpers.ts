@@ -89,6 +89,50 @@ export async function submitIssueReport(
 	return { id: payload.id };
 }
 
+export type IssueStatus = "OPEN" | "IN_PROGRESS" | "CLOSED" | "RESOLVED";
+export type IssueCategory = "BUG" | "FEATURE_REQUEST";
+
+export type IssueResult = {
+	id: string;
+	title: string;
+	description: string;
+	status: IssueStatus;
+	priority: string;
+	category: IssueCategory;
+	createdAt: string;
+	updatedAt: string;
+	reportedBy: { id: string; name: string } | null;
+};
+
+export type SearchIssuesParams = {
+	search?: string;
+	category?: IssueCategory;
+	status?: IssueStatus;
+	skip?: number;
+	take?: number;
+};
+
+export async function searchIssues(params: SearchIssuesParams): Promise<{
+	data: IssueResult[];
+	total: number;
+	skip: number;
+	take: number;
+}> {
+	const query = new URLSearchParams();
+	if (params.search) query.set("search", params.search);
+	if (params.category) query.set("category", params.category);
+	if (params.status) query.set("status", params.status);
+	if (params.skip !== undefined) query.set("skip", String(params.skip));
+	if (params.take !== undefined) query.set("take", String(params.take));
+
+	const response = await fetch(`${ISSUES_API_BASE}/api/issues?${query.toString()}`);
+	if (!response.ok) {
+		throw new Error("Failed to load issues");
+	}
+
+	return response.json() as Promise<{ data: IssueResult[]; total: number; skip: number; take: number }>;
+}
+
 export async function trackUpdateCheck(data: {
 	channel: string;
 	platform: string;

@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "issue_board": "Issues & Feature Requests",
+        "issue_board_desc": "Browse and search reported bugs and feature requests.",
         "report_issue": "Report Bug or Feature",
         "report_issue_desc": "Send bug reports and feature requests to the team.",
         "about": "About Free Grind",
@@ -486,6 +488,26 @@
             "current": "Current",
             "not_selected": "Not selected yet"
         }
+    },
+    "issue_search": {
+        "title": "Issues & Feature Requests",
+        "subtitle": "Browse reported bugs and feature requests.",
+        "search_placeholder": "Search issues…",
+        "filter_all": "All",
+        "category_bug": "Bug",
+        "category_feature": "Feature Request",
+        "status_open": "Open",
+        "status_in_progress": "In Progress",
+        "status_resolved": "Resolved",
+        "status_closed": "Closed",
+        "report_cta": "Report",
+        "load_more": "Load {{remaining}} more",
+        "loading_more": "Loading…",
+        "showing_all": "Showing all {{count}} issues",
+        "no_results": "No issues found.",
+        "no_results_query": "No results for \"{{query}}\".",
+        "error_load": "Failed to load issues.",
+        "retry": "Try again"
     },
     "issues_form": {
         "title": "Report a Bug or Suggest a Feature",
