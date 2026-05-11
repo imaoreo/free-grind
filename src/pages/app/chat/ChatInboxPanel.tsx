@@ -163,25 +163,25 @@ export function ChatInboxPanel({
 			onTouchEndExtra={onInboxTouchEnd}
 		>
 			<div
-				className={`flex shrink-0 items-start justify-between gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "p-[var(--app-px)]"}`}
+				className={`flex shrink-0 flex-col gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "p-[var(--app-px)]"}`}
 				style={!isDesktop ? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" } : undefined}
 			>
-				<div>
+				<div className="flex items-end justify-between gap-2">
 					<InboxAlbumsTabs
 						activeTab="inbox"
 						onInboxClick={onOpenInbox}
 						onAlbumsClick={onOpenAlbums}
 					/>
-					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
 				</div>
-				<div className="flex flex-col items-end gap-1.5">
+
+				<div className="flex items-center justify-between gap-2">
 					<span
-						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
+						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${realtimeStatusMeta.className}`}
 					>
 						<span className="leading-none">{realtimeStatusMeta.symbol}</span>
 						<span>{realtimeStatusMeta.label}</span>
 					</span>
-					<div className="flex items-center gap-2">
+					<div className="flex shrink-0 items-center gap-1.5">
 						<button
 							type="button"
 							onClick={onToggleFavoritesOnly}
