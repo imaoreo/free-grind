@@ -34,7 +34,9 @@
         "report_issue": "Signaler un bug ou faire une suggestion",
         "report_issue_desc": "Envoyez des rapports de bugs et des suggestions de fonctionnalités à l'équipe.",
         "blocked_accounts": "Comptes bloqués",
-        "blocked_accounts_desc": "Voir qui vous avez bloqué et les débloquer à tout moment."
+        "blocked_accounts_desc": "Voir qui vous avez bloqué et les débloquer à tout moment.",
+        "issue_board": "Bugs & Suggestions",
+        "issue_board_desc": "Parcourez et recherchez les bugs signalés et les suggestions de fonctionnalités."
     },
     "shared_albums": {
         "subtitle": "Explorez tous les albums partagés par les autres dans vos chats.",
@@ -381,7 +383,16 @@
         },
         "subtitle": "Personnalisez l'apparence de l'application.",
         "color_scheme": "Thème",
-        "accent_color": "Couleur d'accentuation"
+        "accent_color": "Couleur d'accentuation",
+        "units": "Unités",
+        "units_description": "Choisissez comment la distance et la taille sont affichées.",
+        "units_world": "Monde (mètres + cm)",
+        "units_uk": "Royaume-Uni (mètres + pieds/pouces)",
+        "units_american": "Américain (miles + pieds/pouces)",
+        "blur_incoming_media": "Flouter les médias entrants",
+        "blur_incoming_media_description": "Floute automatiquement les images et vidéos reçues dans les chats. Sur ordinateur, survolez ou cliquez pour révéler. Dans les chats, les médias révélés sont à nouveau floutés lorsque vous quittez et revenez.",
+        "enabled": "Activé",
+        "disabled": "Désactivé"
     },
     "auth": {
         "common": {
@@ -406,6 +417,9 @@
             "have_account": "Déjà un compte ? Connectez-vous",
             "open_issue": "Ouvrir le Ticket #2",
             "opening_issue": "Ouverture du ticket..."
+        },
+        "bug_report": {
+            "button": "Signaler un bug"
         }
     },
     "chat": {
@@ -501,11 +515,16 @@
             "load_shared_images": "Erreur lors du chargement des images partagées",
             "create_album_failed": "Erreur lors de la création de l'album",
             "load_album_details": "Erreur lors du chargement des détails de l'album",
-            "upload_media_failed": "Erreur lors du téléversement du média"
+            "upload_media_failed": "Erreur lors du téléversement du média",
+            "load_drawer_media": "Erreur lors du chargement des médias du tiroir",
+            "send_drawer_media": "Erreur lors de l'envoi du média depuis le tiroir",
+            "delete_conversation": "Erreur lors de la suppression de la conversation"
         },
         "toasts": {
             "cleared_local_history": "L'historique local a été effacé pour cette conversation",
-            "album_shared": "Album partagé avec succès"
+            "album_shared": "Album partagé avec succès",
+            "media_sent": "Média envoyé",
+            "conversation_deleted": "Conversation supprimée"
         },
         "new_conversation": {
             "title": "Nouvelle conversation",
@@ -554,7 +573,18 @@
             "remaining": "restant",
             "expired": "expiré"
         },
-        "confirm_share_album": "Partager \"{{album}}\" dans cette conversation ?"
+        "confirm_share_album": "Partager \"{{album}}\" dans cette conversation ?",
+        "delete_conversation": "Supprimer la conversation",
+        "delete_conversation_in_progress": "Suppression de la conversation...",
+        "delete_conversation_confirm": "Supprimer cette conversation ? Cette action est irréversible.",
+        "nicknames": {
+            "set": "Définir un surnom",
+            "edit": "Modifier le surnom",
+            "prompt": "Définissez un surnom local pour ce profil. Laissez vide pour l'effacer.",
+            "saved": "Surnom enregistré",
+            "cleared": "Surnom effacé",
+            "save_failed": "Erreur lors de l'enregistrement du surnom"
+        }
     },
     "profile_details": {
         "title": "Détails du profil",
@@ -721,7 +751,9 @@
                 "trans": "Trans",
                 "twink": "Minet"
             }
-        }
+        },
+        "unfavorite": "Retirer des favoris",
+        "dont_ask_again": "Ne plus demander"
     },
     "nav": {
         "browse": "Explorer",
@@ -866,8 +898,8 @@
         "description_placeholder": "Ce qui s'est passé, ce que vous attendiez, et comment reproduire l'erreur.",
         "name_label": "Nom (facultatif)",
         "name_placeholder": "Comment devons-nous vous appeler ?",
-        "contact_label": "Contact (facultatif)",
-        "contact_placeholder": "Discord, Telegram ou Email",
+        "contact_label": "Contact",
+        "contact_placeholder": "Votre pseudo ou adresse e-mail",
         "include_data_label": "Inclure des données de diagnostic",
         "include_app_info": "Inclure la version de l'application et de la plateforme",
         "include_app_info_hint": "Recommandé pour faciliter le dépannage. Ces informations sont publiques, y compris la branche OTA.",
@@ -882,7 +914,9 @@
         "submit_error": "Erreur lors de la soumission",
         "no_id_error": "Rapport envoyé, mais aucun ID n'a été retourné",
         "validation_title": "Veuillez entrer un titre d'au moins 3 caractères.",
-        "validation_description": "Veuillez ajouter une description d'au moins 10 caractères."
+        "validation_description": "Veuillez ajouter une description d'au moins 10 caractères.",
+        "title_bug_only": "Signaler un bug",
+        "validation_contact": "Veuillez entrer vos coordonnées afin que nous puissions vous joindre."
     },
     "api": {
         "errors": {
@@ -965,5 +999,48 @@
         "pull": "Tirez pour actualiser",
         "release": "Relâchez pour actualiser",
         "refreshing": "Actualisation..."
+    },
+    "issue_search": {
+        "title": "Bugs & Suggestions",
+        "subtitle": "Parcourez les bugs signalés et les suggestions de fonctionnalités.",
+        "search_placeholder": "Rechercher des tickets…",
+        "filter_all": "Tous",
+        "category_bug": "Bug",
+        "category_feature": "Suggestion",
+        "status_open": "Ouvert",
+        "status_in_progress": "En cours",
+        "status_resolved": "Résolu",
+        "status_closed": "Fermé",
+        "report_cta": "Signaler",
+        "load_more": "Charger les {{remaining}} suivants",
+        "loading_more": "Chargement…",
+        "showing_all": "Affichage de la totalité des {{count}} tickets",
+        "no_results": "Aucun ticket trouvé.",
+        "no_results_query": "Aucun résultat pour \"{{query}}\".",
+        "error_load": "Erreur lors du chargement des tickets.",
+        "retry": "Réessayer"
+    },
+    "chat_drawer": {
+        "empty": "Votre tiroir est vide.",
+        "retry": "Réessayer",
+        "send": "Envoyer ({{count}})",
+        "sending": "Envoi...",
+        "error_no_selection": "Veuillez sélectionner au moins une image.",
+        "error_send_failed": "Échec de l'envoi du média.",
+        "add_photo": "Ajouter une photo",
+        "delete_media": "Supprimer le média",
+        "take_photo": "Prendre une photo",
+        "upload_photo": "Importer une photo",
+        "add_to_drawer": "Ajouter au tiroir",
+        "invalid_file_type": "Veuillez choisir une photo.",
+        "delete_confirm_title": "Supprimer du tiroir ?",
+        "delete_confirm_message": "Voulez-vous vraiment supprimer ce média de votre tiroir ?",
+        "delete_confirm_label": "Supprimer"
+    },
+    "favorites": {
+        "added": "Ajouté aux favoris",
+        "removed": "Retiré des favoris",
+        "add_failed": "Erreur lors de l'ajout aux favoris",
+        "remove_failed": "Erreur lors du retrait des favoris"
     }
 }
