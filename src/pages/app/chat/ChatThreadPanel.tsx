@@ -1024,7 +1024,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
 						<div
-							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout"
 							onClick={() => setOpenMessageActionId(null)}
 						>
 							<div
@@ -1079,7 +1079,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					{pendingAlbumShare && albumViewer === null ? (
 						<div
-							className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm sm:items-center"
+							className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm sm:items-center no-touch-callout"
 							onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
 						>
 							<div

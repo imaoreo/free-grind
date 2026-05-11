@@ -412,7 +412,8 @@ export function ChatThreadMessages({
 												onTouchEnd={handleMobileTouchEnd}
 												onTouchCancel={handleMobileTouchEnd}
 												onTouchMove={(event) => handleMobileTouchMove(event, message)}
-												className={`relative group/bubble w-full rounded-2xl text-sm ${
+												onContextMenu={(event) => event.preventDefault()}
+												className={`relative group/bubble w-full rounded-2xl text-sm no-touch-callout ${
 													isMediaOnlyBubble
 														? "bg-transparent p-0"
 														: `px-3 py-2 ${
