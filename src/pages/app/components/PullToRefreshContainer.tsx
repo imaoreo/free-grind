@@ -14,6 +14,7 @@ type PullToRefreshContainerProps = {
 	releaseLabel?: string;
 	thresholdPx?: number;
 	maxPullPx?: number;
+	contentClassName?: string;
 	onTouchStartExtra?: (event: TouchEvent<HTMLDivElement>) => void;
 	onTouchMoveExtra?: (event: TouchEvent<HTMLDivElement>) => void;
 	onTouchEndExtra?: (event: TouchEvent<HTMLDivElement>) => void;
@@ -31,6 +32,7 @@ export function PullToRefreshContainer({
 	releaseLabel,
 	thresholdPx = 64,
 	maxPullPx = 96,
+	contentClassName,
 	onTouchStartExtra,
 	onTouchMoveExtra,
 	onTouchEndExtra,
@@ -182,6 +184,7 @@ export function PullToRefreshContainer({
 
 			{/* Content Layer */}
 			<div
+				className={contentClassName}
 				style={{
 					transform: `translateY(${isRefreshing ? 64 : pullDistance}px)`,
 					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s ease" : "none",
