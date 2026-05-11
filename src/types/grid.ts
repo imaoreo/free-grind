@@ -36,6 +36,7 @@ export const browseCardSchema = z.object({
 	onlineUntil: z.number().nullable().optional(),
 	isPopular: z.boolean().optional(),
 	unreadCount: z.number().optional(),
+	favorite: z.boolean().optional(),
 	rightNow: z.unknown().optional(),
 });
 
