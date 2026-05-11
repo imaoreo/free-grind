@@ -100,9 +100,10 @@
         "message_aria": "Message {{name}}",
         "any_position": "Any",
         "just_now": "Just now",
-        "minutes_short": "{{count}} min",
+        "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
-        "days_short": "{{count}}d"
+        "days_short": "{{count}}d",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Right Now Filters",
@@ -587,6 +588,7 @@
         "retry": "Retry",
         "loading": "Loading...",
         "load_more": "Load more",
+        "load_older_messages": "Load older messages",
         "loading_inbox": "Loading inbox...",
         "loading_messages": "Loading messages...",
         "refreshing_inbox": "Refreshing inbox...",
@@ -594,6 +596,9 @@
         "open_search": "Open search",
         "open_filters": "Open filters",
         "profile": "Profile",
+        "view_profile": "View profile",
+        "favorite": "Favorite",
+        "unfavorite": "Unfavorite",
         "no_conversations_match": "No conversations match your filters.",
         "no_conversations": "No conversations yet.",
         "no_messages_yet": "No messages yet.",
@@ -606,6 +611,9 @@
         "delete_conversation_in_progress": "Deleting conversation...",
         "delete_conversation_confirm": "Delete this conversation? This cannot be undone.",
         "open_conversation_actions": "Open conversation actions",
+        "share_album_label": "Share album",
+        "drawer_label": "Drawer",
+        "attach_media": "Attach media",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",
@@ -661,6 +669,7 @@
         "actions": {
             "title": "Message actions",
             "copy": "Copy",
+            "reply": "Reply",
             "unsend": "Unsend",
             "delete": "Delete",
             "cancel": "Cancel"
@@ -733,6 +742,7 @@
         }
     },
     "chat_drawer": {
+        "title": "Drawer",
         "empty": "Your drawer is empty.",
         "retry": "Try again",
         "send": "Send {{count}}",
@@ -741,6 +751,7 @@
         "error_send_failed": "Failed to send media.",
         "add_photo": "Add photo",
         "delete_media": "Delete media",
+        "media_alt": "Drawer media",
         "take_photo": "Take photo",
         "upload_photo": "Upload photo",
         "add_to_drawer": "Add to drawer",

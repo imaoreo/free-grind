@@ -283,7 +283,7 @@ export function ChatDrawerPanel({
 									{isImage ? (
 										<img
 											src={item.url}
-											alt="drawer media"
+											alt={t("chat_drawer.media_alt")}
 											className="h-full w-full object-cover"
 										/>
 									) : (
@@ -343,14 +343,14 @@ export function ChatDrawerPanel({
 							onClick={pickFromCamera}
 							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 						>
-							Take photo
+							{t("chat_drawer.take_photo")}
 						</button>
 						<button
 							type="button"
 							onClick={pickFromUpload}
 							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 						>
-							Upload photo
+							{t("chat_drawer.upload_photo")}
 						</button>
 					</div>
 				</div>

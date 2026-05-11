@@ -80,10 +80,10 @@ function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number;
 	const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
 
 	const parts = [];
-	if (days > 0) parts.push(`${days}d`);
-	if (hours > 0 || days > 0) parts.push(`${hours}h`);
-	if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
-	if (days === 0 && hours === 0) parts.push(`${seconds}s`);
+	if (days > 0) parts.push(t("right_now.days_short", { count: days }));
+	if (hours > 0 || days > 0) parts.push(t("right_now.hours_short", { count: hours }));
+	if (minutes > 0 || hours > 0 || days > 0) parts.push(t("right_now.minutes_short", { count: minutes }));
+	if (days === 0 && hours === 0) parts.push(t("right_now.seconds_short", { count: seconds }));
 
 	return (
 		<>
@@ -297,7 +297,7 @@ export function ChatThreadMessages({
 								disabled={isLoadingOlderMessages}
 								className="mx-auto mb-3 rounded-xl border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
 							>
-								{isLoadingOlderMessages ? "Loading..." : "Load older messages"}
+								{isLoadingOlderMessages ? t("chat.loading") : t("chat.load_older_messages")}
 							</button>
 						) : null}
 
@@ -768,7 +768,7 @@ export function ChatThreadMessages({
 																{isLocked ? (
 																	<div className="flex items-center gap-1.5 text-[var(--text-muted)]">
 																		<Lock className="h-3.5 w-3.5" />
-																		{t("chat.expired")}
+																		{t("chat.expiration.expired")}
 																	</div>
 																) : t("chat.thread.album_share")}
 															</span>
