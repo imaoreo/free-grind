@@ -610,6 +610,7 @@
         },
         "actions": {
             "title": "Nachrichten-Aktionen",
+            "copy": "Kopieren",
             "unsend": "Zurückziehen",
             "delete": "Löschen",
             "cancel": "Abbrechen"
@@ -659,6 +660,7 @@
         },
         "toasts": {
             "cleared_local_history": "Lokaler Verlauf für diesen Chat gelöscht",
+            "copied": "In die Zwischenablage kopiert",
             "album_shared": "Album geteilt"
         },
         "new_conversation": {
