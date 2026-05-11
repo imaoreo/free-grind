@@ -18,6 +18,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
@@ -29,7 +30,9 @@ import { ChatDrawerPanel } from "./ChatDrawerPanel";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
+	getMessageLocation,
 	getMessagePreviewLabel,
+	getMessageText,
 	getOtherParticipant,
 	getParticipantAvatarUrl,
 	getParticipantOnlineMeta,
@@ -269,6 +272,32 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			return;
 		}
 		setIsDeleteConversationConfirmOpen(false);
+	};
+
+	const handleCopy = async (message: UiMessage) => {
+		const location = getMessageLocation(message);
+		const body = message.body as any;
+		const hasRealText = body && typeof body.text === "string" && body.text.trim().length > 0;
+
+		let content = "";
+		if (location) {
+			content = `${location.lat}, ${location.lon}`;
+		} else if (hasRealText) {
+			content = body.text;
+		}
+
+		if (!content) {
+			setOpenMessageActionId(null);
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(content);
+			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
+		} catch (error) {
+			console.error("Copy failed", error);
+		}
+		setOpenMessageActionId(null);
 	};
 
 	useModalClose({
@@ -1035,6 +1064,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									{t("chat.actions.title")}
 								</p>
 								<div className="grid gap-2">
+									{(() => {
+										const loc = getMessageLocation(selectedActionMessage);
+										const body = selectedActionMessage.body as any;
+										const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+										if (!loc && !hasText) return null;
+
+										return (
+											<button
+												type="button"
+												onClick={() => void handleCopy(selectedActionMessage)}
+												className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+											>
+												{t("chat.actions.copy", { defaultValue: "Copy" })}
+											</button>
+										);
+									})()}
 									<button
 										type="button"
 										onClick={() => void handleReply(selectedActionMessage)}

@@ -660,6 +660,7 @@
         },
         "actions": {
             "title": "Message actions",
+            "copy": "Copy",
             "unsend": "Unsend",
             "delete": "Delete",
             "cancel": "Cancel"
@@ -720,6 +721,7 @@
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
+            "copied": "Copied to clipboard",
             "album_shared": "Album shared",
             "media_sent": "Media sent",
             "conversation_deleted": "Conversation deleted"
