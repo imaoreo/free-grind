@@ -155,6 +155,7 @@ export function ChatInboxPanel({
 			className={`flex h-full min-h-0 flex-col overflow-hidden ${
 				isDesktop ? "surface-card" : "p-0"
 			}`}
+			contentClassName="flex flex-1 flex-col min-h-0"
 			style={
 				!isDesktop
 					? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" }

@@ -841,255 +841,259 @@ export function GridPage() {
 	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
-		/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */
-		<PullToRefreshContainer
-			className="app-screen overflow-x-hidden !px-0"
-			style={{ width: "100%" }}
-			onRefresh={() =>
-				loadBrowseCards({ preferCache: false, showLoadingState: false })
-			}
-			isDisabled={isLoadingCards || isLoadingMoreCards}
-			refreshingLabel={t("browse_page.refreshing_feed")}
-		>
-			<header className="mb-2 px-[var(--app-px)] sm:px-4">
-				<div className="sm:hidden">
-					<div>
-						<div className="mb-1 flex items-center gap-2">
-							<button
-								type="button"
-								onClick={() => navigate("/settings")}
-								className="shrink-0 rounded-full transition-all active:scale-95"
-								aria-label={t("browse_page.open_settings")}
-								title={t("browse_page.settings")}
-							>
-								<Avatar
-									src={profilePhotoUrl}
-									alt={t("browse_page.your_profile_photo")}
-									className="h-11 w-11"
-								/>
-							</button>
-
-							<button
-								type="button"
-								onClick={() => navigate("/browse/location")}
-								className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
-							>
-								<MapPin className="h-4 w-4 shrink-0" />
-								<span className="truncate">
-									{locationName || t("browse_page.current_location")}
-								</span>
-							</button>
-						</div>
-
-						<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-							<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
-								<button
-									type="button"
-									onClick={() =>
-										navigate("/browse/filters", {
-											state: {
-												browseFiltersDraft: {
-													sortBy,
-													browseFilters,
-													ageMin,
-													ageMax,
-													heightCmMin,
-													heightCmMax,
-													weightGramsMin,
-													weightGramsMax,
-													tribes,
-													lookingFor,
-													relationshipStatuses,
-													bodyTypes,
-													sexualPositions,
-													meetAt,
-													nsfwPics,
-													tags,
-												},
-											},
-										})
-									}
-									className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
-								>
-									<SlidersHorizontal className="h-4 w-4" />
-									{hasActiveBrowseFilters ? (
-										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-											{activeFilterCount}
-										</span>
-									) : null}
-								</button>
-
-								<div className="relative inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
-									<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-									<select
-										value={sortBy}
-										onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-										className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
-									>
-										<option value="default">{t("browse_filters.sort.default")}</option>
-										<option value="distance">{t("browse_filters.sort.distance")}</option>
-										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-										<option value="popular">{t("browse_filters.sort.popular")}</option>
-										<option value="name">{t("browse_filters.sort.name_az")}</option>
-									</select>
-								</div>
-
-								<button
-									type="button"
-									onClick={() =>
-										setBrowseFilters((prev: typeof browseFilters) => ({
-											...prev,
-											onlineOnly: !prev.onlineOnly,
-										}))
-									}
-									className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-								>
-									{t("browse_filters.options.online")}
-								</button>
-
-								{hasActiveBrowseFilters ? (
-									<button
-										type="button"
-										onClick={clearBrowseFilters}
-										className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
-									>
-										{t("browse_filters.clear_all")}
-									</button>
-								) : null}
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div className="hidden sm:block">
-					<div className="mb-2 flex items-start justify-between gap-4">
+		<>
+			{/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */}
+			<PullToRefreshContainer
+				className="app-screen overflow-x-hidden !px-0"
+				style={{ width: "100%" }}
+				onRefresh={() =>
+					loadBrowseCards({ preferCache: false, showLoadingState: false })
+				}
+				isDisabled={isLoadingCards || isLoadingMoreCards}
+				refreshingLabel={t("browse_page.refreshing_feed")}
+			>
+				<header className="mb-2 px-[var(--app-px)] sm:px-4">
+					<div className="sm:hidden">
 						<div>
-							<h1 className="app-title">{t("browse_page.title")}</h1>
-							<div className="mt-2 flex flex-wrap items-center gap-2">
-								<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
-									<span
-										className="h-2 w-2 rounded-full bg-zinc-400"
-										aria-hidden="true"
+							<div className="mb-1 flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => navigate("/settings")}
+									className="shrink-0 rounded-full transition-all active:scale-95"
+									aria-label={t("browse_page.open_settings")}
+									title={t("browse_page.settings")}
+								>
+									<Avatar
+										src={profilePhotoUrl}
+										alt={t("browse_page.your_profile_photo")}
+										className="h-11 w-11"
 									/>
-									<span>{cards.length}</span>
-								</div>
-								<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
-									<span
-										className="h-2 w-2 rounded-full bg-emerald-500"
-										aria-hidden="true"
-									/>
-									<span>{onlineCount}</span>
-								</div>
+								</button>
+
 								<button
 									type="button"
 									onClick={() => navigate("/browse/location")}
-									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
+									className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
 								>
-									<MapPin className="h-3.5 w-3.5 shrink-0" />
-									<span className="hidden lg:inline truncate">
-										{locationName || t("browse_page.location")}
+									<MapPin className="h-4 w-4 shrink-0" />
+									<span className="truncate">
+										{locationName || t("browse_page.current_location")}
 									</span>
 								</button>
-								<button
-									type="button"
-									onClick={() =>
-										navigate("/browse/filters", {
-											state: {
-												browseFiltersDraft: {
-													sortBy,
-													browseFilters,
-													ageMin,
-													ageMax,
-													heightCmMin,
-													heightCmMax,
-													weightGramsMin,
-													weightGramsMax,
-													tribes,
-													lookingFor,
-													relationshipStatuses,
-													bodyTypes,
-													sexualPositions,
-													meetAt,
-													nsfwPics,
-													tags,
-												},
-											},
-										})
-									}
-									className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								>
-									<SlidersHorizontal className="h-3.5 w-3.5" />
-									<span className="hidden lg:inline">
-										{t("browse_page.filter")}
-									</span>
-									{hasActiveBrowseFilters ? (
-										<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-											{activeFilterCount}
-										</span>
-									) : null}
-								</button>
+							</div>
 
-								<div className="relative inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-2.5 pr-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)] focus-within:text-[var(--text)]">
-									<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
-									<select
-										value={sortBy}
-										onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-										className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
-									>
-										<option value="default">{t("browse_page.sort")}</option>
-										<option value="distance">{t("browse_filters.sort.distance")}</option>
-										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-										<option value="popular">{t("browse_filters.sort.popular")}</option>
-										<option value="name">{t("browse_filters.sort.name_az")}</option>
-									</select>
-								</div>
-
-								{hasActiveBrowseFilters ? (
+							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+								<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
 									<button
 										type="button"
-										onClick={clearBrowseFilters}
-										className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+										onClick={() =>
+											navigate("/browse/filters", {
+												state: {
+													browseFiltersDraft: {
+														sortBy,
+														browseFilters,
+														ageMin,
+														ageMax,
+														heightCmMin,
+														heightCmMax,
+														weightGramsMin,
+														weightGramsMax,
+														tribes,
+														lookingFor,
+														relationshipStatuses,
+														bodyTypes,
+														sexualPositions,
+														meetAt,
+														nsfwPics,
+														tags,
+													},
+												},
+											})
+										}
+										className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
 									>
-										{t("browse_filters.clear_all")}
+										<span className="flex items-center gap-2">
+											<SlidersHorizontal className="h-4 w-4" />
+											{hasActiveBrowseFilters ? (
+												<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+													{activeFilterCount}
+												</span>
+											) : null}
+										</span>
 									</button>
-								) : null}
+
+									<div className="relative inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
+										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<select
+											value={sortBy}
+											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
+											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
+										>
+											<option value="default">{t("browse_filters.sort.default")}</option>
+											<option value="distance">{t("browse_filters.sort.distance")}</option>
+											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+											<option value="popular">{t("browse_filters.sort.popular")}</option>
+											<option value="name">{t("browse_filters.sort.name_az")}</option>
+										</select>
+									</div>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												onlineOnly: !prev.onlineOnly,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+									>
+										{t("browse_filters.options.online")}
+									</button>
+
+									{hasActiveBrowseFilters ? (
+										<button
+											type="button"
+											onClick={clearBrowseFilters}
+											className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+										>
+											{t("browse_filters.clear_all")}
+										</button>
+									) : null}
+								</div>
 							</div>
 						</div>
-						<div className="flex flex-col items-end gap-2">
-							<button
-								type="button"
-								onClick={() => navigate("/settings")}
-								className="rounded-full transition-all hover:scale-[1.03]"
-								aria-label={t("browse_page.open_settings")}
-								title={t("browse_page.settings")}
-							>
-								<Avatar
-									src={profilePhotoUrl}
-									alt={t("browse_page.your_profile_photo")}
-									className="h-11 w-11"
-								/>
-							</button>
-						</div>
 					</div>
-					<p className="app-subtitle">{t("browse_page.subtitle")}</p>
-				</div>
-			</header>
 
-			<BrowseGrid
-				isLoadingCards={isLoadingCards}
-				cardsError={cardsError}
-				cards={sortedCards}
-				chatContactIndexByProfileId={chatContactIndexByProfileId}
-				onSelectProfile={handleSelectProfile}
-				onMessageProfile={handleMessageProfile}
-				hasMore={nextPage !== null}
-				isLoadingMore={isLoadingMoreCards}
-				onLoadMore={() => {
-					void handleLoadMoreCards();
-				}}
-			/>
+					<div className="hidden sm:block">
+						<div className="mb-2 flex items-start justify-between gap-4">
+							<div>
+								<h1 className="app-title">{t("browse_page.title")}</h1>
+								<div className="mt-2 flex flex-wrap items-center gap-2">
+									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+										<span
+											className="h-2 w-2 rounded-full bg-zinc-400"
+											aria-hidden="true"
+										/>
+										<span>{cards.length}</span>
+									</div>
+									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+										<span
+											className="h-2 w-2 rounded-full bg-emerald-500"
+											aria-hidden="true"
+										/>
+										<span>{onlineCount}</span>
+									</div>
+									<button
+										type="button"
+										onClick={() => navigate("/browse/location")}
+										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
+									>
+										<MapPin className="h-3.5 w-3.5 shrink-0" />
+										<span className="hidden lg:inline truncate">
+											{locationName || t("browse_page.location")}
+										</span>
+									</button>
+									<button
+										type="button"
+										onClick={() =>
+											navigate("/browse/filters", {
+												state: {
+													browseFiltersDraft: {
+														sortBy,
+														browseFilters,
+														ageMin,
+														ageMax,
+														heightCmMin,
+														heightCmMax,
+														weightGramsMin,
+														weightGramsMax,
+														tribes,
+														lookingFor,
+														relationshipStatuses,
+														bodyTypes,
+														sexualPositions,
+														meetAt,
+														nsfwPics,
+														tags,
+													},
+												},
+											})
+										}
+										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									>
+										<SlidersHorizontal className="h-3.5 w-3.5" />
+										<span className="hidden lg:inline">
+											{t("browse_page.filter")}
+										</span>
+										{hasActiveBrowseFilters ? (
+											<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+												{activeFilterCount}
+											</span>
+										) : null}
+									</button>
+
+									<div className="relative inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-2.5 pr-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)] focus-within:text-[var(--text)]">
+										<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
+										<select
+											value={sortBy}
+											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
+											className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
+										>
+											<option value="default">{t("browse_page.sort")}</option>
+											<option value="distance">{t("browse_filters.sort.distance")}</option>
+											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+											<option value="popular">{t("browse_filters.sort.popular")}</option>
+											<option value="name">{t("browse_filters.sort.name_az")}</option>
+										</select>
+									</div>
+
+									{hasActiveBrowseFilters ? (
+										<button
+											type="button"
+											onClick={clearBrowseFilters}
+											className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+										>
+											{t("browse_filters.clear_all")}
+										</button>
+									) : null}
+								</div>
+							</div>
+							<div className="flex flex-col items-end gap-2">
+								<button
+									type="button"
+									onClick={() => navigate("/settings")}
+									className="rounded-full transition-all hover:scale-[1.03]"
+									aria-label={t("browse_page.open_settings")}
+									title={t("browse_page.settings")}
+								>
+									<Avatar
+										src={profilePhotoUrl}
+										alt={t("browse_page.your_profile_photo")}
+										className="h-11 w-11"
+									/>
+								</button>
+							</div>
+						</div>
+						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
+					</div>
+				</header>
+
+				<BrowseGrid
+					isLoadingCards={isLoadingCards}
+					cardsError={cardsError}
+					cards={sortedCards}
+					chatContactIndexByProfileId={chatContactIndexByProfileId}
+					onSelectProfile={handleSelectProfile}
+					onMessageProfile={handleMessageProfile}
+					hasMore={nextPage !== null}
+					isLoadingMore={isLoadingMoreCards}
+					onLoadMore={() => {
+						void handleLoadMoreCards();
+					}}
+				/>
+			</PullToRefreshContainer>
 
 			<ProfileDetailsModal
 				isOpen={Boolean(activeProfileId)}
@@ -1149,6 +1153,6 @@ export function GridPage() {
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}
 			/>
-		</PullToRefreshContainer>
+		</>
 	);
 }
