@@ -65,7 +65,7 @@
         "eslint": "^10.0.3",
         "eslint-config-prettier": "^10.1.8",
         "globals": "^17.4.0",
-        "lucide-react": "^0.400.0",
+        "lucide-react": "^1.14.0",
         "prettier": "^3.8.1",
         "prettier-plugin-rust": "^0.1.9",
         "shadcn-ui": "^0.8.0",
