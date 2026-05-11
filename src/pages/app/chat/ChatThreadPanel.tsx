@@ -387,13 +387,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					otherParticipant?.lastOnline,
 					otherParticipant?.onlineUntil,
 					nowTimestamp,
+					t,
 				);
 				const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 				const distanceLabel = otherParticipant?.distanceMetres
 					? formatDistance(otherParticipant.distanceMetres, t, unitsPreset)
 					: null;
 				const displayName =
-					localNickname || selectedConversation.data.name || "Conversation";
+					localNickname || selectedConversation.data.name || t("chat.conversation");
 
 				const requestBlockProfile = () => {
 					if (!otherParticipant || isBlockingProfile || !onBlockProfile) {
@@ -531,7 +532,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											) : (
 												<Heart className={`mr-1 inline h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
 											)}
-											{isFavorite ? "Unfavorite" : "Favorite"}
+											{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 										</button>
 										<button
 											type="button"
@@ -540,7 +541,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 										>
 											<Pin className="mr-1 inline h-3.5 w-3.5" />
-											{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+											{selectedConversation.data.pinned ? t("chat.unpin") : t("chat.pin")}
 										</button>
 										<button
 											type="button"
@@ -591,7 +592,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 											>
 												<User className="mr-2 h-4 w-4 opacity-70" />
-												View profile
+												{t("chat.view_profile")}
 											</button>
 											<button
 												type="button"
@@ -626,7 +627,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														) : (
 															<Heart className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
 														)}
-														{isFavorite ? "Unfavorite" : "Favorite"}
+														{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 													</button>
 													<button
 														type="button"
@@ -638,7 +639,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 													>
 														<Pin className="mr-2 h-4 w-4 opacity-70" />
-														{selectedConversation.data.pinned ? "Unpin" : "Pin"}
+														{selectedConversation.data.pinned ? t("chat.unpin") : t("chat.pin")}
 													</button>
 												</>
 											)}
@@ -657,7 +658,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												) : (
 													<MessageCircleOff className="mr-2 h-4 w-4 opacity-70" />
 												)}
-												{selectedConversation.data.muted ? "Unmute" : "Mute"}
+												{selectedConversation.data.muted ? t("chat.unmute") : t("chat.mute")}
 											</button>
 
 											{!isDesktop && (
@@ -683,7 +684,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
 											>
 												<Trash2 className="mr-2 h-4 w-4 opacity-70" />
-												Clear local history
+												{t("chat.clear_local_history")}
 											</button>
 											<button
 												type="button"
@@ -734,7 +735,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			{isLoadingThread &&
 			threadConversationId !== selectedConversation.data.conversationId ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading messages...
+					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat.loading_messages")}
 				</div>
 			) : threadError ? (
 				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
@@ -749,7 +750,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						}
 						className="btn-accent px-4 py-2 text-sm"
 					>
-						Retry
+						{t("chat.retry")}
 					</button>
 				</div>
 			) : (
@@ -804,8 +805,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={toggleAlbumPicker}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label="Share album"
-								title="Share album"
+								aria-label={t("chat.share_album_label")}
+								title={t("chat.share_album_label")}
 							>
 								<Share2 className="h-4 w-4" />
 							</button>
@@ -814,8 +815,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								onClick={() => attachmentInputRef.current?.click()}
 								disabled={isUploadingAttachment}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								aria-label="Attach media"
-								title="Attach media"
+								aria-label={t("chat.attach_media")}
+								title={t("chat.attach_media")}
 							>
 								<ImagePlus className="h-4 w-4" />
 							</button>
@@ -823,8 +824,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={toggleDrawer}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label="Drawer"
-								title="Drawer"
+								aria-label={t("chat.drawer_label")}
+								title={t("chat.drawer_label")}
 							>
 								<SquareStack className="h-4 w-4" />
 							</button>
@@ -1099,7 +1100,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									id="chat-album-share-confirm-title"
 									className="text-sm font-semibold text-[var(--text)]"
 								>
-									Share album
+									{t("chat.share_album_label")}
 								</p>
 								<p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
 									{t("chat.confirm_share_album", {
@@ -1185,7 +1186,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						disabled={isUploadingAttachment}
 						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
-							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> Attach media
+							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
 					</button>
 					<input
 						type="file"

@@ -272,6 +272,7 @@ export function ChatInboxPanel({
 							otherParticipant?.lastOnline,
 							otherParticipant?.onlineUntil,
 							nowTimestamp,
+							t,
 						);
 						const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 						const isSelected =
