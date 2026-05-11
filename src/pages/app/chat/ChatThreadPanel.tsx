@@ -940,79 +940,77 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						) : null}
 
-						{isDrawerOpen ? (
-							<ChatDrawerPanel
-								media={drawerMedia}
-								isLoading={isLoadingDrawer}
-								error={drawerError}
-								isSending={isSendingDrawerMedia}
-								isAdding={isAddingDrawerMedia}
-								deletingMediaId={deletingDrawerMediaId}
-								onBack={toggleDrawer}
-								onLoadMedia={onLoadDrawerMedia}
-								onSendMedia={onSendDrawerMedia}
-								onAddMedia={onAddDrawerMedia}
-								onDeleteMedia={onDeleteDrawerMedia}
-								isDesktop={isDesktop}
-							/>
-						) : (
-							<>
-								{replyTargetMessage ? (
-									<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-										<div className="flex items-stretch">
-											<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
-											<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
-												<div className="min-w-0">
-													<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-														<Reply className="h-3 w-3" />
-														<span>
-															{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
-																userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-																	? t("chat.you")
-																	: (selectedConversation.data.name?.trim() || t("chat.unknown"))
-															}`}
-														</span>
-													</p>
-													<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
-														<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
-															{getMessagePreviewLabel(replyTargetMessage, t)}
-														</p>
-													</div>
-												</div>
-												<button
-													type="button"
-													onClick={clearReplyTarget}
-													className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-													aria-label={t("chat.actions.cancel")}
-													title={t("chat.actions.cancel")}
-												>
-													<X className="h-3.5 w-3.5" />
-												</button>
+						{replyTargetMessage ? (
+							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
+								<div className="flex items-stretch">
+									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
+									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
+										<div className="min-w-0">
+											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+												<Reply className="h-3 w-3" />
+												<span>
+													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
+														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
+															? t("chat.you")
+															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
+													}`}
+												</span>
+											</p>
+											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
+												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
+													{getMessagePreviewLabel(replyTargetMessage, t)}
+												</p>
 											</div>
 										</div>
+										<button
+											type="button"
+											onClick={clearReplyTarget}
+											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											aria-label={t("chat.actions.cancel")}
+											title={t("chat.actions.cancel")}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
 									</div>
-								) : null}
-
-								<div className="flex items-end gap-2">
-									<textarea
-										value={draft}
-										onChange={(event) => setDraft(event.target.value)}
-										rows={2}
-										maxLength={1000}
-										placeholder={t("chat.write_message")}
-										className="input-field min-h-[56px] resize-none"
-									/>
-									<button
-										type="submit"
-										disabled={isSending || draft.trim().length === 0}
-										className="btn-accent h-11 shrink-0 px-4 text-sm"
-									>
-										{isSending ? t("chat.sending") : t("chat.send")}
-									</button>
 								</div>
-							</>
-						)}
+							</div>
+						) : null}
+
+						<div className="flex items-end gap-2">
+							<textarea
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								rows={2}
+								maxLength={1000}
+								placeholder={t("chat.write_message")}
+								className="input-field min-h-[56px] resize-none"
+							/>
+							<button
+								type="submit"
+								disabled={isSending || draft.trim().length === 0}
+								className="btn-accent h-11 shrink-0 px-4 text-sm"
+							>
+								{isSending ? t("chat.sending") : t("chat.send")}
+							</button>
+						</div>
 					</form>
+
+					{isDrawerOpen ? (
+						<ChatDrawerPanel
+							media={drawerMedia}
+							isLoading={isLoadingDrawer}
+							error={drawerError}
+							isSending={isSendingDrawerMedia}
+							isAdding={isAddingDrawerMedia}
+							deletingMediaId={deletingDrawerMediaId}
+							onBack={toggleDrawer}
+							onLoadMedia={onLoadDrawerMedia}
+							onSendMedia={onSendDrawerMedia}
+							onAddMedia={onAddDrawerMedia}
+							onDeleteMedia={onDeleteDrawerMedia}
+							isDesktop={isDesktop}
+						/>
+					) : null}
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
 						<div
