@@ -155,6 +155,11 @@ export function ChatInboxPanel({
 			className={`flex h-full min-h-0 flex-col overflow-hidden ${
 				isDesktop ? "surface-card" : "p-0"
 			}`}
+			style={
+				!isDesktop
+					? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" }
+					: undefined
+			}
 			onRefresh={onRefreshInbox}
 			isDisabled={isLoadingInbox || isLoadingMoreInbox}
 			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
@@ -163,8 +168,7 @@ export function ChatInboxPanel({
 			onTouchEndExtra={onInboxTouchEnd}
 		>
 			<div
-				className={`flex shrink-0 flex-col gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "p-[var(--app-px)]"}`}
-				style={!isDesktop ? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" } : undefined}
+				className={`flex shrink-0 flex-col gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "px-[var(--app-px)] pb-3"}`}
 			>
 				<div className="flex items-end justify-between gap-2">
 					<InboxAlbumsTabs
