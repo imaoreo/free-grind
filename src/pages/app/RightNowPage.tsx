@@ -313,6 +313,7 @@ export function RightNowPage() {
 	return (
 		<PullToRefreshContainer
 			className="app-screen flex flex-col"
+			contentClassName="flex flex-1 flex-col min-h-0"
 			onRefresh={loadFeed}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
