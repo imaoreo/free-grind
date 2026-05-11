@@ -185,7 +185,9 @@ export function ChatDrawerPanel({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm sm:items-center no-touch-callout"
+			className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
+				isDesktop ? "pb-32" : ""
+			}`}
 			onClick={isSending || isAdding ? undefined : onBack}
 		>
 			<div
