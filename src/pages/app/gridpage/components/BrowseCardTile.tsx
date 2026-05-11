@@ -84,7 +84,7 @@ export function BrowseCardTile({
 					<div className="absolute bottom-2 right-2 z-10 flex items-center gap-1">
 
 						{card.favorite ? (
-							<div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-[var(--accent)] shadow-lg backdrop-blur-sm">
+							<div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-yellow-500 shadow-lg backdrop-blur-sm">
 								<Star className="h-3.5 w-3.5 fill-current" />
 							</div>
 						) : usesFreegrind ? (
