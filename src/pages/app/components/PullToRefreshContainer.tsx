@@ -29,8 +29,8 @@ export function PullToRefreshContainer({
 	refreshingLabel,
 	pullLabel,
 	releaseLabel,
-	thresholdPx = 72,
-	maxPullPx = 120,
+	thresholdPx = 64,
+	maxPullPx = 96,
 	onTouchStartExtra,
 	onTouchMoveExtra,
 	onTouchEndExtra,
@@ -110,9 +110,10 @@ export function PullToRefreshContainer({
 
 			event.preventDefault();
 
-			let pull = deltaY * 0.55;
+			// Apply resistance
+			let pull = deltaY * 0.45;
 			if (pull > maxPullPx) {
-				touchStartYRef.current = currentY - maxPullPx / 0.55;
+				touchStartYRef.current = currentY - maxPullPx / 0.45;
 				pull = maxPullPx;
 			}
 
@@ -135,37 +136,36 @@ export function PullToRefreshContainer({
 		[handleRefresh, onTouchEndExtra, pullDistance, thresholdPx],
 	);
 
+	const rotation = !isRefreshing
+		? 480 * (1 - Math.pow(1 - pullDistance / maxPullPx, 2))
+		: undefined;
+
 	return (
 		<div
 			className={className}
-			style={style}
+			style={{ ...style, position: "relative", overflow: "hidden" }}
 			onTouchStart={handleTouchStart}
 			onTouchMove={handleTouchMove}
 			onTouchEnd={finishTouch}
 			onTouchCancel={finishTouch}
 		>
+			{/* Indicator Layer - Matches the pull distance for a tighter look */}
 			<div
-				className="flex w-full items-center justify-center overflow-hidden transition-all duration-300 ease-out"
+				className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-center justify-center overflow-hidden"
 				style={{
-					height: isRefreshing ? "84px" : `${pullDistance}px`,
+					height: "64px",
 					opacity: pullDistance > 0 || isRefreshing ? 1 : 0,
-					transition:
-						isRefreshing || pullDistance === 0
-							? "height 0.3s ease, opacity 0.3s ease"
-							: "none",
+					transform: `translateY(${isRefreshing ? 0 : pullDistance - 64}px)`,
+					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s ease, opacity 0.3s ease" : "none",
+					willChange: "transform, opacity",
 				}}
 			>
-				<div
-					className="flex flex-col items-center gap-2"
-					style={{
-						transform: `translateY(${isRefreshing ? 0 : Math.min(0, (pullDistance - 84) / 2)}px)`,
-					}}
-				>
-					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2.5 shadow-lg shadow-black/5">
+				<div className="flex flex-col items-center gap-2">
+					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 shadow-lg shadow-black/5">
 						<RefreshCw
 							className={`h-5 w-5 text-[var(--accent)] ${isRefreshing ? "animate-spin" : ""}`}
 							style={{
-								transform: !isRefreshing ? `rotate(${pullDistance * 5}deg)` : undefined,
+								transform: rotation !== undefined ? `rotate(${rotation}deg)` : undefined,
 								willChange: "transform",
 							}}
 						/>
@@ -179,7 +179,17 @@ export function PullToRefreshContainer({
 					</span>
 				</div>
 			</div>
-			{children}
+
+			{/* Content Layer */}
+			<div
+				style={{
+					transform: `translateY(${isRefreshing ? 64 : pullDistance}px)`,
+					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s ease" : "none",
+					willChange: "transform",
+				}}
+			>
+				{children}
+			</div>
 		</div>
 	);
 }

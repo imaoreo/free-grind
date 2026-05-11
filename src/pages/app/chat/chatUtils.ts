@@ -683,6 +683,7 @@ export function getParticipantOnlineMeta(
 	lastOnline: number | null | undefined,
 	onlineUntil: number | null | undefined,
 	nowTimestamp: number,
+	t: TranslateFn,
 ): { isOnline: boolean; label: string } {
 	const hasLastOnline =
 		typeof lastOnline === "number" && Number.isFinite(lastOnline);
@@ -693,7 +694,7 @@ export function getParticipantOnlineMeta(
 	const dayMs = 24 * hourMs;
 
 	if (!hasLastOnline && !hasOnlineUntil) {
-		return { isOnline: false, label: "Offline" };
+		return { isOnline: false, label: t("browse_page.status_offline") };
 	}
 
 	if (hasOnlineUntil && (onlineUntil as number) > nowTimestamp) {
@@ -703,7 +704,7 @@ export function getParticipantOnlineMeta(
 		);
 		return {
 			isOnline: true,
-			label: `Online (${minsLeft} min${minsLeft === 1 ? "" : "s"} left)`,
+			label: t("browse_page.status_online_left", { count: minsLeft }),
 		};
 	}
 
@@ -716,7 +717,7 @@ export function getParticipantOnlineMeta(
 		const minsAgo = Math.max(1, Math.floor(diffMs / minuteMs));
 		return {
 			isOnline: false,
-			label: `${minsAgo} min${minsAgo === 1 ? "" : "s"} ago`,
+			label: t("browse_page.status_minutes_ago", { count: minsAgo }),
 		};
 	}
 
@@ -724,14 +725,14 @@ export function getParticipantOnlineMeta(
 		const hoursAgo = Math.floor(diffMs / hourMs);
 		return {
 			isOnline: false,
-			label: `${hoursAgo} hour${hoursAgo === 1 ? "" : "s"} ago`,
+			label: t("browse_page.status_hours_ago", { count: hoursAgo }),
 		};
 	}
 
 	const daysAgo = Math.floor(diffMs / dayMs);
 	return {
 		isOnline: false,
-		label: `${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`,
+		label: t("browse_page.status_days_ago", { count: daysAgo }),
 	};
 }
 

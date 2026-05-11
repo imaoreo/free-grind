@@ -506,6 +506,12 @@
 		color: var(--text-muted);
 	}
 
+	.no-touch-callout {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+
 	.right-now-map-tooltip {
 		background: transparent !important;
 		border: 0 !important;

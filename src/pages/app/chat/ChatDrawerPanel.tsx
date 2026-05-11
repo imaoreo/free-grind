@@ -11,6 +11,7 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { useModalClose } from "../../../hooks/useModalClose";
 
 export interface DrawerMedia {
 	id: number;
@@ -58,6 +59,12 @@ export function ChatDrawerPanel({
 	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
+
+	useModalClose({
+		isOpen: true,
+		onClose: onBack,
+		escapeKey: !isSending && !isAdding,
+	});
 
 	const toggleSelection = useCallback((id: number) => {
 		setSelectedIds((prev) => {
@@ -177,10 +184,34 @@ export function ChatDrawerPanel({
 	}, [deletingMediaId]);
 
 	return (
-		<div className="mb-2 flex flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-			{/* Content Grid */}
-			<div className="flex-1 overflow-y-auto max-h-48">
-				{isLoading ? (
+		<div
+			className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
+				isDesktop ? "pb-32" : ""
+			}`}
+			onClick={isSending || isAdding ? undefined : onBack}
+		>
+			<div
+				role="dialog"
+				aria-modal="true"
+				className="flex w-full max-w-sm flex-col rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+				onClick={(event) => event.stopPropagation()}
+			>
+				<div className="mb-4 flex items-center justify-between">
+					<h3 className="text-sm font-semibold text-[var(--text)]">
+						{t("chat_drawer.title", { defaultValue: "Drawer" })}
+					</h3>
+					<button
+						type="button"
+						onClick={onBack}
+						className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+					>
+						<X className="h-4 w-4" />
+					</button>
+				</div>
+
+				{/* Content Grid */}
+				<div className="flex-1 overflow-y-auto max-h-[60vh] rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+					{isLoading ? (
 					<div className="flex h-full items-center justify-center py-8">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
 					</div>
@@ -254,7 +285,7 @@ export function ChatDrawerPanel({
 									{isImage ? (
 										<img
 											src={item.url}
-											alt="drawer media"
+											alt={t("chat_drawer.media_alt")}
 											className="h-full w-full object-cover"
 										/>
 									) : (
@@ -300,39 +331,39 @@ export function ChatDrawerPanel({
 			</div>
 
 			{isAddChooserOpen ? (
-				<div className="border-t border-[var(--border)] bg-[var(--surface)] p-2">
-					<div className="grid grid-cols-2 gap-2">
+				<div className="mt-4 border-t border-[var(--border)] pt-4">
+					<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+						<button
+							type="button"
+							onClick={() => setIsAddChooserOpen(false)}
+							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+						>
+							{t("chat.actions.cancel")}
+						</button>
 						<button
 							type="button"
 							onClick={pickFromCamera}
-							className="rounded-md border border-[var(--border)] px-2 py-1.5 text-[11px]"
+							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 						>
-							Take photo
+							{t("chat_drawer.take_photo")}
 						</button>
 						<button
 							type="button"
 							onClick={pickFromUpload}
-							className="rounded-md border border-[var(--border)] px-2 py-1.5 text-[11px]"
+							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 						>
-							Upload photo
+							{t("chat_drawer.upload_photo")}
 						</button>
 					</div>
-					<button
-						type="button"
-						onClick={() => setIsAddChooserOpen(false)}
-						className="mt-2 w-full rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-					>
-						{t("chat.actions.cancel")}
-					</button>
 				</div>
 			) : null}
 
 			{pendingAddFile ? (
-				<div className="border-t border-[var(--border)] bg-[var(--surface)] p-2">
-					<p className="text-xs font-medium text-[var(--text)]">
+				<div className="mt-4 border-t border-[var(--border)] pt-4">
+					<p className="mb-3 text-sm font-medium text-[var(--text)]">
 						{pendingAddFile.name}
 					</p>
-					<label className="mt-2 flex items-center gap-2 text-xs text-[var(--text-muted)]">
+					<label className="mb-4 flex items-center gap-2 text-xs text-[var(--text-muted)]">
 						<input
 							type="checkbox"
 							checked={pendingTakenOnGrindr}
@@ -341,22 +372,27 @@ export function ChatDrawerPanel({
 						/>
 						<span>{t("chat.attachments.taken_on_grindr")}</span>
 					</label>
-					<div className="mt-2 flex gap-2">
-						<button
-							type="button"
-							onClick={confirmAddPhoto}
-							disabled={isAdding}
-							className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-						>
-							{isAdding ? t("chat_drawer.sending") : t("chat_drawer.add_to_drawer")}
-						</button>
+					<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 						<button
 							type="button"
 							onClick={cancelAddPhoto}
 							disabled={isAdding}
-							className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
+							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 						>
 							{t("chat.actions.cancel")}
+						</button>
+						<button
+							type="button"
+							onClick={confirmAddPhoto}
+							disabled={isAdding}
+							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						>
+							{isAdding ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Plus className="h-4 w-4" />
+							)}
+							<span>{isAdding ? t("chat_drawer.sending") : t("chat_drawer.add_to_drawer")}</span>
 						</button>
 					</div>
 				</div>
@@ -364,17 +400,24 @@ export function ChatDrawerPanel({
 
 			{/* Footer - Send button */}
 			{hasSelection ? (
-				<div className="border-t border-[var(--border)] bg-[var(--surface)] p-2">
+				<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						onClick={() => setSelectedIds(new Set())}
+						className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+					>
+						{t("chat.actions.cancel")}
+					</button>
 					<button
 						type="button"
 						onClick={handleSendSelected}
 						disabled={isSending}
-						className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-3 py-2 text-xs font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 					>
 						{isSending ? (
-							<Loader2 className="h-3 w-3 animate-spin" />
+							<Loader2 className="h-4 w-4 animate-spin" />
 						) : (
-							<Send className="h-3 w-3" />
+							<Send className="h-4 w-4" />
 						)}
 						<span>
 							{isSending
@@ -399,5 +442,6 @@ export function ChatDrawerPanel({
 				confirmTone="danger"
 			/>
 		</div>
+	</div>
 	);
 }

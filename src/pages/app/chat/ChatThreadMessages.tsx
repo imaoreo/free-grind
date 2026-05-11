@@ -2,6 +2,7 @@ import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { Avatar } from "../../../components/ui/avatar";
@@ -79,10 +80,10 @@ function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number;
 	const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
 
 	const parts = [];
-	if (days > 0) parts.push(`${days}d`);
-	if (hours > 0 || days > 0) parts.push(`${hours}h`);
-	if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
-	if (days === 0 && hours === 0) parts.push(`${seconds}s`);
+	if (days > 0) parts.push(t("right_now.days_short", { count: days }));
+	if (hours > 0 || days > 0) parts.push(t("right_now.hours_short", { count: hours }));
+	if (minutes > 0 || hours > 0 || days > 0) parts.push(t("right_now.minutes_short", { count: minutes }));
+	if (days === 0 && hours === 0) parts.push(t("right_now.seconds_short", { count: seconds }));
 
 	return (
 		<>
@@ -149,6 +150,32 @@ export function ChatThreadMessages({
 		() => new Set(),
 	);
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
+
+	const handleCopy = useCallback(async (message: UiMessage) => {
+		const location = getMessageLocation(message);
+		const body = message.body as any;
+		const hasRealText = body && typeof body.text === "string" && body.text.trim().length > 0;
+
+		let content = "";
+		if (location) {
+			content = `${location.lat}, ${location.lon}`;
+		} else if (hasRealText) {
+			content = body.text;
+		}
+
+		if (!content) {
+			setOpenMessageActionId(null);
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(content);
+			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
+		} catch (error) {
+			console.error("Copy failed", error);
+		}
+		setOpenMessageActionId(null);
+	}, [t, setOpenMessageActionId]);
 
 	useEffect(() => {
 		setRevealedMediaMessageIds(new Set());
@@ -270,7 +297,7 @@ export function ChatThreadMessages({
 								disabled={isLoadingOlderMessages}
 								className="mx-auto mb-3 rounded-xl border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
 							>
-								{isLoadingOlderMessages ? "Loading..." : "Load older messages"}
+								{isLoadingOlderMessages ? t("chat.loading") : t("chat.load_older_messages")}
 							</button>
 						) : null}
 
@@ -412,7 +439,8 @@ export function ChatThreadMessages({
 												onTouchEnd={handleMobileTouchEnd}
 												onTouchCancel={handleMobileTouchEnd}
 												onTouchMove={(event) => handleMobileTouchMove(event, message)}
-												className={`relative group/bubble w-full rounded-2xl text-sm ${
+												onContextMenu={(event) => event.preventDefault()}
+												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble
 														? "bg-transparent p-0"
 														: `px-3 py-2 ${
@@ -666,23 +694,63 @@ export function ChatThreadMessages({
 																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
 															window.open(url, "_blank");
 														}}
-														className={`mb-2 flex w-full items-center gap-3 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
 															mine
 																? "bg-white/10 text-white"
 																: "bg-[var(--surface)] text-[var(--text)]"
 														}`}
 													>
-														<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
-															<MapPin className="h-5 w-5" />
+														<div className="flex items-center gap-3">
+															<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
+																<MapPin className="h-5 w-5" />
+															</div>
+															<div className="min-w-0 flex-1">
+																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+																	{t("chat.thread.location_shared")}
+																</p>
+																<p className="truncate text-sm font-semibold opacity-90">
+																	{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
+																</p>
+															</div>
 														</div>
-														<div className="min-w-0">
-															<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-																{t("chat.thread.location_shared")}
-															</p>
-															<p className="truncate text-sm font-semibold opacity-90">
-																{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
-															</p>
-														</div>
+
+														{isLocationOnlyBubble && (
+															<div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2 text-[10px] opacity-80">
+																<span>
+																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+																</span>
+																{isDesktop &&
+																!pending &&
+																!isLocalClientMessageId(message.messageId) ? (
+																	<div className="flex items-center gap-1">
+																		<button
+																			type="button"
+																			onClick={(event) => {
+																				event.stopPropagation();
+																				void handleReply(message);
+																			}}
+																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																		>
+																			<Reply className="h-3.5 w-3.5" />
+																		</button>
+																		<button
+																			type="button"
+																			onClick={(event) => {
+																				event.stopPropagation();
+																				setOpenMessageActionId((current) =>
+																					current === message.messageId
+																						? null
+																						: message.messageId,
+																				);
+																			}}
+																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																		>
+																			<Ellipsis className="h-3.5 w-3.5" />
+																		</button>
+																	</div>
+																) : null}
+															</div>
+														)}
 													</button>
 												) : null}
 
@@ -700,7 +768,7 @@ export function ChatThreadMessages({
 																{isLocked ? (
 																	<div className="flex items-center gap-1.5 text-[var(--text-muted)]">
 																		<Lock className="h-3.5 w-3.5" />
-																		{t("chat.expired")}
+																		{t("chat.expiration.expired")}
 																	</div>
 																) : t("chat.thread.album_share")}
 															</span>
@@ -796,6 +864,22 @@ export function ChatThreadMessages({
 
 												{isDesktop && openMessageActionId === message.messageId ? (
 													<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
+														{(() => {
+															const loc = getMessageLocation(message);
+															const body = message.body as any;
+															const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+															if (!loc && !hasText) return null;
+
+															return (
+																<button
+																	type="button"
+																	onClick={() => void handleCopy(message)}
+																	className="rounded-md border border-black/20 px-2 py-1"
+																>
+																	{t("chat.actions.copy", { defaultValue: "Copy" })}
+																</button>
+															);
+														})()}
 														{mine && !message.unsent ? (
 															<button
 																type="button"

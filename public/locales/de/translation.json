@@ -84,9 +84,10 @@
         "message_aria": "{{name}} Nachricht senden",
         "any_position": "Alle",
         "just_now": "Gerade eben",
-        "minutes_short": "{{count}} Min",
-        "hours_short": "{{count}} Std",
-        "days_short": "{{count}} T"
+        "minutes_short": "{{count}}Min",
+        "hours_short": "{{count}}Std",
+        "days_short": "{{count}}T",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Right now Filter",
@@ -537,6 +538,7 @@
         "retry": "Wiederholen",
         "loading": "Lade...",
         "load_more": "Mehr laden",
+        "load_older_messages": "Ältere Nachrichten laden",
         "loading_inbox": "Posteingang wird geladen...",
         "loading_messages": "Nachrichten werden geladen...",
         "refreshing_inbox": "Posteingang wird aktualisiert...",
@@ -544,15 +546,23 @@
         "open_search": "Suche öffnen",
         "open_filters": "Filter öffnen",
         "profile": "Profil",
+        "view_profile": "Profil anzeigen",
+        "favorite": "Favorisieren",
+        "unfavorite": "Entfavorisieren",
         "no_conversations_match": "Keine Konversationen entsprechen deinen Filtern.",
         "no_conversations": "Noch keine Konversationen.",
         "no_messages_yet": "Noch keine Nachrichten.",
         "pin": "Anpinnen",
         "unpin": "Loslösen",
-        "mute": "Stummgeschaltet",
+        "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "clear_local_history": "Lokalen Verlauf löschen",
+        "delete_conversation": "Konversation löschen",
+        "delete_conversation_in_progress": "Konversation wird gelöscht...",
+        "delete_conversation_confirm": "Diese Konversation löschen? Dies kann nicht rückgängig gemacht werden.",
         "open_conversation_actions": "Konversationsaktionen öffnen",
+        "share_album_label": "Album teilen",
+        "drawer_label": "Drawer",
         "share_album": "Album teilen",
         "expiration": {
             "title": "Zugriffsdauer",
@@ -610,6 +620,8 @@
         },
         "actions": {
             "title": "Nachrichten-Aktionen",
+            "copy": "Kopieren",
+            "reply": "Antworten",
             "unsend": "Zurückziehen",
             "delete": "Löschen",
             "cancel": "Abbrechen"
@@ -631,6 +643,14 @@
             "send_attachment": "Anhang senden",
             "uploading": "Anhang wird hochgeladen",
             "too_large": "Anhang ist zu groß. Limit ist 12MB."
+        },
+        "nicknames": {
+            "set": "Spitznamen festlegen",
+            "edit": "Spitznamen bearbeiten",
+            "prompt": "Lege einen lokalen Spitznamen für dieses Profil fest. Zum Löschen leer lassen.",
+            "saved": "Spitzname gespeichert",
+            "cleared": "Spitzname gelöscht",
+            "save_failed": "Speichern des Spitznamens fehlgeschlagen"
         },
         "errors": {
             "load_albums": "Laden der Alben fehlgeschlagen",
@@ -655,17 +675,48 @@
             "load_shared_images": "Laden der geteilten Bilder fehlgeschlagen",
             "create_album_failed": "Album konnte nicht erstellt werden",
             "load_album_details": "Albumdetails konnten nicht geladen werden",
-            "upload_media_failed": "Medien-Upload fehlgeschlagen"
+            "upload_media_failed": "Medien-Upload fehlgeschlagen",
+            "load_drawer_media": "Drawer-Medien konnten nicht geladen werden",
+            "send_drawer_media": "Medien aus dem Drawer konnten nicht gesendet werden",
+            "delete_conversation": "Konversation konnte nicht gelöscht werden"
         },
         "toasts": {
             "cleared_local_history": "Lokaler Verlauf für diesen Chat gelöscht",
-            "album_shared": "Album geteilt"
+            "copied": "In die Zwischenablage kopiert",
+            "album_shared": "Album geteilt",
+            "media_sent": "Medien gesendet",
+            "conversation_deleted": "Konversation gelöscht"
         },
         "new_conversation": {
             "title": "Neue Konversation",
             "subtitle": "Sende eine Nachricht an Profil #{{profileId}}, um den Chat zu starten.",
             "write_first_message": "Schreibe deine erste Nachricht..."
         }
+    },
+    "chat_drawer": {
+        "title": "Drawer",
+        "empty": "Dein Drawer ist leer.",
+        "retry": "Erneut versuchen",
+        "send": "{{count}} senden",
+        "sending": "Senden...",
+        "error_no_selection": "Bitte wähle mindestens ein Bild aus.",
+        "error_send_failed": "Fehler beim Senden der Medien.",
+        "add_photo": "Foto hinzufügen",
+        "delete_media": "Medien löschen",
+        "media_alt": "Drawer-Medien",
+        "take_photo": "Foto aufnehmen",
+        "upload_photo": "Foto hochladen",
+        "add_to_drawer": "Zum Drawer hinzufügen",
+        "invalid_file_type": "Bitte wähle ein Foto aus.",
+        "delete_confirm_title": "Aus Drawer löschen?",
+        "delete_confirm_message": "Bist du sicher, dass du dieses Medium aus deinem Drawer löschen möchtest?",
+        "delete_confirm_label": "Löschen"
+    },
+    "favorites": {
+        "added": "Zu Favoriten hinzugefügt",
+        "removed": "Aus Favoriten entfernt",
+        "add_failed": "Fehler beim Hinzufügen zu Favoriten",
+        "remove_failed": "Fehler beim Entfernen von Favoriten"
     },
     "profile_details": {
         "title": "Profildetails",
@@ -684,6 +735,21 @@
         "status": "Status",
         "distance": "Distanz",
         "message": "Nachricht",
+        "block": "Blockieren",
+        "unblock": "Entsperren",
+        "unfavorite": "Entfavorisieren",
+        "block_in_progress": "Wird blockiert...",
+        "unblock_in_progress": "Wird entsperrt...",
+        "block_confirm": "Dieses Profil blockieren? Dies entfernt die Konversation für beide Benutzer.",
+        "unblock_confirm": "Dieses Profil entsperren?",
+        "dont_ask_again": "Nicht erneut fragen",
+        "block_success": "Profil blockiert",
+        "unblock_success": "Profil entsperrt",
+        "block_failed": "Profil konnte nicht blockiert werden",
+        "unblock_failed": "Profil konnte nicht entsperrt werden",
+        "chat_history": "Chat-Verlauf",
+        "last_message": "Letzte Nachricht {{time}}",
+        "chatted_before": "Zuvor gechattet",
         "tap_profile": "Profil antippen",
         "tap_sent_recent": "Tap in den letzten 24 Stunden bereits gesendet",
         "tap_active": "Tap aktiv",
@@ -819,10 +885,7 @@
                 "trans": "Trans",
                 "twink": "Twink"
             }
-        },
-        "chat_history": "Chat history",
-        "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before"
+        }
     },
     "interest_page": {
         "title": "Interesse",
