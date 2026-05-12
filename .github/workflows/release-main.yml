@@ -372,6 +372,21 @@ jobs:
       - name: Initialize iOS project
         run: bunx tauri ios init --ci
 
+      - name: Force release mode in Xcode Rust script
+        run: |
+          PBXPROJ_PATH=$(find src-tauri/gen/apple -maxdepth 3 -name project.pbxproj | head -n 1)
+          if [ -z "$PBXPROJ_PATH" ]; then
+            echo "project.pbxproj not found under src-tauri/gen/apple"
+            exit 1
+          fi
+
+          perl -0pi -e 's/--configuration \$\{CONFIGURATION:\?\}/--configuration release/g' "$PBXPROJ_PATH"
+
+          if ! grep -q -- '--configuration release' "$PBXPROJ_PATH"; then
+            echo "Failed to patch Build Rust Code script configuration"
+            exit 1
+          fi
+
       - name: Build iOS app without code signing
         id: ios_app
         run: |
