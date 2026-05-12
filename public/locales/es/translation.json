@@ -93,7 +93,8 @@
         "just_now": "Ahora mismo",
         "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
-        "days_short": "{{count}}d"
+        "days_short": "{{count}}d",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Filtros Right Now",
@@ -507,7 +508,9 @@
             "title": "Acciones de mensaje",
             "unsend": "No enviar",
             "delete": "Borrar",
-            "cancel": "Cancelar"
+            "cancel": "Cancelar",
+            "copy": "Copiar",
+            "reply": "Responder"
         },
         "realtime": {
             "connected": "Conectado",
@@ -559,7 +562,8 @@
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
             "album_shared": "Álbum compartido",
             "media_sent": "Contenido enviado",
-            "conversation_deleted": "Conversación eliminada"
+            "conversation_deleted": "Conversación eliminada",
+            "copied": "Copiado al portapapeles"
         },
         "conversation": "Conversación",
         "read": "Leído",
@@ -592,7 +596,13 @@
             "saved": "Apodo guardado",
             "cleared": "Apodo borrado",
             "save_failed": "Error al guardar apodo"
-        }
+        },
+        "load_older_messages": "Cargar mensajes más antiguos",
+        "view_profile": "Ver perfil",
+        "favorite": "Favorito",
+        "unfavorite": "Quitar de favoritos",
+        "share_album_label": "Compartir álbum",
+        "drawer_label": "Galería"
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",
@@ -885,8 +895,8 @@
         "description_placeholder": "Qué pasó, qué esperabas, y cómo reproducir de nuevo el error.",
         "name_label": "Nombre (opcional)",
         "name_placeholder": "¿Cómo deberíamos dirigirnos a ti?",
-        "contact_label": "Contacto (opcional)",
-        "contact_placeholder": "Usuario de Discord, Telegram o correo electrónico",
+        "contact_label": "Contacto",
+        "contact_placeholder": "Tu usuario o correo electrónico",
         "include_data_label": "Incluir diagnóstico de datos",
         "include_app_info": "Incluir versión de aplicación y plataforma",
         "include_app_info_hint": "Recomendado para facilitar la búsqueda. Esta información sobre el problema es pública, incluyendo la rama OTA.",
@@ -1035,7 +1045,9 @@
         "invalid_file_type": "Por favor, selecciona una foto.",
         "delete_confirm_title": "¿Borrar de la galería?",
         "delete_confirm_message": "¿Estás seguro de que quieres borrar este contenido de la galería?",
-        "delete_confirm_label": "Borrar"
+        "delete_confirm_label": "Borrar",
+        "title": "Galería",
+        "media_alt": "Contenido de la galería"
     },
     "favorites": {
         "added": "Añadido a favoritos",
