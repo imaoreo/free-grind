@@ -1,5 +1,5 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { MapPin, MessageCircleCheck, Star } from "lucide-react";
+import { MapPin, MessageCircle, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
@@ -25,7 +25,7 @@ export function BrowseCardTile({
 	card,
 	chatContactStatus,
 	onSelectProfile,
-	onMessageProfile,
+	onMessageProfile: _onMessageProfile,
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
@@ -102,7 +102,7 @@ export function BrowseCardTile({
 							</span>
 						) : hasChatted ? (
 							<div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white shadow-lg backdrop-blur-sm">
-								<MessageCircleCheck className="h-3.5 w-3.5" />
+								<MessageCircle className="h-3.5 w-3.5" />
 							</div>
 						) : null}
 

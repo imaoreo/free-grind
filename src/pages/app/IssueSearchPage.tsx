@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Search, X, Loader2, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
@@ -105,7 +105,6 @@ function IssueCard({ issue }: { issue: IssueResult }) {
 
 export function IssueSearchPage() {
 	const { t } = useTranslation();
-	const navigate = useNavigate();
 
 	const [query, setQuery] = useState("");
 	const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("ALL");
