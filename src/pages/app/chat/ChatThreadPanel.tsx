@@ -18,7 +18,6 @@ import {
 	Trash2,
 	User,
 	Volume2,
-	VolumeX,
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +37,6 @@ import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
 	getMessageLocation,
 	getMessagePreviewLabel,
-	getMessageText,
 	getOtherParticipant,
 	getParticipantAvatarUrl,
 	getParticipantOnlineMeta,
