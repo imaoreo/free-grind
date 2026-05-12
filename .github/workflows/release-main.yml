@@ -347,6 +347,129 @@ jobs:
             
             console.log(`✓ APK uploaded to release as ${apkName}`);
 
+  build-ios:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Initialize iOS project
+        run: bunx tauri ios init --ci
+
+      - name: Build iOS app without code signing
+        id: ios_app
+        run: |
+          IOS_PROJECT_DIR="src-tauri/gen/apple"
+          WORKSPACE_PATH=$(find "$IOS_PROJECT_DIR" -maxdepth 2 -name '*.xcworkspace' | head -n 1)
+          XCODEPROJ_PATH=$(find "$IOS_PROJECT_DIR" -maxdepth 2 -name '*.xcodeproj' | head -n 1)
+
+          if [ -n "$WORKSPACE_PATH" ]; then
+            PROJECT_ARGS=(-workspace "$WORKSPACE_PATH")
+          elif [ -n "$XCODEPROJ_PATH" ]; then
+            PROJECT_ARGS=(-project "$XCODEPROJ_PATH")
+          else
+            echo "No Xcode workspace/project found under $IOS_PROJECT_DIR"
+            exit 1
+          fi
+
+          SCHEME=$(xcodebuild "${PROJECT_ARGS[@]}" -list | awk '/Schemes:/ {flag=1; next} flag && NF {print $1; exit}')
+          if [ -z "$SCHEME" ]; then
+            echo "Failed to resolve iOS scheme"
+            exit 1
+          fi
+
+          DERIVED_DATA_PATH="$RUNNER_TEMP/ios-derived"
+          xcodebuild "${PROJECT_ARGS[@]}" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            build
+
+          APP_PATH=$(find "$DERIVED_DATA_PATH/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app artifact found in $DERIVED_DATA_PATH/Build/Products/Release-iphoneos"
+            exit 1
+          fi
+
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Package unsigned IPA
+        id: ios_ipa
+        run: |
+          APP_PATH='${{ steps.ios_app.outputs.app_path }}'
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "Cannot package IPA; app bundle missing at $APP_PATH"
+            exit 1
+          fi
+
+          PAYLOAD_DIR="$RUNNER_TEMP/Payload"
+          IPA_PATH="$RUNNER_TEMP/free-grind-unsigned.ipa"
+
+          rm -rf "$PAYLOAD_DIR"
+          mkdir -p "$PAYLOAD_DIR"
+          cp -R "$APP_PATH" "$PAYLOAD_DIR/"
+
+          (
+            cd "$RUNNER_TEMP"
+            /usr/bin/zip -qry "$IPA_PATH" Payload
+          )
+
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload iOS IPA to release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          IPA_PATH: ${{ steps.ios_ipa.outputs.ipa_path }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const version = pkg.version;
+            const ipaPath = process.env.IPA_PATH;
+
+            if (!ipaPath || !fs.existsSync(ipaPath)) {
+              throw new Error(`IPA not found at ${ipaPath}`);
+            }
+
+            const ipaName = `free-grind-v${version}-unsigned.ipa`;
+            const fileData = fs.readFileSync(ipaPath);
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: Number(process.env.RELEASE_ID),
+              name: ipaName,
+              data: fileData,
+              headers: {
+                'content-type': 'application/octet-stream',
+                'content-length': fileData.length
+              }
+            });
+
+            console.log(`✓ Unsigned iOS IPA uploaded to release as ${ipaName}`);
+
 
   publish-release:
     needs:
@@ -354,6 +477,7 @@ jobs:
       - publish-ota
       - build-desktop
       - build-android
+      - build-ios
     runs-on: ubuntu-latest
     permissions:
       contents: write
