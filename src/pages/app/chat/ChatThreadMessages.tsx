@@ -1,12 +1,14 @@
-import { Album, Ellipsis, Hourglass, Lock } from "lucide-react";
-import { Fragment, useEffect, useState, useMemo } from "react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { Avatar } from "../../../components/ui/avatar";
 import blankProfileImage from "../../../images/blank-profile.png";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
+import { usePreferences } from "../../../contexts/PreferencesContext";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
 import {
 	formatDateHeader,
@@ -17,6 +19,7 @@ import {
 	getMessageAudioUrl,
 	getMessageImageCreatedAt,
 	getMessageImageUrl,
+	getMessageLocation,
 	getMessageTakenOnGrindr,
 	getMessageText,
 	getMessageVideoUrl,
@@ -52,6 +55,7 @@ type ChatThreadMessagesProps = {
 	handleUnsend: (message: Message) => void | Promise<void>;
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
+	handleReply: (message: Message) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 };
 
@@ -76,10 +80,10 @@ function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number;
 	const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
 
 	const parts = [];
-	if (days > 0) parts.push(`${days}d`);
-	if (hours > 0 || days > 0) parts.push(`${hours}h`);
-	if (minutes > 0 || hours > 0 || days > 0) parts.push(`${minutes}m`);
-	if (days === 0 && hours === 0) parts.push(`${seconds}s`);
+	if (days > 0) parts.push(t("right_now.days_short", { count: days }));
+	if (hours > 0 || days > 0) parts.push(t("right_now.hours_short", { count: hours }));
+	if (minutes > 0 || hours > 0 || days > 0) parts.push(t("right_now.minutes_short", { count: minutes }));
+	if (days === 0 && hours === 0) parts.push(t("right_now.seconds_short", { count: seconds }));
 
 	return (
 		<>
@@ -137,13 +141,83 @@ export function ChatThreadMessages({
 	handleUnsend,
 	handleDelete,
 	handleRetry,
+	handleReply,
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
+	const { blurIncomingMedia } = usePreferences();
+	const [revealedMediaMessageIds, setRevealedMediaMessageIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
+
+	const handleCopy = useCallback(async (message: UiMessage) => {
+		const location = getMessageLocation(message);
+		const body = message.body as any;
+		const hasRealText = body && typeof body.text === "string" && body.text.trim().length > 0;
+
+		let content = "";
+		if (location) {
+			content = `${location.lat}, ${location.lon}`;
+		} else if (hasRealText) {
+			content = body.text;
+		}
+
+		if (!content) {
+			setOpenMessageActionId(null);
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(content);
+			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
+		} catch (error) {
+			console.error("Copy failed", error);
+		}
+		setOpenMessageActionId(null);
+	}, [t, setOpenMessageActionId]);
+
+	useEffect(() => {
+		setRevealedMediaMessageIds(new Set());
+		setHoveredMediaMessageId(null);
+	}, [selectedConversation.data.conversationId]);
+
+	const revealMediaMessage = useCallback((messageId: string) => {
+		setRevealedMediaMessageIds((previous) => {
+			if (previous.has(messageId)) {
+				return previous;
+			}
+			const next = new Set(previous);
+			next.add(messageId);
+			return next;
+		});
+	}, []);
+
+	const handleMediaMouseEnter = useCallback(
+		(messageId: string) => {
+			if (!isDesktop) {
+				return;
+			}
+			setHoveredMediaMessageId(messageId);
+		},
+		[isDesktop],
+	);
+
+	const handleMediaMouseLeave = useCallback(
+		(messageId: string) => {
+			if (!isDesktop) {
+				return;
+			}
+			setHoveredMediaMessageId((current) => (current === messageId ? null : current));
+		},
+		[isDesktop],
+	);
 
 	const lastMyMessageId = [...threadMessages]
 		.reverse()
 		.find((m) => userId != null && Number(m.senderId) === Number(userId))?.messageId;
+
+	const lastMessageId = threadMessages[threadMessages.length - 1]?.messageId;
 
 	const latestMessageIdByAlbum = useMemo(() => {
 		const map = new Map<number, string>();
@@ -154,12 +228,63 @@ export function ChatThreadMessages({
 		return map;
 	}, [threadMessages]);
 
+	const swipeStateRef = useRef<{
+		messageId: string;
+		startX: number;
+		startY: number;
+		triggered: boolean;
+	} | null>(null);
+
+	const handleMobileTouchStart = useCallback(
+		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
+			startMessageLongPress(message.messageId);
+			if (isDesktop || event.touches.length !== 1 || isLocalClientMessageId(message.messageId)) {
+				swipeStateRef.current = null;
+				return;
+			}
+			const touch = event.touches[0];
+			swipeStateRef.current = {
+				messageId: message.messageId,
+				startX: touch.clientX,
+				startY: touch.clientY,
+				triggered: false,
+			};
+		},
+		[isDesktop, startMessageLongPress],
+	);
+
+	const handleMobileTouchMove = useCallback(
+		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
+			endMessageLongPress();
+			if (isDesktop || event.touches.length !== 1) {
+				return;
+			}
+			const state = swipeStateRef.current;
+			if (!state || state.messageId !== message.messageId || state.triggered) {
+				return;
+			}
+			const touch = event.touches[0];
+			const dx = touch.clientX - state.startX;
+			const dy = Math.abs(touch.clientY - state.startY);
+			if (dx > 72 && dy < 40) {
+				state.triggered = true;
+				void handleReply(message);
+			}
+		},
+		[endMessageLongPress, handleReply, isDesktop],
+	);
+
+	const handleMobileTouchEnd = useCallback(() => {
+		swipeStateRef.current = null;
+		endMessageLongPress();
+	}, [endMessageLongPress]);
+
 	return (
 		<div
 			ref={threadScrollContainerRef}
-						onScroll={handleThreadScroll}
-						className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "px-3 sm:px-4 pb-[200px] pt-[140px]" : ""}`}
-		>
+                onScroll={handleThreadScroll}
+										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[200px] pt-[140px]" : ""}`}
+                        >
 						{messagePageKey ? (
 							<button
 								type="button"
@@ -172,11 +297,11 @@ export function ChatThreadMessages({
 								disabled={isLoadingOlderMessages}
 								className="mx-auto mb-3 rounded-xl border border-[var(--border)] px-3 py-1 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
 							>
-								{isLoadingOlderMessages ? "Loading..." : "Load older messages"}
+								{isLoadingOlderMessages ? t("chat.loading") : t("chat.load_older_messages")}
 							</button>
 						) : null}
 
-						<div className={`flex flex-col gap-2 ${!isDesktop ? "pt-4" : ""}`}>
+						<div className={`flex flex-col gap-2 ${!isDesktop ? "px-[var(--app-px)] pt-4" : ""}`}>
                         {(() => {
                             // Track the last header label to detect day transitions during rendering
                             let lastHeader = "";
@@ -202,6 +327,7 @@ export function ChatThreadMessages({
 										: null;
 								const videoUrl = getMessageVideoUrl(message);
 								const audioUrl = getMessageAudioUrl(message);
+								const location = getMessageLocation(message);
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
@@ -214,7 +340,18 @@ export function ChatThreadMessages({
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
-								const isMediaOnlyBubble = isImageOnlyBubble || isAlbumOnlyBubble;
+								const isLocationOnlyBubble =
+									Boolean(location) && messageText === t("chat.preview.sent_location");
+								const isMediaOnlyBubble =
+									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
+								const shouldBlurIncomingMedia =
+									blurIncomingMedia &&
+									!mine &&
+									!revealedMediaMessageIds.has(message.messageId) &&
+									(!isDesktop || hoveredMediaMessageId !== message.messageId);
+								const mediaBlurClassName = shouldBlurIncomingMedia
+									? "blur-xl transition"
+									: "";
 								const senderParticipant =
 									selectedConversation.data.participants.find(
 										(participant) =>
@@ -251,6 +388,7 @@ export function ChatThreadMessages({
 									expirationType === 0 ||
 									(typeof expirationType === "string" && expirationType.toUpperCase() === "INDEFINITE");
 
+								const isLastMessage = message.messageId === lastMessageId;
 								const isLatestShare = albumId ? latestMessageIdByAlbum.get(albumId) === message.messageId : true;
 
 								const isOnce = !isIndefinite && (
@@ -260,7 +398,6 @@ export function ChatThreadMessages({
 									(totalLifetimeSec > 1700 && totalLifetimeSec < 1900)
 								);
 
-								const isExpiringAlbum = message.type === "ExpiringAlbum" || message.type === "ExpiringAlbumV2";
 								const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
 								// isViewable is the explicit API field for whether the album can be opened.
@@ -273,7 +410,7 @@ export function ChatThreadMessages({
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
                                 <Fragment key={message.messageId}>
                                     {isNewDay && (
-                                        <div className="my-6 flex items-center gap-4 px-4 opacity-80">
+                                        <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
                                             <div className="h-px flex-1 bg-[var(--border)]" />
                                             <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
                                                 {currentHeader}
@@ -293,18 +430,19 @@ export function ChatThreadMessages({
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"}`}
+										className={`flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
 												onDoubleClick={() => void handleMessageTap(message)}
-												onTouchStart={() => startMessageLongPress(message.messageId)}
-												onTouchEnd={endMessageLongPress}
-												onTouchCancel={endMessageLongPress}
-												onTouchMove={endMessageLongPress}
-												className={`relative group/bubble w-full rounded-2xl text-sm ${
+												onTouchStart={(event) => handleMobileTouchStart(event, message)}
+												onTouchEnd={handleMobileTouchEnd}
+												onTouchCancel={handleMobileTouchEnd}
+												onTouchMove={(event) => handleMobileTouchMove(event, message)}
+												onContextMenu={(event) => event.preventDefault()}
+												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble
-														? "overflow-hidden bg-transparent p-0"
+														? "bg-transparent p-0"
 														: `px-3 py-2 ${
 															mine
 																? "bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -325,36 +463,42 @@ export function ChatThreadMessages({
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
+															if (shouldBlurIncomingMedia && !isDesktop) {
+																revealMediaMessage(message.messageId);
+																return;
+															}
 															openFullScreenImage(imageUrl);
 														}}
-														className={`${isImageOnlyBubble ? "block w-full" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
 														<div className="relative">
 														<img
 															src={imageUrl}
 															alt={t("chat.thread.shared_alt")}
-																className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"}`}
+															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
 														/>
 														{isExpiringImage ? (
 															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
 																1
 															</div>
 														) : null}
-														{!mine ? (
+														{!mine && (messageTakenOnGrindr || imageCreatedAtLabel) ? (
 															<div className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
-																{ messageTakenOnGrindr ? (
+																{messageTakenOnGrindr ? (
 																	<img
 																		src={freegrindLogo}
-																			alt={t("chat.thread.taken_on_grindr")}
+																		alt={t("chat.thread.taken_on_grindr")}
 																		className="h-3.5 w-3.5 rounded-full"
 																	/>
 																) : null}
 
-																<span>
-																	{imageCreatedAtLabel
-																		? ` ${imageCreatedAtLabel}`
-																		: ""}
-																</span>
+																{imageCreatedAtLabel ? (
+																	<span>
+																		{` ${imageCreatedAtLabel}`}
+																	</span>
+																) : null}
 															</div>
 														) : null}
 
@@ -384,6 +528,20 @@ export function ChatThreadMessages({
 																					type="button"
 																					onClick={(event) => {
 																						event.stopPropagation();
+																						void handleReply(message);
+																					}}
+																					className="rounded-md p-1 hover:bg-white/10"
+																				>
+																					<Reply className="h-3.5 w-3.5" />
+																				</button>
+																			) : null}
+																			{isDesktop &&
+																			!pending &&
+																			!isLocalClientMessageId(message.messageId) ? (
+																				<button
+																					type="button"
+																					onClick={(event) => {
+																						event.stopPropagation();
 																						setOpenMessageActionId((current) =>
 																							current === message.messageId ? null : message.messageId,
 																						);
@@ -405,6 +563,10 @@ export function ChatThreadMessages({
 													<button
 														type="button"
 														onClick={() => {
+															if (shouldBlurIncomingMedia && !isDesktop) {
+																revealMediaMessage(message.messageId);
+																return;
+															}
 															if (messageLongPressTriggeredRef.current) {
 																messageLongPressTriggeredRef.current = false;
 																return;
@@ -413,7 +575,9 @@ export function ChatThreadMessages({
 																void openAlbumViewerById(albumId);
 															}
 														}}
-														className="block w-full"
+														className="group/media block w-full overflow-hidden rounded-2xl"
+														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
@@ -424,7 +588,7 @@ export function ChatThreadMessages({
 																<img
 																	src={albumCover}
 																alt={t("chat.thread.album_cover")}
-																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""}`}
+																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""} ${mediaBlurClassName}`}
 																	onError={(event) => {
 																		event.currentTarget.style.display = "none";
 																	}}
@@ -491,12 +655,21 @@ export function ChatThreadMessages({
 												) : null}
 
 												{videoUrl ? (
-													<div className="mb-2 overflow-hidden rounded-xl border border-black/10 bg-black">
+														<div
+															className="group/media mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
+															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
+															onClick={() => {
+																if (shouldBlurIncomingMedia && !isDesktop) {
+																	revealMediaMessage(message.messageId);
+																}
+															}}
+														>
 														<video
 															controls
 															preload="metadata"
 															src={videoUrl}
-															className="max-h-72 w-full"
+																className={`max-h-72 w-full ${mediaBlurClassName} ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`}
 														/>
 													</div>
 												) : null}
@@ -510,6 +683,75 @@ export function ChatThreadMessages({
 															className="w-full"
 														/>
 													</div>
+												) : null}
+
+												{location ? (
+													<button
+														type="button"
+														onClick={() => {
+															const url = isDesktop
+																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
+															window.open(url, "_blank");
+														}}
+														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+															mine
+																? "bg-white/10 text-white"
+																: "bg-[var(--surface)] text-[var(--text)]"
+														}`}
+													>
+														<div className="flex items-center gap-3">
+															<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
+																<MapPin className="h-5 w-5" />
+															</div>
+															<div className="min-w-0 flex-1">
+																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
+																	{t("chat.thread.location_shared")}
+																</p>
+																<p className="truncate text-sm font-semibold opacity-90">
+																	{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
+																</p>
+															</div>
+														</div>
+
+														{isLocationOnlyBubble && (
+															<div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2 text-[10px] opacity-80">
+																<span>
+																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+																</span>
+																{isDesktop &&
+																!pending &&
+																!isLocalClientMessageId(message.messageId) ? (
+																	<div className="flex items-center gap-1">
+																		<button
+																			type="button"
+																			onClick={(event) => {
+																				event.stopPropagation();
+																				void handleReply(message);
+																			}}
+																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																		>
+																			<Reply className="h-3.5 w-3.5" />
+																		</button>
+																		<button
+																			type="button"
+																			onClick={(event) => {
+																				event.stopPropagation();
+																				setOpenMessageActionId((current) =>
+																					current === message.messageId
+																						? null
+																						: message.messageId,
+																				);
+																			}}
+																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																		>
+																			<Ellipsis className="h-3.5 w-3.5" />
+																		</button>
+																	</div>
+																) : null}
+															</div>
+														)}
+													</button>
 												) : null}
 
 												{isAlbumMessage && !isAlbumOnlyBubble ? (
@@ -526,7 +768,7 @@ export function ChatThreadMessages({
 																{isLocked ? (
 																	<div className="flex items-center gap-1.5 text-[var(--text-muted)]">
 																		<Lock className="h-3.5 w-3.5" />
-																		{t("chat.expired")}
+																		{t("chat.expiration.expired")}
 																	</div>
 																) : t("chat.thread.album_share")}
 															</span>
@@ -564,7 +806,7 @@ export function ChatThreadMessages({
 														type="button"
 														onClick={() => void handleReact(message)}
 														disabled={isMutatingMessageId === message.messageId}
-																className={`${fireButtonClass} cursor-pointer transition-opacity ${
+																className={`${fireButtonClass} z-10 cursor-pointer transition-opacity ${
 															message.reactions.length > 0
 																? "opacity-100"
 																: "opacity-0 group-hover/bubble:opacity-60"
@@ -593,6 +835,17 @@ export function ChatThreadMessages({
 														!isLocalClientMessageId(message.messageId) ? (
 															<button
 																type="button"
+																onClick={() => void handleReply(message)}
+																className="rounded-md p-1 hover:bg-black/10"
+															>
+																<Reply className="h-3.5 w-3.5" />
+															</button>
+														) : null}
+														{isDesktop &&
+														!pending &&
+														!isLocalClientMessageId(message.messageId) ? (
+															<button
+																type="button"
 																onClick={() =>
 																	setOpenMessageActionId((current) =>
 																		current === message.messageId
@@ -611,6 +864,22 @@ export function ChatThreadMessages({
 
 												{isDesktop && openMessageActionId === message.messageId ? (
 													<div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
+														{(() => {
+															const loc = getMessageLocation(message);
+															const body = message.body as any;
+															const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+															if (!loc && !hasText) return null;
+
+															return (
+																<button
+																	type="button"
+																	onClick={() => void handleCopy(message)}
+																	className="rounded-md border border-black/20 px-2 py-1"
+																>
+																	{t("chat.actions.copy", { defaultValue: "Copy" })}
+																</button>
+															);
+														})()}
 														{mine && !message.unsent ? (
 															<button
 																type="button"

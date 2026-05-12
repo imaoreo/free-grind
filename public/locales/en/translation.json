@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "issue_board": "Issues & Feature Requests",
+        "issue_board_desc": "Browse and search reported bugs and feature requests.",
         "report_issue": "Report Bug or Feature",
         "report_issue_desc": "Send bug reports and feature requests to the team.",
         "about": "About Free Grind",
@@ -16,6 +18,8 @@
         "api_inspector_desc": "View request and response history for debugging.",
         "my_albums": "My Albums",
         "my_albums_desc": "Create, rename, and delete private albums.",
+        "blocked_accounts": "Blocked Accounts",
+        "blocked_accounts_desc": "See who you blocked and unblock them anytime.",
         "export_chat": "Export Chat Data",
         "export_chat_desc": "Download all locally stored messages as a JSON file.",
         "check_updates": "Check for Updates",
@@ -33,6 +37,18 @@
         "switched_and_updated": "Switched to {{channel}} and applied update. Reloading…",
         "switched_channel": "Switched to {{channel}}. Reloading…",
         "failed_switch_env": "Failed to switch update environment."
+    },
+    "settings_blocked": {
+        "title": "Blocked Accounts",
+        "subtitle": "People you block are hidden and chats are removed for both sides.",
+        "loading": "Loading blocked accounts...",
+        "error_load": "Failed to load blocked accounts",
+        "empty": "You have not blocked anyone.",
+        "refresh": "Refresh",
+        "refreshing": "Refreshing...",
+        "profile_id": "Profile ID: {{id}}",
+        "count_one": "{{count}} blocked account",
+        "count_other": "{{count}} blocked accounts"
     },
     "shared_albums": {
         "title": "Shared Albums",
@@ -84,9 +100,10 @@
         "message_aria": "Message {{name}}",
         "any_position": "Any",
         "just_now": "Just now",
-        "minutes_short": "{{count}} min",
+        "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
-        "days_short": "{{count}}d"
+        "days_short": "{{count}}d",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Right Now Filters",
@@ -206,7 +223,8 @@
             "tap_mutual": "Tap sent. It's mutual.",
             "tap_sent": "Tap sent",
             "tap_failed": "Failed to send tap"
-        }
+        },
+        "chatted": "Chatted"
     },
     "chat_filters": {
         "title": "Chat Filters",
@@ -434,6 +452,15 @@
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
+        "units": "Units",
+        "units_description": "Choose how distance and height are displayed.",
+        "units_world": "World (meters + cm)",
+        "units_uk": "UK (meters + feet/inches)",
+        "units_american": "American (miles + feet/inches)",
+        "blur_incoming_media": "Blur Incoming Media",
+        "blur_incoming_media_description": "Automatically blur incoming images and videos in chats. On desktop, hover or click to reveal. In chats, revealed media resets when you leave and return.",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
         "color_scheme": "Color Scheme",
         "accent_color": "Accent Color",
         "selected": "Selected",
@@ -463,8 +490,29 @@
             "not_selected": "Not selected yet"
         }
     },
+    "issue_search": {
+        "title": "Issues & Feature Requests",
+        "subtitle": "Browse reported bugs and feature requests.",
+        "search_placeholder": "Search issues…",
+        "filter_all": "All",
+        "category_bug": "Bug",
+        "category_feature": "Feature Request",
+        "status_open": "Open",
+        "status_in_progress": "In Progress",
+        "status_resolved": "Resolved",
+        "status_closed": "Closed",
+        "report_cta": "Report",
+        "load_more": "Load {{remaining}} more",
+        "loading_more": "Loading…",
+        "showing_all": "Showing all {{count}} issues",
+        "no_results": "No issues found.",
+        "no_results_query": "No results for \"{{query}}\".",
+        "error_load": "Failed to load issues.",
+        "retry": "Try again"
+    },
     "issues_form": {
         "title": "Report a Bug or Suggest a Feature",
+        "title_bug_only": "Report a Bug",
         "subtitle": "This report is sent to the internal issue board and can sync to Discord.",
         "type_label": "Type",
         "type_bug": "Bug",
@@ -475,8 +523,8 @@
         "description_placeholder": "What happened, what you expected, and how to reproduce it.",
         "name_label": "Name (optional)",
         "name_placeholder": "How should we refer to you?",
-        "contact_label": "Contact (optional)",
-        "contact_placeholder": "Discord tag, email, or Telegram",
+        "contact_label": "Contact",
+        "contact_placeholder": "Your handle or address",
         "include_data_label": "Include diagnostic data",
         "include_app_info": "Include app version and platform",
         "include_app_info_hint": "Recommended for easier triage. This data is public on the issue, including the OTA branch.",
@@ -491,7 +539,8 @@
         "submit_error": "Failed to submit report",
         "no_id_error": "Report submitted but no ID returned",
         "validation_title": "Please enter a title with at least 3 characters.",
-        "validation_description": "Please enter a description with at least 10 characters."
+        "validation_description": "Please enter a description with at least 10 characters.",
+        "validation_contact": "Please enter your contact details so we can reach you."
     },
     "auth": {
         "common": {
@@ -509,6 +558,9 @@
             "signing_in": "Signing in...",
             "sign_in_with_token": "Sign In with Token",
             "submit": "Sign In"
+        },
+        "bug_report": {
+            "button": "Report a bug"
         },
         "sign_up": {
             "title": "Sign Up",
@@ -536,6 +588,7 @@
         "retry": "Retry",
         "loading": "Loading...",
         "load_more": "Load more",
+        "load_older_messages": "Load older messages",
         "loading_inbox": "Loading inbox...",
         "loading_messages": "Loading messages...",
         "refreshing_inbox": "Refreshing inbox...",
@@ -543,6 +596,9 @@
         "open_search": "Open search",
         "open_filters": "Open filters",
         "profile": "Profile",
+        "view_profile": "View profile",
+        "favorite": "Favorite",
+        "unfavorite": "Unfavorite",
         "no_conversations_match": "No conversations match your filters.",
         "no_conversations": "No conversations yet.",
         "no_messages_yet": "No messages yet.",
@@ -551,8 +607,13 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "clear_local_history": "Clear local history",
+        "delete_conversation": "Delete conversation",
+        "delete_conversation_in_progress": "Deleting conversation...",
+        "delete_conversation_confirm": "Delete this conversation? This cannot be undone.",
         "open_conversation_actions": "Open conversation actions",
-        "share_album": "Share album",
+        "share_album_label": "Share album",
+        "drawer_label": "Drawer",
+        "attach_media": "Attach media",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",
@@ -563,8 +624,6 @@
             "remaining": "remaining",
             "expired": "expired"
         },
-        "attach_media": "Attach media",
-        "manage_albums": "Manage albums",
         "loading_albums": "Loading albums...",
         "no_albums_available": "No albums available. Create one in Settings first.",
         "confirm_share_album": "Share \"{{album}}\" in this chat?",
@@ -586,6 +645,7 @@
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
             "sent_video": "Sent a video",
+            "sent_location": "Sent a location",
             "sent_message": "Sent a message"
         },
         "thread": {
@@ -593,10 +653,12 @@
             "image_placeholder": "[image]",
             "video_placeholder": "[video]",
             "audio_placeholder": "[audio]",
+            "location_placeholder": "[location]",
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
             "shared_video": "Shared a video",
             "shared_audio": "Shared an audio message",
+            "location_shared": "Location shared",
             "failed": "Failed",
             "from_local_history": "From local history",
             "shared_alt": "Shared",
@@ -606,6 +668,8 @@
         },
         "actions": {
             "title": "Message actions",
+            "copy": "Copy",
+            "reply": "Reply",
             "unsend": "Unsend",
             "delete": "Delete",
             "cancel": "Cancel"
@@ -627,6 +691,14 @@
             "send_attachment": "Send attachment",
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."
+        },
+        "nicknames": {
+            "set": "Set nickname",
+            "edit": "Edit nickname",
+            "prompt": "Set a local nickname for this profile. Leave blank to clear.",
+            "saved": "Nickname saved",
+            "cleared": "Nickname cleared",
+            "save_failed": "Failed to save nickname"
         },
         "errors": {
             "load_albums": "Failed to load albums",
@@ -651,17 +723,48 @@
             "load_shared_images": "Failed to load shared conversation images",
             "create_album_failed": "Failed to create album",
             "load_album_details": "Failed to load album details",
-            "upload_media_failed": "Failed to upload media"
+            "upload_media_failed": "Failed to upload media",
+            "load_drawer_media": "Failed to load drawer media",
+            "send_drawer_media": "Failed to send media from drawer",
+            "delete_conversation": "Failed to delete conversation"
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
-            "album_shared": "Album shared"
+            "copied": "Copied to clipboard",
+            "album_shared": "Album shared",
+            "media_sent": "Media sent",
+            "conversation_deleted": "Conversation deleted"
         },
         "new_conversation": {
             "title": "New conversation",
             "subtitle": "Message profile #{{profileId}} to start chatting.",
             "write_first_message": "Write your first message..."
         }
+    },
+    "chat_drawer": {
+        "title": "Drawer",
+        "empty": "Your drawer is empty.",
+        "retry": "Try again",
+        "send": "Send {{count}}",
+        "sending": "Sending...",
+        "error_no_selection": "Please select at least one image.",
+        "error_send_failed": "Failed to send media.",
+        "add_photo": "Add photo",
+        "delete_media": "Delete media",
+        "media_alt": "Drawer media",
+        "take_photo": "Take photo",
+        "upload_photo": "Upload photo",
+        "add_to_drawer": "Add to drawer",
+        "invalid_file_type": "Please choose a photo.",
+        "delete_confirm_title": "Delete from drawer?",
+        "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
+        "delete_confirm_label": "Delete"
+    },
+    "favorites": {
+        "added": "Added to favorites",
+        "removed": "Removed from favorites",
+        "add_failed": "Failed to add favorite",
+        "remove_failed": "Failed to remove favorite"
     },
     "profile_details": {
         "title": "Profile details",
@@ -680,6 +783,21 @@
         "status": "Status",
         "distance": "Distance",
         "message": "Message",
+        "block": "Block",
+        "unblock": "Unblock",
+        "unfavorite": "Unfavorite",
+        "block_in_progress": "Blocking...",
+        "unblock_in_progress": "Unblocking...",
+        "block_confirm": "Block this profile? This will remove your conversation for both users.",
+        "unblock_confirm": "Unblock this profile?",
+        "dont_ask_again": "Don't ask again",
+        "block_success": "Profile blocked",
+        "unblock_success": "Profile unblocked",
+        "block_failed": "Failed to block profile",
+        "unblock_failed": "Failed to unblock profile",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before",
         "tap_profile": "Tap profile",
         "tap_sent_recent": "Tap already sent in the last 24 hours",
         "tap_active": "Tap active",

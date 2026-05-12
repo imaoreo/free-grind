@@ -1,7 +1,7 @@
 #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
 use keyring_core::Entry;
 use serde::{Deserialize, Serialize};
-#[cfg(any(target_os = "windows", all(target_os = "macos", debug_assertions)))]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use std::path::PathBuf;
 
 use crate::error::AppError;
@@ -261,13 +261,132 @@ impl AuthStorage {
         Entry::new("free-grind", "session").map_err(|e| AppError::Auth(e.to_string()))
     }
 
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    fn macos_fallback_session_file_path() -> Result<PathBuf, AppError> {
+        let home = std::env::var("HOME").map_err(|_| {
+            AppError::Auth("HOME is not set; cannot resolve fallback session path".to_owned())
+        })?;
+
+        Ok(PathBuf::from(home)
+            .join("Library")
+            .join("Application Support")
+            .join("free-grind")
+            .join("session-fallback.msgpack"))
+    }
+
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    fn read_macos_fallback_session() -> Result<Option<Session>, AppError> {
+        let path = Self::macos_fallback_session_file_path()?;
+        let session_bytes = match std::fs::read(&path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(AppError::Auth(format!(
+                    "Failed to read macOS fallback session from {}: {}",
+                    path.display(),
+                    error
+                )))
+            }
+        };
+
+        rmp_serde::decode::from_slice(&session_bytes)
+            .map_err(|e| AppError::Auth(e.to_string()))
+            .map(Some)
+    }
+
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    fn write_macos_fallback_session(session: &Session) -> Result<(), AppError> {
+        let path = Self::macos_fallback_session_file_path()?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                AppError::Auth(format!(
+                    "Failed to create fallback session directory {}: {}",
+                    parent.display(),
+                    error
+                ))
+            })?;
+        }
+
+        let session_bytes = rmp_serde::encode::to_vec(session).unwrap();
+        std::fs::write(&path, session_bytes).map_err(|error| {
+            AppError::Auth(format!(
+                "Failed to write macOS fallback session {}: {}",
+                path.display(),
+                error
+            ))
+        })?;
+
+        #[cfg(target_family = "unix")]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
+
+        Ok(())
+    }
+
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    fn clear_macos_fallback_session() -> Result<(), AppError> {
+        let path = Self::macos_fallback_session_file_path()?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to clear macOS fallback session {}: {}",
+                path.display(),
+                error
+            ))),
+        }
+    }
+
     #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
     pub fn get_session() -> Result<Option<Session>, AppError> {
-        let entry = Self::get_session_entry()?;
+        let entry = match Self::get_session_entry() {
+            Ok(entry) => entry,
+            Err(error) => {
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!(
+                        "[AUTH] Keyring entry creation failed on macOS, trying fallback session file: {}",
+                        error
+                    );
+                    return Self::read_macos_fallback_session();
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Err(error);
+                }
+            }
+        };
         let session_bytes = match entry.get_secret() {
             Ok(bytes) => bytes,
-            Err(keyring_core::Error::NoEntry) => return Ok(None),
-            Err(e) => return Err(AppError::Auth(e.to_string())),
+            Err(keyring_core::Error::NoEntry) => {
+                #[cfg(target_os = "macos")]
+                {
+                    return Self::read_macos_fallback_session();
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Ok(None);
+                }
+            }
+            Err(e) => {
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!(
+                        "[AUTH] Keyring read failed on macOS, trying fallback session file: {}",
+                        e
+                    );
+                    return Self::read_macos_fallback_session();
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Err(AppError::Auth(e.to_string()));
+                }
+            }
         };
         rmp_serde::decode::from_slice(&session_bytes)
             .map_err(|e| AppError::Auth(e.to_string()))
@@ -277,18 +396,117 @@ impl AuthStorage {
     #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
     pub fn set_session(session: &Session) -> Result<(), AppError> {
         let session_bytes = rmp_serde::encode::to_vec(session).unwrap();
-        Self::get_session_entry()?
-            .set_secret(&session_bytes)
-            .map_err(|e| AppError::Auth(e.to_string()))
+        let entry = match Self::get_session_entry() {
+            Ok(entry) => entry,
+            Err(error) => {
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!(
+                        "[AUTH] Keyring entry creation failed on macOS, writing fallback session file: {}",
+                        error
+                    );
+                    return Self::write_macos_fallback_session(session);
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Err(error);
+                }
+            }
+        };
+        match entry.set_secret(&session_bytes) {
+            Ok(()) => {
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = Self::clear_macos_fallback_session();
+                }
+                Ok(())
+            }
+            Err(error) => {
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!(
+                        "[AUTH] Keyring write failed on macOS, writing fallback session file: {}",
+                        error
+                    );
+                    return Self::write_macos_fallback_session(session);
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    Err(AppError::Auth(error.to_string()))
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
+    pub fn clear_session() -> Result<(), AppError> {
+        let entry = match Self::get_session_entry() {
+            Ok(entry) => Some(entry),
+            Err(error) => {
+                #[cfg(not(target_os = "macos"))]
+                {
+                    return Err(error);
+                }
+
+                #[cfg(target_os = "macos")]
+                {
+                    eprintln!(
+                        "[AUTH] Keyring entry creation failed on macOS during clear, continuing with fallback clear: {}",
+                        error
+                    );
+                    None
+                }
+            }
+        };
+        if let Some(entry) = entry {
+            match entry.delete_credential() {
+                Ok(()) | Err(keyring_core::Error::NoEntry) => {}
+                Err(error) => {
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        return Err(AppError::Auth(error.to_string()));
+                    }
+
+                    #[cfg(target_os = "macos")]
+                    {
+                        eprintln!(
+                            "[AUTH] Keyring clear failed on macOS, continuing with fallback clear: {}",
+                            error
+                        );
+                    }
+                }
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            Self::clear_macos_fallback_session()?;
+        }
+
+        Ok(())
     }
 }
 
 impl GrindrClient {
     async fn create_session(&self, body: &impl AuthRequest) -> Result<Session, AppError> {
+        eprintln!("[AUTH] POST /v8/sessions for email={}", body.email());
         let session_resp: SessionResponse = self
             .request_json(reqwest::Method::POST, "/v8/sessions", Some(body))
-            .await?;
-        let claims = decode_session_jwt(&session_resp.session_id)?;
+            .await
+            .map_err(|e| {
+                eprintln!("[AUTH] /v8/sessions request failed: {e}");
+                e
+            })?;
+        eprintln!(
+            "[AUTH] /v8/sessions success; profile_id={}",
+            session_resp.profile_id
+        );
+        let claims = decode_session_jwt(&session_resp.session_id).map_err(|e| {
+            eprintln!("[AUTH] JWT decode for session_id failed: {e}");
+            e
+        })?;
 
         let session = Session {
             email: body.email().to_owned(),
@@ -298,15 +516,32 @@ impl GrindrClient {
             expires_at: claims.exp,
         };
 
-        AuthStorage::set_session(&session)?;
+        eprintln!(
+            "[AUTH] Saving session to storage; profile_id={}, expires_at={}",
+            session.profile_id, session.expires_at
+        );
+        if let Err(error) = AuthStorage::set_session(&session) {
+            eprintln!(
+                "[AUTH] Failed to persist session (continuing in-memory only): {}",
+                error
+            );
+        }
 
         Ok(session)
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResult, AppError> {
+        eprintln!(
+            "[AUTH] login attempt for email={}***",
+            email.chars().next().unwrap_or('?')
+        );
         let body = LoginRequest::new(email.to_owned(), password.to_owned());
-        let session = self.create_session(&body).await?;
+        let session = self.create_session(&body).await.map_err(|e| {
+            eprintln!("[AUTH] login failed: {e}");
+            e
+        })?;
         let profile_id = session.profile_id.clone();
+        eprintln!("[AUTH] login succeeded; profile_id={profile_id}");
 
         *self.session.write().await = Some(session);
 
@@ -314,7 +549,11 @@ impl GrindrClient {
     }
 
     pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
-        let claims = decode_session_jwt(token)?;
+        eprintln!("[AUTH] login_with_jwt attempt; token_len={}", token.len());
+        let claims = decode_session_jwt(token).map_err(|e| {
+            eprintln!("[AUTH] JWT decode failed: {e}");
+            e
+        })?;
 
         let session = Session {
             email: String::new(),
@@ -324,8 +563,17 @@ impl GrindrClient {
             expires_at: claims.exp,
         };
 
-        AuthStorage::set_session(&session)?;
+        if let Err(error) = AuthStorage::set_session(&session) {
+            eprintln!(
+                "[AUTH] Failed to persist JWT session (continuing in-memory only): {}",
+                error
+            );
+        }
         *self.session.write().await = Some(session);
+        eprintln!(
+            "[AUTH] login_with_jwt succeeded; profile_id={}",
+            claims.profile_id
+        );
 
         Ok(LoginResult {
             profile_id: claims.profile_id,
@@ -442,7 +690,6 @@ pub async fn refresh_token(state: tauri::State<'_, AppState>) -> Result<LoginRes
 
 #[tauri::command]
 pub async fn logout(state: tauri::State<'_, AppState>) -> Result<(), AppError> {
-    #[cfg(any(target_os = "windows", all(target_os = "macos", debug_assertions)))]
     AuthStorage::clear_session()?;
 
     state

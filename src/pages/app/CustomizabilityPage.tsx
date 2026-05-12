@@ -13,6 +13,7 @@ import {
 	SUPPORTED_LOCALE_OPTIONS,
 	resolveSupportedLocale,
 } from "../../utils/locales";
+import { type UnitsPreset } from "../../utils/units";
 
 function normalizeHex(value: string): string {
 	const cleaned = value.trim().replace(/^#/, "");
@@ -57,7 +58,14 @@ function getContrastForHex(hexColor: string): "#1a1a1a" | "#ffffff" {
 
 export function CustomizabilityPage() {
 	const { i18n, t } = useTranslation();
-	const { colorScheme, accentColor, mobileGridColumns, setPreferences } = usePreferences();
+	const {
+		colorScheme,
+		accentColor,
+		mobileGridColumns,
+		unitsPreset,
+		blurIncomingMedia,
+		setPreferences,
+	} = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
@@ -143,6 +151,14 @@ export function CustomizabilityPage() {
 		}
 	};
 
+	const handleUnitsPresetChange = (preset: UnitsPreset) => {
+		void setPreferences({ unitsPreset: preset });
+	};
+
+	const handleBlurIncomingMediaToggle = () => {
+		void setPreferences({ blurIncomingMedia: !blurIncomingMedia });
+	};
+
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
@@ -170,6 +186,44 @@ export function CustomizabilityPage() {
 							</option>
 						))}
 					</select>
+				</div>
+
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("customizability.units")}
+					</p>
+					<p className="mb-3 text-sm text-[var(--text-muted)]">
+						{t("customizability.units_description")}
+					</p>
+					<select
+						value={unitsPreset}
+						onChange={(event) => handleUnitsPresetChange(event.target.value as UnitsPreset)}
+						className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+					>
+						<option value="world">{t("customizability.units_world")}</option>
+						<option value="uk">{t("customizability.units_uk")}</option>
+						<option value="american">{t("customizability.units_american")}</option>
+					</select>
+				</div>
+
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("customizability.blur_incoming_media")}
+					</p>
+					<p className="mb-3 text-sm text-[var(--text-muted)]">
+						{t("customizability.blur_incoming_media_description")}
+					</p>
+					<button
+						type="button"
+						onClick={handleBlurIncomingMediaToggle}
+						className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition ${
+							blurIncomingMedia
+								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+								: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]"
+						}`}
+					>
+						{blurIncomingMedia ? t("customizability.enabled") : t("customizability.disabled")}
+					</button>
 				</div>
 
 				{/* Analytics & FreeGrind Discovery */}

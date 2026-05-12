@@ -1,4 +1,4 @@
-import { MessageCircle, Triangle } from "lucide-react";
+import { Heart, Loader2, MessageCircle, Triangle } from "lucide-react";
 import { type RefObject, type UIEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
@@ -16,6 +16,10 @@ import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import blankProfileImage from "../../../../images/blank-profile.png";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
+import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+import { formatDateTime24 } from "../../chat/chatUtils";
+import { formatRelativeTime } from "../../../../utils/relativeTime";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
 
 type LabelMap = Record<number, string>;
 
@@ -28,14 +32,26 @@ type ProfileDetailsContentProps = {
 	mobileCarouselPhotoIndex: number;
 	handleMobileCarouselScroll: (event: UIEvent<HTMLDivElement>) => void;
 	openPhotoViewer: (index: number) => void;
+	photoCreatedAtByHash: Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }>;
 	activeProfileName: string;
 	estimatedCreatedAt: string;
 	profileStatusLabel: string;
 	profileDistance: number | null;
+	chatContactStatus: ChatContactIndexRecord | null;
 	messageProfileId: string | null;
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
+	onBlockProfile?: (profileId: string) => void;
+	onUnblockProfile?: (profileId: string) => void;
+	onToggleFavoriteProfile?: (
+		profileId: string,
+		currentlyFavorite: boolean,
+	) => void | Promise<void>;
+	isFavorite: boolean;
+	isTogglingFavorite: boolean;
+	isBlocked: boolean;
+	isBlockingProfile: boolean;
 	isTapDisabled: boolean;
 	isTapBlocked: boolean;
 	isTapActive: boolean;
@@ -74,14 +90,23 @@ export function ProfileDetailsContent({
 	mobileCarouselPhotoIndex,
 	handleMobileCarouselScroll,
 	openPhotoViewer,
+	photoCreatedAtByHash,
 	activeProfileName,
 	estimatedCreatedAt,
 	profileStatusLabel,
 	profileDistance,
+	chatContactStatus,
 	messageProfileId,
 	usesFreegrind,
 	onMessageProfile,
 	onTapProfile,
+	onBlockProfile,
+	onUnblockProfile,
+	onToggleFavoriteProfile,
+	isFavorite,
+	isTogglingFavorite,
+	isBlocked,
+	isBlockingProfile,
 	isTapDisabled,
 	isTapBlocked,
 	isTapActive,
@@ -111,6 +136,48 @@ export function ProfileDetailsContent({
 	relationshipStatusLabels,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
+	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
+	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
+
+	const renderPhotoCreatedBadge = (hash: string) => {
+		const meta = photoCreatedAtByHash[hash] ?? null;
+		const timeLabel = meta?.createdAt ? formatDateTime24(meta.createdAt) : null;
+		if (!timeLabel && !meta?.takenOnGrindr) return null;
+		return (
+			<div className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
+				{meta?.takenOnGrindr ? (
+					<img
+						src={freegrindLogo}
+						alt={t("chat.thread.taken_on_grindr")}
+						className="h-3.5 w-3.5 rounded-full"
+					/>
+				) : null}
+				{timeLabel ? <span>{timeLabel}</span> : null}
+			</div>
+		);
+	};
+
+	const handleBlockAction = () => {
+		if (!messageProfileId || isBlockingProfile) {
+			return;
+		}
+
+		if (isBlocked) {
+			onUnblockProfile?.(messageProfileId);
+			return;
+		}
+
+		onBlockProfile?.(messageProfileId);
+	};
+
+	const handleFavoriteAction = () => {
+		if (!messageProfileId || !onToggleFavoriteProfile || isTogglingFavorite) {
+			return;
+		}
+
+		void onToggleFavoriteProfile(messageProfileId, isFavorite);
+	};
 
 	return (
 		<div className="grid gap-6">
@@ -134,9 +201,10 @@ export function ProfileDetailsContent({
 												type="button"
 												key={hash}
 												onClick={() => openPhotoViewer(index)}
-												className="aspect-[2/3] w-full shrink-0 snap-center overflow-hidden"
+												className="aspect-[2/3] w-full shrink-0 snap-center snap-always overflow-hidden"
 												aria-label={t("profile_details.open_photo", { index: index + 1 })}
 											>
+											<div className="relative h-full w-full">
 												<img
 													/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
 													   on high-density mobile screens, as thumbnails (320x320) appear blurry here. */
@@ -144,6 +212,8 @@ export function ProfileDetailsContent({
 													alt={t("profile_details.photo_alt", { name: activeProfileName })}
 													className="h-full w-full object-cover"
 												/>
+												{renderPhotoCreatedBadge(hash)}
+											</div>
 											</button>
 										))}
 									</div>
@@ -169,11 +239,14 @@ export function ProfileDetailsContent({
 											className="overflow-hidden rounded-xl border border-[var(--border)]"
 											aria-label={t("profile_details.open_photo", { index: index + 1 })}
 										>
-											<img
-												src={getThumbImageUrl(hash, "320x320")}
-												alt={t("profile_details.photo_alt", { name: activeProfileName })}
-												className="aspect-square w-full object-cover"
-											/>
+											<div className="relative">
+												<img
+													src={getThumbImageUrl(hash, "320x320")}
+													alt={t("profile_details.photo_alt", { name: activeProfileName })}
+													className="aspect-square w-full object-cover"
+												/>
+												{renderPhotoCreatedBadge(hash)}
+											</div>
 										</button>
 									))}
 								</div>
@@ -188,11 +261,14 @@ export function ProfileDetailsContent({
 										className="overflow-hidden rounded-xl border border-[var(--border)]"
 										aria-label={t("profile_details.open_photo", { index: index + 1 })}
 									>
-										<img
-											src={getThumbImageUrl(hash, "320x320")}
-											alt={t("profile_details.photo_alt", { name: activeProfileName })}
-											className="aspect-square w-full object-cover"
-										/>
+										<div className="relative">
+											<img
+												src={getThumbImageUrl(hash, "320x320")}
+												alt={t("profile_details.photo_alt", { name: activeProfileName })}
+												className="aspect-square w-full object-cover"
+											/>
+											{renderPhotoCreatedBadge(hash)}
+										</div>
 									</button>
 								))}
 							</div>
@@ -214,7 +290,13 @@ export function ProfileDetailsContent({
 					<div>
 						<p className="text-lg font-semibold sm:text-xl">
 							{activeProfileName}
-							<span className="ml-2 text font-medium text-[var(--text-muted)]">
+							<span
+								className={`ml-2 font-medium text-[var(--text-muted)] ${
+									!activeProfile.age || !Number.isFinite(activeProfile.age)
+										? "text-sm"
+										: "text-base"
+								}`}
+							>
 								({formatOptionalNumber(activeProfile.age, t)})
 							</span>
 						</p>
@@ -230,10 +312,19 @@ export function ProfileDetailsContent({
 							<span className="font-semibold text-[var(--text)]">{t("profile_details.status")}:</span> {profileStatusLabel}
 						</p>
 						<p>
-							<span className="font-semibold text-[var(--text)]">{t("profile_details.distance")}:</span> {formatDistance(profileDistance, t)}
+							<span className="font-semibold text-[var(--text)]">{t("profile_details.distance")}:</span> {formatDistance(profileDistance, t, unitsPreset)}
 						</p>
 					</div>
 				</div>
+				{hasChatHistory ? (
+					<p className="mt-1 text-xs text-[var(--text-muted)]">
+						<span className="font-semibold text-[var(--text)]">{t("profile_details.chat_history")}:</span>{" "}
+						{lastMessageLabel ? t("profile_details.last_message", { time: lastMessageLabel }) : t("profile_details.chatted_before")}
+						{(chatContactStatus?.unreadCount ?? 0) > 0
+							? ` • ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
+							: ""}
+					</p>
+				) : null}
 				{usesFreegrind && (
 					<div className="mt-2 flex items-center gap-2">
 						<img
@@ -245,7 +336,8 @@ export function ProfileDetailsContent({
 					</div>
 				)}
 				{messageProfileId && onMessageProfile ? (
-					<div className="mt-3 grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+					<div className="mt-3 grid gap-2">
+						<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
 						<button
 							type="button"
 							onClick={() => onMessageProfile(messageProfileId)}
@@ -278,6 +370,55 @@ export function ProfileDetailsContent({
 							<Triangle className="h-4 w-4" />
 							{isLocatingProfile ? "Locating..." : "Locate"}
 						</button>
+						</div>
+						{onToggleFavoriteProfile ? (
+							<button
+								type="button"
+								onClick={handleFavoriteAction}
+								disabled={isTogglingFavorite}
+								className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
+									isFavorite
+										? "border-pink-500/45 bg-pink-500/10 text-pink-300 hover:border-pink-400 hover:bg-pink-500/15"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
+								}`}
+							>
+								{isTogglingFavorite ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+								)}
+								{isFavorite
+									? t("profile_details.unfavorite")
+									: t("browse_filters.options.favorites")}
+							</button>
+						) : null}
+						{(onBlockProfile || onUnblockProfile) ? (
+							<button
+								type="button"
+								onClick={handleBlockAction}
+								onPointerUp={(event) => {
+									if (event.pointerType === "mouse") {
+										return;
+									}
+									event.preventDefault();
+									handleBlockAction();
+								}}
+								disabled={isBlockingProfile}
+								className={`relative z-20 inline-flex h-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
+									isBlocked
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
+										: "border-red-500/45 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/15"
+								}`}
+							>
+								{isBlockingProfile
+									? isBlocked
+										? t("profile_details.unblock_in_progress")
+										: t("profile_details.block_in_progress")
+									: isBlocked
+										? t("profile_details.unblock")
+										: t("profile_details.block")}
+							</button>
+						) : null}
 					</div>
 				) : null}
 			</div>
@@ -497,26 +638,26 @@ export function ProfileDetailsContent({
 									</div>
 								)}
 								{!shouldHideField(
-									formatHeightCm(activeProfile.height, t),
+									formatHeightCm(activeProfile.height, t, unitsPreset),
 								) && (
 									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.height")}
 										</p>
 										<p className="mt-1 font-medium text-[var(--text)]">
-											{formatHeightCm(activeProfile.height, t)}
+											{formatHeightCm(activeProfile.height, t, unitsPreset)}
 										</p>
 									</div>
 								)}
 								{!shouldHideField(
-									formatWeightKg(activeProfile.weight, t),
+									formatWeightKg(activeProfile.weight, t, unitsPreset),
 								) && (
 									<div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
 										<p className="text-[10px] uppercase tracking-[0.08em]">
 											{t("profile_details.weight")}
 										</p>
 										<p className="mt-1 font-medium text-[var(--text)]">
-											{formatWeightKg(activeProfile.weight, t)}
+											{formatWeightKg(activeProfile.weight, t, unitsPreset)}
 										</p>
 									</div>
 								)}

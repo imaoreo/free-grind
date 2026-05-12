@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/useAuth";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
+import { BugReportButton } from "../../components/ui/BugReportButton";
 import type { SignInMethod } from "../../types/auth";
 import { useTranslation } from "react-i18next";
 
@@ -53,12 +54,15 @@ export function SignInPage() {
 			title={t("auth.sign_in.title")}
 			subtitle={t("auth.sign_in.subtitle")}
 			footer={
-				<Link
-					to="/auth/sign-up"
-					className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
-				>
-					{t("auth.sign_in.no_account")}
-				</Link>
+				<div className="flex flex-col items-center gap-3">
+					<Link
+						to="/auth/sign-up"
+						className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
+					>
+						{t("auth.sign_in.no_account")}
+					</Link>
+					<BugReportButton />
+				</div>
 			}
 		>
 			<div className="mb-4 flex rounded-xl border border-[var(--border)] p-1">
@@ -90,7 +94,7 @@ export function SignInPage() {
 				<form onSubmit={handleTokenSubmit} className="space-y-4">
 					<div>
 						<a
-							href="https://freegrind.imaoreo.dev/guide/login"
+							href="https://freegrinddocs.imaoreo.dev/guide/login"
 							target="_blank"
 							rel="noreferrer"
 							className="text-sm font-medium text-[var(--text-muted)] underline underline-offset-4 hover:text-[var(--text)]"

@@ -17,7 +17,7 @@
         "export_chat": "Exportar datos de chat",
         "export_chat_desc": "Descarga todos los mensajes localmente almacenados como un archivo JSON.",
         "check_updates": "Comprobar si hay actualizaciones",
-        "check_now": "Comprobar Right Now",
+        "check_now": "Comprobar ahora",
         "environment": "Entorno",
         "switching": "Cambiando…",
         "checking": "Comprobando…",
@@ -32,7 +32,11 @@
         "switched_channel": "Cambiado a {{channel}}. Recargando…",
         "failed_switch_env": "Error al cambiar el entorno de actualización.",
         "report_issue": "Informar de un error o sugerencias",
-        "report_issue_desc": "Envía informes de errores y solicitudes de sugerencias para el equipo."
+        "report_issue_desc": "Envía informes de errores y solicitudes de sugerencias para el equipo.",
+        "blocked_accounts": "Cuentas bloqueadas",
+        "blocked_accounts_desc": "Mira a quién has bloqueado y desbloquéalos en cualquier momento.",
+        "issue_board": "Problemas y solicitudes de sugerencias",
+        "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -79,7 +83,7 @@
         "distance": "Distancia",
         "recent": "Reciente",
         "hosting": "Hospedando",
-        "filters": "filtros",
+        "filters": "Filtros",
         "filter_summary": "Posición: {{position}} · Edad: {{age}}",
         "try_again": "Inténtalo de nuevo",
         "empty": "Nadie está en Right Now.",
@@ -111,7 +115,7 @@
         "add": "Añadir",
         "clear_all": "Limpiar todo",
         "apply": "Aplicar",
-        "not_specified": "sin especificar",
+        "not_specified": "Sin especificar",
         "options": {
             "online": "En línea",
             "has_album": "Tiene álbum",
@@ -202,10 +206,10 @@
         "media_title": "Contenido del álbum",
         "media_counts_images": "{{count}} imágenes",
         "media_counts_total": " · {{count}} contenido total",
-        "media_desc": ". Añade imágenes, elimínelas, cambia el orden de visualización.",
+        "media_desc": ". Añade imágenes, elimínelas o cambia el orden de visualización.",
         "upload": "Añadir imágenes",
         "uploading": "Subiendo…",
-        "refresh": "Recargando",
+        "refresh": "Recargar",
         "loading_media": "Cargando contenido de álbum…",
         "no_media": "No hay contenido en este álbum todavía.",
         "media_alt": "Contenido de álbum {{index}}",
@@ -240,12 +244,12 @@
         "tags_count_other": "{{count}} etiquetas",
         "no_tags": "Sin etiquetas",
         "completion_title": "Perfil completado",
-        "completion_signals": "{{count}}/{{total}} campos de perfil establecidas",
+        "completion_signals": "{{count}}/{{total}} campos de perfil establecidos",
         "sections": {
             "pictures": {
                 "title": "Imágenes",
                 "description": "Espacios para fotos",
-                "usage": "{{count}}/{{total}} fotos usadas",
+                "usage": "{{count}}/{{total}} fotos puestas",
                 "add": "Añadir foto",
                 "uploading": "Subiendo…",
                 "saving": "Guardando cambios de foto…",
@@ -287,12 +291,12 @@
                 "relationship_status": "Situación amorosa",
                 "tribes": "Tribus",
                 "not_set": "Sin especificar",
-                "relationship_not_set": "Situación amorosa sin especificar",
-                "body_type_not_set": "Complexión física sin especificar"
+                "relationship_not_set": "Situación amorosa sin establecer",
+                "body_type_not_set": "Complexión física sin establecer"
             },
             "expectations": {
                 "title": "En busca de",
-                "description": "A qué y cómo estás abierto a",
+                "description": "A qué estás abierto y cómo",
                 "looking_for": "En busca de",
                 "meet_at": "Encontrarnos en",
                 "accept_nsfw": "Aceptar fotos no apropiadas para el trabajo"
@@ -395,7 +399,8 @@
             "tap_mutual": "Tap enviado. Es mutuo.",
             "tap_sent": "Tap enviado",
             "tap_failed": "Error al enviar tap"
-        }
+        },
+        "chatted": "Chatted"
     },
     "auth": {
         "sign_in": {
@@ -420,6 +425,9 @@
         "common": {
             "email": "Correo",
             "password": "Contraseña"
+        },
+        "bug_report": {
+            "button": "Informar de un problema"
         }
     },
     "chat": {
@@ -474,7 +482,8 @@
             "sent_audio": "Envió un mensaje de audio",
             "reacted_album_content": "Reaccionó a contenido de álbum",
             "sent_video": "Envió un vídeo",
-            "sent_message": "Envió un mensaje"
+            "sent_message": "Envió un mensaje",
+            "sent_location": "Envió una ubicación"
         },
         "thread": {
             "unsent": "Este mensaje fue eliminado",
@@ -490,7 +499,9 @@
             "shared_alt": "Compartido",
             "taken_on_grindr": "Tomada en Grindr",
             "album_cover": "Portada de álbum",
-            "album_share": "Compartir álbum"
+            "album_share": "Compartir álbum",
+            "location_placeholder": "[ubicación]",
+            "location_shared": "Ubicación compartida"
         },
         "actions": {
             "title": "Acciones de mensaje",
@@ -539,11 +550,16 @@
             "load_shared_images": "Error al cargar las imágenes compartidas en la conversación",
             "create_album_failed": "Error al crear álbum",
             "load_album_details": "Error al cargar los detalles del álbum",
-            "upload_media_failed": "Error al subir el contenido"
+            "upload_media_failed": "Error al subir el contenido",
+            "load_drawer_media": "Error al cargar contenido de la galería",
+            "send_drawer_media": "Error al enviar contenido de la galería",
+            "delete_conversation": "Error al eliminar conversación"
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
-            "album_shared": "Álbum compartido"
+            "album_shared": "Álbum compartido",
+            "media_sent": "Contenido enviado",
+            "conversation_deleted": "Conversación eliminada"
         },
         "conversation": "Conversación",
         "read": "Leído",
@@ -565,7 +581,18 @@
             "remaining": "restante",
             "expired": "caducado"
         },
-        "confirm_share_album": "¿Compartir \"{{album}}\" en este chat?"
+        "confirm_share_album": "¿Compartir \"{{album}}\" en este chat?",
+        "delete_conversation": "Borrar conversación",
+        "delete_conversation_in_progress": "Borrando conversación...",
+        "delete_conversation_confirm": "¿Borrar esta conversación? Esto no se puede deshacer.",
+        "nicknames": {
+            "set": "Establecer apodo",
+            "edit": "Editar apodo",
+            "prompt": "Establece un apodo local para este perfil. Déjalo en blanco para borrarlo.",
+            "saved": "Apodo guardado",
+            "cleared": "Apodo borrado",
+            "save_failed": "Error al guardar apodo"
+        }
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",
@@ -719,7 +746,22 @@
                 "twink": "Jovencito",
                 "clean_cut": "Pulcro"
             }
-        }
+        },
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before",
+        "block": "Bloquear",
+        "unblock": "Desbloquear",
+        "block_in_progress": "Bloqueando...",
+        "unblock_in_progress": "Desbloqueando...",
+        "block_confirm": "¿Bloquear este perfil? Esto eliminará la conversación para ambos usuarios.",
+        "unblock_confirm": "¿Desbloquear este perfil?",
+        "block_success": "Perfil bloqueado",
+        "unblock_success": "Perfil desbloqueado",
+        "block_failed": "Error al bloquear perfil",
+        "unblock_failed": "Error al desbloquear perfil",
+        "unfavorite": "Quitar de favoritos",
+        "dont_ask_again": "No preguntar de nuevo"
     },
     "nav": {
         "browse": "Navegar",
@@ -756,7 +798,16 @@
             "description": "Esto controla el análisis anónimo y la detección de usuarios de FreeGrind. Si se desactiva, la aplicación no utilizará la API para encontrar otros usuarios de FreeGrind."
         },
         "subtitle": "Personaliza cómo se ve y se siente la app.",
-        "color_scheme": "Modo de color"
+        "color_scheme": "Modo de color",
+        "units": "Medidas",
+        "units_description": "Elige cómo se muestra la distancia y la altura.",
+        "units_world": "Mundo (metros + cm)",
+        "units_uk": "RU (metros + pies/pulgadas)",
+        "units_american": "Inglés (millas + pies/pulgadas)",
+        "blur_incoming_media": "Desenfocar contenido entrante",
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos entrantes en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
+        "enabled": "Habilitado",
+        "disabled": "Deshabilitado"
     },
     "chat_filters": {
         "title": "Filtros de chat",
@@ -787,7 +838,7 @@
         "view_count_many": "{{count}} visitas",
         "view_count_other": "{{count}} visitas",
         "viewed": "Visto",
-        "preview": "Previsualizar",
+        "preview": "Visitado",
         "private_viewer": "Vista privada",
         "unknown_time": "Tiempo desconocido",
         "tap_labels": {
@@ -850,7 +901,9 @@
         "submit_error": "Error al enviar informe",
         "no_id_error": "Informe enviado, pero no se muestra el ID",
         "validation_title": "Por favor, introduce un título de al menos 3 caracteres.",
-        "validation_description": "Por favor, añade una descripción con al menos 10 caracteres."
+        "validation_description": "Por favor, añade una descripción con al menos 10 caracteres.",
+        "title_bug_only": "Informar de un problema",
+        "validation_contact": "Por favor, introduzca tus detalles de contacto para que podamos contactar contigo."
     },
     "api": {
         "errors": {
@@ -933,5 +986,61 @@
         "pull": "Tira para recargar",
         "release": "Suelta para recargar",
         "refreshing": "Recargando..."
+    },
+    "settings_blocked": {
+        "title": "Cuentas bloqueadas",
+        "subtitle": "La gente que bloquees se ocultarán y los chats son eliminados por ambas partes.",
+        "loading": "Cargando cuentas bloqueadas...",
+        "error_load": "Error al cargar cuentas bloqueadas",
+        "empty": "No has bloqueado a nadie.",
+        "refresh": "Recargar",
+        "refreshing": "Recargando...",
+        "profile_id": "ID de perfil: {{id}}",
+        "count_one": "{{count}} cuenta bloqueada",
+        "count_many": "{{count}} cuentas bloqueadas",
+        "count_other": "{{count}} cuentas bloqueadas"
+    },
+    "issue_search": {
+        "title": "Problemas y solicitudes de sugerencias",
+        "subtitle": "Explora problemas y solicitudes de sugerencias informados.",
+        "search_placeholder": "Buscando problemas…",
+        "filter_all": "Todo",
+        "category_bug": "Problema",
+        "category_feature": "Solicitud de sugerencia",
+        "status_open": "Abierto",
+        "status_in_progress": "En progreso",
+        "status_resolved": "Resuelto",
+        "status_closed": "Cerrado",
+        "report_cta": "Informar",
+        "load_more": "Cargar {{remaining}} más",
+        "loading_more": "Cargando…",
+        "showing_all": "Mostrando todos los {{count}} problemas",
+        "no_results": "No se encontró problemas.",
+        "no_results_query": "No hubo resultados para \"{{query}}\".",
+        "error_load": "Error al cargar problemas.",
+        "retry": "Inténtalo de nuevo"
+    },
+    "chat_drawer": {
+        "empty": "Tu galería está vacía.",
+        "retry": "Inténtalo de nuevo",
+        "send": "Enviar {{count}}",
+        "sending": "Enviando...",
+        "error_no_selection": "Por favor, selecciona al menos una imagen.",
+        "error_send_failed": "Error al enviar contenido.",
+        "add_photo": "Añadir foto",
+        "delete_media": "Borrar contenido",
+        "take_photo": "Tomar foto",
+        "upload_photo": "Subir foto",
+        "add_to_drawer": "Añadir a la galería",
+        "invalid_file_type": "Por favor, selecciona una foto.",
+        "delete_confirm_title": "¿Borrar de la galería?",
+        "delete_confirm_message": "¿Estás seguro de que quieres borrar este contenido de la galería?",
+        "delete_confirm_label": "Borrar"
+    },
+    "favorites": {
+        "added": "Añadido a favoritos",
+        "removed": "Eliminado de favoritos",
+        "add_failed": "Error al añadir a favoritos",
+        "remove_failed": "Error al eliminar de favoritos"
     }
 }

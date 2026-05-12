@@ -22,11 +22,13 @@ import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 import { AboutPage } from "./pages/app/AboutPage.tsx";
 import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
+import { SettingsBlockedPage } from "./pages/app/SettingsBlockedPage.tsx";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
+import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
@@ -81,6 +83,7 @@ export default function App() {
 							path="/auth/password-reset"
 							element={<PasswordResetPage />}
 						/>
+					<Route path="/report-issue" element={<ReportIssuePage />} />
 
 						{/* Protected Routes */}
 						<Route
@@ -104,6 +107,7 @@ export default function App() {
 							<Route path="/settings" element={<SettingsPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
+							<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
 							<Route
 								path="/settings/api-inspector"
 								element={
@@ -125,9 +129,13 @@ export default function App() {
 								element={<CustomizabilityPage />}
 							/>
 							<Route
-								path="/settings/report-issue"
-								element={<ReportIssuePage />}
-							/>
+							path="/settings/report-issue"
+							element={<ReportIssuePage />}
+						/>
+						<Route
+							path="/settings/issues"
+							element={<IssueSearchPage />}
+						/>
 							<Route
 								path="/settings/profile-editor"
 								element={<ProfileEditorPage />}

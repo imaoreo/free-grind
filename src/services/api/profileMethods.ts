@@ -16,6 +16,56 @@ import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 
 export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) => string) {
 	return {
+		async getBlockedProfileIds(): Promise<string[]> {
+			const response = await fetchRest("/v3.1/me/blocks");
+			await assertSuccess(response, t("profile_details.block_failed"));
+			const payload = await parseJsonSafe(response);
+
+			if (typeof payload !== "object" || payload === null) {
+				throw new ApiFunctionError(
+					t("profile_details.block_failed"),
+					response.status,
+					payload,
+				);
+			}
+
+			const blocking = (payload as { blocking?: unknown }).blocking;
+			if (!Array.isArray(blocking)) {
+				return [];
+			}
+
+			return blocking
+				.map((entry) => {
+					if (typeof entry !== "object" || entry === null) {
+						return null;
+					}
+					const profileId = (entry as { profileId?: unknown }).profileId;
+					if (typeof profileId === "string" || typeof profileId === "number") {
+						return String(profileId);
+					}
+					return null;
+				})
+				.filter((profileId): profileId is string => profileId !== null);
+		},
+
+		async blockProfile(profileId: string): Promise<{ ok: true }> {
+			const response = await fetchRest(
+				`/v3/me/blocks/${encodeURIComponent(profileId)}`,
+				{ method: "POST" },
+			);
+			await assertSuccess(response, t("profile_details.block_failed"));
+			return { ok: true };
+		},
+
+		async unblockProfile(profileId: string): Promise<{ ok: true }> {
+			const response = await fetchRest(
+				`/v3/me/blocks/${encodeURIComponent(profileId)}`,
+				{ method: "DELETE" },
+			);
+			await assertSuccess(response, t("profile_details.unblock_failed"));
+			return { ok: true };
+		},
+
 		async getManagedGenders(): Promise<ManagedGender[]> {
 			const response = await fetchRest("/public/v2/genders");
 			await assertSuccess(response, t("api.errors.load_genders"));

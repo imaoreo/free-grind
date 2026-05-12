@@ -3,6 +3,7 @@ import {
 	BadgeInfo,
 	Bell,
 	ChevronRight,
+	ClipboardList,
 	Download,
 	Images,
 	Info,
@@ -11,6 +12,7 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
+	UserX,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
@@ -287,6 +289,27 @@ export function SettingsPage() {
 
 				<button
 					type="button"
+					onClick={() => navigate("/settings/issues")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<ClipboardList className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.issue_board")}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.issue_board_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
 					onClick={() => navigate("/settings/report-issue")}
 					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
 				>
@@ -383,6 +406,25 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">{t("settings.my_albums")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("settings.my_albums_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/blocked")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<UserX className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.blocked_accounts_desc")}
 							</p>
 						</div>
 					</div>

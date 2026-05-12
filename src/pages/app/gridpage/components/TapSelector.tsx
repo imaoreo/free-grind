@@ -38,8 +38,8 @@ export function TapSelector({
 	const [hoveredId, setHoveredId] = useState<number | null>(null);
 	const [isEmojiHidden, setIsEmojiHidden] = useState(false);
 	const [isTappingInternal, setIsTappingInternal] = useState(false);
-	const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-	const switchTimerRef = useRef<NodeJS.Timeout | null>(null);
+	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const lastSwitchedId = useRef<number | null>(null);
 	const lastSeenTapId = useRef<number | null>(isTapActive ? tapId : null);
 
@@ -212,7 +212,7 @@ export function TapSelector({
 
 	return (
 		<div
-			className="relative"
+			className="relative select-none"
 			onContextMenu={(e) => e.preventDefault()}
 			style={{ "--halo-color": currentHaloColor } as CSSProperties}
 		>
@@ -230,7 +230,7 @@ export function TapSelector({
 			)}
 
 			<div
-				className={`tab-menu absolute bottom-4 left-32 z-[60] flex -translate-x-1/2 items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${showTapPicker ? "active" : ""}`}
+				className={`tab-menu select-none touch-none absolute bottom-4 left-32 z-[60] flex -translate-x-1/2 items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${showTapPicker ? "active" : ""}`}
 			>
 				{[1, 2, 0].map((id) => (
 					<div
@@ -270,7 +270,7 @@ export function TapSelector({
 								? "var(--halo-color)"
 								: undefined,
 					}}
-					className={`${tapButtonClassName} tap-btn-base relative flex h-16 w-16 items-center justify-center overflow-visible rounded-full border-2 bg-[var(--surface)] transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
+					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex h-16 w-16 items-center justify-center overflow-visible rounded-full border-2 bg-[var(--surface)] transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
 					aria-label={t("profile_details.tap_profile", "Tap profile")}
 					title={
 						isTapBlocked

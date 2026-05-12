@@ -24,6 +24,7 @@ import {
 	saveRightNowFiltersDraft,
 } from "./rightnow-filters-storage";
 import { getSexualPositionFilterOptions } from "./profile-option-builders";
+import { usePreferences } from "../../contexts/PreferencesContext";
 
 type SortOption = RightNowSortOption;
 
@@ -103,12 +104,16 @@ function RightNowRow({
 	onSelect: (profileId: string) => void;
 }) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const name = getItemName(item, t);
 	const isHosting = item.hosting;
 	const imageUrl = getItemDisplayImageUrl(item);
 
 	const timeAgo = formatMinutesAgo(item.postedAt, t);
-	const distance = item.distanceMeters != null ? formatDistance(item.distanceMeters, t) : null;
+	const distance =
+		item.distanceMeters != null
+			? formatDistance(item.distanceMeters, t, unitsPreset)
+			: null;
 	const subtitle = isHosting
 		? t("right_now.hosting_subtitle", { name })
 		: t("right_now.member_subtitle", { name });
@@ -308,6 +313,7 @@ export function RightNowPage() {
 	return (
 		<PullToRefreshContainer
 			className="app-screen flex flex-col"
+			contentClassName="flex flex-1 flex-col min-h-0"
 			onRefresh={loadFeed}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}

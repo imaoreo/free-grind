@@ -8,7 +8,7 @@ export const browseProfileSchema = z.object({
 				medias: z
 					.array(z.object({ mediaHash: z.string().optional() }))
 					.optional()
-					.default([]),
+					.nullable(),
 			}),
 		)
 		.length(1),
@@ -36,6 +36,7 @@ export const browseCardSchema = z.object({
 	onlineUntil: z.number().nullable().optional(),
 	isPopular: z.boolean().optional(),
 	unreadCount: z.number().optional(),
+	favorite: z.boolean().optional(),
 	rightNow: z.unknown().optional(),
 });
 
@@ -59,20 +60,41 @@ export const profileDetailItemSchema = z.object({
 	onlineUntil: z.number().nullable().optional(),
 	seen: z.number().nullable().optional(),
 	lastViewed: z.number().nullable().optional(),
+	lastChatTimestamp: z.number().nullable().optional(),
+	isNew: z.boolean().optional(),
+	lastUpdatedTime: z.number().nullable().optional(),
 	distance: z.number().nullable().optional(),
 	approximateDistance: z.boolean().optional(),
 	showDistance: z.boolean().optional(),
 	isFavorite: z.boolean().optional(),
 	aboutMe: z.string().nullable().optional(),
-	profileTags: z.array(z.string()).optional().default([]),
+	identity: z.unknown().nullable().optional(),
+	nsfw: z.number().nullable().optional(),
+	hashtags: z.array(z.unknown()).nullable().optional().transform(v => v ?? []),
+	profileTags: z.array(z.string()).nullable().optional().transform(v => v ?? []),
 	medias: z
-		.array(z.object({ mediaHash: z.string().optional() }))
+		.array(
+			z.object({
+				mediaHash: z.string().optional(),
+				type: z.number().nullable().optional(),
+				state: z.number().nullable().optional(),
+				reason: z.string().nullable().optional(),
+				takenOnGrindr: z.boolean().nullable().optional(),
+				createdAt: z.number().nullable().optional(),
+			}),
+		)
+		.nullable()
 		.optional()
-		.default([]),
+		.transform(v => v ?? []),
 	profileImageMediaHash: z.string().nullable().optional(),
 	tapped: z.boolean().optional(),
 	tapType: z.union([z.number(), z.boolean()]).nullable().optional(),
 	lastReceivedTapTimestamp: z.number().nullable().optional(),
+	isTeleporting: z.boolean().optional(),
+	isRoaming: z.boolean().optional(),
+	arrivalDays: z.number().nullable().optional(),
+	foundVia: z.unknown().nullable().optional(),
+	unreadCount: z.number().optional(),
 	relationshipStatus: z.number().nullable().optional(),
 	bodyType: z.number().nullable().optional(),
 	ethnicity: z.number().nullable().optional(),
@@ -82,15 +104,55 @@ export const profileDetailItemSchema = z.object({
 	showPosition: z.boolean().optional(),
 	hivStatus: z.number().nullable().optional(),
 	lastTestedDate: z.number().nullable().optional(),
+	rightNow: z.string().nullable().optional(),
 	rightNowText: z.string().nullable().optional(),
-	lookingFor: z.array(z.number()).optional().default([]),
-	meetAt: z.array(z.number()).optional().default([]),
-	grindrTribes: z.array(z.number()).optional().default([]),
+	rightNowPosted: z.number().nullable().optional(),
+	rightNowDistance: z.number().nullable().optional(),
+	rightNowThumbnailUrl: z.string().nullable().optional(),
+	rightNowFullImageUrl: z.string().nullable().optional(),
+	rightNowShareLocation: z.unknown().nullable().optional(),
+	rightNowMedias: z
+		.array(
+			z.object({
+				mediaId: z.number().nullable().optional(),
+				thumbnailUrl: z.string().nullable().optional(),
+				fullImageUrl: z.string().nullable().optional(),
+				contentType: z.string().nullable().optional(),
+				isNsfw: z.boolean().nullable().optional(),
+			}),
+		)
+		.nullable()
+		.optional()
+		.transform(v => v ?? []),
+	verifiedInstagramId: z.string().nullable().optional(),
+	lastThrobTimestamp: z.unknown().nullable().optional(),
+	isBlockable: z.boolean().optional(),
+	lookingFor: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	meetAt: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	grindrTribes: z.array(z.number()).nullable().optional().transform(v => v ?? []),
 	showTribes: z.boolean().optional(),
-	genders: z.array(z.number()).optional().default([]),
-	pronouns: z.array(z.number()).optional().default([]),
-	sexualHealth: z.array(z.number()).optional().default([]),
-	vaccines: z.array(z.number()).optional().default([]),
+	tribesImInto: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	showVipBadge: z.boolean().optional(),
+	genders: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	pronouns: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	sexualHealth: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	vaccines: z.array(z.number()).nullable().optional().transform(v => v ?? []),
+	isVisiting: z.boolean().optional(),
+	travelPlans: z
+		.array(
+			z.object({
+				id: z.number().nullable().optional(),
+				geohash: z.string().optional(),
+				locationName: z.string().optional(),
+				startDateUtc: z.number().nullable().optional(),
+				endDateUtc: z.number().nullable().optional(),
+				showOnProfile: z.boolean().nullable().optional(),
+			}),
+		)
+		.nullable()
+		.optional()
+		.transform(v => v ?? []),
+	isInAList: z.boolean().optional(),
 	socialNetworks: z
 		.object({
 			instagram: z

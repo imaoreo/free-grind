@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { Link, useSearchParams } from "react-router-dom";
+import { ChevronLeft } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { submitIssueReport } from "../../services/apiFunctions";
 import { useTranslation } from "react-i18next";
@@ -7,18 +9,72 @@ import { collectIssueLogs, getIssueAppInfo } from "../../utils/issueTelemetry";
 
 type ReportType = "BUG" | "FEATURE";
 
+const REPORTER_DETAILS_STORAGE_KEY = "issue_form_reporter_details";
+
+type StoredReporterDetails = {
+  reporterName: string;
+  reporterContact: string;
+  reporterContactPlatform: string;
+};
+
 export function ReportIssuePage() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
+  const bugOnly = searchParams.get("kind") === "bug";
   const [kind, setKind] = useState<ReportType>("BUG");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [reporterContact, setReporterContact] = useState("");
+  const [reporterContactPlatform, setReporterContactPlatform] = useState("Discord");
   const [includeAppInfo, setIncludeAppInfo] = useState(true);
   const [includeLogs, setIncludeLogs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const appInfo = useMemo(() => getIssueAppInfo(), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(REPORTER_DETAILS_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<StoredReporterDetails>;
+      if (typeof parsed.reporterName === "string") {
+        setReporterName(parsed.reporterName);
+      }
+      if (typeof parsed.reporterContact === "string") {
+        setReporterContact(parsed.reporterContact);
+      }
+      if (typeof parsed.reporterContactPlatform === "string") {
+        setReporterContactPlatform(parsed.reporterContactPlatform);
+      }
+    } catch {
+      // Ignore malformed stored data and keep empty defaults.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const payload: StoredReporterDetails = {
+      reporterName,
+      reporterContact,
+      reporterContactPlatform,
+    };
+
+    try {
+      window.localStorage.setItem(REPORTER_DETAILS_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore storage write failures.
+    }
+  }, [reporterName, reporterContact, reporterContactPlatform]);
 
   useEffect(() => {
     if (kind !== "BUG" && includeLogs) {
@@ -39,6 +95,11 @@ export function ReportIssuePage() {
       return;
     }
 
+    if (!reporterContact.trim()) {
+      toast.error(t("issues_form.validation_contact"));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const clientLogs = kind === "BUG" && includeLogs ? await collectIssueLogs() : undefined;
@@ -48,7 +109,9 @@ export function ReportIssuePage() {
           title: title.trim(),
           description: description.trim(),
           reporterName: reporterName.trim() || undefined,
-          reporterContact: reporterContact.trim() || undefined,
+          reporterContact: reporterContact.trim()
+            ? `[${reporterContactPlatform}] ${reporterContact.trim()}`
+            : undefined,
           appVersion: includeAppInfo ? appInfo.appVersion : undefined,
           platform: includeAppInfo ? appInfo.platform : undefined,
           otaChannel: includeAppInfo ? appInfo.otaChannel : undefined,
@@ -71,47 +134,61 @@ export function ReportIssuePage() {
   return (
     <section className="app-screen">
       <header className="mb-6">
-        <BackToSettings />
-        <h1 className="app-title mb-2">{t("issues_form.title")}</h1>
+        {bugOnly ? (
+          <Link
+            to="/auth/sign-in"
+            className="mb-4 flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            {t("auth.sign_in.title")}
+          </Link>
+        ) : (
+          <BackToSettings />
+        )}
+        <h1 className="app-title mb-2">
+          {bugOnly ? t("issues_form.title_bug_only") : t("issues_form.title")}
+        </h1>
         <p className="app-subtitle">{t("issues_form.subtitle")}</p>
       </header>
 
       <form onSubmit={handleSubmit} className="surface-card grid gap-4 p-4 sm:p-5">
-        <div className="grid gap-2">
-          <label className="text-sm font-semibold text-[var(--text-muted)]">
-            {t("issues_form.type_label")}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setKind("BUG")}
-              className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
-              style={{
-                borderColor: kind === "BUG" ? "var(--accent)" : "var(--border)",
-                background:
-                  kind === "BUG"
-                    ? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
-                    : "var(--surface-2)",
-              }}
-            >
-              {t("issues_form.type_bug")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setKind("FEATURE")}
-              className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
-              style={{
-                borderColor: kind === "FEATURE" ? "var(--accent)" : "var(--border)",
-                background:
-                  kind === "FEATURE"
-                    ? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
-                    : "var(--surface-2)",
-              }}
-            >
-              {t("issues_form.type_feature")}
-            </button>
+        {!bugOnly ? (
+          <div className="grid gap-2">
+            <label className="text-sm font-semibold text-[var(--text-muted)]">
+              {t("issues_form.type_label")}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setKind("BUG")}
+                className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+                style={{
+                  borderColor: kind === "BUG" ? "var(--accent)" : "var(--border)",
+                  background:
+                    kind === "BUG"
+                      ? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+                      : "var(--surface-2)",
+                }}
+              >
+                {t("issues_form.type_bug")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setKind("FEATURE")}
+                className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
+                style={{
+                  borderColor: kind === "FEATURE" ? "var(--accent)" : "var(--border)",
+                  background:
+                    kind === "FEATURE"
+                      ? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
+                      : "var(--surface-2)",
+                }}
+              >
+                {t("issues_form.type_feature")}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <div className="grid gap-2">
           <label className="text-sm font-semibold text-[var(--text-muted)]">
@@ -156,15 +233,28 @@ export function ReportIssuePage() {
           </div>
           <div className="grid gap-2">
             <label className="text-sm font-semibold text-[var(--text-muted)]">
-              {t("issues_form.contact_label")}
+              {t("issues_form.contact_label")} <span className="text-red-400">*</span>
             </label>
-            <input
-              value={reporterContact}
-              onChange={(event) => setReporterContact(event.target.value)}
-              placeholder={t("issues_form.contact_placeholder")}
-              className="input-field"
-              maxLength={120}
-            />
+            <div className="flex gap-2">
+              <select
+                value={reporterContactPlatform}
+                onChange={(event) => setReporterContactPlatform(event.target.value)}
+                className="input-field w-auto shrink-0"
+              >
+                <option value="Discord">Discord</option>
+                <option value="Telegram">Telegram</option>
+                <option value="Email">Email</option>
+                <option value="Other">Other</option>
+              </select>
+              <input
+                value={reporterContact}
+                onChange={(event) => setReporterContact(event.target.value)}
+                placeholder={t("issues_form.contact_placeholder")}
+                className="input-field min-w-0 flex-1"
+                maxLength={120}
+                required
+              />
+            </div>
           </div>
         </div>
 

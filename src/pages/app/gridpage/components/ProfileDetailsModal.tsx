@@ -25,6 +25,8 @@ import {
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
+import { formatDateTime24 } from "../../chat/chatUtils";
 import {
 	formatEstimatedAccountCreation,
 	formatEnumArray,
@@ -36,12 +38,23 @@ import {
 	shouldHideField,
 } from "../utils";
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
+import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
 	onTriangleProfile?: (profileId: string) => void;
+	onBlockProfile?: (profileId: string) => void;
+	onUnblockProfile?: (profileId: string) => void;
+	onToggleFavoriteProfile?: (
+		profileId: string,
+		currentlyFavorite: boolean,
+	) => void | Promise<void>;
+	isFavorite?: boolean;
+	isTogglingFavorite?: boolean;
+	isBlocked?: boolean;
+	isBlockingProfile?: boolean;
 	isLocatingProfile?: boolean;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
 	isTappingProfile?: boolean;
@@ -52,6 +65,7 @@ type ProfileDetailsModalProps = {
 	isLoadingActiveProfile: boolean;
 	activeProfileError: string | null;
 	activeProfilePhotoHashes: string[];
+	chatContactStatus?: ChatContactIndexRecord | null;
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
 	variant?: "modal" | "page";
@@ -59,11 +73,32 @@ type ProfileDetailsModalProps = {
 	onNextProfile?: () => void;
 };
 
+function normalizeMediaCreatedAt(value: unknown): number | null {
+	if (typeof value !== "number" && typeof value !== "string") {
+		return null;
+	}
+
+	const numeric = typeof value === "number" ? value : Number(value.trim());
+	if (!Number.isFinite(numeric) || numeric <= 0) {
+		return null;
+	}
+
+	// Most API timestamps are in milliseconds; seconds are normalized.
+	return numeric < 1_000_000_000_000 ? Math.round(numeric * 1000) : Math.round(numeric);
+}
+
 export function ProfileDetailsModal({
 	isOpen,
 	onClose,
 	onMessageProfile,
 	onTriangleProfile,
+	onBlockProfile,
+	onUnblockProfile,
+	onToggleFavoriteProfile,
+	isFavorite = false,
+	isTogglingFavorite = false,
+	isBlocked = false,
+	isBlockingProfile = false,
 	isLocatingProfile = false,
 	onTapProfile,
 	isTappingProfile = false,
@@ -74,6 +109,7 @@ export function ProfileDetailsModal({
 	isLoadingActiveProfile,
 	activeProfileError,
 	activeProfilePhotoHashes,
+	chatContactStatus,
 	genderOptions,
 	pronounOptions,
 	variant = "modal",
@@ -81,6 +117,7 @@ export function ProfileDetailsModal({
 	onNextProfile,
 }: ProfileDetailsModalProps) {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const activeProfileName = useMemo(() => {
 		if (!activeProfile) {
 			return t("profile_details.title");
@@ -199,8 +236,8 @@ export function ProfileDetailsModal({
 		);
 		return (
 			!shouldHideField(positionFormatted) ||
-			!shouldHideField(formatHeightCm(activeProfile.height, t)) ||
-			!shouldHideField(formatWeightKg(activeProfile.weight, t)) ||
+			!shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) ||
+			!shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) ||
 			!shouldHideField(
 				formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t),
 			) ||
@@ -215,7 +252,7 @@ export function ProfileDetailsModal({
 				),
 			)
 		);
-	}, [activeProfile, t]);
+	}, [activeProfile, t, unitsPreset]);
 
 	const hasSocialFields = useMemo(() => {
 		if (!activeProfile) return false;
@@ -290,6 +327,29 @@ export function ProfileDetailsModal({
 		selectedPhotoIndex === null
 			? null
 			: (activeProfilePhotoHashes[selectedPhotoIndex] ?? null);
+	const photoCreatedAtByHash = useMemo(() => {
+		if (!activeProfile) {
+			return {} as Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }>;
+		}
+
+		const createdMap: Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }> = {};
+		for (const media of activeProfile.medias) {
+			const hash = media.mediaHash;
+			if (!hash) {
+				continue;
+			}
+
+			createdMap[hash] = {
+				createdAt: normalizeMediaCreatedAt(media.createdAt),
+				takenOnGrindr: media.takenOnGrindr ?? null,
+			};
+		}
+
+		return createdMap;
+	}, [activeProfile]);
+	const selectedPhotoMeta = selectedPhotoHash
+		? (photoCreatedAtByHash[selectedPhotoHash] ?? null)
+		: null;
 
 	const openPhotoViewer = (index: number) => {
 		setSelectedPhotoIndex(index);
@@ -393,6 +453,20 @@ export function ProfileDetailsModal({
 				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 					{(selectedPhotoIndex ?? 0) + 1} / {activeProfilePhotoHashes.length}
 				</p>
+				<div className="flex items-center gap-2">
+					{(selectedPhotoMeta?.takenOnGrindr || selectedPhotoMeta?.createdAt) ? (
+						<p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+							{selectedPhotoMeta?.takenOnGrindr ? (
+								<img
+									src={freegrindLogo}
+									alt={t("chat.thread.taken_on_grindr")}
+									className="h-3.5 w-3.5 rounded-full"
+								/>
+							) : null}
+							{selectedPhotoMeta?.createdAt ? <span>{formatDateTime24(selectedPhotoMeta.createdAt)}</span> : null}
+						</p>
+					) : null}
+				</div>
 			</div>
 		</div>
 	) : null;
@@ -477,14 +551,23 @@ export function ProfileDetailsModal({
 								mobileCarouselPhotoIndex={mobileCarouselPhotoIndex}
 								handleMobileCarouselScroll={handleMobileCarouselScroll}
 								openPhotoViewer={openPhotoViewer}
+								photoCreatedAtByHash={photoCreatedAtByHash}
 								activeProfileName={activeProfileName}
 								estimatedCreatedAt={estimatedCreatedAt}
 								profileStatusLabel={profileStatusLabel}
 								profileDistance={profileDistance}
+								chatContactStatus={chatContactStatus ?? null}
 								messageProfileId={messageProfileId}
 								usesFreegrind={usesFreegrind ?? false}
 								onMessageProfile={onMessageProfile}
 								onTapProfile={onTapProfile}
+								onBlockProfile={onBlockProfile}
+								onUnblockProfile={onUnblockProfile}
+								onToggleFavoriteProfile={onToggleFavoriteProfile}
+								isFavorite={isFavorite}
+								isTogglingFavorite={isTogglingFavorite}
+								isBlocked={isBlocked}
+								isBlockingProfile={isBlockingProfile}
 								isTapDisabled={isTapDisabled}
 								isTapBlocked={isTapBlocked}
 								isTapActive={isTapActive}
@@ -566,14 +649,23 @@ export function ProfileDetailsModal({
 							mobileCarouselPhotoIndex={mobileCarouselPhotoIndex}
 							handleMobileCarouselScroll={handleMobileCarouselScroll}
 							openPhotoViewer={openPhotoViewer}
+							photoCreatedAtByHash={photoCreatedAtByHash}
 							activeProfileName={activeProfileName}
 							estimatedCreatedAt={estimatedCreatedAt}
 							profileStatusLabel={profileStatusLabel}
 							profileDistance={profileDistance}
+							chatContactStatus={chatContactStatus ?? null}
 							messageProfileId={messageProfileId}
 								usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}
 							onTapProfile={onTapProfile}
+							onBlockProfile={onBlockProfile}
+							onUnblockProfile={onUnblockProfile}
+							onToggleFavoriteProfile={onToggleFavoriteProfile}
+							isFavorite={isFavorite}
+							isTogglingFavorite={isTogglingFavorite}
+							isBlocked={isBlocked}
+							isBlockingProfile={isBlockingProfile}
 							isTapDisabled={isTapDisabled}
 							isTapBlocked={isTapBlocked}
 							isTapActive={isTapActive}

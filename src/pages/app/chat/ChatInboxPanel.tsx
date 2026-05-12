@@ -1,5 +1,5 @@
-import { Loader2, MessageCircle, Search, SlidersHorizontal } from "lucide-react";
-import type { RefObject, TouchEventHandler } from "react";
+import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
@@ -26,12 +26,14 @@ type ChatInboxPanelProps = {
 	isLoadingMoreInbox: boolean;
 	inboxError: string | null;
 	inboxFilters: InboxFilters;
+	hidePinned: boolean;
 	hasActiveInboxFilters: boolean;
 	filteredConversations: ConversationEntry[];
 	nextPage: number | null;
 	realtimeStatusMeta: RealtimeStatusMeta;
 	selectedConversationId: string | null;
 	userId: number | null;
+	localNicknamesByProfileId: Record<string, string>;
 	nowTimestamp: number;
 	presenceResults: Record<string, boolean>;
 	inboxListRef: RefObject<HTMLDivElement | null>;
@@ -40,7 +42,10 @@ type ChatInboxPanelProps = {
 	onInboxTouchStart: TouchEventHandler<HTMLDivElement>;
 	onInboxTouchEnd: TouchEventHandler<HTMLDivElement>;
 	onSelectConversation: (conversation: ConversationEntry) => void;
+	onViewProfile: (profileId: number) => void;
 	onClearInboxFilters: () => void;
+	onToggleHidePinned: () => void;
+	onToggleFavoritesOnly: () => void;
 	onOpenFilters: (filtersDraft: ReturnType<typeof buildChatFiltersDraft>) => void;
 	onOpenSearch: () => void;
 	onOpenInbox: () => void;
@@ -53,12 +58,14 @@ export function ChatInboxPanel({
 	isLoadingMoreInbox,
 	inboxError,
 	inboxFilters,
+	hidePinned,
 	hasActiveInboxFilters,
 	filteredConversations,
 	nextPage,
 	realtimeStatusMeta,
 	selectedConversationId,
 	userId,
+	localNicknamesByProfileId,
 	nowTimestamp,
 	presenceResults,
 	inboxListRef,
@@ -67,19 +74,93 @@ export function ChatInboxPanel({
 	onInboxTouchStart,
 	onInboxTouchEnd,
 	onSelectConversation,
-	onClearInboxFilters,
+	onViewProfile,
+	onToggleHidePinned,
+	onToggleFavoritesOnly,
 	onOpenFilters,
 	onOpenSearch,
 	onOpenInbox,
 	onOpenAlbums,
 }: ChatInboxPanelProps) {
 	const { t, i18n } = useTranslation();
+	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+	const lastScrollAtRef = useRef(0);
+	const lastRequestedPageRef = useRef<number | null>(null);
+
+	const markUserScroll = () => {
+		lastScrollAtRef.current = Date.now();
+	};
+
+	useEffect(() => {
+		const handleWindowScroll = () => {
+			lastScrollAtRef.current = Date.now();
+		};
+
+		window.addEventListener("scroll", handleWindowScroll, { passive: true });
+		window.addEventListener("touchmove", handleWindowScroll, { passive: true });
+
+		return () => {
+			window.removeEventListener("scroll", handleWindowScroll);
+			window.removeEventListener("touchmove", handleWindowScroll);
+		};
+	}, []);
+
+	useEffect(() => {
+		const sentinel = loadMoreSentinelRef.current;
+		if (!sentinel || !nextPage) {
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const entry = entries[0];
+				if (!entry?.isIntersecting) {
+					return;
+				}
+
+				if (isLoadingMoreInbox) {
+					return;
+				}
+
+				if (Date.now() - lastScrollAtRef.current > 900) {
+					return;
+				}
+
+				if (lastRequestedPageRef.current === nextPage) {
+					return;
+				}
+
+				lastRequestedPageRef.current = nextPage;
+				onLoadMoreInbox();
+			},
+			{ root: null, rootMargin: "0px 0px 220px 0px", threshold: 0 },
+		);
+
+		observer.observe(sentinel);
+		return () => observer.disconnect();
+	}, [filteredConversations.length, isLoadingMoreInbox, nextPage, onLoadMoreInbox]);
+
+	const activeFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
 
 	return (
 		<PullToRefreshContainer
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
+			className={`flex h-full min-h-0 flex-col overflow-hidden ${
+				isDesktop ? "surface-card" : "p-0"
 			}`}
+			contentClassName="flex flex-1 flex-col min-h-0"
+			style={
+				!isDesktop
+					? { paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" }
+					: undefined
+			}
 			onRefresh={onRefreshInbox}
 			isDisabled={isLoadingInbox || isLoadingMoreInbox}
 			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
@@ -87,49 +168,68 @@ export function ChatInboxPanel({
 			onTouchStartExtra={onInboxTouchStart}
 			onTouchEndExtra={onInboxTouchEnd}
 		>
-			<div className="mb-3 flex items-center justify-between gap-3">
-				<div>
+			<div
+				className={`flex shrink-0 flex-col gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "px-[var(--app-px)] pb-3"}`}
+			>
+				<div className="flex items-end justify-between gap-2">
 					<InboxAlbumsTabs
 						activeTab="inbox"
 						onInboxClick={onOpenInbox}
 						onAlbumsClick={onOpenAlbums}
-						trailing={
-							<span
-								className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${realtimeStatusMeta.className}`}
-							>
-								<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-								<span>{realtimeStatusMeta.label}</span>
-							</span>
-						}
 					/>
-					<p className="app-subtitle mt-1">{t("chat.your_conversations")}</p>
 				</div>
-				<div className="flex items-center gap-2">
-					<button
-						type="button"
-						onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_filters")}
+
+				<div className="flex items-center justify-between gap-2">
+					<span
+						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${realtimeStatusMeta.className}`}
 					>
-						<SlidersHorizontal className="h-4 w-4" />
-					</button>
-					<button
-						type="button"
-						onClick={onOpenSearch}
-						className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label={t("chat.open_search")}
-					>
-						<Search className="h-4 w-4" />
-					</button>
-					{hasActiveInboxFilters ? (
+						<span className="leading-none">{realtimeStatusMeta.symbol}</span>
+						<span>{realtimeStatusMeta.label}</span>
+					</span>
+					<div className="flex shrink-0 items-center gap-1.5">
 						<button
 							type="button"
-							onClick={onClearInboxFilters}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							onClick={onToggleFavoritesOnly}
+							className={`rounded-xl border p-2 transition ${inboxFilters.favoritesOnly ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]" : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"}`}
+							aria-label={t("browse_filters.options.favorites")}
+							title={t("browse_filters.options.favorites")}
 						>
-							{t("chat.clear_filters")}
+							<Heart className="h-4 w-4" />
 						</button>
-					) : null}
+						<button
+							type="button"
+							onClick={onToggleHidePinned}
+							className={`rounded-xl border border-[var(--border)] p-2 transition hover:border-[var(--accent)] ${
+								hidePinned
+									? "bg-[var(--surface-2)] text-[var(--text)]"
+									: "text-[var(--text-muted)] hover:text-[var(--text)]"
+							}`}
+							aria-label={hidePinned ? t("chat.show_pinned") : t("chat.hide_pinned")}
+						>
+							{hidePinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+						</button>
+						<button
+							type="button"
+							onClick={() => onOpenFilters(buildChatFiltersDraft(inboxFilters))}
+							className="relative rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_filters")}
+						>
+							<SlidersHorizontal className="h-4 w-4" />
+							{hasActiveInboxFilters && activeFilterCount > 0 ? (
+								<span className="absolute -bottom-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)] shadow-sm ring-2 ring-[var(--surface)]">
+									{activeFilterCount}
+								</span>
+							) : null}
+						</button>
+						<button
+							type="button"
+							onClick={onOpenSearch}
+							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							aria-label={t("chat.open_search")}
+						>
+							<Search className="h-4 w-4" />
+						</button>
+					</div>
 				</div>
 			</div>
 
@@ -158,13 +258,26 @@ export function ChatInboxPanel({
 					</p>
 				</div>
 			) : (
-				<div ref={inboxListRef} className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+				<div
+					ref={inboxListRef}
+					onScroll={markUserScroll}
+					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}
+				>
 					{filteredConversations.map((conversation) => {
 						const otherParticipant = getOtherParticipant(conversation, userId);
+						const otherProfileId = otherParticipant?.profileId
+							? String(otherParticipant.profileId)
+							: null;
+						const localNickname = otherProfileId
+							? localNicknamesByProfileId[otherProfileId]
+							: null;
+						const displayName =
+							localNickname || conversation.data.name || t("chat.unknown");
 						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
 							otherParticipant?.lastOnline,
 							otherParticipant?.onlineUntil,
 							nowTimestamp,
+							t,
 						);
 						const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 						const isSelected =
@@ -175,65 +288,116 @@ export function ChatInboxPanel({
 								type="button"
 								key={conversation.data.conversationId}
 								onClick={() => onSelectConversation(conversation)}
-								className={`w-full rounded-2xl border p-3 text-left transition ${
+								className={`flex h-24 w-full shrink-0 items-stretch overflow-hidden text-left transition ${
 									isSelected
-										? "border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface))]"
-										: "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--accent)]"
+										? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
+										: "bg-[var(--surface)]"
+								} border-b border-[var(--border)] ${
+									isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
 								}`}
 							>
-								<div className="flex items-start gap-3">
-									<div
-										title={otherParticipantOnlineMeta.label}
-										className={`h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] ${
-											isOtherParticipantOnline
-												? "border-emerald-500 shadow-[0_0_0_2px_color-mix(in_srgb,var(--surface)_70%,transparent)]"
-												: "border-[var(--border)]"
-										}`}
-									>
-										<img
-											src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-											alt={conversation.data.name || t("chat.profile")}
-											className="h-full w-full object-cover"
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-2">
-											<div className="flex min-w-0 items-center gap-1">
-												<p className="truncate font-semibold">
-													{conversation.data.name || t("chat.unknown")}
-												</p>
-												{otherParticipant?.profileId &&
-												presenceResults[otherParticipant.profileId] ? (
-													<img
-														src={freegrindLogo}
-														alt="Free Grind user"
-														title={t("profile_details.uses_free_grind")}
-														className="h-4 w-4 shrink-0 rounded-full border border-[var(--border)]"
-													/>
-												) : null}
-											</div>
-											<span className="text-xs text-[var(--text-muted)]">
-												{formatConversationTime(
-													conversation.data.lastActivityTimestamp,
-													i18n.language,
-												)}
-											</span>
+							<button
+								type="button"
+								title={displayName}
+								aria-label={displayName}
+								onClick={(event) => {
+									event.stopPropagation();
+									if (otherParticipant?.profileId) {
+										onViewProfile(otherParticipant.profileId);
+									}
+								}}
+									className={`relative w-24 shrink-0 transition-all ${
+										isSelected
+											? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
+											: "bg-[var(--surface-2)]"
+									} ${
+										isOtherParticipantOnline
+											? "border-r-4 border-emerald-500"
+											: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
+									}`}
+								>
+									<img
+										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+										alt={displayName}
+										className="h-full w-full object-cover"
+									/>
+									{conversation.data.pinned ? (
+										<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">
+											<Pin className="h-3 w-3 fill-current" />
 										</div>
-										<p className="mt-1 truncate text-sm text-[var(--text-muted)]">
+									) : null}
+							</button>
+								<div className="min-w-0 flex-1 p-3">
+									<div className="flex items-center justify-between gap-2">
+										<div className="flex min-w-0 items-center gap-1">
+											<p className="truncate font-semibold">
+												{displayName}
+											</p>
+											{otherParticipant?.profileId &&
+											presenceResults[otherParticipant.profileId] ? (
+												<img
+													src={freegrindLogo}
+													alt="Free Grind user"
+													title={t("profile_details.uses_free_grind")}
+													className={`h-4 w-4 shrink-0 rounded-full border ${
+														isSelected
+															? "border-[var(--accent-contrast)]/20"
+															: "border-[var(--border)]"
+													}`}
+												/>
+											) : null}
+										</div>
+										<span
+											className={`text-xs ${
+												isSelected
+													? "text-[var(--accent-contrast)]/70"
+													: "text-[var(--text-muted)]"
+											}`}
+										>
+											{formatConversationTime(
+												conversation.data.lastActivityTimestamp,
+												i18n.language,
+											)}
+										</span>
+									</div>
+									<div className="flex items-center justify-between gap-2">
+										<p
+											className={`mt-0.5 truncate ${
+												conversation.data.unreadCount > 0
+													? isSelected
+														? "font-bold text-[var(--accent-contrast)]"
+														: "font-bold text-[var(--text)]"
+													: isSelected
+														? "text-[var(--accent-contrast)]/80"
+														: "text-[var(--text-muted)]"
+											}`}
+										>
 											{getPreviewText(conversation, t)}
 										</p>
-										<div className="mt-2 flex items-center gap-2">
-											{conversation.data.pinned ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.pinned")}
-												</span>
-											) : null}
-											{conversation.data.muted ? (
-												<span className="rounded-lg bg-[var(--surface-2)] px-2 py-1 text-xs text-[var(--text-muted)]">
-													{t("chat.muted")}
-												</span>
-											) : null}
-										</div>
+										{conversation.data.unreadCount > 0 ? (
+											<span
+												className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[12px] font-bold shadow-sm ${
+													isSelected
+														? "bg-[var(--accent-contrast)] text-[var(--accent)]"
+														: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+												}`}
+											>
+												{conversation.data.unreadCount}
+											</span>
+										) : null}
+									</div>
+									<div className="mt-2 flex items-center gap-2">
+										{conversation.data.muted ? (
+											<span
+												className={`rounded-lg px-2 py-1 text-xs ${
+													isSelected
+														? "bg-[var(--accent-contrast)]/10 text-[var(--accent-contrast)]"
+														: "bg-[var(--surface-2)] text-[var(--text-muted)]"
+												}`}
+											>
+												{t("chat.muted")}
+											</span>
+										) : null}
 									</div>
 								</div>
 							</button>
@@ -241,14 +405,14 @@ export function ChatInboxPanel({
 					})}
 
 					{nextPage ? (
-						<button
-							type="button"
-							onClick={onLoadMoreInbox}
-							disabled={isLoadingMoreInbox}
-							className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-60"
-						>
-							{isLoadingMoreInbox ? t("chat.loading") : t("chat.load_more")}
-						</button>
+						<div className="px-3 py-2">
+							<div ref={loadMoreSentinelRef} className="h-8 w-full" aria-hidden="true" />
+							{isLoadingMoreInbox ? (
+								<p className="text-center text-xs text-[var(--text-muted)]">
+									{t("chat.loading")}
+								</p>
+							) : null}
+						</div>
 					) : null}
 				</div>
 			)}

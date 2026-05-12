@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { getSexualPositionOptions } from "./profile-option-builders";
 import type { InboxFilterKey } from "../../types/chat-page";
 import { Slider } from "../../components/ui/range-slider";
+import { usePreferences } from "../../contexts/PreferencesContext";
+import { formatDistanceForUnits } from "../../utils/units";
 
 
 type ChatFiltersDraft = {
@@ -38,17 +40,6 @@ const distanceSteps = [
 	15000, 16000, 17000, 18000, 19000, 20000, 21000, 22000, 23000, 24000, 25000,
 	30000, 35000, 40000, 45000, 50000, 55000, 60000, 65000, 70000, 75000,
 ];
-
-/**
- * Formats meter values into a human-readable string.
- * Values >= 75km are treated as "Unlimited" (75km+).
- */
-const formatDistanceDisplay = (meters: number) => {
-	if (meters >= 75000 || meters <= 0) return "75km+";
-	if (meters < 1000) return `${meters}m`;
-	const km = meters / 1000;
-	return `${km}km`;
-};
 
 function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
@@ -84,6 +75,7 @@ function parseDraftFromLocationState(state: unknown): {
 
 export function ChatFiltersPage() {
 	const { t } = useTranslation();
+	const { unitsPreset } = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const initialState = useMemo(
@@ -105,6 +97,7 @@ export function ChatFiltersPage() {
 	const currentDistanceMeters = filters.distanceMeters === "" ? 75000 : Number(filters.distanceMeters);
 	const currentDistanceIndex = distanceSteps.indexOf(currentDistanceMeters);
 	const displayDistanceIndex = currentDistanceIndex === -1 ? distanceSteps.length - 1 : currentDistanceIndex;
+	const distanceDisplay = formatDistanceForUnits(currentDistanceMeters, unitsPreset);
 
 	const positionFilterOptions = useMemo(
 		() => [
@@ -199,7 +192,7 @@ export function ChatFiltersPage() {
 						min={0}
 						max={distanceSteps.length - 1}
 						defaultValue={displayDistanceIndex}
-						displayValue={formatDistanceDisplay(currentDistanceMeters)}
+						displayValue={distanceDisplay}
 						onChange={(index) => {
 							const meters = distanceSteps[index];
 							setFilters((previous) => ({

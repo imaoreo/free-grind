@@ -26,6 +26,13 @@ import {
 	type ManagedOption,
 	type ProfileDetail,
 } from "./GridPage.types";
+import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
+import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
+import { appLog } from "../../utils/logger";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+
+const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
+const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
 
 const profileRouteParamsSchema = z.object({
 	profileId: z.string().min(1),
@@ -50,9 +57,84 @@ export function GridProfilePage() {
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
+	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
+	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
+		() => new Set(),
+	);
+	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
+		null,
+	);
+	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
+		null,
+	);
+	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
+		action: "block" | "unblock";
+		profileId: string;
+	} | null>(null);
+	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
+	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
+	});
+	const [skipUnblockConfirm, setSkipUnblockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
+	});
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+
+	useEffect(() => {
+		let cancelled = false;
+		void apiFunctions
+			.getBlockedProfileIds()
+			.then((profileIds) => {
+				if (cancelled) {
+					return;
+				}
+				setBlockedProfileIds(new Set(profileIds));
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setBlockedProfileIds(new Set());
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [apiFunctions]);
+
+	useEffect(() => {
+		if (!profileId) {
+			setChatContactStatus(null);
+			return;
+		}
+
+		setChatContactStatus(null);
+		let cancelled = false;
+		void getChatContactIndexForProfiles([profileId])
+			.then((records) => {
+				if (cancelled) {
+					return;
+				}
+				setChatContactStatus(records[0] ?? null);
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setChatContactStatus(null);
+				}
+				appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [profileId]);
 
 	const {
 		tappingProfileId,
@@ -225,6 +307,144 @@ export function GridProfilePage() {
 		nextParams.set("targetProfileId", targetProfileId);
 		nextParams.set("returnTo", safeReturnTo);
 		navigate(`/chat?${nextParams.toString()}`);
+	};
+
+	const performBlockProfile = async (targetProfileId: string) => {
+		setMutatingBlockProfileId(targetProfileId);
+		try {
+			await apiFunctions.blockProfile(targetProfileId);
+			setBlockedProfileIds((prev) => {
+				const next = new Set(prev);
+				next.add(targetProfileId);
+				return next;
+			});
+			toast.success(t("profile_details.block_success"));
+			navigate(safeReturnTo, { replace: true });
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : t("profile_details.block_failed"),
+			);
+		} finally {
+			setMutatingBlockProfileId(null);
+		}
+	};
+
+	const performUnblockProfile = async (targetProfileId: string) => {
+		setMutatingBlockProfileId(targetProfileId);
+		try {
+			await apiFunctions.unblockProfile(targetProfileId);
+			setBlockedProfileIds((prev) => {
+				const next = new Set(prev);
+				next.delete(targetProfileId);
+				return next;
+			});
+			toast.success(t("profile_details.unblock_success"));
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: t("profile_details.unblock_failed"),
+			);
+		} finally {
+			setMutatingBlockProfileId(null);
+		}
+	};
+
+	const handleBlockProfile = async (targetProfileId: string) => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+		if (skipBlockConfirm) {
+			await performBlockProfile(targetProfileId);
+			return;
+		}
+		setDontAskAgainChecked(false);
+		setPendingProfileConfirm({ action: "block", profileId: targetProfileId });
+	};
+
+	const handleUnblockProfile = async (targetProfileId: string) => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+		if (skipUnblockConfirm) {
+			await performUnblockProfile(targetProfileId);
+			return;
+		}
+		setDontAskAgainChecked(false);
+		setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+	};
+
+	const handleToggleFavoriteProfile = async (
+		targetProfileId: string,
+		currentlyFavorite: boolean,
+	) => {
+		if (mutatingFavoriteProfileId) {
+			return;
+		}
+
+		setMutatingFavoriteProfileId(targetProfileId);
+		try {
+			if (currentlyFavorite) {
+				await apiFunctions.removeFavorite(targetProfileId);
+			} else {
+				await apiFunctions.addFavorite(targetProfileId);
+			}
+
+			setActiveProfile((previous) => {
+				if (!previous || previous.profileId !== targetProfileId) {
+					return previous;
+				}
+				return {
+					...previous,
+					isFavorite: !currentlyFavorite,
+				};
+			});
+
+			toast.success(
+				currentlyFavorite ? t("favorites.removed") : t("favorites.added"),
+			);
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: currentlyFavorite
+						? t("favorites.remove_failed")
+						: t("favorites.add_failed"),
+			);
+		} finally {
+			setMutatingFavoriteProfileId(null);
+		}
+	};
+
+	const handleCancelProfileConfirm = () => {
+		if (mutatingBlockProfileId) {
+			return;
+		}
+		setPendingProfileConfirm(null);
+	};
+
+	const handleConfirmProfileAction = async () => {
+		if (!pendingProfileConfirm || mutatingBlockProfileId) {
+			return;
+		}
+
+		const { action, profileId } = pendingProfileConfirm;
+		if (dontAskAgainChecked && typeof window !== "undefined") {
+			if (action === "block") {
+				localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
+				setSkipBlockConfirm(true);
+			} else {
+				localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
+				setSkipUnblockConfirm(true);
+			}
+		}
+
+		setPendingProfileConfirm(null);
+		if (action === "block") {
+			await performBlockProfile(profileId);
+			return;
+		}
+		await performUnblockProfile(profileId);
 	};
 
     const solveTrilateration = (points: { lat: number, lon: number, dist: number }[]) => {
@@ -409,28 +629,71 @@ export function GridProfilePage() {
     };
 
 	return (
-		<ProfileDetailsModal
-			variant="page"
-			isOpen
-			onClose={() => {
-				navigate(safeReturnTo, { replace: true });
-			}}
-			onPrevProfile={handlePrevProfile}
-			onNextProfile={handleNextProfile}
-			onMessageProfile={handleMessageProfile}
-			onTriangleProfile={handleTriangleProfile}
-			isLocatingProfile={isLocatingProfile}
-			onTapProfile={handleTapProfile}
-			isTappingProfile={isTappingProfile}
-			isTapBlocked={hasSentTapRecently}
-			tapVisualState={resolvedTapVisualState}
-			activeProfile={activeProfile}
-			selectedBrowseCard={null}
-			isLoadingActiveProfile={isLoadingActiveProfile}
-			activeProfileError={activeProfileError}
-			activeProfilePhotoHashes={activeProfilePhotoHashes}
-			genderOptions={genderOptions}
-			pronounOptions={pronounOptions}
-		/>
+		<>
+			<ProfileDetailsModal
+				variant="page"
+				isOpen
+				onClose={() => {
+					navigate(safeReturnTo, { replace: true });
+				}}
+				onPrevProfile={handlePrevProfile}
+				onNextProfile={handleNextProfile}
+				onMessageProfile={handleMessageProfile}
+				onTriangleProfile={handleTriangleProfile}
+				onBlockProfile={handleBlockProfile}
+				onUnblockProfile={handleUnblockProfile}
+				onToggleFavoriteProfile={handleToggleFavoriteProfile}
+				isFavorite={Boolean(activeProfile?.isFavorite)}
+				isTogglingFavorite={Boolean(
+					profileId && mutatingFavoriteProfileId === profileId,
+				)}
+				isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
+				isBlockingProfile={Boolean(
+					profileId && mutatingBlockProfileId === profileId,
+				)}
+				isLocatingProfile={isLocatingProfile}
+				onTapProfile={handleTapProfile}
+				isTappingProfile={isTappingProfile}
+				isTapBlocked={hasSentTapRecently}
+				tapVisualState={resolvedTapVisualState}
+				activeProfile={activeProfile}
+				selectedBrowseCard={null}
+				isLoadingActiveProfile={isLoadingActiveProfile}
+				activeProfileError={activeProfileError}
+				activeProfilePhotoHashes={activeProfilePhotoHashes}
+				chatContactStatus={chatContactStatus}
+				genderOptions={genderOptions}
+				pronounOptions={pronounOptions}
+			/>
+
+			<ConfirmDialog
+				isOpen={pendingProfileConfirm !== null}
+				title={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock")
+						: t("profile_details.block")
+				}
+				message={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock_confirm")
+						: t("profile_details.block_confirm")
+				}
+				confirmLabel={
+					pendingProfileConfirm?.action === "unblock"
+						? t("profile_details.unblock")
+						: t("profile_details.block")
+				}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={handleConfirmProfileAction}
+				onCancel={handleCancelProfileConfirm}
+				isProcessing={Boolean(mutatingBlockProfileId)}
+				confirmTone={
+					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
+				}
+				dontAskAgainLabel={t("profile_details.dont_ask_again")}
+				dontAskAgainChecked={dontAskAgainChecked}
+				onDontAskAgainChange={setDontAskAgainChecked}
+			/>
+		</>
 	);
 }

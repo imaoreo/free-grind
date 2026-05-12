@@ -11,15 +11,6 @@ use super::headers::{build_default_headers, DeviceInfo};
 
 pub const BASE_URL: &str = "https://grindr.mobi";
 
-#[cfg(not(target_os = "windows"))]
-use reqwest::Certificate;
-#[cfg(not(target_os = "windows"))]
-use std::fs;
-#[cfg(not(target_os = "windows"))]
-const DEFAULT_HTTP_TOOLKIT_CA_PATH: &str = "/Users/jaybr/Library/Preferences/httptoolkit/ca.pem";
-#[cfg(not(target_os = "windows"))]
-const EMBEDDED_HTTP_TOOLKIT_CA_PEM: &[u8] = include_bytes!("../../certs/httptoolkit-ca.pem");
-
 pub struct GrindrClient {
     pub(super) http: Client,
     pub(super) session: RwLock<Option<Session>>,
@@ -75,54 +66,51 @@ impl GrindrClient {
 
         #[cfg(not(target_os = "windows"))]
         let http = {
-            // Non-Windows: try custom CA certificates
-            let ca_path = std::env::var("OPEN_GRIND_CA_PEM_PATH")
-                .unwrap_or_else(|_| DEFAULT_HTTP_TOOLKIT_CA_PATH.to_owned());
-
+            // Non-Windows: use system/user trust roots.
+            #[cfg(target_os = "android")]
             let mut builder = Client::builder()
                 .default_headers(headers)
                 .cookie_provider(cookie_store.clone());
 
-            let mut custom_ca_loaded = false;
+            #[cfg(not(target_os = "android"))]
+            let builder = Client::builder()
+                .default_headers(headers)
+                .cookie_provider(cookie_store.clone());
 
-            match fs::read(&ca_path) {
-                Ok(pem) => match Certificate::from_pem(&pem) {
-                    Ok(cert) => {
-                        println!("Loaded custom CA certificate from {ca_path}");
-                        builder = builder.add_root_certificate(cert);
-                        custom_ca_loaded = true;
-                    }
-                    Err(error) => {
-                        eprintln!(
-                            "Failed to parse custom CA certificate at {ca_path}: {error}. Falling back to embedded CA."
-                        );
-                    }
-                },
-                Err(error) => {
-                    eprintln!(
-                        "Could not read custom CA certificate at {ca_path}: {error}. Falling back to embedded CA."
-                    );
-                }
-            }
-
-            if !custom_ca_loaded {
-                match Certificate::from_pem(EMBEDDED_HTTP_TOOLKIT_CA_PEM) {
-                    Ok(cert) => {
-                        println!("Loaded embedded HTTP Toolkit CA certificate");
-                        builder = builder.add_root_certificate(cert);
-                    }
-                    Err(error) => {
-                        eprintln!(
-                            "Failed to parse embedded HTTP Toolkit CA certificate: {error}. Continuing without custom CA."
-                        );
-                    }
-                }
+            #[cfg(target_os = "android")]
+            {
+                // Allow TLS interception tooling on Android builds.
+                builder = builder.danger_accept_invalid_certs(true);
             }
 
             builder.build()?
         };
 
-        let session = AuthStorage::get_session()?;
+        eprintln!(
+            "[CLIENT] Initializing GrindrClient on os={}",
+            std::env::consts::OS
+        );
+
+        let session = match AuthStorage::get_session() {
+            Ok(Some(session)) => {
+                eprintln!(
+                    "[CLIENT] Restored session for profile_id={}",
+                    session.profile_id
+                );
+                Some(session)
+            }
+            Ok(None) => {
+                eprintln!("[CLIENT] No stored session found; starting unauthenticated.");
+                None
+            }
+            Err(error) => {
+                eprintln!(
+                    "[AUTH] Failed to restore persisted session (continuing unauthenticated): {}",
+                    error
+                );
+                None
+            }
+        };
 
         Ok(Self {
             http,

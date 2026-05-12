@@ -361,7 +361,8 @@
         "location": "",
         "current_location": "",
         "open_settings": "",
-        "settings": ""
+        "settings": "",
+        "chatted": "Chatted"
     },
     "auth": {
         "sign_in": {
@@ -528,7 +529,10 @@
         "est_created": "",
         "status": "",
         "message": "",
-        "about": ""
+        "about": "",
+        "chat_history": "Chat history",
+        "last_message": "Last message {{time}}",
+        "chatted_before": "Chatted before"
     },
     "customizability": {
         "subtitle": "",

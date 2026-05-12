@@ -8,6 +8,7 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import type { ConversationEntry } from "../../types/messages";
 import type { ProfileSearchResult, SearchMode } from "../../types/chat-page";
 import { getProfileImageUrl, validateMediaHash } from "../../utils/media";
+import { formatDistance } from "./gridpage/utils";
 import blankProfileImage from "../../images/blank-profile.png";
 import {
 	indexConversations,
@@ -19,7 +20,7 @@ import { highlightMatch } from "./chat/highlightMatch";
 export function ChatSearchPage() {
 	const navigate = useNavigate();
 	const service = useApiFunctions();
-	const { geohash } = usePreferences();
+	const { geohash, unitsPreset } = usePreferences();
 	const { t } = useTranslation();
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -436,7 +437,7 @@ export function ChatSearchPage() {
 													</p>
 													<p className="text-xs text-[var(--text-muted)]">
 														{profile.distance != null
-															? `${profile.distance.toFixed(1)} km`
+															? formatDistance(profile.distance * 1000, t, unitsPreset)
 															: t("chat_search.distance_unavailable")}
 													</p>
 												</div>
