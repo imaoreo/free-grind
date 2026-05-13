@@ -1,13 +1,13 @@
 # Uncomment the next line to define a global platform for your project
 
-target 'open-grind_iOS' do
+target 'free-grind_iOS' do
 platform :ios, '14.0'
-  # Pods for open-grind_iOS
+  # Pods for free-grind_iOS
 end
 
-target 'open-grind_macOS' do
+target 'free-grind_macOS' do
 platform :osx, '11.0'
-  # Pods for open-grind_macOS
+  # Pods for free-grind_macOS
 end
 
 # Delete the deployment target for iOS and macOS, causing it to be inherited from the Podfile

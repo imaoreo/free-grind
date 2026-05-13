@@ -369,10 +369,32 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
-      - name: Initialize iOS project
-        run: bunx tauri ios init --ci
+      - name: Build frontend assets
+        run: bun run build
 
-      - name: Force release mode in Xcode Rust script
+      - name: Initialize iOS project
+        run: |
+          rm -rf src-tauri/gen/apple
+          bunx tauri ios init --ci
+
+      - name: Build iOS Rust static library
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios --release
+
+          LIB_PATH="src-tauri/target/aarch64-apple-ios/release/libopen_grind_lib.a"
+          if [ ! -f "$LIB_PATH" ]; then
+            echo "iOS static library not found at $LIB_PATH"
+            exit 1
+          fi
+
+          mkdir -p src-tauri/gen/apple/Externals/arm64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/arm64/release/libapp.a
+
+          # Keep xcodebuild happy if the generated project still references both arch outputs.
+          mkdir -p src-tauri/gen/apple/Externals/x86_64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/x86_64/release/libapp.a
+
+      - name: Disable Xcode Rust bridge script
         run: |
           PBXPROJ_PATH=$(find src-tauri/gen/apple -maxdepth 3 -name project.pbxproj | head -n 1)
           if [ -z "$PBXPROJ_PATH" ]; then
@@ -380,12 +402,14 @@ jobs:
             exit 1
           fi
 
-          perl -0pi -e 's/--configuration \$\{CONFIGURATION:\?\}/--configuration release/g' "$PBXPROJ_PATH"
+          perl -pi -e 's#^\s*shellScript = ".*tauri ios xcode-script.*";#                    shellScript = "set -e\\nLIB_PATH=\"\\\$\{SRCROOT\}/Externals/arm64/release/libapp.a\"\\nif [ ! -f \"\\\$LIB_PATH\" ]; then\\n  echo \"Missing prebuilt Rust library at \\\$LIB_PATH\"\\n  exit 1\\nfi";#' "$PBXPROJ_PATH"
 
-          if ! grep -q -- '--configuration release' "$PBXPROJ_PATH"; then
-            echo "Failed to patch Build Rust Code script configuration"
+          if ! grep -q -- 'Missing prebuilt Rust library' "$PBXPROJ_PATH"; then
+            echo "Failed to replace Build Rust Code script"
             exit 1
           fi
+
+          echo "Patched Build Rust Code script to use prebuilt libapp.a"
 
       - name: Build iOS app without code signing
         id: ios_app
