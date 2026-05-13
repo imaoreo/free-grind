@@ -6,7 +6,7 @@ import type {
 import type { CacheEntry } from "../../../types/grid-cache";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
-const BROWSE_CACHE_TTL_MS = 5 * 10 * 1000;
+const BROWSE_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_OPTIONS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const profileCache = new Map<string, CacheEntry<ProfileDetail>>();
