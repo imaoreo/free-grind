@@ -7,8 +7,10 @@ import { useTranslation } from "react-i18next";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
+	getInboxLastSeen,
+	INBOX_SEEN_EVENT,
 } from "../services/seenStore";
-import { TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
+import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
 
 export function NavBar() {
 	const { t } = useTranslation();
@@ -18,6 +20,7 @@ export function NavBar() {
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 	const [interestUnseen, setInterestUnseen] = useState(false);
+	const [inboxUnseen, setInboxUnseen] = useState(false);
 	const navItems = [
 		{
 			value: "browse",
@@ -63,34 +66,76 @@ export function NavBar() {
 	useEffect(() => {
 		let cancelled = false;
 
-		const loadUnreadCount = async () => {
+		const refreshInboxState = async () => {
+			if (document.hidden) return;
 			try {
+				// We fetch the first page of conversations without filters to get:
+				// 1. The newest activity timestamp (for the "unseen" dot logic)
+				// 2. The unread counts of the most recent conversations
 				const response = await apiFunctions.listConversations({
 					page: 1,
-					filters: { unreadOnly: true },
 				});
-				const total = response.entries.reduce(
-					(sum, entry) => sum + entry.data.unreadCount,
+
+				if (cancelled) return;
+
+				// 1. Calculate Unread Count (sum of unread in the first page)
+				const totalUnread = response.entries.reduce(
+					(sum, entry) => sum + (entry.data.unreadCount || 0),
 					0,
 				);
-				if (!cancelled) {
-					setUnreadCount(total);
+				setUnreadCount(totalUnread);
+
+				// 2. Calculate Unseen State (is there anything newer than lastSeen?)
+				const lastSeen = getInboxLastSeen();
+				const newest = response.entries.reduce(
+					(max, entry) => Math.max(max, entry.data.lastActivityTimestamp ?? 0),
+					0,
+				);
+
+				if (lastSeen === 0) {
+					if (newest > 0) {
+						window.localStorage.setItem("fg-inbox-last-seen", String(newest));
+					}
+					setInboxUnseen(false);
+				} else {
+					setInboxUnseen(newest > lastSeen);
 				}
 			} catch {
 				if (!cancelled) {
 					setUnreadCount(0);
+					setInboxUnseen(false);
 				}
 			}
 		};
 
-		void loadUnreadCount();
-		const intervalId = window.setInterval(() => {
-			void loadUnreadCount();
-		}, 45000);
+		void refreshInboxState();
+		const intervalId = window.setInterval(refreshInboxState, 45_000);
+
+		const handleRealtime = (event: Event) => {
+			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
+			if (envelope?.type === "chat.v1.message_sent" && activeTab !== "inbox") {
+				setInboxUnseen(true);
+			}
+			void refreshInboxState();
+		};
+		const onSeen = () => setInboxUnseen(false);
+
+		const onVisibilityChange = () => {
+			if (!document.hidden) {
+				void refreshInboxState();
+			}
+		};
+
+		window.addEventListener(CHAT_REALTIME_EVENT, handleRealtime);
+		window.addEventListener(INBOX_SEEN_EVENT, onSeen as EventListener);
+		window.addEventListener("visibilitychange", onVisibilityChange);
 
 		return () => {
 			cancelled = true;
 			window.clearInterval(intervalId);
+			window.removeEventListener(CHAT_REALTIME_EVENT, handleRealtime);
+			window.removeEventListener(INBOX_SEEN_EVENT, onSeen as EventListener);
+			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
 	}, [apiFunctions]);
 
@@ -100,6 +145,7 @@ export function NavBar() {
 		let cancelled = false;
 
 		const refreshInterestUnseen = async () => {
+			if (document.hidden) return;
 			try {
 				const [tapsResponse, viewsResponse] = await Promise.all([
 					apiFunctions.getTaps(),
@@ -155,8 +201,15 @@ export function NavBar() {
 
 		const onTap = () => setInterestUnseen(true);
 		const onSeen = () => setInterestUnseen(false);
+		const onVisibilityChange = () => {
+			if (!document.hidden) {
+				void refreshInterestUnseen();
+			}
+		};
+
 		window.addEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
 		window.addEventListener(INTEREST_SEEN_EVENT, onSeen as EventListener);
+		window.addEventListener("visibilitychange", onVisibilityChange);
 
 		return () => {
 			cancelled = true;
@@ -166,6 +219,7 @@ export function NavBar() {
 				INTEREST_SEEN_EVENT,
 				onSeen as EventListener,
 			);
+			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
 	}, [apiFunctions]);
 
@@ -197,19 +251,19 @@ export function NavBar() {
 									value={item.value}
 									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)] md:gap-1.5"
 								>
-									<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
 									<div className="relative">
-										<span className="text-xs md:text-[0.8rem]">
-											{item.label}
-										</span>
-										{(item.value === "inbox" && unreadCount > 0) ||
+										<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
+										{(item.value === "inbox" && inboxUnseen) ||
 										(item.value === "interest" && interestUnseen) ? (
-											<span className="absolute right-1 -top-6 flex h-2 w-2">
-                                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75"></span>
-                                              <span className="relative inline-block h-2 w-2 rounded-full bg-[var(--accent)] ring-1 ring-[var(--surface)]"></span>
-                                            </span>
+											<span className="absolute -right-1 -top-1 flex h-2 w-2">
+												<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75"></span>
+												<span className="relative inline-block h-2 w-2 rounded-full bg-[var(--accent)] ring-1 ring-[var(--surface)]"></span>
+											</span>
 										) : null}
 									</div>
+									<span className="text-xs md:text-[0.8rem]">
+										{item.label}
+									</span>
 								</TabsTrigger>
 							);
 						})}
