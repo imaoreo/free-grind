@@ -147,6 +147,7 @@ const preferencesSchema = z.object({
 	unitsPreset: z.enum(UNIT_PRESETS).default("world"),
 	blurIncomingMedia: z.boolean().default(false),
 	developerMode: z.boolean().default(false),
+	showDebugInfo: z.boolean().default(false),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -169,6 +170,7 @@ type PreferencesAction =
 	| { type: "SET_UNITS_PRESET"; payload: UnitsPreset }
 	| { type: "SET_BLUR_INCOMING_MEDIA"; payload: boolean }
 	| { type: "SET_DEVELOPER_MODE"; payload: boolean }
+	| { type: "SET_SHOW_DEBUG_INFO"; payload: boolean }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
 function preferencesReducer(
@@ -192,6 +194,8 @@ function preferencesReducer(
 			return { ...state, blurIncomingMedia: action.payload };
 		case "SET_DEVELOPER_MODE":
 			return { ...state, developerMode: action.payload };
+		case "SET_SHOW_DEBUG_INFO":
+			return { ...state, showDebugInfo: action.payload };
 		case "SET_ACCENT":
 			return {
 				...state,
@@ -236,6 +240,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		unitsPreset: "world",
 		blurIncomingMedia: false,
 		developerMode: false,
+		showDebugInfo: false,
 		isLoading: true,
 	});
 
@@ -254,6 +259,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_UNITS_PRESET", payload: parsed.unitsPreset });
 					dispatch({ type: "SET_BLUR_INCOMING_MEDIA", payload: parsed.blurIncomingMedia });
 					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
+					dispatch({ type: "SET_SHOW_DEBUG_INFO", payload: parsed.showDebugInfo });
 					dispatch({
 						type: "SET_ACCENT",
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
@@ -282,6 +288,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				unitsPreset: state.unitsPreset,
 				blurIncomingMedia: state.blurIncomingMedia,
 				developerMode: state.developerMode,
+				showDebugInfo: state.showDebugInfo,
 			};
 			const preferences: Preferences = {
 				...oldValues,
@@ -313,6 +320,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			if (newValues.developerMode !== undefined) {
 				dispatch({ type: "SET_DEVELOPER_MODE", payload: newValues.developerMode });
 			}
+			if (newValues.showDebugInfo !== undefined) {
+				dispatch({ type: "SET_SHOW_DEBUG_INFO", payload: newValues.showDebugInfo });
+			}
 			if (newValues.accentColor !== undefined || newValues.accentContrast !== undefined) {
 				dispatch({
 					type: "SET_ACCENT",
@@ -342,6 +352,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			state.unitsPreset,
 			state.blurIncomingMedia,
 			state.developerMode,
+			state.showDebugInfo,
 		],
 	);
 
@@ -355,6 +366,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		unitsPreset: state.unitsPreset,
 		blurIncomingMedia: state.blurIncomingMedia,
 		developerMode: state.developerMode,
+		showDebugInfo: state.showDebugInfo,
 		setPreferences,
 		isLoading: state.isLoading,
 	};

@@ -55,6 +55,7 @@ export function GridPage() {
 		geohash,
 		locationName,
 		isLoading: isLoadingPreferences,
+		showDebugInfo,
 	} = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -102,6 +103,7 @@ export function GridPage() {
 	});
 	const isMountedRef = useRef(true);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 
 	const {
 		browseFilters,
@@ -337,6 +339,7 @@ export function GridPage() {
 				setCards(cached.cards);
 				setNextPage(cached.nextPage);
 				setIsLoadingCards(false);
+				setDebugLoadSource("cache");
 				// If we have cached cards and we're on the first page, don't re-fetch from API immediately.
 				// This ensures the grid remains stable for 5 minutes as requested.
 				if (!page || page === 1) {
@@ -352,6 +355,7 @@ export function GridPage() {
 					page,
 					filters: browseRequestFilters,
 				});
+				setDebugLoadSource("network");
 
 				void upsertChatContactIndexFromGrid(
 					parsed.cards.map((card) => ({
@@ -499,6 +503,7 @@ export function GridPage() {
 				page: nextPage,
 				filters: browseRequestFilters,
 			});
+			setDebugLoadSource("network");
 			void upsertChatContactIndexFromGrid(
 				parsed.cards.map((card) => ({
 					profileId: card.profileId,
@@ -906,6 +911,17 @@ export function GridPage() {
 
 	return (
 		<>
+			{showDebugInfo && debugLoadSource && (
+				<div
+					className={cn(
+						"fixed bottom-20 left-4 z-[9999] rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-widest text-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4",
+						debugLoadSource === "cache" ? "bg-emerald-600" : "bg-blue-600",
+					)}
+					onClick={() => setDebugLoadSource(null)}
+				>
+					Source: {debugLoadSource}
+				</div>
+			)}
 			{/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */}
 			<PullToRefreshContainer
 				className="app-screen overflow-x-hidden !px-0"
