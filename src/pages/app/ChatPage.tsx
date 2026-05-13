@@ -69,6 +69,7 @@ import {
 	setLocalNicknameForProfile,
 	upsertChatContactIndexFromInbox,
 } from "../../services/chatContactIndex";
+import { markInboxSeen } from "../../services/seenStore";
 
 
 export function ChatPage() {
@@ -335,6 +336,18 @@ export function ChatPage() {
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
+
+	const maxActivityTimestamp = useMemo(() => {
+		return conversations.reduce(
+			(max, conv) => Math.max(max, conv.data.lastActivityTimestamp ?? 0),
+			0,
+		);
+	}, [conversations]);
+
+	// Mark the inbox as "seen" whenever the user visits this page or new messages arrive.
+	useEffect(() => {
+		markInboxSeen();
+	}, [location.pathname, maxActivityTimestamp]);
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");

@@ -6,11 +6,14 @@ import type {
 import type { CacheEntry } from "../../../types/grid-cache";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
-const BROWSE_CACHE_TTL_MS = 60 * 1000;
+const BROWSE_CACHE_TTL_MS = 5 * 60 * 1000;
 const PUBLIC_OPTIONS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const profileCache = new Map<string, CacheEntry<ProfileDetail>>();
-const browseCache = new Map<string, CacheEntry<BrowseCard[]>>();
+const browseCache = new Map<
+	string,
+	CacheEntry<{ cards: BrowseCard[]; nextPage: number | null }>
+>();
 let genderOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 let pronounOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 
@@ -56,12 +59,18 @@ export function setCachedProfileDetail(
 	setInCache(profileCache, profileId, profile, PROFILE_CACHE_TTL_MS);
 }
 
-export function getCachedBrowseCards(cacheKey: string): BrowseCard[] | null {
+export function getCachedBrowseCards(
+	cacheKey: string,
+): { cards: BrowseCard[]; nextPage: number | null } | null {
 	return getFromCache(browseCache, cacheKey);
 }
 
-export function setCachedBrowseCards(cacheKey: string, cards: BrowseCard[]) {
-	setInCache(browseCache, cacheKey, cards, BROWSE_CACHE_TTL_MS);
+export function setCachedBrowseCards(
+	cacheKey: string,
+	cards: BrowseCard[],
+	nextPage: number | null,
+) {
+	setInCache(browseCache, cacheKey, { cards, nextPage }, BROWSE_CACHE_TTL_MS);
 }
 
 export function getCachedGenderOptions(): ManagedOption[] | null {
