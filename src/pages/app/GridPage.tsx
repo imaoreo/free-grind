@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, Star } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -943,6 +943,23 @@ export function GridPage() {
 										onClick={() =>
 											setBrowseFilters((prev: typeof browseFilters) => ({
 												...prev,
+												favorites: !prev.favorites,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										aria-label={t("browse_filters.options.favorites")}
+										title={t("browse_filters.options.favorites")}
+									>
+										<Star
+											className={`h-4 w-4 ${browseFilters.favorites ? "fill-current" : ""}`}
+										/>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
 												onlineOnly: !prev.onlineOnly,
 											}))
 										}
@@ -1048,6 +1065,28 @@ export function GridPage() {
 											<option value="name">{t("browse_filters.sort.name_az")}</option>
 										</select>
 									</div>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												favorites: !prev.favorites,
+											}))
+										}
+										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
+											browseFilters.favorites
+												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Star
+											className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`}
+										/>
+										<span className="hidden lg:inline">
+											{t("browse_filters.options.favorites")}
+										</span>
+									</button>
 
 									{hasActiveBrowseFilters ? (
 										<button
