@@ -3,7 +3,7 @@ import { MapPin, SlidersHorizontal, ListFilter, Star } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { decodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -38,6 +38,8 @@ import {
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { LoadingState } from "../../components/ui/states";
+import { cn } from "../../utils/cn";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -99,6 +101,7 @@ export function GridPage() {
 		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
 	});
 	const isMountedRef = useRef(true);
+	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 
 	const {
 		browseFilters,
@@ -260,6 +263,14 @@ export function GridPage() {
 		return `${geohash}:${filtersKey}`;
 	}, [browseRequestFilters, geohash]);
 
+	const hasSavedScroll = useMemo(() => {
+		if (!browseCacheKey || typeof window === "undefined") {
+			return false;
+		}
+		const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
+		return !!saved && parseInt(saved, 10) > 0;
+	}, [browseCacheKey]);
+
 	const getBrowseCardsWithTimeout = useCallback(
 		async (args: Parameters<typeof apiFunctions.getBrowseCards>[0]) => {
 			return await new Promise<
@@ -315,16 +326,22 @@ export function GridPage() {
 				return;
 			}
 
-			const cachedCards = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
+			const cached = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
 			if (!isMountedRef.current) {
 				return;
 			}
 
 			setCardsError(null);
 
-			if (cachedCards) {
-				setCards(cachedCards);
+			if (cached) {
+				setCards(cached.cards);
+				setNextPage(cached.nextPage);
 				setIsLoadingCards(false);
+				// If we have cached cards and we're on the first page, don't re-fetch from API immediately.
+				// This ensures the grid remains stable for 5 minutes as requested.
+				if (!page || page === 1) {
+					return;
+				}
 			} else if (showLoadingState) {
 				setIsLoadingCards(true);
 			}
@@ -350,14 +367,18 @@ export function GridPage() {
 				}
 
 				setCards(parsed.cards);
-				setCachedBrowseCards(browseCacheKey, parsed.cards);
+				setCachedBrowseCards(
+					browseCacheKey,
+					parsed.cards,
+					parsed.nextPage ?? null,
+				);
 				setNextPage(parsed.nextPage ?? null);
 			} catch (error) {
 				if (!isMountedRef.current) {
 					return;
 				}
 
-				if (!cachedCards) {
+				if (!cached) {
 					setCards([]);
 					setCardsError(
 						error instanceof Error
@@ -387,6 +408,42 @@ export function GridPage() {
 	useEffect(() => {
 		void loadBrowseCards();
 	}, [loadBrowseCards]);
+
+	// Reset scroll restoration state when cache key (filters/location) changes
+	useEffect(() => {
+		setHasRestoredScroll(false);
+	}, [browseCacheKey]);
+
+	// Periodically save scroll position for the current grid view
+	useEffect(() => {
+		const handleScroll = () => {
+			if (browseCacheKey && window.scrollY > 0) {
+				sessionStorage.setItem(`grid-scroll-${browseCacheKey}`, window.scrollY.toString());
+			}
+		};
+
+		window.addEventListener("scroll", handleScroll, { passive: true });
+		return () => window.removeEventListener("scroll", handleScroll);
+	}, [browseCacheKey]);
+
+	// Restore scroll position when cards are loaded and we haven't restored yet
+	useLayoutEffect(() => {
+		if (
+			cards.length > 0 &&
+			!hasRestoredScroll &&
+			!isLoadingCards &&
+			browseCacheKey
+		) {
+			const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
+			if (saved) {
+				const scrollY = parseInt(saved, 10);
+				if (scrollY > 0) {
+					window.scrollTo({ top: scrollY, behavior: "instant" });
+				}
+			}
+			setHasRestoredScroll(true);
+		}
+	}, [cards.length, hasRestoredScroll, isLoadingCards, browseCacheKey]);
 
 	useEffect(() => {
 		const profileIds = cards.map((card) => card.profileId);
@@ -448,10 +505,17 @@ export function GridPage() {
 					unreadCount: card.unreadCount ?? 0,
 				})),
 			).catch((error) => {
-				appLog.warn("[chat-index] failed to persist load-more grid metadata", error);
+				appLog.warn(
+					"[chat-index] failed to persist load-more grid metadata",
+					error,
+				);
 			});
 			if (!cancelled) {
-				setCards((prev) => [...prev, ...parsed.cards]);
+				setCards((prev) => {
+					const next = [...prev, ...parsed.cards];
+					setCachedBrowseCards(browseCacheKey, next, parsed.nextPage ?? null);
+					return next;
+				});
 				setNextPage(parsed.nextPage ?? null);
 			}
 		} catch {
@@ -846,9 +910,12 @@ export function GridPage() {
 			<PullToRefreshContainer
 				className="app-screen overflow-x-hidden !px-0"
 				style={{ width: "100%" }}
-				onRefresh={() =>
-					loadBrowseCards({ preferCache: false, showLoadingState: false })
-				}
+				onRefresh={() => {
+					if (browseCacheKey) {
+						sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
+					}
+					return loadBrowseCards({ preferCache: false, showLoadingState: false });
+				}}
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
@@ -1119,19 +1186,28 @@ export function GridPage() {
 					</div>
 				</header>
 
-				<BrowseGrid
-					isLoadingCards={isLoadingCards}
-					cardsError={cardsError}
-					cards={sortedCards}
-					chatContactIndexByProfileId={chatContactIndexByProfileId}
-					onSelectProfile={handleSelectProfile}
-					onMessageProfile={handleMessageProfile}
-					hasMore={nextPage !== null}
-					isLoadingMore={isLoadingMoreCards}
-					onLoadMore={() => {
-						void handleLoadMoreCards();
-					}}
-				/>
+				<div
+					className={cn(
+						"transition-opacity duration-0",
+						hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
+							? "opacity-0"
+							: "opacity-100",
+					)}
+				>
+					<BrowseGrid
+						isLoadingCards={isLoadingCards}
+						cardsError={cardsError}
+						cards={sortedCards}
+						chatContactIndexByProfileId={chatContactIndexByProfileId}
+						onSelectProfile={handleSelectProfile}
+						onMessageProfile={handleMessageProfile}
+						hasMore={nextPage !== null}
+						isLoadingMore={isLoadingMoreCards}
+						onLoadMore={() => {
+							void handleLoadMoreCards();
+						}}
+					/>
+				</div>
 			</PullToRefreshContainer>
 
 			<ProfileDetailsModal
