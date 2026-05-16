@@ -88,7 +88,7 @@
         "next": "Próximo"
     },
     "right_now": {
-        "title": "Agora Mesmo",
+        "title": "Right Now",
         "refreshing": "Atualizando Right Now…",
         "anonymous": "Anônimo",
         "hosting_subtitle": "{{name}} com local Agora",
@@ -104,9 +104,10 @@
         "message_aria": "Mensagem {{name}}",
         "any_position": "Qualquer",
         "just_now": "Agora mesmo",
-        "minutes_short": "{{count}} min",
+        "minutes_short": "{{count}} m",
         "hours_short": "{{count}}h",
-        "days_short": "{{count}}d"
+        "days_short": "{{count}}d",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Right Now Filtros",
@@ -201,7 +202,7 @@
         "status_hours_ago": "há {{count}}h",
         "status_days_ago": "{{count}} dias atrás",
         "status_just_now": "Agora mesmo",
-        "distance_hidden": "escondido",
+        "distance_hidden": "Oculto",
         "unknown": "Desconhecido",
         "not_set": "Não definido",
         "loading_nearby": "Carregando perfis próximos",
@@ -340,9 +341,9 @@
         "loading": "Carregando seu perfil…",
         "error_load": "Não foi possível carregar os detalhes do perfil.",
         "summary": "RESUMO",
-        "tags_count_one": "{{count}} tag",
-        "tags_count_many": "{{count}} tags",
-        "tags_count_other": "{{count}} tags",
+        "tags_count_one": "{{count}} etiqueta",
+        "tags_count_many": "{{count}} etiquetas",
+        "tags_count_other": "{{count}} etiquetas",
         "no_tags": "Sem etiquetas",
         "completion_title": "Conclusão do perfil",
         "completion_signals": "Conjunto de sinais de perfil {{count}}/{{total}}",
@@ -600,7 +601,7 @@
             "remaining": "restante",
             "expired": "expirado"
         },
-        "attach_media": "",
+        "attach_media": "Anexar mídia",
         "manage_albums": "",
         "loading_albums": "Carregando álbuns...",
         "no_albums_available": "Nenhum álbum disponível. Crie um primeiro nas Configurações.",
@@ -648,7 +649,9 @@
             "title": "Ações da mensagem",
             "unsend": "Cancelar envio",
             "delete": "Excluir",
-            "cancel": "Cancelar"
+            "cancel": "Cancelar",
+            "copy": "Copiar",
+            "reply": "Responder"
         },
         "realtime": {
             "connected": "Conectado",
@@ -700,7 +703,8 @@
             "cleared_local_history": "Histórico local apagado nesse bate-papo",
             "album_shared": "Álbum compartilhado",
             "media_sent": "Mídia enviada",
-            "conversation_deleted": "Conversa apagada"
+            "conversation_deleted": "Conversa apagada",
+            "copied": "Copiado para a área de transferência"
         },
         "new_conversation": {
             "title": "Nova conversa",
@@ -717,7 +721,13 @@
             "saved": "Apelido salvo",
             "cleared": "Apelido removido",
             "save_failed": "Falha ao salvar o apelido"
-        }
+        },
+        "load_older_messages": "Carregar mensagens antigas",
+        "view_profile": "Ver perfil",
+        "favorite": "Favorito",
+        "unfavorite": "Remover dos favoritos",
+        "share_album_label": "Compartilhar álbum",
+        "drawer_label": "Pasta"
     },
     "profile_details": {
         "title": "Detalhes do perfil",
@@ -1034,7 +1044,9 @@
         "invalid_file_type": "Por favor, escolha uma foto.",
         "delete_confirm_title": "Excluir da pasta?",
         "delete_confirm_message": "Tem certeza de que deseja excluir esta mídia da sua pasta?",
-        "delete_confirm_label": "Excluir"
+        "delete_confirm_label": "Excluir",
+        "title": "Pasta",
+        "media_alt": "Pasta de mídia"
     },
     "favorites": {
         "added": "Adicionado aos favoritos",
