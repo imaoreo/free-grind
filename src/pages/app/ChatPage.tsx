@@ -95,6 +95,8 @@ export function ChatPage() {
 		scrollHeight: number;
 	} | null>(null);
 	const selectedConversationUnreadCountRef = useRef(0);
+	const lastLoadedConversationIdRef = useRef<string | null>(null);
+	const lastMessageIdRef = useRef<string | null>(null);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -1055,13 +1057,9 @@ export function ChatPage() {
 							map.set(message.messageId, message);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load: preserve already-surfaced local-only messages
-						// only for this conversation.
+						// Fresh load or poll: preserve already-surfaced messages for this conversation.
 						for (const message of previous) {
-							if (
-								message._localOnly &&
-								message.conversationId === conversationId
-							) {
+							if (message.conversationId === conversationId) {
 								map.set(message.messageId, message);
 							}
 						}
@@ -1070,22 +1068,6 @@ export function ChatPage() {
 					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
-
-				// For fresh thread loads, imperatively scroll to the bottom once React has
-				// committed the new messages.  Two RAFs ensure layout (images etc.) has
-				// settled before measuring scrollHeight.  Guard stale-closure with ref.
-				if (!older) {
-					const targetConvId = conversationId;
-					window.requestAnimationFrame(() => {
-						window.requestAnimationFrame(() => {
-							if (selectedConversationIdRef.current !== targetConvId) return;
-							const container = threadScrollContainerRef.current;
-							if (container) {
-								container.scrollTop = container.scrollHeight;
-							}
-						});
-					});
-				}
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
@@ -1206,21 +1188,21 @@ export function ChatPage() {
 		[service, syncConversation],
 	);
 
-	const scrollThreadToBottom = useCallback((attempts = 4) => {
+	const scrollThreadToBottom = useCallback((attempts = 10) => {
 		const container = threadScrollContainerRef.current;
 		if (container) {
 			container.scrollTop = container.scrollHeight;
-		} else {
-			threadBottomRef.current?.scrollIntoView({ block: "end" });
 		}
+		// Also try scrollIntoView as a fallback
+		threadBottomRef.current?.scrollIntoView({ block: "end" });
 
 		if (attempts <= 1) {
 			return;
 		}
 
-		window.requestAnimationFrame(() => {
+		window.setTimeout(() => {
 			scrollThreadToBottom(attempts - 1);
-		});
+		}, 50);
 	}, []);
 
 	const handleThreadScroll = useCallback(() => {
@@ -1305,6 +1287,7 @@ export function ChatPage() {
 			setThreadMessages([]);
 			setThreadError(null);
 			setReplyTargetMessageId(null);
+			lastLoadedConversationIdRef.current = null;
 			return;
 		}
 
@@ -1325,8 +1308,13 @@ export function ChatPage() {
 
 	useEffect(() => {
 		if (!threadMessages.length) {
+			lastMessageIdRef.current = null;
 			return;
 		}
+
+		const lastMessage = threadMessages[threadMessages.length - 1];
+		const isNewMessageArrival = lastMessageIdRef.current !== lastMessage.messageId;
+		lastMessageIdRef.current = lastMessage.messageId;
 
 		if (preserveThreadScrollRef.current) {
 			const container = threadScrollContainerRef.current;
@@ -1340,18 +1328,23 @@ export function ChatPage() {
 			return;
 		}
 
-		// Direct scrollTop is synchronous and does not emit scroll events, preventing
-		// the upward-load handler from misfiring during the initial jump.
-		scrollThreadToBottom();
-	}, [threadMessages.length, scrollThreadToBottom]);
+		const container = threadScrollContainerRef.current;
+		const isNewConversation =
+			lastLoadedConversationIdRef.current !== selectedConversationId;
 
-	useEffect(() => {
-		if (!selectedConversationId || isLoadingThread) {
-			return;
+		const isNearBottom = container
+			? container.scrollHeight - container.scrollTop - container.clientHeight < 250
+			: true;
+
+		const iSentLastMessage = userId != null && Number(lastMessage.senderId) === Number(userId);
+
+		// Always scroll on new conversation OR if a new message arrived at the end
+		if (isNewConversation || isNewMessageArrival) {
+			scrollThreadToBottom();
 		}
 
-		scrollThreadToBottom();
-	}, [selectedConversationId, isLoadingThread, scrollThreadToBottom]);
+		lastLoadedConversationIdRef.current = selectedConversationId;
+	}, [threadMessages, selectedConversationId, scrollThreadToBottom, userId]);
 
 	useEffect(() => {
 		indexConversations(conversations);
