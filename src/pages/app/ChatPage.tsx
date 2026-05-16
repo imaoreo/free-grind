@@ -3201,29 +3201,31 @@ export function ChatPage() {
 									</button>
 
 									<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-										{isVideo ? (
-											<video
-												src={mediaUrl}
-												controls
-												className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
-												style={{
-													transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-													transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-													touchAction: "none",
-												}}
-											/>
-										) : (
-											<img
-												src={mediaUrl}
-												alt="Album content"
-												className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
-												style={{
-													transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-													transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-													touchAction: "none",
-												}}
-											/>
-										)}
+										<div className="relative overflow-hidden rounded-xl">
+											{isVideo ? (
+												<video
+													src={mediaUrl}
+													controls
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											) : (
+												<img
+													src={mediaUrl}
+													alt="Album content"
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											)}
+										</div>
 									</div>
 
 									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
@@ -3255,17 +3257,19 @@ export function ChatPage() {
 						<X className="h-5 w-5" />
 					</button>
 					<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-						<img
-							src={fullScreenImageUrl}
-							alt="Media"
-							className="max-h-full max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
-							style={{
-								transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-								transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-								touchAction: "none",
-							}}
-							onClick={(event) => event.stopPropagation()}
-						/>
+						<div className="relative overflow-hidden rounded-xl">
+							<img
+								src={fullScreenImageUrl}
+								alt="Media"
+								className="max-h-full max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+								style={{
+									transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+									transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+									touchAction: "none",
+								}}
+								onClick={(event) => event.stopPropagation()}
+							/>
+						</div>
 					</div>
 				</div>
 			) : null}
