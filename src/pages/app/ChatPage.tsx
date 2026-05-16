@@ -771,9 +771,15 @@ export function ChatPage() {
 	}, [service]);
 
 	const loadInbox = useCallback(
-		async ({ page, replace }: { page: number; replace: boolean }) => {
+		async ({
+			page,
+			replace,
+			silent,
+		}: { page: number; replace: boolean; silent?: boolean }) => {
 			if (replace) {
-				setIsLoadingInbox(true);
+				if (!silent) {
+					setIsLoadingInbox(true);
+				}
 				setInboxError(null);
 			} else {
 				setIsLoadingMoreInbox(true);
@@ -862,9 +868,11 @@ export function ChatPage() {
 		async ({
 			conversationId,
 			older,
+			silent,
 		}: {
 			conversationId: string;
 			older: boolean;
+			silent?: boolean;
 		}) => {
 			if (older) {
 				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
@@ -881,7 +889,9 @@ export function ChatPage() {
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
-				setIsLoadingThread(true);
+				if (!silent) {
+					setIsLoadingThread(true);
+				}
 				setThreadError(null);
 				setThreadConversationId(conversationId);
 
@@ -1267,11 +1277,12 @@ export function ChatPage() {
 			: baseIntervalMs;
 
 		const intervalId = window.setInterval(() => {
-			void loadInbox({ page: 1, replace: true });
+			void loadInbox({ page: 1, replace: true, silent: true });
 			if (selectedConversationId) {
 				void loadThread({
 					conversationId: selectedConversationId,
 					older: false,
+					silent: true,
 				});
 			}
 		}, intervalMs);
