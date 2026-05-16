@@ -45,6 +45,7 @@ export function BrowseLocationPage() {
 		});
 		setMapPickerError(null);
 		setLocationError(null);
+		navigate("/");
 	};
 
 	const handleUseCurrentLocation = async () => {
