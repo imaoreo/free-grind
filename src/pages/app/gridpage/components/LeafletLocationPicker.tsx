@@ -6,12 +6,14 @@ type LeafletLocationPickerProps = {
 	selectedLocation: Pick<SelectedLocation, "lat" | "lon"> | null;
 	onPick: (lat: number, lon: number) => void;
 	onError: (message: string) => void;
+	className?: string;
 };
 
 export function LeafletLocationPicker({
 	selectedLocation,
 	onPick,
 	onError,
+	className = "h-72 w-full",
 }: LeafletLocationPickerProps) {
 	const { t } = useTranslation();
 	const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -39,7 +41,7 @@ export function LeafletLocationPicker({
 					selectedLocation
 						? [selectedLocation.lat, selectedLocation.lon]
 						: [20, 0],
-					selectedLocation ? 11 : 2,
+					selectedLocation ? 18 : 2,
 				);
 
 				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -106,9 +108,11 @@ export function LeafletLocationPicker({
 
 		map.setView(
 			[selectedLocation.lat, selectedLocation.lon],
-			Math.max(11, map.getZoom()),
+			Math.max(18, map.getZoom()),
 		);
+
+		map.invalidateSize();
 	}, [selectedLocation]);
 
-	return <div ref={mapContainerRef} className="h-72 w-full" />;
+	return <div ref={mapContainerRef} className={className} />;
 }

@@ -612,6 +612,8 @@
         "delete_conversation_confirm": "Delete this conversation? This cannot be undone.",
         "open_conversation_actions": "Open conversation actions",
         "share_album_label": "Share album",
+        "share_location_label": "Share location",
+        "share_location_confirm": "Share this location?",
         "drawer_label": "Drawer",
         "attach_media": "Attach media",
         "expiration": {
@@ -707,6 +709,8 @@
             "load_message": "Failed to load message",
             "update_pin_state": "Failed to update pin state",
             "update_mute_state": "Failed to update mute state",
+            "no_location_set": "No location set in settings",
+            "invalid_location": "Invalid location format",
             "missing_recipient": "Unable to determine message recipient",
             "send_failed": "Failed to send",
             "rate_limited": "Sending too fast. Please wait and retry.",

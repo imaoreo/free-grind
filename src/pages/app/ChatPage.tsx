@@ -2000,6 +2000,48 @@ export function ChatPage() {
 		],
 	);
 
+	const sendLocationMessage = useCallback(
+		async (lat: number, lon: number) => {
+			if (!userId) {
+				return;
+			}
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Location",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: { lat, lon },
+				});
+
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+	);
+
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
@@ -2931,6 +2973,7 @@ export function ChatPage() {
 			onSendDrawerMedia={sendDrawerMedia}
 			onAddDrawerMedia={addDrawerMedia}
 			onDeleteDrawerMedia={deleteDrawerMedia}
+			onSendLocation={sendLocationMessage}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}

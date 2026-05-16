@@ -563,6 +563,8 @@
         "open_conversation_actions": "Konversationsaktionen öffnen",
         "share_album_label": "Album teilen",
         "drawer_label": "Drawer",
+        "share_location_label": "Standort teilen",
+        "share_location_confirm": "Diesen Standort teilen?",
         "share_album": "Album teilen",
         "expiration": {
             "title": "Zugriffsdauer",
@@ -659,6 +661,8 @@
             "load_message": "Laden der Nachricht fehlgeschlagen",
             "update_pin_state": "Fehler beim Aktualisieren des Pin-Status",
             "update_mute_state": "Fehler beim Aktualisieren des Stummschaltungs-Status",
+            "no_location_set": "Kein Standort in den Einstellungen festgelegt",
+            "invalid_location": "Ungültiges Standortformat",
             "missing_recipient": "Empfänger konnte nicht ermittelt werden",
             "send_failed": "Senden fehlgeschlagen",
             "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
