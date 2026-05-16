@@ -2634,7 +2634,7 @@ export function ChatPage() {
 	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
 
 	const sendDrawerMedia = useCallback(
-		async (mediaIds: number[]) => {
+		async (mediaIds: number[], isExpiring?: boolean) => {
 			if (!selectedConversation || !userId || mediaIds.length === 0) {
 				return;
 			}
@@ -2654,7 +2654,10 @@ export function ChatPage() {
 					const media = drawerMedia.find((m) => m.id === mediaId);
 					if (!media) continue;
 
-					const messageType = media.contentType.startsWith("video") ? "Video" : "Image";
+					const isVideo = media.contentType.startsWith("video");
+					const useExpiring = isExpiring && !isVideo;
+					const messageType = useExpiring ? "ExpiringImage" : isVideo ? "Video" : "Image";
+
 					const sentMessage = await service.sendMessage({
 						type: messageType,
 						target: {
@@ -2666,6 +2669,7 @@ export function ChatPage() {
 							width: null,
 							height: null,
 							url: media.url,
+							...(useExpiring ? { viewsRemaining: 1 } : {}),
 						},
 					});
 

@@ -701,7 +701,7 @@
         "title": "Drawer",
         "empty": "Dein Drawer ist leer.",
         "retry": "Erneut versuchen",
-        "send": "{{count}} senden",
+        "send": "Senden ({{count}})",
         "sending": "Senden...",
         "error_no_selection": "Bitte wähle mindestens ein Bild aus.",
         "error_send_failed": "Fehler beim Senden der Medien.",
@@ -714,7 +714,12 @@
         "invalid_file_type": "Bitte wähle ein Foto aus.",
         "delete_confirm_title": "Aus Drawer löschen?",
         "delete_confirm_message": "Bist du sicher, dass du dieses Medium aus deinem Drawer löschen möchtest?",
-        "delete_confirm_label": "Löschen"
+        "delete_confirm_label": "Löschen",
+        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_off": "Aus",
+        "is_expiring_send": "Selbstlöschend senden ({{count}})",
+        "is_expiring_title_on": "Selbstlöschend (10s)",
+        "is_expiring_title_off": "Normal senden"
     },
     "favorites": {
         "added": "Zu Favoriten hinzugefügt",
