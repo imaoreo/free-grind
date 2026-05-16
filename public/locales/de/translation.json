@@ -764,6 +764,7 @@
         "location_finder_error_estimate": "Runde {{round}} abgeschlossen. Geschätzter Fehler: ~{{error}}m",
         "location_finder_final_location": "Der Benutzer befindet sich etwa bei Lat:{{lat}}, Lon:{{lon}}. Geschätzter Fehler: ~{{error}} Meter vom endgültigen geschätzten Standort entfernt.",
         "location_finder_error_general": "Während der Triangulation ist ein Fehler aufgetreten",
+        "location_finder_location_copied": "Standort in die Zwischenablage kopiert",
         "locating": "Suche...",
         "locate": "Suchen",
         "about": "Über mich",

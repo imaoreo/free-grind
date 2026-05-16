@@ -812,6 +812,7 @@
         "location_finder_error_estimate": "Round {{round}} complete. Estimated error: ~{{error}}m",
         "location_finder_final_location": "The user is at approximately lat:{{lat}}, lon:{{lon}}. Estimated error: ~{{error}} meters from the final estimated location.",
         "location_finder_error_general": "An error occurred during triangulation",
+        "location_finder_location_copied": "Location copied to clipboard",
         "locating": "Locating...",
         "locate": "Locate",
         "about": "About",
