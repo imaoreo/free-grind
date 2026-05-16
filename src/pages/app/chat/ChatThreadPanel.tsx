@@ -138,7 +138,7 @@ type ChatThreadPanelProps = {
 	isAddingDrawerMedia: boolean;
 	deletingDrawerMediaId: number | null;
 	onLoadDrawerMedia: () => void | Promise<void>;
-	onSendDrawerMedia: (mediaIds: number[]) => Promise<void>;
+	onSendDrawerMedia: (mediaIds: number[], isExpiring?: boolean) => Promise<void>;
 	onAddDrawerMedia: (file: File, takenOnGrindr: boolean) => Promise<void>;
 	onDeleteDrawerMedia: (mediaId: number) => Promise<void>;
 	onSendLocation: (lat: number, lon: number) => void | Promise<void>;

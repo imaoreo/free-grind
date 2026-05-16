@@ -749,7 +749,7 @@
         "title": "Drawer",
         "empty": "Your drawer is empty.",
         "retry": "Try again",
-        "send": "Send {{count}}",
+        "send": "Send ({{count}})",
         "sending": "Sending...",
         "error_no_selection": "Please select at least one image.",
         "error_send_failed": "Failed to send media.",
@@ -762,7 +762,12 @@
         "invalid_file_type": "Please choose a photo.",
         "delete_confirm_title": "Delete from drawer?",
         "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
-        "delete_confirm_label": "Delete"
+        "delete_confirm_label": "Delete",
+        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_off": "Off",
+        "is_expiring_send": "Send expiring ({{count}})",
+        "is_expiring_title_on": "Expiring (10s)",
+        "is_expiring_title_off": "Send normal"
     },
     "favorites": {
         "added": "Added to favorites",
