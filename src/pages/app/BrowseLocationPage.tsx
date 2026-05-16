@@ -22,6 +22,7 @@ export function BrowseLocationPage() {
 	const [locationResults, setLocationResults] = useState<GeocodeResult[]>([]);
 	const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 	const [mapPickerError, setMapPickerError] = useState<string | null>(null);
+	const [lastSearchedQuery, setLastSearchedQuery] = useState("");
 	const [selectedLocation, setSelectedLocation] =
 		useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
@@ -77,12 +78,13 @@ export function BrowseLocationPage() {
 		}
 	};
 
-	const performSearch = async (query: string) => {
-		if (!query) {
-			setLocationResults([]);
+	const performSearch = async (query: string, signal?: AbortSignal) => {
+		if (!query || query === lastSearchedQuery) {
+			setIsSearchingLocation(false);
 			return;
 		}
 
+		setLastSearchedQuery(query);
 		setIsSearchingLocation(true);
 
 		try {
@@ -90,6 +92,12 @@ export function BrowseLocationPage() {
 				`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
 					query,
 				)}`,
+				{
+					signal,
+					headers: {
+						"User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+					},
+				},
 			);
 
 			if (!response.ok) {
@@ -99,7 +107,10 @@ export function BrowseLocationPage() {
 			const parsed = z.array(geocodeResultSchema).parse(await response.json());
 			setLocationResults(parsed);
 			setLocationError(null);
-		} catch {
+		} catch (error) {
+			if (error instanceof Error && error.name === "AbortError") {
+				return;
+			}
 			setLocationError(t("browse_location.error_search_failed"));
 		} finally {
 			setIsSearchingLocation(false);
@@ -107,12 +118,24 @@ export function BrowseLocationPage() {
 	};
 
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			const query = locationQuery.trim();
-			void performSearch(query);
-		}, 300);
+		const query = locationQuery.trim();
 
-		return () => clearTimeout(timer);
+		if (query.length < 3) {
+			setLocationResults([]);
+			setIsSearchingLocation(false);
+			setLastSearchedQuery("");
+			return;
+		}
+
+		const controller = new AbortController();
+		const timer = setTimeout(() => {
+			void performSearch(query, controller.signal);
+		}, 800);
+
+		return () => {
+			clearTimeout(timer);
+			controller.abort();
+		};
 	}, [locationQuery]);
 
 	return (
