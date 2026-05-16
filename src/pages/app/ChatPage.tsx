@@ -312,6 +312,10 @@ export function ChatPage() {
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
 		null,
 	);
+	const [zoomScale, setZoomScale] = useState(1);
+	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+	const lastDistRef = useRef<number | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -2504,6 +2508,8 @@ export function ChatPage() {
 
 	const closeAlbumMediaViewer = useCallback(() => {
 		setAlbumViewerMediaIndex(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, []);
 
 	const openAlbumMediaViewer = useCallback(
@@ -2543,6 +2549,11 @@ export function ChatPage() {
 			(albumViewerMediaIndex + 1) % albumViewer.content.length,
 		);
 	}, [albumViewer, albumViewerMediaIndex]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
+	}, [albumViewerMediaIndex]);
 
 	useEffect(() => {
 		if (albumViewerMediaIndex === null) {
@@ -2805,11 +2816,18 @@ export function ChatPage() {
 		}
 
 		setFullScreenImageUrl(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
+	}, [fullScreenImageUrl]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, [fullScreenImageUrl]);
 
 	useEffect(() => {
@@ -2837,6 +2855,44 @@ export function ChatPage() {
 			window.removeEventListener("popstate", handlePopState);
 		};
 	}, [fullScreenImageUrl]);
+
+	const handlePhotoTouchStart = (e: React.TouchEvent) => {
+		if (e.touches.length === 1) {
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchMove = (e: React.TouchEvent) => {
+		if (e.touches.length === 1 && zoomScale > 1 && lastTouchRef.current) {
+			const dx = e.touches[0].clientX - lastTouchRef.current.x;
+			const dy = e.touches[0].clientY - lastTouchRef.current.y;
+			setZoomOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2 && lastDistRef.current) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			const delta = dist / lastDistRef.current;
+			setZoomScale((prev) => Math.min(Math.max(1, prev * delta), 4));
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchEnd = () => {
+		lastTouchRef.current = null;
+		lastDistRef.current = null;
+		if (zoomScale <= 1.05) {
+			setZoomScale(1);
+			setZoomOffset({ x: 0, y: 0 });
+		}
+	};
 
 	const renderInbox = (
 		<ChatInboxPanel
@@ -3107,6 +3163,9 @@ export function ChatPage() {
 							<div
 								className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
 								onClick={closeAlbumMediaViewer}
+								onTouchStart={handlePhotoTouchStart}
+								onTouchMove={handlePhotoTouchMove}
+								onTouchEnd={handlePhotoTouchEnd}
 							>
 								<button
 									type="button"
@@ -3114,7 +3173,7 @@ export function ChatPage() {
 										event.stopPropagation();
 										closeAlbumMediaViewer();
 									}}
-									className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+									className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
 									aria-label="Close album media viewer"
 								>
 									<X className="h-5 w-5" />
@@ -3141,19 +3200,31 @@ export function ChatPage() {
 										<ChevronRight className="h-5 w-5" />
 									</button>
 
-									{isVideo ? (
-										<video
-											src={mediaUrl}
-											controls
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									) : (
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									)}
+									<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+										{isVideo ? (
+											<video
+												src={mediaUrl}
+												controls
+												className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
+												style={{
+													transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+													transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+													touchAction: "none",
+												}}
+											/>
+										) : (
+											<img
+												src={mediaUrl}
+												alt="Album content"
+												className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
+												style={{
+													transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+													transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+													touchAction: "none",
+												}}
+											/>
+										)}
+									</div>
 
 									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 										{albumViewerMediaIndex + 1} / {albumViewer.content.length}
@@ -3168,6 +3239,9 @@ export function ChatPage() {
 				<div
 					className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
 					onClick={closeFullScreenImage}
+					onTouchStart={handlePhotoTouchStart}
+					onTouchMove={handlePhotoTouchMove}
+					onTouchEnd={handlePhotoTouchEnd}
 				>
 					<button
 						type="button"
@@ -3175,16 +3249,24 @@ export function ChatPage() {
 							event.stopPropagation();
 							closeFullScreenImage();
 						}}
-						className="absolute right-4 top-4 rounded-lg border border-white/40 p-2 text-white"
+						className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[51] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+						aria-label="Close image viewer"
 					>
-						<X className="h-4 w-4" />
+						<X className="h-5 w-5" />
 					</button>
-					<img
-						src={fullScreenImageUrl}
-						alt="Media"
-						className="max-h-full max-w-full rounded-xl object-contain"
-						onClick={(event) => event.stopPropagation()}
-					/>
+					<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+						<img
+							src={fullScreenImageUrl}
+							alt="Media"
+							className="max-h-full max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
+							style={{
+								transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+								transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+								touchAction: "none",
+							}}
+							onClick={(event) => event.stopPropagation()}
+						/>
+					</div>
 				</div>
 			) : null}
 		</section>
