@@ -7,6 +7,7 @@ import {
 	ImagePlus,
 	Infinity,
 	Loader2,
+	MapPin,
 	MessageCircleOff,
 	MessageCircleX,
 	PencilLine,
@@ -32,6 +33,8 @@ import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { DrawerMedia } from "./ChatDrawerPanel";
 import { ChatDrawerPanel } from "./ChatDrawerPanel";
+import { decodeGeohash } from "../../../utils/geohash";
+import { LeafletLocationPicker } from "../gridpage/components/LeafletLocationPicker";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
@@ -135,9 +138,10 @@ type ChatThreadPanelProps = {
 	isAddingDrawerMedia: boolean;
 	deletingDrawerMediaId: number | null;
 	onLoadDrawerMedia: () => void | Promise<void>;
-	onSendDrawerMedia: (mediaIds: number[]) => Promise<void>;
+	onSendDrawerMedia: (mediaIds: number[], isExpiring?: boolean) => Promise<void>;
 	onAddDrawerMedia: (file: File, takenOnGrindr: boolean) => Promise<void>;
 	onDeleteDrawerMedia: (mediaId: number) => Promise<void>;
+	onSendLocation: (lat: number, lon: number) => void | Promise<void>;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -153,8 +157,9 @@ const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
-	const { unitsPreset } = usePreferences();
+	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
+	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
 	const [isDeleteConversationConfirmOpen, setIsDeleteConversationConfirmOpen] =
@@ -262,6 +267,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onSendDrawerMedia,
 		onAddDrawerMedia,
 		onDeleteDrawerMedia,
+		onSendLocation,
 	} = props;
 
 	const closeBlockConfirm = () => {
@@ -276,6 +282,36 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			return;
 		}
 		setIsDeleteConversationConfirmOpen(false);
+	};
+
+	const handleLocationShareRequest = () => {
+		if (pendingLocationShare) {
+			setPendingLocationShare(null);
+			return;
+		}
+		if (!geohash) {
+			toast.error(t("chat.errors.no_location_set", { defaultValue: "No location set in settings" }));
+			return;
+		}
+		try {
+			const decoded = decodeGeohash(geohash);
+			const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+			const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+			setPendingLocationShare({ lat, lon });
+		} catch (error) {
+			console.error("Failed to decode geohash", error);
+			toast.error(t("chat.errors.invalid_location", { defaultValue: "Invalid location format" }));
+		}
+	};
+
+	const onFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		if (pendingLocationShare) {
+			void onSendLocation(pendingLocationShare.lat, pendingLocationShare.lon);
+			setPendingLocationShare(null);
+		} else {
+			handleSend(event);
+		}
 	};
 
 	const handleCopy = async (message: UiMessage) => {
@@ -787,7 +823,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					/>
 
 					<form
-						onSubmit={handleSend}
+						onSubmit={onFormSubmit}
 						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
 						style={
 							!isDesktop
@@ -827,6 +863,23 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							>
 								<SquareStack className="h-4 w-4" />
 							</button>
+							<button
+								type="button"
+								onClick={handleLocationShareRequest}
+								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+									pendingLocationShare
+										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+										: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+								aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
+								title={t("chat.share_location_label", { defaultValue: "Share Location" })}
+							>
+								{pendingLocationShare ? (
+									<X className="h-4 w-4" />
+								) : (
+									<MapPin className="h-4 w-4" />
+								)}
+							</button>
 							<input
 								type="file"
 								ref={attachmentInputRef}
@@ -835,6 +888,24 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								className="hidden"
 							/>
 						</div>
+
+						{pendingLocationShare ? (
+							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<div className="p-3">
+									<p className="text-xs font-medium text-[var(--text)]">
+										{t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
+									</p>
+								</div>
+								<div className="h-64 w-full border-t border-[var(--border)]">
+									<LeafletLocationPicker
+										selectedLocation={pendingLocationShare}
+										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
+										onError={(msg) => toast.error(msg)}
+										className="h-full w-full"
+									/>
+								</div>
+							</div>
+						) : null}
 
 						{pendingAttachmentFile ? (
 							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
@@ -982,11 +1053,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								rows={2}
 								maxLength={1000}
 								placeholder={t("chat.write_message")}
-								className="input-field min-h-[56px] resize-none"
+								disabled={!!pendingLocationShare}
+								className="input-field min-h-[56px] resize-none disabled:opacity-60"
 							/>
 							<button
 								type="submit"
-								disabled={isSending || draft.trim().length === 0}
+								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
 								className="btn-accent h-11 shrink-0 px-4 text-sm"
 							>
 								{isSending ? t("chat.sending") : t("chat.send")}
@@ -1176,7 +1248,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			</div>
 			<div className="flex-1" />
 			<form
-				onSubmit={handleSend}
+				onSubmit={onFormSubmit}
 				className="border-t border-[var(--border)] pt-3"
 			>
 				<div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1188,6 +1260,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					>
 							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
 					</button>
+					<button
+						type="button"
+						onClick={handleLocationShareRequest}
+						className={`rounded-xl border px-3 py-1.5 text-xs transition ${
+							pendingLocationShare
+								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+						}`}
+					>
+						{pendingLocationShare ? (
+							<X className="mr-1 inline h-3.5 w-3.5" />
+						) : (
+							<MapPin className="mr-1 inline h-3.5 w-3.5" />
+						)}
+						{t("chat.share_location_label", { defaultValue: "Share Location" })}
+					</button>
 					<input
 						type="file"
 						ref={attachmentInputRef}
@@ -1196,6 +1284,24 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						className="hidden"
 					/>
 				</div>
+
+				{pendingLocationShare ? (
+					<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+						<div className="p-3">
+							<p className="text-xs font-medium text-[var(--text)]">
+								{t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
+							</p>
+						</div>
+						<div className="h-64 w-full border-t border-[var(--border)]">
+							<LeafletLocationPicker
+								selectedLocation={pendingLocationShare}
+								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
+								onError={(msg) => toast.error(msg)}
+								className="h-full w-full"
+							/>
+						</div>
+					</div>
+				) : null}
 
 				{pendingAttachmentFile ? (
 					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
@@ -1267,11 +1373,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						rows={2}
 						maxLength={1000}
 						placeholder={t("chat.new_conversation.write_first_message")}
-						className="input-field min-h-[56px] resize-none"
+						disabled={!!pendingLocationShare}
+						className="input-field min-h-[56px] resize-none disabled:opacity-60"
 					/>
 					<button
 						type="submit"
-						disabled={isSending || draft.trim().length === 0}
+						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
 						className="btn-accent h-11 shrink-0 px-4 text-sm"
 					>
 						{isSending ? t("chat.sending") : t("chat.send")}

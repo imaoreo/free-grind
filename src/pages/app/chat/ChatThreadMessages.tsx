@@ -283,7 +283,7 @@ export function ChatThreadMessages({
 		<div
 			ref={threadScrollContainerRef}
                 onScroll={handleThreadScroll}
-										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[200px] pt-[140px]" : ""}`}
+										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
                         >
 						{messagePageKey ? (
 							<button
@@ -930,7 +930,7 @@ export function ChatThreadMessages({
                             });
                         })()}
 						</div>
-						<div ref={threadBottomRef} />
+						<div ref={threadBottomRef} className="h-24 shrink-0" />
 		</div>
 	);
 }

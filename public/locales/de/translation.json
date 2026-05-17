@@ -563,6 +563,8 @@
         "open_conversation_actions": "Konversationsaktionen öffnen",
         "share_album_label": "Album teilen",
         "drawer_label": "Drawer",
+        "share_location_label": "Standort teilen",
+        "share_location_confirm": "Diesen Standort teilen?",
         "share_album": "Album teilen",
         "expiration": {
             "title": "Zugriffsdauer",
@@ -659,6 +661,8 @@
             "load_message": "Laden der Nachricht fehlgeschlagen",
             "update_pin_state": "Fehler beim Aktualisieren des Pin-Status",
             "update_mute_state": "Fehler beim Aktualisieren des Stummschaltungs-Status",
+            "no_location_set": "Kein Standort in den Einstellungen festgelegt",
+            "invalid_location": "Ungültiges Standortformat",
             "missing_recipient": "Empfänger konnte nicht ermittelt werden",
             "send_failed": "Senden fehlgeschlagen",
             "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
@@ -697,7 +701,7 @@
         "title": "Drawer",
         "empty": "Dein Drawer ist leer.",
         "retry": "Erneut versuchen",
-        "send": "{{count}} senden",
+        "send": "Senden ({{count}})",
         "sending": "Senden...",
         "error_no_selection": "Bitte wähle mindestens ein Bild aus.",
         "error_send_failed": "Fehler beim Senden der Medien.",
@@ -710,7 +714,12 @@
         "invalid_file_type": "Bitte wähle ein Foto aus.",
         "delete_confirm_title": "Aus Drawer löschen?",
         "delete_confirm_message": "Bist du sicher, dass du dieses Medium aus deinem Drawer löschen möchtest?",
-        "delete_confirm_label": "Löschen"
+        "delete_confirm_label": "Löschen",
+        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_off": "Aus",
+        "is_expiring_send": "Selbstlöschend senden ({{count}})",
+        "is_expiring_title_on": "Selbstlöschend (10s)",
+        "is_expiring_title_off": "Normal senden"
     },
     "favorites": {
         "added": "Zu Favoriten hinzugefügt",
@@ -764,6 +773,7 @@
         "location_finder_error_estimate": "Runde {{round}} abgeschlossen. Geschätzter Fehler: ~{{error}}m",
         "location_finder_final_location": "Der Benutzer befindet sich etwa bei Lat:{{lat}}, Lon:{{lon}}. Geschätzter Fehler: ~{{error}} Meter vom endgültigen geschätzten Standort entfernt.",
         "location_finder_error_general": "Während der Triangulation ist ein Fehler aufgetreten",
+        "location_finder_location_copied": "Standort in die Zwischenablage kopiert",
         "locating": "Suche...",
         "locate": "Suchen",
         "about": "Über mich",

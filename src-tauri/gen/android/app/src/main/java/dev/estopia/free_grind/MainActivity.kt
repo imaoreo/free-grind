@@ -39,8 +39,11 @@ class MainActivity : TauriActivity() {
     fun isOnTapsScreen(): Boolean {
       if (!inForeground) return false
       val r = activeRoute ?: return false
-      // Matches "/interest?tab=taps" with any extra params.
-      return r.startsWith("/interest") && r.contains("tab=taps")
+      val path = r.substringBefore('?')
+      if (path != "/interest") return false
+      // Taps is now the default for /interest, so it's only NOT the taps screen
+      // if it explicitly says tab=views.
+      return !r.contains("tab=views")
     }
 
     fun isOnConversation(conversationId: String?): Boolean {

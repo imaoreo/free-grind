@@ -95,6 +95,8 @@ export function ChatPage() {
 		scrollHeight: number;
 	} | null>(null);
 	const selectedConversationUnreadCountRef = useRef(0);
+	const lastLoadedConversationIdRef = useRef<string | null>(null);
+	const lastMessageIdRef = useRef<string | null>(null);
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -312,6 +314,10 @@ export function ChatPage() {
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
 		null,
 	);
+	const [zoomScale, setZoomScale] = useState(1);
+	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+	const lastDistRef = useRef<number | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -765,9 +771,15 @@ export function ChatPage() {
 	}, [service]);
 
 	const loadInbox = useCallback(
-		async ({ page, replace }: { page: number; replace: boolean }) => {
+		async ({
+			page,
+			replace,
+			silent,
+		}: { page: number; replace: boolean; silent?: boolean }) => {
 			if (replace) {
-				setIsLoadingInbox(true);
+				if (!silent) {
+					setIsLoadingInbox(true);
+				}
 				setInboxError(null);
 			} else {
 				setIsLoadingMoreInbox(true);
@@ -856,9 +868,11 @@ export function ChatPage() {
 		async ({
 			conversationId,
 			older,
+			silent,
 		}: {
 			conversationId: string;
 			older: boolean;
+			silent?: boolean;
 		}) => {
 			if (older) {
 				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
@@ -875,7 +889,9 @@ export function ChatPage() {
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
 			} else {
-				setIsLoadingThread(true);
+				if (!silent) {
+					setIsLoadingThread(true);
+				}
 				setThreadError(null);
 				setThreadConversationId(conversationId);
 
@@ -1051,13 +1067,9 @@ export function ChatPage() {
 							map.set(message.messageId, message);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load: preserve already-surfaced local-only messages
-						// only for this conversation.
+						// Fresh load or poll: preserve already-surfaced messages for this conversation.
 						for (const message of previous) {
-							if (
-								message._localOnly &&
-								message.conversationId === conversationId
-							) {
+							if (message.conversationId === conversationId) {
 								map.set(message.messageId, message);
 							}
 						}
@@ -1066,22 +1078,6 @@ export function ChatPage() {
 					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
-
-				// For fresh thread loads, imperatively scroll to the bottom once React has
-				// committed the new messages.  Two RAFs ensure layout (images etc.) has
-				// settled before measuring scrollHeight.  Guard stale-closure with ref.
-				if (!older) {
-					const targetConvId = conversationId;
-					window.requestAnimationFrame(() => {
-						window.requestAnimationFrame(() => {
-							if (selectedConversationIdRef.current !== targetConvId) return;
-							const container = threadScrollContainerRef.current;
-							if (container) {
-								container.scrollTop = container.scrollHeight;
-							}
-						});
-					});
-				}
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
@@ -1202,21 +1198,21 @@ export function ChatPage() {
 		[service, syncConversation],
 	);
 
-	const scrollThreadToBottom = useCallback((attempts = 4) => {
+	const scrollThreadToBottom = useCallback((attempts = 10) => {
 		const container = threadScrollContainerRef.current;
 		if (container) {
 			container.scrollTop = container.scrollHeight;
-		} else {
-			threadBottomRef.current?.scrollIntoView({ block: "end" });
 		}
+		// Also try scrollIntoView as a fallback
+		threadBottomRef.current?.scrollIntoView({ block: "end" });
 
 		if (attempts <= 1) {
 			return;
 		}
 
-		window.requestAnimationFrame(() => {
+		window.setTimeout(() => {
 			scrollThreadToBottom(attempts - 1);
-		});
+		}, 50);
 	}, []);
 
 	const handleThreadScroll = useCallback(() => {
@@ -1281,11 +1277,12 @@ export function ChatPage() {
 			: baseIntervalMs;
 
 		const intervalId = window.setInterval(() => {
-			void loadInbox({ page: 1, replace: true });
+			void loadInbox({ page: 1, replace: true, silent: true });
 			if (selectedConversationId) {
 				void loadThread({
 					conversationId: selectedConversationId,
 					older: false,
+					silent: true,
 				});
 			}
 		}, intervalMs);
@@ -1301,6 +1298,7 @@ export function ChatPage() {
 			setThreadMessages([]);
 			setThreadError(null);
 			setReplyTargetMessageId(null);
+			lastLoadedConversationIdRef.current = null;
 			return;
 		}
 
@@ -1321,8 +1319,13 @@ export function ChatPage() {
 
 	useEffect(() => {
 		if (!threadMessages.length) {
+			lastMessageIdRef.current = null;
 			return;
 		}
+
+		const lastMessage = threadMessages[threadMessages.length - 1];
+		const isNewMessageArrival = lastMessageIdRef.current !== lastMessage.messageId;
+		lastMessageIdRef.current = lastMessage.messageId;
 
 		if (preserveThreadScrollRef.current) {
 			const container = threadScrollContainerRef.current;
@@ -1336,18 +1339,23 @@ export function ChatPage() {
 			return;
 		}
 
-		// Direct scrollTop is synchronous and does not emit scroll events, preventing
-		// the upward-load handler from misfiring during the initial jump.
-		scrollThreadToBottom();
-	}, [threadMessages.length, scrollThreadToBottom]);
+		const container = threadScrollContainerRef.current;
+		const isNewConversation =
+			lastLoadedConversationIdRef.current !== selectedConversationId;
 
-	useEffect(() => {
-		if (!selectedConversationId || isLoadingThread) {
-			return;
+		const isNearBottom = container
+			? container.scrollHeight - container.scrollTop - container.clientHeight < 250
+			: true;
+
+		const iSentLastMessage = userId != null && Number(lastMessage.senderId) === Number(userId);
+
+		// Always scroll on new conversation OR if a new message arrived at the end
+		if (isNewConversation || isNewMessageArrival) {
+			scrollThreadToBottom();
 		}
 
-		scrollThreadToBottom();
-	}, [selectedConversationId, isLoadingThread, scrollThreadToBottom]);
+		lastLoadedConversationIdRef.current = selectedConversationId;
+	}, [threadMessages, selectedConversationId, scrollThreadToBottom, userId]);
 
 	useEffect(() => {
 		indexConversations(conversations);
@@ -2000,6 +2008,48 @@ export function ChatPage() {
 		],
 	);
 
+	const sendLocationMessage = useCallback(
+		async (lat: number, lon: number) => {
+			if (!userId) {
+				return;
+			}
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Location",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: { lat, lon },
+				});
+
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+	);
+
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
@@ -2462,6 +2512,8 @@ export function ChatPage() {
 
 	const closeAlbumMediaViewer = useCallback(() => {
 		setAlbumViewerMediaIndex(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, []);
 
 	const openAlbumMediaViewer = useCallback(
@@ -2501,6 +2553,11 @@ export function ChatPage() {
 			(albumViewerMediaIndex + 1) % albumViewer.content.length,
 		);
 	}, [albumViewer, albumViewerMediaIndex]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
+	}, [albumViewerMediaIndex]);
 
 	useEffect(() => {
 		if (albumViewerMediaIndex === null) {
@@ -2592,7 +2649,7 @@ export function ChatPage() {
 	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
 
 	const sendDrawerMedia = useCallback(
-		async (mediaIds: number[]) => {
+		async (mediaIds: number[], isExpiring?: boolean) => {
 			if (!selectedConversation || !userId || mediaIds.length === 0) {
 				return;
 			}
@@ -2612,7 +2669,10 @@ export function ChatPage() {
 					const media = drawerMedia.find((m) => m.id === mediaId);
 					if (!media) continue;
 
-					const messageType = media.contentType.startsWith("video") ? "Video" : "Image";
+					const isVideo = media.contentType.startsWith("video");
+					const useExpiring = isExpiring && !isVideo;
+					const messageType = useExpiring ? "ExpiringImage" : isVideo ? "Video" : "Image";
+
 					const sentMessage = await service.sendMessage({
 						type: messageType,
 						target: {
@@ -2624,6 +2684,7 @@ export function ChatPage() {
 							width: null,
 							height: null,
 							url: media.url,
+							...(useExpiring ? { viewsRemaining: 1 } : {}),
 						},
 					});
 
@@ -2759,11 +2820,18 @@ export function ChatPage() {
 		}
 
 		setFullScreenImageUrl(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
+	}, [fullScreenImageUrl]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, [fullScreenImageUrl]);
 
 	useEffect(() => {
@@ -2791,6 +2859,44 @@ export function ChatPage() {
 			window.removeEventListener("popstate", handlePopState);
 		};
 	}, [fullScreenImageUrl]);
+
+	const handlePhotoTouchStart = (e: React.TouchEvent) => {
+		if (e.touches.length === 1) {
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchMove = (e: React.TouchEvent) => {
+		if (e.touches.length === 1 && zoomScale > 1 && lastTouchRef.current) {
+			const dx = e.touches[0].clientX - lastTouchRef.current.x;
+			const dy = e.touches[0].clientY - lastTouchRef.current.y;
+			setZoomOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2 && lastDistRef.current) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			const delta = dist / lastDistRef.current;
+			setZoomScale((prev) => Math.min(Math.max(1, prev * delta), 4));
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchEnd = () => {
+		lastTouchRef.current = null;
+		lastDistRef.current = null;
+		if (zoomScale <= 1.05) {
+			setZoomScale(1);
+			setZoomOffset({ x: 0, y: 0 });
+		}
+	};
 
 	const renderInbox = (
 		<ChatInboxPanel
@@ -2931,6 +3037,7 @@ export function ChatPage() {
 			onSendDrawerMedia={sendDrawerMedia}
 			onAddDrawerMedia={addDrawerMedia}
 			onDeleteDrawerMedia={deleteDrawerMedia}
+			onSendLocation={sendLocationMessage}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
@@ -3060,6 +3167,9 @@ export function ChatPage() {
 							<div
 								className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
 								onClick={closeAlbumMediaViewer}
+								onTouchStart={handlePhotoTouchStart}
+								onTouchMove={handlePhotoTouchMove}
+								onTouchEnd={handlePhotoTouchEnd}
 							>
 								<button
 									type="button"
@@ -3067,7 +3177,7 @@ export function ChatPage() {
 										event.stopPropagation();
 										closeAlbumMediaViewer();
 									}}
-									className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+									className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
 									aria-label="Close album media viewer"
 								>
 									<X className="h-5 w-5" />
@@ -3094,19 +3204,33 @@ export function ChatPage() {
 										<ChevronRight className="h-5 w-5" />
 									</button>
 
-									{isVideo ? (
-										<video
-											src={mediaUrl}
-											controls
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									) : (
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									)}
+									<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+										<div className="relative overflow-hidden rounded-xl">
+											{isVideo ? (
+												<video
+													src={mediaUrl}
+													controls
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											) : (
+												<img
+													src={mediaUrl}
+													alt="Album content"
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											)}
+										</div>
+									</div>
 
 									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 										{albumViewerMediaIndex + 1} / {albumViewer.content.length}
@@ -3121,6 +3245,9 @@ export function ChatPage() {
 				<div
 					className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
 					onClick={closeFullScreenImage}
+					onTouchStart={handlePhotoTouchStart}
+					onTouchMove={handlePhotoTouchMove}
+					onTouchEnd={handlePhotoTouchEnd}
 				>
 					<button
 						type="button"
@@ -3128,16 +3255,26 @@ export function ChatPage() {
 							event.stopPropagation();
 							closeFullScreenImage();
 						}}
-						className="absolute right-4 top-4 rounded-lg border border-white/40 p-2 text-white"
+						className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[51] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+						aria-label="Close image viewer"
 					>
-						<X className="h-4 w-4" />
+						<X className="h-5 w-5" />
 					</button>
-					<img
-						src={fullScreenImageUrl}
-						alt="Media"
-						className="max-h-full max-w-full rounded-xl object-contain"
-						onClick={(event) => event.stopPropagation()}
-					/>
+					<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+						<div className="relative overflow-hidden rounded-xl">
+							<img
+								src={fullScreenImageUrl}
+								alt="Media"
+								className="max-h-full max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+								style={{
+									transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+									transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+									touchAction: "none",
+								}}
+								onClick={(event) => event.stopPropagation()}
+							/>
+						</div>
+					</div>
 				</div>
 			) : null}
 		</section>
