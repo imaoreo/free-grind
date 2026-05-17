@@ -614,11 +614,19 @@ export function GridProfilePage() {
                 }
             }
 
+            const finalCoords = `${currentLat.toFixed(6)}, ${currentLon.toFixed(6)}`;
             toast.success(t("profile_details.location_finder_final_location", {
                 lat: currentLat.toFixed(6),
                 lon: currentLon.toFixed(6),
                 error: Math.round(offset * 111320)
             }));
+
+            try {
+                await navigator.clipboard.writeText(finalCoords);
+                toast.success(t("profile_details.location_finder_location_copied"));
+            } catch (err) {
+                appLog.error("Failed to copy location to clipboard", err);
+            }
         } catch (error) {
             toast.error(error instanceof Error ? error.message : t("profile_details.location_finder_error_general"));
         } finally {

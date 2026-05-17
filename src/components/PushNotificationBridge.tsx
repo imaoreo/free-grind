@@ -81,7 +81,7 @@ function getNotificationRoute(detail: NativePushNotificationDetail): string | nu
 	}
 
 	if (detail.action === "taps") {
-		return "/interest?tab=taps";
+		return "/interest";
 	}
 
 	return null;

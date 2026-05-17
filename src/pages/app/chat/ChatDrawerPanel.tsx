@@ -3,6 +3,7 @@ import {
 	Image as ImageIcon,
 	Loader2,
 	Plus,
+	Hourglass,
 	RefreshCw,
 	Send,
 	X,
@@ -28,7 +29,7 @@ interface ChatDrawerPanelProps {
 	media: DrawerMedia[];
 	onBack: () => void;
 	onLoadMedia: () => void;
-	onSendMedia: (mediaIds: number[]) => void | Promise<void>;
+	onSendMedia: (mediaIds: number[], isExpiring?: boolean) => void | Promise<void>;
 	isSending: boolean;
 	isAdding: boolean;
 	onAddMedia: (file: File, takenOnGrindr: boolean) => void | Promise<void>;
@@ -57,6 +58,7 @@ export function ChatDrawerPanel({
 	const [pendingTakenOnGrindr, setPendingTakenOnGrindr] = useState(false);
 	const [isAddChooserOpen, setIsAddChooserOpen] = useState(false);
 	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
+	const [isExpiring, setIsExpiring] = useState(false);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -85,7 +87,7 @@ export function ChatDrawerPanel({
 		}
 
 		try {
-			await onSendMedia(Array.from(selectedIds));
+			await onSendMedia(Array.from(selectedIds), isExpiring);
 			setSelectedIds(new Set());
 			onBack();
 		} catch (err) {
@@ -95,7 +97,7 @@ export function ChatDrawerPanel({
 					: t("chat_drawer.error_send_failed");
 			toast.error(message);
 		}
-	}, [selectedIds, onSendMedia, onBack, t]);
+	}, [selectedIds, onSendMedia, onBack, t, isExpiring]);
 
 	const hasSelection = selectedIds.size > 0;
 
@@ -408,25 +410,53 @@ export function ChatDrawerPanel({
 					>
 						{t("chat.actions.cancel")}
 					</button>
-					<button
-						type="button"
-						onClick={handleSendSelected}
-						disabled={isSending}
-						className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
-					>
-						{isSending ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
-						) : (
-							<Send className="h-4 w-4" />
-						)}
-						<span>
-							{isSending
-								? t("chat_drawer.sending")
-								: t("chat_drawer.send", {
-										count: selectedIds.size,
-									})}
-						</span>
-					</button>
+					<div className="flex flex-1 gap-2">
+						<button
+							type="button"
+							onClick={() => setIsExpiring((prev) => !prev)}
+							className={`inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border transition ${
+								isExpiring
+									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+									: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+							}`}
+							style={{ flexBasis: "16.6%" }}
+							title={
+								isExpiring
+									? t("chat_drawer.is_expiring_title_on")
+									: t("chat_drawer.is_expiring_title_off")
+							}
+						>
+							<Hourglass className="h-4 w-4" />
+							<span className="text-sm font-semibold">
+								{isExpiring
+									? t("chat_drawer.is_expiring_toggle_on")
+									: t("chat_drawer.is_expiring_toggle_off")}
+							</span>
+						</button>
+						<button
+							type="button"
+							onClick={handleSendSelected}
+							disabled={isSending}
+							className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						>
+							{isSending ? (
+								<Loader2 className="h-4 w-4 animate-spin" />
+							) : (
+								<Send className="h-4 w-4" />
+							)}
+							<span className="truncate">
+								{isSending
+									? t("chat_drawer.sending")
+									: isExpiring
+										? t("chat_drawer.is_expiring_send", {
+												count: selectedIds.size,
+											})
+										: t("chat_drawer.send", {
+												count: selectedIds.size,
+											})}
+							</span>
+						</button>
+					</div>
 				</div>
 			) : null}
 

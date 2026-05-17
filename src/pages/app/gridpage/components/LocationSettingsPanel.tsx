@@ -80,6 +80,11 @@ export function LocationSettingsPanel({
 							type="text"
 							value={locationQuery}
 							onChange={(event) => onLocationQueryChange(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter") {
+									event.currentTarget.blur();
+								}
+							}}
 							placeholder={t("browse_location.search_placeholder")}
 							className="input-field"
 						/>

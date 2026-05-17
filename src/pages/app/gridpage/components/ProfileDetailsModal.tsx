@@ -499,16 +499,18 @@ export function ProfileDetailsModal({
 					<ChevronRight className="h-5 w-5" />
 				</button>
 				<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-					<img
-						src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
-						alt={t("profile_details.photo_alt", { name: activeProfileName })}
-						className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain transition-transform duration-200 ease-out will-change-transform"
-						style={{
-							transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-							transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-							touchAction: "none",
-						}}
-					/>
+					<div className="relative overflow-hidden rounded-xl">
+						<img
+							src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
+							alt={t("profile_details.photo_alt", { name: activeProfileName })}
+							className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+							style={{
+								transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+								transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+								touchAction: "none",
+							}}
+						/>
+					</div>
 				</div>
 				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 					{(selectedPhotoIndex ?? 0) + 1} / {activeProfilePhotoHashes.length}
