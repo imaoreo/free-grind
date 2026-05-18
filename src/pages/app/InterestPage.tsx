@@ -48,11 +48,24 @@ export function InterestPage() {
 		return () => window.clearInterval(id);
 	}, []);
 
+	// Track the newest activity across both taps and views.
+	const maxInterestTimestamp = useMemo(() => {
+		let max = 0;
+		for (const list of [views, taps]) {
+			for (const item of list) {
+				if (item.timestamp && item.timestamp > max) {
+					max = item.timestamp;
+				}
+			}
+		}
+		return max;
+	}, [views, taps]);
+
 	// Mark Interest as "seen" whenever the user is on this page so the
 	// NavBar dot clears.
 	useEffect(() => {
-		markInterestSeen();
-	}, [activeTab, taps.length, views.length]);
+		markInterestSeen(Math.max(Date.now(), maxInterestTimestamp));
+	}, [activeTab, maxInterestTimestamp]);
 
 	useEffect(() => {
 		let cancelled = false;

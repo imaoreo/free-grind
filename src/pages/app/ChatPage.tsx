@@ -29,6 +29,7 @@ import { setConversationDirectory } from "../../services/conversationDirectory";
 import {
 	CHAT_REALTIME_EVENT,
 	CHAT_REALTIME_STATUS,
+	getChatRealtimeStatus,
 } from "../../components/ChatRealtimeBridge";
 import {
 	messageSchema,
@@ -65,10 +66,14 @@ import {
 } from "./chat/chatUtils";
 import { appLog } from "../../utils/logger";
 import {
+	clearUnreadCountForProfile,
+	getChatContactIndexForProfiles,
 	getLocalNicknamesForProfiles,
+	indexChatContactRecordsByProfileId,
 	setLocalNicknameForProfile,
 	upsertChatContactIndexFromInbox,
 } from "../../services/chatContactIndex";
+import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
 
 
@@ -97,6 +102,7 @@ export function ChatPage() {
 	const selectedConversationUnreadCountRef = useRef(0);
 	const lastLoadedConversationIdRef = useRef<string | null>(null);
 	const lastMessageIdRef = useRef<string | null>(null);
+	const conversationsWithPendingUnreadRef = useRef(new Set<string>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -184,6 +190,9 @@ export function ChatPage() {
 	const [localNicknamesByProfileId, setLocalNicknamesByProfileId] = useState<
 		Record<string, string>
 	>({});
+	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
+		Record<string, ChatContactIndexRecord>
+	>({});
 
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
@@ -217,6 +226,32 @@ export function ChatPage() {
 	const presenceResults = usePresenceCheckBatch(
 		conversationProfileIds.length > 0 ? conversationProfileIds : null,
 	);
+
+	const conversationProfileIdsJson = JSON.stringify(conversationProfileIds);
+
+	useEffect(() => {
+		if (conversationProfileIds.length === 0) {
+			setChatContactIndexByProfileId({});
+			return;
+		}
+
+		let cancelled = false;
+		void getChatContactIndexForProfiles(conversationProfileIds)
+			.then((records) => {
+				if (cancelled) {
+					return;
+				}
+				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
+			})
+			.catch((error) => {
+								appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [conversationProfileIdsJson]);
+
 	const reactionBurstTimeoutRef = useRef<number | null>(null);
 
 	const triggerReactionBurst = useCallback((messageId: string) => {
@@ -239,6 +274,10 @@ export function ChatPage() {
 			}
 			if (messageLongPressTimeoutRef.current != null) {
 				window.clearTimeout(messageLongPressTimeoutRef.current);
+			}
+			// Cleanup double tap timeouts
+			for (const id of Object.values(doubleTapTimeoutRef.current)) {
+				window.clearTimeout(id);
 			}
 		};
 	}, []);
@@ -341,7 +380,7 @@ export function ChatPage() {
 		string | null
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
-	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
+	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>(() => getChatRealtimeStatus());
 
 	const maxActivityTimestamp = useMemo(() => {
 		return conversations.reduce(
@@ -352,7 +391,7 @@ export function ChatPage() {
 
 	// Mark the inbox as "seen" whenever the user visits this page or new messages arrive.
 	useEffect(() => {
-		markInboxSeen();
+		markInboxSeen(Math.max(Date.now(), maxActivityTimestamp));
 	}, [location.pathname, maxActivityTimestamp]);
 
 	const targetProfileId = useMemo(() => {
@@ -470,7 +509,7 @@ export function ChatPage() {
 				setLocalNicknamesByProfileId(nicknames);
 			})
 			.catch((error) => {
-				appLog.warn("[chat] failed to hydrate local nicknames", error);
+								appLog.warn("[chat] failed to hydrate local nicknames", error);
 			});
 
 		return () => {
@@ -506,6 +545,9 @@ export function ChatPage() {
 
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
+		if (selectedConversationId) {
+			conversationsWithPendingUnreadRef.current.delete(selectedConversationId);
+		}
 	}, [selectedConversationId]);
 
 	useEffect(() => {
@@ -554,192 +596,6 @@ export function ChatPage() {
 		},
 		[selectedConversationId],
 	);
-
-	const mergeIncomingMessages = useCallback((messages: Message[]) => {
-		if (!messages.length) {
-			return;
-		}
-
-		// Persist incoming realtime messages so they survive deletions/blocks.
-		const byConv = new Map<string, Message[]>();
-		for (const m of messages) {
-			const list = byConv.get(m.conversationId) ?? [];
-			list.push(m);
-			byConv.set(m.conversationId, list);
-		}
-		for (const [cid, msgs] of byConv) {
-			void chatLog.appendMessages(cid, msgs);
-		}
-
-		setThreadMessages((previous) => {
-			const activeConversationId = selectedConversationIdRef.current;
-			const map = new Map<string, UiMessage>();
-			for (const message of previous) {
-				map.set(message.messageId, message);
-			}
-			for (const message of messages) {
-				if (
-					activeConversationId &&
-					message.conversationId !== activeConversationId
-				) {
-					continue;
-				}
-				map.set(message.messageId, message);
-			}
-
-			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-		});
-
-		const byConversation = new Map<string, Message>();
-		for (const message of messages) {
-			const previous = byConversation.get(message.conversationId);
-			if (
-				!previous ||
-				previous.timestamp < message.timestamp ||
-				(previous.timestamp === message.timestamp &&
-					previous.messageId < message.messageId)
-			) {
-				byConversation.set(message.conversationId, message);
-			}
-		}
-
-		setConversations((previous) =>
-			previous.map((conversation) => {
-				const latestMessage = byConversation.get(
-					conversation.data.conversationId,
-				);
-				if (!latestMessage) {
-					return conversation;
-				}
-
-				const text = getMessagePreviewLabel(latestMessage, t);
-
-				return {
-					...conversation,
-					data: {
-						...conversation.data,
-						lastActivityTimestamp: latestMessage.timestamp,
-						preview: {
-							conversationId: {
-								value: latestMessage.conversationId,
-							},
-							messageId: latestMessage.messageId,
-							senderId: latestMessage.senderId,
-							type: latestMessage.type,
-							chat1Type: latestMessage.chat1Type ?? "text",
-							text,
-							albumId: null,
-							imageHash: null,
-						},
-					},
-				};
-			}),
-		);
-	}, []);
-
-	const applyRealtimeEnvelope = useCallback(
-		(envelope: RealtimeEnvelope) => {
-			// chat.v1.conversation.delete — remove blocked/deleted conversations
-			if (
-				envelope.type === "chat.v1.conversation.delete" &&
-				envelope.payload &&
-				typeof envelope.payload === "object"
-			) {
-				const record = envelope.payload as Record<string, unknown>;
-				const ids = Array.isArray(record.conversationIds)
-					? (record.conversationIds as unknown[]).filter(
-							(id): id is string => typeof id === "string",
-						)
-					: [];
-				if (ids.length > 0) {
-					setConversations((previous) =>
-						previous.filter((c) => !ids.includes(c.data.conversationId)),
-					);
-				}
-				return;
-			}
-
-			if (
-				envelope.type === "chat.v1.read" &&
-				envelope.payload &&
-				typeof envelope.payload === "object"
-			) {
-				const record = envelope.payload as Record<string, unknown>;
-				const cid = record.conversationId as string | undefined;
-				const ts = Number(record.timestamp);
-				const senderId = Number(record.profileId);
-
-				if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
-					// If the other person read our messages
-					if (userId != null && senderId !== userId) {
-						if (cid === selectedConversationIdRef.current) {
-							setThreadLastReadTimestamp(ts);
-						}
-						void chatLog.appendMessages(cid, [], ts);
-					}
-				}
-				return;
-			}
-
-			const candidates: Message[] = [];
-
-			// Try envelope.payload directly as a Message (chat.v1.message_sent payload IS the message)
-			const directPayload = messageSchema.safeParse(envelope.payload);
-			if (directPayload.success) {
-				candidates.push(directPayload.data);
-			}
-
-			const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
-			for (const payload of payloads) {
-				if (!payload || typeof payload !== "object") {
-					continue;
-				}
-
-				const record = payload as Record<string, unknown>;
-				if (record.message) {
-					const parsed = messageSchema.safeParse(record.message);
-					if (parsed.success) {
-						candidates.push(parsed.data);
-					}
-				}
-
-				if (Array.isArray(record.messages)) {
-					for (const candidate of record.messages) {
-						const parsed = messageSchema.safeParse(candidate);
-						if (parsed.success) {
-							candidates.push(parsed.data);
-						}
-					}
-				}
-			}
-
-			// Deduplicate by messageId before merging
-			const seen = new Set<string>();
-			const unique = candidates.filter((m) => {
-				if (seen.has(m.messageId)) return false;
-				seen.add(m.messageId);
-				return true;
-			});
-
-			if (unique.length > 0) {
-				mergeIncomingMessages(unique);
-			}
-		},
-		[mergeIncomingMessages],
-	);
-
-	const handleRealtimeEvent = useCallback(
-		(envelope: RealtimeEnvelope) => {
-			appLog.debug("[chat-ws:event]", envelope);
-			applyRealtimeEnvelope(envelope);
-		},
-		[applyRealtimeEnvelope],
-	);
-
-	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
-		appLog.debug("[chat-ws:status]", status);
-		setRealtimeStatus(status);
-	}, []);
 
 	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
 		setIsLoadingAlbums(true);
@@ -809,20 +665,43 @@ export function ChatPage() {
 						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
 					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
-						appLog.warn("[chat-index] failed to persist inbox metadata", error);
+												appLog.warn("[chat-index] failed to persist inbox metadata", error);
 					});
 				}
 
 				setConversations((previous) => {
+					const entriesWithUnreadFixed = response.entries.map((entry) => {
+						const cid = entry.data.conversationId;
+
+						// If this is the active conversation, it's definitely read.
+						if (cid === selectedConversationIdRef.current) {
+							return {
+								...entry,
+								data: { ...entry.data, unreadCount: 0 },
+							};
+						}
+
+						if (conversationsWithPendingUnreadRef.current.has(cid)) {
+							conversationsWithPendingUnreadRef.current.delete(cid);
+							if (entry.data.unreadCount === 0) {
+								return {
+									...entry,
+									data: { ...entry.data, unreadCount: 1 },
+								};
+							}
+						}
+						return entry;
+					});
+
 					if (replace) {
-						return response.entries;
+						return entriesWithUnreadFixed;
 					}
 
 					const map = new Map<string, ConversationEntry>();
 					for (const entry of previous) {
 						map.set(entry.data.conversationId, entry);
 					}
-					for (const entry of response.entries) {
+					for (const entry of entriesWithUnreadFixed) {
 						map.set(entry.data.conversationId, entry);
 					}
 					return [...map.values()].sort((a, b) => {
@@ -937,14 +816,18 @@ export function ChatPage() {
 				});
 
 				// Persist API messages to the local log.
+				const normalizedLastRead = response.lastReadTimestamp
+					? (response.lastReadTimestamp < 100_000_000_000 ? response.lastReadTimestamp * 1000 : response.lastReadTimestamp)
+					: null;
+
 				void chatLog.appendMessages(
 					conversationId,
 					responseMessages,
-					older ? undefined : (response.lastReadTimestamp ?? null),
+					older ? undefined : normalizedLastRead,
 				);
 
 				if (!older) {
-					setThreadLastReadTimestamp(response.lastReadTimestamp ?? null);
+					setThreadLastReadTimestamp(normalizedLastRead);
 					const mediaIdImageMessages = responseMessages.filter((message) => {
 						const imageType = message.chat1Type?.toLowerCase();
 						const isImageLike =
@@ -991,10 +874,14 @@ export function ChatPage() {
 							if (hydratedMessages.length > 0) {
 								void chatLog.appendMessages(conversationId, hydratedMessages);
 
+								if (selectedConversationIdRef.current !== conversationId) return;
+
 								setThreadMessages((previous) => {
 									const map = new Map<string, UiMessage>();
 									for (const message of previous) {
-										map.set(message.messageId, message);
+										if (message.conversationId === conversationId) {
+											map.set(message.messageId, message);
+										}
 									}
 									for (const message of hydratedMessages) {
 										map.set(message.messageId, message);
@@ -1016,6 +903,8 @@ export function ChatPage() {
 						void service
 							.getSharedConversationImages(conversationId)
 							.then((sharedImages) => {
+								if (selectedConversationIdRef.current !== conversationId) return;
+
 								const sharedImageMap = new Map<number, string>();
 								for (const item of sharedImages) {
 									if (item.url) sharedImageMap.set(item.mediaId, item.url);
@@ -1043,8 +932,11 @@ export function ChatPage() {
 
 								setThreadMessages((previous) => {
 									const map = new Map<string, UiMessage>();
-									for (const message of previous)
-										map.set(message.messageId, message);
+									for (const message of previous) {
+										if (message.conversationId === conversationId) {
+											map.set(message.messageId, message);
+										}
+									}
 									for (const message of hydratedMessages)
 										map.set(message.messageId, message);
 									return [...map.values()].sort(
@@ -1119,20 +1011,26 @@ export function ChatPage() {
 							} as UiMessage);
 						}
 
-						if (!localOnly.length) return;
-						setThreadMessages((previous) => {
-							const map = new Map<string, UiMessage>();
-							for (const message of previous)
+				if (localOnly.length > 0) {
+					if (selectedConversationIdRef.current !== conversationId) return;
+
+					setThreadMessages((previous) => {
+						const map = new Map<string, UiMessage>();
+						for (const message of previous) {
+							if (message.conversationId === conversationId) {
 								map.set(message.messageId, message);
-							for (const message of localOnly) {
-								if (!map.has(message.messageId)) {
-									map.set(message.messageId, message);
-								}
 							}
-							return [...map.values()].sort(
-								(a, b) => a.timestamp - b.timestamp,
-							);
-						});
+						}
+						for (const message of localOnly) {
+							if (!map.has(message.messageId)) {
+								map.set(message.messageId, message);
+							}
+						}
+						return [...map.values()].sort(
+							(a, b) => a.timestamp - b.timestamp,
+						);
+					});
+				}
 					});
 				}
 
@@ -1175,10 +1073,25 @@ export function ChatPage() {
 						void service
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
-								syncConversation((conversation) => ({
-									...conversation,
-									data: { ...conversation.data, unreadCount: 0 },
-								}));
+								syncConversation((conversation) => {
+									const other = getOtherParticipant(conversation, userId);
+									if (other?.profileId) {
+										const pid = String(other.profileId);
+										void clearUnreadCountForProfile(pid).catch(() => {});
+										setChatContactIndexByProfileId((prev) => {
+											const existing = prev[pid];
+											if (!existing) return prev;
+											return {
+												...prev,
+												[pid]: { ...existing, unreadCount: 0 },
+											};
+										});
+									}
+									return {
+										...conversation,
+										data: { ...conversation.data, unreadCount: 0 },
+									};
+								});
 							})
 							.catch(() => {
 								// Best effort only.
@@ -1197,6 +1110,283 @@ export function ChatPage() {
 		},
 		[service, syncConversation],
 	);
+
+	const mergeIncomingMessages = useCallback((messages: Message[]) => {
+		if (!messages.length) {
+			return;
+		}
+
+		// Persist incoming realtime messages so they survive deletions/blocks.
+		const byConv = new Map<string, Message[]>();
+		for (const m of messages) {
+			const list = byConv.get(m.conversationId) ?? [];
+			list.push(m);
+			byConv.set(m.conversationId, list);
+		}
+		for (const [cid, msgs] of byConv) {
+			void chatLog.appendMessages(cid, msgs);
+		}
+
+		setThreadMessages((previous) => {
+			const activeConversationId = selectedConversationIdRef.current;
+			if (!activeConversationId) return [];
+
+			const map = new Map<string, UiMessage>();
+			// Only preserve messages that belong to the CURRENT active conversation
+			for (const message of previous) {
+				if (message.conversationId === activeConversationId) {
+					map.set(message.messageId, message);
+				}
+			}
+
+			for (const message of messages) {
+				if (message.conversationId === activeConversationId) {
+					map.set(message.messageId, message);
+				}
+			}
+
+			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+		});
+
+		const byConversation = new Map<string, Message>();
+		let hasUnknownConversation = false;
+		for (const message of messages) {
+			const previous = byConversation.get(message.conversationId);
+			if (
+				!previous ||
+				previous.timestamp < message.timestamp ||
+				(previous.timestamp === message.timestamp &&
+					previous.messageId < message.messageId)
+			) {
+				byConversation.set(message.conversationId, message);
+			}
+
+			if (!conversationsRef.current.some(c => c.data.conversationId === message.conversationId)) {
+				hasUnknownConversation = true;
+			}
+		}
+
+		if (hasUnknownConversation) {
+			void loadInbox({ page: 1, replace: true, silent: true });
+		}
+
+		// Update threadLastReadTimestamp if we receive a message from the other person
+		// in the active chat, because it implies they've read our previous messages.
+		const activeConversationId = selectedConversationIdRef.current;
+		if (activeConversationId) {
+			const otherPersonMessages = messages.filter(
+				(m) =>
+					m.conversationId === activeConversationId &&
+					userId != null &&
+					Number(m.senderId) !== Number(userId),
+			);
+			if (otherPersonMessages.length > 0) {
+				const maxTs = Math.max(...otherPersonMessages.map((m) => m.timestamp));
+				setThreadLastReadTimestamp((prev) => Math.max(prev ?? 0, maxTs));
+			}
+		}
+
+		// Update unread markers and local index for messages not in the active chat
+		for (const m of messages) {
+			if (
+				userId != null &&
+				Number(m.senderId) !== Number(userId) &&
+				m.conversationId !== activeConversationId
+			) {
+				conversationsWithPendingUnreadRef.current.add(m.conversationId);
+
+				const pid = String(m.senderId);
+				setChatContactIndexByProfileId((prev) => {
+					const existing = prev[pid];
+					return {
+						...prev,
+						[pid]: {
+							profileId: pid,
+							conversationId: m.conversationId,
+							lastMessageTimestamp: m.timestamp,
+							unreadCount: (existing?.unreadCount ?? 0) + 1,
+							hasChatted: true,
+							updatedAt: Date.now(),
+						},
+					};
+				});
+			}
+		}
+
+		setConversations((previous) => {
+			const updated = previous.map((conversation) => {
+				const latestMessage = byConversation.get(
+					conversation.data.conversationId,
+				);
+				if (!latestMessage) {
+					return conversation;
+				}
+
+				const text = getMessagePreviewLabel(latestMessage, t);
+				const isMine = userId != null && Number(latestMessage.senderId) === Number(userId);
+				const isActive = selectedConversationIdRef.current === conversation.data.conversationId;
+
+				if (isActive && !isMine) {
+					void service
+						.markRead(conversation.data.conversationId, latestMessage.messageId)
+						.catch(() => {});
+					const other = getOtherParticipant(conversation, userId);
+					if (other?.profileId) {
+						const pid = String(other.profileId);
+						void clearUnreadCountForProfile(pid).catch(() => {});
+						setChatContactIndexByProfileId((prev) => {
+							const existing = prev[pid];
+							if (!existing) return prev;
+							return {
+								...prev,
+								[pid]: { ...existing, unreadCount: 0 },
+							};
+						});
+					}
+				}
+
+				return {
+					...conversation,
+					data: {
+						...conversation.data,
+						lastActivityTimestamp: latestMessage.timestamp,
+						unreadCount: (isMine || isActive) ? conversation.data.unreadCount : (conversation.data.unreadCount + 1),
+						preview: {
+							conversationId: {
+								value: latestMessage.conversationId,
+							},
+							messageId: latestMessage.messageId,
+							senderId: latestMessage.senderId,
+							type: latestMessage.type,
+							chat1Type: latestMessage.chat1Type ?? "text",
+							text,
+							albumId: null,
+							imageHash: null,
+						},
+					},
+				};
+			});
+
+			// Re-sort so the conversation with the newest message moves to the top
+			return [...updated].sort((a, b) => {
+				if (a.data.pinned && !b.data.pinned) return -1;
+				if (b.data.pinned && !a.data.pinned) return 1;
+				return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
+			});
+		});
+	}, [loadInbox, userId, t]);
+
+	const applyRealtimeEnvelope = useCallback(
+		(envelope: RealtimeEnvelope) => {
+			// appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
+
+			// chat.v1.conversation.delete — remove blocked/deleted conversations
+			if (
+				envelope.type === "chat.v1.conversation.delete" &&
+				envelope.payload &&
+				typeof envelope.payload === "object"
+			) {
+				const record = envelope.payload as Record<string, unknown>;
+				const ids = Array.isArray(record.conversationIds)
+					? (record.conversationIds as unknown[]).filter(
+							(id): id is string => typeof id === "string",
+						)
+					: [];
+				if (ids.length > 0) {
+					setConversations((previous) =>
+						previous.filter((c) => !ids.includes(c.data.conversationId)),
+					);
+				}
+				return;
+			}
+
+			if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
+				// appLog.debug(`[ChatPage] read event detected type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
+				const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
+				for (const payload of payloads) {
+					if (!payload || typeof payload !== "object") continue;
+					const record = payload as Record<string, unknown>;
+					const cid = (record.conversationId || record.cid) as string | undefined;
+					const rawTs = Number(record.timestamp || record.ts);
+					const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
+					const senderId = Number(record.profileId || record.senderId);
+
+					// appLog.debug(`[ChatPage] parsed read event candidate cid=${cid} ts=${ts} senderId=${senderId} currentUserId=${userId} activeCid=${selectedConversationIdRef.current}`);
+
+					if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
+						// If the other person read our messages
+						if (userId != null && senderId !== userId) {
+							if (cid === selectedConversationIdRef.current) {
+								// appLog.debug("[ChatPage] updating threadLastReadTimestamp", { ts });
+								setThreadLastReadTimestamp(ts);
+							}
+							void chatLog.appendMessages(cid, [], ts);
+						}
+						return; // Found it
+					}
+				}
+				return;
+			}
+
+			const candidates: Message[] = [];
+
+			// Try envelope.payload directly as a Message (chat.v1.message_sent payload IS the message)
+			const directPayload = messageSchema.safeParse(envelope.payload);
+			if (directPayload.success) {
+				candidates.push(directPayload.data);
+			}
+
+			const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
+			for (const payload of payloads) {
+				if (!payload || typeof payload !== "object") {
+					continue;
+				}
+
+				const record = payload as Record<string, unknown>;
+				if (record.message) {
+					const parsed = messageSchema.safeParse(record.message);
+					if (parsed.success) {
+						candidates.push(parsed.data);
+					}
+				}
+
+				if (Array.isArray(record.messages)) {
+					for (const candidate of record.messages) {
+						const parsed = messageSchema.safeParse(candidate);
+						if (parsed.success) {
+							candidates.push(parsed.data);
+						}
+					}
+				}
+			}
+
+			// Deduplicate by messageId before merging
+			const seen = new Set<string>();
+			const unique = candidates.filter((m) => {
+				if (seen.has(m.messageId)) return false;
+				seen.add(m.messageId);
+				return true;
+			});
+
+			if (unique.length > 0) {
+				mergeIncomingMessages(unique);
+			}
+		},
+		[mergeIncomingMessages, userId],
+	);
+
+	const handleRealtimeEvent = useCallback(
+		(envelope: RealtimeEnvelope) => {
+			// appLog.debug("[ChatPage] RECEIVED EVENT FROM BRIDGE", { type: envelope.type });
+			applyRealtimeEnvelope(envelope);
+		},
+		[applyRealtimeEnvelope],
+	);
+
+	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
+		// appLog.debug("[chat-ws:status]", status);
+		setRealtimeStatus(status);
+	}, []);
 
 	const scrollThreadToBottom = useCallback((attempts = 10) => {
 		const container = threadScrollContainerRef.current;
@@ -1296,12 +1486,14 @@ export function ChatPage() {
 		if (!selectedConversationId) {
 			setThreadConversationId(null);
 			setThreadMessages([]);
+			setThreadLastReadTimestamp(null);
 			setThreadError(null);
 			setReplyTargetMessageId(null);
 			lastLoadedConversationIdRef.current = null;
 			return;
 		}
 
+		setThreadLastReadTimestamp(null);
 		void loadThread({ conversationId: selectedConversationId, older: false });
 	}, [loadThread, selectedConversationId]);
 
@@ -1838,7 +2030,7 @@ export function ChatPage() {
 						: t("chat.nicknames.cleared"),
 				);
 			} catch (error) {
-				appLog.warn("[chat] failed to save local nickname", error);
+								appLog.warn("[chat] failed to save local nickname", error);
 				const fallbackMessage = t("chat.nicknames.save_failed");
 				const message =
 					error instanceof Error
@@ -2913,6 +3105,7 @@ export function ChatPage() {
 			selectedConversationId={selectedConversationId}
 			userId={userId}
 			localNicknamesByProfileId={localNicknamesByProfileId}
+			chatContactIndexByProfileId={chatContactIndexByProfileId}
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}

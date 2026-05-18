@@ -27,25 +27,24 @@ type LocalNicknameRow = {
 let dbPromise: Promise<Database> | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 
-async function ensureLocalNicknameTable(db: Database): Promise<void> {
-	await db.execute(`
-		CREATE TABLE IF NOT EXISTS chat_local_profile_meta (
-			profile_id TEXT PRIMARY KEY,
-			local_nickname TEXT NOT NULL,
-			updated_at INTEGER NOT NULL
-		)
-	`);
-	await db.execute(
-		"CREATE INDEX IF NOT EXISTS idx_chat_local_profile_meta_updated_at ON chat_local_profile_meta(updated_at DESC)",
-	);
-}
-
 async function getDb(): Promise<Database> {
 	if (!dbPromise) {
 		dbPromise = (async () => {
 			const db = await Database.load(CHAT_INDEX_DB);
-			await db.execute(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
-			await db.execute(`
+			// Enable WAL mode and a reasonable busy timeout to improve concurrency.
+			// Note: We avoid manual BEGIN transactions because the Tauri plugin uses a connection pool
+			// without session affinity, which makes manual transactions unreliable.
+			try {
+				await db.execute("PRAGMA journal_mode = WAL");
+				await db.execute("PRAGMA synchronous = NORMAL");
+				await db.execute(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+			} catch (error) {
+				appLog.warn("[chat-index] failed to set pragmas", error);
+			}
+
+			// Ensure tables are created inside the serialized queue.
+			await executeWithLockRetry(db, "init-tables", async () => {
+				await db.execute(`
 				CREATE TABLE IF NOT EXISTS chat_contact_index (
 					profile_id TEXT PRIMARY KEY,
 					conversation_id TEXT,
@@ -55,13 +54,24 @@ async function getDb(): Promise<Database> {
 					updated_at INTEGER NOT NULL
 				)
 			`);
-			await db.execute(
-				"CREATE INDEX IF NOT EXISTS idx_chat_contact_index_updated_at ON chat_contact_index(updated_at DESC)",
-			);
-			await db.execute(
-				"CREATE INDEX IF NOT EXISTS idx_chat_contact_index_last_message ON chat_contact_index(last_message_timestamp DESC)",
-			);
-			await ensureLocalNicknameTable(db);
+				await db.execute(
+					"CREATE INDEX IF NOT EXISTS idx_chat_contact_index_updated_at ON chat_contact_index(updated_at DESC)",
+				);
+				await db.execute(
+					"CREATE INDEX IF NOT EXISTS idx_chat_contact_index_last_message ON chat_contact_index(last_message_timestamp DESC)",
+				);
+				await db.execute(`
+				CREATE TABLE IF NOT EXISTS chat_local_profile_meta (
+					profile_id TEXT PRIMARY KEY,
+					local_nickname TEXT NOT NULL,
+					updated_at INTEGER NOT NULL
+				)
+			`);
+				await db.execute(
+					"CREATE INDEX IF NOT EXISTS idx_chat_local_profile_meta_updated_at ON chat_local_profile_meta(updated_at DESC)",
+				);
+			});
+
 			return db;
 		})();
 	}
@@ -81,10 +91,10 @@ function isSqliteLockedError(error: unknown): boolean {
 		if (!message) {
 			return false;
 		}
-		return /database is locked|\(code:\s*517\)/i.test(message);
+		return /database is locked|\(code:\s*(5|517)\)/i.test(message);
 	}
 
-	return /database is locked|\(code:\s*517\)/i.test(error);
+	return /database is locked|\(code:\s*(5|517)\)/i.test(error);
 }
 
 async function executeWithLockRetry(
@@ -96,10 +106,8 @@ async function executeWithLockRetry(
 		const maxAttempts = SQLITE_LOCK_RETRY_DELAYS_MS.length + 1;
 
 		for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-			await db.execute("BEGIN");
 			try {
 				await run();
-				await db.execute("COMMIT");
 				if (attempt > 1) {
 					appLog.warn("[chat-index] recovered from sqlite lock", {
 						label,
@@ -108,7 +116,6 @@ async function executeWithLockRetry(
 				}
 				return;
 			} catch (error) {
-				await db.execute("ROLLBACK").catch(() => {});
 				const locked = isSqliteLockedError(error);
 				if (!locked || attempt >= maxAttempts) {
 					throw error;
@@ -184,7 +191,7 @@ export async function upsertChatContactIndexFromInbox(
 		}
 	});
 
-	appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
+	// appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
 }
 
 export async function upsertChatContactIndexFromGrid(
@@ -263,11 +270,13 @@ export async function getChatContactIndexForProfiles(
 		ids,
 	);
 
+	/*
 	appLog.debug("[chat-index] hydrate", {
 		queried: ids.length,
 		matched: rows.length,
 		hasChattedCount: rows.filter((r) => Boolean(r.has_chatted)).length,
 	});
+	*/
 
 	return rows.map((row) => ({
 		profileId: row.profile_id,
@@ -289,6 +298,76 @@ export function indexChatContactRecordsByProfileId(
 	return next;
 }
 
+/**
+ * Increment the unread count for a profile in the local index.
+ * Useful for realtime message arrivals when the full inbox isn't being reloaded.
+ */
+export async function incrementUnreadCountForProfile(
+	profileId: string,
+	conversationId: string,
+	lastMessageTimestamp: number,
+): Promise<void> {
+	const normalizedProfileId = profileId?.trim();
+	if (!normalizedProfileId || normalizedProfileId === "undefined" || normalizedProfileId === "null") {
+		return;
+	}
+
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "increment-unread", async () => {
+		await db.execute(
+			`
+			INSERT INTO chat_contact_index (
+				profile_id,
+				conversation_id,
+				last_message_timestamp,
+				unread_count,
+				has_chatted,
+				updated_at
+			) VALUES ($1, $2, $3, 1, 1, $4)
+			ON CONFLICT(profile_id) DO UPDATE SET
+				conversation_id = COALESCE(excluded.conversation_id, chat_contact_index.conversation_id),
+				last_message_timestamp = CASE
+					WHEN excluded.last_message_timestamp > COALESCE(chat_contact_index.last_message_timestamp, 0)
+					THEN excluded.last_message_timestamp
+					ELSE chat_contact_index.last_message_timestamp
+				END,
+				unread_count = chat_contact_index.unread_count + 1,
+				has_chatted = 1,
+				updated_at = excluded.updated_at
+			`,
+			[normalizedProfileId, conversationId, lastMessageTimestamp, now],
+		);
+	});
+}
+
+/**
+ * Reset the unread count to zero for a profile in the local index.
+ */
+export async function clearUnreadCountForProfile(
+	profileId: string,
+): Promise<void> {
+	const normalizedProfileId = profileId.trim();
+	if (!normalizedProfileId) {
+		return;
+	}
+
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "clear-unread", async () => {
+		await db.execute(
+			`
+			UPDATE chat_contact_index
+			SET unread_count = 0, updated_at = $2
+			WHERE profile_id = $1
+			`,
+			[normalizedProfileId, now],
+		);
+	});
+}
+
 export async function setLocalNicknameForProfile(
 	profileId: string,
 	nickname: string | null,
@@ -300,7 +379,6 @@ export async function setLocalNicknameForProfile(
 
 	const normalizedNickname = nickname?.trim() ?? "";
 	const db = await getDb();
-	await ensureLocalNicknameTable(db);
 
 	await executeWithLockRetry(db, "set-local-nickname", async () => {
 		if (!normalizedNickname) {
@@ -340,7 +418,6 @@ export async function getLocalNicknamesForProfiles(
 	}
 
 	const db = await getDb();
-	await ensureLocalNicknameTable(db);
 	const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
 	const rows = await db.select<LocalNicknameRow[]>(
 		`
