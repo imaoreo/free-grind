@@ -29,6 +29,7 @@ import { setConversationDirectory } from "../../services/conversationDirectory";
 import {
 	CHAT_REALTIME_EVENT,
 	CHAT_REALTIME_STATUS,
+	getChatRealtimeStatus,
 } from "../../components/ChatRealtimeBridge";
 import {
 	messageSchema,
@@ -65,10 +66,15 @@ import {
 } from "./chat/chatUtils";
 import { appLog } from "../../utils/logger";
 import {
+	clearUnreadCountForProfile,
+	getChatContactIndexForProfiles,
 	getLocalNicknamesForProfiles,
+	indexChatContactRecordsByProfileId,
 	setLocalNicknameForProfile,
 	upsertChatContactIndexFromInbox,
 } from "../../services/chatContactIndex";
+import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
+import { markInboxSeen } from "../../services/seenStore";
 
 
 export function ChatPage() {
@@ -94,6 +100,9 @@ export function ChatPage() {
 		scrollHeight: number;
 	} | null>(null);
 	const selectedConversationUnreadCountRef = useRef(0);
+	const lastLoadedConversationIdRef = useRef<string | null>(null);
+	const lastMessageIdRef = useRef<string | null>(null);
+	const conversationsWithPendingUnreadRef = useRef(new Set<string>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [nextPage, setNextPage] = useState<number | null>(null);
@@ -181,6 +190,9 @@ export function ChatPage() {
 	const [localNicknamesByProfileId, setLocalNicknamesByProfileId] = useState<
 		Record<string, string>
 	>({});
+	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
+		Record<string, ChatContactIndexRecord>
+	>({});
 
 	const [openMessageActionId, setOpenMessageActionId] = useState<string | null>(
 		null,
@@ -214,6 +226,32 @@ export function ChatPage() {
 	const presenceResults = usePresenceCheckBatch(
 		conversationProfileIds.length > 0 ? conversationProfileIds : null,
 	);
+
+	const conversationProfileIdsJson = JSON.stringify(conversationProfileIds);
+
+	useEffect(() => {
+		if (conversationProfileIds.length === 0) {
+			setChatContactIndexByProfileId({});
+			return;
+		}
+
+		let cancelled = false;
+		void getChatContactIndexForProfiles(conversationProfileIds)
+			.then((records) => {
+				if (cancelled) {
+					return;
+				}
+				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
+			})
+			.catch((error) => {
+								appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [conversationProfileIdsJson]);
+
 	const reactionBurstTimeoutRef = useRef<number | null>(null);
 
 	const triggerReactionBurst = useCallback((messageId: string) => {
@@ -236,6 +274,10 @@ export function ChatPage() {
 			}
 			if (messageLongPressTimeoutRef.current != null) {
 				window.clearTimeout(messageLongPressTimeoutRef.current);
+			}
+			// Cleanup double tap timeouts
+			for (const id of Object.values(doubleTapTimeoutRef.current)) {
+				window.clearTimeout(id);
 			}
 		};
 	}, []);
@@ -311,6 +353,10 @@ export function ChatPage() {
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
 		null,
 	);
+	const [zoomScale, setZoomScale] = useState(1);
+	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+	const lastDistRef = useRef<number | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -334,7 +380,19 @@ export function ChatPage() {
 		string | null
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
-	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("idle");
+	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>(() => getChatRealtimeStatus());
+
+	const maxActivityTimestamp = useMemo(() => {
+		return conversations.reduce(
+			(max, conv) => Math.max(max, conv.data.lastActivityTimestamp ?? 0),
+			0,
+		);
+	}, [conversations]);
+
+	// Mark the inbox as "seen" whenever the user visits this page or new messages arrive.
+	useEffect(() => {
+		markInboxSeen(Math.max(Date.now(), maxActivityTimestamp));
+	}, [location.pathname, maxActivityTimestamp]);
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");
@@ -451,7 +509,7 @@ export function ChatPage() {
 				setLocalNicknamesByProfileId(nicknames);
 			})
 			.catch((error) => {
-				appLog.warn("[chat] failed to hydrate local nicknames", error);
+								appLog.warn("[chat] failed to hydrate local nicknames", error);
 			});
 
 		return () => {
@@ -487,6 +545,9 @@ export function ChatPage() {
 
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
+		if (selectedConversationId) {
+			conversationsWithPendingUnreadRef.current.delete(selectedConversationId);
+		}
 	}, [selectedConversationId]);
 
 	useEffect(() => {
@@ -536,6 +597,520 @@ export function ChatPage() {
 		[selectedConversationId],
 	);
 
+	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
+		setIsLoadingAlbums(true);
+		try {
+			const items = await service.listAlbums();
+			const mapped = items
+				.map((item) => {
+					const albumId =
+						typeof item.albumId === "number"
+							? item.albumId
+							: Number(item.albumId);
+					return {
+						albumId,
+						albumName: item.albumName ?? null,
+						isShareable: item.isShareable !== false,
+					};
+				})
+				.filter((item) => Number.isFinite(item.albumId));
+			setShareableAlbums(mapped);
+			return mapped;
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : t("chat.errors.load_albums"),
+			);
+			return [];
+		} finally {
+			setIsLoadingAlbums(false);
+		}
+	}, [service]);
+
+	const loadInbox = useCallback(
+		async ({
+			page,
+			replace,
+			silent,
+		}: { page: number; replace: boolean; silent?: boolean }) => {
+			if (replace) {
+				if (!silent) {
+					setIsLoadingInbox(true);
+				}
+				setInboxError(null);
+			} else {
+				setIsLoadingMoreInbox(true);
+			}
+
+			try {
+				const response = await service.listConversations({
+					page,
+					filters: activeInboxFiltersRef.current,
+				});
+
+				if (userId != null) {
+					const inboxContactEntries = response.entries
+						.map((entry) => {
+							const otherParticipant = getOtherParticipant(entry, userId);
+							if (!otherParticipant?.profileId) {
+								return null;
+							}
+
+							return {
+								profileId: String(otherParticipant.profileId),
+								conversationId: entry.data.conversationId,
+								lastMessageTimestamp: entry.data.lastActivityTimestamp ?? null,
+								unreadCount: entry.data.unreadCount ?? 0,
+							};
+						})
+						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
+												appLog.warn("[chat-index] failed to persist inbox metadata", error);
+					});
+				}
+
+				setConversations((previous) => {
+					const entriesWithUnreadFixed = response.entries.map((entry) => {
+						const cid = entry.data.conversationId;
+
+						// If this is the active conversation, it's definitely read.
+						if (cid === selectedConversationIdRef.current) {
+							return {
+								...entry,
+								data: { ...entry.data, unreadCount: 0 },
+							};
+						}
+
+						if (conversationsWithPendingUnreadRef.current.has(cid)) {
+							conversationsWithPendingUnreadRef.current.delete(cid);
+							if (entry.data.unreadCount === 0) {
+								return {
+									...entry,
+									data: { ...entry.data, unreadCount: 1 },
+								};
+							}
+						}
+						return entry;
+					});
+
+					if (replace) {
+						return entriesWithUnreadFixed;
+					}
+
+					const map = new Map<string, ConversationEntry>();
+					for (const entry of previous) {
+						map.set(entry.data.conversationId, entry);
+					}
+					for (const entry of entriesWithUnreadFixed) {
+						map.set(entry.data.conversationId, entry);
+					}
+					return [...map.values()].sort((a, b) => {
+						if (a.data.pinned && !b.data.pinned) {
+							return -1;
+						}
+						if (b.data.pinned && !a.data.pinned) {
+							return 1;
+						}
+						return (
+							(b.data.lastActivityTimestamp ?? 0) -
+							(a.data.lastActivityTimestamp ?? 0)
+						);
+					});
+				});
+
+				setNextPage(response.nextPage ?? null);
+				if (replace && response.entries.length > 0) {
+					setSelectedDesktopConversationId((previous) =>
+						previous &&
+						response.entries.some(
+							(conversation) => conversation.data.conversationId === previous,
+						)
+							? previous
+							: targetProfileId
+								? null
+								: (response.entries[0]?.data.conversationId ?? null),
+					);
+				}
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : t("chat.errors.load_inbox");
+				setInboxError(message);
+			} finally {
+				setIsLoadingInbox(false);
+				setIsLoadingMoreInbox(false);
+			}
+		},
+		[service, targetProfileId, t, userId],
+	);
+
+	const loadThread = useCallback(
+		async ({
+			conversationId,
+			older,
+			silent,
+		}: {
+			conversationId: string;
+			older: boolean;
+			silent?: boolean;
+		}) => {
+			if (older) {
+				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
+					return;
+				}
+				const container = threadScrollContainerRef.current;
+				if (container) {
+					preserveThreadScrollRef.current = true;
+					olderLoadSnapshotRef.current = {
+						scrollTop: container.scrollTop,
+						scrollHeight: container.scrollHeight,
+					};
+				}
+				isLoadingOlderMessagesRef.current = true;
+				setIsLoadingOlderMessages(true);
+			} else {
+				if (!silent) {
+					setIsLoadingThread(true);
+				}
+				setThreadError(null);
+				setThreadConversationId(conversationId);
+
+				// Load initial state from local log if available.
+				void chatLog.readLog(conversationId).then((localData) => {
+					if (selectedConversationIdRef.current === conversationId) {
+						setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
+					}
+				});
+			}
+
+			try {
+				const response = await service.listMessages({
+					conversationId,
+					pageKey: older ? (messagePageKeyRef.current ?? undefined) : undefined,
+					includeProfile: true,
+				});
+
+				const localData = await chatLog.readLog(conversationId);
+				const localMessages = localData.messages;
+				const localMessageMap = new Map(
+					localMessages.map((message) => [message.messageId, message] as const),
+				);
+				const responseMessages = response.messages.map((message) => {
+					const localMessage = localMessageMap.get(message.messageId);
+					const localBody =
+						localMessage?.body && typeof localMessage.body === "object"
+							? (localMessage.body as Record<string, unknown>)
+							: null;
+					const currentBody =
+						message.body && typeof message.body === "object"
+							? (message.body as Record<string, unknown>)
+							: null;
+
+					if (!localBody?.url || currentBody?.url) {
+						return message;
+					}
+
+					return {
+						...message,
+						body: { ...(currentBody ?? {}), url: localBody.url },
+					};
+				});
+
+				// Persist API messages to the local log.
+				const normalizedLastRead = response.lastReadTimestamp
+					? (response.lastReadTimestamp < 100_000_000_000 ? response.lastReadTimestamp * 1000 : response.lastReadTimestamp)
+					: null;
+
+				void chatLog.appendMessages(
+					conversationId,
+					responseMessages,
+					older ? undefined : normalizedLastRead,
+				);
+
+				if (!older) {
+					setThreadLastReadTimestamp(normalizedLastRead);
+					const mediaIdImageMessages = responseMessages.filter((message) => {
+						const imageType = message.chat1Type?.toLowerCase();
+						const isImageLike =
+							message.type === "Image" ||
+							message.type === "ExpiringImage" ||
+							imageType === "image" ||
+							imageType === "expiring_image";
+
+						if (!isImageLike) return false;
+						if (getMessageImageUrl(message as UiMessage)) return false;
+						return getMessageMediaId(message as UiMessage) !== null;
+					});
+
+					if (mediaIdImageMessages.length > 0) {
+						const unresolvedMessageIds = new Set(
+							mediaIdImageMessages.map((message) => message.messageId),
+						);
+
+						void Promise.allSettled(
+							mediaIdImageMessages.map((message) =>
+								service.getMessage({
+									conversationId,
+									messageId: message.messageId,
+								}),
+							),
+						).then((results) => {
+							const hydratedMessages: UiMessage[] = [];
+
+							for (let index = 0; index < results.length; index += 1) {
+								const result = results[index];
+								if (result.status !== "fulfilled") {
+									continue;
+								}
+
+								const hydrated = result.value as UiMessage;
+								if (!getMessageImageUrl(hydrated)) {
+									continue;
+								}
+
+								hydratedMessages.push(hydrated);
+								unresolvedMessageIds.delete(hydrated.messageId);
+							}
+
+							if (hydratedMessages.length > 0) {
+								void chatLog.appendMessages(conversationId, hydratedMessages);
+
+								if (selectedConversationIdRef.current !== conversationId) return;
+
+								setThreadMessages((previous) => {
+									const map = new Map<string, UiMessage>();
+									for (const message of previous) {
+										if (message.conversationId === conversationId) {
+											map.set(message.messageId, message);
+										}
+									}
+									for (const message of hydratedMessages) {
+										map.set(message.messageId, message);
+									}
+									return [...map.values()].sort(
+										(a, b) => a.timestamp - b.timestamp,
+									);
+								});
+							}
+
+							const fallbackMessages = mediaIdImageMessages.filter((message) =>
+								unresolvedMessageIds.has(message.messageId),
+							);
+
+							if (fallbackMessages.length === 0) {
+								return;
+							}
+
+						void service
+							.getSharedConversationImages(conversationId)
+							.then((sharedImages) => {
+								if (selectedConversationIdRef.current !== conversationId) return;
+
+								const sharedImageMap = new Map<number, string>();
+								for (const item of sharedImages) {
+									if (item.url) sharedImageMap.set(item.mediaId, item.url);
+								}
+
+								const hydratedMessages: UiMessage[] = [];
+								for (const message of fallbackMessages) {
+									const mediaId = getMessageMediaId(message as UiMessage);
+									if (mediaId == null) continue;
+									const url = sharedImageMap.get(mediaId);
+									if (!url || !message.body || typeof message.body !== "object")
+										continue;
+									const hydrated = {
+										...message,
+										body: { ...(message.body as Record<string, unknown>), url },
+									} as UiMessage;
+									if (getMessageImageUrl(hydrated))
+										hydratedMessages.push(hydrated);
+								}
+
+								if (!hydratedMessages.length) return;
+
+								// Persist resolved image URLs so they survive CloudFront expiry.
+								void chatLog.appendMessages(conversationId, hydratedMessages);
+
+								setThreadMessages((previous) => {
+									const map = new Map<string, UiMessage>();
+									for (const message of previous) {
+										if (message.conversationId === conversationId) {
+											map.set(message.messageId, message);
+										}
+									}
+									for (const message of hydratedMessages)
+										map.set(message.messageId, message);
+									return [...map.values()].sort(
+										(a, b) => a.timestamp - b.timestamp,
+									);
+								});
+							})
+							.catch(() => {
+								// Best effort only.
+							});
+						});
+					}
+				}
+
+				setThreadMessages((previous) => {
+					const map = new Map<string, UiMessage>();
+					if (older) {
+						// Older messages prepended; keep existing (including any local-only).
+						for (const message of responseMessages)
+							map.set(message.messageId, message);
+						for (const message of previous) map.set(message.messageId, message);
+					} else {
+						// Fresh load or poll: preserve already-surfaced messages for this conversation.
+						for (const message of previous) {
+							if (message.conversationId === conversationId) {
+								map.set(message.messageId, message);
+							}
+						}
+						for (const message of responseMessages)
+							map.set(message.messageId, message);
+					}
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+
+				// Surface messages from the local log that don't appear in this API page
+				// (e.g. unsent by the sender, conversation disappeared after a block).
+				if (!older && response.messages.length > 0) {
+					const windowStart = response.messages[0].timestamp;
+					const windowEnd =
+						response.messages[response.messages.length - 1].timestamp;
+					const apiIds = new Set(response.messages.map((m) => m.messageId));
+					void chatLog.readLog(conversationId).then(async (localData) => {
+						const localMessages = localData.messages;
+						const localCandidates = localMessages.filter(
+							(m) =>
+								!apiIds.has(m.messageId) &&
+								m.timestamp >= windowStart &&
+								m.timestamp <= windowEnd,
+						);
+						if (!localCandidates.length) return;
+
+						// Verify candidates are truly absent from API before surfacing
+						// them as local-history messages.
+						const checks = await Promise.allSettled(
+							localCandidates.map((candidate) =>
+								service.getMessage({
+									conversationId,
+									messageId: candidate.messageId,
+								}),
+							),
+						);
+
+						const localOnly: UiMessage[] = [];
+						for (let i = 0; i < localCandidates.length; i += 1) {
+							const check = checks[i];
+							if (check.status === "fulfilled") {
+								continue;
+							}
+							localOnly.push({
+								...localCandidates[i],
+								_localOnly: true,
+							} as UiMessage);
+						}
+
+				if (localOnly.length > 0) {
+					if (selectedConversationIdRef.current !== conversationId) return;
+
+					setThreadMessages((previous) => {
+						const map = new Map<string, UiMessage>();
+						for (const message of previous) {
+							if (message.conversationId === conversationId) {
+								map.set(message.messageId, message);
+							}
+						}
+						for (const message of localOnly) {
+							if (!map.has(message.messageId)) {
+								map.set(message.messageId, message);
+							}
+						}
+						return [...map.values()].sort(
+							(a, b) => a.timestamp - b.timestamp,
+						);
+					});
+				}
+					});
+				}
+
+				const firstMessage = response.messages[0];
+				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
+				messagePageKeyRef.current = firstMessage
+					? firstMessage.messageId
+					: null;
+
+				if (!older) {
+					const newest = response.messages[response.messages.length - 1];
+					if (newest) {
+						const previewText = getMessagePreviewLabel(newest, t);
+
+						syncConversation((conversation) => ({
+							...conversation,
+							data: {
+								...conversation.data,
+								lastActivityTimestamp: newest.timestamp,
+								preview: {
+									conversationId: {
+										value: newest.conversationId,
+									},
+									messageId: newest.messageId,
+									senderId: newest.senderId,
+									type: newest.type,
+									chat1Type: newest.chat1Type ?? "text",
+									text: previewText,
+									albumId: null,
+									imageHash: null,
+								},
+							},
+						}));
+					}
+				}
+
+				if (!older && selectedConversationUnreadCountRef.current > 0) {
+					const newest = response.messages[response.messages.length - 1];
+					if (newest?.messageId) {
+						void service
+							.markRead(conversationId, newest.messageId)
+							.then(() => {
+								syncConversation((conversation) => {
+									const other = getOtherParticipant(conversation, userId);
+									if (other?.profileId) {
+										const pid = String(other.profileId);
+										void clearUnreadCountForProfile(pid).catch(() => {});
+										setChatContactIndexByProfileId((prev) => {
+											const existing = prev[pid];
+											if (!existing) return prev;
+											return {
+												...prev,
+												[pid]: { ...existing, unreadCount: 0 },
+											};
+										});
+									}
+									return {
+										...conversation,
+										data: { ...conversation.data, unreadCount: 0 },
+									};
+								});
+							})
+							.catch(() => {
+								// Best effort only.
+							});
+					}
+				}
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : t("chat.errors.load_messages");
+				setThreadError(message);
+			} finally {
+				setIsLoadingThread(false);
+				setIsLoadingOlderMessages(false);
+				isLoadingOlderMessagesRef.current = false;
+			}
+		},
+		[service, syncConversation],
+	);
+
 	const mergeIncomingMessages = useCallback((messages: Message[]) => {
 		if (!messages.length) {
 			return;
@@ -554,24 +1129,27 @@ export function ChatPage() {
 
 		setThreadMessages((previous) => {
 			const activeConversationId = selectedConversationIdRef.current;
+			if (!activeConversationId) return [];
+
 			const map = new Map<string, UiMessage>();
+			// Only preserve messages that belong to the CURRENT active conversation
 			for (const message of previous) {
-				map.set(message.messageId, message);
-			}
-			for (const message of messages) {
-				if (
-					activeConversationId &&
-					message.conversationId !== activeConversationId
-				) {
-					continue;
+				if (message.conversationId === activeConversationId) {
+					map.set(message.messageId, message);
 				}
-				map.set(message.messageId, message);
+			}
+
+			for (const message of messages) {
+				if (message.conversationId === activeConversationId) {
+					map.set(message.messageId, message);
+				}
 			}
 
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
 		const byConversation = new Map<string, Message>();
+		let hasUnknownConversation = false;
 		for (const message of messages) {
 			const previous = byConversation.get(message.conversationId);
 			if (
@@ -582,10 +1160,61 @@ export function ChatPage() {
 			) {
 				byConversation.set(message.conversationId, message);
 			}
+
+			if (!conversationsRef.current.some(c => c.data.conversationId === message.conversationId)) {
+				hasUnknownConversation = true;
+			}
 		}
 
-		setConversations((previous) =>
-			previous.map((conversation) => {
+		if (hasUnknownConversation) {
+			void loadInbox({ page: 1, replace: true, silent: true });
+		}
+
+		// Update threadLastReadTimestamp if we receive a message from the other person
+		// in the active chat, because it implies they've read our previous messages.
+		const activeConversationId = selectedConversationIdRef.current;
+		if (activeConversationId) {
+			const otherPersonMessages = messages.filter(
+				(m) =>
+					m.conversationId === activeConversationId &&
+					userId != null &&
+					Number(m.senderId) !== Number(userId),
+			);
+			if (otherPersonMessages.length > 0) {
+				const maxTs = Math.max(...otherPersonMessages.map((m) => m.timestamp));
+				setThreadLastReadTimestamp((prev) => Math.max(prev ?? 0, maxTs));
+			}
+		}
+
+		// Update unread markers and local index for messages not in the active chat
+		for (const m of messages) {
+			if (
+				userId != null &&
+				Number(m.senderId) !== Number(userId) &&
+				m.conversationId !== activeConversationId
+			) {
+				conversationsWithPendingUnreadRef.current.add(m.conversationId);
+
+				const pid = String(m.senderId);
+				setChatContactIndexByProfileId((prev) => {
+					const existing = prev[pid];
+					return {
+						...prev,
+						[pid]: {
+							profileId: pid,
+							conversationId: m.conversationId,
+							lastMessageTimestamp: m.timestamp,
+							unreadCount: (existing?.unreadCount ?? 0) + 1,
+							hasChatted: true,
+							updatedAt: Date.now(),
+						},
+					};
+				});
+			}
+		}
+
+		setConversations((previous) => {
+			const updated = previous.map((conversation) => {
 				const latestMessage = byConversation.get(
 					conversation.data.conversationId,
 				);
@@ -594,12 +1223,34 @@ export function ChatPage() {
 				}
 
 				const text = getMessagePreviewLabel(latestMessage, t);
+				const isMine = userId != null && Number(latestMessage.senderId) === Number(userId);
+				const isActive = selectedConversationIdRef.current === conversation.data.conversationId;
+
+				if (isActive && !isMine) {
+					void service
+						.markRead(conversation.data.conversationId, latestMessage.messageId)
+						.catch(() => {});
+					const other = getOtherParticipant(conversation, userId);
+					if (other?.profileId) {
+						const pid = String(other.profileId);
+						void clearUnreadCountForProfile(pid).catch(() => {});
+						setChatContactIndexByProfileId((prev) => {
+							const existing = prev[pid];
+							if (!existing) return prev;
+							return {
+								...prev,
+								[pid]: { ...existing, unreadCount: 0 },
+							};
+						});
+					}
+				}
 
 				return {
 					...conversation,
 					data: {
 						...conversation.data,
 						lastActivityTimestamp: latestMessage.timestamp,
+						unreadCount: (isMine || isActive) ? conversation.data.unreadCount : (conversation.data.unreadCount + 1),
 						preview: {
 							conversationId: {
 								value: latestMessage.conversationId,
@@ -614,12 +1265,21 @@ export function ChatPage() {
 						},
 					},
 				};
-			}),
-		);
-	}, []);
+			});
+
+			// Re-sort so the conversation with the newest message moves to the top
+			return [...updated].sort((a, b) => {
+				if (a.data.pinned && !b.data.pinned) return -1;
+				if (b.data.pinned && !a.data.pinned) return 1;
+				return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
+			});
+		});
+	}, [loadInbox, userId, t]);
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
+			// appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
+
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
 			if (
 				envelope.type === "chat.v1.conversation.delete" &&
@@ -640,23 +1300,29 @@ export function ChatPage() {
 				return;
 			}
 
-			if (
-				envelope.type === "chat.v1.read" &&
-				envelope.payload &&
-				typeof envelope.payload === "object"
-			) {
-				const record = envelope.payload as Record<string, unknown>;
-				const cid = record.conversationId as string | undefined;
-				const ts = Number(record.timestamp);
-				const senderId = Number(record.profileId);
+			if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
+				// appLog.debug(`[ChatPage] read event detected type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
+				const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
+				for (const payload of payloads) {
+					if (!payload || typeof payload !== "object") continue;
+					const record = payload as Record<string, unknown>;
+					const cid = (record.conversationId || record.cid) as string | undefined;
+					const rawTs = Number(record.timestamp || record.ts);
+					const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
+					const senderId = Number(record.profileId || record.senderId);
 
-				if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
-					// If the other person read our messages
-					if (userId != null && senderId !== userId) {
-						if (cid === selectedConversationIdRef.current) {
-							setThreadLastReadTimestamp(ts);
+					// appLog.debug(`[ChatPage] parsed read event candidate cid=${cid} ts=${ts} senderId=${senderId} currentUserId=${userId} activeCid=${selectedConversationIdRef.current}`);
+
+					if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
+						// If the other person read our messages
+						if (userId != null && senderId !== userId) {
+							if (cid === selectedConversationIdRef.current) {
+								// appLog.debug("[ChatPage] updating threadLastReadTimestamp", { ts });
+								setThreadLastReadTimestamp(ts);
+							}
+							void chatLog.appendMessages(cid, [], ts);
 						}
-						void chatLog.appendMessages(cid, [], ts);
+						return; // Found it
 					}
 				}
 				return;
@@ -706,504 +1372,37 @@ export function ChatPage() {
 				mergeIncomingMessages(unique);
 			}
 		},
-		[mergeIncomingMessages],
+		[mergeIncomingMessages, userId],
 	);
 
 	const handleRealtimeEvent = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			appLog.debug("[chat-ws:event]", envelope);
+			// appLog.debug("[ChatPage] RECEIVED EVENT FROM BRIDGE", { type: envelope.type });
 			applyRealtimeEnvelope(envelope);
 		},
 		[applyRealtimeEnvelope],
 	);
 
 	const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
-		appLog.debug("[chat-ws:status]", status);
+		// appLog.debug("[chat-ws:status]", status);
 		setRealtimeStatus(status);
 	}, []);
 
-	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
-		setIsLoadingAlbums(true);
-		try {
-			const items = await service.listAlbums();
-			const mapped = items
-				.map((item) => {
-					const albumId =
-						typeof item.albumId === "number"
-							? item.albumId
-							: Number(item.albumId);
-					return {
-						albumId,
-						albumName: item.albumName ?? null,
-						isShareable: item.isShareable !== false,
-					};
-				})
-				.filter((item) => Number.isFinite(item.albumId));
-			setShareableAlbums(mapped);
-			return mapped;
-		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : t("chat.errors.load_albums"),
-			);
-			return [];
-		} finally {
-			setIsLoadingAlbums(false);
-		}
-	}, [service]);
-
-	const loadInbox = useCallback(
-		async ({ page, replace }: { page: number; replace: boolean }) => {
-			if (replace) {
-				setIsLoadingInbox(true);
-				setInboxError(null);
-			} else {
-				setIsLoadingMoreInbox(true);
-			}
-
-			try {
-				const response = await service.listConversations({
-					page,
-					filters: activeInboxFiltersRef.current,
-				});
-
-				if (userId != null) {
-					const inboxContactEntries = response.entries
-						.map((entry) => {
-							const otherParticipant = getOtherParticipant(entry, userId);
-							if (!otherParticipant?.profileId) {
-								return null;
-							}
-
-							return {
-								profileId: String(otherParticipant.profileId),
-								conversationId: entry.data.conversationId,
-								lastMessageTimestamp: entry.data.lastActivityTimestamp ?? null,
-								unreadCount: entry.data.unreadCount ?? 0,
-							};
-						})
-						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
-
-					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
-						appLog.warn("[chat-index] failed to persist inbox metadata", error);
-					});
-				}
-
-				setConversations((previous) => {
-					if (replace) {
-						return response.entries;
-					}
-
-					const map = new Map<string, ConversationEntry>();
-					for (const entry of previous) {
-						map.set(entry.data.conversationId, entry);
-					}
-					for (const entry of response.entries) {
-						map.set(entry.data.conversationId, entry);
-					}
-					return [...map.values()].sort((a, b) => {
-						if (a.data.pinned && !b.data.pinned) {
-							return -1;
-						}
-						if (b.data.pinned && !a.data.pinned) {
-							return 1;
-						}
-						return (
-							(b.data.lastActivityTimestamp ?? 0) -
-							(a.data.lastActivityTimestamp ?? 0)
-						);
-					});
-				});
-
-				setNextPage(response.nextPage ?? null);
-				if (replace && response.entries.length > 0) {
-					setSelectedDesktopConversationId((previous) =>
-						previous &&
-						response.entries.some(
-							(conversation) => conversation.data.conversationId === previous,
-						)
-							? previous
-							: targetProfileId
-								? null
-								: (response.entries[0]?.data.conversationId ?? null),
-					);
-				}
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : t("chat.errors.load_inbox");
-				setInboxError(message);
-			} finally {
-				setIsLoadingInbox(false);
-				setIsLoadingMoreInbox(false);
-			}
-		},
-		[service, targetProfileId, t, userId],
-	);
-
-	const loadThread = useCallback(
-		async ({
-			conversationId,
-			older,
-		}: {
-			conversationId: string;
-			older: boolean;
-		}) => {
-			if (older) {
-				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
-					return;
-				}
-				const container = threadScrollContainerRef.current;
-				if (container) {
-					preserveThreadScrollRef.current = true;
-					olderLoadSnapshotRef.current = {
-						scrollTop: container.scrollTop,
-						scrollHeight: container.scrollHeight,
-					};
-				}
-				isLoadingOlderMessagesRef.current = true;
-				setIsLoadingOlderMessages(true);
-			} else {
-				setIsLoadingThread(true);
-				setThreadError(null);
-				setThreadConversationId(conversationId);
-
-				// Load initial state from local log if available.
-				void chatLog.readLog(conversationId).then((localData) => {
-					if (selectedConversationIdRef.current === conversationId) {
-						setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
-					}
-				});
-			}
-
-			try {
-				const response = await service.listMessages({
-					conversationId,
-					pageKey: older ? (messagePageKeyRef.current ?? undefined) : undefined,
-					includeProfile: true,
-				});
-
-				const localData = await chatLog.readLog(conversationId);
-				const localMessages = localData.messages;
-				const localMessageMap = new Map(
-					localMessages.map((message) => [message.messageId, message] as const),
-				);
-				const responseMessages = response.messages.map((message) => {
-					const localMessage = localMessageMap.get(message.messageId);
-					const localBody =
-						localMessage?.body && typeof localMessage.body === "object"
-							? (localMessage.body as Record<string, unknown>)
-							: null;
-					const currentBody =
-						message.body && typeof message.body === "object"
-							? (message.body as Record<string, unknown>)
-							: null;
-
-					if (!localBody?.url || currentBody?.url) {
-						return message;
-					}
-
-					return {
-						...message,
-						body: { ...(currentBody ?? {}), url: localBody.url },
-					};
-				});
-
-				// Persist API messages to the local log.
-				void chatLog.appendMessages(
-					conversationId,
-					responseMessages,
-					older ? undefined : (response.lastReadTimestamp ?? null),
-				);
-
-				if (!older) {
-					setThreadLastReadTimestamp(response.lastReadTimestamp ?? null);
-					const mediaIdImageMessages = responseMessages.filter((message) => {
-						const imageType = message.chat1Type?.toLowerCase();
-						const isImageLike =
-							message.type === "Image" ||
-							message.type === "ExpiringImage" ||
-							imageType === "image" ||
-							imageType === "expiring_image";
-
-						if (!isImageLike) return false;
-						if (getMessageImageUrl(message as UiMessage)) return false;
-						return getMessageMediaId(message as UiMessage) !== null;
-					});
-
-					if (mediaIdImageMessages.length > 0) {
-						const unresolvedMessageIds = new Set(
-							mediaIdImageMessages.map((message) => message.messageId),
-						);
-
-						void Promise.allSettled(
-							mediaIdImageMessages.map((message) =>
-								service.getMessage({
-									conversationId,
-									messageId: message.messageId,
-								}),
-							),
-						).then((results) => {
-							const hydratedMessages: UiMessage[] = [];
-
-							for (let index = 0; index < results.length; index += 1) {
-								const result = results[index];
-								if (result.status !== "fulfilled") {
-									continue;
-								}
-
-								const hydrated = result.value as UiMessage;
-								if (!getMessageImageUrl(hydrated)) {
-									continue;
-								}
-
-								hydratedMessages.push(hydrated);
-								unresolvedMessageIds.delete(hydrated.messageId);
-							}
-
-							if (hydratedMessages.length > 0) {
-								void chatLog.appendMessages(conversationId, hydratedMessages);
-
-								setThreadMessages((previous) => {
-									const map = new Map<string, UiMessage>();
-									for (const message of previous) {
-										map.set(message.messageId, message);
-									}
-									for (const message of hydratedMessages) {
-										map.set(message.messageId, message);
-									}
-									return [...map.values()].sort(
-										(a, b) => a.timestamp - b.timestamp,
-									);
-								});
-							}
-
-							const fallbackMessages = mediaIdImageMessages.filter((message) =>
-								unresolvedMessageIds.has(message.messageId),
-							);
-
-							if (fallbackMessages.length === 0) {
-								return;
-							}
-
-						void service
-							.getSharedConversationImages(conversationId)
-							.then((sharedImages) => {
-								const sharedImageMap = new Map<number, string>();
-								for (const item of sharedImages) {
-									if (item.url) sharedImageMap.set(item.mediaId, item.url);
-								}
-
-								const hydratedMessages: UiMessage[] = [];
-								for (const message of fallbackMessages) {
-									const mediaId = getMessageMediaId(message as UiMessage);
-									if (mediaId == null) continue;
-									const url = sharedImageMap.get(mediaId);
-									if (!url || !message.body || typeof message.body !== "object")
-										continue;
-									const hydrated = {
-										...message,
-										body: { ...(message.body as Record<string, unknown>), url },
-									} as UiMessage;
-									if (getMessageImageUrl(hydrated))
-										hydratedMessages.push(hydrated);
-								}
-
-								if (!hydratedMessages.length) return;
-
-								// Persist resolved image URLs so they survive CloudFront expiry.
-								void chatLog.appendMessages(conversationId, hydratedMessages);
-
-								setThreadMessages((previous) => {
-									const map = new Map<string, UiMessage>();
-									for (const message of previous)
-										map.set(message.messageId, message);
-									for (const message of hydratedMessages)
-										map.set(message.messageId, message);
-									return [...map.values()].sort(
-										(a, b) => a.timestamp - b.timestamp,
-									);
-								});
-							})
-							.catch(() => {
-								// Best effort only.
-							});
-						});
-					}
-				}
-
-				setThreadMessages((previous) => {
-					const map = new Map<string, UiMessage>();
-					if (older) {
-						// Older messages prepended; keep existing (including any local-only).
-						for (const message of responseMessages)
-							map.set(message.messageId, message);
-						for (const message of previous) map.set(message.messageId, message);
-					} else {
-						// Fresh load: preserve already-surfaced local-only messages
-						// only for this conversation.
-						for (const message of previous) {
-							if (
-								message._localOnly &&
-								message.conversationId === conversationId
-							) {
-								map.set(message.messageId, message);
-							}
-						}
-						for (const message of responseMessages)
-							map.set(message.messageId, message);
-					}
-					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-				});
-
-				// For fresh thread loads, imperatively scroll to the bottom once React has
-				// committed the new messages.  Two RAFs ensure layout (images etc.) has
-				// settled before measuring scrollHeight.  Guard stale-closure with ref.
-				if (!older) {
-					const targetConvId = conversationId;
-					window.requestAnimationFrame(() => {
-						window.requestAnimationFrame(() => {
-							if (selectedConversationIdRef.current !== targetConvId) return;
-							const container = threadScrollContainerRef.current;
-							if (container) {
-								container.scrollTop = container.scrollHeight;
-							}
-						});
-					});
-				}
-
-				// Surface messages from the local log that don't appear in this API page
-				// (e.g. unsent by the sender, conversation disappeared after a block).
-				if (!older && response.messages.length > 0) {
-					const windowStart = response.messages[0].timestamp;
-					const windowEnd =
-						response.messages[response.messages.length - 1].timestamp;
-					const apiIds = new Set(response.messages.map((m) => m.messageId));
-					void chatLog.readLog(conversationId).then(async (localData) => {
-						const localMessages = localData.messages;
-						const localCandidates = localMessages.filter(
-							(m) =>
-								!apiIds.has(m.messageId) &&
-								m.timestamp >= windowStart &&
-								m.timestamp <= windowEnd,
-						);
-						if (!localCandidates.length) return;
-
-						// Verify candidates are truly absent from API before surfacing
-						// them as local-history messages.
-						const checks = await Promise.allSettled(
-							localCandidates.map((candidate) =>
-								service.getMessage({
-									conversationId,
-									messageId: candidate.messageId,
-								}),
-							),
-						);
-
-						const localOnly: UiMessage[] = [];
-						for (let i = 0; i < localCandidates.length; i += 1) {
-							const check = checks[i];
-							if (check.status === "fulfilled") {
-								continue;
-							}
-							localOnly.push({
-								...localCandidates[i],
-								_localOnly: true,
-							} as UiMessage);
-						}
-
-						if (!localOnly.length) return;
-						setThreadMessages((previous) => {
-							const map = new Map<string, UiMessage>();
-							for (const message of previous)
-								map.set(message.messageId, message);
-							for (const message of localOnly) {
-								if (!map.has(message.messageId)) {
-									map.set(message.messageId, message);
-								}
-							}
-							return [...map.values()].sort(
-								(a, b) => a.timestamp - b.timestamp,
-							);
-						});
-					});
-				}
-
-				const firstMessage = response.messages[0];
-				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
-				messagePageKeyRef.current = firstMessage
-					? firstMessage.messageId
-					: null;
-
-				if (!older) {
-					const newest = response.messages[response.messages.length - 1];
-					if (newest) {
-						const previewText = getMessagePreviewLabel(newest, t);
-
-						syncConversation((conversation) => ({
-							...conversation,
-							data: {
-								...conversation.data,
-								lastActivityTimestamp: newest.timestamp,
-								preview: {
-									conversationId: {
-										value: newest.conversationId,
-									},
-									messageId: newest.messageId,
-									senderId: newest.senderId,
-									type: newest.type,
-									chat1Type: newest.chat1Type ?? "text",
-									text: previewText,
-									albumId: null,
-									imageHash: null,
-								},
-							},
-						}));
-					}
-				}
-
-				if (!older && selectedConversationUnreadCountRef.current > 0) {
-					const newest = response.messages[response.messages.length - 1];
-					if (newest?.messageId) {
-						void service
-							.markRead(conversationId, newest.messageId)
-							.then(() => {
-								syncConversation((conversation) => ({
-									...conversation,
-									data: { ...conversation.data, unreadCount: 0 },
-								}));
-							})
-							.catch(() => {
-								// Best effort only.
-							});
-					}
-				}
-			} catch (error) {
-				const message =
-					error instanceof Error ? error.message : t("chat.errors.load_messages");
-				setThreadError(message);
-			} finally {
-				setIsLoadingThread(false);
-				setIsLoadingOlderMessages(false);
-				isLoadingOlderMessagesRef.current = false;
-			}
-		},
-		[service, syncConversation],
-	);
-
-	const scrollThreadToBottom = useCallback((attempts = 4) => {
+	const scrollThreadToBottom = useCallback((attempts = 10) => {
 		const container = threadScrollContainerRef.current;
 		if (container) {
 			container.scrollTop = container.scrollHeight;
-		} else {
-			threadBottomRef.current?.scrollIntoView({ block: "end" });
 		}
+		// Also try scrollIntoView as a fallback
+		threadBottomRef.current?.scrollIntoView({ block: "end" });
 
 		if (attempts <= 1) {
 			return;
 		}
 
-		window.requestAnimationFrame(() => {
+		window.setTimeout(() => {
 			scrollThreadToBottom(attempts - 1);
-		});
+		}, 50);
 	}, []);
 
 	const handleThreadScroll = useCallback(() => {
@@ -1268,11 +1467,12 @@ export function ChatPage() {
 			: baseIntervalMs;
 
 		const intervalId = window.setInterval(() => {
-			void loadInbox({ page: 1, replace: true });
+			void loadInbox({ page: 1, replace: true, silent: true });
 			if (selectedConversationId) {
 				void loadThread({
 					conversationId: selectedConversationId,
 					older: false,
+					silent: true,
 				});
 			}
 		}, intervalMs);
@@ -1286,11 +1486,14 @@ export function ChatPage() {
 		if (!selectedConversationId) {
 			setThreadConversationId(null);
 			setThreadMessages([]);
+			setThreadLastReadTimestamp(null);
 			setThreadError(null);
 			setReplyTargetMessageId(null);
+			lastLoadedConversationIdRef.current = null;
 			return;
 		}
 
+		setThreadLastReadTimestamp(null);
 		void loadThread({ conversationId: selectedConversationId, older: false });
 	}, [loadThread, selectedConversationId]);
 
@@ -1308,8 +1511,13 @@ export function ChatPage() {
 
 	useEffect(() => {
 		if (!threadMessages.length) {
+			lastMessageIdRef.current = null;
 			return;
 		}
+
+		const lastMessage = threadMessages[threadMessages.length - 1];
+		const isNewMessageArrival = lastMessageIdRef.current !== lastMessage.messageId;
+		lastMessageIdRef.current = lastMessage.messageId;
 
 		if (preserveThreadScrollRef.current) {
 			const container = threadScrollContainerRef.current;
@@ -1323,18 +1531,23 @@ export function ChatPage() {
 			return;
 		}
 
-		// Direct scrollTop is synchronous and does not emit scroll events, preventing
-		// the upward-load handler from misfiring during the initial jump.
-		scrollThreadToBottom();
-	}, [threadMessages.length, scrollThreadToBottom]);
+		const container = threadScrollContainerRef.current;
+		const isNewConversation =
+			lastLoadedConversationIdRef.current !== selectedConversationId;
 
-	useEffect(() => {
-		if (!selectedConversationId || isLoadingThread) {
-			return;
+		const isNearBottom = container
+			? container.scrollHeight - container.scrollTop - container.clientHeight < 250
+			: true;
+
+		const iSentLastMessage = userId != null && Number(lastMessage.senderId) === Number(userId);
+
+		// Always scroll on new conversation OR if a new message arrived at the end
+		if (isNewConversation || isNewMessageArrival) {
+			scrollThreadToBottom();
 		}
 
-		scrollThreadToBottom();
-	}, [selectedConversationId, isLoadingThread, scrollThreadToBottom]);
+		lastLoadedConversationIdRef.current = selectedConversationId;
+	}, [threadMessages, selectedConversationId, scrollThreadToBottom, userId]);
 
 	useEffect(() => {
 		indexConversations(conversations);
@@ -1817,7 +2030,7 @@ export function ChatPage() {
 						: t("chat.nicknames.cleared"),
 				);
 			} catch (error) {
-				appLog.warn("[chat] failed to save local nickname", error);
+								appLog.warn("[chat] failed to save local nickname", error);
 				const fallbackMessage = t("chat.nicknames.save_failed");
 				const message =
 					error instanceof Error
@@ -1985,6 +2198,48 @@ export function ChatPage() {
 			t,
 			userId,
 		],
+	);
+
+	const sendLocationMessage = useCallback(
+		async (lat: number, lon: number) => {
+			if (!userId) {
+				return;
+			}
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Location",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: { lat, lon },
+				});
+
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
 	);
 
 	const sendMediaAttachment = useCallback(
@@ -2449,6 +2704,8 @@ export function ChatPage() {
 
 	const closeAlbumMediaViewer = useCallback(() => {
 		setAlbumViewerMediaIndex(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, []);
 
 	const openAlbumMediaViewer = useCallback(
@@ -2488,6 +2745,11 @@ export function ChatPage() {
 			(albumViewerMediaIndex + 1) % albumViewer.content.length,
 		);
 	}, [albumViewer, albumViewerMediaIndex]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
+	}, [albumViewerMediaIndex]);
 
 	useEffect(() => {
 		if (albumViewerMediaIndex === null) {
@@ -2579,7 +2841,7 @@ export function ChatPage() {
 	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
 
 	const sendDrawerMedia = useCallback(
-		async (mediaIds: number[]) => {
+		async (mediaIds: number[], isExpiring?: boolean) => {
 			if (!selectedConversation || !userId || mediaIds.length === 0) {
 				return;
 			}
@@ -2599,7 +2861,10 @@ export function ChatPage() {
 					const media = drawerMedia.find((m) => m.id === mediaId);
 					if (!media) continue;
 
-					const messageType = media.contentType.startsWith("video") ? "Video" : "Image";
+					const isVideo = media.contentType.startsWith("video");
+					const useExpiring = isExpiring && !isVideo;
+					const messageType = useExpiring ? "ExpiringImage" : isVideo ? "Video" : "Image";
+
 					const sentMessage = await service.sendMessage({
 						type: messageType,
 						target: {
@@ -2611,6 +2876,7 @@ export function ChatPage() {
 							width: null,
 							height: null,
 							url: media.url,
+							...(useExpiring ? { viewsRemaining: 1 } : {}),
 						},
 					});
 
@@ -2746,11 +3012,18 @@ export function ChatPage() {
 		}
 
 		setFullScreenImageUrl(null);
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
+	}, [fullScreenImageUrl]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
 	}, [fullScreenImageUrl]);
 
 	useEffect(() => {
@@ -2779,6 +3052,44 @@ export function ChatPage() {
 		};
 	}, [fullScreenImageUrl]);
 
+	const handlePhotoTouchStart = (e: React.TouchEvent) => {
+		if (e.touches.length === 1) {
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchMove = (e: React.TouchEvent) => {
+		if (e.touches.length === 1 && zoomScale > 1 && lastTouchRef.current) {
+			const dx = e.touches[0].clientX - lastTouchRef.current.x;
+			const dy = e.touches[0].clientY - lastTouchRef.current.y;
+			setZoomOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2 && lastDistRef.current) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			const delta = dist / lastDistRef.current;
+			setZoomScale((prev) => Math.min(Math.max(1, prev * delta), 4));
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchEnd = () => {
+		lastTouchRef.current = null;
+		lastDistRef.current = null;
+		if (zoomScale <= 1.05) {
+			setZoomScale(1);
+			setZoomOffset({ x: 0, y: 0 });
+		}
+	};
+
 	const renderInbox = (
 		<ChatInboxPanel
 			isDesktop={isDesktop}
@@ -2794,6 +3105,7 @@ export function ChatPage() {
 			selectedConversationId={selectedConversationId}
 			userId={userId}
 			localNicknamesByProfileId={localNicknamesByProfileId}
+			chatContactIndexByProfileId={chatContactIndexByProfileId}
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}
@@ -2918,6 +3230,7 @@ export function ChatPage() {
 			onSendDrawerMedia={sendDrawerMedia}
 			onAddDrawerMedia={addDrawerMedia}
 			onDeleteDrawerMedia={deleteDrawerMedia}
+			onSendLocation={sendLocationMessage}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
@@ -3047,6 +3360,9 @@ export function ChatPage() {
 							<div
 								className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
 								onClick={closeAlbumMediaViewer}
+								onTouchStart={handlePhotoTouchStart}
+								onTouchMove={handlePhotoTouchMove}
+								onTouchEnd={handlePhotoTouchEnd}
 							>
 								<button
 									type="button"
@@ -3054,7 +3370,7 @@ export function ChatPage() {
 										event.stopPropagation();
 										closeAlbumMediaViewer();
 									}}
-									className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+									className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
 									aria-label="Close album media viewer"
 								>
 									<X className="h-5 w-5" />
@@ -3081,19 +3397,33 @@ export function ChatPage() {
 										<ChevronRight className="h-5 w-5" />
 									</button>
 
-									{isVideo ? (
-										<video
-											src={mediaUrl}
-											controls
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									) : (
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-										/>
-									)}
+									<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+										<div className="relative overflow-hidden rounded-xl">
+											{isVideo ? (
+												<video
+													src={mediaUrl}
+													controls
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											) : (
+												<img
+													src={mediaUrl}
+													alt="Album content"
+													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+													style={{
+														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+														touchAction: "none",
+													}}
+												/>
+											)}
+										</div>
+									</div>
 
 									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 										{albumViewerMediaIndex + 1} / {albumViewer.content.length}
@@ -3108,6 +3438,9 @@ export function ChatPage() {
 				<div
 					className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
 					onClick={closeFullScreenImage}
+					onTouchStart={handlePhotoTouchStart}
+					onTouchMove={handlePhotoTouchMove}
+					onTouchEnd={handlePhotoTouchEnd}
 				>
 					<button
 						type="button"
@@ -3115,16 +3448,26 @@ export function ChatPage() {
 							event.stopPropagation();
 							closeFullScreenImage();
 						}}
-						className="absolute right-4 top-4 rounded-lg border border-white/40 p-2 text-white"
+						className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[51] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+						aria-label="Close image viewer"
 					>
-						<X className="h-4 w-4" />
+						<X className="h-5 w-5" />
 					</button>
-					<img
-						src={fullScreenImageUrl}
-						alt="Media"
-						className="max-h-full max-w-full rounded-xl object-contain"
-						onClick={(event) => event.stopPropagation()}
-					/>
+					<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+						<div className="relative overflow-hidden rounded-xl">
+							<img
+								src={fullScreenImageUrl}
+								alt="Media"
+								className="max-h-full max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+								style={{
+									transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+									transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+									touchAction: "none",
+								}}
+								onClick={(event) => event.stopPropagation()}
+							/>
+						</div>
+					</div>
 				</div>
 			) : null}
 		</section>

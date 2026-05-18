@@ -8,8 +8,10 @@
  */
 
 const INTEREST_KEY = "fg-interest-last-seen";
+const INBOX_KEY = "fg-inbox-last-seen";
 
 export const INTEREST_SEEN_EVENT = "fg:interest-seen";
+export const INBOX_SEEN_EVENT = "fg:inbox-seen";
 
 export function getInterestLastSeen(): number {
 	if (typeof window === "undefined") return 0;
@@ -22,4 +24,17 @@ export function markInterestSeen(at: number = Date.now()): void {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(INTEREST_KEY, String(at));
 	window.dispatchEvent(new CustomEvent(INTEREST_SEEN_EVENT, { detail: at }));
+}
+
+export function getInboxLastSeen(): number {
+	if (typeof window === "undefined") return 0;
+	const raw = window.localStorage.getItem(INBOX_KEY);
+	const value = raw ? Number(raw) : 0;
+	return Number.isFinite(value) ? value : 0;
+}
+
+export function markInboxSeen(at: number = Date.now()): void {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(INBOX_KEY, String(at));
+	window.dispatchEvent(new CustomEvent(INBOX_SEEN_EVENT, { detail: at }));
 }

@@ -4,6 +4,7 @@ import type {
 	RealtimeEnvelope,
 	RealtimeStatus,
 } from "../types/chat-realtime";
+import { appLog } from "../utils/logger";
 
 async function normalizeSocketData(data: unknown): Promise<{
 	kind: "text" | "blob" | "arraybuffer" | "unknown";
@@ -70,6 +71,7 @@ export class ChatRealtimeManager {
 		if (this.stopped) {
 			return;
 		}
+		// appLog.debug("[chat-ws] browser online event triggered");
 		if (!this.socket) {
 			void this.connect();
 		}
@@ -78,6 +80,7 @@ export class ChatRealtimeManager {
 		if (this.stopped) {
 			return;
 		}
+		// appLog.debug("[chat-ws] browser offline event triggered");
 		this.setStatus("disconnected");
 		if (this.socket) {
 			this.socket.close();
@@ -86,9 +89,9 @@ export class ChatRealtimeManager {
 
 	constructor(options: ChatRealtimeManagerOptions) {
 		this.options = {
-			heartbeatMs: 25_000,
-			maxSilenceMs: 180_000,
-			maxBackoffMs: 25_000,
+			heartbeatMs: 15_000,
+			maxSilenceMs: 300_000,
+			maxBackoffMs: 20_000,
 			...options,
 		};
 	}
@@ -187,6 +190,10 @@ export class ChatRealtimeManager {
 
 	private startHeartbeat() {
 		this.clearHeartbeat();
+		// We disable the manual JSON ping for now because the server is returning
+		// "Could not convert frame to command". The Rust backend (tungstenite)
+		// already handles low-level WebSocket pings automatically.
+		/*
 		const heartbeatMs = this.options.heartbeatMs ?? 25_000;
 		this.heartbeatTimer = window.setInterval(() => {
 			if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -196,14 +203,14 @@ export class ChatRealtimeManager {
 			try {
 				this.socket.send(
 					JSON.stringify({
-						type: "ws.ping",
-						timestamp: Date.now(),
+						type: "ping",
 					}),
 				);
 			} catch {
 				this.socket.close();
 			}
 		}, heartbeatMs);
+		*/
 	}
 
 	private startLivenessWatchdog() {
@@ -219,6 +226,7 @@ export class ChatRealtimeManager {
 					return;
 				}
 				if (Date.now() - this.lastActivityAt > silenceMs) {
+					appLog.warn("[chat-ws] liveness watchdog triggered; closing socket");
 					this.socket.close();
 				}
 			},
@@ -231,20 +239,34 @@ export class ChatRealtimeManager {
 			return;
 		}
 
-		if (typeof navigator !== "undefined" && !navigator.onLine) {
-			this.setStatus("disconnected");
-			this.scheduleReconnect();
-			return;
-		}
-
 		this.setStatus("connecting");
+		// appLog.debug("[chat-ws] connect() invoked");
 		this.clearReconnect();
 
+		if (this.socket) {
+			// appLog.debug("[chat-ws] cleaning up existing socket before new connect");
+			const oldSocket = this.socket;
+			this.socket = null;
+			try {
+				oldSocket.onopen = null;
+				oldSocket.onmessage = null;
+				oldSocket.onerror = null;
+				oldSocket.onclose = null;
+				oldSocket.close();
+			} catch (error) {
+				appLog.warn("[chat-ws] error closing old socket", error);
+			}
+		}
+
 		try {
+			// appLog.debug("[chat-ws] fetching token...");
 			const token = this.options.getToken
 				? await this.options.getToken()
 				: null;
+
 			const url = this.buildUrlWithToken(this.options.url, token);
+			// appLog.debug("[chat-ws] building socket instance...", { url_len: url.length });
+
 			const socket = this.options.buildSocket
 				? this.options.buildSocket(url)
 				: new WebSocket(url);
@@ -252,6 +274,11 @@ export class ChatRealtimeManager {
 			this.socket = socket;
 
 			socket.onopen = () => {
+				if (this.socket !== socket) {
+					// appLog.debug("[chat-ws] ignoring onopen for stale socket");
+					return;
+				}
+				// appLog.debug("[chat-ws] onopen triggered");
 				this.reconnectAttempts = 0;
 				this.markActivity();
 				this.setStatus("connected");
@@ -260,8 +287,12 @@ export class ChatRealtimeManager {
 			};
 
 			socket.onmessage = (event) => {
+				if (this.socket !== socket) return;
 				void (async () => {
 					const normalized = await normalizeSocketData(event.data);
+					// Ensure we don't process data if the socket was replaced or stopped during normalization
+					if (this.socket !== socket || this.stopped) return;
+
 					this.markActivity();
 					this.options.onRawMessage?.(normalized);
 
@@ -292,11 +323,18 @@ export class ChatRealtimeManager {
 				})();
 			};
 
-			socket.onerror = () => {
+			socket.onerror = (event) => {
+				if (this.socket !== socket) return;
+				appLog.warn("[chat-ws] onerror triggered", event);
 				this.setStatus("error");
 			};
 
-			socket.onclose = () => {
+			socket.onclose = (event) => {
+				if (this.socket !== socket) {
+					// appLog.debug("[chat-ws] ignoring onclose for stale socket");
+					return;
+				}
+				// appLog.debug("[chat-ws] onclose triggered", { code: event.code, reason: event.reason });
 				this.clearHeartbeat();
 				this.clearLiveness();
 				this.socket = null;
@@ -310,7 +348,8 @@ export class ChatRealtimeManager {
 				this.reconnectAttempts += 1;
 				this.scheduleReconnect();
 			};
-		} catch {
+		} catch (error) {
+			appLog.error("[chat-ws] connect failed during setup", error);
 			this.reconnectAttempts += 1;
 			this.scheduleReconnect();
 		}

@@ -18,6 +18,7 @@ import {
 import type { Message } from "../types/messages";
 
 const LOG_DIR = "chat-log";
+let writeQueue: Promise<void> = Promise.resolve();
 
 async function ensureDir(): Promise<void> {
 	const dirExists = await exists(LOG_DIR, { baseDir: BaseDirectory.AppData });
@@ -82,51 +83,53 @@ export async function appendMessages(
 	lastReadTimestamp?: number | null,
 ): Promise<void> {
 	if (!messages.length && lastReadTimestamp === undefined) return;
-	try {
-		await ensureDir();
-		const existingData = await readLog(conversationId);
-		const existing = existingData.messages;
-		const map = new Map<string, Message>();
-		for (const m of existing) {
-			map.set(m.messageId, m);
-		}
-		for (const m of messages) {
-			const prev = map.get(m.messageId);
-			if (prev) {
-				const prevBody = prev.body as
-					| Record<string, unknown>
-					| null
-					| undefined;
-				const newBody = m.body as Record<string, unknown> | null | undefined;
-				// Preserve a previously cached media URL if the new copy lost it.
-				if (prevBody?.url && !newBody?.url) {
-					map.set(m.messageId, {
-						...m,
-						body: { ...newBody, url: prevBody.url },
-					});
+
+	const run = async () => {
+		try {
+			await ensureDir();
+			const existingData = await readLog(conversationId);
+			const existing = existingData.messages;
+			const map = new Map<string, Message>();
+			for (const m of existing) {
+				map.set(m.messageId, m);
+			}
+			for (const m of messages) {
+				const prev = map.get(m.messageId);
+				if (prev) {
+					const prevBody = prev.body as Record<string, unknown> | null | undefined;
+					const newBody = m.body as Record<string, unknown> | null | undefined;
+					if (prevBody?.url && !newBody?.url) {
+						map.set(m.messageId, {
+							...m,
+							body: { ...newBody, url: prevBody.url },
+						});
+					} else {
+						map.set(m.messageId, m);
+					}
 				} else {
 					map.set(m.messageId, m);
 				}
-			} else {
-				map.set(m.messageId, m);
 			}
+			const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+
+			const newData: ChatLogData = {
+				messages: sorted,
+				lastReadTimestamp:
+					lastReadTimestamp !== undefined
+						? lastReadTimestamp
+						: (existingData.lastReadTimestamp ?? null),
+			};
+
+			await writeTextFile(logPath(conversationId), JSON.stringify(newData), {
+				baseDir: BaseDirectory.AppData,
+			});
+		} catch {
+			// Best effort only.
 		}
-		const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+	};
 
-		const newData: ChatLogData = {
-			messages: sorted,
-			lastReadTimestamp:
-				lastReadTimestamp !== undefined
-					? lastReadTimestamp
-					: (existingData.lastReadTimestamp ?? null),
-		};
-
-		await writeTextFile(logPath(conversationId), JSON.stringify(newData), {
-			baseDir: BaseDirectory.AppData,
-		});
-	} catch {
-		// Best effort only — never block the UI.
-	}
+	writeQueue = writeQueue.then(run, run);
+	return writeQueue;
 }
 
 /**

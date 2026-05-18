@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
+import React, { type UIEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	createBackdropCloseHandler,
@@ -276,6 +276,11 @@ export function ProfileDetailsModal({
 	const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(
 		null,
 	);
+	const [zoomScale, setZoomScale] = useState(1);
+	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
+	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+	const lastDistRef = useRef<number | null>(null);
+
 	const [mobileCarouselPhotoIndex, setMobileCarouselPhotoIndex] = useState(0);
 	const [isDesktopLike, setIsDesktopLike] = useState(() => {
 		if (typeof window === "undefined") {
@@ -293,8 +298,15 @@ export function ProfileDetailsModal({
 	useEffect(() => {
 		if (!isOpen) {
 			setSelectedPhotoIndex(null);
+			setZoomScale(1);
+			setZoomOffset({ x: 0, y: 0 });
 		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		setZoomScale(1);
+		setZoomOffset({ x: 0, y: 0 });
+	}, [selectedPhotoIndex]);
 
 	useEffect(() => {
 		setMobileCarouselPhotoIndex(0);
@@ -320,6 +332,44 @@ export function ProfileDetailsModal({
 		const nextIndex = Math.round(scrollLeft / clientWidth);
 		if (nextIndex !== mobileCarouselPhotoIndex) {
 			setMobileCarouselPhotoIndex(nextIndex);
+		}
+	};
+
+	const handlePhotoTouchStart = (e: React.TouchEvent) => {
+		if (e.touches.length === 1) {
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchMove = (e: React.TouchEvent) => {
+		if (e.touches.length === 1 && zoomScale > 1 && lastTouchRef.current) {
+			const dx = e.touches[0].clientX - lastTouchRef.current.x;
+			const dy = e.touches[0].clientY - lastTouchRef.current.y;
+			setZoomOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+		} else if (e.touches.length === 2 && lastDistRef.current) {
+			const dist = Math.hypot(
+				e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY,
+			);
+			const delta = dist / lastDistRef.current;
+			setZoomScale((prev) => Math.min(Math.max(1, prev * delta), 4));
+			lastDistRef.current = dist;
+		}
+	};
+
+	const handlePhotoTouchEnd = () => {
+		lastTouchRef.current = null;
+		lastDistRef.current = null;
+		if (zoomScale <= 1.05) {
+			setZoomScale(1);
+			setZoomOffset({ x: 0, y: 0 });
 		}
 	};
 
@@ -419,7 +469,7 @@ export function ProfileDetailsModal({
 					event.stopPropagation();
 					closePhotoViewer();
 				}}
-				className="absolute right-3 top-3 z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+				className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
 				aria-label={t("profile_details.close_photo_viewer")}
 			>
 				<X className="h-5 w-5" />
@@ -428,6 +478,9 @@ export function ProfileDetailsModal({
 			<div
 				className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
 				onClick={(event) => event.stopPropagation()}
+				onTouchStart={handlePhotoTouchStart}
+				onTouchMove={handlePhotoTouchMove}
+				onTouchEnd={handlePhotoTouchEnd}
 			>
 				<button
 					type="button"
@@ -445,11 +498,20 @@ export function ProfileDetailsModal({
 				>
 					<ChevronRight className="h-5 w-5" />
 				</button>
-				<img
-					src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
-					alt={t("profile_details.photo_alt", { name: activeProfileName })}
-					className="max-h-[82vh] w-auto max-w-full rounded-xl object-contain"
-				/>
+				<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
+					<div className="relative overflow-hidden rounded-xl">
+						<img
+							src={getProfileImageUrl(selectedPhotoHash, "1024x1024")}
+							alt={t("profile_details.photo_alt", { name: activeProfileName })}
+							className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
+							style={{
+								transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+								transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
+								touchAction: "none",
+							}}
+						/>
+					</div>
+				</div>
 				<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
 					{(selectedPhotoIndex ?? 0) + 1} / {activeProfilePhotoHashes.length}
 				</p>

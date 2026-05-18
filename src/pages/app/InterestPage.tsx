@@ -31,7 +31,7 @@ export function InterestPage() {
 	const location = useLocation();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const activeTab: InterestTab =
-		searchParams.get("tab") === "taps" ? "taps" : "views";
+		searchParams.get("tab") === "views" ? "views" : "taps";
 	const [views, setViews] = useState<InterestItem[]>([]);
 	const [taps, setTaps] = useState<InterestItem[]>([]);
 	const [viewedCount, setViewedCount] = useState<number | null>(null);
@@ -48,11 +48,24 @@ export function InterestPage() {
 		return () => window.clearInterval(id);
 	}, []);
 
+	// Track the newest activity across both taps and views.
+	const maxInterestTimestamp = useMemo(() => {
+		let max = 0;
+		for (const list of [views, taps]) {
+			for (const item of list) {
+				if (item.timestamp && item.timestamp > max) {
+					max = item.timestamp;
+				}
+			}
+		}
+		return max;
+	}, [views, taps]);
+
 	// Mark Interest as "seen" whenever the user is on this page so the
 	// NavBar dot clears.
 	useEffect(() => {
-		markInterestSeen();
-	}, [activeTab, taps.length, views.length]);
+		markInterestSeen(Math.max(Date.now(), maxInterestTimestamp));
+	}, [activeTab, maxInterestTimestamp]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -167,7 +180,7 @@ export function InterestPage() {
 	const handleSetActiveTab = useCallback(
 		(nextTab: InterestTab) => {
 			const nextParams = new URLSearchParams(searchParams);
-			if (nextTab === "views") {
+			if (nextTab === "taps") {
 				nextParams.delete("tab");
 			} else {
 				nextParams.set("tab", nextTab);

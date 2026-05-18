@@ -11,12 +11,9 @@ use api::websocket::WsState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Install the ring crypto provider for rustls (required on Windows where
-    // tokio-tungstenite uses rustls for WebSocket TLS).
-    #[cfg(target_os = "windows")]
-    {
-        let _ = rustls::crypto::ring::default_provider().install_default();
-    }
+    // Install the ring crypto provider for rustls (required for
+    // tokio-tungstenite when using rustls TLS backend).
+    let _ = rustls::crypto::ring::default_provider().install_default();
 
     // Keyring initialization should not block app startup.
     // Some environments (including certain Intel macOS setups) can fail keychain init.

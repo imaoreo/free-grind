@@ -29,15 +29,14 @@ export function BrowseCardTile({
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
-	const { unitsPreset } = usePreferences();
+	const { unitsPreset, showDebugInfo } = usePreferences();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
 	const usesFreegrind = usePresenceCheck(card.profileId);
-	const unreadCount = Math.max(
-		chatContactStatus?.unreadCount ?? 0,
-		card.unreadCount ?? 0,
-	);
+	const databaseUnread = chatContactStatus?.unreadCount ?? 0;
+	const apiUnread = card.unreadCount ?? 0;
+	const unreadCount = Math.max(databaseUnread, apiUnread);
 	const hasChatted = Boolean(chatContactStatus?.hasChatted) || unreadCount > 0;
 
 	return (
@@ -97,8 +96,13 @@ export function BrowseCardTile({
 						) : null}
 
 						{unreadCount > 0 ? (
-							<span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold text-[var(--accent-contrast)] shadow-lg ring-1 ring-black/20">
-								{unreadCount}
+							<span className="flex h-5 min-w-5 flex-col items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold text-[var(--accent-contrast)] shadow-lg ring-1 ring-black/20">
+								<span>{unreadCount}</span>
+								{showDebugInfo && (
+									<span className="text-[7px] leading-tight opacity-80">
+										db:{databaseUnread} a:{apiUnread}
+									</span>
+								)}
 							</span>
 						) : hasChatted ? (
 							<div className="flex h-5 w-5 items-center justify-center rounded-full bg-black/50 text-white shadow-lg backdrop-blur-sm">

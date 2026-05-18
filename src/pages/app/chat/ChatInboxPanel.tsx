@@ -1,7 +1,9 @@
 import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
+import { usePreferences } from "../../../contexts/PreferencesContext";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
+import type { ChatContactIndexRecord } from "../../../types/chat-contact-index";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { InboxAlbumsTabs } from "../components/InboxAlbumsTabs";
 import { PullToRefreshContainer } from "../components/PullToRefreshContainer";
@@ -34,6 +36,7 @@ type ChatInboxPanelProps = {
 	selectedConversationId: string | null;
 	userId: number | null;
 	localNicknamesByProfileId: Record<string, string>;
+	chatContactIndexByProfileId: Record<string, ChatContactIndexRecord>;
 	nowTimestamp: number;
 	presenceResults: Record<string, boolean>;
 	inboxListRef: RefObject<HTMLDivElement | null>;
@@ -66,6 +69,7 @@ export function ChatInboxPanel({
 	selectedConversationId,
 	userId,
 	localNicknamesByProfileId,
+	chatContactIndexByProfileId,
 	nowTimestamp,
 	presenceResults,
 	inboxListRef,
@@ -83,6 +87,7 @@ export function ChatInboxPanel({
 	onOpenAlbums,
 }: ChatInboxPanelProps) {
 	const { t, i18n } = useTranslation();
+	const { showDebugInfo } = usePreferences();
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const lastScrollAtRef = useRef(0);
 	const lastRequestedPageRef = useRef<number | null>(null);
@@ -122,10 +127,6 @@ export function ChatInboxPanel({
 					return;
 				}
 
-				if (Date.now() - lastScrollAtRef.current > 900) {
-					return;
-				}
-
 				if (lastRequestedPageRef.current === nextPage) {
 					return;
 				}
@@ -133,7 +134,7 @@ export function ChatInboxPanel({
 				lastRequestedPageRef.current = nextPage;
 				onLoadMoreInbox();
 			},
-			{ root: null, rootMargin: "0px 0px 220px 0px", threshold: 0 },
+			{ root: null, rootMargin: "0px 0px 400px 0px", threshold: 0 },
 		);
 
 		observer.observe(sentinel);
@@ -283,109 +284,116 @@ export function ChatInboxPanel({
 						const isSelected =
 							conversation.data.conversationId === selectedConversationId;
 
-						return (
-							<button
-								type="button"
-								key={conversation.data.conversationId}
-								onClick={() => onSelectConversation(conversation)}
-								className={`flex h-24 w-full shrink-0 items-stretch overflow-hidden text-left transition ${
-									isSelected
-										? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
-										: "bg-[var(--surface)]"
-								} border-b border-[var(--border)] ${
-									isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
-								}`}
-							>
-							<button
-								type="button"
-								title={displayName}
-								aria-label={displayName}
-								onClick={(event) => {
-									event.stopPropagation();
-									if (otherParticipant?.profileId) {
-										onViewProfile(otherParticipant.profileId);
-									}
-								}}
-									className={`relative w-24 shrink-0 transition-all ${
-										isSelected
-											? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
-											: "bg-[var(--surface-2)]"
-									} ${
-										isOtherParticipantOnline
-											? "border-r-4 border-emerald-500"
-											: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
-									}`}
-								>
-									<img
-										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-										alt={displayName}
-										className="h-full w-full object-cover"
-									/>
-									{conversation.data.pinned ? (
-										<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">
-											<Pin className="h-3 w-3 fill-current" />
-										</div>
-									) : null}
-							</button>
-								<div className="min-w-0 flex-1 p-3">
-									<div className="flex items-center justify-between gap-2">
-										<div className="flex min-w-0 items-center gap-1">
-											<p className="truncate font-semibold">
-												{displayName}
-											</p>
-											{otherParticipant?.profileId &&
-											presenceResults[otherParticipant.profileId] ? (
-												<img
-													src={freegrindLogo}
-													alt="Free Grind user"
-													title={t("profile_details.uses_free_grind")}
-													className={`h-4 w-4 shrink-0 rounded-full border ${
-														isSelected
-															? "border-[var(--accent-contrast)]/20"
-															: "border-[var(--border)]"
-													}`}
-												/>
-											) : null}
-										</div>
-										<span
-											className={`text-xs ${
-												isSelected
-													? "text-[var(--accent-contrast)]/70"
-													: "text-[var(--text-muted)]"
-											}`}
-										>
-											{formatConversationTime(
-												conversation.data.lastActivityTimestamp,
-												i18n.language,
-											)}
-										</span>
-									</div>
-									<div className="flex items-center justify-between gap-2">
-										<p
-											className={`mt-0.5 truncate ${
-												conversation.data.unreadCount > 0
-													? isSelected
-														? "font-bold text-[var(--accent-contrast)]"
-														: "font-bold text-[var(--text)]"
-													: isSelected
-														? "text-[var(--accent-contrast)]/80"
-														: "text-[var(--text-muted)]"
-											}`}
-										>
-											{getPreviewText(conversation, t)}
-										</p>
-										{conversation.data.unreadCount > 0 ? (
-											<span
-												className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[12px] font-bold shadow-sm ${
+										const databaseUnread = otherProfileId ? chatContactIndexByProfileId[otherProfileId]?.unreadCount ?? 0 : 0;
+										const apiUnread = conversation.data.unreadCount;
+
+										return (
+											<div
+												key={conversation.data.conversationId}
+												onClick={() => onSelectConversation(conversation)}
+												className={`flex h-24 w-full shrink-0 cursor-pointer items-stretch overflow-hidden text-left transition ${
 													isSelected
-														? "bg-[var(--accent-contrast)] text-[var(--accent)]"
-														: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+														? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
+														: "bg-[var(--surface)]"
+												} border-b border-[var(--border)] ${
+													isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
 												}`}
 											>
-												{conversation.data.unreadCount}
-											</span>
-										) : null}
-									</div>
+												<button
+													type="button"
+													title={displayName}
+													aria-label={displayName}
+													onClick={(event) => {
+														event.stopPropagation();
+														if (otherParticipant?.profileId) {
+															onViewProfile(otherParticipant.profileId);
+														}
+													}}
+													className={`relative w-24 shrink-0 transition-all ${
+														isSelected
+															? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
+															: "bg-[var(--surface-2)]"
+													} ${
+														isOtherParticipantOnline
+															? "border-r-4 border-emerald-500"
+															: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
+													}`}
+												>
+													<img
+														src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+														alt={displayName}
+														className="h-full w-full object-cover"
+													/>
+													{conversation.data.pinned ? (
+														<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">
+															<Pin className="h-3 w-3 fill-current" />
+														</div>
+													) : null}
+												</button>
+												<div className="min-w-0 flex-1 p-3">
+													<div className="flex items-center justify-between gap-2">
+														<div className="flex min-w-0 items-center gap-1">
+															<p className="truncate font-semibold">{displayName}</p>
+															{otherParticipant?.profileId &&
+															presenceResults[otherParticipant.profileId] ? (
+																<img
+																	src={freegrindLogo}
+																	alt="Free Grind user"
+																	title={t("profile_details.uses_free_grind")}
+																	className={`h-4 w-4 shrink-0 rounded-full border ${
+																		isSelected
+																			? "border-[var(--accent-contrast)]/20"
+																			: "border-[var(--border)]"
+																	}`}
+																/>
+															) : null}
+														</div>
+														<span
+															className={`text-xs ${
+																isSelected
+																	? "text-[var(--accent-contrast)]/70"
+																	: "text-[var(--text-muted)]"
+															}`}
+														>
+															{formatConversationTime(
+																conversation.data.lastActivityTimestamp,
+																i18n.language,
+															)}
+														</span>
+													</div>
+													<div className="flex items-center justify-between gap-2">
+														<p
+															className={`mt-0.5 truncate ${
+																conversation.data.unreadCount > 0
+																	? isSelected
+																		? "font-bold text-[var(--accent-contrast)]"
+																		: "font-bold text-[var(--text)]"
+																	: isSelected
+																		? "text-[var(--accent-contrast)]/80"
+																		: "text-[var(--text-muted)]"
+															}`}
+														>
+															{getPreviewText(conversation, t)}
+														</p>
+														{conversation.data.unreadCount > 0 ? (
+															<span
+																className={`flex min-w-[20px] flex-col items-center justify-center rounded-full px-1 py-0.5 font-bold shadow-sm ${
+																	isSelected
+																		? "bg-[var(--accent-contrast)] text-[var(--accent)]"
+																		: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+																} ${showDebugInfo ? "min-h-[28px]" : "h-5"}`}
+															>
+																<span className={showDebugInfo ? "text-[12px] leading-tight" : "text-[12px]"}>
+																	{conversation.data.unreadCount}
+																</span>
+																{showDebugInfo && (
+																	<span className="text-[7px] leading-tight opacity-80">
+																		db:{databaseUnread} a:{apiUnread}
+																	</span>
+																)}
+															</span>
+														) : null}
+													</div>
 									<div className="mt-2 flex items-center gap-2">
 										{conversation.data.muted ? (
 											<span
@@ -400,7 +408,7 @@ export function ChatInboxPanel({
 										) : null}
 									</div>
 								</div>
-							</button>
+											</div>
 						);
 					})}
 
