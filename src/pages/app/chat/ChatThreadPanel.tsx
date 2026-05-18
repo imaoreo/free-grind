@@ -902,6 +902,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
 										onError={(msg) => toast.error(msg)}
 										className="h-full w-full"
+										defaultZoom={18}
 									/>
 								</div>
 							</div>
@@ -1298,6 +1299,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
 								onError={(msg) => toast.error(msg)}
 								className="h-full w-full"
+								defaultZoom={18}
 							/>
 						</div>
 					</div>
