@@ -220,16 +220,20 @@ jobs:
 
             const subDirs = searchDirs[suffix] ?? [];
             const uploads = [];
+            const allowedExts = new Set(['.dmg', '.exe', '.msi', '.sig', '.gz', '.tar.gz', '.tar.gz.sig']);
 
             for (const sub of subDirs) {
               const dir = path.join(bundleDir, sub);
               if (!fs.existsSync(dir)) continue;
-              for (const file of fs.readdirSync(dir)) {
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                if (!entry.isFile()) continue;
+                const file = entry.name;
                 const ext = path.extname(file);
                 const doubleExt = file.endsWith('.tar.gz') ? '.tar.gz'
                                 : file.endsWith('.tar.gz.sig') ? '.tar.gz.sig'
                                 : null;
                 const finalExt = doubleExt ?? ext;
+                if (!allowedExts.has(finalExt)) continue;
                 const mime = mimeTypes[finalExt] ?? mimeTypes[ext] ?? 'application/octet-stream';
                 uploads.push({
                   src: path.join(dir, file),
@@ -296,6 +300,21 @@ jobs:
 
       - name: Initialize Android project
         run: bunx tauri android init --ci --skip-targets-install
+
+      - name: Ensure Android network security config
+        run: |
+          mkdir -p src-tauri/gen/android/app/src/main/res/xml
+          cat > src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <base-config cleartextTrafficPermitted="true">
+                  <trust-anchors>
+                      <certificates src="system" />
+                      <certificates src="user" />
+                  </trust-anchors>
+              </base-config>
+          </network-security-config>
+          EOF
 
       - name: Add custom Android notification sound
         run: |
@@ -402,10 +421,15 @@ jobs:
             exit 1
           fi
 
-          perl -pi -e 's#^\s*shellScript = ".*tauri ios xcode-script.*";#                    shellScript = "set -e\\nLIB_PATH=\"\\\$\{SRCROOT\}/Externals/arm64/release/libapp.a\"\\nif [ ! -f \"\\\$LIB_PATH\" ]; then\\n  echo \"Missing prebuilt Rust library at \\\$LIB_PATH\"\\n  exit 1\\nfi";#' "$PBXPROJ_PATH"
+          perl -0777 -i -pe 's#shellScript = "([^"\\]|\\.)*tauri ios xcode-script([^"\\]|\\.)*";#shellScript = "set -e\\nLIB_PATH=\\"\\${SRCROOT}/Externals/arm64/release/libapp.a\\"\\nif [ ! -f \\\"\\$LIB_PATH\\\" ]; then\\n  echo \\\"Missing prebuilt Rust library at \\$LIB_PATH\\\"\\n  exit 1\\nfi";#gs' "$PBXPROJ_PATH"
 
           if ! grep -q -- 'Missing prebuilt Rust library' "$PBXPROJ_PATH"; then
             echo "Failed to replace Build Rust Code script"
+            exit 1
+          fi
+
+          if ! plutil -lint "$PBXPROJ_PATH" >/dev/null; then
+            echo "Patched project.pbxproj is invalid"
             exit 1
           fi
 
