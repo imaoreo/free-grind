@@ -4,7 +4,7 @@ import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import { encodeGeohash } from "../../utils/geohash";
+import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
 import {
 	geocodeResultSchema,
 	type GeocodeResult,
@@ -15,7 +15,7 @@ import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPan
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
 	const { t } = useTranslation();
-	const { setPreferences } = usePreferences();
+	const { setPreferences, geohash, locationName } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
 	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -26,6 +26,38 @@ export function BrowseLocationPage() {
 	const [selectedLocation, setSelectedLocation] =
 		useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
+
+	const initialCenter = (() => {
+		if (geohash) {
+			try {
+				const decoded = decodeGeohash(geohash);
+				return [
+					(decoded.lat[0] + decoded.lat[1]) / 2,
+					(decoded.lon[0] + decoded.lon[1]) / 2,
+				] as [number, number];
+			} catch {
+				return undefined;
+			}
+		}
+		return undefined;
+	})();
+
+	useEffect(() => {
+		if (geohash && !selectedLocation) {
+			try {
+				const decoded = decodeGeohash(geohash);
+				const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+				const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+				setSelectedLocation({
+					lat,
+					lon,
+					label: locationName ?? t("browse_location.current_location_label"),
+				});
+			} catch (e) {
+				console.error("Failed to decode geohash from preferences", e);
+			}
+		}
+	}, [geohash, locationName, t]);
 
 	const updateLocationPreference = async (
 		lat: number,
@@ -203,6 +235,7 @@ export function BrowseLocationPage() {
 							selectedLocation.label,
 						);
 					}}
+					initialCenter={initialCenter}
 				/>
 			</div>
 		</section>
