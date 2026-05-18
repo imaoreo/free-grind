@@ -115,6 +115,17 @@ function writeLog(level: AppLogLevel, args: unknown[]) {
 		return;
 	}
 
+	const processedArgs = args.map((arg) => {
+		if (typeof arg === "object" && arg !== null) {
+			try {
+				return JSON.stringify(arg);
+			} catch {
+				return String(arg);
+			}
+		}
+		return arg;
+	});
+
 	const writer =
 		level === "debug"
 			? console.debug
@@ -124,7 +135,7 @@ function writeLog(level: AppLogLevel, args: unknown[]) {
 					? console.warn
 					: console.error;
 
-	writer(...args);
+	writer(...processedArgs);
 }
 
 export function getRecentAppLogs(limit = MAX_LOG_HISTORY): AppLogEntry[] {
