@@ -68,8 +68,6 @@ pub fn run() {
     #[cfg(mobile)]
     {
         let context = tauri::generate_context!();
-
-        #[cfg(target_os = "android")]
         let (hotswap, context) = match tauri_plugin_hotswap::init(context) {
             Ok((h, c)) => (h, c),
             Err(e) => {
@@ -77,15 +75,8 @@ pub fn run() {
             }
         };
 
-        let builder = tauri::Builder::default();
-
-        #[cfg(target_os = "android")]
-        let builder = builder.plugin(hotswap);
-
-        #[cfg(not(target_os = "android"))]
-        let builder = builder;
-
-        builder
+        tauri::Builder::default()
+            .plugin(hotswap)
             .plugin(tauri_plugin_notification::init())
             .plugin(tauri_plugin_os::init())
             .plugin(tauri_plugin_geolocation::init())

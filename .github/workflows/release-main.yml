@@ -369,8 +369,47 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      - name: Build frontend assets
+        run: bun run build
+
       - name: Initialize iOS project
-        run: bunx tauri ios init --ci
+        run: |
+          rm -rf src-tauri/gen/apple
+          bunx tauri ios init --ci
+
+      - name: Build iOS Rust static library
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios --release
+
+          LIB_PATH="src-tauri/target/aarch64-apple-ios/release/libopen_grind_lib.a"
+          if [ ! -f "$LIB_PATH" ]; then
+            echo "iOS static library not found at $LIB_PATH"
+            exit 1
+          fi
+
+          mkdir -p src-tauri/gen/apple/Externals/arm64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/arm64/release/libapp.a
+
+          # Keep xcodebuild happy if the generated project still references both arch outputs.
+          mkdir -p src-tauri/gen/apple/Externals/x86_64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/x86_64/release/libapp.a
+
+      - name: Disable Xcode Rust bridge script
+        run: |
+          PBXPROJ_PATH=$(find src-tauri/gen/apple -maxdepth 3 -name project.pbxproj | head -n 1)
+          if [ -z "$PBXPROJ_PATH" ]; then
+            echo "project.pbxproj not found under src-tauri/gen/apple"
+            exit 1
+          fi
+
+          perl -pi -e 's#^\s*shellScript = ".*tauri ios xcode-script.*";#                    shellScript = "set -e\\nLIB_PATH=\"\\\$\{SRCROOT\}/Externals/arm64/release/libapp.a\"\\nif [ ! -f \"\\\$LIB_PATH\" ]; then\\n  echo \"Missing prebuilt Rust library at \\\$LIB_PATH\"\\n  exit 1\\nfi";#' "$PBXPROJ_PATH"
+
+          if ! grep -q -- 'Missing prebuilt Rust library' "$PBXPROJ_PATH"; then
+            echo "Failed to replace Build Rust Code script"
+            exit 1
+          fi
+
+          echo "Patched Build Rust Code script to use prebuilt libapp.a"
 
       - name: Build iOS app without code signing
         id: ios_app
@@ -397,7 +436,7 @@ jobs:
           DERIVED_DATA_PATH="$RUNNER_TEMP/ios-derived"
           xcodebuild "${PROJECT_ARGS[@]}" \
             -scheme "$SCHEME" \
-            -configuration Release \
+            -configuration release \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$DERIVED_DATA_PATH" \
             CODE_SIGNING_ALLOWED=NO \
@@ -405,9 +444,9 @@ jobs:
             CODE_SIGN_IDENTITY='' \
             build
 
-          APP_PATH=$(find "$DERIVED_DATA_PATH/Build/Products/Release-iphoneos" -maxdepth 1 -name '*.app' | head -n 1)
+          APP_PATH=$(find "$DERIVED_DATA_PATH/Build/Products" -maxdepth 2 -type d -name '*.app' | grep -E '/(release|Release)-iphoneos/' | head -n 1)
           if [ -z "$APP_PATH" ]; then
-            echo "No .app artifact found in $DERIVED_DATA_PATH/Build/Products/Release-iphoneos"
+            echo "No release .app artifact found in $DERIVED_DATA_PATH/Build/Products"
             exit 1
           fi
 
