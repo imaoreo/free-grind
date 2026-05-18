@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect } from "react";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../contexts/useAuth";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
@@ -11,12 +12,56 @@ import {
 	INBOX_SEEN_EVENT,
 } from "../services/seenStore";
 import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
+import { messageSchema, type Message } from "../types/messages";
+import type { RealtimeEnvelope } from "../types/chat-realtime";
+
+/**
+ * Extracts and validates chat messages from a variety of possible realtime envelope formats.
+ * WebSocket events from the API can wrap messages in several ways (e.g., direct payload,
+ * nested in a 'message' field, or as an array of 'messages').
+ */
+function extractMessages(envelope: RealtimeEnvelope): Message[] {
+	const candidates: Message[] = [];
+
+	// 1. Try to parse the payload directly as a single message
+	const direct = messageSchema.safeParse(envelope.payload);
+	if (direct.success) candidates.push(direct.data);
+
+	// 2. Deep-probe common nesting patterns in the envelope structure
+	for (const payload of [envelope.payload, envelope.data, envelope]) {
+		if (!payload || typeof payload !== "object") continue;
+		const record = payload as Record<string, unknown>;
+
+		// Check for single nested message: { message: { ... } }
+		if (record.message) {
+			const parsed = messageSchema.safeParse(record.message);
+			if (parsed.success) candidates.push(parsed.data);
+		}
+
+		// Check for multiple messages: { messages: [ { ... }, { ... } ] }
+		if (Array.isArray(record.messages)) {
+			for (const candidate of record.messages) {
+				const parsed = messageSchema.safeParse(candidate);
+				if (parsed.success) candidates.push(parsed.data);
+			}
+		}
+	}
+
+	// 3. Deduplicate messages by their unique ID to avoid double-processing
+	const seen = new Set<string>();
+	return candidates.filter((m) => {
+		if (seen.has(m.messageId)) return false;
+		seen.add(m.messageId);
+		return true;
+	});
+}
 
 export function NavBar() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
+	const { userId } = useAuth();
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 	const [interestUnseen, setInterestUnseen] = useState(false);
@@ -65,27 +110,24 @@ export function NavBar() {
 
 	useEffect(() => {
 		let cancelled = false;
+		const isAtInbox = location.pathname.startsWith("/chat");
 
 		const refreshInboxState = async () => {
 			if (document.hidden) return;
 			try {
-				// We fetch the first page of conversations without filters to get:
-				// 1. The newest activity timestamp (for the "unseen" dot logic)
-				// 2. The unread counts of the most recent conversations
+				// Fetch the latest inbox summary to sync unread counts and global "seen" state
 				const response = await apiFunctions.listConversations({
 					page: 1,
 				});
 
 				if (cancelled) return;
 
-				// 1. Calculate Unread Count (sum of unread in the first page)
 				const totalUnread = response.entries.reduce(
 					(sum, entry) => sum + (entry.data.unreadCount || 0),
 					0,
 				);
 				setUnreadCount(totalUnread);
 
-				// 2. Calculate Unseen State (is there anything newer than lastSeen?)
 				const lastSeen = getInboxLastSeen();
 				const newest = response.entries.reduce(
 					(max, entry) => Math.max(max, entry.data.lastActivityTimestamp ?? 0),
@@ -93,12 +135,19 @@ export function NavBar() {
 				);
 
 				if (lastSeen === 0) {
+					// Initialize "last seen" on first run to avoid showing stale dots
 					if (newest > 0) {
 						window.localStorage.setItem("fg-inbox-last-seen", String(newest));
 					}
 					setInboxUnseen(false);
 				} else {
-					setInboxUnseen(newest > lastSeen);
+					// If we are currently on the inbox page, ensure our "last seen"
+					// timestamp is at least as high as the newest message we just fetched.
+					// This prevents the dot from reappearing immediately when switching away.
+					if (isAtInbox && newest > lastSeen) {
+						markInboxSeen(newest);
+					}
+					setInboxUnseen(!isAtInbox && newest > lastSeen);
 				}
 			} catch {
 				if (!cancelled) {
@@ -109,14 +158,37 @@ export function NavBar() {
 		};
 
 		void refreshInboxState();
-		const intervalId = window.setInterval(refreshInboxState, 45_000);
+		// Background safety poll to catch updates from other devices/stale socket
+		const intervalId = window.setInterval(refreshInboxState, 60_000);
 
 		const handleRealtime = (event: Event) => {
-			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
-			if (envelope?.type === "chat.v1.message_sent" && activeTab !== "inbox") {
-				setInboxUnseen(true);
+			// If we are already looking at the inbox, suppress the dot immediately
+			if (isAtInbox) {
+				setInboxUnseen(false);
+				return;
 			}
-			void refreshInboxState();
+
+			// Extract messages directly from the realtime event to avoid an expensive API reload.
+			// This ensures the notification dot appears instantly with the incoming message.
+			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
+			const messages = extractMessages(envelope);
+			if (messages.length > 0) {
+				const lastSeen = getInboxLastSeen();
+				// Check for messages from other users
+				const fromOthers = messages.filter(
+					(m) => userId != null && Number(m.senderId) !== Number(userId)
+				);
+
+				if (fromOthers.length > 0) {
+					const newest = Math.max(...fromOthers.map((m) => m.timestamp));
+					// Show dot if the message is actually newer than our last visit
+					if (newest > lastSeen) {
+						setInboxUnseen(true);
+					}
+					// Optimistically increment the total unread count shown in the UI
+					setUnreadCount((prev) => prev + fromOthers.length);
+				}
+			}
 		};
 		const onSeen = () => setInboxUnseen(false);
 
@@ -133,16 +205,17 @@ export function NavBar() {
 		return () => {
 			cancelled = true;
 			window.clearInterval(intervalId);
-			window.removeEventListener(CHAT_REALTIME_EVENT, handleRealtime);
+			window.removeEventListener(CHAT_REALTIME_EVENT, handleRealtime as EventListener);
 			window.removeEventListener(INBOX_SEEN_EVENT, onSeen as EventListener);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions]);
+	}, [apiFunctions, location.pathname, userId]);
 
 	// Track whether the Interest tab has anything new since the user last
 	// looked. Polls taps + views and listens for live tap events.
 	useEffect(() => {
 		let cancelled = false;
+		const isAtInterest = location.pathname.startsWith("/interest");
 
 		const refreshInterestUnseen = async () => {
 			if (document.hidden) return;
@@ -188,7 +261,13 @@ export function NavBar() {
 					return;
 				}
 
-				setInterestUnseen(newest > lastSeen);
+				// If we are currently on the interest page, ensure our "last seen"
+				// timestamp is at least as high as the newest item we just fetched.
+				if (isAtInterest && newest > lastSeen) {
+					markInterestSeen(newest);
+				}
+
+				setInterestUnseen(!isAtInterest && newest > lastSeen);
 			} catch {
 				if (!cancelled) setInterestUnseen(false);
 			}
@@ -199,7 +278,11 @@ export function NavBar() {
 			void refreshInterestUnseen();
 		}, 60_000);
 
-		const onTap = () => setInterestUnseen(true);
+		const onTap = () => {
+			if (!isAtInterest) {
+				setInterestUnseen(true);
+			}
+		};
 		const onSeen = () => setInterestUnseen(false);
 		const onVisibilityChange = () => {
 			if (!document.hidden) {
@@ -221,7 +304,7 @@ export function NavBar() {
 			);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions]);
+	}, [apiFunctions, location.pathname]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);
