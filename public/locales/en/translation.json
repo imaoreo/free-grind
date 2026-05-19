@@ -964,6 +964,14 @@
         "view_count_other": "{{count}} views",
         "viewed": "Viewed",
         "recovered_tooltip": "Identified from local history",
+        "onboarding": {
+            "title": "Profile Visitors",
+            "limitation_title": "How it works",
+            "limitation_desc": "Grindr normally only shows the very last visitor in full. Others are typically hidden behind a paywall or shown as anonymous previews.",
+            "recovery_title": "Smart Recovery",
+            "recovery_desc": "Free Grind automatically matches anonymous visitors with your local history. If we find a match, the profile will be revealed to you.",
+            "button": "Got it!"
+        },
         "unknown_profile": "Unknown Profile",
         "unknown_time": "Unknown time",
         "tap_labels": {

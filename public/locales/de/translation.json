@@ -916,6 +916,14 @@
         "view_count_other": "{{count}} Besuche",
         "viewed": "Angesehen",
         "recovered_tooltip": "Aus lokalem Verlauf wiedererkannt",
+        "onboarding": {
+            "title": "Profilbesucher",
+            "limitation_title": "Funktionsweise",
+            "limitation_desc": "Grindr zeigt normalerweise nur den allerletzten Besucher vollständig an. Andere sind oft hinter einer Paywall verborgen oder werden nur als anonyme Vorschau angezeigt.",
+            "recovery_title": "Intelligente Erkennung",
+            "recovery_desc": "Free Grind gleicht unbekannte Besucher automatisch mit deinem lokalen Verlauf ab. Finden wir eine Übereinstimmung, decken wir das Profil für dich auf.",
+            "button": "Verstanden!"
+        },
         "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",
         "tap_labels": {

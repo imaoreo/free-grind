@@ -24,6 +24,10 @@ import {
 	normalizeTaps,
 } from "./interest/interestUtils";
 import { InterestTabs, InterestRow } from "./interest/InterestComponents";
+import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
+
+const ONBOARDING_KEY = "fg-interest-onboarding-seen";
+
 export function InterestPage() {
 	const { t } = useTranslation();
 	const api = useApiFunctions();
@@ -40,8 +44,27 @@ export function InterestPage() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
+	const [showOnboarding, setShowOnboarding] = useState(() => {
+		return !localStorage.getItem(ONBOARDING_KEY);
+	});
 	const touchStartXRef = useRef<number | null>(null);
 	const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
+
+	// Re-activate onboarding when switching back to views tab if not yet acknowledged
+	useEffect(() => {
+		if (activeTab === "views" && !localStorage.getItem(ONBOARDING_KEY)) {
+			setShowOnboarding(true);
+		}
+	}, [activeTab]);
+
+	const handleCloseOnboarding = useCallback(() => {
+		setShowOnboarding(false);
+	}, []);
+
+	const handleAcknowledgeOnboarding = useCallback(() => {
+		setShowOnboarding(false);
+		localStorage.setItem(ONBOARDING_KEY, "true");
+	}, []);
 
 	const ITEMS_PER_PAGE = 30;
 	const [viewsLimit, setViewsLimit] = useState(ITEMS_PER_PAGE);
@@ -283,6 +306,7 @@ export function InterestPage() {
 	);
 
 	return (
+		<>
 		<PullToRefreshContainer
 			className="app-screen"
 			onRefresh={handleRefresh}
@@ -362,5 +386,12 @@ export function InterestPage() {
 				</div>
 			</div>
 		</PullToRefreshContainer>
+		{showOnboarding && activeTab === "views" && (
+			<InterestOnboardingModal
+				onClose={handleCloseOnboarding}
+				onConfirm={handleAcknowledgeOnboarding}
+			/>
+		)}
+	</>
 	);
 }

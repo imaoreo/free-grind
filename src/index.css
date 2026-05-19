@@ -11,6 +11,29 @@
 	--animate-living-flame-loop: living-emoji 4s ease-in-out infinite, super-pulse 4s ease-in-out infinite;
 	--animate-halo-loop: halo-loop 4s ease-in-out infinite;
 
+	/* Modal animations */
+	--animate-modal-in: modal-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-modal-out: modal-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-backdrop-in: backdrop-in 0.35s ease-out forwards;
+	--animate-backdrop-out: backdrop-out 0.25s ease-in forwards;
+
+	@keyframes modal-in {
+		from { opacity: 0; transform: scale(0.92) translateY(15px); }
+		to { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+	}
+	@keyframes modal-out {
+		from { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+		to { opacity: 0; transform: scale(0.92) translateY(15px); }
+	}
+	@keyframes backdrop-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+	@keyframes backdrop-out {
+		from { opacity: 1; }
+		to { opacity: 0; }
+	}
+
 	@keyframes ripple-out {
 		0% {
 			transform: scale(1);
