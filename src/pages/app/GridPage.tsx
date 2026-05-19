@@ -40,6 +40,7 @@ import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
+import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -681,8 +682,9 @@ export function GridPage() {
 	);
 
 	const sortedCards = useMemo(() => {
-		if (sortBy === "default") return cards;
-		return [...cards].sort((a, b) => {
+		const allCards = (SHOW_DEMO_DATA && showDebugInfo) ? [...DEMO_CARDS, ...cards] : cards;
+		if (sortBy === "default") return allCards;
+		return [...allCards].sort((a, b) => {
 			if (sortBy === "distance") {
 				const distA = a.distanceMeters ?? Infinity;
 				const distB = b.distanceMeters ?? Infinity;
@@ -713,7 +715,7 @@ export function GridPage() {
 			}
 			return 0;
 		});
-	}, [cards, sortBy]);
+	}, [cards, sortBy, showDebugInfo]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -995,7 +997,7 @@ export function GridPage() {
 
 	return (
 		<>
-			{showDebugInfo && debugLoadSource && (
+			{showDebugInfo && debugLoadSource && !SHOW_DEMO_DATA && (
 				<div
 					className={cn(
 						"fixed bottom-20 left-4 z-[9999] rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-widest text-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4",
@@ -1309,7 +1311,11 @@ export function GridPage() {
 						isLoadingCards={isLoadingCards}
 						cardsError={cardsError}
 						cards={sortedCards}
-						chatContactIndexByProfileId={chatContactIndexByProfileId}
+						chatContactIndexByProfileId={
+							(SHOW_DEMO_DATA && showDebugInfo)
+								? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
+								: chatContactIndexByProfileId
+						}
 						onSelectProfile={handleSelectProfile}
 						onMessageProfile={handleMessageProfile}
 						hasMore={nextPage !== null}

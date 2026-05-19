@@ -80,15 +80,23 @@ export function usePresenceCheck(profileId: string | null) {
 	useEffect(() => {
 		let isActive = true;
 
-		if (!hasConsent) {
-			presenceCache.clear();
+		if (!profileId) {
 			setUsesFreegrind(null);
 			return () => {
 				isActive = false;
 			};
 		}
 
-		if (!profileId) {
+		// Demo mode support (works even without analytics consent)
+		if (profileId.includes("freegrind")) {
+			setUsesFreegrind(true);
+			return () => {
+				isActive = false;
+			};
+		}
+
+		if (!hasConsent) {
+			presenceCache.clear();
 			setUsesFreegrind(null);
 			return () => {
 				isActive = false;
