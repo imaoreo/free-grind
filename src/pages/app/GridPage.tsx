@@ -483,21 +483,34 @@ export function GridPage() {
 	);
 
 	useEffect(() => {
-		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked) {
-			appLog.info("[grid] triggering initial auto-location refresh");
+		const SESSION_REFRESH_KEY = "grid_initial_location_refreshed";
+		const hasRefreshedThisSession = sessionStorage.getItem(SESSION_REFRESH_KEY) === "true";
+
+		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedThisSession) {
+			appLog.info("[grid] triggering initial session auto-location refresh");
 			void refreshLocation().finally(() => {
-				setInitialLocationChecked(true);
+				if (isMountedRef.current) {
+					setInitialLocationChecked(true);
+					sessionStorage.setItem(SESSION_REFRESH_KEY, "true");
+				}
 			});
-		} else if (!isLoadingPreferences && !useAutoLocation && !initialLocationChecked) {
+		} else if (!isLoadingPreferences && !initialLocationChecked) {
 			setInitialLocationChecked(true);
 		}
 	}, [isLoadingPreferences, useAutoLocation, refreshLocation, initialLocationChecked]);
 
 	useEffect(() => {
-		if (initialLocationChecked) {
-			void loadBrowseCards();
+		if (geohash || initialLocationChecked) {
+			// Only show the loading spinner if we don't have any cards yet.
+			// This prevents the spinner from appearing when returning from a profile.
+			const shouldShowLoading = cards.length === 0;
+			void loadBrowseCards({
+				showLoadingState: shouldShowLoading,
+				preferCache: true,
+			});
 		}
-	}, [loadBrowseCards, initialLocationChecked]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loadBrowseCards, initialLocationChecked, geohash]);
 
 	// Reset scroll restoration state when cache key (filters/location) changes
 	useEffect(() => {
