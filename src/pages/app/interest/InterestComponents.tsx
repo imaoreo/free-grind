@@ -1,8 +1,8 @@
-import { Eye } from "lucide-react";
+import { Eye, Lock, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import blankProfileImage from "../../../images/blank-profile.png";
-import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji } from "./interestUtils";
+import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREVIEW_ID_PREFIX } from "./interestUtils";
 
 export function InterestTabs({
 	activeTab,
@@ -73,6 +73,10 @@ export function InterestRow({
 }) {
 	const { t } = useTranslation();
 	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : blankProfileImage;
+
+	const isPrivate = !item.canOpenProfile;
+	const isRecovered = !!item.isFromCache && !isPrivate && !item.profileId.startsWith(PREVIEW_ID_PREFIX);
+
 	const trailing =
 		mode === "views"
 			? item.viewCount != null
@@ -88,26 +92,50 @@ export function InterestRow({
 					onOpenProfile(item.profileId);
 				}
 			}}
-			disabled={!item.canOpenProfile}
-			className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition hover:bg-[var(--surface-2)]"
+			disabled={isPrivate}
+			className={`flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition ${
+				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]"
+			}`}
 		>
-			<div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[var(--surface-2)]">
-				<img src={imageSrc} alt={item.displayName} className="h-full w-full object-cover" />
+			<div className="relative h-12 w-12 shrink-0">
+				<div className="h-full w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+					<img src={imageSrc} alt={item.displayName === t("interest_page.unknown_profile") ? t("interest_page.unknown_profile") : item.displayName} className="h-full w-full object-cover" />
+				</div>
+				{isPrivate && (
+					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-2 ring-[var(--surface)]">
+						<Lock className="h-3 w-3" />
+					</div>
+				)}
 			</div>
+
 			<div className="min-w-0 flex-1">
-				<p className="truncate text-sm font-semibold text-[var(--text)]">{item.displayName}</p>
+				<div className="flex items-center gap-1.5">
+					<p className={`truncate text-sm font-semibold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+						{item.displayName
+							? item.displayName
+							: isPrivate
+								? t("interest_page.unknown_profile")
+								: t("interest_page.profile_fallback", { id: item.profileId })}
+					</p>
+					{isRecovered && (
+						<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+					)}
+				</div>
 				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t, now)}</p>
 			</div>
+
 			<span
 				className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ${
-					mode === "views" ? "bg-[var(--surface-2)]" : ""
+					mode === "views" && !isPrivate ? "bg-[var(--surface-2)]" : ""
 				}`}
 			>
 				{mode === "views" ? (
-					<>
-						<Eye className="h-3.5 w-3.5" />
-						{!item.canOpenProfile ? t("interest_page.preview") : trailing}
-					</>
+					!isPrivate && (
+						<>
+							<Eye className="h-3.5 w-3.5" />
+							{trailing}
+						</>
+					)
 				) : (
 					<span className="text-2xl leading-none">{getTapEmoji(item.tapType)}</span>
 				)}

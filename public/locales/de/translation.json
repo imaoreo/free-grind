@@ -898,7 +898,7 @@
         }
     },
     "interest_page": {
-        "title": "Interesse",
+        "title": "Interest",
         "profile_fallback": "Profil {{id}}",
         "tabs": {
             "views": "Besucher",
@@ -915,8 +915,8 @@
         "view_count_one": "{{count}} Besuch",
         "view_count_other": "{{count}} Besuche",
         "viewed": "Angesehen",
-        "preview": "Vorschau",
-        "private_viewer": "Privater Besucher",
+        "recovered_tooltip": "Aus lokalem Verlauf wiedererkannt",
+        "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",
         "tap_labels": {
             "friendly": "Freundlich",

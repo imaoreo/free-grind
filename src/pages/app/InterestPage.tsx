@@ -205,6 +205,7 @@ export function InterestPage() {
 				tapType: detail.tapType,
 				viewCount: null,
 				canOpenProfile: true,
+				isFromCache: false,
 			};
 			setTaps((previous) => {
 				const filtered = previous.filter(

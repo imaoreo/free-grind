@@ -963,8 +963,8 @@
         "view_count_one": "{{count}} view",
         "view_count_other": "{{count}} views",
         "viewed": "Viewed",
-        "preview": "Preview",
-        "private_viewer": "Private viewer",
+        "recovered_tooltip": "Identified from local history",
+        "unknown_profile": "Unknown Profile",
         "unknown_time": "Unknown time",
         "tap_labels": {
             "friendly": "Friendly",
