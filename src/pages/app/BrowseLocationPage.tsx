@@ -63,12 +63,14 @@ export function BrowseLocationPage() {
 		lat: number,
 		lon: number,
 		label?: string,
+		isAuto?: boolean,
 	) => {
 		const nextGeohash = encodeGeohash(lat, lon);
 		const finalLabel = label ?? t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
 		await setPreferences({
 			geohash: nextGeohash,
-			locationName: finalLabel
+			locationName: finalLabel,
+			useAutoLocation: isAuto ?? false
 		});
 		setSelectedLocation({
 			lat,
@@ -103,6 +105,7 @@ export function BrowseLocationPage() {
 				position.coords.latitude,
 				position.coords.longitude,
 				t("browse_location.current_location_label"),
+				true,
 			);
 		} catch {
 			setLocationError(t("browse_location.error_access"));

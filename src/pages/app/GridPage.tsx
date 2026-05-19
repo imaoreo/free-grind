@@ -5,7 +5,7 @@ import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { decodeGeohash } from "../../utils/geohash";
+import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
@@ -54,6 +54,8 @@ export function GridPage() {
 	const {
 		geohash,
 		locationName,
+		useAutoLocation,
+		setPreferences,
 		isLoading: isLoadingPreferences,
 		showDebugInfo,
 	} = usePreferences();
@@ -104,6 +106,7 @@ export function GridPage() {
 	const isMountedRef = useRef(true);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
+	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
 
 	const {
 		browseFilters,
@@ -301,21 +304,84 @@ export function GridPage() {
 		[apiFunctions, BROWSE_LOAD_TIMEOUT_MS],
 	);
 
+	const refreshLocation = useCallback(async () => {
+		if (!useAutoLocation || !("geolocation" in navigator)) {
+			return;
+		}
+
+		const getPosition = (options: PositionOptions) =>
+			new Promise<GeolocationPosition>((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject, options);
+			});
+
+		try {
+			// First attempt with high accuracy
+			const position = await getPosition({
+				enableHighAccuracy: true,
+				timeout: 15000,
+				maximumAge: 10000, // Allow 10s old cached data
+			});
+
+			const lat = position.coords.latitude;
+			const lon = position.coords.longitude;
+			const nextGeohash = encodeGeohash(lat, lon);
+
+			await setPreferences({
+				geohash: nextGeohash,
+			});
+
+			appLog.info("[grid] auto-location updated", { lat, lon });
+			return nextGeohash;
+		} catch (error: any) {
+			// If HighAccuracy fails, try once without (often more stable in emulator/buildings)
+			if (error.code === 3 || error.code === 2) { // Timeout or PositionUnavailable
+				try {
+					const fallbackPosition = await getPosition({
+						enableHighAccuracy: false,
+						timeout: 10000,
+						maximumAge: 60000,
+					});
+					const lat = fallbackPosition.coords.latitude;
+					const lon = fallbackPosition.coords.longitude;
+					const nextGeohash = encodeGeohash(lat, lon);
+					await setPreferences({ geohash: nextGeohash });
+					appLog.info("[grid] auto-location updated (fallback)", { lat, lon });
+					return nextGeohash;
+				} catch (fallbackError: any) {
+					appLog.error("[grid] auto-location fallback failed", {
+						code: fallbackError.code,
+						message: fallbackError.message
+					});
+				}
+			} else {
+				appLog.error("[grid] auto-location failed", {
+					code: error.code,
+					message: error.message
+				});
+			}
+			return null;
+		}
+	}, [useAutoLocation, setPreferences]);
+
 	const loadBrowseCards = useCallback(
 		async ({
 			page,
 			preferCache = true,
 			showLoadingState = true,
+			overrideGeohash,
 		}: {
 			page?: number;
 			preferCache?: boolean;
 			showLoadingState?: boolean;
+			overrideGeohash?: string;
 		} = {}) => {
 			if (isLoadingPreferences) {
 				return;
 			}
 
-			if (!geohash) {
+			const activeGeohash = overrideGeohash || geohash;
+
+			if (!activeGeohash) {
 				if (!isMountedRef.current) {
 					return;
 				}
@@ -328,7 +394,12 @@ export function GridPage() {
 				return;
 			}
 
-			const cached = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
+			// Use the correct cache key for the active geohash
+			const activeCacheKey = overrideGeohash
+				? `${overrideGeohash}:${JSON.stringify(browseRequestFilters)}`
+				: browseCacheKey;
+
+			const cached = preferCache ? getCachedBrowseCards(activeCacheKey) : null;
 			if (!isMountedRef.current) {
 				return;
 			}
@@ -351,7 +422,7 @@ export function GridPage() {
 
 			try {
 				const parsed = await getBrowseCardsWithTimeout({
-					geohash,
+					geohash: activeGeohash,
 					page,
 					filters: browseRequestFilters,
 				});
@@ -372,7 +443,7 @@ export function GridPage() {
 
 				setCards(parsed.cards);
 				setCachedBrowseCards(
-					browseCacheKey,
+					activeCacheKey,
 					parsed.cards,
 					parsed.nextPage ?? null,
 				);
@@ -410,8 +481,21 @@ export function GridPage() {
 	);
 
 	useEffect(() => {
-		void loadBrowseCards();
-	}, [loadBrowseCards]);
+		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked) {
+			appLog.info("[grid] triggering initial auto-location refresh");
+			void refreshLocation().finally(() => {
+				setInitialLocationChecked(true);
+			});
+		} else if (!isLoadingPreferences && !useAutoLocation && !initialLocationChecked) {
+			setInitialLocationChecked(true);
+		}
+	}, [isLoadingPreferences, useAutoLocation, refreshLocation, initialLocationChecked]);
+
+	useEffect(() => {
+		if (initialLocationChecked) {
+			void loadBrowseCards();
+		}
+	}, [loadBrowseCards, initialLocationChecked]);
 
 	// Reset scroll restoration state when cache key (filters/location) changes
 	useEffect(() => {
@@ -926,11 +1010,22 @@ export function GridPage() {
 			<PullToRefreshContainer
 				className="app-screen overflow-x-hidden !px-0"
 				style={{ width: "100%" }}
-				onRefresh={() => {
+				onRefresh={async () => {
+					let activeGeohash = geohash;
 					if (browseCacheKey) {
 						sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
 					}
-					return loadBrowseCards({ preferCache: false, showLoadingState: false });
+					if (useAutoLocation) {
+						const next = await refreshLocation();
+						if (next) {
+							activeGeohash = next;
+						}
+					}
+					return loadBrowseCards({
+						preferCache: false,
+						showLoadingState: false,
+						overrideGeohash: activeGeohash || undefined
+					});
 				}}
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
