@@ -145,6 +145,11 @@
             "favorites": "Favorites",
             "hot": "Hot",
             "shuffle": "Shuffle"
+        },
+        "local_filters": {
+            "title": "Local Filters",
+            "description": "These filters apply instantly to the profiles already loaded.",
+            "is_visiting": "Visiting"
         }
     },
     "browse_location": {
@@ -804,6 +809,7 @@
         "unblock_success": "Profile unblocked",
         "block_failed": "Failed to block profile",
         "unblock_failed": "Failed to unblock profile",
+        "visiting": "Visiting",
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
         "chatted_before": "Chatted before",
