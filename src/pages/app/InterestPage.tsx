@@ -41,6 +41,62 @@ export function InterestPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const touchStartXRef = useRef<number | null>(null);
+	const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
+
+	const ITEMS_PER_PAGE = 30;
+	const [viewsLimit, setViewsLimit] = useState(ITEMS_PER_PAGE);
+	const [tapsLimit, setTapsLimit] = useState(ITEMS_PER_PAGE);
+
+	const activeItems = useMemo(
+		() => (activeTab === "views" ? views : taps),
+		[activeTab, taps, views],
+	);
+
+	const displayedItems = useMemo(() => {
+		const limit = activeTab === "views" ? viewsLimit : tapsLimit;
+		return activeItems.slice(0, limit);
+	}, [activeTab, activeItems, viewsLimit, tapsLimit]);
+
+	const hasMoreItems = activeItems.length > displayedItems.length;
+
+	const handleLoadMore = useCallback(() => {
+		if (activeTab === "views") {
+			setViewsLimit((prev) => prev + ITEMS_PER_PAGE);
+		} else {
+			setTapsLimit((prev) => prev + ITEMS_PER_PAGE);
+		}
+	}, [activeTab]);
+
+	// Infinite scroll observer
+	useEffect(() => {
+		if (!hasMoreItems || isLoading) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries[0].isIntersecting) {
+					handleLoadMore();
+				}
+			},
+			{ threshold: 0.1, rootMargin: "100px" },
+		);
+
+		const currentTrigger = loadMoreTriggerRef.current;
+		if (currentTrigger) {
+			observer.observe(currentTrigger);
+		}
+
+		return () => {
+			if (currentTrigger) {
+				observer.unobserve(currentTrigger);
+			}
+		};
+	}, [hasMoreItems, isLoading, handleLoadMore]);
+
+	// Reset limits when changing tabs or refreshing
+	useEffect(() => {
+		setViewsLimit(ITEMS_PER_PAGE);
+		setTapsLimit(ITEMS_PER_PAGE);
+	}, [activeTab]);
 
 	// Keep relative timestamps fresh.
 	useEffect(() => {
@@ -164,18 +220,15 @@ export function InterestPage() {
 		};
 	}, []);
 
-	const activeItems = useMemo(
-		() => (activeTab === "views" ? views : taps),
-		[activeTab, taps, views],
-	);
-
 	const handleRefresh = useCallback(() => {
 		if (activeTab === "views") {
+			setViewsLimit(ITEMS_PER_PAGE);
 			void loadViews();
 			return;
 		}
+		setTapsLimit(ITEMS_PER_PAGE);
 		void loadTaps();
-	}, [activeTab, loadTaps, loadViews]);
+	}, [activeTab, loadTaps, loadViews, ITEMS_PER_PAGE]);
 
 	const handleSetActiveTab = useCallback(
 		(nextTab: InterestTab) => {
@@ -285,7 +338,7 @@ export function InterestPage() {
 
 					{!isLoading && !error && activeItems.length > 0 ? (
 						<div className="space-y-2">
-							{activeItems.map((item) => (
+							{displayedItems.map((item) => (
 								<InterestRow
 									key={`${activeTab}-${item.profileId}-${item.timestamp ?? "na"}`}
 									item={item}
@@ -294,6 +347,15 @@ export function InterestPage() {
 									now={nowTimestamp}
 								/>
 							))}
+
+							{hasMoreItems && (
+								<div
+									ref={loadMoreTriggerRef}
+									className="flex w-full items-center justify-center p-6"
+								>
+									<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+								</div>
+							)}
 						</div>
 					) : null}
 				</div>
