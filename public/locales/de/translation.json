@@ -129,6 +129,11 @@
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
+        },
+        "local_filters": {
+            "title": "Lokale Filter",
+            "description": "Diese Filter werden sofort auf die bereits geladenen Profile angewendet.",
+            "is_visiting": "Auf Besuch"
         }
     },
     "browse_location": {
@@ -756,6 +761,7 @@
         "unblock_success": "Profil entsperrt",
         "block_failed": "Profil konnte nicht blockiert werden",
         "unblock_failed": "Profil konnte nicht entsperrt werden",
+        "visiting": "Auf Besuch",
         "chat_history": "Chat-Verlauf",
         "last_message": "Letzte Nachricht {{time}}",
         "chatted_before": "Zuvor gechattet",
@@ -898,7 +904,7 @@
         }
     },
     "interest_page": {
-        "title": "Interesse",
+        "title": "Interest",
         "profile_fallback": "Profil {{id}}",
         "tabs": {
             "views": "Besucher",
@@ -915,8 +921,16 @@
         "view_count_one": "{{count}} Besuch",
         "view_count_other": "{{count}} Besuche",
         "viewed": "Angesehen",
-        "preview": "Vorschau",
-        "private_viewer": "Privater Besucher",
+        "recovered_tooltip": "Aus lokalem Verlauf wiedererkannt",
+        "onboarding": {
+            "title": "Profilbesucher",
+            "limitation_title": "Funktionsweise",
+            "limitation_desc": "Grindr zeigt normalerweise nur den allerletzten Besucher vollständig an. Andere sind oft hinter einer Paywall verborgen oder werden nur als anonyme Vorschau angezeigt.",
+            "recovery_title": "Intelligente Erkennung",
+            "recovery_desc": "Free Grind gleicht unbekannte Besucher automatisch mit deinem lokalen Verlauf ab. Finden wir eine Übereinstimmung, decken wir das Profil für dich auf.",
+            "button": "Verstanden!"
+        },
+        "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",
         "tap_labels": {
             "friendly": "Freundlich",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
 	type BrowseFilters,
 	type BrowseFiltersDraft,
@@ -11,6 +11,7 @@ import {
 
 export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 	const location = useLocation();
+	const navigate = useNavigate();
 
 	const [browseFilters, setBrowseFilters] = useState<BrowseFilters>(
 		persistedBrowseFilters.browseFilters,
@@ -35,7 +36,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
 	const [sortBy, setSortBy] = useState<BrowseSortOption>(persistedBrowseFilters.sortBy);
 
-	// Apply incoming filter state from navigation
+	// Apply incoming filter state from navigation and then clear it
 	useEffect(() => {
 		const safeState =
 			typeof location.state === "object" && location.state !== null
@@ -63,7 +64,13 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setMeetAt(normalized.meetAt);
 		setNsfwPics(normalized.nsfwPics);
 		setTags(normalized.tags);
-	}, [location.key, location.state]);
+
+		// Clear the state from the history entry so it doesn't re-apply when returning to this page
+		navigate(location.pathname + location.search, {
+			replace: true,
+			state: { ...safeState, browseFiltersDraft: undefined },
+		});
+	}, [location.key, location.state, location.pathname, location.search, navigate]);
 
 	// Persist filter state on every change
 	useEffect(() => {
@@ -107,7 +114,8 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 	const activeBrowseFilters = useMemo(() => {
 		const next: Partial<BrowseFilters> = {};
 		for (const [key, value] of Object.entries(browseFilters)) {
-			if (value) {
+			// isVisiting is a local-only filter, so we don't include it in request filters
+			if (value && key !== "isVisiting") {
 				next[key as keyof BrowseFilters] = true;
 			}
 		}
@@ -216,7 +224,15 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		tags,
 	]);
 
-	const hasActiveBrowseFilters = Object.keys(browseRequestFilters).length > 0;
+	const activeFilterCount = useMemo(() => {
+		let count = Object.keys(browseRequestFilters).length;
+		if (browseFilters.isVisiting) {
+			count += 1;
+		}
+		return count;
+	}, [browseRequestFilters, browseFilters.isVisiting]);
+
+	const hasActiveBrowseFilters = activeFilterCount > 0;
 
 	const clearBrowseFilters = () => {
 		setBrowseFilters(defaultBrowseFilters);
@@ -270,6 +286,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		sortBy,
 		setSortBy,
 		browseRequestFilters,
+		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
 	};

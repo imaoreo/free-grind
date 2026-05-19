@@ -542,7 +542,7 @@ export function ProfileDetailsModal({
 			<section className="min-h-screen bg-[var(--bg)] pb-24">
 				<div className="w-full">
 					{/* Sticky header container using --app-px for consistent horizontal alignment with the main browse page */}
-					<div className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+					<div className="sticky top-0 z-40 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
 						<div className="flex flex-1 justify-start">
 							<button
 								type="button"
