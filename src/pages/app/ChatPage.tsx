@@ -125,8 +125,18 @@ export function ChatPage() {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
 		if (nextFilters) {
 			setInboxFilters(nextFilters);
+
+			// Clear the state from the history entry so it doesn't re-apply when returning to this page
+			const safeState =
+				typeof location.state === "object" && location.state !== null
+					? (location.state as Record<string, unknown>)
+					: {};
+			navigate(location.pathname + location.search, {
+				replace: true,
+				state: { ...safeState, inboxFiltersDraft: undefined },
+			});
 		}
-	}, [location.key, location.state]);
+	}, [location.key, location.state, navigate, location.pathname, location.search]);
 
 	const activeInboxFilters = useMemo(() => {
 		const next: InboxFilters = {

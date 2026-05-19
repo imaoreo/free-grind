@@ -221,10 +221,36 @@ export function RightNowPage() {
 			ageMax,
 			positionFilter,
 		});
-		setAgeMin(next.ageMin);
-		setAgeMax(next.ageMax);
-		setPositionFilter(next.positionFilter);
-	}, [location.key, location.state]);
+
+		if (
+			next.ageMin !== ageMin ||
+			next.ageMax !== ageMax ||
+			next.positionFilter !== positionFilter
+		) {
+			setAgeMin(next.ageMin);
+			setAgeMax(next.ageMax);
+			setPositionFilter(next.positionFilter);
+
+			// Clear the state from the history entry so it doesn't re-apply when returning to this page
+			const safeState =
+				typeof location.state === "object" && location.state !== null
+					? (location.state as Record<string, unknown>)
+					: {};
+			navigate(location.pathname + location.search, {
+				replace: true,
+				state: { ...safeState, rightNowFiltersDraft: undefined },
+			});
+		}
+	}, [
+		location.key,
+		location.state,
+		navigate,
+		location.pathname,
+		location.search,
+		ageMin,
+		ageMax,
+		positionFilter,
+	]);
 
 	useEffect(() => {
 		saveRightNowFiltersDraft({
