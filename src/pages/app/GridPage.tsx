@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -129,6 +129,7 @@ export function GridPage() {
 		sortBy,
 		setSortBy,
 		browseRequestFilters,
+		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
 	} = useBrowseFilters(persistedBrowseFilters);
@@ -683,39 +684,50 @@ export function GridPage() {
 
 	const sortedCards = useMemo(() => {
 		const allCards = (SHOW_DEMO_DATA && showDebugInfo) ? [...DEMO_CARDS, ...cards] : cards;
-		if (sortBy === "default") return allCards;
-		return [...allCards].sort((a, b) => {
-			if (sortBy === "distance") {
-				const distA = a.distanceMeters ?? Infinity;
-				const distB = b.distanceMeters ?? Infinity;
-				return distA - distB;
-			}
-			if (sortBy === "age-asc") {
-				const ageA = a.age ?? Infinity;
-				const ageB = b.age ?? Infinity;
-				return ageA - ageB;
-			}
-			if (sortBy === "age-desc") {
-				const ageA = a.age ?? -Infinity;
-				const ageB = b.age ?? -Infinity;
-				return ageB - ageA;
-			}
-			if (sortBy === "popular") {
-				const popA = a.isPopular ? 1 : 0;
-				const popB = b.isPopular ? 1 : 0;
-				if (popA !== popB) return popB - popA;
-				const distA = a.distanceMeters ?? Infinity;
-				const distB = b.distanceMeters ?? Infinity;
-				return distA - distB;
-			}
-			if (sortBy === "name") {
-				const nameA = a.displayName ?? "";
-				const nameB = b.displayName ?? "";
-				return nameA.localeCompare(nameB);
-			}
-			return 0;
-		});
-	}, [cards, sortBy, showDebugInfo]);
+		let results: BrowseCard[];
+
+		if (sortBy === "default") {
+			results = allCards;
+		} else {
+			results = [...allCards].sort((a, b) => {
+				if (sortBy === "distance") {
+					const distA = a.distanceMeters ?? Infinity;
+					const distB = b.distanceMeters ?? Infinity;
+					return distA - distB;
+				}
+				if (sortBy === "age-asc") {
+					const ageA = a.age ?? Infinity;
+					const ageB = b.age ?? Infinity;
+					return ageA - ageB;
+				}
+				if (sortBy === "age-desc") {
+					const ageA = a.age ?? -Infinity;
+					const ageB = b.age ?? -Infinity;
+					return ageB - ageA;
+				}
+				if (sortBy === "popular") {
+					const popA = a.isPopular ? 1 : 0;
+					const popB = b.isPopular ? 1 : 0;
+					if (popA !== popB) return popB - popA;
+					const distA = a.distanceMeters ?? Infinity;
+					const distB = b.distanceMeters ?? Infinity;
+					return distA - distB;
+				}
+				if (sortBy === "name") {
+					const nameA = a.displayName ?? "";
+					const nameB = b.displayName ?? "";
+					return nameA.localeCompare(nameB);
+				}
+				return 0;
+			});
+		}
+
+		if (browseFilters.isVisiting) {
+			results = results.filter((card) => card.isVisiting === true);
+		}
+
+		return results;
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -993,8 +1005,6 @@ export function GridPage() {
 		performUnblockProfile,
 	]);
 
-	const activeFilterCount = Object.keys(browseRequestFilters).length;
-
 	return (
 		<>
 			{showDebugInfo && debugLoadSource && !SHOW_DEMO_DATA && (
@@ -1123,6 +1133,19 @@ export function GridPage() {
 										onClick={() =>
 											setBrowseFilters((prev: typeof browseFilters) => ({
 												...prev,
+												onlineOnly: !prev.onlineOnly,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+									>
+										{t("browse_filters.options.online")}
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
 												favorites: !prev.favorites,
 											}))
 										}
@@ -1140,12 +1163,33 @@ export function GridPage() {
 										onClick={() =>
 											setBrowseFilters((prev: typeof browseFilters) => ({
 												...prev,
-												onlineOnly: !prev.onlineOnly,
+												rightNow: !prev.rightNow,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										aria-label={t("browse_filters.options.right_now")}
+										title={t("browse_filters.options.right_now")}
 									>
-										{t("browse_filters.options.online")}
+										<Droplet
+											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
+										/>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												isVisiting: !prev.isVisiting,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										aria-label={t("profile_details.visiting")}
+										title={t("profile_details.visiting")}
+									>
+										<Plane
+											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+										/>
 									</button>
 
 									{hasActiveBrowseFilters ? (
@@ -1265,6 +1309,50 @@ export function GridPage() {
 										/>
 										<span className="hidden lg:inline">
 											{t("browse_filters.options.favorites")}
+										</span>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												rightNow: !prev.rightNow,
+											}))
+										}
+										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
+											browseFilters.rightNow
+												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Droplet
+											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
+										/>
+										<span className="hidden lg:inline">
+											{t("browse_filters.options.right_now")}
+										</span>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												isVisiting: !prev.isVisiting,
+											}))
+										}
+										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
+											browseFilters.isVisiting
+												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Plane
+											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+										/>
+										<span className="hidden lg:inline">
+											{t("profile_details.visiting")}
 										</span>
 									</button>
 

@@ -37,13 +37,13 @@ export function BrowseCardTile({
 	const isDemoCard = card.profileId.toString().startsWith("demo-");
 	const isVisiting = card.isVisiting === true;
 	const isPopular = card.isPopular === true;
-	const isRightNow = card.isRightNow === true;
+	const isRightNow = card.rightNow === "HOSTING" || card.rightNow === "NOT_HOSTING";
 	const isBoosting = card.isBoosting === true;
 	const databaseUnread = chatContactStatus?.unreadCount ?? 0;
 	const apiUnread = card.unreadCount ?? 0;
 	const unreadCount = Math.max(databaseUnread, apiUnread);
-	const hasChatted = Boolean(chatContactStatus?.hasChatted) || unreadCount > 0;
-    const isFavorite = card.favorite === true;
+	const hasChatted = Boolean(chatContactStatus?.hasChatted) || card.chatted === true || unreadCount > 0;
+	const isFavorite = card.favorite === true;
 
 
 	return (

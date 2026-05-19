@@ -9,6 +9,7 @@ export type BrowseFilters = {
 	favorites: boolean;
 	shuffle: boolean;
 	hot: boolean;
+	isVisiting: boolean;
 };
 
 export type BrowseSortOption =
@@ -30,6 +31,7 @@ export const defaultBrowseFilters: BrowseFilters = {
 	favorites: false,
 	shuffle: false,
 	hot: false,
+	isVisiting: false,
 };
 
 export type BrowseFiltersDraft = {

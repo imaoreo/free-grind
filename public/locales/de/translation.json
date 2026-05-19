@@ -129,6 +129,11 @@
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
+        },
+        "local_filters": {
+            "title": "Lokale Filter",
+            "description": "Diese Filter werden sofort auf die bereits geladenen Profile angewendet.",
+            "is_visiting": "Auf Besuch"
         }
     },
     "browse_location": {
@@ -756,6 +761,7 @@
         "unblock_success": "Profil entsperrt",
         "block_failed": "Profil konnte nicht blockiert werden",
         "unblock_failed": "Profil konnte nicht entsperrt werden",
+        "visiting": "Auf Besuch",
         "chat_history": "Chat-Verlauf",
         "last_message": "Letzte Nachricht {{time}}",
         "chatted_before": "Zuvor gechattet",

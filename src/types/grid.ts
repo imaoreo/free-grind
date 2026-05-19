@@ -36,11 +36,11 @@ export const browseCardSchema = z.object({
 	onlineUntil: z.number().nullable().optional(),
 	isPopular: z.boolean().optional(),
 	isVisiting: z.boolean().optional(),
-	isRightNow: z.boolean().optional(),
 	isBoosting: z.boolean().optional(),
 	unreadCount: z.number().optional(),
 	favorite: z.boolean().optional(),
-	rightNow: z.unknown().optional(),
+	chatted: z.boolean().optional(),
+	rightNow: z.string().nullable().optional(),
 });
 
 export type BrowseCard = z.infer<typeof browseCardSchema>;
