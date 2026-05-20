@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 
 export function ProtectedLayout() {
 	const location = useLocation();
-	const isChatConversationRoute = /^\/chat\/[^/]+$/.test(location.pathname);
+    const isChatConversationRoute =
+        /^\/chat\/[^/]+$/.test(location.pathname) ||
+        (location.pathname === "/chat" && new URLSearchParams(location.search).has("targetProfileId"));
 
 	// Determine if we are on a large enough screen to show both the inbox and chat thread.
 	// This matches the 1024px breakpoint used in ChatPage.tsx for the dual-pane layout.

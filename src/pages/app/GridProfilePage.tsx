@@ -306,6 +306,7 @@ export function GridProfilePage() {
 		const nextParams = new URLSearchParams();
 		nextParams.set("targetProfileId", targetProfileId);
 		nextParams.set("returnTo", safeReturnTo);
+        appLog.error("Profile", targetProfileId);
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 

@@ -612,7 +612,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									{isHeaderActionsMenuOpen ? (
 										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-											<button
+                                            <button
 												type="button"
 												onClick={() => {
 													setIsHeaderActionsMenuOpen(false);
@@ -1237,53 +1237,104 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		</div>
 	) : targetProfileId ? (
 		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">{t("chat.new_conversation.title")}</p>
-				<p className="text-sm text-[var(--text-muted)]">
-					{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
-				</p>
-			</div>
-			<div className="flex-1" />
+            className={`flex h-full flex-col overflow-hidden ${!isDesktop ? "overflow-hidden p-0" : "p-3 sm:p-4"} ${
+                isDesktop ? "surface-card" : ""
+            }`}
+            style={
+                !isDesktop
+                    ? {
+                        height:
+                            "calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+                    }
+                    : undefined
+            }
+        >
+            <div
+                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+                style={
+                    !isDesktop
+                        ? {
+                            top: 0,
+                            paddingTop:
+                                "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
+                        }
+                        : undefined
+                }
+            >
+                <div className="min-w-0 flex items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+                        <User className="h-5 w-5 text-[var(--text-muted)]" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="truncate text-lg font-semibold text-[var(--text-muted)]">
+                            {t("chat.new_conversation.title")}
+                        </p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        disabled
+                        className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        aria-label="Open conversation actions"
+                    >
+                        <Ellipsis className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1" />
+
 			<form
 				onSubmit={onFormSubmit}
-				className="border-t border-[var(--border)] pt-3"
-			>
+				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+                style={
+                    !isDesktop
+                        ? {
+                            bottom: `${mobileKeyboardInset}px`,
+                            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                        }
+                        : undefined
+                }
+            >
 				<div className="mb-2 flex flex-wrap items-center gap-2">
 					<button
 						type="button"
 						onClick={() => attachmentInputRef.current?.click()}
 						disabled={isUploadingAttachment}
-						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
+						className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                        aria-label={t("chat.attach_media")}
+					    title={t("chat.attach_media")}
+                    >
+							<ImagePlus className="h-4 w-4" />
 					</button>
 					<button
-						type="button"
-						onClick={handleLocationShareRequest}
-						className={`rounded-xl border px-3 py-1.5 text-xs transition ${
-							pendingLocationShare
-								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-						}`}
-					>
-						{pendingLocationShare ? (
-							<X className="mr-1 inline h-3.5 w-3.5" />
-						) : (
-							<MapPin className="mr-1 inline h-3.5 w-3.5" />
-						)}
-						{t("chat.share_location_label", { defaultValue: "Share Location" })}
-					</button>
-					<input
-						type="file"
-						ref={attachmentInputRef}
-						onChange={onAttachmentInput}
-						accept="image/*,video/*"
-						className="hidden"
-					/>
+                        type="button"
+                        onClick={handleLocationShareRequest}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+                            pendingLocationShare
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        }`}
+                        aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                        title={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                    >
+                        {pendingLocationShare ? (
+                            <X className="h-4 w-4" />
+                        ) : (
+                            <MapPin className="h-4 w-4" />
+                        )}
+                    </button>
+                    <input
+                        type="file"
+                        ref={attachmentInputRef}
+                        onChange={onAttachmentInput}
+                        accept="image/*,video/*"
+                        className="hidden"
+                    />
 				</div>
 
 				{pendingLocationShare ? (
