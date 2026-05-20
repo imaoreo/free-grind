@@ -604,7 +604,8 @@
         "favorite": "Favorito",
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
-        "drawer_label": "Galería"
+        "drawer_label": "Galería",
+        "drawer_unavailable": ""
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",

@@ -395,6 +395,8 @@
         "share": "",
         "send": "",
         "open": "",
+        "drawer_label": "",
+        "drawer_unavailable": "",
         "album_fallback": "",
         "select_conversation": "",
         "time": {
