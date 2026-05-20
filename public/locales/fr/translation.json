@@ -528,8 +528,10 @@
         },
         "new_conversation": {
             "title": "Nouvelle conversation",
-            "subtitle": "Envoyez un message au profil {{profileId}} pour commencer à discuter.",
-            "write_first_message": "Écrivez votre premier message..."
+            "subtitle": "Profil #{{profileId}}",
+            "write_first_message": "Écrivez votre premier message...",
+            "no_messages_yet": "",
+            "send_first_message_hint": ""
         },
         "tabs": {
             "inbox": "Messagerie",

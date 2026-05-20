@@ -359,7 +359,9 @@
         "new_conversation": {
             "write_first_message": "",
             "title": "",
-            "subtitle": ""
+            "subtitle": "",
+            "no_messages_yet": "",
+            "send_first_message_hint": ""
         },
         "loading_albums": "",
         "loading_inbox": "",

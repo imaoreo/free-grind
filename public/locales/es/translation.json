@@ -435,7 +435,9 @@
         "new_conversation": {
             "write_first_message": "Escribe tu primer mensaje...",
             "title": "Nueva conversación",
-            "subtitle": "Envía un mensaje al perfil {{profileId}} para empezar a conversar."
+            "subtitle": "Perfil #{{profileId}}",
+            "no_messages_yet": "",
+            "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",

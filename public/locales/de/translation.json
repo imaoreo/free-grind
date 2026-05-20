@@ -698,8 +698,10 @@
         },
         "new_conversation": {
             "title": "Neue Konversation",
-            "subtitle": "Sende eine Nachricht an Profil #{{profileId}}, um den Chat zu starten.",
-            "write_first_message": "Schreibe deine erste Nachricht..."
+            "subtitle": "Profil #{{profileId}}",
+            "write_first_message": "Schreibe deine erste Nachricht...",
+            "no_messages_yet": "Noch keine Nachrichten",
+            "send_first_message_hint": "Sende eine Nachricht um den Chat zu starten."
         }
     },
     "chat_drawer": {

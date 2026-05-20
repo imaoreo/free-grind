@@ -1307,7 +1307,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                 </div>
             </div>
 
-            <div className="flex-1" />
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]">
+                    <MessageCircleOff className="h-6 w-6 opacity-50" />
+                </div>
+                <div>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">
+                        {t("chat.new_conversation.no_messages_yet", { defaultValue: "No messages yet" })}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)] opacity-70">
+                        {t("chat.new_conversation.send_first_message_hint", { defaultValue: "Send a message below to start the conversation." })}
+                    </p>
+                </div>
+            </div>
 
 			<form
 				onSubmit={onFormSubmit}
