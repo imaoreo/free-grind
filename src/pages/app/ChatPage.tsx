@@ -2627,21 +2627,22 @@ export function ChatPage() {
 
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
-			if (!selectedConversation || !userId) {
-				return;
-			}
-			const targetProfile = getOtherParticipant(selectedConversation, userId);
-			if (!targetProfile?.profileId) {
-				toast.error(t("chat.errors.album_share_missing_recipient"));
-				return;
-			}
+        const targetProfile = selectedConversation
+            ? getOtherParticipant(selectedConversation, userId)
+            : null;
+        const recipientProfileId = targetProfile?.profileId ?? targetProfileId;
 
-			setPendingAlbumShare({
-				albumId,
-				albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
-			});
-		},
-		[selectedConversation, t, userId],
+        if (!recipientProfileId) {
+            toast.error(t("chat.errors.album_share_missing_recipient"));
+            return;
+        }
+
+        setPendingAlbumShare({
+            albumId,
+            albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
+        });
+    },
+    [selectedConversation, targetProfileId, t, userId],
 	);
 
 	const closePendingAlbumShare = useCallback(() => {
@@ -2653,42 +2654,39 @@ export function ChatPage() {
 	}, [isSharingAlbum]);
 
 	const confirmPendingAlbumShare = useCallback(async (expirationType: any = "INDEFINITE") => {
-		if (!selectedConversation || !userId || !pendingAlbumShare) {
-			return;
-		}
+        if (!pendingAlbumShare) return;
 
-		const targetProfile = getOtherParticipant(selectedConversation, userId);
-		if (!targetProfile?.profileId) {
-			toast.error(t("chat.errors.album_share_missing_recipient"));
-			return;
-		}
+        const targetProfile = selectedConversation
+            ? getOtherParticipant(selectedConversation, userId)
+            : null;
+        const recipientProfileId = targetProfile?.profileId ?? targetProfileId;
 
-		setIsSharingAlbum(true);
-		try {
-			await service.shareAlbum({
-				albumId: pendingAlbumShare.albumId,
-				profiles: [
-					{
-						profileId: targetProfile.profileId,
-						expirationType,
-					},
-				],
-			});
-			toast.success(t("chat.toasts.album_shared"));
-			setPendingAlbumShare(null);
-			setIsAlbumPickerOpen(false);
-			void loadThread({
-				conversationId: selectedConversation.data.conversationId,
-				older: false,
-			});
-		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
-			);
-		} finally {
-			setIsSharingAlbum(false);
-		}
-	}, [loadThread, pendingAlbumShare, selectedConversation, service, t, userId]);
+        if (!recipientProfileId) {
+            toast.error(t("chat.errors.album_share_missing_recipient"));
+            return;
+        }
+
+        setIsSharingAlbum(true);
+        try {
+            await service.shareAlbum({
+                albumId: pendingAlbumShare.albumId,
+                profiles: [{ profileId: recipientProfileId, expirationType }],
+            });
+            toast.success(t("chat.toasts.album_shared"));
+            setPendingAlbumShare(null);
+            setIsAlbumPickerOpen(false);
+            if (selectedConversation) {
+                void loadThread({
+                    conversationId: selectedConversation.data.conversationId,
+                    older: false,
+                });
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+        } finally {
+            setIsSharingAlbum(false);
+        }
+    }, [loadThread, pendingAlbumShare, selectedConversation, targetProfileId, service, t, userId]);
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
