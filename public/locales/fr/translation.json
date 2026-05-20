@@ -271,6 +271,26 @@
                 "my_tags_placeholder": "Mots-clés, séparés par des virgules",
                 "no_tags_added": "Aucun tag ajouté pour le moment."
             },
+            "visiting_mode": {
+                "title": "",
+                "description": "",
+                "loading": "",
+                "error": "",
+                "options": {
+                    "auto": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "home": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "visiting": {
+                        "label": "",
+                        "description": ""
+                    }
+                }
+            },
             "states": {
                 "title": "Statistiques",
                 "description": "Statistiques visibles et traits du profil",
