@@ -367,6 +367,26 @@
                 "my_tags_placeholder": "Keyword tags, separated by commas",
                 "no_tags_added": "No tags added yet."
             },
+            "visiting_mode": {
+                "title": "Mode",
+                "description": "Home, visiting, or auto",
+                "loading": "Loading mode…",
+                "error": "Could not load mode.",
+                "options": {
+                    "auto": {
+                        "label": "Auto",
+                        "description": "Let Grindr choose the mode for your current location."
+                    },
+                    "home": {
+                        "label": "Home",
+                        "description": "Show your profile in home mode."
+                    },
+                    "visiting": {
+                        "label": "Visiting",
+                        "description": "Show your profile in visiting mode."
+                    }
+                }
+            },
             "states": {
                 "title": "States",
                 "description": "Visible stats and profile traits",
@@ -1001,6 +1021,9 @@
             "load_browse_profiles": "Failed to load browse profiles",
             "load_profile_details": "Failed to load profile details",
             "load_profile": "Failed to load profile",
+            "load_visiting_mode": "Failed to load profile mode",
+            "invalid_visiting_mode_response": "Invalid profile mode response",
+            "save_visiting_mode": "Failed to save profile mode",
             "save_profile": "Failed to save profile",
             "update_photos": "Failed to update profile photos",
             "delete_photos": "Failed to delete profile photos",

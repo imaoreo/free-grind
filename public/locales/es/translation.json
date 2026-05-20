@@ -272,6 +272,26 @@
                 "my_tags_placeholder": "Etiquetas clave, separadas por comas",
                 "no_tags_added": "No se han añadido etiquetas todavía."
             },
+            "visiting_mode": {
+                "title": "Modo",
+                "description": "Casa, visita o automático",
+                "loading": "Cargando modo…",
+                "error": "No se pudo cargar el modo.",
+                "options": {
+                    "auto": {
+                        "label": "Auto",
+                        "description": "Deja que Grindr elija el modo para tu ubicación actual."
+                    },
+                    "home": {
+                        "label": "Casa",
+                        "description": "Muestra tu perfil en modo casa."
+                    },
+                    "visiting": {
+                        "label": "Visita",
+                        "description": "Muestra tu perfil en modo visita."
+                    }
+                }
+            },
             "states": {
                 "title": "Estados",
                 "description": "Estadísticas visibles y rasgos del perfil",
@@ -943,6 +963,9 @@
             "load_browse_profiles": "Error al cargar perfiles de navegar",
             "load_profile_details": "Error al cargar detalles de perfil",
             "load_profile": "Error al cargar perfil",
+            "load_visiting_mode": "Error al cargar modo de perfil",
+            "invalid_visiting_mode_response": "Respuesta inválida de modo de perfil",
+            "save_visiting_mode": "Error al guardar modo de perfil",
             "save_profile": "Error al guardar perfil",
             "update_photos": "Error al actualizar fotos del perfil",
             "delete_photos": "Error al borrar fotos de perfil",

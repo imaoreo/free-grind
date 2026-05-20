@@ -9,6 +9,10 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/useAuth";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import {
+	getVisitingModeTranslationKey,
+	type VisitingMode,
+} from "../../types/visiting";
 import { validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
@@ -52,6 +56,12 @@ export function ProfileEditorPage() {
 	const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 	const [profileError, setProfileError] = useState<string | null>(null);
 	const [draft, setDraft] = useState<ProfileDraft>(emptyDraft);
+	const [savedVisitingMode, setSavedVisitingMode] =
+		useState<VisitingMode>("AUTO");
+	const [draftVisitingMode, setDraftVisitingMode] =
+		useState<VisitingMode>("AUTO");
+	const [isLoadingVisitingMode, setIsLoadingVisitingMode] = useState(false);
+	const [visitingModeError, setVisitingModeError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -151,6 +161,30 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
+	const loadVisitingMode = useCallback(async () => {
+		if (!userId) {
+			setSavedVisitingMode("AUTO");
+			setDraftVisitingMode("AUTO");
+			setIsLoadingVisitingMode(false);
+			setVisitingModeError(null);
+			return;
+		}
+
+		try {
+			setIsLoadingVisitingMode(true);
+			setVisitingModeError(null);
+			setSavedVisitingMode(await apiFunctions.getVisitingMode());
+		} catch (error) {
+			setVisitingModeError(
+				error instanceof Error
+					? error.message
+					: t("profile_editor.sections.visiting_mode.error"),
+			);
+		} finally {
+			setIsLoadingVisitingMode(false);
+		}
+	}, [apiFunctions, userId, t]);
+
 	const loadManagedOptions = useCallback(async () => {
 		try {
 			const genders = await apiFunctions.getManagedGenders();
@@ -178,11 +212,16 @@ export function ProfileEditorPage() {
 	useEffect(() => {
 		void loadProfile();
 		void loadManagedOptions();
-	}, [loadManagedOptions, loadProfile]);
+		void loadVisitingMode();
+	}, [loadManagedOptions, loadProfile, loadVisitingMode]);
 
 	useEffect(() => {
 		setDraft(profileToDraft(profile));
 	}, [profile]);
+
+	useEffect(() => {
+		setDraftVisitingMode(savedVisitingMode);
+	}, [savedVisitingMode]);
 
 	const displayName = useMemo(() => {
 		if (profile?.displayName?.trim()) {
@@ -203,10 +242,13 @@ export function ProfileEditorPage() {
 
 	const savedDraft = useMemo(() => profileToDraft(profile), [profile]);
 
-	const hasChanges = useMemo(
+	const hasProfileChanges = useMemo(
 		() => JSON.stringify(draft) !== JSON.stringify(savedDraft),
 		[draft, savedDraft],
 	);
+
+	const hasVisitingModeChanges = draftVisitingMode !== savedVisitingMode;
+	const hasChanges = hasProfileChanges || hasVisitingModeChanges;
 
 	const tagList = useMemo(
 		() => normalizeTagList(draft.profileTagsText),
@@ -258,6 +300,11 @@ export function ProfileEditorPage() {
 
 		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
 	}, [draft.bodyType, bodyTypeLabels, t]);
+
+	const selectedVisitingModeLabel = useMemo(() => {
+		const modeKey = getVisitingModeTranslationKey(draftVisitingMode);
+		return t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`);
+	}, [draftVisitingMode, t]);
 
 	const completionChecklist = useMemo(
 		() => [
@@ -351,39 +398,48 @@ export function ProfileEditorPage() {
 		setIsSaving(true);
 
 		try {
-			await apiFunctions.updateMyProfile({
-				displayName: draft.displayName.trim() || null,
-				aboutMe: draft.aboutMe.trim() || null,
-				profileTags: tagList,
-				showAge: draft.showAge,
-				age: parseNullableInteger(draft.age),
-				height: parseNullableNumber(draft.height),
-				weight: parseNullableNumber(draft.weight),
-				ethnicity: parseNullableInteger(draft.ethnicity),
-				bodyType: parseNullableInteger(draft.bodyType),
-				showPosition: draft.showPosition,
-				sexualPosition: parseNullableInteger(draft.sexualPosition),
-				showTribes: draft.showTribes,
-				grindrTribes: draft.grindrTribes,
-				relationshipStatus: parseNullableInteger(draft.relationshipStatus),
-				lookingFor: draft.lookingFor,
-				meetAt: draft.meetAt,
-				nsfw: parseNullableInteger(draft.nsfw),
-				genders: draft.genders,
-				pronouns: draft.pronouns,
-				hivStatus: parseNullableInteger(draft.hivStatus),
-				lastTestedDate: parseDateInput(draft.lastTestedDate),
-				sexualHealth: draft.sexualHealth,
-				vaccines: draft.vaccines,
-				socialNetworks: {
-					instagram: { userId: draft.instagram.trim() || null },
-					twitter: { userId: draft.twitter.trim() || null },
-					facebook: { userId: draft.facebook.trim() || null },
-				},
-			});
+			if (hasProfileChanges) {
+				await apiFunctions.updateMyProfile({
+					displayName: draft.displayName.trim() || null,
+					aboutMe: draft.aboutMe.trim() || null,
+					profileTags: tagList,
+					showAge: draft.showAge,
+					age: parseNullableInteger(draft.age),
+					height: parseNullableNumber(draft.height),
+					weight: parseNullableNumber(draft.weight),
+					ethnicity: parseNullableInteger(draft.ethnicity),
+					bodyType: parseNullableInteger(draft.bodyType),
+					showPosition: draft.showPosition,
+					sexualPosition: parseNullableInteger(draft.sexualPosition),
+					showTribes: draft.showTribes,
+					grindrTribes: draft.grindrTribes,
+					relationshipStatus: parseNullableInteger(draft.relationshipStatus),
+					lookingFor: draft.lookingFor,
+					meetAt: draft.meetAt,
+					nsfw: parseNullableInteger(draft.nsfw),
+					genders: draft.genders,
+					pronouns: draft.pronouns,
+					hivStatus: parseNullableInteger(draft.hivStatus),
+					lastTestedDate: parseDateInput(draft.lastTestedDate),
+					sexualHealth: draft.sexualHealth,
+					vaccines: draft.vaccines,
+					socialNetworks: {
+						instagram: { userId: draft.instagram.trim() || null },
+						twitter: { userId: draft.twitter.trim() || null },
+						facebook: { userId: draft.facebook.trim() || null },
+					},
+				});
+			}
+
+			if (hasVisitingModeChanges) {
+				await apiFunctions.updateVisitingMode(draftVisitingMode);
+				setSavedVisitingMode(draftVisitingMode);
+			}
 
 			toast.success(t("profile_editor.toasts.updated"));
-			await loadProfile();
+			if (hasProfileChanges) {
+				await loadProfile();
+			}
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -563,6 +619,7 @@ export function ProfileEditorPage() {
 
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
+		setDraftVisitingMode(savedVisitingMode);
 	};
 
 	const handleLogout = async () => {
@@ -635,6 +692,9 @@ export function ProfileEditorPage() {
 														})
 													: t("profile_editor.no_tags")}
 											</span>
+											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+												{selectedVisitingModeLabel}
+											</span>
 										</div>
 									</div>
 								</div>
@@ -677,6 +737,10 @@ export function ProfileEditorPage() {
 								onUploadPhoto={handleUploadPhoto}
 								onSetPrimaryPhoto={handleSetPrimaryPhoto}
 								onRemovePhoto={handleRemovePhoto}
+								visitingMode={draftVisitingMode}
+								isLoadingVisitingMode={isLoadingVisitingMode}
+								visitingModeError={visitingModeError}
+								onVisitingModeChange={setDraftVisitingMode}
 								profileId={profile?.profileId ?? userId}
 								ethnicityOptions={ethnicityOptions}
 								bodyTypeOptions={bodyTypeOptions}
