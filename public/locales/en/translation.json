@@ -620,6 +620,7 @@
         "share_location_label": "Share location",
         "share_location_confirm": "Share this location?",
         "drawer_label": "Drawer",
+        "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
         "expiration": {
             "title": "Access Duration",

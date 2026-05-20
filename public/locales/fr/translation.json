@@ -435,6 +435,8 @@
         "share": "Partager",
         "send": "Envoyer",
         "open": "Ouvrir",
+        "drawer_label": "",
+        "drawer_unavailable": "",
         "album_fallback": "Album {{id}}",
         "select_conversation": "Choisissez une conversation pour voir les messages.",
         "time": {
