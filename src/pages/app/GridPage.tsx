@@ -798,7 +798,7 @@ export function GridPage() {
 		const nextParams = new URLSearchParams();
 		nextParams.set("targetProfileId", profileId);
 		nextParams.set("returnTo", `${location.pathname}${location.search}`);
-        appLog.error("Profile", profileId);
+        appLog.info("Profile", profileId);
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
