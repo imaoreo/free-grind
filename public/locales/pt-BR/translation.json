@@ -727,7 +727,8 @@
         "favorite": "Favorito",
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",
-        "drawer_label": "Pasta"
+        "drawer_label": "Pasta",
+        "drawer_unavailable": "Send a message first to use the drawer"
     },
     "profile_details": {
         "title": "Detalhes do perfil",

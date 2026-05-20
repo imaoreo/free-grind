@@ -1,6 +1,7 @@
 import {
 	Ban,
 	ChevronDown,
+	ChevronLeft,
 	Ellipsis,
 	Heart,
 	Hourglass,
@@ -492,6 +493,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<div
 								className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}
 							>
+                                {!isDesktop && (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate("/chat")}
+                                        className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+                                        aria-label={t("browse_location.back_aria")}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+                                )}
 								<button
 									type="button"
 									onClick={() => {
@@ -612,7 +623,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									{isHeaderActionsMenuOpen ? (
 										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-											<button
+                                            <button
 												type="button"
 												onClick={() => {
 													setIsHeaderActionsMenuOpen(false);
@@ -1060,7 +1071,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="submit"
 								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-								className="btn-accent h-11 shrink-0 px-4 text-sm"
+								className="btn-accent self-stretch shrink-0 px-4 text-sm"
 							>
 								{isSending ? t("chat.sending") : t("chat.send")}
 							</button>
@@ -1237,53 +1248,144 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		</div>
 	) : targetProfileId ? (
 		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">{t("chat.new_conversation.title")}</p>
-				<p className="text-sm text-[var(--text-muted)]">
-					{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
-				</p>
-			</div>
-			<div className="flex-1" />
+            className={`flex h-full flex-col overflow-hidden ${!isDesktop ? "overflow-hidden p-0" : "p-3 sm:p-4"} ${
+                isDesktop ? "surface-card" : ""
+            }`}
+            style={
+                !isDesktop
+                    ? {
+                        height:
+                            "calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+                    }
+                    : undefined
+            }
+        >
+            <div
+                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+                style={
+                    !isDesktop
+                        ? {
+                            top: 0,
+                            paddingTop:
+                                "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
+                        }
+                        : undefined
+                }
+            >
+                <div className="min-w-0 flex items-center gap-3">
+                    {!isDesktop && (
+                        <button
+                            type="button"
+                            onClick={() => navigate("/")}
+                            className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+                            aria-label={t("browse_location.back_aria")}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                    )}
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+                        <User className="h-5 w-5 text-[var(--text-muted)]" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="truncate text-lg font-semibold text-[var(--text-muted)]">
+                            {t("chat.new_conversation.title")}
+                        </p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        disabled
+                        className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        aria-label="Open conversation actions"
+                    >
+                        <Ellipsis className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]">
+                    <MessageCircleOff className="h-6 w-6 opacity-50" />
+                </div>
+                <div>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">
+                        {t("chat.new_conversation.no_messages_yet", { defaultValue: "No messages yet" })}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)] opacity-70">
+                        {t("chat.new_conversation.send_first_message_hint", { defaultValue: "Send a message below to start the conversation." })}
+                    </p>
+                </div>
+            </div>
+
 			<form
 				onSubmit={onFormSubmit}
-				className="border-t border-[var(--border)] pt-3"
-			>
+				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+                style={
+                    !isDesktop
+                        ? {
+                            bottom: `${mobileKeyboardInset}px`,
+                            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                        }
+                        : undefined
+                }
+            >
 				<div className="mb-2 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={toggleAlbumPicker}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        aria-label={t("chat.share_album_label")}
+                        title={t("chat.share_album_label")}
+                    >
+                        <Share2 className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => attachmentInputRef.current?.click()}
+                        disabled={isUploadingAttachment}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                        aria-label={t("chat.attach_media")}
+                        title={t("chat.attach_media")}
+                    >
+                        <ImagePlus className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        disabled
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        aria-label={t("chat.drawer_label")}
+                        title={t("chat.drawer_unavailable", { defaultValue: "Send a message first to use the drawer" })}
+                    >
+                        <SquareStack className="h-4 w-4" />
+                    </button>
 					<button
-						type="button"
-						onClick={() => attachmentInputRef.current?.click()}
-						disabled={isUploadingAttachment}
-						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
-					</button>
-					<button
-						type="button"
-						onClick={handleLocationShareRequest}
-						className={`rounded-xl border px-3 py-1.5 text-xs transition ${
-							pendingLocationShare
-								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-						}`}
-					>
-						{pendingLocationShare ? (
-							<X className="mr-1 inline h-3.5 w-3.5" />
-						) : (
-							<MapPin className="mr-1 inline h-3.5 w-3.5" />
-						)}
-						{t("chat.share_location_label", { defaultValue: "Share Location" })}
-					</button>
-					<input
-						type="file"
-						ref={attachmentInputRef}
-						onChange={onAttachmentInput}
-						accept="image/*,video/*"
-						className="hidden"
-					/>
+                        type="button"
+                        onClick={handleLocationShareRequest}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+                            pendingLocationShare
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        }`}
+                        aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                        title={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                    >
+                        {pendingLocationShare ? (
+                            <X className="h-4 w-4" />
+                        ) : (
+                            <MapPin className="h-4 w-4" />
+                        )}
+                    </button>
+                    <input
+                        type="file"
+                        ref={attachmentInputRef}
+                        onChange={onAttachmentInput}
+                        accept="image/*,video/*"
+                        className="hidden"
+                    />
 				</div>
 
 				{pendingLocationShare ? (
@@ -1353,6 +1455,46 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					</div>
 				) : null}
 
+                {isAlbumPickerOpen ? (
+                    <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                        {isLoadingAlbums ? (
+                            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
+                            </div>
+                        ) : shareableAlbums.length === 0 ? (
+                            <p className="text-xs text-[var(--text-muted)]">
+                                {t("chat.no_albums_available")}
+                            </p>
+                        ) : (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {shareableAlbums.map((album) => (
+                                    <div
+                                        key={album.albumId}
+                                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
+                                    >
+                                        <p className="truncate text-xs font-medium">
+                                            {album.albumName || t("chat.album_fallback", { id: album.albumId })}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void shareAlbumToCurrentConversation(
+                                                    album.albumId,
+                                                    album.albumName,
+                                                )
+                                            }
+                                            disabled={!album.isShareable || isSharingAlbum}
+                                            className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
+                                        >
+                                            {t("chat.share")}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+
 				{isUploadingAttachment || uploadProgress > 0 ? (
 					<div className="mb-2">
 						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
@@ -1381,12 +1523,90 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					<button
 						type="submit"
 						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-						className="btn-accent h-11 shrink-0 px-4 text-sm"
+						className="btn-accent self-stretch shrink-0 px-4 text-sm"
 					>
 						{isSending ? t("chat.sending") : t("chat.send")}
 					</button>
 				</div>
 			</form>
+
+            {pendingAlbumShare && albumViewer === null ? (
+                <div
+                    className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
+                        isDesktop ? "pb-32" : ""
+                    }`}
+                    onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="chat-album-share-confirm-title"
+                        className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <p
+                            id="chat-album-share-confirm-title"
+                            className="text-sm font-semibold text-[var(--text)]"
+                        >
+                            {t("chat.share_album_label")}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+                            {t("chat.confirm_share_album", {
+                                album: pendingAlbumShare.albumName,
+                            })}
+                        </p>
+
+                        <div className="mt-4">
+                            <label className="mb-1.5 block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                                {t("chat.expiration.title")}
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedExpirationType}
+                                    onChange={(e) => setSelectedExpirationType(e.target.value)}
+                                    className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--text)] transition focus:border-[var(--accent)] focus:outline-none"
+                                >
+                                    <option value="INDEFINITE">{t("chat.expiration.indefinite")}</option>
+                                    <option value="ONCE">{t("chat.expiration.once")}</option>
+                                    <option value="TEN_MINUTES">{t("chat.expiration.ten_minutes")}</option>
+                                    <option value="ONE_HOUR">{t("chat.expiration.one_hour")}</option>
+                                    <option value="ONE_DAY">{t("chat.expiration.one_day")}</option>
+                                </select>
+                                <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                                    {selectedExpirationType === "INDEFINITE" && <Infinity className="h-4 w-4" />}
+                                    {selectedExpirationType === "ONCE" && <TimerOff className="h-4 w-4" />}
+                                    {(selectedExpirationType === "TEN_MINUTES" || selectedExpirationType === "ONE_HOUR" || selectedExpirationType === "ONE_DAY") && <Hourglass className="h-4 w-4" />}
+                                </div>
+                                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                                    <ChevronDown className="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={closePendingAlbumShare}
+                                disabled={isSharingAlbum}
+                                className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                            >
+                                {t("chat.actions.cancel")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
+                                disabled={isSharingAlbum}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+                            >
+                                {isSharingAlbum ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                <span>{t("chat.share")}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 		</div>
 	) : (
 		<div
