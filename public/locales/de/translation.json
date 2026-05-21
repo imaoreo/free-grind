@@ -356,6 +356,26 @@
                 "my_tags_placeholder": "Schlüsselwörter, durch Kommas getrennt",
                 "no_tags_added": "Noch keine Tags hinzugefügt."
             },
+            "visiting_mode": {
+                "title": "Modus",
+                "description": "Zuhause, Besuch oder Auto",
+                "loading": "Modus wird geladen…",
+                "error": "Modus konnte nicht geladen werden.",
+                "options": {
+                    "auto": {
+                        "label": "Auto",
+                        "description": "Grindr wählt den Modus passend zu deinem aktuellen Standort."
+                    },
+                    "home": {
+                        "label": "Zuhause",
+                        "description": "Zeige dein Profil im Zuhause-Modus."
+                    },
+                    "visiting": {
+                        "label": "Besuch",
+                        "description": "Zeige dein Profil im Besuchsmodus."
+                    }
+                }
+            },
             "states": {
                 "title": "Status",
                 "description": "Sichtbare Statistiken und Profilmerkmale",
@@ -970,6 +990,9 @@
             "load_browse_profiles": "Profile konnten nicht geladen werden",
             "load_profile_details": "Profildetails konnten nicht geladen werden",
             "load_profile": "Profil konnte nicht geladen werden",
+            "load_visiting_mode": "Profilmodus konnte nicht geladen werden",
+            "invalid_visiting_mode_response": "Ungültige Antwort für Profilmodus",
+            "save_visiting_mode": "Profilmodus konnte nicht gespeichert werden",
             "save_profile": "Profil konnte nicht gespeichert werden",
             "update_photos": "Profilfotos konnten nicht aktualisiert werden",
             "delete_photos": "Profilfotos konnten nicht gelöscht werden",
