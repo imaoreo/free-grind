@@ -269,6 +269,26 @@
                 "my_tags_placeholder": "",
                 "no_tags_added": ""
             },
+            "visiting_mode": {
+                "title": "",
+                "description": "",
+                "loading": "",
+                "error": "",
+                "options": {
+                    "auto": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "home": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "visiting": {
+                        "label": "",
+                        "description": ""
+                    }
+                }
+            },
             "states": {
                 "title": "",
                 "description": "",
