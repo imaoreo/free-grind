@@ -4,13 +4,20 @@ import {
 	AtSign,
 	BadgeInfo,
 	Camera,
+	Compass,
+	Home,
 	ImageOff,
+	MapPin,
 	Ruler,
 	ShieldPlus,
 	Sparkles,
 	Star,
 	Trash2,
 } from "lucide-react";
+import {
+	getVisitingModeTranslationKey,
+	type VisitingMode,
+} from "../../../types/visiting";
 import { getThumbImageUrl } from "../../../utils/media";
 import { CategoryHeader, ChipGroup, ToggleRow } from "./ProfileEditorComponents";
 import { MAX_PROFILE_PHOTOS, type ProfileDraft } from "./profileEditorUtils";
@@ -40,6 +47,10 @@ type ProfileEditorFormSectionsProps = {
 	onUploadPhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	onSetPrimaryPhoto: (hash: string) => void;
 	onRemovePhoto: (hash: string) => void;
+	visitingMode: VisitingMode;
+	isLoadingVisitingMode: boolean;
+	visitingModeError: string | null;
+	onVisitingModeChange: (value: VisitingMode) => void;
 	profileId?: string | number | null;
 	ethnicityOptions: Option[];
 	bodyTypeOptions: Option[];
@@ -70,6 +81,10 @@ export function ProfileEditorFormSections({
 	onUploadPhoto,
 	onSetPrimaryPhoto,
 	onRemovePhoto,
+	visitingMode,
+	isLoadingVisitingMode,
+	visitingModeError,
+	onVisitingModeChange,
 	profileId,
 	ethnicityOptions,
 	bodyTypeOptions,
@@ -86,6 +101,15 @@ export function ProfileEditorFormSections({
 	vaccineOptions,
 }: ProfileEditorFormSectionsProps) {
 	const { t } = useTranslation();
+	const visitingModeDisabled = isLoadingVisitingMode || Boolean(visitingModeError);
+	const visitingModeOptions: Array<{
+		value: VisitingMode;
+		icon: typeof MapPin;
+	}> = [
+		{ value: "AUTO", icon: Compass },
+		{ value: "OFF", icon: Home },
+		{ value: "ON", icon: MapPin },
+	];
 
 	return (
 		<div className="grid gap-5">
@@ -280,6 +304,78 @@ export function ProfileEditorFormSections({
 						</div>
 					</div>
 				</div>
+			</div>
+
+			{/* Visiting Mode */}
+			<div className="surface-card rounded-3xl p-4 sm:p-5">
+				<CategoryHeader
+					title={t("profile_editor.sections.visiting_mode.title")}
+					description={t("profile_editor.sections.visiting_mode.description")}
+					icon={MapPin}
+				/>
+				<div
+					role="radiogroup"
+					aria-label={t("profile_editor.sections.visiting_mode.title")}
+					className="grid gap-2 sm:grid-cols-3"
+				>
+					{visitingModeOptions.map((option) => {
+						const active = option.value === visitingMode;
+						const Icon = option.icon;
+						const modeKey = getVisitingModeTranslationKey(option.value);
+
+						return (
+							<button
+								key={option.value}
+								type="button"
+								role="radio"
+								aria-checked={active}
+								disabled={visitingModeDisabled}
+								onClick={() => onVisitingModeChange(option.value)}
+								className={`flex min-h-32 flex-col items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 ${
+									active
+										? "border-transparent bg-[var(--accent)] text-[var(--accent-contrast)]"
+										: "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--text-muted)]"
+								}`}
+							>
+								<span
+									className={`rounded-xl border p-2 ${
+										active
+											? "border-[var(--accent-contrast)]/30 bg-[var(--accent-contrast)]/15"
+											: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]"
+									}`}
+								>
+									<Icon className="h-4 w-4" strokeWidth={2.1} />
+								</span>
+								<span className="text-sm font-semibold">
+									{t(
+										`profile_editor.sections.visiting_mode.options.${modeKey}.label`,
+									)}
+								</span>
+								<span
+									className={`text-xs leading-relaxed ${
+										active
+											? "text-[var(--accent-contrast)]/80"
+											: "text-[var(--text-muted)]"
+									}`}
+								>
+									{t(
+										`profile_editor.sections.visiting_mode.options.${modeKey}.description`,
+									)}
+								</span>
+							</button>
+						);
+					})}
+				</div>
+				{isLoadingVisitingMode || visitingModeError ? (
+					<p
+						className={`mt-3 text-xs leading-relaxed ${
+							visitingModeError ? "text-red-300" : "text-[var(--text-muted)]"
+						}`}
+					>
+						{visitingModeError ??
+							t("profile_editor.sections.visiting_mode.loading")}
+					</p>
+				) : null}
 			</div>
 
 			{/* Stats / States */}
