@@ -35,6 +35,8 @@ import type {
 	UploadChatMediaResponse,
 } from "../types/chat-service";
 
+import { shouldAutoBlock } from "../utils/autoblock";
+
 export class ChatApiError extends Error {
 	status: number;
 	payload: unknown;
@@ -208,9 +210,38 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			});
 			await assertSuccess(response, t("chat.errors.load_inbox"));
 			const parsed = inboxResponseSchema.parse(await parseJsonSafe(response));
+			// --- AUTO BLOCK CHECK (INBOX) ---
+			const safeEntries: ConversationEntry[] = [];
+			for (const entry of parsed.entries) {
+				// The chat payload can be tricky, so we safely convert it to any to bypass strict type errors for a moment
+				const data: any = entry.data;
+				
+				// Grab the name (usually from participants or name field)
+				const displayName = data.name || (data.participants && data.participants[0]?.displayName) || "";
+				
+				// Grab the last message text
+				const lastMessageText = data.previewText || (data.lastMessage?.body?.text) || "";
+
+				// Check if the name OR the last message contains a forbidden word
+				const shouldBlock = shouldAutoBlock(displayName, "chat") || shouldAutoBlock(lastMessageText, "chat");
+
+				if (shouldBlock) {
+					// Find their ID to block them
+					const profileId = data.participants?.[0]?.profileId;
+					if (profileId) {
+						console.log(`[AutoBlock] Blocking chat from: ${displayName || profileId}`);
+						fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
+					}
+					continue; // Skip adding them to the inbox list
+				}
+				
+				safeEntries.push(entry);
+			}
+			// ---------------------------------
+
 			return {
 				...parsed,
-				entries: sortConversations(parsed.entries),
+				entries: sortConversations(safeEntries),
 			};
 		},
 
