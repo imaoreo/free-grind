@@ -24,7 +24,7 @@ import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
 import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
-import { AlbumFullscreenOverlay } from "./shared-albums/AlbumFullscreenOverlay";
+import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -67,7 +67,6 @@ export function SharedAlbumsPage() {
 	const [viewer, setViewer] = useState<AlbumViewer | null>(null);
 	const [viewerIndex, setViewerIndex] = useState(0);
 	const [fullScreenIndex, setFullScreenIndex] = useState<number | null>(null);
-	const viewerTouchStartX = useRef<number | null>(null);
 	const pageTouchStartXRef = useRef<number | null>(null);
 	const viewerHistoryPushedRef = useRef(false);
 	const fullScreenHistoryPushedRef = useRef(false);
@@ -246,6 +245,14 @@ export function SharedAlbumsPage() {
 		[apiFunctions, isOpeningAlbum],
 	);
 
+	const viewerPhotos = useMemo<PhotoViewerMedia[]>(() => {
+		if (!viewer) return [];
+		return viewer.content.map((item) => ({
+			url: item.url || item.thumbUrl || item.coverUrl || "",
+			type: item.contentType?.startsWith("video/") ? "video" : "image",
+		}));
+	}, [viewer]);
+
 	const selectedViewerItem =
 		viewer && viewer.content.length > 0
 			? viewer.content[Math.min(viewerIndex, viewer.content.length - 1)]
@@ -303,27 +310,10 @@ export function SharedAlbumsPage() {
 		closeFullScreenState();
 	}, [closeFullScreenState]);
 
-	const showPreviousFullScreenItem = useCallback(() => {
-		setFullScreenIndex((index) => {
-			if (index == null) {
-				return index;
-			}
-			const next = Math.max(0, index - 1);
-			setViewerIndex(next);
-			return next;
-		});
+	const handleIndexChange = useCallback((index: number) => {
+		setFullScreenIndex((prev) => (prev === index ? prev : index));
+		setViewerIndex((prev) => (prev === index ? prev : index));
 	}, []);
-
-	const showNextFullScreenItem = useCallback(() => {
-		setFullScreenIndex((index) => {
-			if (index == null || !viewer) {
-				return index;
-			}
-			const next = Math.min(viewer.content.length - 1, index + 1);
-			setViewerIndex(next);
-			return next;
-		});
-	}, [viewer]);
 
 	useEffect(() => {
 		const handlePopState = () => {
@@ -343,42 +333,6 @@ export function SharedAlbumsPage() {
 		};
 	}, [closeFullScreenState, closeViewerState]);
 
-	const canViewPrevious = fullScreenIndex != null && fullScreenIndex > 0;
-	const canViewNext =
-		fullScreenIndex != null && viewer
-			? fullScreenIndex < viewer.content.length - 1
-			: false;
-
-	const fullScreenItem =
-		viewer && fullScreenIndex != null && fullScreenIndex >= 0
-			? viewer.content[Math.min(fullScreenIndex, viewer.content.length - 1)]
-			: null;
-
-	const onViewerTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-		viewerTouchStartX.current = event.changedTouches[0]?.clientX ?? null;
-	};
-
-	const onViewerTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-		const startX = viewerTouchStartX.current;
-		if (startX == null) {
-			return;
-		}
-
-		const endX = event.changedTouches[0]?.clientX ?? startX;
-		const deltaX = endX - startX;
-		viewerTouchStartX.current = null;
-
-		if (Math.abs(deltaX) < 48) {
-			return;
-		}
-
-		if (deltaX > 0) {
-			showPreviousFullScreenItem();
-		} else {
-			showNextFullScreenItem();
-		}
-	};
-
 	useEffect(() => {
 		if (!viewer) {
 			return;
@@ -394,36 +348,6 @@ export function SharedAlbumsPage() {
 				}
 				return;
 			}
-
-			if (fullScreenIndex == null) {
-				return;
-			}
-
-			if (event.key === "ArrowLeft") {
-				event.preventDefault();
-				showPreviousFullScreenItem();
-				return;
-			}
-
-			if (event.key === "ArrowRight") {
-				event.preventDefault();
-				showNextFullScreenItem();
-				return;
-			}
-
-			if (event.key === "Home") {
-				event.preventDefault();
-				setFullScreenIndex(0);
-				setViewerIndex(0);
-				return;
-			}
-
-			if (event.key === "End") {
-				event.preventDefault();
-				const next = Math.max(0, viewer.content.length - 1);
-				setFullScreenIndex(next);
-				setViewerIndex(next);
-			}
 		};
 
 		window.addEventListener("keydown", onKeyDown);
@@ -432,9 +356,8 @@ export function SharedAlbumsPage() {
 		};
 	}, [
 		closeFullScreen,
+		closeViewer,
 		fullScreenIndex,
-		showNextFullScreenItem,
-		showPreviousFullScreenItem,
 		viewer,
 	]);
 
@@ -605,20 +528,15 @@ export function SharedAlbumsPage() {
 				/>
 			) : null}
 
-			{viewer && fullScreenItem ? (
-				<AlbumFullscreenOverlay
-					viewer={viewer}
-					fullScreenIndex={fullScreenIndex}
-					fullScreenItem={fullScreenItem}
-					canViewPrevious={canViewPrevious}
-					canViewNext={canViewNext}
-					closeFullScreen={closeFullScreen}
-					showPreviousFullScreenItem={showPreviousFullScreenItem}
-					showNextFullScreenItem={showNextFullScreenItem}
-					onViewerTouchStart={onViewerTouchStart}
-					onViewerTouchEnd={onViewerTouchEnd}
+			{viewer !== null && fullScreenIndex !== null && (
+				<PhotoViewer
+					isOpen={true}
+					onClose={closeFullScreen}
+					photos={viewerPhotos}
+					initialIndex={fullScreenIndex}
+					onIndexChange={handleIndexChange}
 				/>
-			) : null}
+			)}
 		</section>
 	);
 }

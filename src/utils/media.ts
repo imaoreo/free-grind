@@ -24,3 +24,26 @@ export function getThumbImageUrl(
 ): string {
 	return `${PUBLIC_MEDIA_BASE_URL}/images/thumb/${size}/${hash}`;
 }
+
+export interface SquareCrop {
+	top: number;
+	left: number;
+	right: number;
+	bottom: number;
+}
+
+/**
+ * Calculates a centered square crop for an image file.
+ * Returns coordinates in pixels: top, left, right, bottom.
+ */
+export async function calculateSquareCrop(file: File): Promise<SquareCrop> {
+	const bitmap = await createImageBitmap(file);
+	const side = Math.min(bitmap.width, bitmap.height);
+	const left = Math.round((bitmap.width - side) / 2);
+	const top = Math.round((bitmap.height - side) / 2);
+	const right = left + side;
+	const bottom = top + side;
+	bitmap.close();
+
+	return { top, left, right, bottom };
+}
