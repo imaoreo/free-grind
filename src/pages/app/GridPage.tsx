@@ -41,6 +41,7 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
+import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -694,6 +695,33 @@ export function GridPage() {
 		() => cards.filter((card) => isCurrentlyOnline(card.onlineUntil)).length,
 		[cards],
 	);
+
+    // --- AUTO BLOCK CHECK (GRID SCANNER) ---
+	useEffect(() => {
+		// Scan all current cards for bad words or bad ages
+		const badCards = cards.filter((card) => 
+			card.profileId && (shouldAutoBlock(card.displayName, "grid") || isOutsideAgeLimits(card.age, "grid"))
+		);
+		
+		if (badCards.length > 0) {
+			const badIds = new Set(badCards.map((c) => c.profileId));
+
+			// 1. Instantly remove them from the UI
+			const cleanCards = cards.filter((c) => !badIds.has(c.profileId));
+			setCards(cleanCards);
+			
+			if (browseCacheKey) {
+				setCachedBrowseCards(browseCacheKey, cleanCards, nextPage);
+			}
+
+			// 2. Silently block them on the server
+			badCards.forEach((card) => {
+				console.log(`[AutoBlock] Sweeping grid profile: ${card.displayName || "Unknown"} (Age: ${card.age})`);
+				apiFunctions.blockProfile(card.profileId).catch(() => {});
+			});
+		}
+	}, [cards, apiFunctions, browseCacheKey, nextPage]);
+	// ---------------------------------------
 
 	const sortedCards = useMemo(() => {
 		const allCards = (SHOW_DEMO_DATA && showDebugInfo) ? [...DEMO_CARDS, ...cards] : cards;

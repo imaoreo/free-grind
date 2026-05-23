@@ -74,9 +74,6 @@ export function SettingsPage() {
 	const [fcmSyncedToken, setFcmSyncedToken] = useState<string | null>(() => window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY));
 	const [fcmEventLog, setFcmEventLog] = useState<{ time: string; token: string }[]>([]);
 	const [manualToken, setManualToken] = useState("");
-    const [forbiddenWords, setForbiddenWords] = useState(() => window.localStorage.getItem("fg-forbidden-words") || "");
-    const [blockOnGrid, setBlockOnGrid] = useState(() => window.localStorage.getItem("fg-block-grid") === "true");
-	const [blockOnChat, setBlockOnChat] = useState(() => window.localStorage.getItem("fg-block-chat") !== "false"); // Default to true
 	const fcmLogRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -271,72 +268,28 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
                 
-{/* --- AUTO BLOCK FEATURE --- */}
-				<div className="surface-card p-4 sm:p-5">
-					<div className="flex items-start gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
-							<ShieldBan className="h-5 w-5 text-red-400" />
+{/* --- AUTO BLOCK MENU BUTTON --- */}
+				<button
+					type="button"
+					onClick={() => navigate("/settings/auto-block")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-red-500/10 p-2.5 shrink-0">
+							<ShieldBan className="h-5 w-5 text-red-500" />
 						</div>
-						<div className="grid gap-3 min-w-0 flex-1">
-							<div>
-								<p className="text-base font-semibold text-red-400">
-									Auto-Block Keywords
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									Automatically block profiles containing these words. Separate with commas (e.g. snapchat, crypto).
-								</p>
-							</div>
-							
-							{/* Checkboxes for where to apply */}
-							<div className="flex flex-col gap-2 mt-1">
-								<label className="flex items-center gap-2 text-sm text-[var(--text)] cursor-pointer">
-									<input 
-										type="checkbox" 
-										checked={blockOnGrid} 
-										onChange={(e) => {
-											setBlockOnGrid(e.target.checked);
-											window.localStorage.setItem("fg-block-grid", String(e.target.checked));
-										}}
-										className="accent-[var(--accent)]"
-									/>
-									Apply to Grid Profiles (Hides them from browse)
-								</label>
-								<label className="flex items-center gap-2 text-sm text-[var(--text)] cursor-pointer">
-									<input 
-										type="checkbox" 
-										checked={blockOnChat} 
-										onChange={(e) => {
-											setBlockOnChat(e.target.checked);
-											window.localStorage.setItem("fg-block-chat", String(e.target.checked));
-										}}
-										className="accent-[var(--accent)]"
-									/>
-									Apply to Inbox (Instantly blocks incoming chats)
-								</label>
-							</div>
-
-							<div className="flex gap-2 mt-2">
-								<input
-									type="text"
-									value={forbiddenWords}
-									onChange={(e) => setForbiddenWords(e.target.value)}
-									placeholder="snapchat, insta, bot, crypto..."
-									className="flex-1 rounded-md border border-[var(--surface-2)] bg-[var(--surface-1)] px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none"
-								/>
-								<Button
-									type="button"
-									onClick={() => {
-										window.localStorage.setItem("fg-forbidden-words", forbiddenWords);
-										toast.success("Auto-block settings saved!");
-									}}
-								>
-									Save
-								</Button>
-							</div>
+						<div>
+							<p className="text-base font-semibold text-red-400">
+								Auto-Block Features
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								Configure automated blocking rules for keywords and age.
+							</p>
 						</div>
 					</div>
-				</div>
-				{/* --- END AUTO BLOCK --- */}
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+				{/* ----------------------------- */}
 
 				<button
 					type="button"

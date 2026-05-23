@@ -68,6 +68,9 @@ export function CustomizabilityPage() {
 	} = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
+    const [showRightNow, setShowRightNow] = useState(() => window.localStorage.getItem("fg-show-right-now") !== "false");
+	const [showInterest, setShowInterest] = useState(() => window.localStorage.getItem("fg-show-interest") !== "false");
+    const [defaultInterestTab, setDefaultInterestTab] = useState(() => window.localStorage.getItem("fg-interest-default-tab") || "taps");
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
 		() => readAnalyticsConsentChoice(),
 	);
@@ -402,6 +405,64 @@ export function CustomizabilityPage() {
 						</button>
 					</div>
 					{hexError ? <p className="mt-2 text-xs text-red-400">{hexError}</p> : null}
+				</div>
+
+                {/* Navigation Tabs Customization */}
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						Navigation Tabs
+					</p>
+					<p className="mb-3 text-sm text-[var(--text-muted)]">
+						Hide the tabs you don't use to keep the app clean. (Browse and Inbox are mandatory).
+					</p>
+					<div className="flex flex-col gap-3">
+						<label className="flex items-center gap-3 text-sm cursor-pointer">
+							<input
+								type="checkbox"
+								checked={showRightNow}
+								onChange={(e) => {
+									const isChecked = e.target.checked;
+									setShowRightNow(isChecked);
+									window.localStorage.setItem("fg-show-right-now", String(isChecked));
+									window.location.reload(); // Refresh to apply tab changes immediately
+								}}
+								className="h-4 w-4 accent-[var(--accent)]"
+							/>
+							Show "Right Now" Tab
+						</label>
+						<label className="flex items-center gap-3 text-sm cursor-pointer">
+							<input
+								type="checkbox"
+								checked={showInterest}
+								onChange={(e) => {
+									const isChecked = e.target.checked;
+									setShowInterest(isChecked);
+									window.localStorage.setItem("fg-show-interest", String(isChecked));
+									window.location.reload(); // Refresh to apply tab changes immediately
+								}}
+								className="h-4 w-4 accent-[var(--accent)]"
+							/>
+							Show "Interest" Tab
+						</label>
+					</div>
+
+					{/* --- PUT IT RIGHT HERE --- */}
+					<div className="mt-4 border-t border-[var(--border)] pt-4">
+						<p className="mb-2 text-sm font-semibold text-[var(--text)]">Default Interest View</p>
+						<select
+							value={defaultInterestTab}
+							onChange={(e) => {
+								const val = e.target.value;
+								setDefaultInterestTab(val);
+								window.localStorage.setItem("fg-interest-default-tab", val);
+							}}
+							className="h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+						>
+							<option value="taps">Show Taps First</option>
+							<option value="views">Show Views First</option>
+						</select>
+					</div>
+					{/* --------------------------- */}
 				</div>
 
 				{/* Browse Grid (Mobile) */}

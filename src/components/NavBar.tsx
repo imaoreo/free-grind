@@ -8,8 +8,10 @@ import { useAuth } from "../contexts/useAuth";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
+	markInterestSeen,
 	getInboxLastSeen,
 	INBOX_SEEN_EVENT,
+	markInboxSeen,
 } from "../services/seenStore";
 import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
 import { messageSchema, type Message } from "../types/messages";
@@ -62,36 +64,46 @@ export function NavBar() {
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
+	
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 	const [interestUnseen, setInterestUnseen] = useState(false);
 	const [inboxUnseen, setInboxUnseen] = useState(false);
+
+	// Read preferences directly from localStorage (defaulting to true if not set)
+	const [showRightNow] = useState(() => window.localStorage.getItem("fg-show-right-now") !== "false");
+	const [showInterest] = useState(() => window.localStorage.getItem("fg-show-interest") !== "false");
+
 	const navItems = [
 		{
 			value: "browse",
 			label: t("nav.browse"),
 			icon: GridIcon,
 			path: "/",
+			visible: true, // Mandatory
 		},
 		{
 			value: "right-now",
 			label: t("nav.right_now"),
 			icon: Droplet,
 			path: "/right-now",
+			visible: showRightNow, // Toggleable
 		},
 		{
 			value: "interest",
 			label: t("nav.interest"),
 			icon: Flame,
 			path: "/interest",
+			visible: showInterest, // Toggleable
 		},
 		{
 			value: "inbox",
 			label: t("nav.inbox"),
 			icon: MessageCircle,
 			path: "/chat",
+			visible: true, // Mandatory
 		},
-	];
+	].filter(item => item.visible);
 
 	// Update active tab based on current path
 	useEffect(() => {
@@ -106,7 +118,7 @@ export function NavBar() {
 		if (currentItem) {
 			setActiveTab(currentItem.value);
 		}
-	}, [location.pathname]);
+	}, [location.pathname, navItems]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -314,6 +326,12 @@ export function NavBar() {
 		}
 	};
 
+	// Determine the grid column class safely based on exactly how many tabs remain
+	const gridColsClass = 
+		navItems.length === 2 ? "grid-cols-2" : 
+		navItems.length === 3 ? "grid-cols-3" : 
+		"grid-cols-4";
+
 	return (
 		<nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] md:px-4 md:pb-[calc(env(safe-area-inset-bottom,0px)+14px)]">
 			<div
@@ -325,7 +343,7 @@ export function NavBar() {
 				}}
 			>
 				<Tabs value={activeTab} onValueChange={handleTabChange}>
-					<TabsList className="grid h-16 w-full grid-cols-4 bg-transparent p-0 md:h-[4.1rem]">
+					<TabsList className={`grid h-16 w-full ${gridColsClass} bg-transparent p-0 md:h-[4.1rem]`}>
 						{navItems.map((item) => {
 							const Icon = item.icon;
 							return (
