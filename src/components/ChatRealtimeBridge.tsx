@@ -30,6 +30,8 @@ import type { RealtimeEnvelope, RealtimeStatus } from "../types/chat-realtime";
 import { appLog } from "../utils/logger";
 import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { getConversation } from "../services/conversationDirectory";
+import { shouldAutoBlock } from "../utils/autoblock";
+import { useApiFunctions } from "../hooks/useApiFunctions";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
@@ -137,6 +139,7 @@ function extractMessages(envelope: RealtimeEnvelope): Message[] {
 export function ChatRealtimeBridge() {
 	const { userId } = useAuth();
 	const { callMethod } = useApi();
+    const apiFunctions = useApiFunctions();
 	const location = useLocation();
 
 	const [token, setToken] = useState<string | null>(null);
@@ -267,20 +270,37 @@ export function ChatRealtimeBridge() {
 
 				const messages = extractMessages(envelope);
 				if (messages.length > 0) {
-					// Persist (idempotent) so navigating to the chat shows the message
-					// even if ChatPage is not mounted right now.
 					const byConv = new Map<string, Message[]>();
 					for (const m of messages) {
+						// --- LIVE AUTO BLOCK CHECK ---
+						let messageText = "";
+						const msgBody: any = m.body;
+						if (msgBody && typeof msgBody.text === "string") {
+							messageText = msgBody.text;
+						}
+						
+						const isIncoming = userIdRef.current != null && Number(m.senderId) !== Number(userIdRef.current);
+
+						// DEBUG LOG: See exactly what the app thinks is happening
+						console.log(`[AutoBlock Debug] Incoming? ${isIncoming} | Sender: ${m.senderId} | Text: "${messageText}"`);
+
+						if (isIncoming && shouldAutoBlock(messageText, "chat")) {
+							console.log(`[AutoBlock] 🚨 BANNED WORD CAUGHT 🚨 Live blocking message from ${m.senderId}: ${messageText}`);
+							
+							if (m.senderId) {
+								apiFunctions.blockProfile(String(m.senderId)).catch((e) => console.error("Block API Failed:", e));
+							}
+							
+							continue; // Skip processing this message entirely!
+						}
+						// -----------------------------
+
 						const list = byConv.get(m.conversationId) ?? [];
 						list.push(m);
 						byConv.set(m.conversationId, list);
 
 						// Update local contact index for unread badge persistence
-						if (
-							userIdRef.current != null &&
-							Number(m.senderId) !== Number(userIdRef.current)
-						) {
-							// Don't increment if we are currently looking at this conversation
+						if (isIncoming) {
 							const path = pathRef.current;
 							const isViewingThisChat =
 								path === `/app/chat/${m.conversationId}` ||
@@ -296,6 +316,7 @@ export function ChatRealtimeBridge() {
 							}
 						}
 					}
+					
 					for (const [cid, msgs] of byConv) {
 						await chatLog.appendMessages(cid, msgs);
 					}

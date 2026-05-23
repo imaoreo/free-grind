@@ -75,6 +75,7 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
+import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 
 
 export function ChatPage() {
@@ -960,6 +961,68 @@ export function ChatPage() {
 						});
 					}
 				}
+
+// --- AUTO BLOCK CHECK (HISTORICAL CHAT SCANNER) ---
+				let shouldNukeThread = false;
+				let blockReason = "";
+
+				// 1. Check if their historical messages contain bad words
+				for (const m of responseMessages) {
+					let messageText = "";
+					const msgBody: any = m.body;
+					if (msgBody && typeof msgBody.text === "string") {
+						messageText = msgBody.text;
+					}
+					
+					const isIncoming = userId != null && Number(m.senderId) !== Number(userId);
+
+					if (isIncoming && shouldAutoBlock(messageText, "chat")) {
+						shouldNukeThread = true;
+						blockReason = "Keyword in message history";
+						break;
+					}
+				}
+
+				const otherParticipant = getOtherParticipant(selectedConversation || { data: { participants: [] } } as any, userId);
+				const blockId = otherParticipant?.profileId || (responseMessages[0] && responseMessages[0].senderId);
+
+				if (shouldNukeThread) {
+					console.log(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
+					
+					if (blockId) {
+						service.blockProfile(String(blockId)).catch(() => {});
+					}
+
+					setThreadMessages([]);
+					setThreadConversationId(null);
+					if (isDesktop) {
+						setSelectedDesktopConversationId(null);
+					} else {
+						navigate("/chat", { replace: true });
+					}
+					toast.success(`Auto-blocked: ${blockReason}`);
+					return; // Stop loading the rest of the thread!
+				}
+
+				// 2. Fetch their profile in the background to check their Age
+				if (blockId) {
+					service.getProfileDetail(String(blockId)).then((profile) => {
+						if (isOutsideAgeLimits(profile.age, "chat")) {
+							console.log(`[AutoBlock] Sweeping conversation due to Age Limit (${profile.age})`);
+							service.blockProfile(String(blockId)).catch(() => {});
+							
+							setThreadMessages([]);
+							setThreadConversationId(null);
+							if (isDesktop) {
+								setSelectedDesktopConversationId(null);
+							} else {
+								navigate("/chat", { replace: true });
+							}
+							toast.success(`Auto-blocked: Age limit (${profile.age})`);
+						}
+					}).catch(() => {});
+				}
+				// --------------------------------------------------
 
 				setThreadMessages((previous) => {
 					const map = new Map<string, UiMessage>();

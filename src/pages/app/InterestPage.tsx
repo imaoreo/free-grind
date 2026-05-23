@@ -34,8 +34,8 @@ export function InterestPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const activeTab: InterestTab =
-		searchParams.get("tab") === "views" ? "views" : "taps";
+	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
+	const activeTab: InterestTab = searchParams.get("tab") === "views" || (!searchParams.get("tab") && defaultSetting === "views") ? "views" : "taps";
 	const [views, setViews] = useState<InterestItem[]>([]);
 	const [taps, setTaps] = useState<InterestItem[]>([]);
 	const [viewedCount, setViewedCount] = useState<number | null>(null);

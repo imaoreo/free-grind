@@ -29,6 +29,7 @@ import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
+import { SettingsAutoBlockPage } from "./pages/app/SettingsAutoBlockPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
@@ -105,6 +106,7 @@ export default function App() {
 							<Route path="/chat/:conversationId" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/settings/auto-block" element={<SettingsAutoBlockPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 							<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
