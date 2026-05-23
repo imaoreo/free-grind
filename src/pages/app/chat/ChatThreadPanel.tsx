@@ -1,5 +1,6 @@
 import {
 	Ban,
+    Bookmark,
 	ChevronDown,
 	ChevronLeft,
 	Ellipsis,
@@ -172,6 +173,36 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
 	});
+
+    // --- SAVED PHRASES STATE ---
+	const [isPhraseMenuOpen, setIsPhraseMenuOpen] = useState(false);
+	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => {
+		try {
+			const stored = localStorage.getItem("fg-saved-phrases");
+			return stored ? (JSON.parse(stored) as string[]) : ["Hey, how are you?", "Looking for?", "I can host!"];
+		} catch { return []; }
+	});
+	const [newPhrase, setNewPhrase] = useState("");
+
+	const handleSavePhrase = () => {
+		if (!newPhrase.trim()) return;
+		const updated = [...savedPhrases, newPhrase.trim()];
+		setSavedPhrases(updated);
+		localStorage.setItem("fg-saved-phrases", JSON.stringify(updated));
+		setNewPhrase("");
+	};
+
+	const handleDeletePhrase = (index: number) => {
+		const updated = savedPhrases.filter((_, i) => i !== index);
+		setSavedPhrases(updated);
+		localStorage.setItem("fg-saved-phrases", JSON.stringify(updated));
+	};
+
+	const handleUsePhrase = (phrase: string) => {
+		setDraft(draft ? `${draft} ${phrase}` : phrase);
+		setIsPhraseMenuOpen(false);
+	};
+	// ---------------------------
 
 	const {
 		navigate,
@@ -848,7 +879,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						<div className="mb-2 flex flex-wrap items-center gap-2">
 							<button
 								type="button"
-								onClick={toggleAlbumPicker}
+								onClick={() => {
+									toggleAlbumPicker();
+									setIsPhraseMenuOpen(false);
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								aria-label={t("chat.share_album_label")}
 								title={t("chat.share_album_label")}
@@ -857,7 +893,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={() => attachmentInputRef.current?.click()}
+								onClick={() => {
+									attachmentInputRef.current?.click();
+									setIsPhraseMenuOpen(false);
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								disabled={isUploadingAttachment}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.attach_media")}
@@ -867,7 +908,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={toggleDrawer}
+								onClick={() => {
+									toggleDrawer();
+									setIsPhraseMenuOpen(false);
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								aria-label={t("chat.drawer_label")}
 								title={t("chat.drawer_label")}
@@ -876,7 +921,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={handleLocationShareRequest}
+								onClick={() => {
+									handleLocationShareRequest();
+									setIsPhraseMenuOpen(false);
+									if (isDrawerOpen) toggleDrawer();
+								}}
 								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
 									pendingLocationShare
 										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -891,6 +940,27 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<MapPin className="h-4 w-4" />
 								)}
 							</button>
+
+							{/* --- SAVED PHRASES BUTTON --- */}
+							<button
+								type="button"
+								onClick={() => {
+									setIsPhraseMenuOpen(!isPhraseMenuOpen);
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
+								className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+									isPhraseMenuOpen
+										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+										: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+								aria-label="Manage Saved Phrases"
+								title="Manage Saved Phrases"
+							>
+								<Bookmark className="h-4 w-4" />
+							</button>
+							{/* ---------------------------- */}
+
 							<input
 								type="file"
 								ref={attachmentInputRef}
@@ -898,7 +968,79 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								accept="image/*,video/*"
 								className="hidden"
 							/>
+
+							{/* --- QUICK PHRASE PILLS --- */}
+							{savedPhrases.length > 0 && !isPhraseMenuOpen && (
+								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									{savedPhrases.map((phrase, idx) => (
+										<button
+											key={idx}
+											type="button"
+											onClick={() => handleUsePhrase(phrase)}
+											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+										>
+											{phrase}
+										</button>
+									))}
+								</div>
+							)}
+							{/* -------------------------- */}
 						</div>
+
+						{/* --- SAVED PHRASES MENU --- */}
+						{isPhraseMenuOpen ? (
+							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<div className="flex items-center justify-between border-b border-[var(--border)] p-3">
+									<p className="text-xs font-medium text-[var(--text)]">Manage Saved Phrases</p>
+									<button type="button" onClick={() => setIsPhraseMenuOpen(false)}>
+										<X className="h-4 w-4 text-[var(--text-muted)] hover:text-[var(--text)]" />
+									</button>
+								</div>
+								<div className="max-h-48 overflow-y-auto p-2">
+									{savedPhrases.length === 0 ? (
+										<p className="p-2 text-xs text-[var(--text-muted)]">No saved phrases yet.</p>
+									) : (
+										savedPhrases.map((phrase, idx) => (
+											<div key={idx} className="flex items-center justify-between gap-2 rounded-lg p-1 hover:bg-[var(--surface)]">
+												<button
+													type="button"
+													onClick={() => handleUsePhrase(phrase)}
+													className="flex-1 text-left text-sm text-[var(--text)] hover:text-[var(--accent)] px-2 py-1"
+												>
+													{phrase}
+												</button>
+												<button
+													type="button"
+													onClick={() => handleDeletePhrase(idx)}
+													className="shrink-0 p-1 text-[var(--text-muted)] hover:text-red-400"
+												>
+													<Trash2 className="h-3.5 w-3.5" />
+												</button>
+											</div>
+										))
+									)}
+								</div>
+								<div className="flex items-center gap-2 border-t border-[var(--border)] p-2">
+									<input
+										type="text"
+										value={newPhrase}
+										onChange={(e) => setNewPhrase(e.target.value)}
+										placeholder="Add new phrase..."
+										className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
+										onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSavePhrase(); } }}
+									/>
+									<button
+										type="button"
+										onClick={handleSavePhrase}
+										disabled={!newPhrase.trim()}
+										className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] disabled:opacity-50"
+									>
+										Save
+									</button>
+								</div>
+							</div>
+						) : null}
+						{/* -------------------------- */}
 
 						{pendingLocationShare ? (
 							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
@@ -1336,7 +1478,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				<div className="mb-2 flex flex-wrap items-center gap-2">
                     <button
                         type="button"
-                        onClick={toggleAlbumPicker}
+                        onClick={() => {
+							toggleAlbumPicker();
+							setIsPhraseMenuOpen(false);
+							if (isDrawerOpen) toggleDrawer();
+							if (pendingLocationShare) handleLocationShareRequest();
+						}}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
                         aria-label={t("chat.share_album_label")}
                         title={t("chat.share_album_label")}
@@ -1345,7 +1492,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                     </button>
                     <button
                         type="button"
-                        onClick={() => attachmentInputRef.current?.click()}
+                        onClick={() => {
+							attachmentInputRef.current?.click();
+							setIsPhraseMenuOpen(false);
+							if (isDrawerOpen) toggleDrawer();
+							if (pendingLocationShare) handleLocationShareRequest();
+						}}
                         disabled={isUploadingAttachment}
                         className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
                         aria-label={t("chat.attach_media")}
@@ -1364,7 +1516,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                     </button>
 					<button
                         type="button"
-                        onClick={handleLocationShareRequest}
+                        onClick={() => {
+							handleLocationShareRequest();
+							setIsPhraseMenuOpen(false);
+							if (isDrawerOpen) toggleDrawer();
+						}}
                         className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
                             pendingLocationShare
                                 ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -1379,14 +1535,107 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                             <MapPin className="h-4 w-4" />
                         )}
                     </button>
-                    <input
-                        type="file"
-                        ref={attachmentInputRef}
-                        onChange={onAttachmentInput}
-                        accept="image/*,video/*"
-                        className="hidden"
-                    />
-				</div>
+
+					{/* --- SAVED PHRASES BUTTON --- */}
+					<button
+						type="button"
+						onClick={() => {
+							setIsPhraseMenuOpen(!isPhraseMenuOpen);
+							if (isDrawerOpen) toggleDrawer();
+							if (pendingLocationShare) handleLocationShareRequest();
+						}}
+						className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+							isPhraseMenuOpen
+								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+						}`}
+						aria-label="Manage Saved Phrases"
+						title="Manage Saved Phrases"
+					>
+						<Bookmark className="h-4 w-4" />
+					</button>
+					{/* ---------------------------- */}
+
+							<input
+								type="file"
+								ref={attachmentInputRef}
+								onChange={onAttachmentInput}
+								accept="image/*,video/*"
+								className="hidden"
+							/>
+
+							{/* --- QUICK PHRASE PILLS --- */}
+							{savedPhrases.length > 0 && !isPhraseMenuOpen && (
+								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									{savedPhrases.map((phrase, idx) => (
+										<button
+											key={idx}
+											type="button"
+											onClick={() => handleUsePhrase(phrase)}
+											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+										>
+											{phrase}
+										</button>
+									))}
+								</div>
+							)}
+							{/* -------------------------- */}
+						</div>
+
+						{/* --- SAVED PHRASES MENU --- */}
+						{isPhraseMenuOpen ? (
+							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<div className="flex items-center justify-between border-b border-[var(--border)] p-3">
+									<p className="text-xs font-medium text-[var(--text)]">Manage Saved Phrases</p>
+									<button type="button" onClick={() => setIsPhraseMenuOpen(false)}>
+										<X className="h-4 w-4 text-[var(--text-muted)] hover:text-[var(--text)]" />
+									</button>
+								</div>
+								<div className="max-h-48 overflow-y-auto p-2">
+									{savedPhrases.length === 0 ? (
+										<p className="p-2 text-xs text-[var(--text-muted)]">No saved phrases yet.</p>
+									) : (
+										savedPhrases.map((phrase, idx) => (
+											<div key={idx} className="flex items-center justify-between gap-2 rounded-lg p-1 hover:bg-[var(--surface)]">
+												<button
+													type="button"
+													onClick={() => handleUsePhrase(phrase)}
+													className="flex-1 text-left text-sm text-[var(--text)] hover:text-[var(--accent)] px-2 py-1"
+												>
+													{phrase}
+												</button>
+												<button
+													type="button"
+													onClick={() => handleDeletePhrase(idx)}
+													className="shrink-0 p-1 text-[var(--text-muted)] hover:text-red-400"
+												>
+													<Trash2 className="h-3.5 w-3.5" />
+												</button>
+											</div>
+										))
+									)}
+								</div>
+								<div className="flex items-center gap-2 border-t border-[var(--border)] p-2">
+									<input
+										type="text"
+										value={newPhrase}
+										onChange={(e) => setNewPhrase(e.target.value)}
+										placeholder="Add new phrase..."
+										className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
+										onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSavePhrase(); } }}
+									/>
+									<button
+										type="button"
+										onClick={handleSavePhrase}
+										disabled={!newPhrase.trim()}
+										className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] disabled:opacity-50"
+									>
+										Save
+									</button>
+								</div>
+							</div>
+						) : null}
+						{/* -------------------------- */}
 
 				{pendingLocationShare ? (
 					<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
