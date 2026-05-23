@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from "react";
+import { cn } from "../../utils/cn";
 
 interface RangeSliderProps {
 	min: number;
@@ -9,7 +10,9 @@ interface RangeSliderProps {
 	label: string;
 	unit?: string;
 	formatValue?: (value: number) => string;
+	activeColor?: string;
 	onChange: (min: number, max: number) => void;
+	showSeparator?: boolean;
 }
 
 interface SliderProps {
@@ -19,6 +22,7 @@ interface SliderProps {
 	defaultValue: number;
 	label: string;
 	displayValue: string;
+	activeColor?: string;
 	onChange: (value: number) => void;
 }
 
@@ -61,8 +65,8 @@ const sliderStyles = `
 
 	/* Webkit (Chrome, Safari, Edge) Thumb styling */
 	.thumb::-webkit-slider-thumb {
-		background-color: var(--accent);
-		border: 2px solid var(--accent-contrast);
+		background-color: var(--slider-color, var(--accent));
+		border: 2px solid color-mix(in srgb, var(--slider-color, var(--accent)), black 30%);
 		border-radius: 50%;
 		box-shadow: 0 0 1px 1px var(--border);
 		cursor: pointer;
@@ -75,8 +79,8 @@ const sliderStyles = `
 
 	/* Firefox Thumb styling */
 	.thumb::-moz-range-thumb {
-		background-color: var(--accent);
-		border: 2px solid var(--accent-contrast);
+		background-color: var(--slider-color, var(--accent));
+		border: 2px solid color-mix(in srgb, var(--slider-color, var(--accent)), black 30%);
 		border-radius: 50%;
 		box-shadow: 0 0 1px 1px var(--border);
 		cursor: pointer;
@@ -107,7 +111,7 @@ const sliderStyles = `
 	}
 
 	.slider__range {
-		background-color: var(--accent);
+		background-color: var(--slider-color, var(--accent));
 		z-index: 2;
 	}
 `;
@@ -124,13 +128,17 @@ export function RangeSlider({
 	label,
 	unit = "",
 	formatValue,
+	activeColor,
 	onChange,
+	showSeparator = false,
 }: RangeSliderProps) {
 	const [minValue, setMinValue] = useState(minDefault);
 	const [maxValue, setMaxValue] = useState(maxDefault);
 	const minValRef = useRef(minDefault);
 	const maxValRef = useRef(maxDefault);
 	const range = useRef<HTMLDivElement>(null);
+
+	const style = activeColor ? { "--slider-color": activeColor } as React.CSSProperties : {};
 
 	useEffect(() => {
 		setMinValue(minDefault);
@@ -169,12 +177,24 @@ export function RangeSlider({
 	}, [maxValue, getPercent]);
 
 	return (
-		<div className="flex flex-col gap-4 py-2">
-			<div className="flex justify-between items-center">
-				<span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-					{label}
-				</span>
-				<span className="text-xs font-medium bg-[var(--surface-2)] px-2 py-0.5 rounded-md border border-[var(--border)]">
+		<div className="flex flex-col gap-0.5 py-1" style={style}>
+			<div
+				className={cn("flex justify-between items-center mb-1", showSeparator && "border-b pb-2 mb-2")}
+				style={showSeparator && activeColor ? { borderColor: `color-mix(in srgb, ${activeColor}, transparent 80%)` } : {}}
+			>
+				<div className="flex items-center gap-2">
+					<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+						{label}
+					</span>
+				</div>
+				<span className={cn(
+					"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
+					!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
+				)}
+				style={activeColor ? {
+					backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
+					color: "var(--text)"
+				} : {}}>
 					{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
 				</span>
 			</div>
@@ -232,9 +252,12 @@ export function Slider({
 	defaultValue,
 	label,
 	displayValue,
+	activeColor,
 	onChange,
 }: SliderProps) {
 	const [value, setValue] = useState(defaultValue);
+
+	const style = activeColor ? { "--slider-color": activeColor } as React.CSSProperties : {};
 
 	useEffect(() => {
 		setValue(defaultValue);
@@ -246,12 +269,21 @@ export function Slider({
 	);
 
 	return (
-		<div className="flex flex-col gap-4 py-2">
-			<div className="flex justify-between items-center">
-				<span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-					{label}
-				</span>
-				<span className="text-xs font-medium bg-[var(--surface-2)] px-2 py-0.5 rounded-md border border-[var(--border)]">
+		<div className="flex flex-col gap-0.5 py-1" style={style}>
+			<div className="flex justify-between items-center mb-1">
+				<div className="flex items-center gap-2">
+					<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+						{label}
+					</span>
+				</div>
+				<span className={cn(
+					"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
+					!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
+				)}
+				style={activeColor ? {
+					backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
+					color: "var(--text)"
+				} : {}}>
 					{displayValue}
 				</span>
 			</div>
