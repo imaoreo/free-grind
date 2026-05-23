@@ -14,6 +14,7 @@ type PullToRefreshContainerProps = {
 	releaseLabel?: string;
 	thresholdPx?: number;
 	maxPullPx?: number;
+	spinnerColor?: string;
 	contentClassName?: string;
 	onTouchStartExtra?: (event: TouchEvent<HTMLDivElement>) => void;
 	onTouchMoveExtra?: (event: TouchEvent<HTMLDivElement>) => void;
@@ -32,6 +33,7 @@ export function PullToRefreshContainer({
 	releaseLabel,
 	thresholdPx = 64,
 	maxPullPx = 96,
+	spinnerColor,
 	contentClassName,
 	onTouchStartExtra,
 	onTouchMoveExtra,
@@ -45,10 +47,8 @@ export function PullToRefreshContainer({
 	const isPullingRef = useRef(false);
 
 	const canStartPull = useCallback(() => {
-		if (typeof isAtTop === "function") {
-			return isAtTop();
-		}
-		return window.scrollY <= 0;
+		const isAtTopValue = typeof isAtTop === "function" ? isAtTop() : true;
+		return isAtTopValue && window.scrollY <= 0;
 	}, [isAtTop]);
 
 	const handleRefresh = useCallback(() => {
@@ -105,7 +105,15 @@ export function PullToRefreshContainer({
 				return;
 			}
 
-			if (deltaY <= 0) {
+			if (deltaY < 0) {
+				// If the user moves their finger up, they are scrolling down into the content.
+				// We must disable pulling for this gesture to avoid conflicts if they drag back up.
+				isPullingRef.current = false;
+				setPullDistance(0);
+				return;
+			}
+
+			if (deltaY === 0) {
 				setPullDistance(0);
 				return;
 			}
@@ -145,7 +153,7 @@ export function PullToRefreshContainer({
 	return (
 		<div
 			className={className}
-			style={{ ...style, position: "relative", overflow: "hidden" }}
+			style={{ position: "relative", overflow: "hidden", ...style }}
 			onTouchStart={handleTouchStart}
 			onTouchMove={handleTouchMove}
 			onTouchEnd={finishTouch}
@@ -165,8 +173,9 @@ export function PullToRefreshContainer({
 				<div className="flex flex-col items-center gap-2">
 					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 shadow-lg shadow-black/5">
 						<RefreshCw
-							className={`h-5 w-5 text-[var(--accent)] ${isRefreshing ? "animate-spin" : ""}`}
+							className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
 							style={{
+								color: spinnerColor ?? "var(--accent)",
 								transform: rotation !== undefined ? `rotate(${rotation}deg)` : undefined,
 								willChange: "transform",
 							}}

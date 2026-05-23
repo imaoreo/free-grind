@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import {
 	ArrowUpDown,
 	Clock,
+	Home,
 	Loader2,
 	MessageSquare,
 	Navigation,
@@ -14,6 +15,7 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import type { RightNowFeedItem } from "../../services/apiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
+import { formatRelativeTime } from "../../utils/relativeTime";
 import { cn } from "../../utils/cn";
 import blankProfileImage from "../../images/blank-profile.png";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
@@ -22,9 +24,14 @@ import {
 	type RightNowSortOption,
 	loadRightNowFiltersDraft,
 	saveRightNowFiltersDraft,
-} from "./rightnow-filters-storage";
+} from "./rightnow/rightnow-filters-storage";
 import { getSexualPositionFilterOptions } from "./profile-option-builders";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { RightNowPostFAB, type RightNowFABPhase } from "./rightnow/RightNowPostFAB";
+import { RightNowPostPage } from "./rightnow/RightNowPostPage";
+import { RightNowFiltersPage } from "./RightNowFiltersPage";
+import { PhotoViewer } from "../../components/PhotoViewer";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 
 type SortOption = RightNowSortOption;
 
@@ -44,11 +51,11 @@ function parseFiltersFromLocationState(
 
 	const nextAgeMin =
 		typeof draft.ageMin === "number" && Number.isFinite(draft.ageMin)
-			? Math.max(18, Math.min(102, draft.ageMin))
+			? Math.max(18, Math.min(99, draft.ageMin))
 			: current.ageMin;
 	const nextAgeMax =
 		typeof draft.ageMax === "number" && Number.isFinite(draft.ageMax)
-			? Math.max(nextAgeMin, Math.min(102, draft.ageMax))
+			? Math.max(nextAgeMin, Math.min(99, draft.ageMax))
 			: current.ageMax;
 
 	return {
@@ -74,16 +81,16 @@ function formatMinutesAgo(postedAt: number | null, t: TFunction): string {
 }
 
 function getItemName(item: RightNowFeedItem, t: TFunction): string {
-	return item.displayName?.trim() || t("right_now.anonymous");
+	const name = item.displayName?.trim();
+	if (name) return name;
+	return t("profile_details.profile_fallback", { id: item.profileId });
 }
 
 function getItemImageUrl(item: RightNowFeedItem): string | null {
-	return (
-		item.imageUrl ??
-		(item.profileImageMediaHash && validateMediaHash(item.profileImageMediaHash)
-			? getThumbImageUrl(item.profileImageMediaHash, "320x320")
-			: null)
-	);
+	// Only use the profileImageMediaHash for the avatar circle
+	return item.profileImageMediaHash && validateMediaHash(item.profileImageMediaHash)
+		? getThumbImageUrl(item.profileImageMediaHash, "320x320")
+		: null;
 }
 
 function getItemDisplayImageUrl(item: RightNowFeedItem): string {
@@ -94,14 +101,122 @@ function isItemOnline(item: RightNowFeedItem): boolean {
 	return typeof item.onlineUntil === "number" && item.onlineUntil > Date.now();
 }
 
+function PostMediaGrid({
+	media,
+	onOpenPhoto,
+}: {
+	media: RightNowFeedItem["media"];
+	onOpenPhoto: (index: number) => void;
+}) {
+	const isDesktop = useDesktopBreakpoint();
+	if (!media || media.length === 0) return null;
+
+	const items = media.slice(0, 3); // Limit to max 3 as requested
+	const count = items.length;
+
+	return (
+		<div
+			className={cn(
+				"mt-1.5 overflow-hidden rounded-md bg-[var(--surface-2)]",
+				isDesktop ? "w-[380px]" : "w-full sm:max-w-[260px]"
+			)}
+		>
+			<div className="relative aspect-video w-full flex gap-[2px]">
+				{count === 1 && (
+					<button
+						type="button"
+						className="h-full w-full overflow-hidden"
+						onClick={() => onOpenPhoto(0)}
+					>
+						<img
+							src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+							className="h-full w-full object-cover transition-transform active:scale-105"
+							alt=""
+						/>
+					</button>
+				)}
+
+				{count === 2 && (
+					<>
+						<button
+							type="button"
+							className="flex-1 overflow-hidden"
+							onClick={() => onOpenPhoto(0)}
+						>
+							<img
+								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								className="h-full w-full object-cover transition-transform active:scale-105"
+								alt=""
+							/>
+						</button>
+						<button
+							type="button"
+							className="flex-1 overflow-hidden"
+							onClick={() => onOpenPhoto(1)}
+						>
+							<img
+								src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+								className="h-full w-full object-cover transition-transform active:scale-105"
+								alt=""
+							/>
+						</button>
+					</>
+				)}
+
+				{count === 3 && (
+					<>
+						<button
+							type="button"
+							className="w-[60%] overflow-hidden"
+							onClick={() => onOpenPhoto(0)}
+						>
+							<img
+								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								className="h-full w-full object-cover transition-transform active:scale-105"
+								alt=""
+							/>
+						</button>
+						<div className="flex w-[40%] flex-col gap-[2px]">
+							<button
+								type="button"
+								className="flex-1 overflow-hidden"
+								onClick={() => onOpenPhoto(1)}
+							>
+								<img
+									src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+									className="h-full w-full object-cover transition-transform active:scale-105"
+									alt=""
+								/>
+							</button>
+							<button
+								type="button"
+								className="flex-1 overflow-hidden"
+								onClick={() => onOpenPhoto(2)}
+							>
+								<img
+									src={items[2].data?.fullImageUrl ?? items[2].data?.thumbnailUrl ?? ""}
+									className="h-full w-full object-cover transition-transform active:scale-105"
+									alt=""
+								/>
+							</button>
+						</div>
+					</>
+				)}
+			</div>
+		</div>
+	);
+}
+
 function RightNowRow({
 	item,
 	onMessage,
 	onSelect,
+	onOpenPhoto,
 }: {
 	item: RightNowFeedItem;
 	onMessage: (profileId: string) => void;
 	onSelect: (profileId: string) => void;
+	onOpenPhoto: (photos: string[], index: number) => void;
 }) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -109,26 +224,29 @@ function RightNowRow({
 	const isHosting = item.hosting;
 	const imageUrl = getItemDisplayImageUrl(item);
 
-	const timeAgo = formatMinutesAgo(item.postedAt, t);
+	const timeAgo = formatRelativeTime(item.postedAt);
 	const distance =
 		item.distanceMeters != null
 			? formatDistance(item.distanceMeters, t, unitsPreset)
 			: null;
-	const subtitle = isHosting
-		? t("right_now.hosting_subtitle", { name })
-		: t("right_now.member_subtitle", { name });
 	const isOnline = isItemOnline(item);
 
+	const photos = useMemo(() => {
+		return (item.media || [])
+			.map((m) => m.data?.fullImageUrl || m.data?.thumbnailUrl || "")
+			.filter(Boolean);
+	}, [item.media]);
+
 	return (
-		<div className="flex items-center gap-3 px-[var(--app-px)] py-3">
+		<div className="flex items-start gap-3 px-5 py-4">
 			{/* Avatar */}
 			<button
 				type="button"
-				className="relative shrink-0"
+				className="relative mt-0.5 shrink-0"
 				onClick={() => onSelect(item.profileId)}
 			>
 				<div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+					<img src={imageUrl} alt={name || ""} className="h-full w-full object-cover" />
 				</div>
 				{isOnline ? (
 					<span className="absolute bottom-0.5 left-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-green-500" />
@@ -136,40 +254,66 @@ function RightNowRow({
 			</button>
 
 			{/* Text info */}
-			<button
-				type="button"
-				className="min-w-0 flex-1 text-left"
-				onClick={() => onSelect(item.profileId)}
-			>
-				<p className="truncate text-sm font-bold text-[var(--text)]">{name}</p>
-				<p className="truncate text-xs text-[var(--text-muted)]">{subtitle}</p>
-				<div className="mt-0.5 flex items-center gap-3">
-					{timeAgo ? (
-						<span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-							<Clock className="h-3 w-3" />
-							{timeAgo}
-						</span>
-					) : null}
-					{distance && distance !== "hidden" ? (
-						<span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-							<Navigation className="h-3 w-3" />
-							{distance}
-						</span>
-					) : null}
-				</div>
-				{item.text ? (
-					<p className="mt-1 line-clamp-2 text-xs text-[var(--text-muted)]">
-						{item.text}
-					</p>
-				) : null}
-			</button>
+			<div className="min-w-0 flex-1">
+				<button
+					type="button"
+					className="w-full text-left"
+					onClick={() => onSelect(item.profileId)}
+				>
+					{item.text && (
+						<p className="line-clamp-3 text-sm font-bold text-[var(--text)] leading-relaxed mb-1">
+							{item.text}
+						</p>
+					)}
 
-			{/* Message button */}
+					<div className="flex items-center gap-3">
+						{timeAgo ? (
+							<span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+								<Clock className="h-3 w-3" />
+								{timeAgo}
+							</span>
+						) : null}
+						{distance && distance !== "hidden" ? (
+							<span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+								<Navigation className="h-3 w-3" />
+								{distance}
+							</span>
+						) : null}
+						{isHosting && (
+							<span className="flex items-center gap-1 text-xs text-[var(--right-now)]">
+								<Home className="h-3.5 w-3.5" />
+							</span>
+						)}
+					</div>
+
+					<div className="mt-1 flex items-center justify-between gap-2">
+						<p className="truncate text-xs text-[var(--text-muted)] font-medium">
+							{name}
+						</p>
+						{item.premiumType && item.premiumType !== "locked" && (
+							<span className="shrink-0 text-[10px] font-medium text-[var(--text-muted)] opacity-50 uppercase tracking-wider">
+								{item.premiumType.split("_")[0]}
+							</span>
+						)}
+					</div>
+				</button>
+
+				{/* Post Images Grid */}
+				<PostMediaGrid
+					media={item.media}
+					onOpenPhoto={(index) => onOpenPhoto(photos, index)}
+				/>
+			</div>
+
 			<button
 				type="button"
 				onClick={() => onMessage(item.profileId)}
-				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] transition-colors active:bg-[var(--surface-3)]"
-				aria-label={t("right_now.message_aria", { name })}
+				className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl transition-all active:scale-95 hover:border-[var(--right-now)]/60"
+				style={{
+					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
+					boxShadow: "0 4px 10px color-mix(in srgb, var(--right-now), transparent 85%)"
+				}}
+				aria-label={t("right_now.message_aria", { name: name || "" })}
 			>
 				<MessageSquare className="h-4 w-4" />
 			</button>
@@ -179,6 +323,7 @@ function RightNowRow({
 
 export function RightNowPage() {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -194,18 +339,53 @@ export function RightNowPage() {
 	const [positionFilter, setPositionFilter] = useState<string>(
 		persistedFilters.positionFilter,
 	);
+
+	const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
+	const [viewerIndex, setViewerIndex] = useState(0);
+	const [isViewerOpen, setIsViewerOpen] = useState(false);
+
+	const openPhotoViewer = useCallback((photos: string[], index: number) => {
+		setViewerPhotos(photos);
+		setViewerIndex(index);
+		setIsViewerOpen(true);
+	}, []);
+
+	const [isPosting, setIsPosting] = useState(false);
+	const [isModalMounted, setIsModalMounted] = useState(false);
+	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+	const [isFiltersMounted, setIsFiltersMounted] = useState(false);
+	const [fabPhase, setFabPhase] = useState<RightNowFABPhase>("idle");
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
+
+	const handlePostClick = useCallback(() => {
+		setIsPosting(true);
+		setIsModalMounted(true);
+	}, []);
+
+	const handlePostSuccess = useCallback((isEdit: boolean) => {
+		if (!isEdit) {
+			setFabPhase("loading");
+		}
+		setIsPosting(false); // Button starts fading in
+		// Let the modal stay for 300ms to finish its animation
+		setTimeout(() => setIsModalMounted(false), 300);
+	}, [setFabPhase]);
+
+	const handleCloseModal = useCallback(() => {
+		setIsPosting(false);
+		setTimeout(() => setIsModalMounted(false), 300);
+	}, []);
 
 	const positionFilterOptions = useMemo(
 		() => getSexualPositionFilterOptions(t, t("right_now.any_position")),
 		[t],
 	);
 
-	const ageLabel = `${ageMin}-${ageMax}${ageMax >= 102 ? "+" : ""}`;
+	const ageLabel = `${ageMin}-${ageMax}${ageMax >= 99 ? "+" : ""}`;
 	const activePositionFilter =
 		positionFilterOptions.find((option) => option.value === positionFilter) ??
 		positionFilterOptions[0];
-	const hasAdvancedFilters = positionFilter.length > 0 || ageMin !== 18 || ageMax !== 102;
+	const hasAdvancedFilters = positionFilter.length > 0 || ageMin !== 18 || ageMax !== 99;
 	const filterSummary = useMemo(
 		() =>
 			t("right_now.filter_summary", {
@@ -262,7 +442,37 @@ export function RightNowPage() {
 		});
 	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
 
+	const { geohash, activeRightNowId, activeRightNowExpiresAt, rightNowRemaining, setPreferences, developerMode, showDebugInfo, rightNowTestMode } = usePreferences();
 	const isMountedRef = useRef(true);
+
+	const isSessionActive = useMemo(() => {
+		if (!activeRightNowId || !activeRightNowExpiresAt) return false;
+		return Date.now() < activeRightNowExpiresAt;
+	}, [activeRightNowId, activeRightNowExpiresAt]);
+
+	useEffect(() => {
+		// Only transition idle -> countdown if the session is clearly active
+		// We add a small buffer (2s) to avoid fighting with the FAB's own countdown
+		const isClearlyActive = activeRightNowId && activeRightNowExpiresAt && (Date.now() < activeRightNowExpiresAt - 2000);
+
+		if (isClearlyActive && fabPhase === "idle" && !isPosting) {
+			setFabPhase("countdown");
+		} else if (!isSessionActive && fabPhase === "countdown" && !isPosting) {
+			// Session ended or expired
+			setFabPhase("idle");
+		}
+	}, [isSessionActive, fabPhase, isPosting, activeRightNowId, activeRightNowExpiresAt]);
+
+	// Auto-clear expired session from preferences
+	useEffect(() => {
+		if (!isSessionActive && activeRightNowId) {
+			void setPreferences({
+				activeRightNowId: null,
+				activeRightNowExpiresAt: null,
+			});
+		}
+	}, [isSessionActive, activeRightNowId, setPreferences]);
+
 	useEffect(() => {
 		isMountedRef.current = true;
 		return () => {
@@ -277,8 +487,8 @@ export function RightNowPage() {
 			const result = await apiFunctions.getRightNowFeed({
 				sort,
 				hosting: hostingOnly ? true : undefined,
-				ageMin,
-				ageMax,
+				ageMin: ageMin > 18 ? ageMin : undefined,
+				ageMax: ageMax < 99 ? ageMax : undefined,
 				sexualPositions: positionFilter || undefined,
 			});
 			if (isMountedRef.current) {
@@ -324,81 +534,118 @@ export function RightNowPage() {
 	}, []);
 
 	const openFilters = useCallback(() => {
-		navigate("/right-now/filters", {
-			state: {
-				rightNowFiltersDraft: {
-					ageMin,
-					ageMax,
-					positionFilter,
-				},
-				returnTo: "/right-now",
-			},
-		});
-	}, [navigate, ageMin, ageMax, positionFilter]);
+		setIsFiltersOpen(true);
+		setIsFiltersMounted(true);
+	}, []);
+
+	const handleApplyFilters = useCallback((draft: RightNowFiltersDraft) => {
+		setAgeMin(draft.ageMin);
+		setAgeMax(draft.ageMax);
+		setPositionFilter(draft.positionFilter);
+	}, []);
+
+	const handleCloseFilters = useCallback(() => {
+		setIsFiltersOpen(false);
+		setTimeout(() => setIsFiltersMounted(false), 300);
+	}, []);
 
 	return (
+		<>
 		<PullToRefreshContainer
-			className="app-screen flex flex-col"
+			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 			contentClassName="flex flex-1 flex-col min-h-0"
+			style={{ overflow: "visible", overflowX: "hidden" }}
 			onRefresh={loadFeed}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
+			spinnerColor="var(--right-now)"
 		>
 			{/* Header */}
-			<header className="mb-2 grid gap-3 px-[var(--app-px)]">
-				<h1 className="app-title">{t("right_now.title")}</h1>
+			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
+				<div
+					className="absolute -top-64 left-1/2 h-[600px] w-[200vw] -translate-x-1/2"
+					style={{
+						zIndex: -1,
+						// Use the --right-now color for the glow effect
+						background: "radial-gradient(ellipse 100% 100% at 50% 0%, var(--right-now) 0%, color-mix(in srgb, var(--right-now), transparent 40%) 15%, color-mix(in srgb, var(--right-now), transparent 85%) 60%, transparent 100%)",
+						// The mask remains for the shaping
+						maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
+						WebkitMaskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
+						backdropFilter: "blur(12px)",
+						WebkitBackdropFilter: "blur(12px)",
+					}}
+				/>
+				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
+					<h1 className="app-title">{t("right_now.title")}</h1>
 
-				<div className="flex flex-wrap items-center gap-2 pb-1">
-					{/* Sort by Distance / Recency */}
-					<button
-						type="button"
-						onClick={toggleSort}
-						className={cn(
-							"flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-							"bg-[var(--surface-2)] text-[var(--text)]",
-						)}
-					>
-						<ArrowUpDown className="h-3.5 w-3.5" />
-						{sort === "DISTANCE" ? t("right_now.distance") : t("right_now.recent")}
-					</button>
+					<div className="flex flex-wrap items-center gap-2 pb-1">
+						{/* Sort by Distance / Recency */}
+						<button
+							type="button"
+							onClick={toggleSort}
+							className={cn(
+								"flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
+								"bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40",
+							)}
+						>
+							<ArrowUpDown className="h-3.5 w-3.5" />
+							{sort === "DISTANCE" ? t("right_now.distance") : t("right_now.recent")}
+						</button>
 
-					{/* Hosting toggle */}
-					<button
-						type="button"
-						onClick={() => setHostingOnly((v) => !v)}
-						className={cn(
-							"shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-							hostingOnly
-								? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "bg-[var(--surface-2)] text-[var(--text)]",
-						)}
-					>
-						{t("right_now.hosting")}
-					</button>
+						{/* Hosting toggle */}
+						<button
+							type="button"
+							onClick={() => setHostingOnly(v => !v)}
+							className={cn(
+								"shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
+								hostingOnly
+									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
+									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+							)}
+							style={!hostingOnly ? {
+								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
+								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
+							} : undefined}
+						>
+							{t("right_now.hosting")}
+						</button>
 
-					<button
-						type="button"
-						onClick={openFilters}
-						className={cn(
-							"inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-sm font-medium transition-colors",
-							hasAdvancedFilters
-								? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "bg-[var(--surface-2)] text-[var(--text)]",
-						)}
-					>
-						<SlidersHorizontal className="h-3.5 w-3.5" />
-						{t("right_now.filters")}
-					</button>
+						<button
+							type="button"
+							onClick={openFilters}
+							className={cn(
+								"inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-bold transition-all active:scale-95",
+								hasAdvancedFilters
+									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
+									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+							)}
+							style={!hasAdvancedFilters ? {
+								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
+								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
+							} : undefined}
+						>
+							<SlidersHorizontal className="h-3.5 w-3.5" />
+							{t("right_now.filters")}
+						</button>
 
-					<span className="text-xs text-[var(--text-muted)] sm:text-sm">
-						{filterSummary}
-					</span>
+						<span className="text-xs text-[var(--text-muted)] sm:text-sm">
+							{filterSummary}
+						</span>
+					</div>
 				</div>
 			</header>
 
 			{/* Feed */}
-			<div ref={feedContainerRef} className="flex-1 overflow-y-auto">
+			<div className="relative flex-1 min-h-0 -mt-32">
+				<div
+					ref={feedContainerRef}
+					className="h-full overflow-y-auto pt-32"
+					style={{
+						maskImage: "linear-gradient(to bottom, transparent, black 220px)",
+						WebkitMaskImage: "linear-gradient(to bottom, transparent, black 220px)",
+					}}
+				>
 				{isLoading ? (
 					<div className="flex items-center justify-center py-16">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
@@ -409,7 +656,8 @@ export function RightNowPage() {
 						<button
 							type="button"
 							onClick={() => void loadFeed()}
-							className="rounded-full bg-[var(--surface-2)] px-4 py-2 text-sm font-medium text-[var(--text)]"
+							className="rounded-full border border-[var(--right-now)]/30 px-4 py-2 text-sm font-bold text-[var(--right-now)]/70 transition-all hover:border-[var(--right-now)]/50 hover:text-[var(--right-now)] active:scale-95"
+							style={{ backgroundColor: "color-mix(in srgb, var(--right-now), transparent 95%)" }}
 						>
 							{t("right_now.try_again")}
 						</button>
@@ -419,20 +667,91 @@ export function RightNowPage() {
 						<p className="text-sm text-[var(--text-muted)]">{t("right_now.empty")}</p>
 					</div>
 				) : (
-					<div className="divide-y divide-[var(--surface-2)]">
+					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{items.map((item) => (
-							<RightNowRow
-								key={item.profileId}
-								item={item}
-								onMessage={handleMessage}
-								onSelect={handleSelect}
-							/>
+							<div key={item.profileId} className="px-0">
+								<RightNowRow
+									item={item}
+									onMessage={handleMessage}
+									onSelect={handleSelect}
+									onOpenPhoto={openPhotoViewer}
+								/>
+							</div>
 						))}
 					</div>
 				)}
 			</div>
-
+		</div>
 		</PullToRefreshContainer>
+
+		<div className="fixed inset-x-0 bottom-30 z-[60] pointer-events-none md:bottom-36">
+			<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
+				{/* Debug Toggle FAB (Bottom Left) */}
+				{developerMode && showDebugInfo && (
+					<div
+						className={cn(
+							"absolute bottom-0 left-4 transition-all duration-300 pointer-events-auto",
+							(isPosting || isFiltersOpen) ? "pointer-events-none opacity-0 translate-y-4" : "opacity-100 translate-y-0",
+						)}
+					>
+						<button
+							type="button"
+							onClick={() => void setPreferences({ rightNowTestMode: !rightNowTestMode })}
+							className={cn(
+								"flex h-12 items-center gap-2 rounded-full border px-4 text-xs font-black shadow-xl transition-all active:scale-90",
+								rightNowTestMode
+									? "bg-blue-600 border-blue-600 text-white shadow-blue-600/40"
+									: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text)]"
+							)}
+						>
+							<div className={cn(
+								"h-2 w-2 rounded-full",
+								rightNowTestMode ? "bg-white animate-pulse" : "bg-blue-500"
+							)} />
+							{rightNowTestMode ? "TEST MODE" : "LIVE MODE"}
+						</button>
+					</div>
+				)}
+
+				<div
+					className={cn(
+						"absolute bottom-0 right-[16%] translate-x-1/2 transition-opacity duration-300 pointer-events-auto",
+						(isPosting || isFiltersOpen) ? "pointer-events-none opacity-0" : "opacity-100",
+					)}
+				>
+					<RightNowPostFAB
+						onClick={handlePostClick}
+						phase={fabPhase}
+						onPhaseChange={setFabPhase}
+						isEditMode={isSessionActive}
+						expiresAt={activeRightNowExpiresAt}
+						rightNowRemaining={rightNowRemaining}
+						isTestMode={rightNowTestMode}
+					/>
+				</div>
+			</div>
+		</div>
+		{isModalMounted && (
+			<RightNowPostPage
+				onClose={handleCloseModal}
+				onPost={handlePostSuccess}
+			/>
+		)}
+		{isFiltersMounted && (
+			<RightNowFiltersPage
+				initialDraft={{ ageMin, ageMax, positionFilter, sort, hostingOnly }}
+				onClose={handleCloseFilters}
+				onApply={handleApplyFilters}
+			/>
+		)}
+		{isViewerOpen && (
+			<PhotoViewer
+				isOpen={true}
+				onClose={() => setIsViewerOpen(false)}
+				photos={viewerPhotos}
+				initialIndex={viewerIndex}
+			/>
+		)}
+	</>
 	);
 }
-

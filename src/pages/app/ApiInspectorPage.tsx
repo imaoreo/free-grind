@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Download, RotateCcw, Search, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { Button } from "../../components/ui/button";
 import { BackToSettings } from "../../components/BackToSettings";
 import { Card } from "../../components/ui/card";
@@ -142,6 +143,10 @@ export function ApiInspectorPage() {
 			setComposerResponse(
 				`Status ${response.status}\n\n${prettyBody || "(empty response body)"}`,
 			);
+			if (prettyBody) {
+				await navigator.clipboard.writeText(prettyBody).catch(() => {});
+				toast.success("Response body copied to clipboard", { id: "api-inspector-copy" });
+			}
 		} catch (error) {
 			const appError = asAppError(error);
 			const message = appError?.prettyMessage ??
@@ -323,7 +328,13 @@ export function ApiInspectorPage() {
 									<button
 										key={entry.id}
 										type="button"
-										onClick={() => setSelectedId(entry.id)}
+										onClick={() => {
+											setSelectedId(entry.id);
+											if (entry.responseBody) {
+												navigator.clipboard.writeText(entry.responseBody).catch(() => {});
+												toast.success("Response body copied to clipboard", { id: "api-inspector-copy" });
+											}
+										}}
 										className={`rounded-lg border p-3 text-left transition ${
 											selected?.id === entry.id
 												? "border-[var(--accent)] bg-[var(--surface-2)]"
