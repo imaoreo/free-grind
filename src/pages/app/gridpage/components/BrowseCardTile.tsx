@@ -112,7 +112,7 @@ export function BrowseCardTile({
 									)}
 									{isRightNow && (
 										<Droplet
-											className="h-4 w-4 text-purple-400 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+											className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
 											strokeWidth={2.5}
 											title="Right Now"
 										/>

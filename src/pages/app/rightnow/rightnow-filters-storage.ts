@@ -14,7 +14,7 @@ export type RightNowFiltersPersisted = RightNowFiltersDraft & {
 const STORAGE_KEY = "open-grind:right-now-filters";
 
 function clampAge(value: number): number {
-	return Math.max(18, Math.min(102, value));
+	return Math.max(18, Math.min(99, value));
 }
 
 export function getDefaultRightNowFilters(): RightNowFiltersPersisted {
@@ -22,7 +22,7 @@ export function getDefaultRightNowFilters(): RightNowFiltersPersisted {
 		sort: "DISTANCE",
 		hostingOnly: false,
 		ageMin: 18,
-		ageMax: 102,
+		ageMax: 99,
 		positionFilter: "",
 	};
 }

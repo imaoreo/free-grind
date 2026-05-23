@@ -12,7 +12,6 @@ import { GridPage } from "./pages/app/GridPage.tsx";
 import { BrowseFiltersPage } from "./pages/app/BrowseFiltersPage.tsx";
 import { BrowseLocationPage } from "./pages/app/BrowseLocationPage";
 import { RightNowPage } from "./pages/app/RightNowPage";
-import { RightNowFiltersPage } from "./pages/app/RightNowFiltersPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
 import { ChatFiltersPage } from "./pages/app/ChatFiltersPage";
@@ -34,6 +33,7 @@ import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
+import { EntitlementsBridge } from "./components/EntitlementsBridge";
 import { usePreferences } from "./contexts/PreferencesContext";
 
 function ErrorPage() {
@@ -74,6 +74,7 @@ export default function App() {
 				<PushNotificationBridge />
 				<ChatRealtimeBridge />
 				<ActiveRouteBridge />
+				<EntitlementsBridge />
 				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
@@ -98,7 +99,6 @@ export default function App() {
 							<Route path="/browse/filters" element={<BrowseFiltersPage />} />
 							<Route path="/browse/location" element={<BrowseLocationPage />} />
 							<Route path="/right-now" element={<RightNowPage />} />
-							<Route path="/right-now/filters" element={<RightNowFiltersPage />} />
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
 							<Route path="/chat/filters" element={<ChatFiltersPage />} />
