@@ -41,7 +41,7 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
-import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
+import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../../utils/autoblock";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -715,10 +715,11 @@ export function GridPage() {
 			}
 
 			// 2. Silently block them on the server
-			badCards.forEach((card) => {
-				console.log(`[AutoBlock] Sweeping grid profile: ${card.displayName || "Unknown"} (Age: ${card.age})`);
-				apiFunctions.blockProfile(card.profileId).catch(() => {});
-			});
+ 		badCards.forEach((card) => {
+ 			const reason = isOutsideAgeLimits(card.age, "grid") ? `Age Limit (${card.age})` : "Keyword in name";
+ 			notifyAutoBlock(card.displayName || "Unknown", reason);
+ 			apiFunctions.blockProfile(card.profileId).catch(() => {});
+ 		});
 		}
 	}, [cards, apiFunctions, browseCacheKey, nextPage]);
 	// ---------------------------------------

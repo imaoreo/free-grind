@@ -30,7 +30,7 @@ import type { RealtimeEnvelope, RealtimeStatus } from "../types/chat-realtime";
 import { appLog } from "../utils/logger";
 import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { getConversation } from "../services/conversationDirectory";
-import { shouldAutoBlock } from "../utils/autoblock";
+import { shouldAutoBlock, notifyAutoBlock } from "../utils/autoblock";;
 import { useApiFunctions } from "../hooks/useApiFunctions";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
@@ -285,14 +285,12 @@ export function ChatRealtimeBridge() {
 						console.log(`[AutoBlock Debug] Incoming? ${isIncoming} | Sender: ${m.senderId} | Text: "${messageText}"`);
 
 						if (isIncoming && shouldAutoBlock(messageText, "chat")) {
-							console.log(`[AutoBlock] 🚨 BANNED WORD CAUGHT 🚨 Live blocking message from ${m.senderId}: ${messageText}`);
-							
-							if (m.senderId) {
-								apiFunctions.blockProfile(String(m.senderId)).catch((e) => console.error("Block API Failed:", e));
-							}
-							
-							continue; // Skip processing this message entirely!
-						}
+ 						notifyAutoBlock(`User ${m.senderId}`, "Sent banned keyword");
+ 						if (m.senderId) {
+ 							apiFunctions.blockProfile(String(m.senderId)).catch(() => {});
+ 						}
+ 						continue; // Skip processing this message entirely!
+ 					}
 						// -----------------------------
 
 						const list = byConv.get(m.conversationId) ?? [];
