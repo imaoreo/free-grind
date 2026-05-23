@@ -153,7 +153,7 @@ export function PullToRefreshContainer({
 	return (
 		<div
 			className={className}
-			style={{ ...style, position: "relative", overflow: "hidden" }}
+			style={{ position: "relative", overflow: "hidden", ...style }}
 			onTouchStart={handleTouchStart}
 			onTouchMove={handleTouchMove}
 			onTouchEnd={finishTouch}
