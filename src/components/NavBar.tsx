@@ -2,6 +2,7 @@ import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect } from "react";
+import { cn } from "../utils/cn";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/useAuth";
@@ -350,15 +351,34 @@ export function NavBar() {
 								<TabsTrigger
 									key={item.value}
 									value={item.value}
-									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)] md:gap-1.5"
+									className={cn(
+										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
+										item.value === "right-now"
+											? "focus-visible:ring-[var(--right-now)] data-[state=active]:bg-[var(--right-now)] data-[state=active]:text-white"
+											: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
+									)}
 								>
 									<div className="relative">
 										<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
 										{(item.value === "inbox" && inboxUnseen) ||
 										(item.value === "interest" && interestUnseen) ? (
 											<span className="absolute -right-1 -top-1 flex h-2 w-2">
-												<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75"></span>
-												<span className="relative inline-block h-2 w-2 rounded-full bg-[var(--accent)] ring-1 ring-[var(--surface)]"></span>
+												<span
+													className={cn(
+														"absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+														activeTab === "right-now"
+															? "bg-[var(--right-now)]"
+															: "bg-[var(--accent)]",
+													)}
+												></span>
+												<span
+													className={cn(
+														"relative inline-block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
+														activeTab === "right-now"
+															? "bg-[var(--right-now)]"
+															: "bg-[var(--accent)]",
+													)}
+												></span>
 											</span>
 										) : null}
 									</div>
