@@ -5,6 +5,7 @@ import {
 	useEffect,
 	ReactNode,
 	useCallback,
+	useRef,
 } from "react";
 import z from "zod";
 import { geohashSchema } from "../utils/geohash";
@@ -149,6 +150,10 @@ const preferencesSchema = z.object({
 	developerMode: z.boolean().default(false),
 	showDebugInfo: z.boolean().default(false),
 	useAutoLocation: z.boolean().default(false),
+	rightNowTestMode: z.boolean().default(false),
+	activeRightNowId: z.number().nullable().optional(),
+	activeRightNowExpiresAt: z.number().nullable().optional(),
+	rightNowRemaining: z.number().default(0),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -173,6 +178,9 @@ type PreferencesAction =
 	| { type: "SET_DEVELOPER_MODE"; payload: boolean }
 	| { type: "SET_SHOW_DEBUG_INFO"; payload: boolean }
 	| { type: "SET_AUTO_LOCATION"; payload: boolean }
+	| { type: "SET_RIGHT_NOW_TEST_MODE"; payload: boolean }
+	| { type: "SET_RIGHT_NOW_REMAINING"; payload: number }
+	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
 function preferencesReducer(
@@ -200,6 +208,16 @@ function preferencesReducer(
 			return { ...state, showDebugInfo: action.payload };
 		case "SET_AUTO_LOCATION":
 			return { ...state, useAutoLocation: action.payload };
+		case "SET_RIGHT_NOW_TEST_MODE":
+			return { ...state, rightNowTestMode: action.payload };
+		case "SET_RIGHT_NOW_REMAINING":
+			return { ...state, rightNowRemaining: action.payload };
+		case "SET_RIGHT_NOW_STATUS":
+			return {
+				...state,
+				activeRightNowId: action.payload.id,
+				activeRightNowExpiresAt: action.payload.expiresAt,
+			};
 		case "SET_ACCENT":
 			return {
 				...state,
@@ -246,6 +264,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		developerMode: false,
 		showDebugInfo: false,
 		useAutoLocation: false,
+		rightNowTestMode: false,
+		activeRightNowId: null,
+		activeRightNowExpiresAt: null,
+		rightNowRemaining: 0,
 		isLoading: true,
 	});
 
@@ -266,6 +288,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
 					dispatch({ type: "SET_SHOW_DEBUG_INFO", payload: parsed.showDebugInfo });
 					dispatch({ type: "SET_AUTO_LOCATION", payload: parsed.useAutoLocation });
+					dispatch({ type: "SET_RIGHT_NOW_TEST_MODE", payload: parsed.rightNowTestMode });
+					dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: parsed.rightNowRemaining });
+					dispatch({
+						type: "SET_RIGHT_NOW_STATUS",
+						payload: {
+							id: parsed.activeRightNowId ?? null,
+							expiresAt: parsed.activeRightNowExpiresAt ?? null,
+						},
+					});
 					dispatch({
 						type: "SET_ACCENT",
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
@@ -282,30 +313,41 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		loadPreferences();
 	}, []);
 
+	const stateRef = useRef(state);
+	stateRef.current = state;
+
 	const setPreferences = useCallback(
 		async (newValues: Partial<Preferences>) => {
-			const oldValues: Preferences = {
-				geohash: state.geohash,
-				locationName: state.locationName,
-				colorScheme: state.colorScheme,
-				accentColor: state.accentColor,
-				accentContrast: state.accentContrast,
-				mobileGridColumns: state.mobileGridColumns,
-				unitsPreset: state.unitsPreset,
-				blurIncomingMedia: state.blurIncomingMedia,
-				developerMode: state.developerMode,
-				showDebugInfo: state.showDebugInfo,
-				useAutoLocation: state.useAutoLocation,
-			};
+			const currentState = stateRef.current;
+			// Get current state to ensure we don't lose values not provided in newValues
 			const preferences: Preferences = {
-				...oldValues,
+				geohash: currentState.geohash,
+				locationName: currentState.locationName,
+				colorScheme: currentState.colorScheme,
+				accentColor: currentState.accentColor,
+				accentContrast: currentState.accentContrast,
+				mobileGridColumns: currentState.mobileGridColumns,
+				unitsPreset: currentState.unitsPreset,
+				blurIncomingMedia: currentState.blurIncomingMedia,
+				developerMode: currentState.developerMode,
+				showDebugInfo: currentState.showDebugInfo,
+				useAutoLocation: currentState.useAutoLocation,
+				rightNowTestMode: currentState.rightNowTestMode,
+				rightNowRemaining: currentState.rightNowRemaining,
+				activeRightNowId: currentState.activeRightNowId ?? null,
+				activeRightNowExpiresAt: currentState.activeRightNowExpiresAt ?? null,
 				...newValues,
 			};
 
 			// Validate before saving
-			preferencesSchema.parse(preferences);
+			try {
+				preferencesSchema.parse(preferences);
+			} catch (e) {
+				console.error("Validation failed in setPreferences:", e);
+				throw e;
+			}
 
-			// Update state
+			// Update state via dispatches
 			if (newValues.geohash !== undefined) {
 				dispatch({ type: "SET_GEOHASH", payload: newValues.geohash });
 			}
@@ -333,12 +375,36 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			if (newValues.useAutoLocation !== undefined) {
 				dispatch({ type: "SET_AUTO_LOCATION", payload: newValues.useAutoLocation });
 			}
+			if (newValues.rightNowTestMode !== undefined) {
+				dispatch({ type: "SET_RIGHT_NOW_TEST_MODE", payload: newValues.rightNowTestMode });
+			}
+			if (newValues.rightNowRemaining !== undefined) {
+				dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: newValues.rightNowRemaining });
+			}
+			if (
+				newValues.activeRightNowId !== undefined ||
+				newValues.activeRightNowExpiresAt !== undefined
+			) {
+				dispatch({
+					type: "SET_RIGHT_NOW_STATUS",
+					payload: {
+						id:
+							newValues.activeRightNowId !== undefined
+								? newValues.activeRightNowId
+								: currentState.activeRightNowId ?? null,
+						expiresAt:
+							newValues.activeRightNowExpiresAt !== undefined
+								? newValues.activeRightNowExpiresAt
+								: currentState.activeRightNowExpiresAt ?? null,
+					},
+				});
+			}
 			if (newValues.accentColor !== undefined || newValues.accentContrast !== undefined) {
 				dispatch({
 					type: "SET_ACCENT",
 					payload: {
-						color: newValues.accentColor ?? state.accentColor,
-						contrast: newValues.accentContrast ?? state.accentContrast,
+						color: newValues.accentColor ?? currentState.accentColor,
+						contrast: newValues.accentContrast ?? currentState.accentContrast,
 					},
 				});
 			}
@@ -353,18 +419,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			// Persist to localStorage
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
 		},
-		[
-			state.geohash,
-			state.colorScheme,
-			state.accentColor,
-			state.accentContrast,
-			state.mobileGridColumns,
-			state.unitsPreset,
-			state.blurIncomingMedia,
-			state.developerMode,
-			state.showDebugInfo,
-			state.useAutoLocation,
-		],
+		[dispatch],
 	);
 
 	const value: PreferencesContextType = {
@@ -379,6 +434,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		developerMode: state.developerMode,
 		showDebugInfo: state.showDebugInfo,
 		useAutoLocation: state.useAutoLocation,
+		rightNowTestMode: state.rightNowTestMode,
+		activeRightNowId: state.activeRightNowId,
+		activeRightNowExpiresAt: state.activeRightNowExpiresAt,
+		rightNowRemaining: state.rightNowRemaining,
 		setPreferences,
 		isLoading: state.isLoading,
 	};
