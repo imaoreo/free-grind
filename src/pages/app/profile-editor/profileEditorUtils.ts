@@ -142,18 +142,14 @@ export function normalizeTagList(value: string): string[] {
 		.filter(Boolean);
 }
 
-export async function buildSquareThumbCoords(file: File): Promise<string> {
-	const bitmap = await createImageBitmap(file);
-	const side = Math.min(bitmap.width, bitmap.height);
-	const x1 = (bitmap.width - side) / 2;
-	const y1 = (bitmap.height - side) / 2;
-	const x2 = x1 + side;
-	const y2 = y1 + side;
+import { calculateSquareCrop } from "../../../utils/media";
 
-	bitmap.close();
+export async function buildSquareThumbCoords(file: File): Promise<string> {
+	const { top, left, right, bottom } = await calculateSquareCrop(file);
 
 	// RectF query format is: y2,x1,x2,y1.
-	return `${y2},${x1},${x2},${y1}`;
+	// which corresponds to: bottom, left, right, top
+	return `${bottom},${left},${right},${top}`;
 }
 
 export function profileToDraft(
