@@ -594,7 +594,10 @@ export function RightNowPage() {
 						</button>
 
 						{/* Hosting toggle */}
-						className={cn(
+						<button
+							type="button"
+							onClick={() => setHostingOnly(v => !v)}
+							className={cn(
 								"shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
 								hostingOnly
 									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
