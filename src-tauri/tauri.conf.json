@@ -34,7 +34,10 @@
         ],
         "macOS": {}
     },
-    "plugins": {
-        "hotswap": {}
-    }
+	"plugins": {
+		"hotswap": {
+			"endpoint": "https://grindapi.imaoreo.dev/api/updates/{{current_sequence}}",
+			"pubkey": "RWRJW9mxbpaZjWQ7RPUHMYHtIPXb5r3uRCxnf/IrVaNHGr70C/MewrYZ"
+		}
+	}
 }
