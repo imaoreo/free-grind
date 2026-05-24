@@ -94,6 +94,36 @@ Free Grind does not collect personal data, display ads, or generate revenue of a
 
 Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 
+### Local Setup
+
+```bash
+bun install
+```
+
+### Common Commands
+
+```bash
+# Desktop (Tauri + Vite)
+bun run dev
+
+# Web only
+bun run dev:web
+
+# Android dev
+bun run dev:android
+
+# iOS dev (simulator configurable via IOS_SIMULATOR)
+bun run dev:ios
+
+# Android APK build
+bun run build:android:apk
+
+# iOS IPA build
+bun run build:ios:ipa
+```
+
+All Tauri commands are routed through shell scripts in [scripts](scripts) and use Bun (`bunx`) instead of pnpm/nix workflows.
+
 All contributions must be aligned with [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://freegrinddocs.imaoreo.dev/](https://freegrinddocs.imaoreo.dev/) — contributions to reverse engineering and documentation are especially valued.
