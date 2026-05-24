@@ -1,6 +1,5 @@
 import {
 	Ban,
-    Bookmark,
 	ChevronDown,
 	ChevronLeft,
 	Ellipsis,
@@ -1057,18 +1056,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								)}
 							</button>
 
-							{/* --- SAVED PHRASES SETTINGS BUTTON --- */}
-							<button
-								type="button"
-								onClick={() => navigate("/settings/saved-phrases")}
-								className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label="Saved Phrases Settings"
-								title="Saved Phrases Settings"
-							>
-								<Bookmark className="h-4 w-4" />
-							</button>
-							{/* ------------------------------------- */}
-
 							<input
 								type="file"
 								ref={attachmentInputRef}
@@ -1638,18 +1625,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                             <MapPin className="h-4 w-4" />
                         )}
                     </button>
-
-					{/* --- SAVED PHRASES SETTINGS BUTTON --- */}
-					<button
-						type="button"
-						onClick={() => navigate("/settings/saved-phrases")}
-						className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						aria-label="Saved Phrases Settings"
-						title="Saved Phrases Settings"
-					>
-						<Bookmark className="h-4 w-4" />
-					</button>
-					{/* ------------------------------------- */}
 
 							<input
 								type="file"
