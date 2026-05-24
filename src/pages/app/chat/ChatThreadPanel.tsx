@@ -56,6 +56,10 @@ import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
+import {
+	loadSavedPhrases,
+	SAVED_PHRASES_UPDATED_EVENT,
+} from "../../../services/savedPhrases";
 
 type ChatThreadPanelProps = {
 	navigate: NavigateFunction;
@@ -181,35 +185,30 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
 	});
 
-    // --- SAVED PHRASES STATE ---
-	const [isPhraseMenuOpen, setIsPhraseMenuOpen] = useState(false);
-	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => {
-		try {
-			const stored = localStorage.getItem("fg-saved-phrases");
-			return stored ? (JSON.parse(stored) as string[]) : ["Hey, how are you?", "Looking for?", "I can host!"];
-		} catch { return []; }
-	});
-	const [newPhrase, setNewPhrase] = useState("");
-
-	const handleSavePhrase = () => {
-		if (!newPhrase.trim()) return;
-		const updated = [...savedPhrases, newPhrase.trim()];
-		setSavedPhrases(updated);
-		localStorage.setItem("fg-saved-phrases", JSON.stringify(updated));
-		setNewPhrase("");
-	};
-
-	const handleDeletePhrase = (index: number) => {
-		const updated = savedPhrases.filter((_, i) => i !== index);
-		setSavedPhrases(updated);
-		localStorage.setItem("fg-saved-phrases", JSON.stringify(updated));
-	};
+	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
 
 	const handleUsePhrase = (phrase: string) => {
 		setDraft(draft ? `${draft} ${phrase}` : phrase);
-		setIsPhraseMenuOpen(false);
 	};
-	// ---------------------------
+
+	useEffect(() => {
+		const syncSavedPhrases = (event: Event) => {
+			const detail = (event as CustomEvent<string[]>).detail;
+			if (Array.isArray(detail)) {
+				setSavedPhrases(detail);
+				return;
+			}
+			setSavedPhrases(loadSavedPhrases());
+		};
+
+		window.addEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+		window.addEventListener("storage", syncSavedPhrases);
+
+		return () => {
+			window.removeEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+			window.removeEventListener("storage", syncSavedPhrases);
+		};
+	}, []);
 
 	const {
 		navigate,
@@ -1002,7 +1001,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={() => {
 									toggleAlbumPicker();
-									setIsPhraseMenuOpen(false);
 									if (isDrawerOpen) toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
@@ -1016,7 +1014,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={() => {
 									attachmentInputRef.current?.click();
-									setIsPhraseMenuOpen(false);
 									if (isDrawerOpen) toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
@@ -1031,7 +1028,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={() => {
 									toggleDrawer();
-									setIsPhraseMenuOpen(false);
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
@@ -1044,7 +1040,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								type="button"
 								onClick={() => {
 									handleLocationShareRequest();
-									setIsPhraseMenuOpen(false);
 									if (isDrawerOpen) toggleDrawer();
 								}}
 								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
@@ -1062,25 +1057,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								)}
 							</button>
 
-							{/* --- SAVED PHRASES BUTTON --- */}
+							{/* --- SAVED PHRASES SETTINGS BUTTON --- */}
 							<button
 								type="button"
-								onClick={() => {
-									setIsPhraseMenuOpen(!isPhraseMenuOpen);
-									if (isDrawerOpen) toggleDrawer();
-									if (pendingLocationShare) handleLocationShareRequest();
-								}}
-								className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
-									isPhraseMenuOpen
-										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-										: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-								}`}
-								aria-label="Manage Saved Phrases"
-								title="Manage Saved Phrases"
+								onClick={() => navigate("/settings/saved-phrases")}
+								className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label="Saved Phrases Settings"
+								title="Saved Phrases Settings"
 							>
 								<Bookmark className="h-4 w-4" />
 							</button>
-							{/* ---------------------------- */}
+							{/* ------------------------------------- */}
 
 							<input
 								type="file"
@@ -1091,7 +1078,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							/>
 
 							{/* --- QUICK PHRASE PILLS --- */}
-							{savedPhrases.length > 0 && !isPhraseMenuOpen && (
+							{savedPhrases.length > 0 && (
 								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 									{savedPhrases.map((phrase, idx) => (
 										<button
@@ -1107,61 +1094,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							)}
 							{/* -------------------------- */}
 						</div>
-
-						{/* --- SAVED PHRASES MENU --- */}
-						{isPhraseMenuOpen ? (
-							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-								<div className="flex items-center justify-between border-b border-[var(--border)] p-3">
-									<p className="text-xs font-medium text-[var(--text)]">Manage Saved Phrases</p>
-									<button type="button" onClick={() => setIsPhraseMenuOpen(false)}>
-										<X className="h-4 w-4 text-[var(--text-muted)] hover:text-[var(--text)]" />
-									</button>
-								</div>
-								<div className="max-h-48 overflow-y-auto p-2">
-									{savedPhrases.length === 0 ? (
-										<p className="p-2 text-xs text-[var(--text-muted)]">No saved phrases yet.</p>
-									) : (
-										savedPhrases.map((phrase, idx) => (
-											<div key={idx} className="flex items-center justify-between gap-2 rounded-lg p-1 hover:bg-[var(--surface)]">
-												<button
-													type="button"
-													onClick={() => handleUsePhrase(phrase)}
-													className="flex-1 text-left text-sm text-[var(--text)] hover:text-[var(--accent)] px-2 py-1"
-												>
-													{phrase}
-												</button>
-												<button
-													type="button"
-													onClick={() => handleDeletePhrase(idx)}
-													className="shrink-0 p-1 text-[var(--text-muted)] hover:text-red-400"
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-												</button>
-											</div>
-										))
-									)}
-								</div>
-								<div className="flex items-center gap-2 border-t border-[var(--border)] p-2">
-									<input
-										type="text"
-										value={newPhrase}
-										onChange={(e) => setNewPhrase(e.target.value)}
-										placeholder="Add new phrase..."
-										className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
-										onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSavePhrase(); } }}
-									/>
-									<button
-										type="button"
-										onClick={handleSavePhrase}
-										disabled={!newPhrase.trim()}
-										className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] disabled:opacity-50"
-									>
-										Save
-									</button>
-								</div>
-							</div>
-						) : null}
-						{/* -------------------------- */}
 
 						{pendingLocationShare ? (
 							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
@@ -1654,7 +1586,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         type="button"
                         onClick={() => {
 							toggleAlbumPicker();
-							setIsPhraseMenuOpen(false);
 							if (isDrawerOpen) toggleDrawer();
 							if (pendingLocationShare) handleLocationShareRequest();
 						}}
@@ -1668,7 +1599,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         type="button"
                         onClick={() => {
 							attachmentInputRef.current?.click();
-							setIsPhraseMenuOpen(false);
 							if (isDrawerOpen) toggleDrawer();
 							if (pendingLocationShare) handleLocationShareRequest();
 						}}
@@ -1692,7 +1622,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         type="button"
                         onClick={() => {
 							handleLocationShareRequest();
-							setIsPhraseMenuOpen(false);
 							if (isDrawerOpen) toggleDrawer();
 						}}
                         className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
@@ -1710,25 +1639,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         )}
                     </button>
 
-					{/* --- SAVED PHRASES BUTTON --- */}
+					{/* --- SAVED PHRASES SETTINGS BUTTON --- */}
 					<button
 						type="button"
-						onClick={() => {
-							setIsPhraseMenuOpen(!isPhraseMenuOpen);
-							if (isDrawerOpen) toggleDrawer();
-							if (pendingLocationShare) handleLocationShareRequest();
-						}}
-						className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
-							isPhraseMenuOpen
-								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-						}`}
-						aria-label="Manage Saved Phrases"
-						title="Manage Saved Phrases"
+						onClick={() => navigate("/settings/saved-phrases")}
+						className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						aria-label="Saved Phrases Settings"
+						title="Saved Phrases Settings"
 					>
 						<Bookmark className="h-4 w-4" />
 					</button>
-					{/* ---------------------------- */}
+					{/* ------------------------------------- */}
 
 							<input
 								type="file"
@@ -1739,7 +1660,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							/>
 
 							{/* --- QUICK PHRASE PILLS --- */}
-							{savedPhrases.length > 0 && !isPhraseMenuOpen && (
+							{savedPhrases.length > 0 && (
 								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 									{savedPhrases.map((phrase, idx) => (
 										<button
@@ -1755,61 +1676,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							)}
 							{/* -------------------------- */}
 						</div>
-
-						{/* --- SAVED PHRASES MENU --- */}
-						{isPhraseMenuOpen ? (
-							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-								<div className="flex items-center justify-between border-b border-[var(--border)] p-3">
-									<p className="text-xs font-medium text-[var(--text)]">Manage Saved Phrases</p>
-									<button type="button" onClick={() => setIsPhraseMenuOpen(false)}>
-										<X className="h-4 w-4 text-[var(--text-muted)] hover:text-[var(--text)]" />
-									</button>
-								</div>
-								<div className="max-h-48 overflow-y-auto p-2">
-									{savedPhrases.length === 0 ? (
-										<p className="p-2 text-xs text-[var(--text-muted)]">No saved phrases yet.</p>
-									) : (
-										savedPhrases.map((phrase, idx) => (
-											<div key={idx} className="flex items-center justify-between gap-2 rounded-lg p-1 hover:bg-[var(--surface)]">
-												<button
-													type="button"
-													onClick={() => handleUsePhrase(phrase)}
-													className="flex-1 text-left text-sm text-[var(--text)] hover:text-[var(--accent)] px-2 py-1"
-												>
-													{phrase}
-												</button>
-												<button
-													type="button"
-													onClick={() => handleDeletePhrase(idx)}
-													className="shrink-0 p-1 text-[var(--text-muted)] hover:text-red-400"
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-												</button>
-											</div>
-										))
-									)}
-								</div>
-								<div className="flex items-center gap-2 border-t border-[var(--border)] p-2">
-									<input
-										type="text"
-										value={newPhrase}
-										onChange={(e) => setNewPhrase(e.target.value)}
-										placeholder="Add new phrase..."
-										className="flex-1 rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
-										onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSavePhrase(); } }}
-									/>
-									<button
-										type="button"
-										onClick={handleSavePhrase}
-										disabled={!newPhrase.trim()}
-										className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-semibold text-[var(--accent-contrast)] disabled:opacity-50"
-									>
-										Save
-									</button>
-								</div>
-							</div>
-						) : null}
-						{/* -------------------------- */}
 
 				{pendingLocationShare ? (
 					<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
