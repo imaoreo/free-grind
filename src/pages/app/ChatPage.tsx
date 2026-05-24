@@ -76,7 +76,8 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
-
+import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
+import { isChatGhosted } from "../../utils/privacy";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -966,6 +967,73 @@ export function ChatPage() {
 					}
 				}
 
+// --- AUTO BLOCK CHECK (HISTORICAL CHAT SCANNER) ---
+				let shouldNukeThread = false;
+				let blockReason = "";
+
+				// 1. Check if their historical messages contain bad words
+				for (const m of responseMessages) {
+					let messageText = "";
+					const msgBody: any = m.body;
+					if (msgBody && typeof msgBody.text === "string") {
+						messageText = msgBody.text;
+					}
+					
+					const isIncoming = userId != null && Number(m.senderId) !== Number(userId);
+
+					if (isIncoming && shouldAutoBlock(messageText, "chat")) {
+						shouldNukeThread = true;
+						blockReason = "Keyword in message history";
+						break;
+					}
+				}
+
+				const otherParticipant = getOtherParticipant(selectedConversation || { data: { participants: [] } } as any, userId);
+				const blockId = otherParticipant?.profileId || (responseMessages[0] && responseMessages[0].senderId);
+
+				if (shouldNukeThread) {
+					console.log(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
+					
+					if (blockId) {
+						service.blockProfile(String(blockId)).catch(() => {});
+					}
+
+					setThreadMessages([]);
+					setThreadConversationId(null);
+					if (isDesktop) {
+						setSelectedDesktopConversationId(null);
+					} else {
+						navigate("/chat", { replace: true });
+					}
+					toast.success(`Auto-blocked: ${blockReason}`);
+					return; // Stop loading the rest of the thread!
+				}
+
+				// 2. Fetch their profile in the background to check their Age AND Bio
+				if (blockId) {
+					service.getProfileDetail(String(blockId)).then((profile) => {
+						const matchedBioWord = shouldAutoBlock(profile.aboutMe, "chat");
+						const isBadAge = isOutsideAgeLimits(profile.age, "chat");
+
+						if (matchedBioWord || isBadAge) {
+							const reason = isBadAge ? `Age limit (${profile.age})` : `Keyword in Bio`;
+							console.log(`[AutoBlock] Sweeping conversation due to: ${reason}`);
+							
+							service.blockProfile(String(blockId)).catch(() => {});
+							
+							setThreadMessages([]);
+							setThreadConversationId(null);
+							if (isDesktop) {
+								setSelectedDesktopConversationId(null);
+							} else {
+								navigate("/chat", { replace: true });
+							}
+							toast.success(`Auto-blocked: ${reason}`);
+						}
+					}).catch(() => {});
+				}
+				// --------------------------------------------------
+
 				setThreadMessages((previous) => {
 					const map = new Map<string, UiMessage>();
 					if (older) {
@@ -1089,11 +1157,14 @@ export function ChatPage() {
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
 								syncConversation((conversation) => {
-									const other = getOtherParticipant(conversation, userId);
-									if (other?.profileId) {
-										const pid = String(other.profileId);
-										void clearUnreadCountForProfile(pid).catch(() => {});
-										setChatContactIndexByProfileId((prev) => {
+ 								// --- GHOST CHECK ---
+ 								if (isChatGhosted(conversationId)) return conversation; 
+ 								// -------------------
+ 								const other = getOtherParticipant(conversation, userId);
+ 								if (other?.profileId) {
+ 									const pid = String(other.profileId);
+ 									void clearUnreadCountForProfile(pid).catch(() => {});
+ 									setChatContactIndexByProfileId((prev) => {
 											const existing = prev[pid];
 											if (!existing) return prev;
 											return {
@@ -1242,23 +1313,28 @@ export function ChatPage() {
 				const isActive = selectedConversationIdRef.current === conversation.data.conversationId;
 
 				if (isActive && !isMine) {
-					void service
-						.markRead(conversation.data.conversationId, latestMessage.messageId)
-						.catch(() => {});
-					const other = getOtherParticipant(conversation, userId);
-					if (other?.profileId) {
-						const pid = String(other.profileId);
-						void clearUnreadCountForProfile(pid).catch(() => {});
-						setChatContactIndexByProfileId((prev) => {
-							const existing = prev[pid];
-							if (!existing) return prev;
-							return {
-								...prev,
-								[pid]: { ...existing, unreadCount: 0 },
-							};
-						});
-					}
-				}
+ 				void service
+ 					.markRead(conversation.data.conversationId, latestMessage.messageId)
+ 					.catch(() => {});
+ 				
+ 				// --- GHOST CHECK ---
+ 				if (!isChatGhosted(conversation.data.conversationId)) {
+ 					const other = getOtherParticipant(conversation, userId);
+ 					if (other?.profileId) {
+ 						const pid = String(other.profileId);
+ 						void clearUnreadCountForProfile(pid).catch(() => {});
+ 						setChatContactIndexByProfileId((prev) => {
+ 							const existing = prev[pid];
+ 							if (!existing) return prev;
+ 							return {
+ 								...prev,
+ 								[pid]: { ...existing, unreadCount: 0 },
+ 							};
+ 						});
+ 					}
+ 				}
+ 				// -------------------
+ 			}
 
 				return {
 					...conversation,

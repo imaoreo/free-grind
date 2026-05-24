@@ -27,17 +27,5 @@
 			"endpoint": "https://grindapi.imaoreo.dev/api/updates/{{current_sequence}}",
 			"pubkey": "RWRJW9mxbpaZjWQ7RPUHMYHtIPXb5r3uRCxnf/IrVaNHGr70C/MewrYZ"
 		}
-	},
-	"bundle": {
-		"active": true,
-		"targets": "all",
-		"icon": [
-			"icons/32x32.png",
-			"icons/128x128.png",
-			"icons/128x128@2x.png",
-			"icons/icon.icns",
-			"icons/icon.ico"
-		],
-		"macOS": {}
 	}
 }

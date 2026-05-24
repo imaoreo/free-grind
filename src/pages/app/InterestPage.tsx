@@ -34,8 +34,8 @@ export function InterestPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [searchParams, setSearchParams] = useSearchParams();
-	const activeTab: InterestTab =
-		searchParams.get("tab") === "views" ? "views" : "taps";
+	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
+	const activeTab: InterestTab = searchParams.get("tab") === "views" || (!searchParams.get("tab") && defaultSetting === "views") ? "views" : "taps";
 	const [views, setViews] = useState<InterestItem[]>([]);
 	const [taps, setTaps] = useState<InterestItem[]>([]);
 	const [viewedCount, setViewedCount] = useState<number | null>(null);
@@ -257,11 +257,8 @@ export function InterestPage() {
 	const handleSetActiveTab = useCallback(
 		(nextTab: InterestTab) => {
 			const nextParams = new URLSearchParams(searchParams);
-			if (nextTab === "taps") {
-				nextParams.delete("tab");
-			} else {
-				nextParams.set("tab", nextTab);
-			}
+			// Always explicitly set the tab in the URL so our new default setting doesn't override it
+			nextParams.set("tab", nextTab);
 			setSearchParams(nextParams, { replace: true });
 		},
 		[searchParams, setSearchParams],
