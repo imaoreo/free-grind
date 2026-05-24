@@ -1,39 +1,27 @@
 {
-    "$schema": "https://schema.tauri.app/config/2",
-    "productName": "Free Grind",
-    "version": "0.5.1",
-    "identifier": "dev.estopia.free-grind",
-    "build": {
-        "beforeDevCommand": "npm run dev:web",
-        "devUrl": "http://localhost:1420",
-        "beforeBuildCommand": "npm run build",
-        "frontendDist": "../dist"
-    },
-    "app": {
-        "windows": [
-            {
-                "title": "Free Grind",
-                "width": 1000,
-                "height": 800,
-                "userAgent": "FreeGrind/0.5.1 (+https://freegrind.imaoreo.dev/; contact: support@imaoreo.dev)"
-            }
-        ],
-        "security": {
-            "csp": null
-        }
-    },
-    "bundle": {
-        "active": true,
-        "targets": "all",
-        "icon": [
-            "icons/32x32.png",
-            "icons/128x128.png",
-            "icons/128x128@2x.png",
-            "icons/icon.icns",
-            "icons/icon.ico"
-        ],
-        "macOS": {}
-    },
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Free Grind",
+	"version": "0.5.1",
+	"identifier": "dev.estopia.free-grind",
+	"build": {
+		"beforeDevCommand": "pnpm run dev:web",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "pnpm run build",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Free Grind",
+				"width": 1000,
+				"height": 800,
+				"userAgent": "FreeGrind/0.5.1 (+https://freegrind.imaoreo.dev/; contact: support@imaoreo.dev)"
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
 	"plugins": {
 		"hotswap": {
 			"endpoint": "https://grindapi.imaoreo.dev/api/updates/{{current_sequence}}",
