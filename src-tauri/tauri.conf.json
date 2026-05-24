@@ -4,9 +4,9 @@
 	"version": "0.5.1",
 	"identifier": "dev.estopia.free-grind",
 	"build": {
-		"beforeDevCommand": "bun run dev:web",
+		"beforeDevCommand": "pnpm run dev:web",
 		"devUrl": "http://localhost:1420",
-		"beforeBuildCommand": "bun run build",
+		"beforeBuildCommand": "pnpm run build",
 		"frontendDist": "../dist"
 	},
 	"app": {
