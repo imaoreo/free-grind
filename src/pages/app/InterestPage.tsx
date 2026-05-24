@@ -257,11 +257,8 @@ export function InterestPage() {
 	const handleSetActiveTab = useCallback(
 		(nextTab: InterestTab) => {
 			const nextParams = new URLSearchParams(searchParams);
-			if (nextTab === "taps") {
-				nextParams.delete("tab");
-			} else {
-				nextParams.set("tab", nextTab);
-			}
+			// Always explicitly set the tab in the URL so our new default setting doesn't override it
+			nextParams.set("tab", nextTab);
 			setSearchParams(nextParams, { replace: true });
 		},
 		[searchParams, setSearchParams],
