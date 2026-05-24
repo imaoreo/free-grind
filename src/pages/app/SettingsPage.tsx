@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import {
 	BadgeInfo,
 	Bell,
+	Bookmark,
 	Bug,
 	ChevronRight,
 	ClipboardList,
@@ -484,6 +485,29 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("settings.blocked_accounts_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/saved-phrases")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Bookmark className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.saved_phrases", { defaultValue: "Saved Phrases" })}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.saved_phrases_desc", {
+									defaultValue: "Manage chat quick replies and import/export .txt",
+								})}
 							</p>
 						</div>
 					</div>
