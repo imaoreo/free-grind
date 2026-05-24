@@ -36,6 +36,7 @@ import type {
 } from "../types/chat-service";
 
 import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../utils/autoblock";
+import { isChatGhosted } from "../utils/privacy";
 
 export class ChatApiError extends Error {
 	status: number;
@@ -363,14 +364,18 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 		},
 
 		async markRead(conversationId: string, messageId: string): Promise<void> {
-			const response = await fetchRest(
-				`/v4/chat/conversation/${conversationId}/read/${messageId}`,
-				{
-					method: "POST",
-				},
-			);
-			await assertSuccess(response, t("chat.errors.mark_read_failed"));
-		},
+ 		// --- GHOST MODE CHECK ---
+ 		if (isChatGhosted(conversationId)) {
+ 			return; // Silently do nothing. They will never know you read it!
+ 		}
+ 		// ------------------------
+
+ 		const response = await fetchRest(
+ 			`/v4/chat/conversation/${conversationId}/read/${messageId}`,
+ 			{ method: "POST" },
+ 		);
+ 		await assertSuccess(response, t("chat.errors.mark_read_failed"));
+ 	},
 
 		async unsendMessage(payload: ChatMessageMutation) {
 			const safePayload = chatMessageMutationSchema.parse(payload);

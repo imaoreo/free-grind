@@ -4,6 +4,8 @@ import {
 	ChevronDown,
 	ChevronLeft,
 	Ellipsis,
+    Eye,
+    EyeOff,
 	Heart,
 	Hourglass,
 	ImagePlus,
@@ -45,11 +47,15 @@ import {
 	getOtherParticipant,
 	getParticipantAvatarUrl,
 	getParticipantOnlineMeta,
+	getMessageImageUrl,
+	getMessageVideoUrl,
+	getMessageAudioUrl,
 } from "./chatUtils";
 import { formatDistance } from "../gridpage/utils";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
-
+import { useApiFunctions } from "../../../hooks/useApiFunctions";
+import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
 
 type ChatThreadPanelProps = {
 	navigate: NavigateFunction;
@@ -159,6 +165,7 @@ const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
+    const apiFunctions = useApiFunctions();
 	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
@@ -301,6 +308,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onDeleteDrawerMedia,
 		onSendLocation,
 	} = props;
+
+    const [showGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
+    const [isGhosted, setIsGhosted] = useState(true);
+
+    useEffect(() => {
+        if (selectedConversation) {
+            setIsGhosted(isChatGhosted(selectedConversation.data.conversationId));
+        }
+    }, [selectedConversation]);
 
 	const closeBlockConfirm = () => {
 		if (isBlockingProfile) {
@@ -588,13 +604,43 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								{isDesktop && (
-									<>
-										<button
-											type="button"
-											onClick={() => {
-												if (!otherParticipant || !onToggleFavorite) return;
-												void onToggleFavorite(otherParticipant.profileId, isFavorite);
+            {isDesktop && (
+                <>
+                    {showGhostButton && selectedConversation && (
+                        <button
+                            type="button"
+                            onClick={() => {
+ 												const newState = toggleChatGhost(selectedConversation.data.conversationId);
+ 												setIsGhosted(newState);
+ 												
+ 												// If turning Ghost Mode OFF, instantly mark the last message as read!
+ 												if (!newState) {
+ 													const lastMsg = threadMessages[threadMessages.length - 1];
+ 													if (lastMsg) {
+ 														// Tell the server
+ 														apiFunctions.markRead(selectedConversation.data.conversationId, lastMsg.messageId).catch(() => {});
+ 														// Refresh the thread to clear the bold text locally
+ 														loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
+ 													}
+ 												}
+ 												toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF. They will see read receipts.");
+ 											}}
+                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                                isGhosted
+                                    ? "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                    : "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
+                            }`}
+                            title={isGhosted ? "Ghost Mode ON (Hidden)" : "Ghost Mode OFF (Visible)"}
+                        >
+                            {isGhosted ? <EyeOff className="mr-1 inline h-3.5 w-3.5" /> : <Eye className="mr-1 inline h-3.5 w-3.5" />}
+                            {isGhosted ? "Ghosting" : "Reading"}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!otherParticipant || !onToggleFavorite) return;
+                            void onToggleFavorite(otherParticipant.profileId, isFavorite);
 											}}
 											disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
 											className={`rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60 ${
@@ -670,6 +716,81 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<User className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.view_profile")}
 											</button>
+
+                                            {/* --- MOBILE GHOST TOGGLE --- */}
+											{!isDesktop && showGhostButton && selectedConversation && (
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														const newState = toggleChatGhost(selectedConversation.data.conversationId);
+														setIsGhosted(newState);
+														toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF.");
+													}}
+													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition ${
+														isGhosted ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+													}`}
+												>
+													{isGhosted ? <EyeOff className="mr-2 h-4 w-4 opacity-70" /> : <Eye className="mr-2 h-4 w-4 opacity-70" />}
+													{isGhosted ? "Ghosting (Hidden)" : "Reading (Visible)"}
+												</button>
+											)}
+											{/* --------------------------- */}
+                                            
+                                            {/* --- BAN PROFILE NAME --- */}
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+													const newList = currentList ? `${currentList}, ${displayName}` : displayName;
+													window.localStorage.setItem("fg-forbidden-words", newList);
+													toast.success(`Added "${displayName}" to Forbidden Keywords!`);
+												}}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												Ban Name "{displayName}"
+											</button>
+											{/* ------------------------ */}
+
+                                            {/* --- BAN PROFILE BIO --- */}
+											<button
+												type="button"
+												onClick={async () => {
+													setIsHeaderActionsMenuOpen(false);
+													if (!otherParticipant) return;
+													
+													const loadToast = toast.loading("Loading bio...");
+													try {
+														const profile = await apiFunctions.getProfileDetail(String(otherParticipant.profileId));
+														toast.dismiss(loadToast);
+														
+														const bio = profile.aboutMe || "";
+														if (!bio.trim()) {
+															toast.error("This user has no bio!");
+															return;
+														}
+
+														const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
+														if (wordToBan && wordToBan.trim()) {
+															const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+															const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+															window.localStorage.setItem("fg-forbidden-words", newList);
+															toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+														}
+													} catch (e) {
+														toast.dismiss(loadToast);
+														toast.error("Failed to load bio.");
+													}
+												}}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												Ban Bio Phrase
+											</button>
+											{/* ----------------------- */}
+
 											<button
 												type="button"
 												onClick={() => {
@@ -1251,21 +1372,74 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</p>
 								<div className="grid gap-2">
 									{(() => {
-										const loc = getMessageLocation(selectedActionMessage);
-										const body = selectedActionMessage.body as any;
-										const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
-										if (!loc && !hasText) return null;
+    const loc = getMessageLocation(selectedActionMessage);
+    const body = selectedActionMessage.body as any;
+    const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+    if (!loc && !hasText) return null;
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => void handleCopy(selectedActionMessage)}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+            >
+                {t("chat.actions.copy", { defaultValue: "Copy" })}
+            </button>
+
+            {hasText && !selectedActionMessageMine ? (
+                <button
+                    type="button"
+                    onClick={() => {
+                        const body = selectedActionMessage.body as any;
+                        const wordToBan = window.prompt("Trim this message down to the specific keyword you want to ban:", body?.text || "");
+                        if (wordToBan && wordToBan.trim()) {
+                            const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+                            const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+                            window.localStorage.setItem("fg-forbidden-words", newList);
+                            toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+                            setOpenMessageActionId(null);
+                        }
+                    }}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+                >
+                    <Ban className="mr-2 h-4 w-4 inline opacity-70" /> Add to Forbidden Keywords
+                </button>
+            ) : null}
+        </>
+    );
+})()}
+
+                                    {/* --- DOWNLOAD BUTTON (MOBILE) --- */}
+									{(() => {
+										const imageUrl = getMessageImageUrl(selectedActionMessage);
+										const videoUrl = getMessageVideoUrl(selectedActionMessage);
+										const audioUrl = getMessageAudioUrl(selectedActionMessage);
+										const mediaUrl = imageUrl || videoUrl || audioUrl;
+										
+										if (!mediaUrl) return null;
 
 										return (
 											<button
 												type="button"
-												onClick={() => void handleCopy(selectedActionMessage)}
+												onClick={() => {
+													const a = document.createElement("a");
+													a.href = mediaUrl;
+													a.download = `media-${Date.now()}`;
+													a.target = "_blank";
+													document.body.appendChild(a);
+													a.click();
+													document.body.removeChild(a);
+													setOpenMessageActionId(null);
+												}}
 												className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
 											>
-												{t("chat.actions.copy", { defaultValue: "Copy" })}
+												Download Media
 											</button>
 										);
 									})()}
+									{/* -------------------------------- */}
+
 									<button
 										type="button"
 										onClick={() => void handleReply(selectedActionMessage)}

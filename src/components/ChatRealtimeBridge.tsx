@@ -30,8 +30,9 @@ import type { RealtimeEnvelope, RealtimeStatus } from "../types/chat-realtime";
 import { appLog } from "../utils/logger";
 import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { getConversation } from "../services/conversationDirectory";
-import { shouldAutoBlock, notifyAutoBlock } from "../utils/autoblock";;
+import { shouldAutoBlock, getMatchedForbiddenWord, notifyAutoBlock } from "../utils/autoblock";
 import { useApiFunctions } from "../hooks/useApiFunctions";
+import { isChatGhosted } from "../utils/privacy";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
@@ -256,12 +257,12 @@ export function ChatRealtimeBridge() {
 								// WE read the messages (possibly on another device)
 								// Try to find the profileId for this conversation to clear the index
 								const conv = getConversation(cid);
-								if (conv) {
-									const other = getOtherParticipant(conv, userIdRef.current);
-									if (other?.profileId) {
-										await clearUnreadCountForProfile(String(other.profileId)).catch(() => {});
-									}
-								}
+ 							if (conv && !isChatGhosted(cid)) { // <-- Added Ghost Check
+ 								const other = getOtherParticipant(conv, userIdRef.current);
+ 								if (other?.profileId) {
+ 									await clearUnreadCountForProfile(String(other.profileId)).catch(() => {});
+ 								}
+ 							}
 							}
 							break;
 						}
@@ -280,17 +281,16 @@ export function ChatRealtimeBridge() {
 						}
 						
 						const isIncoming = userIdRef.current != null && Number(m.senderId) !== Number(userIdRef.current);
+						const matchedWord = getMatchedForbiddenWord(messageText, "chat");
 
-						// DEBUG LOG: See exactly what the app thinks is happening
-						console.log(`[AutoBlock Debug] Incoming? ${isIncoming} | Sender: ${m.senderId} | Text: "${messageText}"`);
-
-						if (isIncoming && shouldAutoBlock(messageText, "chat")) {
- 						notifyAutoBlock(`User ${m.senderId}`, "Sent banned keyword");
- 						if (m.senderId) {
- 							apiFunctions.blockProfile(String(m.senderId)).catch(() => {});
- 						}
- 						continue; // Skip processing this message entirely!
- 					}
+						if (isIncoming && matchedWord) {
+							notifyAutoBlock(`Spam Intercepted`, `Keyword: "${matchedWord}"\nMessage: "${messageText}"`);
+							
+							if (m.senderId) {
+								apiFunctions.blockProfile(String(m.senderId)).catch(() => {});
+							}
+							continue; // Skip processing this message entirely!
+						}
 						// -----------------------------
 
 						const list = byConv.get(m.conversationId) ?? [];
