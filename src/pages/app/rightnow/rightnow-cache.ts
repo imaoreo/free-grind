@@ -5,25 +5,31 @@ interface RightNowCache {
 	timestamp: number;
 }
 
-let cache: RightNowCache | null = null;
-const CACHE_TTL = 5 * 60 * 1000; // 5 Minuten Gültigkeit
+const cache = new Map<string, RightNowCache>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minute validity
 
-export function getCachedRightNowFeed(): RightNowFeedItem[] | null {
-	if (!cache) return null;
-	if (Date.now() - cache.timestamp > CACHE_TTL) {
-		cache = null;
-		return null;
-	}
-	return cache.items;
+function normalizeKey(key?: string): string {
+	return key && key.length > 0 ? key : "default";
 }
 
-export function setCachedRightNowFeed(items: RightNowFeedItem[]) {
-	cache = {
+export function getCachedRightNowFeed(key?: string): RightNowFeedItem[] | null {
+	const normalizedKey = normalizeKey(key);
+	const entry = cache.get(normalizedKey);
+	if (!entry) return null;
+	if (Date.now() - entry.timestamp > CACHE_TTL) {
+		cache.delete(normalizedKey);
+		return null;
+	}
+	return entry.items;
+}
+
+export function setCachedRightNowFeed(items: RightNowFeedItem[], key?: string) {
+	cache.set(normalizeKey(key), {
 		items,
 		timestamp: Date.now(),
-	};
+	});
 }
 
 export function clearCachedRightNowFeed() {
-	cache = null;
+	cache.clear();
 }

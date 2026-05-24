@@ -36,6 +36,35 @@ import { getCachedRightNowFeed, setCachedRightNowFeed } from "./rightnow/rightno
 
 type SortOption = RightNowSortOption;
 
+function buildRightNowFeedCacheKey(
+	sort: SortOption,
+	hostingOnly: boolean,
+	ageMin: number,
+	ageMax: number,
+	positionFilter: string,
+): string {
+	return [sort, hostingOnly ? "hosting" : "all", ageMin, ageMax, positionFilter || "any"].join("|");
+}
+
+function sortItemsByOption(items: RightNowFeedItem[], sort: SortOption): RightNowFeedItem[] {
+	const sorted = [...items];
+	if (sort === "DISTANCE") {
+		sorted.sort((left, right) => {
+			const leftDistance = left.distanceMeters ?? Number.POSITIVE_INFINITY;
+			const rightDistance = right.distanceMeters ?? Number.POSITIVE_INFINITY;
+			return leftDistance - rightDistance;
+		});
+		return sorted;
+	}
+
+	sorted.sort((left, right) => {
+		const leftPostedAt = left.postedAt ?? 0;
+		const rightPostedAt = right.postedAt ?? 0;
+		return rightPostedAt - leftPostedAt;
+	});
+	return sorted;
+}
+
 function parseFiltersFromLocationState(
 	state: unknown,
 	current: RightNowFiltersDraft,
@@ -67,18 +96,6 @@ function parseFiltersFromLocationState(
 				? draft.positionFilter
 				: current.positionFilter,
 	};
-}
-
-function formatMinutesAgo(postedAt: number | null, t: TFunction): string {
-	if (!postedAt) return "";
-	const diffMs = Date.now() - postedAt;
-	if (diffMs < 0) return t("right_now.just_now");
-	const minutes = Math.floor(diffMs / 60000);
-	if (minutes < 1) return t("right_now.just_now");
-	if (minutes < 60) return t("right_now.minutes_short", { count: minutes });
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return t("right_now.hours_short", { count: hours });
-	return t("right_now.days_short", { count: Math.floor(hours / 24) });
 }
 
 function getItemName(item: RightNowFeedItem, t: TFunction): string {
@@ -324,14 +341,24 @@ function RightNowRow({
 
 export function RightNowPage() {
 	const { t } = useTranslation();
-	const isDesktop = useDesktopBreakpoint();
 	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
+	const initialCacheKey = useMemo(
+		() =>
+			buildRightNowFeedCacheKey(
+				persistedFilters.sort,
+				persistedFilters.hostingOnly,
+				persistedFilters.ageMin,
+				persistedFilters.ageMax,
+				persistedFilters.positionFilter,
+			),
+		[persistedFilters],
+	);
 
-	const [items, setItems] = useState<RightNowFeedItem[]>(() => getCachedRightNowFeed() || []);
-	const [isLoading, setIsLoading] = useState(() => !getCachedRightNowFeed());
+	const [items, setItems] = useState<RightNowFeedItem[]>(() => getCachedRightNowFeed(initialCacheKey) || []);
+	const [isLoading, setIsLoading] = useState(() => !getCachedRightNowFeed(initialCacheKey));
 	const [error, setError] = useState<string | null>(null);
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
 	const [hostingOnly, setHostingOnly] = useState(persistedFilters.hostingOnly);
@@ -358,6 +385,7 @@ export function RightNowPage() {
 	const [isFiltersMounted, setIsFiltersMounted] = useState(false);
 	const [fabPhase, setFabPhase] = useState<RightNowFABPhase>("idle");
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
+	const unfilteredItemsRef = useRef<RightNowFeedItem[] | null>(null);
 
 	const handlePostClick = useCallback(() => {
 		setIsPosting(true);
@@ -444,7 +472,7 @@ export function RightNowPage() {
 		});
 	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
 
-	const { geohash, activeRightNowId, activeRightNowExpiresAt, rightNowRemaining, setPreferences, developerMode, showDebugInfo, rightNowTestMode } = usePreferences();
+	const { activeRightNowId, activeRightNowExpiresAt, rightNowRemaining, setPreferences, developerMode, showDebugInfo, rightNowTestMode } = usePreferences();
 	const isMountedRef = useRef(true);
 
 	const isSessionActive = useMemo(() => {
@@ -483,10 +511,20 @@ export function RightNowPage() {
 	}, []);
 
 	const loadFeed = useCallback(async (ignoreCache = false) => {
+		const cacheKey = buildRightNowFeedCacheKey(
+			sort,
+			hostingOnly,
+			ageMin,
+			ageMax,
+			positionFilter,
+		);
 		if (!ignoreCache) {
-			const cached = getCachedRightNowFeed();
+			const cached = getCachedRightNowFeed(cacheKey);
 			if (cached) {
 				setItems(cached);
+				if (!hostingOnly) {
+					unfilteredItemsRef.current = cached;
+				}
 				setIsLoading(false);
 				return;
 			}
@@ -504,7 +542,10 @@ export function RightNowPage() {
 			});
 			if (isMountedRef.current) {
 				setItems(result);
-				setCachedRightNowFeed(result);
+				if (!hostingOnly) {
+					unfilteredItemsRef.current = result;
+				}
+				setCachedRightNowFeed(result, cacheKey);
 			}
 		} catch (err) {
 			if (isMountedRef.current) {
@@ -574,8 +615,51 @@ export function RightNowPage() {
 	);
 
 	const toggleSort = useCallback(() => {
-		setSort((prev) => (prev === "DISTANCE" ? "RECENCY" : "DISTANCE"));
-	}, []);
+		setSort((prev) => {
+			const next = prev === "DISTANCE" ? "RECENCY" : "DISTANCE";
+			const nextKey = buildRightNowFeedCacheKey(
+				next,
+				hostingOnly,
+				ageMin,
+				ageMax,
+				positionFilter,
+			);
+			const cached = getCachedRightNowFeed(nextKey);
+			if (cached) {
+				setItems(cached);
+			} else {
+				setItems((current) => sortItemsByOption(current, next));
+			}
+			return next;
+		});
+	}, [hostingOnly, ageMin, ageMax, positionFilter]);
+
+	const toggleHostingOnly = useCallback(() => {
+		setHostingOnly((previous) => {
+			const next = !previous;
+			const nextKey = buildRightNowFeedCacheKey(
+				sort,
+				next,
+				ageMin,
+				ageMax,
+				positionFilter,
+			);
+			const cached = getCachedRightNowFeed(nextKey);
+			if (cached) {
+				setItems(cached);
+				return next;
+			}
+
+			if (next) {
+				unfilteredItemsRef.current = items;
+				setItems((current) => current.filter((item) => item.hosting));
+			} else if (unfilteredItemsRef.current) {
+				setItems(unfilteredItemsRef.current);
+			}
+
+			return next;
+		});
+	}, [sort, ageMin, ageMax, positionFilter, items]);
 
 	const openFilters = useCallback(() => {
 		setIsFiltersOpen(true);
@@ -586,7 +670,18 @@ export function RightNowPage() {
 		setAgeMin(draft.ageMin);
 		setAgeMax(draft.ageMax);
 		setPositionFilter(draft.positionFilter);
-	}, []);
+		const nextKey = buildRightNowFeedCacheKey(
+			sort,
+			hostingOnly,
+			draft.ageMin,
+			draft.ageMax,
+			draft.positionFilter,
+		);
+		const cached = getCachedRightNowFeed(nextKey);
+		if (cached) {
+			setItems(cached);
+		}
+	}, [sort, hostingOnly]);
 
 	const handleCloseFilters = useCallback(() => {
 		setIsFiltersOpen(false);
@@ -640,7 +735,7 @@ export function RightNowPage() {
 						{/* Hosting toggle */}
 						<button
 							type="button"
-							onClick={() => setHostingOnly(v => !v)}
+							onClick={toggleHostingOnly}
 							className={cn(
 								"shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
 								hostingOnly
@@ -783,7 +878,7 @@ export function RightNowPage() {
 		)}
 		{isFiltersMounted && (
 			<RightNowFiltersPage
-				initialDraft={{ ageMin, ageMax, positionFilter, sort, hostingOnly }}
+				initialDraft={{ ageMin, ageMax, positionFilter }}
 				onClose={handleCloseFilters}
 				onApply={handleApplyFilters}
 			/>
