@@ -7,14 +7,12 @@ import { Button } from "../../components/ui/button";
 export function SettingsAutoBlockPage() {
     const navigate = useNavigate();
 
-    const [blockOnGrid, setBlockOnGrid] = useState(() => window.localStorage.getItem("fg-block-grid") === "true");
     const [blockOnChat, setBlockOnChat] = useState(() => window.localStorage.getItem("fg-block-chat") !== "false");
     const [forbiddenWords, setForbiddenWords] = useState(() => window.localStorage.getItem("fg-forbidden-words") || "");
     const [minAge, setMinAge] = useState(() => window.localStorage.getItem("fg-block-min-age") || "");
     const [maxAge, setMaxAge] = useState(() => window.localStorage.getItem("fg-block-max-age") || "");
 
     const handleSave = () => {
-        window.localStorage.setItem("fg-block-grid", String(blockOnGrid));
         window.localStorage.setItem("fg-block-chat", String(blockOnChat));
         window.localStorage.setItem("fg-forbidden-words", forbiddenWords);
         window.localStorage.setItem("fg-block-min-age", minAge);
@@ -67,17 +65,8 @@ export function SettingsAutoBlockPage() {
             <div className="grid gap-6">
                 {/* Toggles */}
                 <div className="surface-card p-4 sm:p-5">
-                    <h2 className="text-base font-semibold mb-3">Where to apply rules?</h2>
+                    <h2 className="text-base font-semibold mb-3">Message Auto-Block</h2>
                     <div className="flex flex-col gap-3">
-                        <label className="flex items-center gap-3 text-sm cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={blockOnGrid}
-                                onChange={(e) => setBlockOnGrid(e.target.checked)}
-                                className="h-4 w-4 accent-[var(--accent)]"
-                            />
-                            Apply to Grid Profiles (Hides them instantly)
-                        </label>
                         <label className="flex items-center gap-3 text-sm cursor-pointer">
                             <input
                                 type="checkbox"

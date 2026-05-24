@@ -15,7 +15,6 @@ import type { RestFetcher } from "../../types/chat-service";
 import type { VisitingMode } from "../../types/visiting";
 import { isVisitingMode } from "../../types/visiting";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
-import { shouldAutoBlock } from "../../utils/autoblock";
 
 export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) => string) {
 	return {
@@ -224,18 +223,6 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 				}
 				const candidate = browseCardSchema.safeParse(item.data);
 				if (candidate.success) {
-					// --- AUTO BLOCK CHECK ---
-					const profileData = candidate.data;
-					const shouldBlock = shouldAutoBlock(profileData.displayName, "grid");
-					
-					if (shouldBlock && profileData.profileId) {
-						console.log(`[AutoBlock] Blocking grid profile: ${profileData.displayName}`);
-						// Call the block API in the background without waiting
-						fetchRest(`/v3/me/blocks/${encodeURIComponent(profileData.profileId)}`, { method: "POST" }).catch(() => {});
-						continue; // Skip adding them to the grid!
-					}
-					// ------------------------
-
 					cards.push(candidate.data);
 				}
 			}
@@ -251,22 +238,8 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			const parsed = profileDetailResponseSchema.parse(
 				await parseJsonSafe(response),
 			);
-			
-			const profile = parsed.profiles[0];
-			
-			// --- AUTO BLOCK CHECK ---
-			if (profile) {
-				const shouldBlock = shouldAutoBlock(profile.displayName, "grid") || shouldAutoBlock(profile.aboutMe, "grid");
-				if (shouldBlock) {
-					console.log(`[AutoBlock] Blocking full profile: ${profile.displayName}`);
-					fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
-					// Optionally throw an error so the UI closes the profile immediately
-					throw new Error("Profile automatically blocked due to keywords.");
-				}
-			}
-			// ------------------------
 
-			return profile;
+			return parsed.profiles[0];
 		},
 
 		async getRawProfile(profileId: number | string): Promise<unknown> {
