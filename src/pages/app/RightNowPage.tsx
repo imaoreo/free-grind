@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -32,6 +32,7 @@ import { RightNowPostPage } from "./rightnow/RightNowPostPage";
 import { RightNowFiltersPage } from "./RightNowFiltersPage";
 import { PhotoViewer } from "../../components/PhotoViewer";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
+import { getCachedRightNowFeed, setCachedRightNowFeed } from "./rightnow/rightnow-cache";
 
 type SortOption = RightNowSortOption;
 
@@ -329,8 +330,8 @@ export function RightNowPage() {
 	const navigate = useNavigate();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
 
-	const [items, setItems] = useState<RightNowFeedItem[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [items, setItems] = useState<RightNowFeedItem[]>(() => getCachedRightNowFeed() || []);
+	const [isLoading, setIsLoading] = useState(() => !getCachedRightNowFeed());
 	const [error, setError] = useState<string | null>(null);
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
 	const [hostingOnly, setHostingOnly] = useState(persistedFilters.hostingOnly);
@@ -339,6 +340,7 @@ export function RightNowPage() {
 	const [positionFilter, setPositionFilter] = useState<string>(
 		persistedFilters.positionFilter,
 	);
+	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 
 	const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
 	const [viewerIndex, setViewerIndex] = useState(0);
@@ -480,7 +482,16 @@ export function RightNowPage() {
 		};
 	}, []);
 
-	const loadFeed = useCallback(async () => {
+	const loadFeed = useCallback(async (ignoreCache = false) => {
+		if (!ignoreCache) {
+			const cached = getCachedRightNowFeed();
+			if (cached) {
+				setItems(cached);
+				setIsLoading(false);
+				return;
+			}
+		}
+
 		setIsLoading(true);
 		setError(null);
 		try {
@@ -493,6 +504,7 @@ export function RightNowPage() {
 			});
 			if (isMountedRef.current) {
 				setItems(result);
+				setCachedRightNowFeed(result);
 			}
 		} catch (err) {
 			if (isMountedRef.current) {
@@ -505,11 +517,43 @@ export function RightNowPage() {
 				setIsLoading(false);
 			}
 		}
-	}, [apiFunctions, sort, hostingOnly, ageMin, ageMax, positionFilter]);
+	}, [apiFunctions, sort, hostingOnly, ageMin, ageMax, positionFilter, t]);
 
 	useEffect(() => {
 		void loadFeed();
 	}, [loadFeed]);
+
+	useEffect(() => {
+		setHasRestoredScroll(false);
+		sessionStorage.removeItem("rightnow-scroll");
+	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
+
+	useEffect(() => {
+		const container = feedContainerRef.current;
+		if (!container) return;
+
+		const handleScroll = () => {
+			if (container.scrollTop > 0) {
+				sessionStorage.setItem("rightnow-scroll", container.scrollTop.toString());
+			}
+		};
+
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	}, []);
+
+	useLayoutEffect(() => {
+		if (items.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
+			const saved = sessionStorage.getItem("rightnow-scroll");
+			if (saved) {
+				const scrollTop = parseInt(saved, 10);
+				if (scrollTop > 0) {
+					feedContainerRef.current.scrollTop = scrollTop;
+				}
+			}
+			setHasRestoredScroll(true);
+		}
+	}, [items.length, isLoading, hasRestoredScroll]);
 
 	const handleMessage = useCallback(
 		(profileId: string) => {
@@ -555,7 +599,7 @@ export function RightNowPage() {
 			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 			contentClassName="flex flex-1 flex-col min-h-0"
 			style={{ overflow: "visible", overflowX: "hidden" }}
-			onRefresh={loadFeed}
+			onRefresh={() => loadFeed(true)}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
