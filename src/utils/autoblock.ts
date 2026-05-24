@@ -1,11 +1,9 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { isTauriRuntime } from "../services/tauriWebSocket";
 
-// Helper function to send a native Windows/Android/iOS notification
 export async function notifyAutoBlock(profileName: string, reason: string) {
     console.log(`[AutoBlock] Banned: ${profileName} | Reason: ${reason}`);
 
-    // If we are running in the browser (not the installed .exe), we can't send OS notifications
     if (!isTauriRuntime()) return;
 
     try {
@@ -18,36 +16,51 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
         if (permissionGranted) {
             sendNotification({
                 title: "Free Grind Auto-Blocker",
-                body: `Blocked: ${profileName}\nReason: ${reason}`,
+                body: `Blocked: ${profileName}\n${reason}`, // Shows the full message now!
             });
         }
     } catch (e) {
-        console.error("Failed to send auto-block notification", e);
+        console.error("Failed to send notification", e);
     }
 }
 
-export function shouldAutoBlock(text: string | null | undefined, context: "grid" | "chat"): boolean {
-    if (!text) return false;
-    
+// NEW: Returns the exact word that triggered the block
+export function getMatchedForbiddenWord(text: string | null | undefined, context: "grid" | "chat"): string | null {
+    if (!text) return null;
     const isGridEnabled = window.localStorage.getItem("fg-block-grid") === "true";
     const isChatEnabled = window.localStorage.getItem("fg-block-chat") !== "false"; 
 
-    if (context === "grid" && !isGridEnabled) return false;
-    if (context === "chat" && !isChatEnabled) return false;
+    if (context === "grid" && !isGridEnabled) return null;
+    if (context === "chat" && !isChatEnabled) return null;
 
     const savedWords = window.localStorage.getItem("fg-forbidden-words");
-    if (!savedWords || savedWords.trim() === "") return false;
+    if (!savedWords || savedWords.trim() === "") return null;
 
     const keywords = savedWords.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
-    if (keywords.length === 0) return false;
+    if (keywords.length === 0) return null;
 
     const lowerText = text.toLowerCase();
-    return keywords.some(keyword => lowerText.includes(keyword));
+    
+    for (const keyword of keywords) {
+        // Escape special characters so emojis and punctuation don't break the scanner
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // This Regex ensures it only matches the exact word/phrase, not partial words like "bottle"
+        const regex = new RegExp(`(?:^|\\W)${escaped}(?:$|\\W)`, 'i');
+        
+        if (regex.test(lowerText)) {
+            return keyword;
+        }
+    }
+    return null;
+}
+
+// Keep this for the Grid/Inbox where we only need true/false
+export function shouldAutoBlock(text: string | null | undefined, context: "grid" | "chat"): boolean {
+    return getMatchedForbiddenWord(text, context) !== null;
 }
 
 export function isOutsideAgeLimits(age: number | null | undefined, context: "grid" | "chat"): boolean {
     if (age == null) return false; 
-
     const isGridEnabled = window.localStorage.getItem("fg-block-grid") === "true";
     const isChatEnabled = window.localStorage.getItem("fg-block-chat") !== "false"; 
 
@@ -59,16 +72,11 @@ export function isOutsideAgeLimits(age: number | null | undefined, context: "gri
 
     if (rawMin && rawMin.trim() !== "") {
         const minAge = parseInt(rawMin.trim(), 10);
-        if (!isNaN(minAge) && age < minAge) {
-            return true;
-        }
+        if (!isNaN(minAge) && age < minAge) return true;
     }
-
     if (rawMax && rawMax.trim() !== "") {
         const maxAge = parseInt(rawMax.trim(), 10);
-        if (!isNaN(maxAge) && age > maxAge) {
-            return true;
-        }
+        if (!isNaN(maxAge) && age > maxAge) return true;
     }
 
     return false;

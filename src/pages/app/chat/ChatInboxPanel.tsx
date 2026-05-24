@@ -15,6 +15,7 @@ import {
 	getParticipantOnlineMeta,
 	getPreviewText,
 } from "../chat/chatUtils";
+import { isChatGhosted } from "../../../utils/privacy";
 
 type RealtimeStatusMeta = {
 	className: string;
@@ -294,7 +295,9 @@ export function ChatInboxPanel({
 												className={`flex h-24 w-full shrink-0 cursor-pointer items-stretch overflow-hidden text-left transition ${
 													isSelected
 														? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
-														: "bg-[var(--surface)]"
+														: isChatGhosted(conversation.data.conversationId)
+															? "bg-[color-mix(in_srgb,var(--surface-2)_40%,transparent)] shadow-[inset_4px_0_0_0_rgba(168,85,247,0.5)]" 
+															: "bg-[var(--surface)]"
 												} border-b border-[var(--border)] ${
 													isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
 												}`}
