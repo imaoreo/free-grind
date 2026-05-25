@@ -11,6 +11,11 @@ function parseCliArgs(argv) {
       console.log("  -main          Publish to the main OTA channel");
       console.log("  -development   Publish to the development OTA channel");
       console.log("  --channel      Publish to a custom OTA channel");
+      console.log();
+      console.log("Contributor mode:");
+      console.log("  Set OTA_BACKEND_TOKEN to your contributor token in .env.local.");
+      console.log("  The backend will automatically route your build to your own");
+      console.log("  contrib-<handle> channel — no --channel flag needed.");
       process.exit(0);
     }
 
@@ -94,8 +99,35 @@ const backendUrl = requireEnv("OTA_BACKEND_URL").replace(/\/$/, "");
 const backendToken =
   process.env.OTA_BACKEND_TOKEN || process.env.CI_UPLOAD_TOKEN || requireEnv("OTA_BACKEND_TOKEN");
 const keyPassword = process.env.HOTSWAP_PRIVATE_KEY_PASSWORD ?? "";
-const otaChannel = channelOverride || process.env.OTA_CHANNEL || "testingwjay";
 const otaMandatory = process.env.OTA_MANDATORY === "true" ? "true" : "false";
+
+// Resolve the effective OTA channel.
+// If a contributor token is used the backend will return the channel automatically
+// (e.g. "contrib-alice"), so contributors never need to set OTA_CHANNEL.
+async function resolveOtaChannel(channelOverride) {
+  if (channelOverride) return channelOverride;
+  if (process.env.OTA_CHANNEL) return process.env.OTA_CHANNEL;
+
+  // Ask the backend which channel this token maps to
+  try {
+    const resp = await fetch(`${backendUrl}/api/ota-identity`, {
+      headers: { Authorization: `Bearer ${backendToken}` },
+    });
+    if (resp.ok) {
+      const body = await resp.json();
+      if (body.channel) {
+        console.log(`Resolved contributor channel: ${body.channel}`);
+        return body.channel;
+      }
+    }
+  } catch {
+    // Non-fatal — fall back to default
+  }
+
+  return "testingwjay";
+}
+
+const otaChannel = await resolveOtaChannel(channelOverride);
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const appVersion = pkg.version;

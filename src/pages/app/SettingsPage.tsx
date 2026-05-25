@@ -7,6 +7,7 @@ import {
 	ChevronRight,
 	ClipboardList,
 	Download,
+	GitBranch,
 	Images,
 	Info,
 	LogOut,
@@ -31,6 +32,9 @@ import {
 	installHotswapUpdate,
 	isHotswapAvailable,
 	setHotswapChannel,
+	clearContributorChannel,
+	isContributorChannel,
+	getContributorHandle,
 	type HotswapChannel,
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
@@ -98,6 +102,8 @@ export function SettingsPage() {
 	const [updateChannel, setUpdateChannel] =
 		useState<HotswapChannel>(getCurrentHotswapChannel());
 	const visibleChannels = getHotswapChannels({ includeDevChannels: developerMode });
+	const [contributorCodeInput, setContributorCodeInput] = useState("");
+	const [isActivatingContributor, setIsActivatingContributor] = useState(false);
 
 	useEffect(() => {
 		if (!developerMode && updateChannel === "testingwjay") {
@@ -106,6 +112,7 @@ export function SettingsPage() {
 				toast("Developer-only update channel disabled; switched to main.");
 			});
 		}
+		// Contributor channels are always allowed regardless of developer mode
 	}, [developerMode, updateChannel]);
 
 	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
@@ -232,6 +239,70 @@ export function SettingsPage() {
 				console.error("Switch update environment failed:", error);
 			}
 			toast.error(t("settings.failed_switch_env"));
+		} finally {
+			setIsSwitchingChannel(false);
+		}
+	};
+
+	const handleActivateContributorChannel = async () => {
+		const handle = contributorCodeInput.trim().toLowerCase();
+		if (!handle || !/^[a-z0-9_-]{1,32}$/.test(handle)) {
+			toast.error("Enter a valid contributor code (letters, numbers, _ or -).");
+			return;
+		}
+
+		if (!isHotswapAvailable()) {
+			toast.error(t("settings.ota_available_only_tauri"));
+			return;
+		}
+
+		const channel: HotswapChannel = `contrib-${handle}`;
+		setIsActivatingContributor(true);
+		try {
+			await setHotswapChannel(channel);
+			setUpdateChannel(channel);
+			setContributorCodeInput("");
+
+			const result = await checkForHotswapUpdate();
+			if (!result.available) {
+				toast.success(`Switched to ${handle}'s channel. No update available yet.`);
+				window.location.reload();
+				return;
+			}
+			if (result.requiresBinaryUpdate) {
+				toast.error(result.notes ?? "Binary update required.");
+				return;
+			}
+			await installHotswapUpdate();
+			toast.success(`Switched to ${handle}'s channel and updated!`);
+			window.location.reload();
+		} catch (error) {
+			if (import.meta.env.DEV) {
+				console.error("Contributor channel switch failed:", error);
+			}
+			toast.error("Failed to switch to contributor channel.");
+		} finally {
+			setIsActivatingContributor(false);
+		}
+	};
+
+	const handleLeaveContributorChannel = async () => {
+		if (!isHotswapAvailable()) {
+			toast.error(t("settings.ota_available_only_tauri"));
+			return;
+		}
+
+		setIsSwitchingChannel(true);
+		try {
+			await clearContributorChannel();
+			setUpdateChannel("main");
+			toast.success("Left contributor channel, switched back to main.");
+			window.location.reload();
+		} catch (error) {
+			if (import.meta.env.DEV) {
+				console.error("Leave contributor channel failed:", error);
+			}
+			toast.error("Failed to leave contributor channel.");
 		} finally {
 			setIsSwitchingChannel(false);
 		}
@@ -589,6 +660,64 @@ export function SettingsPage() {
 						</Button>
 					)}
 				</div>
+
+				{/* Contributor Channel — input only visible in developer mode; active state always visible */}
+				{(developerMode || isContributorChannel(updateChannel)) ? (
+				<div className="surface-card p-4 sm:p-5">
+					<div className="flex items-start gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
+							<GitBranch className="h-5 w-5" />
+						</div>
+						<div className="grid gap-3 min-w-0 flex-1">
+							<div>
+								<p className="text-base font-semibold">Contributor Channel</p>
+								<p className="text-sm text-[var(--text-muted)]">
+									Enter a contributor code to receive their experimental builds.
+								</p>
+							</div>
+
+							{isContributorChannel(updateChannel) ? (
+								<div className="grid gap-2">
+									<div className="rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
+										<p className="text-xs text-[var(--text-muted)] mb-0.5">Active contributor</p>
+										<p className="font-semibold text-[var(--accent)]">
+											{getContributorHandle(updateChannel)}
+										</p>
+									</div>
+									<button
+										type="button"
+										disabled={isSwitchingChannel}
+										onClick={() => void handleLeaveContributorChannel()}
+										className="rounded-lg border border-[var(--surface-2)] bg-[var(--surface-1)] px-3 py-1.5 text-sm text-[var(--text-muted)] transition hover:border-red-400 hover:text-red-400 disabled:opacity-50"
+									>
+										{isSwitchingChannel ? "Leaving…" : "Leave contributor channel"}
+									</button>
+								</div>
+							) : developerMode ? (
+								<div className="flex items-center gap-2">
+									<input
+										type="text"
+										value={contributorCodeInput}
+										onChange={(e) => setContributorCodeInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+										onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
+										placeholder="contributor-handle"
+										maxLength={32}
+										className="min-w-0 flex-1 rounded-lg border border-[var(--surface-2)] bg-[var(--surface-1)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+									/>
+									<button
+										type="button"
+										disabled={isActivatingContributor || !contributorCodeInput}
+										onClick={() => void handleActivateContributorChannel()}
+										className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black transition disabled:opacity-50"
+									>
+										{isActivatingContributor ? "Activating…" : "Activate"}
+									</button>
+								</div>
+							) : null}
+						</div>
+					</div>
+				</div>
+				) : null}
 
 				{developerMode ? (
 					<div className="surface-card p-4 sm:p-5">
