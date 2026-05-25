@@ -17,8 +17,17 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+[features]
+# This feature is used for production builds to enable custom protocol support (tauri://).
+# It's automatically enabled by the Tauri CLI during "tauri build".
+custom-protocol = ["tauri/custom-protocol"]
+
 [dependencies]
-tauri = { version = "2", features = ["custom-protocol"] }
+# custom-protocol is removed from here and moved to [features].
+# In the previous definition, it was active even in dev mode, which caused
+# the app to load cached or embedded assets instead of connecting to the
+# dev server, preventing hot-reloading and updates on mobile/emulators.
+tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
