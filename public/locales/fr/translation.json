@@ -93,7 +93,8 @@
         "just_now": "À l'instant",
         "minutes_short": "{{count}} min",
         "hours_short": "{{count}} h",
-        "days_short": "{{count}} j"
+        "days_short": "{{count}} j",
+        "seconds_short": "{{count}}s"
     },
     "right_now_filters": {
         "title": "Filtres Right Now",
@@ -494,7 +495,9 @@
             "title": "Actions du message",
             "unsend": "Annuler l'envoi",
             "cancel": "Annuler",
-            "delete": "Supprimer"
+            "delete": "Supprimer",
+            "copy": "Copier",
+            "reply": "Répondre"
         },
         "realtime": {
             "connected": "Connecté",
@@ -546,7 +549,8 @@
             "cleared_local_history": "L'historique local a été effacé pour cette conversation",
             "album_shared": "Album partagé avec succès",
             "media_sent": "Média envoyé",
-            "conversation_deleted": "Conversation supprimée"
+            "conversation_deleted": "Conversation supprimée",
+            "copied": "Copié dans le presse-papiers"
         },
         "new_conversation": {
             "title": "Nouvelle conversation",
@@ -608,7 +612,11 @@
             "saved": "Surnom enregistré",
             "cleared": "Surnom effacé",
             "save_failed": "Erreur lors de l'enregistrement du surnom"
-        }
+        },
+        "load_older_messages": "Charger les anciens messages",
+        "view_profile": "Voir le profil",
+        "favorite": "Favori",
+        "share_album_label": "Partager l'album"
     },
     "profile_details": {
         "title": "Détails du profil",
@@ -662,7 +670,7 @@
         "location_finder_start": "Distance de la cible : {{distance}}m. Début des {{rounds}} cycles de triangulation.",
         "location_finder_round_complete": "Cycle {{round}} terminé. {{lat}},{{lon}}. Distance estimée : ~{{distance}}m.",
         "location_finder_error_estimate": "Cycle {{round}} terminé. Marge d'erreur : ~{{error}}m",
-        "location_finder_final_location": "Cet utilisateur est approximativement à lat:{{lat}}, long:{{lon}}. Marge d'erreur : ~{{error}} mètres de la position finale estimée.",
+        "location_finder_final_location": "Cet utilisateur est approximativement à lat:{{lat}}, long:{{lon}}. Marge d'erreur: ~{{error}} mètres de la position finale estimée.",
         "location_finder_error_general": "Une erreur est survenue lors de la triangulation.",
         "locating": "Localisation...",
         "locate": "Localiser",
@@ -828,7 +836,7 @@
             "distance_info": "Lieu de recherche {{lat}}, {{lon}}. {{id}} est à {{distance}}m.",
             "distance_unavailable": "Lieu de recherche {{lat}}, {{lon}}. Distance indisponible pour {{id}}.",
             "tap_limit": "Vous avez déjà envoyé un Tap à ce profil au cours des dernières 24h",
-            "tap_mutual": "Tap envoyé. C'est mutuel !",
+            "tap_mutual": "Tap envoyé. C'est mutuel.",
             "tap_sent": "Tap envoyé",
             "tap_failed": "Erreur lors de l'envoi du Tap"
         }
@@ -879,7 +887,7 @@
         "error_load": "Erreur lors du chargement des comptes bloqués",
         "empty": "Vous n'avez bloqué personne.",
         "refresh": "Actualiser",
-        "refreshing": "Actualisation...",
+        "refreshing": "Actualisation…",
         "profile_id": "ID Profil : {{id}}",
         "count_one": "{{count}} compte bloqué",
         "count_many": "{{count}} comptes bloqués",
