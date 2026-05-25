@@ -684,6 +684,9 @@ export function SettingsPage() {
 											{getContributorHandle(updateChannel)}
 										</p>
 									</div>
+									<p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
+										Contributor channels are community-provided experimental builds. Use at your own risk.
+									</p>
 									<button
 										type="button"
 										disabled={isSwitchingChannel}

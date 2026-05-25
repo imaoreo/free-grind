@@ -137,10 +137,13 @@ const notes =
   process.env.OTA_NOTES ||
   `Manual OTA upload (${otaChannel}) ${new Date().toISOString()}`;
 
+const isContributorChannel = otaChannel.startsWith("contrib-");
+
 let keyValue = process.env.HOTSWAP_PRIVATE_KEY?.trim();
 let keyPath = process.env.HOTSWAP_PRIVATE_KEY_PATH;
+let signingEnabled = false;
 
-if (!keyValue) {
+if (!isContributorChannel && !keyValue) {
   if (keyPath) {
     const resolvedKeyPath = path.resolve(keyPath);
     if (existsSync(resolvedKeyPath)) {
@@ -159,9 +162,15 @@ if (!keyValue) {
 
   if (!keyValue) {
     throw new Error(
-      `hotswap key not found. Set HOTSWAP_PRIVATE_KEY or HOTSWAP_PRIVATE_KEY_PATH=../OpenGrindBackend/secrets/hotswap.key.`,
+      "HOTSWAP private key not found. main/development/testingwjay uploads must be client-signed. Set HOTSWAP_PRIVATE_KEY or HOTSWAP_PRIVATE_KEY_PATH.",
     );
   }
+}
+
+if (!isContributorChannel && keyValue) {
+  signingEnabled = true;
+} else if (isContributorChannel && keyValue) {
+  console.log("Contributor channel detected: local signing skipped (server-side signing will be used).");
 }
 
 try {
@@ -169,39 +178,45 @@ try {
 
   run("npm", ["run", "build"]);
   run("tar", ["-czf", "frontend.tar.gz", "-C", "dist", "."]);
-  run("npx", ["tauri", "signer", "sign", "frontend.tar.gz", "-k", keyValue, "-p", keyPassword]);
+  let signature = null;
+  if (signingEnabled) {
+    run("npx", ["tauri", "signer", "sign", "frontend.tar.gz", "-k", keyValue, "-p", keyPassword]);
+    signature = readFileSync("frontend.tar.gz.sig", "utf8").trim();
+  }
 
-  const signature = readFileSync("frontend.tar.gz.sig", "utf8").trim();
+  const formArgs = [
+    "--fail-with-body",
+    "-sS",
+    "-X",
+    "POST",
+    `${backendUrl}/api/releases`,
+    "-H",
+    `Authorization: Bearer ${backendToken}`,
+    "-F",
+    `channel=${otaChannel}`,
+    "-F",
+    "platform=all",
+    "-F",
+    "arch=all",
+    "-F",
+    `version=${otaVersion}`,
+    "-F",
+    `minBinaryVersion=${minBinaryVersion}`,
+    "-F",
+    `notes=${notes}`,
+    "-F",
+    `mandatory=${otaMandatory}`,
+    "-F",
+    "bundleFile=@frontend.tar.gz;type=application/gzip",
+  ];
+
+  if (signature) {
+    formArgs.push("-F", `signature=${signature}`);
+  }
 
   const responseRaw = run(
     "curl",
-    [
-      "--fail-with-body",
-      "-sS",
-      "-X",
-      "POST",
-      `${backendUrl}/api/releases`,
-      "-H",
-      `Authorization: Bearer ${backendToken}`,
-      "-F",
-      `channel=${otaChannel}`,
-      "-F",
-      "platform=all",
-      "-F",
-      "arch=all",
-      "-F",
-      `version=${otaVersion}`,
-      "-F",
-      `minBinaryVersion=${minBinaryVersion}`,
-      "-F",
-      `signature=${signature}`,
-      "-F",
-      `notes=${notes}`,
-      "-F",
-      `mandatory=${otaMandatory}`,
-      "-F",
-      "bundleFile=@frontend.tar.gz;type=application/gzip",
-    ],
+    formArgs,
     { capture: true },
   );
 
