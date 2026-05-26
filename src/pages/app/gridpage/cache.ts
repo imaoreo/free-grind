@@ -16,6 +16,8 @@ const browseCache = new Map<
 >();
 let genderOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 let pronounOptionsCache: CacheEntry<ManagedOption[]> | null = null;
+let blockedProfileIdsCache: CacheEntry<Set<string>> | null = null;
+let ownProfilePhotoHashCache: CacheEntry<string | null> | null = null;
 
 function getFromCache<T>(
 	cache: Map<string, CacheEntry<T>>,
@@ -110,5 +112,31 @@ export function setCachedPronounOptions(options: ManagedOption[]) {
 	pronounOptionsCache = {
 		value: options,
 		expiresAt: Date.now() + PUBLIC_OPTIONS_CACHE_TTL_MS,
+	};
+}
+
+export function getCachedBlockedProfileIds(): Set<string> | null {
+	if (!blockedProfileIdsCache) return null;
+	// No expiration check for session-based cache
+	return blockedProfileIdsCache.value;
+}
+
+export function setCachedBlockedProfileIds(ids: Set<string>) {
+	blockedProfileIdsCache = {
+		value: ids,
+		expiresAt: Infinity, // Session-based: does not expire until app reload
+	};
+}
+
+export function getCachedOwnProfilePhotoHash(): string | null | undefined {
+	if (!ownProfilePhotoHashCache) return undefined;
+	// No expiration check for session-based cache
+	return ownProfilePhotoHashCache.value;
+}
+
+export function setCachedOwnProfilePhotoHash(hash: string | null) {
+	ownProfilePhotoHashCache = {
+		value: hash,
+		expiresAt: Infinity, // Session-based: does not expire until app reload
 	};
 }
