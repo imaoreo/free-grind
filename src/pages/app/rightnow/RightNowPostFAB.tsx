@@ -232,9 +232,9 @@ export function RightNowPostFAB({
 				}}
 			>
 				<div className="flex items-center justify-center">
-					{isEditMode && currentPhase !== "idle" ? (
+					{isEditMode || currentPhase === "countdown" ? (
 						<Pencil className="h-6 w-6 stroke-[2.5]" />
-					) : !isEditMode && rightNowRemaining === 0 ? (
+					) : rightNowRemaining === 0 && currentPhase === "idle" ? (
 						<Lock className="h-6 w-6 stroke-[2.5]" />
 					) : (
 						<Plus className="h-8 w-8 stroke-[3]" />
