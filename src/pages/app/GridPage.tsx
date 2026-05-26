@@ -1604,7 +1604,11 @@ export function GridPage() {
 											value={searchTerm}
 											onChange={(e) => setSearchTerm(e.target.value)}
 											onKeyDown={(e) => {
-												if (e.key === "Escape") setIsSearchOpen(false);
+												if (e.key === "Escape") {
+													e.stopPropagation();
+													e.nativeEvent.stopImmediatePropagation();
+													setIsSearchOpen(false);
+												}
 												if (e.key === "Enter") setIsSearchOpen(false);
 											}}
 										/>

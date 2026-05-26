@@ -341,6 +341,7 @@ export function SharedAlbumsPage() {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				event.preventDefault();
+				event.stopPropagation();
 				if (fullScreenIndex != null) {
 					closeFullScreen();
 				} else {
@@ -350,9 +351,9 @@ export function SharedAlbumsPage() {
 			}
 		};
 
-		window.addEventListener("keydown", onKeyDown);
+		window.addEventListener("keydown", onKeyDown, { capture: true });
 		return () => {
-			window.removeEventListener("keydown", onKeyDown);
+			window.removeEventListener("keydown", onKeyDown, { capture: true });
 		};
 	}, [
 		closeFullScreen,
