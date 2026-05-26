@@ -816,7 +816,12 @@
         "added": "Zu Favoriten hinzugefügt",
         "removed": "Aus Favoriten entfernt",
         "add_failed": "Fehler beim Hinzufügen zu Favoriten",
-        "remove_failed": "Fehler beim Entfernen von Favoriten"
+        "remove_failed": "Fehler beim Entfernen von Favoriten",
+        "get_notes_failed": "Fehler beim Laden der Notizen",
+        "loading_notes": "Lade Notizen...",
+        "notes_loaded_one": "{{count}} Favoriten-Notiz geladen",
+        "notes_loaded_other": "{{count}} Favoriten-Notizen geladen",
+        "search_placeholder": "Suche in Notizen..."
     },
     "profile_details": {
         "title": "Profildetails",

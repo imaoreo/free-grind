@@ -864,7 +864,12 @@
         "added": "Added to favorites",
         "removed": "Removed from favorites",
         "add_failed": "Failed to add favorite",
-        "remove_failed": "Failed to remove favorite"
+        "remove_failed": "Failed to remove favorite",
+        "get_notes_failed": "Failed to load notes",
+        "loading_notes": "Loading notes...",
+        "notes_loaded_one": "{{count}} favorite note loaded",
+        "notes_loaded_other": "{{count}} favorite notes loaded",
+        "search_placeholder": "Search notes..."
     },
     "profile_details": {
         "title": "Profile details",
