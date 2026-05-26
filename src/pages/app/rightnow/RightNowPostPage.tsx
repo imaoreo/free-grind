@@ -269,12 +269,16 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					await setPreferences({
 						activeRightNowId: id,
 						activeRightNowExpiresAt: expiresAt,
+						rightNowRemaining: Math.max(0, rightNowRemaining - 1),
 					});
 				} else {
 					const response = await apiFunctions.createRightNowPost(createPayload);
+					// Fallback to local duration if server doesn't provide expiration
+					const expiresAt = response.post.expiration || (Date.now() + sessionDuration);
 					await setPreferences({
 						activeRightNowId: response.post.id,
-						activeRightNowExpiresAt: response.post.expiration,
+						activeRightNowExpiresAt: expiresAt,
+						rightNowRemaining: Math.max(0, rightNowRemaining - 1),
 					});
 				}
 			}
@@ -287,11 +291,6 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					icon: <CheckCircle2 className="w-5 h-5 text-[var(--right-now)]" />,
 				},
 			);
-
-			// Manually decrement remaining count if it was a new post
-			if (!isEditMode) {
-				void setPreferences({ rightNowRemaining: Math.max(0, rightNowRemaining - 1) });
-			}
 
 			onPost(isEditMode);
 			handleClose();
