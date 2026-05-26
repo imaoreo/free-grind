@@ -228,7 +228,7 @@ export function NavBar() {
 	// looked. Polls taps + views and listens for live tap events.
 	useEffect(() => {
 		let cancelled = false;
-		const isAtInterest = location.pathname.startsWith("/interest");
+	    const isAtInbox = location.pathname.startsWith("/chat") || location.pathname === "/settings/shared-albums";
 
 		const refreshInterestUnseen = async () => {
 			if (document.hidden) return;
