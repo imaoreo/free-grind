@@ -16,10 +16,14 @@ import {
 	getCachedGenderOptions,
 	getCachedProfileDetail,
 	getCachedPronounOptions,
+	getCachedBlockedProfileIds,
+	getCachedOwnProfilePhotoHash,
 	setCachedBrowseCards,
 	setCachedGenderOptions,
 	setCachedProfileDetail,
 	setCachedPronounOptions,
+	setCachedBlockedProfileIds,
+	setCachedOwnProfilePhotoHash,
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
@@ -266,6 +270,12 @@ export function GridPage() {
 	}, [apiFunctions]);
 
 	useEffect(() => {
+		const cachedIds = getCachedBlockedProfileIds();
+		if (cachedIds) {
+			setBlockedProfileIds(cachedIds);
+			return;
+		}
+
 		let cancelled = false;
 		void apiFunctions
 			.getBlockedProfileIds()
@@ -273,7 +283,9 @@ export function GridPage() {
 				if (cancelled || !isMountedRef.current) {
 					return;
 				}
-				setBlockedProfileIds(new Set(profileIds));
+				const nextIds = new Set(profileIds);
+				setBlockedProfileIds(nextIds);
+				setCachedBlockedProfileIds(nextIds);
 			})
 			.catch(() => {
 				if (!cancelled && isMountedRef.current) {
@@ -289,6 +301,12 @@ export function GridPage() {
 	useEffect(() => {
 		if (!userId) {
 			setProfileImageHash(null);
+			return;
+		}
+
+		const cachedHash = getCachedOwnProfilePhotoHash();
+		if (cachedHash !== undefined) {
+			setProfileImageHash(cachedHash);
 			return;
 		}
 
@@ -308,7 +326,9 @@ export function GridPage() {
 						: null);
 
 				if (!cancelled) {
-					setProfileImageHash(firstHash ?? null);
+					const nextHash = firstHash ?? null;
+					setProfileImageHash(nextHash);
+					setCachedOwnProfilePhotoHash(nextHash);
 				}
 			} catch {
 				if (!cancelled) {

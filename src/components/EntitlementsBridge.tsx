@@ -33,7 +33,8 @@ export function EntitlementsBridge() {
 		};
 
 		void fetchEntitlements();
-	}, [userId, isAuthLoading, apiFunctions, setPreferences]);
+		// Entitlements should only be fetched once per session.
+	}, [userId, isAuthLoading]);
 
 	return null;
 }
