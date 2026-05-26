@@ -15,7 +15,7 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
-    ShieldBan,
+    Workflow,
 	UserX,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
@@ -343,29 +343,6 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
                 
-{/* --- AUTO BLOCK MENU BUTTON --- */}
-				<button
-					type="button"
-					onClick={() => navigate("/settings/auto-block")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-red-500/10 p-2.5 shrink-0">
-							<ShieldBan className="h-5 w-5 text-red-500" />
-						</div>
-						<div>
-							<p className="text-base font-semibold text-red-400">
-								Auto-Block Features
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								Configure automated blocking rules for keywords and age.
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-				{/* ----------------------------- */}
-
 				<button
 					type="button"
 					onClick={() => navigate("/settings/customizability")}
@@ -386,6 +363,29 @@ export function SettingsPage() {
 					</div>
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
+
+{/* --- AUTOMATION MENU BUTTON --- */}
+				<button
+					type="button"
+					onClick={() => navigate("/settings/automation")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
+							<Workflow className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.automation")}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.automation_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+				{/* ----------------------------- */}
 
 				<button
 					type="button"

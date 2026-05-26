@@ -592,6 +592,45 @@ export function GridPage() {
 		};
 	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
 
+	const handleAutoRefresh = useCallback(async () => {
+		appLog.info("[grid] auto-refresh triggered");
+		let activeGeohash = geohash;
+		if (browseCacheKey) {
+			sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
+		}
+		if (useAutoLocation) {
+			const next = await refreshLocation();
+			if (next) {
+				activeGeohash = next;
+			}
+		}
+		return loadBrowseCards({
+			preferCache: false,
+			showLoadingState: false,
+			overrideGeohash: activeGeohash || undefined,
+		});
+	}, [browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const enabled = localStorage.getItem("fg-auto-refresh-enabled") === "true";
+		const intervalMinutes = parseInt(localStorage.getItem("fg-auto-refresh-interval") || "5", 10);
+
+		if (!enabled || isNaN(intervalMinutes) || intervalMinutes <= 0) {
+			return;
+		}
+
+		const intervalMs = intervalMinutes * 60 * 1000;
+		appLog.info(`[grid] auto-refresh scheduled every ${intervalMinutes} minutes`);
+
+		const timer = setInterval(() => {
+			void handleAutoRefresh();
+		}, intervalMs);
+
+		return () => clearInterval(timer);
+	}, [handleAutoRefresh]);
+
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
 		setIsLoadingMoreCards(true);

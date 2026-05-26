@@ -215,7 +215,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			const safeEntries: ConversationEntry[] = [];
 			for (const entry of parsed.entries) {
 				const data: any = entry.data;
-                console.log(`[Age Debug] Who is this?`, data.participants?.[0]);
+                //console.log(`[Age Debug] Who is this?`, data.participants?.[0]);
 				
 				const displayName = data.name || (data.participants && data.participants[0]?.displayName) || "";
 				const aboutMe = data.participants?.[0]?.aboutMe || "";
