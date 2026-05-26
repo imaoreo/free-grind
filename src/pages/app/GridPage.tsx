@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -30,6 +30,7 @@ import {
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import {
 	getChatContactIndexForProfiles,
 	indexChatContactRecordsByProfileId,
@@ -108,6 +109,67 @@ export function GridPage() {
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
+	const [isSearchOpen, setIsSearchOpen] = useState(false);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
+	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
+	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
+
+	const isDesktop = useDesktopBreakpoint();
+	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+
+	useEffect(() => {
+		if (isDesktop) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		if (typeof window === "undefined" || !window.visualViewport) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		const viewport = window.visualViewport;
+
+		const updateKeyboardInset = () => {
+			const layoutHeight = window.innerHeight;
+			const visibleBottom = viewport.height + viewport.offsetTop;
+			const overlap = Math.max(0, Math.round(layoutHeight - visibleBottom));
+			// Ignore tiny viewport shifts from browser chrome changes.
+			setMobileKeyboardInset(overlap >= 60 ? overlap : 0);
+		};
+
+		updateKeyboardInset();
+		viewport.addEventListener("resize", updateKeyboardInset);
+		viewport.addEventListener("scroll", updateKeyboardInset);
+
+		return () => {
+			viewport.removeEventListener("resize", updateKeyboardInset);
+			viewport.removeEventListener("scroll", updateKeyboardInset);
+		};
+	}, [isDesktop]);
+
+	const handleFetchNotes = useCallback(async () => {
+		if (isFetchingNotes || hasAttemptedFetchNotes) return;
+		setIsFetchingNotes(true);
+		try {
+			const notes = await apiFunctions.getFavoriteNotes();
+			appLog.info("Fetched favorite notes:", notes);
+			setFavoriteNotes(notes);
+			setHasAttemptedFetchNotes(true);
+		} catch (error) {
+			appLog.error("Failed to fetch favorite notes:", error);
+			toast.error(t("favorites.get_notes_failed"));
+		} finally {
+			setIsFetchingNotes(false);
+		}
+	}, [apiFunctions, isFetchingNotes, hasAttemptedFetchNotes, t]);
+
+	useEffect(() => {
+		if (isSearchOpen && !hasAttemptedFetchNotes) {
+			void handleFetchNotes();
+		}
+	}, [isSearchOpen, hasAttemptedFetchNotes, handleFetchNotes]);
 
 	const {
 		browseFilters,
@@ -778,8 +840,27 @@ export function GridPage() {
 			results = results.filter((card) => card.isVisiting === true);
 		}
 
+		if (searchTerm) {
+			const lower = searchTerm.toLowerCase();
+			results = results.filter((card) => {
+				const matchesName = card.displayName?.toLowerCase().includes(lower) ||
+					card.profileId.toLowerCase().includes(lower);
+
+				if (matchesName) return true;
+
+				// Check favorite notes
+				const noteMatch = favoriteNotes.find(n => String(n.counterpartyId) === String(card.profileId));
+				if (noteMatch) {
+					return noteMatch.notes.toLowerCase().includes(lower) ||
+						noteMatch.phoneNumber.toLowerCase().includes(lower);
+				}
+
+				return false;
+			});
+		}
+
 		return results;
-	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting]);
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, searchTerm, favoriteNotes]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -1467,6 +1548,61 @@ export function GridPage() {
 					/>
 				</div>
 			</PullToRefreshContainer>
+
+			<div
+				className={cn(
+					"fixed inset-x-0 z-[60] pointer-events-none transition-all duration-300 ease-out",
+					(browseFilters.favorites && !activeProfileId) ? "opacity-100" : "opacity-0"
+				)}
+				style={{
+					bottom: `calc(${isDesktop ? "9rem" : "7.5rem"} + ${mobileKeyboardInset}px)`
+				}}
+			>
+				<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
+					<div className="absolute bottom-0 right-4 flex items-end gap-3 translate-x-0 lg:right-[16%] lg:translate-x-1/2 pointer-events-auto">
+						{isSearchOpen && (
+							<div className="flex flex-col items-end gap-2">
+								{favoriteNotes.length > 0 && !isFetchingNotes && (
+									<div className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60 backdrop-blur-md animate-badge-in">
+										{t("favorites.notes_loaded", { count: favoriteNotes.length })}
+									</div>
+								)}
+								<div className="w-64 sm:w-80 overflow-hidden rounded-full border border-white/10 bg-white/5 p-1 shadow-2xl backdrop-blur-2xl animate-search-in pointer-events-auto max-w-[calc(100vw-5rem)]">
+									<div className="flex items-center gap-3 px-4 py-2.5">
+										{isFetchingNotes ? (
+											<div className="flex h-5 w-5 items-center justify-center">
+												<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+											</div>
+										) : (
+											<Search className="h-5 w-5 text-white/70" />
+										)}
+										<input
+											type="text"
+											autoFocus
+											placeholder={isFetchingNotes ? t("favorites.loading_notes") : t("favorites.search_placeholder")}
+											className="w-full bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40"
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === "Escape") setIsSearchOpen(false);
+												if (e.key === "Enter") setIsSearchOpen(false);
+											}}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+						<button
+							type="button"
+							onClick={() => setIsSearchOpen(!isSearchOpen)}
+							className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-xl transition-all duration-200 ease-out active:scale-95 hover:opacity-90"
+							aria-label={t("browse_page.search")}
+						>
+							<Search className="h-7 w-7 stroke-[2.5]" />
+						</button>
+					</div>
+				</div>
+			</div>
 
 			<ProfileDetailsModal
 				isOpen={Boolean(activeProfileId)}
