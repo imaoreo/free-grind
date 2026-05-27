@@ -348,8 +348,9 @@ impl AuthStorage {
             Err(error) => {
                 #[cfg(target_os = "macos")]
                 {
-                    eprintln!(
-                        "[AUTH] Keyring entry creation failed on macOS, trying fallback session file: {}",
+                    #[cfg(debug_assertions)]
+        eprintln!(
+                        "[HTTP-AUTH] Keyring entry creation failed on macOS, trying fallback session file: {}",
                         error
                     );
                     return Self::read_macos_fallback_session();
@@ -377,8 +378,9 @@ impl AuthStorage {
             Err(e) => {
                 #[cfg(target_os = "macos")]
                 {
-                    eprintln!(
-                        "[AUTH] Keyring read failed on macOS, trying fallback session file: {}",
+                    #[cfg(debug_assertions)]
+        eprintln!(
+                        "[HTTP-AUTH] Keyring read failed on macOS, trying fallback session file: {}",
                         e
                     );
                     return Self::read_macos_fallback_session();
@@ -403,8 +405,9 @@ impl AuthStorage {
             Err(error) => {
                 #[cfg(target_os = "macos")]
                 {
-                    eprintln!(
-                        "[AUTH] Keyring entry creation failed on macOS, writing fallback session file: {}",
+                    #[cfg(debug_assertions)]
+        eprintln!(
+                        "[HTTP-AUTH] Keyring entry creation failed on macOS, writing fallback session file: {}",
                         error
                     );
                     return Self::write_macos_fallback_session(session);
@@ -427,8 +430,9 @@ impl AuthStorage {
             Err(error) => {
                 #[cfg(target_os = "macos")]
                 {
-                    eprintln!(
-                        "[AUTH] Keyring write failed on macOS, writing fallback session file: {}",
+                    #[cfg(debug_assertions)]
+        eprintln!(
+                        "[HTTP-AUTH] Keyring write failed on macOS, writing fallback session file: {}",
                         error
                     );
                     return Self::write_macos_fallback_session(session);
@@ -454,8 +458,9 @@ impl AuthStorage {
 
                 #[cfg(target_os = "macos")]
                 {
-                    eprintln!(
-                        "[AUTH] Keyring entry creation failed on macOS during clear, continuing with fallback clear: {}",
+                    #[cfg(debug_assertions)]
+        eprintln!(
+                        "[HTTP-AUTH] Keyring entry creation failed on macOS during clear, continuing with fallback clear: {}",
                         error
                     );
                     None
@@ -473,8 +478,9 @@ impl AuthStorage {
 
                     #[cfg(target_os = "macos")]
                     {
-                        eprintln!(
-                            "[AUTH] Keyring clear failed on macOS, continuing with fallback clear: {}",
+                        #[cfg(debug_assertions)]
+        eprintln!(
+                            "[HTTP-AUTH] Keyring clear failed on macOS, continuing with fallback clear: {}",
                             error
                         );
                     }
@@ -498,20 +504,24 @@ impl GrindrClient {
         device_id: String,
         advertising_id: String,
     ) -> Result<Session, AppError> {
-        eprintln!("[AUTH] POST /v8/sessions for email={}", body.email());
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] POST /v8/sessions for email={}", body.email());
         let session_resp: SessionResponse = self
             .request_json(reqwest::Method::POST, "/v8/sessions", Some(body))
             .await
             .map_err(|e| {
-                eprintln!("[AUTH] /v8/sessions request failed: {e}");
+                #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] /v8/sessions request failed: {e}");
                 e
             })?;
+        #[cfg(debug_assertions)]
         eprintln!(
-            "[AUTH] /v8/sessions success; profile_id={}",
+            "[HTTP-AUTH] /v8/sessions success; profile_id={}",
             session_resp.profile_id
         );
         let claims = decode_session_jwt(&session_resp.session_id).map_err(|e| {
-            eprintln!("[AUTH] JWT decode for session_id failed: {e}");
+            #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] JWT decode for session_id failed: {e}");
             e
         })?;
 
@@ -525,13 +535,15 @@ impl GrindrClient {
             advertising_id,
         };
 
+        #[cfg(debug_assertions)]
         eprintln!(
-            "[AUTH] Saving session to storage; profile_id={}, expires_at={}",
+            "[HTTP-AUTH] Saving session to storage; profile_id={}, expires_at={}",
             session.profile_id, session.expires_at
         );
         if let Err(error) = AuthStorage::set_session(&session) {
-            eprintln!(
-                "[AUTH] Failed to persist session (continuing in-memory only): {}",
+            #[cfg(debug_assertions)]
+        eprintln!(
+                "[HTTP-AUTH] Failed to persist session (continuing in-memory only): {}",
                 error
             );
         }
@@ -540,8 +552,9 @@ impl GrindrClient {
     }
 
     pub async fn login(&self, email: &str, password: &str) -> Result<LoginResult, AppError> {
+        #[cfg(debug_assertions)]
         eprintln!(
-            "[AUTH] login attempt for email={}***",
+            "[HTTP-AUTH] login attempt for email={}***",
             email.chars().next().unwrap_or('?')
         );
 
@@ -559,11 +572,13 @@ impl GrindrClient {
         let session = Box::pin(self.create_session(&body, new_device_id, new_advertising_id))
             .await
             .map_err(|e| {
-                eprintln!("[AUTH] login failed: {e}");
+                #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] login failed: {e}");
                 e
             })?;
         let profile_id = session.profile_id.clone();
-        eprintln!("[AUTH] login succeeded; profile_id={profile_id}");
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] login succeeded; profile_id={profile_id}");
 
         *self.session.write().await = Some(session);
 
@@ -571,9 +586,11 @@ impl GrindrClient {
     }
 
     pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
-        eprintln!("[AUTH] login_with_jwt attempt; token_len={}", token.len());
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] login_with_jwt attempt; token_len={}", token.len());
         let claims = decode_session_jwt(token).map_err(|e| {
-            eprintln!("[AUTH] JWT decode failed: {e}");
+            #[cfg(debug_assertions)]
+        eprintln!("[HTTP-AUTH] JWT decode failed: {e}");
             e
         })?;
 
@@ -597,14 +614,16 @@ impl GrindrClient {
         };
 
         if let Err(error) = AuthStorage::set_session(&session) {
-            eprintln!(
-                "[AUTH] Failed to persist JWT session (continuing in-memory only): {}",
+            #[cfg(debug_assertions)]
+        eprintln!(
+                "[HTTP-AUTH] Failed to persist JWT session (continuing in-memory only): {}",
                 error
             );
         }
         *self.session.write().await = Some(session);
+        #[cfg(debug_assertions)]
         eprintln!(
-            "[AUTH] login_with_jwt succeeded; profile_id={}",
+            "[HTTP-AUTH] login_with_jwt succeeded; profile_id={}",
             claims.profile_id
         );
 
@@ -642,7 +661,8 @@ impl GrindrClient {
     pub async fn sync_push_token(&self, token: &str) -> Result<(), AppError> {
         let trimmed = token.trim();
         if trimmed.is_empty() {
-            eprintln!("[PUSH_SYNC] sync_push_token called with empty token");
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP-PUSH] sync_push_token called with empty token");
             return Err(AppError::Api {
                 code: 400,
                 message: "Push token is empty".to_owned(),
@@ -650,8 +670,9 @@ impl GrindrClient {
         }
 
         let identifier = trimmed.split(':').next().unwrap_or(trimmed).to_owned();
+        #[cfg(debug_assertions)]
         eprintln!(
-            "[PUSH_SYNC] Syncing push token: token_len={}, identifier={}",
+            "[HTTP-PUSH] Syncing push token: token_len={}, identifier={}",
             trimmed.len(),
             identifier
         );
@@ -672,16 +693,18 @@ impl GrindrClient {
             .await?;
 
         if (200..300).contains(&response.status) {
+            #[cfg(debug_assertions)]
             eprintln!(
-                "[PUSH_SYNC] /v3/gcm-push-tokens sync success: status={}",
+                "[HTTP-PUSH] /v3/gcm-push-tokens sync success: status={}",
                 response.status
             );
             Ok(())
         } else {
             let message = String::from_utf8(response.body)
                 .unwrap_or_else(|_| "Failed to sync push token".to_owned());
+            #[cfg(debug_assertions)]
             eprintln!(
-                "[PUSH_SYNC] /v3/gcm-push-tokens sync failed: status={}, body={}",
+                "[HTTP-PUSH] /v3/gcm-push-tokens sync failed: status={}, body={}",
                 response.status, message
             );
             Err(AppError::Api {
@@ -762,6 +785,7 @@ pub async fn sync_push_token(
     state: tauri::State<'_, AppState>,
     token: String,
 ) -> Result<(), AppError> {
-    eprintln!("[PUSH_SYNC] Tauri command sync_push_token invoked");
+    #[cfg(debug_assertions)]
+    eprintln!("[HTTP-PUSH] Tauri command sync_push_token invoked");
     state.client()?.sync_push_token(&token).await
 }

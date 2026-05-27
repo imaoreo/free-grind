@@ -12,9 +12,12 @@ import {
 } from "./GridPage.types";
 import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPanel";
 
+import { useApi } from "../../hooks/useApi";
+
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
 	const { t } = useTranslation();
+	const { fetchRest } = useApi();
 	const { setPreferences, geohash, locationName } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
@@ -124,21 +127,15 @@ export function BrowseLocationPage() {
 		setIsSearchingLocation(true);
 
 		try {
-			const response = await fetch(
+			const response = await fetchRest(
 				`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
 					query,
 				)}`,
 				{
-					signal,
-					headers: {
-						"User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-					},
+					method: "GET",
+					abortController: controller,
 				},
 			);
-
-			if (!response.ok) {
-				throw new Error("Failed to search location");
-			}
 
 			const parsed = z.array(geocodeResultSchema).parse(await response.json());
 			setLocationResults(parsed);
