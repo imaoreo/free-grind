@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	useLocation,
 	useNavigate,
@@ -30,6 +30,12 @@ import { getChatContactIndexForProfiles } from "../../services/chatContactIndex"
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
+import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
+import type { AlbumViewer } from "../../types/shared-albums";
+import type { SharedAlbum } from "../../types/albums";
+import { getMessageAlbumCoverUrl, getMessageAlbumId, getMessageImageUrl, getMessageVideoUrl } from "./chat/chatUtils";
+import type { Message } from "../../types/messages";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -58,6 +64,17 @@ export function GridProfilePage() {
 	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
 	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
+	const [profileSharedAlbums, setProfileSharedAlbums] = useState<SharedAlbum[]>([]);
+	const [profileSharedMedia, setProfileSharedMedia] = useState<
+		Array<{ id: string; url: string; type: "image" | "video"; timestamp: number; albumId: number | null }>
+	>([]);
+	const [isLoadingSharedMedia, setIsLoadingSharedMedia] = useState(false);
+	const [albumViewer, setAlbumViewer] = useState<AlbumViewer | null>(null);
+	const [albumViewerIndex, setAlbumViewerIndex] = useState(0);
+	const [albumFullScreenIndex, setAlbumFullScreenIndex] = useState<number | null>(null);
+	const [isOpeningAlbum, setIsOpeningAlbum] = useState(false);
+	const albumViewerHistoryPushedRef = useRef(false);
+	const albumFullScreenHistoryPushedRef = useRef(false);
 	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
 		() => new Set(),
 	);
@@ -135,6 +152,153 @@ export function GridProfilePage() {
 			cancelled = true;
 		};
 	}, [profileId]);
+
+	useEffect(() => {
+		if (!profileId) {
+			setProfileSharedAlbums([]);
+			setProfileSharedMedia([]);
+			setIsLoadingSharedMedia(false);
+			return;
+		}
+
+		let cancelled = false;
+
+		const loadSharedContext = async () => {
+			setIsLoadingSharedMedia(true);
+
+			try {
+				const albums = await apiFunctions.getSharedAlbumsForProfile({
+					profileId: Number(profileId),
+				});
+				if (!cancelled) {
+					setProfileSharedAlbums(albums);
+				}
+			} catch {
+				if (!cancelled) {
+					setProfileSharedAlbums([]);
+				}
+			}
+
+			try {
+				let foundConversationId: string | null = null;
+				let page = 1;
+				let nextPage: number | null = 1;
+
+				while (nextPage != null && page <= 6 && !foundConversationId) {
+					const inbox = await apiFunctions.listConversations({ page });
+					const match = inbox.entries.find((entry) =>
+						(entry.data.participants ?? []).some(
+							(participant) => String(participant.profileId) === profileId,
+						),
+					);
+
+					if (match?.data.conversationId) {
+						foundConversationId = match.data.conversationId;
+						break;
+					}
+
+					nextPage = inbox.nextPage ?? null;
+					if (!nextPage) {
+						break;
+					}
+					page = nextPage;
+				}
+
+				if (!foundConversationId) {
+					if (!cancelled) {
+						setProfileSharedMedia([]);
+					}
+					return;
+				}
+
+				const media: Array<{ id: string; url: string; type: "image" | "video"; timestamp: number; albumId: number | null }> = [];
+				let oldestMessageId: string | undefined;
+
+				for (let batch = 0; batch < 3 && media.length < 24; batch += 1) {
+					const response = await apiFunctions.listMessages({
+						conversationId: foundConversationId,
+						pageKey: batch > 0 ? oldestMessageId : undefined,
+					});
+
+					if (!response.messages.length) {
+						break;
+					}
+
+					for (const message of response.messages as Message[]) {
+						if (String(message.senderId) !== profileId) {
+							continue;
+						}
+
+						const imageUrl = getMessageImageUrl(message as never);
+						const videoUrl = getMessageVideoUrl(message as never);
+						const albumCoverUrl = getMessageAlbumCoverUrl(message as never);
+						const albumId = getMessageAlbumId(message as never);
+
+						if (imageUrl) {
+							media.push({
+								id: message.messageId,
+								url: imageUrl,
+								type: "image",
+								timestamp: message.timestamp,
+								albumId: null,
+							});
+							continue;
+						}
+
+						if (videoUrl) {
+							media.push({
+								id: message.messageId,
+								url: videoUrl,
+								type: "video",
+								timestamp: message.timestamp,
+								albumId: null,
+							});
+							continue;
+						}
+
+						if (albumCoverUrl && albumId) {
+							media.push({
+								id: `album-${albumId}-${message.messageId}`,
+								url: albumCoverUrl,
+								type: "image",
+								timestamp: message.timestamp,
+								albumId,
+							});
+						}
+					}
+
+					oldestMessageId = response.messages[0]?.messageId;
+					if (!oldestMessageId) {
+						break;
+					}
+				}
+
+				if (!cancelled) {
+					const deduped = media.filter(
+						(item, index, array) =>
+							array.findIndex((candidate) => candidate.id === item.id) === index,
+					);
+					deduped.sort((a, b) => b.timestamp - a.timestamp);
+					setProfileSharedMedia(deduped.slice(0, 24));
+				}
+			} catch (sharedMediaError) {
+				if (!cancelled) {
+					setProfileSharedMedia([]);
+				}
+				appLog.warn("[profile] failed to load shared media context", sharedMediaError);
+			} finally {
+				if (!cancelled) {
+					setIsLoadingSharedMedia(false);
+				}
+			}
+		};
+
+		void loadSharedContext();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [apiFunctions, profileId]);
 
 	const {
 		tappingProfileId,
@@ -637,6 +801,97 @@ export function GridProfilePage() {
         }
     };
 
+	const closeAlbumViewerState = useCallback(() => {
+		setAlbumFullScreenIndex(null);
+		setAlbumViewer(null);
+		setAlbumViewerIndex(0);
+		albumFullScreenHistoryPushedRef.current = false;
+		albumViewerHistoryPushedRef.current = false;
+	}, []);
+
+	const closeAlbumFullScreenState = useCallback(() => {
+		setAlbumFullScreenIndex(null);
+		albumFullScreenHistoryPushedRef.current = false;
+	}, []);
+
+	const closeAlbumViewer = useCallback(() => {
+		if (albumFullScreenHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+		if (albumViewerHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+		closeAlbumViewerState();
+	}, [closeAlbumViewerState]);
+
+	const openAlbumFullScreen = useCallback((index: number) => {
+		if (!albumViewer || index < 0 || index >= albumViewer.content.length) return;
+		setAlbumViewerIndex(index);
+		setAlbumFullScreenIndex(index);
+		if (!albumFullScreenHistoryPushedRef.current) {
+			window.history.pushState({ profileAlbumOverlay: "full-screen" }, "");
+			albumFullScreenHistoryPushedRef.current = true;
+		}
+	}, [albumViewer]);
+
+	const closeAlbumFullScreen = useCallback(() => {
+		if (albumFullScreenHistoryPushedRef.current) {
+			window.history.back();
+			return;
+		}
+		closeAlbumFullScreenState();
+	}, [closeAlbumFullScreenState]);
+
+	const handleAlbumViewerIndexChange = useCallback((index: number) => {
+		setAlbumFullScreenIndex((prev) => (prev === index ? prev : index));
+		setAlbumViewerIndex((prev) => (prev === index ? prev : index));
+	}, []);
+
+	useEffect(() => {
+		const handlePopState = () => {
+			if (albumFullScreenHistoryPushedRef.current) {
+				closeAlbumFullScreenState();
+				return;
+			}
+			if (albumViewerHistoryPushedRef.current) {
+				closeAlbumViewerState();
+			}
+		};
+		window.addEventListener("popstate", handlePopState);
+		return () => window.removeEventListener("popstate", handlePopState);
+	}, [closeAlbumFullScreenState, closeAlbumViewerState]);
+
+	const handleOpenSharedAlbum = useCallback(async (albumId: string) => {
+		if (isOpeningAlbum) return;
+		setIsOpeningAlbum(true);
+		try {
+			const numericId = Number(albumId);
+			await apiFunctions.openSharedAlbum({ albumId: numericId });
+			const details = await apiFunctions.getAlbum(numericId);
+			const albumName = profileSharedAlbums.find(
+				(a) => String(a.albumId) === albumId,
+			)?.albumName ?? details.albumName ?? null;
+			setAlbumViewer({
+				albumId: numericId,
+				albumName,
+				profileId: Number(profileId),
+				profileName: activeProfile?.displayName?.trim() ?? `Profile ${profileId}`,
+				content: details.content,
+			});
+			setAlbumViewerIndex(0);
+			if (!albumViewerHistoryPushedRef.current) {
+				window.history.pushState({ profileAlbumOverlay: "viewer" }, "");
+				albumViewerHistoryPushedRef.current = true;
+			}
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t("shared_albums.error_open_fallback"));
+		} finally {
+			setIsOpeningAlbum(false);
+		}
+	}, [activeProfile?.displayName, apiFunctions, isOpeningAlbum, profileId, profileSharedAlbums, t]);
+
 	return (
 		<>
 			<ProfileDetailsModal
@@ -673,7 +928,51 @@ export function GridProfilePage() {
 				chatContactStatus={chatContactStatus}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
+				profileSharedAlbums={profileSharedAlbums}
+				profileSharedMedia={profileSharedMedia}
+				isLoadingSharedMedia={isLoadingSharedMedia}
+				onOpenSharedAlbum={handleOpenSharedAlbum}
 			/>
+
+			{isOpeningAlbum ? (
+				<div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+					<div className="surface-card p-4 text-sm text-[var(--text-muted)]">
+						{t("shared_albums.opening")}
+					</div>
+				</div>
+			) : null}
+
+			{albumViewer ? (
+				<div className="relative z-[60]">
+					<AlbumViewerPanel
+						viewer={albumViewer}
+						viewerIndex={albumViewerIndex}
+						fullScreenIndex={albumFullScreenIndex}
+						selectedViewerItem={
+							albumViewer.content.length > 0
+								? albumViewer.content[Math.min(albumViewerIndex, albumViewer.content.length - 1)]
+								: null
+						}
+						closeViewer={closeAlbumViewer}
+						openFullScreen={openAlbumFullScreen}
+						onMessageProfile={(pid) => handleMessageProfile(String(pid))}
+						onViewProfile={() => { /* already on profile */ }}
+					/>
+				</div>
+			) : null}
+
+			{albumViewer !== null && albumFullScreenIndex !== null ? (
+				<PhotoViewer
+					isOpen
+					onClose={closeAlbumFullScreen}
+					photos={albumViewer.content.map<PhotoViewerMedia>((item) => ({
+						url: item.url ?? item.thumbUrl ?? item.coverUrl ?? "",
+						type: item.contentType?.startsWith("video/") ? "video" : "image",
+					}))}
+					initialIndex={albumFullScreenIndex}
+					onIndexChange={handleAlbumViewerIndexChange}
+				/>
+			) : null}
 
 			<ConfirmDialog
 				isOpen={pendingProfileConfirm !== null}
