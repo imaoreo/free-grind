@@ -16,6 +16,8 @@ pub struct Session {
     pub profile_id: String,
     pub session_id: String,
     pub auth_token: String,
+    pub device_id: String,
+    pub advertising_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -490,7 +492,12 @@ impl AuthStorage {
 }
 
 impl GrindrClient {
-    async fn create_session(&self, body: &impl AuthRequest) -> Result<Session, AppError> {
+    async fn create_session(
+        &self,
+        body: &impl AuthRequest,
+        device_id: String,
+        advertising_id: String,
+    ) -> Result<Session, AppError> {
         eprintln!("[AUTH] POST /v8/sessions for email={}", body.email());
         let session_resp: SessionResponse = self
             .request_json(reqwest::Method::POST, "/v8/sessions", Some(body))
@@ -514,6 +521,8 @@ impl GrindrClient {
             session_id: session_resp.session_id,
             auth_token: session_resp.auth_token,
             expires_at: claims.exp,
+            device_id,
+            advertising_id,
         };
 
         eprintln!(
@@ -535,11 +544,24 @@ impl GrindrClient {
             "[AUTH] login attempt for email={}***",
             email.chars().next().unwrap_or('?')
         );
+
+        // Generate NEW device IDs for a new login
+        let new_device_id = format!("{:016x}", rand::random::<u64>());
+        let new_advertising_id = uuid::Uuid::new_v4().to_string();
+
+        {
+            let mut device = self.device.write().await;
+            device.device_id = new_device_id.clone();
+            device.advertising_id = new_advertising_id.clone();
+        }
+
         let body = LoginRequest::new(email.to_owned(), password.to_owned());
-        let session = self.create_session(&body).await.map_err(|e| {
-            eprintln!("[AUTH] login failed: {e}");
-            e
-        })?;
+        let session = Box::pin(self.create_session(&body, new_device_id, new_advertising_id))
+            .await
+            .map_err(|e| {
+                eprintln!("[AUTH] login failed: {e}");
+                e
+            })?;
         let profile_id = session.profile_id.clone();
         eprintln!("[AUTH] login succeeded; profile_id={profile_id}");
 
@@ -555,12 +577,23 @@ impl GrindrClient {
             e
         })?;
 
+        let new_device_id = format!("{:016x}", rand::random::<u64>());
+        let new_advertising_id = uuid::Uuid::new_v4().to_string();
+
+        {
+            let mut device = self.device.write().await;
+            device.device_id = new_device_id.clone();
+            device.advertising_id = new_advertising_id.clone();
+        }
+
         let session = Session {
             email: String::new(),
             profile_id: claims.profile_id.clone(),
             session_id: token.to_owned(),
             auth_token: String::new(),
             expires_at: claims.exp,
+            device_id: new_device_id,
+            advertising_id: new_advertising_id,
         };
 
         if let Err(error) = AuthStorage::set_session(&session) {
@@ -587,10 +620,12 @@ impl GrindrClient {
             .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?;
 
         let body = RefreshRequest::new(session.email.clone(), session.auth_token.clone());
+        let device_id = session.device_id.clone();
+        let advertising_id = session.advertising_id.clone();
 
         drop(current);
 
-        let session = self.create_session(&body).await?;
+        let session = Box::pin(self.create_session(&body, device_id, advertising_id)).await?;
         let profile_id = session.profile_id.clone();
         *self.session.write().await = Some(session);
 
@@ -598,15 +633,6 @@ impl GrindrClient {
     }
 
     pub async fn authorization_header(&self) -> Option<String> {
-        let expires_at = {
-            let session = self.session.read().await;
-            session.as_ref().map(|s| s.expires_at).unwrap_or(0)
-        };
-
-        if expires_at < (chrono::Utc::now().timestamp() as u64 + 60) {
-            let _ = self.refresh_token().await;
-        }
-
         let session = self.session.read().await;
         session
             .as_ref()
@@ -716,8 +742,16 @@ pub async fn websocket_token(
 ) -> Result<Option<String>, AppError> {
     let client = state.client()?;
 
-    // Triggers refresh flow when needed before exposing token.
-    let _ = client.authorization_header().await;
+    // Check if refresh is needed
+    let needs_refresh = {
+        let session = client.session.read().await;
+        let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+        expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+    };
+
+    if needs_refresh {
+        let _ = client.refresh_token().await;
+    }
 
     let session = client.session.read().await;
     Ok(session.as_ref().map(|s| s.session_id.clone()))
