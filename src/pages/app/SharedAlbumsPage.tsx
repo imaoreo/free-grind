@@ -211,7 +211,7 @@ export function SharedAlbumsPage() {
 	);
 
 	const openViewer = useCallback(
-		async (albumId: number) => {
+		async (item: SharedAlbumItem) => {
 			if (isOpeningAlbum) {
 				return;
 			}
@@ -219,12 +219,15 @@ export function SharedAlbumsPage() {
 			setOpenAlbumError(null);
 			setIsOpeningAlbum(true);
 			try {
+				const albumId = item.album.albumId;
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
 				setViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
+					profileId: item.profileId,
+					profileName: item.profileName,
 					content: details.content,
 				});
 				setViewerIndex(0);
@@ -243,6 +246,25 @@ export function SharedAlbumsPage() {
 			}
 		},
 		[apiFunctions, isOpeningAlbum],
+	);
+
+	const handleMessageProfile = useCallback(
+		(profileId: number) => {
+			const nextParams = new URLSearchParams();
+			nextParams.set("targetProfileId", String(profileId));
+			nextParams.set("returnTo", "/settings/shared-albums");
+			navigate(`/chat?${nextParams.toString()}`);
+		},
+		[navigate],
+	);
+
+	const handleViewProfile = useCallback(
+		(profileId: number) => {
+			navigate(`/profile/${profileId}`, {
+				state: { returnTo: "/settings/shared-albums" },
+			});
+		},
+		[navigate],
 	);
 
 	const viewerPhotos = useMemo<PhotoViewerMedia[]>(() => {
@@ -467,7 +489,7 @@ export function SharedAlbumsPage() {
 								<button
 									key={`${item.profileId}:${item.album.albumId}`}
 									type="button"
-									onClick={() => void openViewer(item.album.albumId)}
+									onClick={() => void openViewer(item)}
 									className="surface-card relative overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-0.5"
 								>
 									<div className="relative aspect-[4/6] w-full bg-[var(--surface-2)]">
@@ -525,6 +547,8 @@ export function SharedAlbumsPage() {
 					selectedViewerItem={selectedViewerItem}
 					closeViewer={closeViewer}
 					openFullScreen={openFullScreen}
+					onMessageProfile={handleMessageProfile}
+					onViewProfile={handleViewProfile}
 				/>
 			) : null}
 
