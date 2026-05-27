@@ -10,6 +10,7 @@ use crate::state::AppState;
 
 use super::client::GrindrClient;
 use super::client::BASE_URL;
+use super::headers::build_headers;
 
 #[derive(Serialize, Deserialize)]
 pub struct RawResponse {
@@ -29,31 +30,56 @@ impl GrindrClient {
         TReq: Serialize + ?Sized,
         TResp: DeserializeOwned,
     {
+        let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
         let url = format!("{BASE_URL}{path}");
-        let mut request = self.http.request(method.clone(), &url);
 
-        if let Some(body) = body {
-            request = request.json(body);
+        // Proaktiver Refresh: Wenn der Token bald abläuft (innerhalb von 60s)
+        if !is_auth_path {
+            let needs_refresh = {
+                let session = self.session.read().await;
+                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+            };
+            if needs_refresh {
+                // Box::pin bricht die statische Rekursion für den Compiler auf
+                let _ = Box::pin(self.refresh_token()).await;
+            }
         }
 
-        let started_at = std::time::Instant::now();
-        eprintln!("[REST] {} {}", method, url);
+        let device = self.device.read().await;
 
-        let response = request.send().await.map_err(|e| {
+        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
+            let headers = build_headers(device, "Free", auth_token.as_deref());
+            let mut request = self.http.request(method.clone(), &url).headers(headers);
+            if let Some(body) = body {
+                request = request.json(body);
+            }
+            request
+        };
+
+        let auth_token = self.authorization_header().await;
+        let mut response = make_request(auth_token, &device).send().await.map_err(|e| {
             eprintln!("[REST] network error on {} {}: {e}", method, url);
             e
         })?;
+
+        if response.status().as_u16() == 401 && !is_auth_path {
+            if Box::pin(self.refresh_token()).await.is_ok() {
+                let new_auth_token = self.authorization_header().await;
+                let device = self.device.read().await;
+                response = make_request(new_auth_token, &device).send().await.map_err(|e| {
+                    eprintln!("[REST] network error on {} {}: {e}", method, url);
+                    e
+                })?;
+            }
+        }
 
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
             eprintln!(
-                "[REST] error {} {} -> status={} body={} ({}ms)",
-                method,
-                url,
-                status,
-                text,
-                started_at.elapsed().as_millis()
+                "[REST] error {} {} -> status={} body={}",
+                method, url, status, text
             );
 
             let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
@@ -61,13 +87,7 @@ impl GrindrClient {
             let message = json
                 .get("message")
                 .and_then(|m| m.as_str())
-                .unwrap_or_else(|| {
-                    if text.is_empty() {
-                        "Unknown error"
-                    } else {
-                        &text
-                    }
-                })
+                .unwrap_or_else(|| if text.is_empty() { "Unknown error" } else { &text })
                 .to_owned();
 
             return Err(AppError::Api { code, message });
@@ -77,12 +97,6 @@ impl GrindrClient {
             eprintln!("[REST] JSON decode error on {} {}: {e}", method, url);
             AppError::from(e)
         })?;
-        eprintln!(
-            "[REST] {} {} -> 2xx ({}ms)",
-            method,
-            url,
-            started_at.elapsed().as_millis()
-        );
         Ok(resp)
     }
 
@@ -93,9 +107,21 @@ impl GrindrClient {
         body: Option<Vec<u8>>,
         content_type: Option<&str>,
     ) -> Result<RawResponse, AppError> {
-        let is_public_path = path.starts_with("/public/");
+        let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
 
-        let mut authorization = if is_public_path {
+        // Proaktiver Refresh
+        if !is_auth_path {
+            let needs_refresh = {
+                let session = self.session.read().await;
+                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+            };
+            if needs_refresh {
+                let _ = Box::pin(self.refresh_token()).await;
+            }
+        }
+
+        let auth_token = if is_auth_path {
             self.authorization_header().await
         } else {
             Some(
@@ -105,14 +131,14 @@ impl GrindrClient {
             )
         };
 
-        let make_request = |authorization: Option<&str>| {
+        let device = self.device.read().await;
+
+        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
+            let headers = build_headers(device, "Free", auth_token.as_deref());
             let mut request = self
                 .http
-                .request(method.clone(), format!("{BASE_URL}{path}"));
-
-            if let Some(authorization) = authorization {
-                request = request.header("Authorization", authorization);
-            }
+                .request(method.clone(), format!("{BASE_URL}{path}"))
+                .headers(headers);
 
             if let Some(body) = body.as_ref() {
                 request = request.body(body.clone());
@@ -127,14 +153,13 @@ impl GrindrClient {
             request
         };
 
-        let mut response = make_request(authorization.as_deref()).send().await?;
+        let mut response = make_request(auth_token.clone(), &device).send().await?;
 
-        if response.status().as_u16() == 401 && !is_public_path {
-            if self.refresh_token().await.is_ok() {
-                authorization = self.authorization_header().await;
-                if authorization.is_some() {
-                    response = make_request(authorization.as_deref()).send().await?;
-                }
+        if response.status().as_u16() == 401 && !is_auth_path {
+            if Box::pin(self.refresh_token()).await.is_ok() {
+                let new_auth_token = self.authorization_header().await;
+                let device = self.device.read().await;
+                response = make_request(new_auth_token, &device).send().await?;
             }
         }
 
