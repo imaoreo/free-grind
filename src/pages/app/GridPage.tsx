@@ -990,21 +990,6 @@ export function GridPage() {
 		},
 		[isBlockingProfile, isUnblockingProfile, performUnblockProfile, skipUnblockConfirm],
 	);
-		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
-				return;
-			}
-
-			if (skipUnblockConfirm) {
-				await performUnblockProfile(targetProfileId);
-				return;
-			}
-
-			setDontAskAgainChecked(false);
-			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
-		},
-		[mutatingBlockProfileId, performUnblockProfile, skipUnblockConfirm],
-	);
 
 	const handleToggleFavoriteProfile = useCallback(
 		async (targetProfileId: string, currentlyFavorite: boolean) => {
