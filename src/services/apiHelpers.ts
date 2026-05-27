@@ -1,4 +1,4 @@
-import type { RestResponse } from "../types/chat-service";
+import type { RestFetcher, RestResponse } from "../types/chat-service";
 import { hasAnalyticsConsent } from "../utils/analyticsConsent";
 
 export class ApiFunctionError extends Error {
@@ -20,7 +20,7 @@ const ISSUES_API_BASE =
 	import.meta.env.VITE_GRINDAPI_BASE_URL ||
 	GRINDAPI_BASE;
 
-export async function parseJsonSafe(response: RestResponse): Promise<unknown> {
+export async function parseJsonSafe(response: RestResponse | Response): Promise<unknown> {
 	try {
 		return response.json();
 	} catch {
@@ -28,8 +28,9 @@ export async function parseJsonSafe(response: RestResponse): Promise<unknown> {
 	}
 }
 
-export async function assertSuccess(response: RestResponse, fallbackMessage: string) {
-	if (response.status >= 200 && response.status < 300) {
+export async function assertSuccess(response: RestResponse | Response, fallbackMessage: string) {
+	const status = "status" in response ? response.status : (response as Response).status;
+	if (status >= 200 && status < 300) {
 		return;
 	}
 
@@ -42,7 +43,7 @@ export async function assertSuccess(response: RestResponse, fallbackMessage: str
 			? ((payload as { message: string }).message || fallbackMessage)
 			: fallbackMessage;
 
-	throw new ApiFunctionError(message, response.status, payload);
+	throw new ApiFunctionError(message, status, payload);
 }
 
 export async function submitIssueReport(
@@ -58,14 +59,20 @@ export async function submitIssueReport(
 		clientLogs?: Record<string, unknown>;
 	},
 	t: (key: string) => string,
+	fetchRest?: RestFetcher
 ): Promise<{ id: string }> {
-	const response = await fetch(`${ISSUES_API_BASE}/api/issues/submit`, {
+	const url = `${ISSUES_API_BASE}/api/issues/submit`;
+	const options = {
 		method: "POST",
 		headers: {
 			"Content-Type": "application/json",
 		},
 		body: JSON.stringify(data),
-	});
+	};
+
+	const response = fetchRest
+		? await fetchRest(url, { ...options, body: data })
+		: await fetch(url, options);
 
 	let payload: { id?: string; error?: string } | null = null;
 	try {
@@ -74,10 +81,11 @@ export async function submitIssueReport(
 		payload = null;
 	}
 
-	if (!response.ok) {
+	const ok = "status" in response ? (response.status >= 200 && response.status < 300) : (response as Response).ok;
+	if (!ok) {
 		throw new ApiFunctionError(
 			payload?.error || t("issues_form.submit_error"),
-			response.status,
+			"status" in response ? response.status : (response as Response).status,
 			payload,
 		);
 	}
@@ -139,23 +147,27 @@ export async function trackUpdateCheck(data: {
 	arch: string;
 	version: string;
 	appVersion: string;
-}): Promise<void> {
+}, fetchRest?: RestFetcher): Promise<void> {
 	if (!hasAnalyticsConsent()) {
 		return;
 	}
 
 	try {
-		const response = await fetch(`${GRINDAPI_BASE}/api/analytics/track-update`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(data),
-		});
+		const url = `${GRINDAPI_BASE}/api/analytics/track-update`;
+		const response = fetchRest
+			? await fetchRest(url, { method: "POST", body: data })
+			: await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(data),
+			});
 
-		if (!response.ok) {
+		const status = "status" in response ? response.status : (response as Response).status;
+		if (status < 200 || status >= 300) {
 			console.warn(
-				`Failed to track update check: ${response.status} ${response.statusText}`
+				`Failed to track update check: ${status}`
 			);
 		}
 	} catch (error) {
@@ -163,25 +175,30 @@ export async function trackUpdateCheck(data: {
 	}
 }
 
-export async function registerPresence(profileId: string | number): Promise<void> {
+export async function registerPresence(profileId: string | number, fetchRest?: RestFetcher): Promise<void> {
 	if (!hasAnalyticsConsent()) {
 		return;
 	}
 
 	try {
-		const response = await fetch(`${GRINDAPI_BASE}/api/presence/register`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				profileId: String(profileId),
-			}),
-		});
+		const url = `${GRINDAPI_BASE}/api/presence/register`;
+		const body = {
+			profileId: String(profileId),
+		};
+		const response = fetchRest
+			? await fetchRest(url, { method: "POST", body })
+			: await fetch(url, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(body),
+			});
 
-		if (!response.ok) {
+		const status = "status" in response ? response.status : (response as Response).status;
+		if (status < 200 || status >= 300) {
 			console.warn(
-				`Failed to register presence: ${response.status} ${response.statusText}`
+				`Failed to register presence: ${status}`
 			);
 		}
 	} catch (error) {

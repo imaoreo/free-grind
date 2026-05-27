@@ -31,7 +31,13 @@ impl GrindrClient {
         TResp: DeserializeOwned,
     {
         let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
-        let url = format!("{BASE_URL}{path}");
+        let url = if path.starts_with("http") {
+            path.to_owned()
+        } else {
+            format!("{BASE_URL}{path}")
+        };
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP] -> {} {}", method, url);
 
         // Proaktiver Refresh: Wenn der Token bald abläuft (innerhalb von 60s)
         if !is_auth_path {
@@ -49,7 +55,14 @@ impl GrindrClient {
         let device = self.device.read().await;
 
         let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
-            let headers = build_headers(device, "Free", auth_token.as_deref());
+            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
+            let headers = if is_external {
+                let mut h = reqwest::header::HeaderMap::new();
+                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
+                h
+            } else {
+                build_headers(device, "Free", auth_token.as_deref())
+            };
             let mut request = self.http.request(method.clone(), &url).headers(headers);
             if let Some(body) = body {
                 request = request.json(body);
@@ -59,7 +72,8 @@ impl GrindrClient {
 
         let auth_token = self.authorization_header().await;
         let mut response = make_request(auth_token, &device).send().await.map_err(|e| {
-            eprintln!("[REST] network error on {} {}: {e}", method, url);
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP] network error on {} {}: {e}", method, url);
             e
         })?;
 
@@ -68,20 +82,30 @@ impl GrindrClient {
                 let new_auth_token = self.authorization_header().await;
                 let device = self.device.read().await;
                 response = make_request(new_auth_token, &device).send().await.map_err(|e| {
-                    eprintln!("[REST] network error on {} {}: {e}", method, url);
+                    #[cfg(debug_assertions)]
+                    eprintln!("[HTTP] network error on {} {}: {e}", method, url);
                     e
                 })?;
             }
         }
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[HTTP] <- {} {} | Status: {}",
+            method,
+            url,
+            status
+        );
+
+        if !status.is_success() {
+            #[cfg(debug_assertions)]
             eprintln!(
-                "[REST] error {} {} -> status={} body={}",
+                "[HTTP] error {} {} -> status={} body={}",
                 method, url, status, text
             );
-
             let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
             let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
             let message = json
@@ -93,8 +117,9 @@ impl GrindrClient {
             return Err(AppError::Api { code, message });
         }
 
-        let resp = response.json::<TResp>().await.map_err(|e| {
-            eprintln!("[REST] JSON decode error on {} {}: {e}", method, url);
+        let resp = serde_json::from_str::<TResp>(&text).map_err(|e| {
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP] JSON decode error on {} {}: {e}", method, url);
             AppError::from(e)
         })?;
         Ok(resp)
@@ -108,6 +133,13 @@ impl GrindrClient {
         content_type: Option<&str>,
     ) -> Result<RawResponse, AppError> {
         let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
+        let url = if path.starts_with("http") {
+            path.to_owned()
+        } else {
+            format!("{BASE_URL}{path}")
+        };
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP] -> {} {}", method, url);
 
         // Proaktiver Refresh
         if !is_auth_path {
@@ -121,7 +153,8 @@ impl GrindrClient {
             }
         }
 
-        let auth_token = if is_auth_path {
+        let is_external = path.starts_with("http");
+        let auth_token = if is_auth_path || is_external {
             self.authorization_header().await
         } else {
             Some(
@@ -134,11 +167,15 @@ impl GrindrClient {
         let device = self.device.read().await;
 
         let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
-            let headers = build_headers(device, "Free", auth_token.as_deref());
-            let mut request = self
-                .http
-                .request(method.clone(), format!("{BASE_URL}{path}"))
-                .headers(headers);
+            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
+            let headers = if is_external {
+                let mut h = reqwest::header::HeaderMap::new();
+                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
+                h
+            } else {
+                build_headers(device, "Free", auth_token.as_deref())
+            };
+            let mut request = self.http.request(method.clone(), &url).headers(headers);
 
             if let Some(body) = body.as_ref() {
                 request = request.body(body.clone());
@@ -154,6 +191,13 @@ impl GrindrClient {
         };
 
         let mut response = make_request(auth_token.clone(), &device).send().await?;
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[HTTP] <- {} {} | Status: {}",
+            method,
+            url,
+            response.status()
+        );
 
         if response.status().as_u16() == 401 && !is_auth_path {
             if Box::pin(self.refresh_token()).await.is_ok() {
@@ -178,13 +222,10 @@ pub async fn request(
     body: Option<Vec<u8>>,
     content_type: Option<String>,
 ) -> Result<Response, AppError> {
-    println!(
-        "Received request: {method} {path} with body of length {}",
-        body.as_ref().map(|b| b.len()).unwrap_or(0)
-    );
+    let method_str = method.clone();
     let method = Method::from_str(&method).map_err(|_| AppError::Api {
         code: 400,
-        message: format!("Invalid method: {method}"),
+        message: format!("Invalid method: {method_str}"),
     })?;
 
     let raw = state

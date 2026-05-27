@@ -34,15 +34,15 @@ export function EntitlementsBridge() {
 		const fetchEntitlements = async () => {
 			try {
 				lastFetchedId.current = userId;
-				appLog.debug(`[Entitlements] Fetching entitlements for user ${userId}...`);
+				appLog.debug(`[HTTP-ENTITLEMENTS] Fetching entitlements for user ${userId}...`);
 				const entitlements = await apiFunctions.getEntitlements();
-				appLog.info("[Entitlements] Fetched successfully:", entitlements);
+				appLog.info("[HTTP-ENTITLEMENTS] Entitlements fetched successfully:", entitlements);
 
 				await setPreferences({
 					rightNowRemaining: entitlements.rightNow,
 				});
 			} catch (error) {
-				appLog.error("[Entitlements] Failed to fetch entitlements", error);
+				appLog.error("[HTTP-ENTITLEMENTS] Failed to fetch entitlements", error);
 				// On error, we reset so it can be retried if the component re-triggers
 				lastFetchedId.current = null;
 			}

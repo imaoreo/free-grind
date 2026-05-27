@@ -34,7 +34,7 @@ export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => s
 		...createProfileMethods(fetchRest, t),
 		...createAgeVerificationMethods(fetchRest, t),
 		...createFeedMethods(fetchRest, t),
-		...createPresenceMethods(),
+		...createPresenceMethods(fetchRest),
 		...createFavoritesMethods(fetchRest, t),
 
 		async request(
