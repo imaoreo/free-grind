@@ -20,6 +20,7 @@ import type { ChatContactIndexRecord } from "../../../../types/chat-contact-inde
 import { formatDateTime24 } from "../../chat/chatUtils";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
+import type { SharedAlbum } from "../../../../types/albums";
 
 type LabelMap = Record<number, string>;
 
@@ -38,6 +39,16 @@ type ProfileDetailsContentProps = {
 	profileStatusLabel: string;
 	profileDistance: number | null;
 	chatContactStatus: ChatContactIndexRecord | null;
+	profileSharedAlbums: SharedAlbum[];
+	profileSharedMedia: Array<{
+		id: string;
+		url: string;
+		type: "image" | "video";
+		timestamp: number;
+		albumId: number | null;
+	}>;
+	isLoadingSharedMedia: boolean;
+	onOpenSharedAlbum?: (albumId: string) => void;
 	messageProfileId: string | null;
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
@@ -96,6 +107,10 @@ export function ProfileDetailsContent({
 	profileStatusLabel,
 	profileDistance,
 	chatContactStatus,
+	profileSharedAlbums,
+	profileSharedMedia,
+	isLoadingSharedMedia,
+	onOpenSharedAlbum,
 	messageProfileId,
 	usesFreegrind,
 	onMessageProfile,
@@ -139,6 +154,9 @@ export function ProfileDetailsContent({
 	const { unitsPreset } = usePreferences();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
+	const hasSharedAlbums = profileSharedAlbums.length > 0;
+	const hasSharedMedia = profileSharedMedia.length > 0;
+	const hasSharedSection = isLoadingSharedMedia || hasSharedAlbums || hasSharedMedia;
 
 	const renderPhotoCreatedBadge = (hash: string) => {
 		const meta = photoCreatedAtByHash[hash] ?? null;
@@ -422,6 +440,89 @@ export function ProfileDetailsContent({
 					</div>
 				) : null}
 			</div>
+
+			{hasSharedSection ? (
+				<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+					<div className="mb-3 flex items-center justify-between gap-2">
+						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							{t("shared_albums.title")}
+						</p>
+						{isLoadingSharedMedia ? (
+							<span className="text-[10px] text-[var(--text-muted)]">{t("chat.loading")}</span>
+						) : null}
+					</div>
+
+					<div className="grid gap-3">
+						{hasSharedAlbums ? (
+							<div>
+								<p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+									{t("settings_albums.label")}
+								</p>
+								<div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+									{profileSharedAlbums.slice(0, 8).map((album) => {
+										const previewUrl =
+											album.content?.thumbUrl || album.content?.url || album.content?.coverUrl || null;
+
+										return (
+											<button
+												key={`profile-album-${album.albumId}`}
+												type="button"
+												onClick={() => onOpenSharedAlbum?.(String(album.albumId))}
+												disabled={!onOpenSharedAlbum}
+												className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]"
+											>
+												<div className="aspect-square w-full bg-[var(--surface-2)]">
+													{previewUrl ? (
+														<img
+															src={previewUrl}
+															alt={album.albumName ?? t("shared_albums.preview_alt")}
+															className="h-full w-full object-cover"
+														/>
+													) : (
+														<div className="flex h-full w-full items-center justify-center text-[10px] text-[var(--text-muted)]">
+															{t("shared_albums.unavailable")}
+														</div>
+													)}
+												</div>
+											</button>
+										);
+									})}
+								</div>
+							</div>
+						) : null}
+
+						{hasSharedMedia ? (
+							<div>
+								<p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+									{t("shared_albums.all_media")}
+								</p>
+								<div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+									{profileSharedMedia.slice(0, 12).map((media) => (
+										<a
+											key={media.id}
+											href={media.url}
+											target="_blank"
+											rel="noreferrer"
+											className="relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]"
+										>
+											<div className="aspect-square w-full bg-[var(--surface-2)]">
+												{media.type === "video" ? (
+													<video src={media.url} className="h-full w-full object-cover" muted />
+												) : (
+													<img src={media.url} alt={t("chat.thread.shared_alt")} className="h-full w-full object-cover" />
+												)}
+											</div>
+											{media.type === "video" ? (
+												<span className="absolute bottom-1 right-1 rounded bg-black/65 px-1 py-0.5 text-[10px] text-white">Video</span>
+											) : null}
+										</a>
+									))}
+								</div>
+							</div>
+						) : null}
+					</div>
+				</div>
+			) : null}
 
 			<div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
 				<div className="grid gap-4">
