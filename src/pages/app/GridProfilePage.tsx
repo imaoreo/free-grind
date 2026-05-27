@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import z from "zod";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { validateMediaHash } from "../../utils/media";
@@ -47,6 +48,29 @@ export function GridProfilePage() {
 	const [searchParams] = useSearchParams();
 	const apiFunctions = useApiFunctions();
 	const { geohash } = usePreferences();
+
+	const { data: managedGenders } = useManagedGenders();
+	const { data: managedPronouns } = useManagedPronouns();
+	const { data: blockedProfileIdsData } = useBlockedProfileIds();
+	const { mutateAsync: blockProfileMutation, isPending: isBlockingProfile } = useBlockProfile();
+	const { mutateAsync: unblockProfileMutation, isPending: isUnblockingProfile } = useUnblockProfile();
+
+	const blockedProfileIds = useMemo(() => new Set(blockedProfileIdsData ?? []), [blockedProfileIdsData]);
+
+	const genderOptions = useMemo(() => {
+		return managedGenders?.map((item) => ({
+			value: item.genderId,
+			label: item.gender,
+		})) ?? [];
+	}, [managedGenders]);
+
+	const pronounOptions = useMemo(() => {
+		return managedPronouns?.map((item) => ({
+			value: item.pronounId,
+			label: item.pronoun,
+		})) ?? [];
+	}, [managedPronouns]);
+
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(
 		null,
 	);
@@ -55,15 +79,8 @@ export function GridProfilePage() {
 		null,
 	);
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
-	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
-	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
-	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
-		() => new Set(),
-	);
-	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
-		null,
-	);
+
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
 	);
@@ -87,27 +104,6 @@ export function GridProfilePage() {
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
-
-	useEffect(() => {
-		let cancelled = false;
-		void apiFunctions
-			.getBlockedProfileIds()
-			.then((profileIds) => {
-				if (cancelled) {
-					return;
-				}
-				setBlockedProfileIds(new Set(profileIds));
-			})
-			.catch(() => {
-				if (!cancelled) {
-					setBlockedProfileIds(new Set());
-				}
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!profileId) {
@@ -176,55 +172,6 @@ export function GridProfilePage() {
 	const handleNextProfile = nextProfileId
 		? () => navigate(`/profile/${nextProfileId}`, { replace: true, state: { returnTo: safeReturnTo, profileIds } })
 		: undefined;
-
-	useEffect(() => {
-		const loadManagedOptions = async () => {
-			const cachedGenders = getCachedGenderOptions();
-			const cachedPronouns = getCachedPronounOptions();
-
-			if (cachedGenders) {
-				setGenderOptions(cachedGenders);
-			}
-
-			if (cachedPronouns) {
-				setPronounOptions(cachedPronouns);
-			}
-
-			if (cachedGenders && cachedPronouns) {
-				return;
-			}
-
-			try {
-				const [genders, pronouns] = await Promise.all([
-					apiFunctions.getManagedGenders(),
-					apiFunctions.getManagedPronouns(),
-				]);
-
-				const nextGenderOptions = genders.map((item) => ({
-					value: item.genderId,
-					label: item.gender,
-				}));
-				setGenderOptions(nextGenderOptions);
-				setCachedGenderOptions(nextGenderOptions);
-
-				const nextPronounOptions = pronouns.map((item) => ({
-					value: item.pronounId,
-					label: item.pronoun,
-				}));
-				setPronounOptions(nextPronounOptions);
-				setCachedPronounOptions(nextPronounOptions);
-			} catch {
-				if (!cachedGenders) {
-					setGenderOptions([]);
-				}
-				if (!cachedPronouns) {
-					setPronounOptions([]);
-				}
-			}
-		};
-
-		void loadManagedOptions();
-	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!profileId) {
@@ -311,34 +258,20 @@ export function GridProfilePage() {
 	};
 
 	const performBlockProfile = async (targetProfileId: string) => {
-		setMutatingBlockProfileId(targetProfileId);
 		try {
-			await apiFunctions.blockProfile(targetProfileId);
-			setBlockedProfileIds((prev) => {
-				const next = new Set(prev);
-				next.add(targetProfileId);
-				return next;
-			});
+			await blockProfileMutation(targetProfileId);
 			toast.success(t("profile_details.block_success"));
 			navigate(safeReturnTo, { replace: true });
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : t("profile_details.block_failed"),
 			);
-		} finally {
-			setMutatingBlockProfileId(null);
 		}
 	};
 
 	const performUnblockProfile = async (targetProfileId: string) => {
-		setMutatingBlockProfileId(targetProfileId);
 		try {
-			await apiFunctions.unblockProfile(targetProfileId);
-			setBlockedProfileIds((prev) => {
-				const next = new Set(prev);
-				next.delete(targetProfileId);
-				return next;
-			});
+			await unblockProfileMutation(targetProfileId);
 			toast.success(t("profile_details.unblock_success"));
 		} catch (error) {
 			toast.error(
@@ -346,13 +279,11 @@ export function GridProfilePage() {
 					? error.message
 					: t("profile_details.unblock_failed"),
 			);
-		} finally {
-			setMutatingBlockProfileId(null);
 		}
 	};
 
 	const handleBlockProfile = async (targetProfileId: string) => {
-		if (mutatingBlockProfileId) {
+		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 		if (skipBlockConfirm) {
@@ -364,7 +295,7 @@ export function GridProfilePage() {
 	};
 
 	const handleUnblockProfile = async (targetProfileId: string) => {
-		if (mutatingBlockProfileId) {
+		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 		if (skipUnblockConfirm) {
@@ -418,14 +349,14 @@ export function GridProfilePage() {
 	};
 
 	const handleCancelProfileConfirm = () => {
-		if (mutatingBlockProfileId) {
+		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 		setPendingProfileConfirm(null);
 	};
 
 	const handleConfirmProfileAction = async () => {
-		if (!pendingProfileConfirm || mutatingBlockProfileId) {
+		if (!pendingProfileConfirm || isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 
@@ -657,9 +588,7 @@ export function GridProfilePage() {
 					profileId && mutatingFavoriteProfileId === profileId,
 				)}
 				isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
-				isBlockingProfile={Boolean(
-					profileId && mutatingBlockProfileId === profileId,
-				)}
+				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
 				isLocatingProfile={isLocatingProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={isTappingProfile}
@@ -695,7 +624,7 @@ export function GridProfilePage() {
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
-				isProcessing={Boolean(mutatingBlockProfileId)}
+				isProcessing={isBlockingProfile || isUnblockingProfile}
 				confirmTone={
 					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
 				}

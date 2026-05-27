@@ -35,6 +35,7 @@ import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
+import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import {
 	getChatContactIndexForProfiles,
 	indexChatContactRecordsByProfileId,
@@ -78,17 +79,33 @@ export function GridPage() {
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
-	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
-	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
+
+	const { data: managedGenders } = useManagedGenders();
+	const { data: managedPronouns } = useManagedPronouns();
+	const { data: blockedProfileIdsData } = useBlockedProfileIds();
+	const { mutateAsync: blockProfileMutation, isPending: isBlockingProfile } = useBlockProfile();
+	const { mutateAsync: unblockProfileMutation, isPending: isUnblockingProfile } = useUnblockProfile();
+
+	const genderOptions = useMemo(() => {
+		return managedGenders?.map((item) => ({
+			value: item.genderId,
+			label: item.gender,
+		})) ?? [];
+	}, [managedGenders]);
+
+	const pronounOptions = useMemo(() => {
+		return managedPronouns?.map((item) => ({
+			value: item.pronounId,
+			label: item.pronoun,
+		})) ?? [];
+	}, [managedPronouns]);
+
 	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
 		Record<string, ChatContactIndexRecord>
 	>({});
-	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
-		() => new Set(),
-	);
-	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
-		null,
-	);
+
+	const blockedProfileIds = useMemo(() => new Set(blockedProfileIdsData ?? []), [blockedProfileIdsData]);
+
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
 	);
@@ -219,84 +236,6 @@ export function GridPage() {
 			isMountedRef.current = false;
 		};
 	}, []);
-
-	useEffect(() => {
-		const loadManagedOptions = async () => {
-			const cachedGenders = getCachedGenderOptions();
-			const cachedPronouns = getCachedPronounOptions();
-
-			if (cachedGenders) {
-				setGenderOptions(cachedGenders);
-			}
-
-			if (cachedPronouns) {
-				setPronounOptions(cachedPronouns);
-			}
-
-			if (cachedGenders && cachedPronouns) {
-				return;
-			}
-
-			try {
-				const [genders, pronouns] = await Promise.all([
-					apiFunctions.getManagedGenders(),
-					apiFunctions.getManagedPronouns(),
-				]);
-
-				const nextGenderOptions = genders.map((item) => ({
-					value: item.genderId,
-					label: item.gender,
-				}));
-				setGenderOptions(nextGenderOptions);
-				setCachedGenderOptions(nextGenderOptions);
-
-				const nextPronounOptions = pronouns.map((item) => ({
-					value: item.pronounId,
-					label: item.pronoun,
-				}));
-				setPronounOptions(nextPronounOptions);
-				setCachedPronounOptions(nextPronounOptions);
-			} catch {
-				if (!cachedGenders) {
-					setGenderOptions([]);
-				}
-				if (!cachedPronouns) {
-					setPronounOptions([]);
-				}
-			}
-		};
-
-		void loadManagedOptions();
-	}, [apiFunctions]);
-
-	useEffect(() => {
-		const cachedIds = getCachedBlockedProfileIds();
-		if (cachedIds) {
-			setBlockedProfileIds(cachedIds);
-			return;
-		}
-
-		let cancelled = false;
-		void apiFunctions
-			.getBlockedProfileIds()
-			.then((profileIds) => {
-				if (cancelled || !isMountedRef.current) {
-					return;
-				}
-				const nextIds = new Set(profileIds);
-				setBlockedProfileIds(nextIds);
-				setCachedBlockedProfileIds(nextIds);
-			})
-			.catch(() => {
-				if (!cancelled && isMountedRef.current) {
-					setBlockedProfileIds(new Set());
-				}
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [apiFunctions]);
 
 	useEffect(() => {
 		if (!userId) {
@@ -984,14 +923,8 @@ export function GridPage() {
 
 	const performBlockProfile = useCallback(
 		async (targetProfileId: string) => {
-			setMutatingBlockProfileId(targetProfileId);
 			try {
-				await apiFunctions.blockProfile(targetProfileId);
-				setBlockedProfileIds((prev) => {
-					const next = new Set(prev);
-					next.add(targetProfileId);
-					return next;
-				});
+				await blockProfileMutation(targetProfileId);
 				setCards((prev) => prev.filter((card) => card.profileId !== targetProfileId));
 				if (activeProfileId === targetProfileId) {
 					setActiveProfileId(null);
@@ -1003,23 +936,15 @@ export function GridPage() {
 						? error.message
 						: t("profile_details.block_failed"),
 				);
-			} finally {
-				setMutatingBlockProfileId(null);
 			}
 		},
-		[activeProfileId, apiFunctions, t],
+		[activeProfileId, blockProfileMutation, t],
 	);
 
 	const performUnblockProfile = useCallback(
 		async (targetProfileId: string) => {
-			setMutatingBlockProfileId(targetProfileId);
 			try {
-				await apiFunctions.unblockProfile(targetProfileId);
-				setBlockedProfileIds((prev) => {
-					const next = new Set(prev);
-					next.delete(targetProfileId);
-					return next;
-				});
+				await unblockProfileMutation(targetProfileId);
 				toast.success(t("profile_details.unblock_success"));
 			} catch (error) {
 				toast.error(
@@ -1027,16 +952,14 @@ export function GridPage() {
 						? error.message
 						: t("profile_details.unblock_failed"),
 				);
-			} finally {
-				setMutatingBlockProfileId(null);
 			}
 		},
-		[apiFunctions, t],
+		[unblockProfileMutation, t],
 	);
 
 	const handleBlockProfile = useCallback(
 		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
+			if (isBlockingProfile || isUnblockingProfile) {
 				return;
 			}
 
@@ -1048,10 +971,25 @@ export function GridPage() {
 			setDontAskAgainChecked(false);
 			setPendingProfileConfirm({ action: "block", profileId: targetProfileId });
 		},
-		[mutatingBlockProfileId, performBlockProfile, skipBlockConfirm],
+		[isBlockingProfile, isUnblockingProfile, performBlockProfile, skipBlockConfirm],
 	);
 
 	const handleUnblockProfile = useCallback(
+		async (targetProfileId: string) => {
+			if (isBlockingProfile || isUnblockingProfile) {
+				return;
+			}
+
+			if (skipUnblockConfirm) {
+				await performUnblockProfile(targetProfileId);
+				return;
+			}
+
+			setDontAskAgainChecked(false);
+			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+		},
+		[isBlockingProfile, isUnblockingProfile, performUnblockProfile, skipUnblockConfirm],
+	);
 		async (targetProfileId: string) => {
 			if (mutatingBlockProfileId) {
 				return;
@@ -1123,14 +1061,14 @@ export function GridPage() {
 	);
 
 	const handleCancelProfileConfirm = useCallback(() => {
-		if (mutatingBlockProfileId) {
+		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 		setPendingProfileConfirm(null);
-	}, [mutatingBlockProfileId]);
+	}, [isBlockingProfile, isUnblockingProfile]);
 
 	const handleConfirmProfileAction = useCallback(async () => {
-		if (!pendingProfileConfirm || mutatingBlockProfileId) {
+		if (!pendingProfileConfirm || isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 
@@ -1153,10 +1091,11 @@ export function GridPage() {
 		await performUnblockProfile(profileId);
 	}, [
 		dontAskAgainChecked,
-		mutatingBlockProfileId,
 		pendingProfileConfirm,
 		performBlockProfile,
 		performUnblockProfile,
+		isBlockingProfile,
+		isUnblockingProfile,
 	]);
 
 	return (
@@ -1641,9 +1580,7 @@ export function GridPage() {
 					activeProfileId && mutatingFavoriteProfileId === activeProfileId,
 				)}
 				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
-				isBlockingProfile={Boolean(
-					activeProfileId && mutatingBlockProfileId === activeProfileId,
-				)}
+				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				isTapBlocked={hasSentTapRecently}
@@ -1678,7 +1615,7 @@ export function GridPage() {
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
-				isProcessing={Boolean(mutatingBlockProfileId)}
+				isProcessing={isBlockingProfile || isUnblockingProfile}
 				confirmTone={
 					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
 				}

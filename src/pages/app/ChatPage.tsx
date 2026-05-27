@@ -22,6 +22,7 @@ import {
 } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useBlockProfile } from "../../hooks/queries/useProfileQueries";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
 import { type ChatApiError } from "../../services/chatService";
@@ -86,6 +87,7 @@ export function ChatPage() {
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const service = useApiFunctions();
+	const { mutateAsync: blockProfileMutation } = useBlockProfile();
 	const { userId } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -995,7 +997,7 @@ export function ChatPage() {
 					console.log(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
 					
 					if (blockId) {
-						service.blockProfile(String(blockId)).catch(() => {});
+						blockProfileMutation(String(blockId)).catch(() => {});
 					}
 
 					setThreadMessages([]);
@@ -1019,7 +1021,7 @@ export function ChatPage() {
 							const reason = isBadAge ? `Age limit (${profile.age})` : `Keyword in Bio`;
 							console.log(`[AutoBlock] Sweeping conversation due to: ${reason}`);
 							
-							service.blockProfile(String(blockId)).catch(() => {});
+							blockProfileMutation(String(blockId)).catch(() => {});
 							
 							setThreadMessages([]);
 							setThreadConversationId(null);
@@ -1983,7 +1985,7 @@ export function ChatPage() {
 			setIsBlockingProfileId(targetProfileId);
 
 			try {
-				await service.blockProfile(targetProfileId);
+				await blockProfileMutation(targetProfileId);
 				setConversations((previous) =>
 					previous.filter(
 						(conversation) =>
