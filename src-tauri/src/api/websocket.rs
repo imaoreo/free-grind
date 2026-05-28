@@ -7,7 +7,7 @@
 //! events. The frontend exposes a `WebSocket`-shaped wrapper around these
 //! commands so the existing `ChatRealtimeManager` keeps working unchanged.
 //!
-//! Heavy logging is intentional — every step prints with the `[ws]` prefix
+//! Heavy logging is intentional — every step prints with the `[HTTP-WS]` prefix
 //! so the dev console makes it obvious what is going on.
 
 use std::sync::Arc;
@@ -33,6 +33,8 @@ pub enum WsEvent {
     Open,
     Message { data: String },
     Binary { len: usize, data_b64: String },
+    Ping,
+    Pong,
     Close { code: u16, reason: String },
     Error { message: String },
 }
@@ -57,9 +59,15 @@ impl WsState {
     async fn shutdown(&self) {
         let mut guard = self.inner.lock().await;
         if let Some(conn) = guard.take() {
-            eprintln!("[ws] shutdown: dropping existing connection");
-            // Dropping the sender ends the writer task; abort the pump just in case.
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] shutdown: dropping existing connection");
+            // Dropping the sender ends the writer task; the pump will send Close frame and exit.
             drop(conn.sender);
+
+            // Give the old connection a moment to close gracefully on the server.
+            tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+
+            // Abort as a fallback only if it's still hanging.
             conn.pump.abort();
         }
     }
@@ -67,7 +75,8 @@ impl WsState {
 
 fn emit(app: &AppHandle, event: WsEvent) {
     if let Err(error) = app.emit(WS_EVENT, &event) {
-        eprintln!("[ws] failed to emit event: {error}");
+        #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] failed to emit event: {error}");
     }
 }
 
@@ -78,38 +87,71 @@ pub async fn ws_connect(
     ws_state: tauri::State<'_, Arc<WsState>>,
     url: String,
 ) -> Result<(), AppError> {
-    eprintln!("[ws] ws_connect requested for {url}");
+    #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] ws_connect requested for {url}");
 
     // Tear down anything that was already running.
     ws_state.shutdown().await;
 
     let client = state.client()?;
 
-    let authorization = client
-        .authorization_header()
-        .await
-        .ok_or_else(|| AppError::Auth("No active session for websocket".to_owned()))?;
+    // Ensure we have a fresh token before connecting
+    let _ = client.ensure_valid_session().await;
 
+    let session_id = {
+        let guard = client.session.read().await;
+        guard.as_ref().map(|s| s.session_id.clone())
+    }.ok_or_else(|| AppError::Auth("No active session for websocket".to_owned()))?;
+
+    // According to documentation, only User-Agent and Authorization are required.
+    let authorization = format!("Grindr3 {}", session_id);
     let user_agent = client.user_agent().to_owned();
-
     let cookies = client.cookie_header_for_base_url();
-    eprintln!(
-        "[ws] connecting (ua_len={}, auth_len={}, cookies={})",
-        user_agent.len(),
-        authorization.len(),
-        cookies.as_deref().map(|c| c.len()).unwrap_or(0),
-    );
+
+    // Ensure the URL uses the current fresh token, replacing any stale token from the frontend.
+    // This ensures that if REST just refreshed the token, the WS connection uses it immediately.
+    let final_url = match url::Url::parse(&url) {
+        Ok(mut parsed_url) => {
+            let params: Vec<(String, String)> = parsed_url.query_pairs().into_owned().collect();
+            let mut query = parsed_url.query_pairs_mut();
+            query.clear();
+            let mut token_seen = false;
+            for (k, v) in params {
+                if k == "token" {
+                    query.append_pair("token", &session_id);
+                    token_seen = true;
+                } else {
+                    query.append_pair(&k, &v);
+                }
+            }
+            if !token_seen {
+                query.append_pair("token", &session_id);
+            }
+            drop(query);
+            parsed_url.to_string()
+        }
+        Err(_) => url.clone(),
+    };
+
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("[HTTP-WS] connecting to: {}", final_url);
+        if let Some(ref c) = cookies {
+            eprintln!("[HTTP-WS] cookies: {}", c);
+        } else {
+            eprintln!("[HTTP-WS] no cookies found in store");
+        }
+    }
 
     let mut req_builder = Request::builder()
         .method("GET")
-        .uri(&url)
-        .header("Authorization", &authorization)
+        .uri(&final_url)
         .header("User-Agent", &user_agent)
+        .header("Authorization", &authorization)
         .header(
             "Host",
-            host_from_url(&url).unwrap_or_else(|| "grindr.mobi".into()),
+            host_from_url(&final_url).unwrap_or_else(|| "grindr.mobi".into()),
         )
-        .header("Origin", "https://grindr.mobi")
         .header("Connection", "Upgrade")
         .header("Upgrade", "websocket")
         .header("Sec-WebSocket-Version", "13")
@@ -122,6 +164,10 @@ pub async fn ws_connect(
         req_builder = req_builder.header("Cookie", cookie_str);
     }
 
+    // if let Some(cookie_str) = cookies {
+    //     req_builder = req_builder.header("Cookie", cookie_str);
+    // }
+
     let request = req_builder
         .body(())
         .map_err(|e| AppError::Http(format!("ws request build: {e}")))?;
@@ -129,7 +175,8 @@ pub async fn ws_connect(
     let (ws_stream, response) = match connect_async(request).await {
         Ok(pair) => pair,
         Err(error) => {
-            eprintln!("[ws] connect_async failed: {error}");
+            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] connect_async failed: {error}");
             emit(
                 &app,
                 WsEvent::Error {
@@ -140,8 +187,9 @@ pub async fn ws_connect(
         }
     };
 
+    #[cfg(debug_assertions)]
     eprintln!(
-        "[ws] handshake ok, status={} headers={}",
+        "[HTTP-WS] handshake ok, status={} headers={}",
         response.status(),
         response.headers().len()
     );
@@ -159,54 +207,65 @@ pub async fn ws_connect(
             tokio::select! {
                 outgoing = rx.recv() => {
                     let Some(msg) = outgoing else {
-                        eprintln!("[ws] writer channel closed, sending Close frame");
+                        #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] writer channel closed, sending Close frame");
                         let _ = writer.send(Message::Close(None)).await;
                         let _ = writer.close().await;
                         break;
                     };
                     let kind_label = describe(&msg);
                     if let Err(error) = writer.send(msg).await {
-                        eprintln!("[ws] write error ({kind_label}): {error}");
+                        #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] write error ({kind_label}): {error}");
                         emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
                         break;
                     }
-                    eprintln!("[ws] -> sent {kind_label}");
+                    #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] -> sent {kind_label}");
                 }
                 incoming = reader.next() => {
                     match incoming {
                         None => {
-                            eprintln!("[ws] stream ended");
+                            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] stream ended");
                             emit(&app_for_pump, WsEvent::Close { code: 1006, reason: "stream-ended".into() });
                             break;
                         }
                         Some(Err(error)) => {
-                            eprintln!("[ws] read error: {error}");
+                            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] read error: {error}");
                             emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
                             break;
                         }
                         Some(Ok(Message::Text(text))) => {
-                            eprintln!("[ws] <- text {} bytes", text.len());
+                            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] <- text {} bytes", text.len());
                             emit(&app_for_pump, WsEvent::Message { data: text });
                         }
                         Some(Ok(Message::Binary(bytes))) => {
-                            eprintln!("[ws] <- binary {} bytes", bytes.len());
+                            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] <- binary {} bytes", bytes.len());
                             let len = bytes.len();
                             // Base64 encode without an external crate.
                             let data_b64 = base64_encode(&bytes);
                             emit(&app_for_pump, WsEvent::Binary { len, data_b64 });
                         }
                         Some(Ok(Message::Ping(payload))) => {
-                            eprintln!("[ws] <- ping {} bytes (auto-pong)", payload.len());
-                            // tungstenite responds to Ping automatically when we keep polling.
+                            #[cfg(debug_assertions)]
+                            eprintln!("[HTTP-WS] <- ping {} bytes (auto-pong)", payload.len());
+                            emit(&app_for_pump, WsEvent::Ping);
                         }
                         Some(Ok(Message::Pong(payload))) => {
-                            eprintln!("[ws] <- pong {} bytes", payload.len());
+                            #[cfg(debug_assertions)]
+                            eprintln!("[HTTP-WS] <- pong {} bytes", payload.len());
+                            emit(&app_for_pump, WsEvent::Pong);
                         }
                         Some(Ok(Message::Close(frame))) => {
                             let (code, reason) = frame
                                 .map(|f| (u16::from(f.code), f.reason.to_string()))
                                 .unwrap_or((1000, String::new()));
-                            eprintln!("[ws] <- close code={code} reason={reason:?}");
+                            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] <- close code={code} reason={reason:?}");
                             emit(&app_for_pump, WsEvent::Close { code, reason });
                             break;
                         }
@@ -222,7 +281,8 @@ pub async fn ws_connect(
         let mut guard = ws_state_for_pump.inner.lock().await;
         if guard.is_some() {
             *guard = None;
-            eprintln!("[ws] pump exit, cleared connection slot");
+            #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] pump exit, cleared connection slot");
         }
     });
 
@@ -237,8 +297,9 @@ pub async fn ws_send(
     payload: String,
 ) -> Result<(), AppError> {
     let preview_len = payload.len().min(120);
+    #[cfg(debug_assertions)]
     eprintln!(
-        "[ws] ws_send {} bytes preview={:?}",
+        "[HTTP-WS] ws_send {} bytes preview={:?}",
         payload.len(),
         &payload[..preview_len]
     );
@@ -255,7 +316,8 @@ pub async fn ws_send(
 
 #[tauri::command]
 pub async fn ws_disconnect(ws_state: tauri::State<'_, Arc<WsState>>) -> Result<(), AppError> {
-    eprintln!("[ws] ws_disconnect requested");
+    #[cfg(debug_assertions)]
+    eprintln!("[HTTP-WS] ws_disconnect requested");
     ws_state.shutdown().await;
     Ok(())
 }

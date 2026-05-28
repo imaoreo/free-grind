@@ -1,7 +1,7 @@
 import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "../utils/cn";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
@@ -65,7 +65,12 @@ export function NavBar() {
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
-	
+
+	const pathRef = useRef(location.pathname);
+	useEffect(() => {
+		pathRef.current = location.pathname;
+	}, [location.pathname]);
+
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 	const [interestUnseen, setInterestUnseen] = useState(false);
@@ -123,10 +128,10 @@ export function NavBar() {
 
 	useEffect(() => {
 		let cancelled = false;
-		const isAtInbox = location.pathname.startsWith("/chat");
 
 		const refreshInboxState = async () => {
 			if (document.hidden) return;
+			const isAtInbox = pathRef.current.startsWith("/chat") || pathRef.current === "/settings/shared-albums";
 			try {
 				// Fetch the latest inbox summary to sync unread counts and global "seen" state
 				const response = await apiFunctions.listConversations({
@@ -175,6 +180,7 @@ export function NavBar() {
 		const intervalId = window.setInterval(refreshInboxState, 60_000);
 
 		const handleRealtime = (event: Event) => {
+			const isAtInbox = pathRef.current.startsWith("/chat") || pathRef.current === "/settings/shared-albums";
 			// If we are already looking at the inbox, suppress the dot immediately
 			if (isAtInbox) {
 				setInboxUnseen(false);
@@ -222,16 +228,23 @@ export function NavBar() {
 			window.removeEventListener(INBOX_SEEN_EVENT, onSeen as EventListener);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions, location.pathname, userId]);
+	}, [apiFunctions, userId]);
+
+	// Clear the inbox dot immediately when navigating to the chat section or shared albums
+	useEffect(() => {
+		if (location.pathname.startsWith("/chat") || location.pathname === "/settings/shared-albums") {
+			setInboxUnseen(false);
+		}
+	}, [location.pathname]);
 
 	// Track whether the Interest tab has anything new since the user last
 	// looked. Polls taps + views and listens for live tap events.
 	useEffect(() => {
 		let cancelled = false;
-		const isAtInterest = location.pathname.startsWith("/interest");
 
 		const refreshInterestUnseen = async () => {
 			if (document.hidden) return;
+			const isAtInterest = pathRef.current === "/interest";
 			try {
 				const [tapsResponse, viewsResponse] = await Promise.all([
 					apiFunctions.getTaps(),
@@ -292,6 +305,7 @@ export function NavBar() {
 		}, 60_000);
 
 		const onTap = () => {
+			const isAtInterest = pathRef.current === "/interest";
 			if (!isAtInterest) {
 				setInterestUnseen(true);
 			}
@@ -317,7 +331,14 @@ export function NavBar() {
 			);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions, location.pathname]);
+	}, [apiFunctions]);
+
+	// Clear the interest dot immediately when navigating to the interest section
+	useEffect(() => {
+		if (location.pathname === "/interest") {
+			setInterestUnseen(false);
+		}
+	}, [location.pathname]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);

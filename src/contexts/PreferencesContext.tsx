@@ -8,6 +8,7 @@ import {
 	useRef,
 } from "react";
 import z from "zod";
+import { appLog } from "../utils/logger";
 import { geohashSchema } from "../utils/geohash";
 import { UNIT_PRESETS, type UnitsPreset } from "../utils/units";
 
@@ -304,7 +305,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					applyTheme(parsed.colorScheme, parsed.accentColor, parsed.accentContrast);
 				}
 			} catch (error) {
-				console.error("Failed to load preferences:", error);
+				appLog.error("Failed to load preferences:", error);
 			} finally {
 				dispatch({ type: "SET_LOADING", payload: false });
 			}
@@ -343,7 +344,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			try {
 				preferencesSchema.parse(preferences);
 			} catch (e) {
-				console.error("Validation failed in setPreferences:", e);
+				appLog.error("Validation failed in setPreferences:", e);
 				throw e;
 			}
 

@@ -1,3 +1,5 @@
+import { appLog } from "../utils/logger";
+
 export const SAVED_PHRASES_STORAGE_KEY = "fg-saved-phrases";
 export const SAVED_PHRASES_UPDATED_EVENT = "fg:saved-phrases-updated";
 
@@ -32,7 +34,8 @@ export function loadSavedPhrases(): string[] {
 			parsed.filter((value): value is string => typeof value === "string"),
 		);
 		return normalized.length > 0 ? normalized : DEFAULT_SAVED_PHRASES;
-	} catch {
+	} catch (error) {
+		appLog.error("[savedPhrases] loadSavedPhrases failed", error);
 		return DEFAULT_SAVED_PHRASES;
 	}
 }

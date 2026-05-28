@@ -31,7 +31,7 @@ function shouldRedactKey(key: string): boolean {
 	return REDACT_KEY_PATTERN.test(key);
 }
 
-function redactUnknown(value: unknown, parentKey?: string): unknown {
+function redactUnknown(value: unknown, parentKey?: string, seen = new WeakSet()): unknown {
 	if (parentKey && shouldRedactKey(parentKey)) {
 		return REDACTED;
 	}
@@ -48,14 +48,20 @@ function redactUnknown(value: unknown, parentKey?: string): unknown {
 		return value;
 	}
 
-	if (Array.isArray(value)) {
-		return value.map((entry) => redactUnknown(entry));
-	}
-
 	if (typeof value === "object") {
+		// Prevent circular references
+		if (seen.has(value as object)) {
+			return "[Circular]";
+		}
+		seen.add(value as object);
+
+		if (Array.isArray(value)) {
+			return value.map((entry) => redactUnknown(entry, undefined, seen));
+		}
+
 		const output: Record<string, unknown> = {};
 		for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-			output[key] = redactUnknown(nested, key);
+			output[key] = redactUnknown(nested, key, seen);
 		}
 		return output;
 	}
@@ -72,16 +78,7 @@ function normalizeLogArg(value: unknown): unknown {
 		};
 	}
 
-	let serializable: unknown = value;
-	if (typeof value === "object" && value !== null) {
-		try {
-			serializable = JSON.parse(JSON.stringify(value));
-		} catch {
-			serializable = String(value);
-		}
-	}
-
-	return redactUnknown(serializable);
+	return redactUnknown(value);
 }
 
 function shouldCaptureForHistory(level: AppLogLevel): boolean {

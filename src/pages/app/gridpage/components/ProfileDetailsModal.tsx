@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
-import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	createBackdropCloseHandler,
@@ -40,7 +40,6 @@ import {
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
-import type { SharedAlbum } from "../../../../types/albums";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -70,16 +69,6 @@ type ProfileDetailsModalProps = {
 	chatContactStatus?: ChatContactIndexRecord | null;
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
-	profileSharedAlbums?: SharedAlbum[];
-	profileSharedMedia?: Array<{
-		id: string;
-		url: string;
-		type: "image" | "video";
-		timestamp: number;
-		albumId: number | null;
-	}>;
-	isLoadingSharedMedia?: boolean;
-	onOpenSharedAlbum?: (albumId: string) => void;
 	variant?: "modal" | "page";
 	onPrevProfile?: () => void;
 	onNextProfile?: () => void;
@@ -124,10 +113,6 @@ export function ProfileDetailsModal({
 	chatContactStatus,
 	genderOptions,
 	pronounOptions,
-	profileSharedAlbums = [],
-	profileSharedMedia = [],
-	isLoadingSharedMedia = false,
-	onOpenSharedAlbum,
 	variant = "modal",
 	onPrevProfile,
 	onNextProfile,
@@ -491,10 +476,6 @@ export function ProfileDetailsModal({
 								profileStatusLabel={profileStatusLabel}
 								profileDistance={profileDistance}
 								chatContactStatus={chatContactStatus ?? null}
-								profileSharedAlbums={profileSharedAlbums}
-								profileSharedMedia={profileSharedMedia}
-								isLoadingSharedMedia={isLoadingSharedMedia}
-								onOpenSharedAlbum={onOpenSharedAlbum}
 								messageProfileId={messageProfileId}
 								usesFreegrind={usesFreegrind ?? false}
 								onMessageProfile={onMessageProfile}
@@ -593,12 +574,8 @@ export function ProfileDetailsModal({
 							profileStatusLabel={profileStatusLabel}
 							profileDistance={profileDistance}
 							chatContactStatus={chatContactStatus ?? null}
-							profileSharedAlbums={profileSharedAlbums}
-							profileSharedMedia={profileSharedMedia}
-							isLoadingSharedMedia={isLoadingSharedMedia}
-							onOpenSharedAlbum={onOpenSharedAlbum}
 							messageProfileId={messageProfileId}
-							usesFreegrind={usesFreegrind ?? false}
+								usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}
 							onTapProfile={onTapProfile}
 							onBlockProfile={onBlockProfile}

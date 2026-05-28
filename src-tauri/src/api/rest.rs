@@ -10,6 +10,7 @@ use crate::state::AppState;
 
 use super::client::GrindrClient;
 use super::client::BASE_URL;
+use super::headers::build_headers;
 
 #[derive(Serialize, Deserialize)]
 pub struct RawResponse {
@@ -19,6 +20,29 @@ pub struct RawResponse {
 }
 
 impl GrindrClient {
+    pub(super) async fn ensure_valid_session(&self) -> Result<(), AppError> {
+        let needs_refresh = {
+            let session = self.session.read().await;
+            let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+            expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+        };
+
+        if needs_refresh {
+            let _lock = self.refresh_lock.lock().await;
+            // Double-check after acquiring lock
+            let still_needs_refresh = {
+                let session = self.session.read().await;
+                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+            };
+
+            if still_needs_refresh {
+                let _ = Box::pin(self.refresh_token()).await?;
+            }
+        }
+        Ok(())
+    }
+
     pub(super) async fn request_json<TReq, TResp>(
         &self,
         method: Method,
@@ -29,60 +53,96 @@ impl GrindrClient {
         TReq: Serialize + ?Sized,
         TResp: DeserializeOwned,
     {
-        let url = format!("{BASE_URL}{path}");
-        let mut request = self.http.request(method.clone(), &url);
+        let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
+        let url = if path.starts_with("http") {
+            path.to_owned()
+        } else {
+            format!("{BASE_URL}{path}")
+        };
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP] -> {} {}", method, url);
 
-        if let Some(body) = body {
-            request = request.json(body);
+        // Proactive refresh
+        if !is_auth_path {
+            let _ = self.ensure_valid_session().await;
         }
 
-        let started_at = std::time::Instant::now();
-        eprintln!("[REST] {} {}", method, url);
+        let device = self.device.read().await;
 
-        let response = request.send().await.map_err(|e| {
-            eprintln!("[REST] network error on {} {}: {e}", method, url);
+        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
+            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
+            let headers = if is_external {
+                let mut h = reqwest::header::HeaderMap::new();
+                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
+                h
+            } else {
+                build_headers(device, "Free", auth_token.as_deref())
+            };
+            let mut request = self.http.request(method.clone(), &url).headers(headers);
+            if let Some(body) = body {
+                request = request.json(body);
+            }
+            request
+        };
+
+        let auth_token = self.authorization_header().await;
+        let mut response = make_request(auth_token.clone(), &device).send().await.map_err(|e| {
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP] network error on {} {}: {e}", method, url);
             e
         })?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            eprintln!(
-                "[REST] error {} {} -> status={} body={} ({}ms)",
-                method,
-                url,
-                status,
-                text,
-                started_at.elapsed().as_millis()
-            );
+        if response.status().as_u16() == 401 && !is_auth_path {
+            let _lock = self.refresh_lock.lock().await;
 
+            // Check if the token has already been refreshed by someone else since our failed request
+            let current_token = self.authorization_header().await;
+            if current_token == auth_token {
+                let _ = Box::pin(self.refresh_token()).await;
+            }
+
+            let new_auth_token = self.authorization_header().await;
+            let device = self.device.read().await;
+            response = make_request(new_auth_token, &device).send().await.map_err(|e| {
+                #[cfg(debug_assertions)]
+                eprintln!("[HTTP] network error on {} {}: {e}", method, url);
+                e
+            })?;
+        }
+
+        let status = response.status();
+        let text = response.text().await.unwrap_or_default();
+
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[HTTP] <- {} {} | Status: {}",
+            method,
+            url,
+            status
+        );
+
+        if !status.is_success() {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP] error {} {} -> status={} body={}",
+                method, url, status, text
+            );
             let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
             let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
             let message = json
                 .get("message")
                 .and_then(|m| m.as_str())
-                .unwrap_or_else(|| {
-                    if text.is_empty() {
-                        "Unknown error"
-                    } else {
-                        &text
-                    }
-                })
+                .unwrap_or_else(|| if text.is_empty() { "Unknown error" } else { &text })
                 .to_owned();
 
             return Err(AppError::Api { code, message });
         }
 
-        let resp = response.json::<TResp>().await.map_err(|e| {
-            eprintln!("[REST] JSON decode error on {} {}: {e}", method, url);
+        let resp = serde_json::from_str::<TResp>(&text).map_err(|e| {
+            #[cfg(debug_assertions)]
+            eprintln!("[HTTP] JSON decode error on {} {}: {e}", method, url);
             AppError::from(e)
         })?;
-        eprintln!(
-            "[REST] {} {} -> 2xx ({}ms)",
-            method,
-            url,
-            started_at.elapsed().as_millis()
-        );
         Ok(resp)
     }
 
@@ -93,9 +153,22 @@ impl GrindrClient {
         body: Option<Vec<u8>>,
         content_type: Option<&str>,
     ) -> Result<RawResponse, AppError> {
-        let is_public_path = path.starts_with("/public/");
+        let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
+        let url = if path.starts_with("http") {
+            path.to_owned()
+        } else {
+            format!("{BASE_URL}{path}")
+        };
+        #[cfg(debug_assertions)]
+        eprintln!("[HTTP] -> {} {}", method, url);
 
-        let mut authorization = if is_public_path {
+        // Proactive refresh
+        if !is_auth_path {
+            let _ = self.ensure_valid_session().await;
+        }
+
+        let is_external = path.starts_with("http");
+        let auth_token = if is_auth_path || is_external {
             self.authorization_header().await
         } else {
             Some(
@@ -105,14 +178,18 @@ impl GrindrClient {
             )
         };
 
-        let make_request = |authorization: Option<&str>| {
-            let mut request = self
-                .http
-                .request(method.clone(), format!("{BASE_URL}{path}"));
+        let device = self.device.read().await;
 
-            if let Some(authorization) = authorization {
-                request = request.header("Authorization", authorization);
-            }
+        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
+            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
+            let headers = if is_external {
+                let mut h = reqwest::header::HeaderMap::new();
+                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
+                h
+            } else {
+                build_headers(device, "Free", auth_token.as_deref())
+            };
+            let mut request = self.http.request(method.clone(), &url).headers(headers);
 
             if let Some(body) = body.as_ref() {
                 request = request.body(body.clone());
@@ -127,15 +204,26 @@ impl GrindrClient {
             request
         };
 
-        let mut response = make_request(authorization.as_deref()).send().await?;
+        let mut response = make_request(auth_token.clone(), &device).send().await?;
+        #[cfg(debug_assertions)]
+        eprintln!(
+            "[HTTP] <- {} {} | Status: {}",
+            method,
+            url,
+            response.status()
+        );
 
-        if response.status().as_u16() == 401 && !is_public_path {
-            if self.refresh_token().await.is_ok() {
-                authorization = self.authorization_header().await;
-                if authorization.is_some() {
-                    response = make_request(authorization.as_deref()).send().await?;
-                }
+        if response.status().as_u16() == 401 && !is_auth_path {
+            let _lock = self.refresh_lock.lock().await;
+
+            let current_token = self.authorization_header().await;
+            if current_token == auth_token {
+                let _ = Box::pin(self.refresh_token()).await;
             }
+
+            let new_auth_token = self.authorization_header().await;
+            let device = self.device.read().await;
+            response = make_request(new_auth_token, &device).send().await?;
         }
 
         let status = response.status().as_u16();
@@ -153,13 +241,10 @@ pub async fn request(
     body: Option<Vec<u8>>,
     content_type: Option<String>,
 ) -> Result<Response, AppError> {
-    println!(
-        "Received request: {method} {path} with body of length {}",
-        body.as_ref().map(|b| b.len()).unwrap_or(0)
-    );
+    let method_str = method.clone();
     let method = Method::from_str(&method).map_err(|_| AppError::Api {
         code: 400,
-        message: format!("Invalid method: {method}"),
+        message: format!("Invalid method: {method_str}"),
     })?;
 
     let raw = state

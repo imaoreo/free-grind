@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useBlockedProfileIds, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import blankProfileImage from "../../images/blank-profile.png";
 
@@ -17,8 +18,11 @@ type BlockedProfileListItem = {
 export function SettingsBlockedPage() {
 	const { t } = useTranslation();
 	const apiFunctions = useApiFunctions();
+	const { data: blockedIdsData, isLoading: isLoadingIds, refetch: refetchIds } = useBlockedProfileIds();
+	const { mutateAsync: unblockProfileMutation, isPending: isUnblocking } = useUnblockProfile();
+
 	const [blockedProfiles, setBlockedProfiles] = useState<BlockedProfileListItem[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
+	const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [mutatingProfileId, setMutatingProfileId] = useState<string | null>(null);
 
@@ -65,15 +69,12 @@ export function SettingsBlockedPage() {
 		[t],
 	);
 
-	const loadBlockedProfiles = useCallback(
-		async (asRefresh = false) => {
-			if (!asRefresh) {
-				setIsLoading(true);
-			}
+	const loadBlockedProfileDetails = useCallback(
+		async (blockedIds: string[]) => {
+			setIsLoadingDetails(true);
 			setError(null);
 
 			try {
-				const blockedIds = await apiFunctions.getBlockedProfileIds();
 				if (blockedIds.length === 0) {
 					setBlockedProfiles([]);
 					return;
@@ -121,15 +122,19 @@ export function SettingsBlockedPage() {
 						: t("settings_blocked.error_load"),
 				);
 			} finally {
-				setIsLoading(false);
+				setIsLoadingDetails(false);
 			}
 		},
 		[apiFunctions, extractBlockedProfileMeta, t],
 	);
 
 	useEffect(() => {
-		void loadBlockedProfiles();
-	}, [loadBlockedProfiles]);
+		if (blockedIdsData) {
+			void loadBlockedProfileDetails(blockedIdsData);
+		}
+	}, [blockedIdsData, loadBlockedProfileDetails]);
+
+	const isLoading = isLoadingIds || isLoadingDetails;
 
 	const blockedCountLabel = useMemo(
 		() =>
@@ -140,7 +145,7 @@ export function SettingsBlockedPage() {
 	);
 
 	const handleUnblock = async (profileId: string) => {
-		if (mutatingProfileId) {
+		if (isUnblocking) {
 			return;
 		}
 
@@ -156,10 +161,8 @@ export function SettingsBlockedPage() {
 
 		setMutatingProfileId(profileId);
 		try {
-			await apiFunctions.unblockProfile(profileId);
-			setBlockedProfiles((prev) =>
-				prev.filter((profile) => profile.profileId !== profileId),
-			);
+			await unblockProfileMutation(profileId);
+			// The blockedProfiles state is updated via the useEffect above when blockedIdsData changes
 			toast.success(t("profile_details.unblock_success"));
 		} catch (unblockError) {
 			toast.error(
@@ -182,7 +185,7 @@ export function SettingsBlockedPage() {
 	return (
 		<PullToRefreshContainer
 			className="app-screen"
-			onRefresh={() => loadBlockedProfiles(true)}
+			onRefresh={() => refetchIds()}
 			isDisabled={isLoading}
 			refreshingLabel={t("settings_blocked.refreshing")}
 		>

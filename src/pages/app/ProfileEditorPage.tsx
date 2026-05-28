@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/useAuth";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
 import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
@@ -65,12 +66,18 @@ export function ProfileEditorPage() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-	const [genderOptions, setGenderOptions] = useState<
-		Array<{ value: number; label: string }>
-	>([]);
-	const [pronounOptions, setPronounOptions] = useState<
-		Array<{ value: number; label: string }>
-	>([]);
+
+	const { data: managedGenders } = useManagedGenders();
+	const { data: managedPronouns } = useManagedPronouns();
+
+	const genderOptions = useMemo(() => {
+		return managedGenders?.map((item) => ({ value: item.genderId, label: item.gender })) ?? [];
+	}, [managedGenders]);
+
+	const pronounOptions = useMemo(() => {
+		if (!userId) return [];
+		return managedPronouns?.map((item) => ({ value: item.pronounId, label: item.pronoun })) ?? [];
+	}, [managedPronouns, userId]);
 
 	const relationshipStatusLabels = useMemo<Record<number, string>>(
 		() => getRelationshipStatusLabelMap(t),
@@ -185,35 +192,10 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
-	const loadManagedOptions = useCallback(async () => {
-		try {
-			const genders = await apiFunctions.getManagedGenders();
-			setGenderOptions(
-				genders.map((item) => ({ value: item.genderId, label: item.gender })),
-			);
-
-			if (userId) {
-				const pronouns = await apiFunctions.getManagedPronouns();
-				setPronounOptions(
-					pronouns.map((item) => ({
-						value: item.pronounId,
-						label: item.pronoun,
-					})),
-				);
-			} else {
-				setPronounOptions([]);
-			}
-		} catch {
-			setGenderOptions([]);
-			setPronounOptions([]);
-		}
-	}, [apiFunctions, userId]);
-
 	useEffect(() => {
 		void loadProfile();
-		void loadManagedOptions();
 		void loadVisitingMode();
-	}, [loadManagedOptions, loadProfile, loadVisitingMode]);
+	}, [loadProfile, loadVisitingMode]);
 
 	useEffect(() => {
 		setDraft(profileToDraft(profile));

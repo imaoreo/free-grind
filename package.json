@@ -47,6 +47,7 @@
         "react-i18next": "^17.0.6",
         "react-leaflet": "^4.2.1",
         "react-router-dom": "^7",
+        "@tanstack/react-query": "^5.66.0",
         "tailwindcss": "^4.2.2",
         "tauri-plugin-hotswap-api": "^0.0.4",
         "zod": "^4.3.6"

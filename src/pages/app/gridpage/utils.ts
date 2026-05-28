@@ -6,6 +6,7 @@ import {
 	formatWeightForUnits,
 	type UnitsPreset,
 } from "../../../utils/units";
+import { formatRelativeTime } from "../../../utils/relativeTime";
 
 type AccountCreationAnchor = {
 	time: number;
@@ -247,31 +248,9 @@ export function formatTimeAgo(
 	timestamp: number | null | undefined,
 	t?: (key: string, options?: any) => string,
 ): string {
-	if (!timestamp || !Number.isFinite(timestamp)) {
-		return t ? t("browse_page.unknown") : "Unknown";
-	}
-
-	const diffMs = Date.now() - timestamp;
-	if (diffMs <= 0) {
-		return t ? t("browse_page.status_just_now") : "Just now";
-	}
-
-	const minute = 60 * 1000;
-	const hour = 60 * minute;
-	const day = 24 * hour;
-
-	if (diffMs < hour) {
-		const minutes = Math.max(1, Math.floor(diffMs / minute));
-		return t ? t("browse_page.status_minutes_ago", { count: minutes }) : `${minutes}m ago`;
-	}
-
-	if (diffMs < day) {
-		const hours = Math.max(1, Math.floor(diffMs / hour));
-		return t ? t("browse_page.status_hours_ago", { count: hours }) : `${hours}h ago`;
-	}
-
-	const days = Math.max(1, Math.floor(diffMs / day));
-	return t ? t("browse_page.status_days_ago", { count: days }) : `${days}d ago`;
+	const formatted = formatRelativeTime(timestamp);
+	if (!formatted && t) return t("browse_page.unknown");
+	return formatted || "Unknown";
 }
 
 export function formatOptionalNumber(

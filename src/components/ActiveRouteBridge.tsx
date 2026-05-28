@@ -11,6 +11,7 @@
 
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { appLog } from "../utils/logger";
 
 declare global {
 	interface Window {
@@ -24,7 +25,7 @@ function pushRoute(route: string | null): void {
 	try {
 		window.FreeGrindBridge?.setActiveRoute?.(route ?? "");
 	} catch (error) {
-		console.warn("[ActiveRouteBridge] push failed", error);
+		appLog.warn("[ActiveRouteBridge] push failed", error);
 	}
 }
 

@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
+import { appLog } from "../../../utils/logger";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
@@ -345,7 +346,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
 			setPendingLocationShare({ lat, lon });
 		} catch (error) {
-			console.error("Failed to decode geohash", error);
+			appLog.error("Failed to decode geohash", error);
 			toast.error(t("chat.errors.invalid_location", { defaultValue: "Invalid location format" }));
 		}
 	};
@@ -381,7 +382,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			await navigator.clipboard.writeText(content);
 			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
 		} catch (error) {
-			console.error("Copy failed", error);
+			appLog.error("Copy failed", error);
 		}
 		setOpenMessageActionId(null);
 	};

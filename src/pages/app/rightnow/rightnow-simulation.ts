@@ -1,4 +1,5 @@
 import type { RightNowCreatePostRequest, RightNowUpdatePostRequest } from "../../../services/apiFunctions";
+import { appLog } from "../../../utils/logger";
 import { getRightNowSessionDuration } from "./rightnow-constants";
 
 export async function simulateFetchActivePost(
@@ -9,7 +10,7 @@ export async function simulateFetchActivePost(
 	thumbnailUrl: string | null,
 	isHidden: boolean,
 ) {
-	console.log("Simulating GET Active RightNow Post");
+	appLog.info("Simulating GET Active RightNow Post");
 	await new Promise((resolve) => setTimeout(resolve, 800));
 
 	return {
@@ -24,7 +25,7 @@ export async function simulateFetchActivePost(
 }
 
 export async function simulateCreatePost(payload: RightNowCreatePostRequest) {
-	console.log("Simulating POST RightNow Post:", payload);
+	appLog.info("Simulating POST RightNow Post:", payload);
 	await new Promise((resolve) => setTimeout(resolve, 1500));
 
 	const mockId = Math.floor(Math.random() * 1000000);
@@ -37,19 +38,19 @@ export async function simulateCreatePost(payload: RightNowCreatePostRequest) {
 }
 
 export async function simulateUpdatePost(id: number, payload: RightNowUpdatePostRequest) {
-	console.log("Simulating PATCH RightNow Post:", id, payload);
+	appLog.info("Simulating PATCH RightNow Post:", id, payload);
 	await new Promise((resolve) => setTimeout(resolve, 1500));
 	return { success: true };
 }
 
 export async function simulateEndSession(id: number) {
-	console.log("Simulating DELETE RightNow Post:", id);
+	appLog.info("Simulating DELETE RightNow Post:", id);
 	await new Promise((resolve) => setTimeout(resolve, 1000));
 	return { success: true };
 }
 
 export async function simulateUploadMedia(file: File) {
-	console.log("Simulating RightNow Media Upload:", file.name);
+	appLog.info("Simulating RightNow Media Upload:", file.name);
 	await new Promise((resolve) => setTimeout(resolve, 1200));
 
 	return {

@@ -7,6 +7,8 @@ import { submitIssueReport } from "../../services/apiFunctions";
 import { useTranslation } from "react-i18next";
 import { collectIssueLogs, getIssueAppInfo } from "../../utils/issueTelemetry";
 
+import { useApi } from "../../hooks/useApi";
+
 type ReportType = "BUG" | "FEATURE";
 
 const REPORTER_DETAILS_STORAGE_KEY = "issue_form_reporter_details";
@@ -19,6 +21,7 @@ type StoredReporterDetails = {
 
 export function ReportIssuePage() {
   const { t } = useTranslation();
+  const { fetchRest } = useApi();
   const [searchParams] = useSearchParams();
   const bugOnly = searchParams.get("kind") === "bug";
   const [kind, setKind] = useState<ReportType>("BUG");
@@ -118,6 +121,7 @@ export function ReportIssuePage() {
           clientLogs,
         },
         t,
+        fetchRest
       );
 
       toast.success(t("issues_form.success", { id: result.id }));

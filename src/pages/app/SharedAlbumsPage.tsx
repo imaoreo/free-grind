@@ -12,7 +12,7 @@ import {
 	useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Avatar } from "../../components/ui/avatar";
 import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states";
 import { useAuth } from "../../contexts/useAuth";
@@ -54,7 +54,6 @@ function getCounterparty(
 export function SharedAlbumsPage() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const [searchParams, setSearchParams] = useSearchParams();
 	const { userId } = useAuth();
 	const { mobileGridColumns } = usePreferences();
 	const apiFunctions = useApiFunctions();
@@ -71,7 +70,6 @@ export function SharedAlbumsPage() {
 	const pageTouchStartXRef = useRef<number | null>(null);
 	const viewerHistoryPushedRef = useRef(false);
 	const fullScreenHistoryPushedRef = useRef(false);
-	const attemptedAutoOpenKeyRef = useRef<string | null>(null);
 	const minmaxValue = mobileGridColumns === "2" ? "130px" : "100px";
 
 	const loadSharedAlbums = useCallback(async () => {
@@ -365,6 +363,7 @@ export function SharedAlbumsPage() {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
 				event.preventDefault();
+				event.stopPropagation();
 				if (fullScreenIndex != null) {
 					closeFullScreen();
 				} else {
@@ -374,57 +373,15 @@ export function SharedAlbumsPage() {
 			}
 		};
 
-		window.addEventListener("keydown", onKeyDown);
+		window.addEventListener("keydown", onKeyDown, { capture: true });
 		return () => {
-			window.removeEventListener("keydown", onKeyDown);
+			window.removeEventListener("keydown", onKeyDown, { capture: true });
 		};
 	}, [
 		closeFullScreen,
 		closeViewer,
 		fullScreenIndex,
 		viewer,
-	]);
-
-	useEffect(() => {
-		if (isLoading || isOpeningAlbum || items.length === 0) {
-			return;
-		}
-
-		const openAlbumId = searchParams.get("openAlbumId");
-		if (!openAlbumId) {
-			return;
-		}
-
-		const openProfileId = searchParams.get("openProfileId");
-		const key = `${openAlbumId}:${openProfileId ?? ""}`;
-		if (attemptedAutoOpenKeyRef.current === key) {
-			return;
-		}
-		attemptedAutoOpenKeyRef.current = key;
-
-		const match = items.find((item) => {
-			const albumMatches = String(item.album.albumId) === openAlbumId;
-			const profileMatches = openProfileId
-				? String(item.profileId) === openProfileId
-				: true;
-			return albumMatches && profileMatches;
-		});
-
-		const nextParams = new URLSearchParams(searchParams);
-		nextParams.delete("openAlbumId");
-		nextParams.delete("openProfileId");
-		setSearchParams(nextParams, { replace: true });
-
-		if (match) {
-			void openViewer(match);
-		}
-	}, [
-		isLoading,
-		isOpeningAlbum,
-		items,
-		openViewer,
-		searchParams,
-		setSearchParams,
 	]);
 
 	return (

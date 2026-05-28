@@ -125,6 +125,7 @@ export function PhotoViewer({
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
+				event.stopPropagation();
 				onClose();
 				return;
 			}
@@ -137,8 +138,8 @@ export function PhotoViewer({
 			}
 		};
 
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
+		window.addEventListener("keydown", handleKeyDown, { capture: true });
+		return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
 	}, [isOpen, onClose, showPreviousPhoto, showNextPhoto]);
 
 	if (!isOpen || photos.length === 0) return null;
