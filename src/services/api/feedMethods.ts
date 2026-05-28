@@ -15,7 +15,7 @@ import {
 	rightNowEntitlementsSchema,
 } from "../../types/right-now";
 
-export function createFeedMethods(fetchRest: RestFetcher, t: (key: string) => string) {
+export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defaultValue?: string) => string) {
 	return {
 		async getEntitlements(): Promise<RightNowEntitlements> {
 			const url = "/v1/entitlements";
