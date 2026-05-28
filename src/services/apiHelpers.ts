@@ -35,13 +35,16 @@ export async function assertSuccess(response: RestResponse | Response, fallbackM
 	}
 
 	const payload = await parseJsonSafe(response);
-	const message =
-		typeof payload === "object" &&
-		payload !== null &&
-		"message" in payload &&
-		typeof (payload as { message?: unknown }).message === "string"
-			? ((payload as { message: string }).message || fallbackMessage)
-			: fallbackMessage;
+	let message = fallbackMessage;
+
+	if (payload && typeof payload === "object") {
+		const p = payload as Record<string, unknown>;
+		if (typeof p.message === "string" && p.message) {
+			message = p.message;
+		} else if (typeof p.error === "string" && p.error) {
+			message = p.error;
+		}
+	}
 
 	throw new ApiFunctionError(message, status, payload);
 }
