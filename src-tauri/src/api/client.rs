@@ -1,7 +1,7 @@
 use reqwest::Client;
 use reqwest_cookie_store::CookieStoreMutex;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Mutex};
 use url::Url;
 
 use crate::error::AppError;
@@ -18,6 +18,7 @@ pub struct GrindrClient {
     #[allow(dead_code)]
     pub(super) cookie_store: Arc<CookieStoreMutex>,
     pub(super) device: RwLock<DeviceInfo>,
+    pub(super) refresh_lock: Mutex<()>,
 }
 
 impl GrindrClient {
@@ -125,6 +126,7 @@ impl GrindrClient {
             user_agent,
             cookie_store,
             device: RwLock::new(device),
+            refresh_lock: Mutex::new(()),
         })
     }
 }

@@ -20,6 +20,29 @@ pub struct RawResponse {
 }
 
 impl GrindrClient {
+    pub(super) async fn ensure_valid_session(&self) -> Result<(), AppError> {
+        let needs_refresh = {
+            let session = self.session.read().await;
+            let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+            expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+        };
+
+        if needs_refresh {
+            let _lock = self.refresh_lock.lock().await;
+            // Double-check after acquiring lock
+            let still_needs_refresh = {
+                let session = self.session.read().await;
+                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
+                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
+            };
+
+            if still_needs_refresh {
+                let _ = Box::pin(self.refresh_token()).await?;
+            }
+        }
+        Ok(())
+    }
+
     pub(super) async fn request_json<TReq, TResp>(
         &self,
         method: Method,
@@ -39,17 +62,9 @@ impl GrindrClient {
         #[cfg(debug_assertions)]
         eprintln!("[HTTP] -> {} {}", method, url);
 
-        // Proaktiver Refresh: Wenn der Token bald abläuft (innerhalb von 60s)
+        // Proactive refresh
         if !is_auth_path {
-            let needs_refresh = {
-                let session = self.session.read().await;
-                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
-                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
-            };
-            if needs_refresh {
-                // Box::pin bricht die statische Rekursion für den Compiler auf
-                let _ = Box::pin(self.refresh_token()).await;
-            }
+            let _ = self.ensure_valid_session().await;
         }
 
         let device = self.device.read().await;
@@ -71,22 +86,28 @@ impl GrindrClient {
         };
 
         let auth_token = self.authorization_header().await;
-        let mut response = make_request(auth_token, &device).send().await.map_err(|e| {
+        let mut response = make_request(auth_token.clone(), &device).send().await.map_err(|e| {
             #[cfg(debug_assertions)]
             eprintln!("[HTTP] network error on {} {}: {e}", method, url);
             e
         })?;
 
         if response.status().as_u16() == 401 && !is_auth_path {
-            if Box::pin(self.refresh_token()).await.is_ok() {
-                let new_auth_token = self.authorization_header().await;
-                let device = self.device.read().await;
-                response = make_request(new_auth_token, &device).send().await.map_err(|e| {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[HTTP] network error on {} {}: {e}", method, url);
-                    e
-                })?;
+            let _lock = self.refresh_lock.lock().await;
+
+            // Check if the token has already been refreshed by someone else since our failed request
+            let current_token = self.authorization_header().await;
+            if current_token == auth_token {
+                let _ = Box::pin(self.refresh_token()).await;
             }
+
+            let new_auth_token = self.authorization_header().await;
+            let device = self.device.read().await;
+            response = make_request(new_auth_token, &device).send().await.map_err(|e| {
+                #[cfg(debug_assertions)]
+                eprintln!("[HTTP] network error on {} {}: {e}", method, url);
+                e
+            })?;
         }
 
         let status = response.status();
@@ -141,16 +162,9 @@ impl GrindrClient {
         #[cfg(debug_assertions)]
         eprintln!("[HTTP] -> {} {}", method, url);
 
-        // Proaktiver Refresh
+        // Proactive refresh
         if !is_auth_path {
-            let needs_refresh = {
-                let session = self.session.read().await;
-                let expires_at = session.as_ref().map(|s| s.expires_at).unwrap_or(0);
-                expires_at > 0 && expires_at < (chrono::Utc::now().timestamp() as u64 + 60)
-            };
-            if needs_refresh {
-                let _ = Box::pin(self.refresh_token()).await;
-            }
+            let _ = self.ensure_valid_session().await;
         }
 
         let is_external = path.starts_with("http");
@@ -200,11 +214,16 @@ impl GrindrClient {
         );
 
         if response.status().as_u16() == 401 && !is_auth_path {
-            if Box::pin(self.refresh_token()).await.is_ok() {
-                let new_auth_token = self.authorization_header().await;
-                let device = self.device.read().await;
-                response = make_request(new_auth_token, &device).send().await?;
+            let _lock = self.refresh_lock.lock().await;
+
+            let current_token = self.authorization_header().await;
+            if current_token == auth_token {
+                let _ = Box::pin(self.refresh_token()).await;
             }
+
+            let new_auth_token = self.authorization_header().await;
+            let device = self.device.read().await;
+            response = make_request(new_auth_token, &device).send().await?;
         }
 
         let status = response.status().as_u16();

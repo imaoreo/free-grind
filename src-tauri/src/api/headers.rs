@@ -1,8 +1,8 @@
 use rand;
 use reqwest::header::{HeaderMap, HeaderValue};
 
-const APP_VERSION: &str = "26.7.0.159416";
-const BUILD_NUMBER: &str = "159416";
+const APP_VERSION: &str = "26.9.1.163471";
+const BUILD_NUMBER: &str = "163471";
 const TIMEZONE: &str = "Europe/Madrid";
 
 #[derive(Clone, Debug)]
