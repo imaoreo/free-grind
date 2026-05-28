@@ -24,6 +24,10 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
     }
 }
 
+let cachedKeywords: string[] = [];
+let cachedRegex: RegExp | null = null;
+let lastSavedWords: string | null = null;
+
 // NEW: Returns the exact word that triggered the block
 export function getMatchedForbiddenWord(text: string | null | undefined, context: "grid" | "chat"): string | null {
     if (!text) return null;
@@ -33,24 +37,37 @@ export function getMatchedForbiddenWord(text: string | null | undefined, context
     if (context === "grid" && !isGridEnabled) return null;
     if (context === "chat" && !isChatEnabled) return null;
 
-    const savedWords = window.localStorage.getItem("fg-forbidden-words");
-    if (!savedWords || savedWords.trim() === "") return null;
-
-    const keywords = savedWords.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
-    if (keywords.length === 0) return null;
-
-    const lowerText = text.toLowerCase();
+    const savedWords = window.localStorage.getItem("fg-forbidden-words") || "";
     
-    for (const keyword of keywords) {
-        // Escape special characters so emojis and punctuation don't break the scanner
-        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // This Regex ensures it only matches the exact word/phrase, not partial words like "bottle"
-        const regex = new RegExp(`(?:^|\\W)${escaped}(?:$|\\W)`, 'i');
+    // Cache logic: only re-compile regex if keywords changed
+    if (savedWords !== lastSavedWords) {
+        lastSavedWords = savedWords;
+        cachedKeywords = savedWords.split(',')
+            .map(word => word.trim().toLowerCase())
+            .filter(word => word.length > 0);
         
-        if (regex.test(lowerText)) {
-            return keyword;
+        if (cachedKeywords.length > 0) {
+            // Sort by length descending to ensure "Snapchat" matches before "Snap"
+            const sortedKeywords = [...cachedKeywords].sort((a, b) => b.length - a.length);
+            const pattern = sortedKeywords
+                .map(keyword => keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                .join('|');
+            // Using a capturing group for the keywords and non-capturing groups for boundaries
+            cachedRegex = new RegExp(`(?:^|\\W)(${pattern})(?:$|\\W)`, 'i');
+        } else {
+            cachedRegex = null;
         }
     }
+
+    if (!cachedRegex) return null;
+
+    const lowerText = text.toLowerCase();
+    const match = lowerText.match(cachedRegex);
+    if (match) {
+        // Return the first captured group (the actual keyword)
+        return match[1];
+    }
+
     return null;
 }
 
