@@ -179,6 +179,14 @@ export function BrowseFiltersPage() {
 			[t],
 		);
 
+	const localFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> =
+		useMemo(
+			() => [
+				{ key: "isVisiting", label: t("browse_filters.local_filters.is_visiting") },
+			],
+			[t],
+		);
+
 	const tribeFilterOptions = useMemo<ManagedOption[]>(
 		() => getTribeOptions(t),
 		[t],
@@ -528,6 +536,34 @@ export function BrowseFiltersPage() {
 								))}
 							</div>
 						) : null}
+					</div>
+
+					<div className="border-t border-[var(--border)] pt-4">
+						<p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+							{t("browse_filters.local_filters.title")}
+						</p>
+						<p className="mt-1 text-[10px] text-[var(--text-muted)]">
+							{t("browse_filters.local_filters.description")}
+						</p>
+						<div className="mt-2 flex flex-wrap gap-2">
+							{localFilterOptions.map((filter) => {
+								const active = browseFilters[filter.key];
+								return (
+									<button
+										key={filter.key}
+										type="button"
+										onClick={() => toggleBrowseFilter(filter.key)}
+										className={`rounded-full border px-3 py-1 font-medium transition ${
+											active
+												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+												: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										{filter.label}
+									</button>
+								);
+							})}
+						</div>
 					</div>
 
 					<div className="flex items-center justify-between border-t border-[var(--border)] pt-4">

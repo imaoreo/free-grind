@@ -1,7 +1,10 @@
 import {
 	Ban,
 	ChevronDown,
+	ChevronLeft,
 	Ellipsis,
+    Eye,
+    EyeOff,
 	Heart,
 	Hourglass,
 	ImagePlus,
@@ -25,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
+import { appLog } from "../../../utils/logger";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
@@ -43,11 +47,19 @@ import {
 	getOtherParticipant,
 	getParticipantAvatarUrl,
 	getParticipantOnlineMeta,
+	getMessageImageUrl,
+	getMessageVideoUrl,
+	getMessageAudioUrl,
 } from "./chatUtils";
 import { formatDistance } from "../gridpage/utils";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
-
+import { useApiFunctions } from "../../../hooks/useApiFunctions";
+import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
+import {
+	loadSavedPhrases,
+	SAVED_PHRASES_UPDATED_EVENT,
+} from "../../../services/savedPhrases";
 
 type ChatThreadPanelProps = {
 	navigate: NavigateFunction;
@@ -157,6 +169,7 @@ const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
+    const apiFunctions = useApiFunctions();
 	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
@@ -171,6 +184,31 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
 	});
+
+	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
+
+	const handleUsePhrase = (phrase: string) => {
+		setDraft(draft ? `${draft} ${phrase}` : phrase);
+	};
+
+	useEffect(() => {
+		const syncSavedPhrases = (event: Event) => {
+			const detail = (event as CustomEvent<string[]>).detail;
+			if (Array.isArray(detail)) {
+				setSavedPhrases(detail);
+				return;
+			}
+			setSavedPhrases(loadSavedPhrases());
+		};
+
+		window.addEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+		window.addEventListener("storage", syncSavedPhrases);
+
+		return () => {
+			window.removeEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+			window.removeEventListener("storage", syncSavedPhrases);
+		};
+	}, []);
 
 	const {
 		navigate,
@@ -270,6 +308,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onSendLocation,
 	} = props;
 
+    const [showGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
+    const [isGhosted, setIsGhosted] = useState(true);
+
+    useEffect(() => {
+        if (selectedConversation) {
+            setIsGhosted(isChatGhosted(selectedConversation.data.conversationId));
+        }
+    }, [selectedConversation]);
+
 	const closeBlockConfirm = () => {
 		if (isBlockingProfile) {
 			return;
@@ -299,7 +346,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
 			setPendingLocationShare({ lat, lon });
 		} catch (error) {
-			console.error("Failed to decode geohash", error);
+			appLog.error("Failed to decode geohash", error);
 			toast.error(t("chat.errors.invalid_location", { defaultValue: "Invalid location format" }));
 		}
 	};
@@ -335,7 +382,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			await navigator.clipboard.writeText(content);
 			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
 		} catch (error) {
-			console.error("Copy failed", error);
+			appLog.error("Copy failed", error);
 		}
 		setOpenMessageActionId(null);
 	};
@@ -492,6 +539,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<div
 								className={`min-w-0 flex items-center gap-3 ${!isDesktop ? "pl-0" : ""}`}
 							>
+                                {!isDesktop && (
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate("/chat")}
+                                        className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+                                        aria-label={t("browse_location.back_aria")}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </button>
+                                )}
 								<button
 									type="button"
 									onClick={() => {
@@ -546,13 +603,43 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								{isDesktop && (
-									<>
-										<button
-											type="button"
-											onClick={() => {
-												if (!otherParticipant || !onToggleFavorite) return;
-												void onToggleFavorite(otherParticipant.profileId, isFavorite);
+            {isDesktop && (
+                <>
+                    {showGhostButton && selectedConversation && (
+                        <button
+                            type="button"
+                            onClick={() => {
+ 												const newState = toggleChatGhost(selectedConversation.data.conversationId);
+ 												setIsGhosted(newState);
+ 												
+ 												// If turning Ghost Mode OFF, instantly mark the last message as read!
+ 												if (!newState) {
+ 													const lastMsg = threadMessages[threadMessages.length - 1];
+ 													if (lastMsg) {
+ 														// Tell the server
+ 														apiFunctions.markRead(selectedConversation.data.conversationId, lastMsg.messageId).catch(() => {});
+ 														// Refresh the thread to clear the bold text locally
+ 														loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
+ 													}
+ 												}
+ 												toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF. They will see read receipts.");
+ 											}}
+                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                                isGhosted
+                                    ? "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                                    : "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
+                            }`}
+                            title={isGhosted ? "Ghost Mode ON (Hidden)" : "Ghost Mode OFF (Visible)"}
+                        >
+                            {isGhosted ? <EyeOff className="mr-1 inline h-3.5 w-3.5" /> : <Eye className="mr-1 inline h-3.5 w-3.5" />}
+                            {isGhosted ? "Ghosting" : "Reading"}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!otherParticipant || !onToggleFavorite) return;
+                            void onToggleFavorite(otherParticipant.profileId, isFavorite);
 											}}
 											disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
 											className={`rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60 ${
@@ -612,7 +699,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									{isHeaderActionsMenuOpen ? (
 										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-											<button
+                                            <button
 												type="button"
 												onClick={() => {
 													setIsHeaderActionsMenuOpen(false);
@@ -628,6 +715,81 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<User className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.view_profile")}
 											</button>
+
+                                            {/* --- MOBILE GHOST TOGGLE --- */}
+											{!isDesktop && showGhostButton && selectedConversation && (
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														const newState = toggleChatGhost(selectedConversation.data.conversationId);
+														setIsGhosted(newState);
+														toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF.");
+													}}
+													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition ${
+														isGhosted ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+													}`}
+												>
+													{isGhosted ? <EyeOff className="mr-2 h-4 w-4 opacity-70" /> : <Eye className="mr-2 h-4 w-4 opacity-70" />}
+													{isGhosted ? "Ghosting (Hidden)" : "Reading (Visible)"}
+												</button>
+											)}
+											{/* --------------------------- */}
+                                            
+                                            {/* --- BAN PROFILE NAME --- */}
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+													const newList = currentList ? `${currentList}, ${displayName}` : displayName;
+													window.localStorage.setItem("fg-forbidden-words", newList);
+													toast.success(`Added "${displayName}" to Forbidden Keywords!`);
+												}}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												Ban Name "{displayName}"
+											</button>
+											{/* ------------------------ */}
+
+                                            {/* --- BAN PROFILE BIO --- */}
+											<button
+												type="button"
+												onClick={async () => {
+													setIsHeaderActionsMenuOpen(false);
+													if (!otherParticipant) return;
+													
+													const loadToast = toast.loading("Loading bio...");
+													try {
+														const profile = await apiFunctions.getProfileDetail(String(otherParticipant.profileId));
+														toast.dismiss(loadToast);
+														
+														const bio = profile.aboutMe || "";
+														if (!bio.trim()) {
+															toast.error("This user has no bio!");
+															return;
+														}
+
+														const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
+														if (wordToBan && wordToBan.trim()) {
+															const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+															const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+															window.localStorage.setItem("fg-forbidden-words", newList);
+															toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+														}
+													} catch (e) {
+														toast.dismiss(loadToast);
+														toast.error("Failed to load bio.");
+													}
+												}}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												Ban Bio Phrase
+											</button>
+											{/* ----------------------- */}
+
 											<button
 												type="button"
 												onClick={() => {
@@ -837,7 +999,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						<div className="mb-2 flex flex-wrap items-center gap-2">
 							<button
 								type="button"
-								onClick={toggleAlbumPicker}
+								onClick={() => {
+									toggleAlbumPicker();
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								aria-label={t("chat.share_album_label")}
 								title={t("chat.share_album_label")}
@@ -846,7 +1012,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={() => attachmentInputRef.current?.click()}
+								onClick={() => {
+									attachmentInputRef.current?.click();
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								disabled={isUploadingAttachment}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.attach_media")}
@@ -856,7 +1026,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={toggleDrawer}
+								onClick={() => {
+									toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								aria-label={t("chat.drawer_label")}
 								title={t("chat.drawer_label")}
@@ -865,7 +1038,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={handleLocationShareRequest}
+								onClick={() => {
+									handleLocationShareRequest();
+									if (isDrawerOpen) toggleDrawer();
+								}}
 								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
 									pendingLocationShare
 										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
@@ -880,6 +1056,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<MapPin className="h-4 w-4" />
 								)}
 							</button>
+
 							<input
 								type="file"
 								ref={attachmentInputRef}
@@ -887,6 +1064,23 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								accept="image/*,video/*"
 								className="hidden"
 							/>
+
+							{/* --- QUICK PHRASE PILLS --- */}
+							{savedPhrases.length > 0 && (
+								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									{savedPhrases.map((phrase, idx) => (
+										<button
+											key={idx}
+											type="button"
+											onClick={() => handleUsePhrase(phrase)}
+											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+										>
+											{phrase}
+										</button>
+									))}
+								</div>
+							)}
+							{/* -------------------------- */}
 						</div>
 
 						{pendingLocationShare ? (
@@ -902,6 +1096,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
 										onError={(msg) => toast.error(msg)}
 										className="h-full w-full"
+										defaultZoom={18}
 									/>
 								</div>
 							</div>
@@ -1059,7 +1254,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="submit"
 								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-								className="btn-accent h-11 shrink-0 px-4 text-sm"
+								className="btn-accent self-stretch shrink-0 px-4 text-sm"
 							>
 								{isSending ? t("chat.sending") : t("chat.send")}
 							</button>
@@ -1097,21 +1292,74 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</p>
 								<div className="grid gap-2">
 									{(() => {
-										const loc = getMessageLocation(selectedActionMessage);
-										const body = selectedActionMessage.body as any;
-										const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
-										if (!loc && !hasText) return null;
+    const loc = getMessageLocation(selectedActionMessage);
+    const body = selectedActionMessage.body as any;
+    const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+    if (!loc && !hasText) return null;
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => void handleCopy(selectedActionMessage)}
+                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+            >
+                {t("chat.actions.copy", { defaultValue: "Copy" })}
+            </button>
+
+            {hasText && !selectedActionMessageMine ? (
+                <button
+                    type="button"
+                    onClick={() => {
+                        const body = selectedActionMessage.body as any;
+                        const wordToBan = window.prompt("Trim this message down to the specific keyword you want to ban:", body?.text || "");
+                        if (wordToBan && wordToBan.trim()) {
+                            const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+                            const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+                            window.localStorage.setItem("fg-forbidden-words", newList);
+                            toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+                            setOpenMessageActionId(null);
+                        }
+                    }}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+                >
+                    <Ban className="mr-2 h-4 w-4 inline opacity-70" /> Add to Forbidden Keywords
+                </button>
+            ) : null}
+        </>
+    );
+})()}
+
+                                    {/* --- DOWNLOAD BUTTON (MOBILE) --- */}
+									{(() => {
+										const imageUrl = getMessageImageUrl(selectedActionMessage);
+										const videoUrl = getMessageVideoUrl(selectedActionMessage);
+										const audioUrl = getMessageAudioUrl(selectedActionMessage);
+										const mediaUrl = imageUrl || videoUrl || audioUrl;
+										
+										if (!mediaUrl) return null;
 
 										return (
 											<button
 												type="button"
-												onClick={() => void handleCopy(selectedActionMessage)}
+												onClick={() => {
+													const a = document.createElement("a");
+													a.href = mediaUrl;
+													a.download = `media-${Date.now()}`;
+													a.target = "_blank";
+													document.body.appendChild(a);
+													a.click();
+													document.body.removeChild(a);
+													setOpenMessageActionId(null);
+												}}
 												className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
 											>
-												{t("chat.actions.copy", { defaultValue: "Copy" })}
+												Download Media
 											</button>
 										);
 									})()}
+									{/* -------------------------------- */}
+
 									<button
 										type="button"
 										onClick={() => void handleReply(selectedActionMessage)}
@@ -1236,54 +1484,174 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		</div>
 	) : targetProfileId ? (
 		<div
-			className={`flex h-full flex-col overflow-hidden p-3 sm:p-4 ${
-				isDesktop ? "surface-card" : ""
-			}`}
-		>
-			<div className="mb-3 border-b border-[var(--border)] pb-3">
-				<p className="text-lg font-semibold">{t("chat.new_conversation.title")}</p>
-				<p className="text-sm text-[var(--text-muted)]">
-					{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
-				</p>
-			</div>
-			<div className="flex-1" />
+            className={`flex h-full flex-col overflow-hidden ${!isDesktop ? "overflow-hidden p-0" : "p-3 sm:p-4"} ${
+                isDesktop ? "surface-card" : ""
+            }`}
+            style={
+                !isDesktop
+                    ? {
+                        height:
+                            "calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+                    }
+                    : undefined
+            }
+        >
+            <div
+                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+                style={
+                    !isDesktop
+                        ? {
+                            top: 0,
+                            paddingTop:
+                                "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
+                        }
+                        : undefined
+                }
+            >
+                <div className="min-w-0 flex items-center gap-3">
+                    {!isDesktop && (
+                        <button
+                            type="button"
+                            onClick={() => navigate("/")}
+                            className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+                            aria-label={t("browse_location.back_aria")}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                    )}
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+                        <User className="h-5 w-5 text-[var(--text-muted)]" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="truncate text-lg font-semibold text-[var(--text-muted)]">
+                            {t("chat.new_conversation.title")}
+                        </p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                            {t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        disabled
+                        className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        aria-label="Open conversation actions"
+                    >
+                        <Ellipsis className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]">
+                    <MessageCircleOff className="h-6 w-6 opacity-50" />
+                </div>
+                <div>
+                    <p className="text-sm font-medium text-[var(--text-muted)]">
+                        {t("chat.new_conversation.no_messages_yet", { defaultValue: "No messages yet" })}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--text-muted)] opacity-70">
+                        {t("chat.new_conversation.send_first_message_hint", { defaultValue: "Send a message below to start the conversation." })}
+                    </p>
+                </div>
+            </div>
+
 			<form
 				onSubmit={onFormSubmit}
-				className="border-t border-[var(--border)] pt-3"
-			>
+				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+                style={
+                    !isDesktop
+                        ? {
+                            bottom: `${mobileKeyboardInset}px`,
+                            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
+                        }
+                        : undefined
+                }
+            >
 				<div className="mb-2 flex flex-wrap items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+							toggleAlbumPicker();
+							if (isDrawerOpen) toggleDrawer();
+							if (pendingLocationShare) handleLocationShareRequest();
+						}}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        aria-label={t("chat.share_album_label")}
+                        title={t("chat.share_album_label")}
+                    >
+                        <Share2 className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+							attachmentInputRef.current?.click();
+							if (isDrawerOpen) toggleDrawer();
+							if (pendingLocationShare) handleLocationShareRequest();
+						}}
+                        disabled={isUploadingAttachment}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                        aria-label={t("chat.attach_media")}
+                        title={t("chat.attach_media")}
+                    >
+                        <ImagePlus className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        disabled
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        aria-label={t("chat.drawer_label")}
+                        title={t("chat.drawer_unavailable", { defaultValue: "Send a message first to use the drawer" })}
+                    >
+                        <SquareStack className="h-4 w-4" />
+                    </button>
 					<button
-						type="button"
-						onClick={() => attachmentInputRef.current?.click()}
-						disabled={isUploadingAttachment}
-						className="rounded-xl border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-					>
-							<ImagePlus className="mr-1 inline h-3.5 w-3.5" /> {t("chat.attach_media")}
-					</button>
-					<button
-						type="button"
-						onClick={handleLocationShareRequest}
-						className={`rounded-xl border px-3 py-1.5 text-xs transition ${
-							pendingLocationShare
-								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-						}`}
-					>
-						{pendingLocationShare ? (
-							<X className="mr-1 inline h-3.5 w-3.5" />
-						) : (
-							<MapPin className="mr-1 inline h-3.5 w-3.5" />
-						)}
-						{t("chat.share_location_label", { defaultValue: "Share Location" })}
-					</button>
-					<input
-						type="file"
-						ref={attachmentInputRef}
-						onChange={onAttachmentInput}
-						accept="image/*,video/*"
-						className="hidden"
-					/>
-				</div>
+                        type="button"
+                        onClick={() => {
+							handleLocationShareRequest();
+							if (isDrawerOpen) toggleDrawer();
+						}}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+                            pendingLocationShare
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        }`}
+                        aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                        title={t("chat.share_location_label", { defaultValue: "Share Location" })}
+                    >
+                        {pendingLocationShare ? (
+                            <X className="h-4 w-4" />
+                        ) : (
+                            <MapPin className="h-4 w-4" />
+                        )}
+                    </button>
+
+							<input
+								type="file"
+								ref={attachmentInputRef}
+								onChange={onAttachmentInput}
+								accept="image/*,video/*"
+								className="hidden"
+							/>
+
+							{/* --- QUICK PHRASE PILLS --- */}
+							{savedPhrases.length > 0 && (
+								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+									{savedPhrases.map((phrase, idx) => (
+										<button
+											key={idx}
+											type="button"
+											onClick={() => handleUsePhrase(phrase)}
+											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+										>
+											{phrase}
+										</button>
+									))}
+								</div>
+							)}
+							{/* -------------------------- */}
+						</div>
 
 				{pendingLocationShare ? (
 					<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
@@ -1298,6 +1666,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
 								onError={(msg) => toast.error(msg)}
 								className="h-full w-full"
+								defaultZoom={18}
 							/>
 						</div>
 					</div>
@@ -1351,6 +1720,46 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					</div>
 				) : null}
 
+                {isAlbumPickerOpen ? (
+                    <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
+                        {isLoadingAlbums ? (
+                            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
+                            </div>
+                        ) : shareableAlbums.length === 0 ? (
+                            <p className="text-xs text-[var(--text-muted)]">
+                                {t("chat.no_albums_available")}
+                            </p>
+                        ) : (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {shareableAlbums.map((album) => (
+                                    <div
+                                        key={album.albumId}
+                                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
+                                    >
+                                        <p className="truncate text-xs font-medium">
+                                            {album.albumName || t("chat.album_fallback", { id: album.albumId })}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                void shareAlbumToCurrentConversation(
+                                                    album.albumId,
+                                                    album.albumName,
+                                                )
+                                            }
+                                            disabled={!album.isShareable || isSharingAlbum}
+                                            className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
+                                        >
+                                            {t("chat.share")}
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : null}
+
 				{isUploadingAttachment || uploadProgress > 0 ? (
 					<div className="mb-2">
 						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
@@ -1379,12 +1788,90 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					<button
 						type="submit"
 						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-						className="btn-accent h-11 shrink-0 px-4 text-sm"
+						className="btn-accent self-stretch shrink-0 px-4 text-sm"
 					>
 						{isSending ? t("chat.sending") : t("chat.send")}
 					</button>
 				</div>
 			</form>
+
+            {pendingAlbumShare && albumViewer === null ? (
+                <div
+                    className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
+                        isDesktop ? "pb-32" : ""
+                    }`}
+                    onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="chat-album-share-confirm-title"
+                        className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <p
+                            id="chat-album-share-confirm-title"
+                            className="text-sm font-semibold text-[var(--text)]"
+                        >
+                            {t("chat.share_album_label")}
+                        </p>
+                        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+                            {t("chat.confirm_share_album", {
+                                album: pendingAlbumShare.albumName,
+                            })}
+                        </p>
+
+                        <div className="mt-4">
+                            <label className="mb-1.5 block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                                {t("chat.expiration.title")}
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={selectedExpirationType}
+                                    onChange={(e) => setSelectedExpirationType(e.target.value)}
+                                    className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--text)] transition focus:border-[var(--accent)] focus:outline-none"
+                                >
+                                    <option value="INDEFINITE">{t("chat.expiration.indefinite")}</option>
+                                    <option value="ONCE">{t("chat.expiration.once")}</option>
+                                    <option value="TEN_MINUTES">{t("chat.expiration.ten_minutes")}</option>
+                                    <option value="ONE_HOUR">{t("chat.expiration.one_hour")}</option>
+                                    <option value="ONE_DAY">{t("chat.expiration.one_day")}</option>
+                                </select>
+                                <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                                    {selectedExpirationType === "INDEFINITE" && <Infinity className="h-4 w-4" />}
+                                    {selectedExpirationType === "ONCE" && <TimerOff className="h-4 w-4" />}
+                                    {(selectedExpirationType === "TEN_MINUTES" || selectedExpirationType === "ONE_HOUR" || selectedExpirationType === "ONE_DAY") && <Hourglass className="h-4 w-4" />}
+                                </div>
+                                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
+                                    <ChevronDown className="h-4 w-4" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                                type="button"
+                                onClick={closePendingAlbumShare}
+                                disabled={isSharingAlbum}
+                                className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                            >
+                                {t("chat.actions.cancel")}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
+                                disabled={isSharingAlbum}
+                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+                            >
+                                {isSharingAlbum ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                <span>{t("chat.share")}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 		</div>
 	) : (
 		<div

@@ -1,11 +1,11 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { decodeGeohash } from "../../utils/geohash";
+import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
@@ -16,10 +16,14 @@ import {
 	getCachedGenderOptions,
 	getCachedProfileDetail,
 	getCachedPronounOptions,
+	getCachedBlockedProfileIds,
+	getCachedOwnProfilePhotoHash,
 	setCachedBrowseCards,
 	setCachedGenderOptions,
 	setCachedProfileDetail,
 	setCachedPronounOptions,
+	setCachedBlockedProfileIds,
+	setCachedOwnProfilePhotoHash,
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
@@ -30,6 +34,8 @@ import {
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
+import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import {
 	getChatContactIndexForProfiles,
 	indexChatContactRecordsByProfileId,
@@ -40,6 +46,7 @@ import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
+import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -54,6 +61,8 @@ export function GridPage() {
 	const {
 		geohash,
 		locationName,
+		useAutoLocation,
+		setPreferences,
 		isLoading: isLoadingPreferences,
 		showDebugInfo,
 	} = usePreferences();
@@ -70,17 +79,33 @@ export function GridPage() {
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
-	const [genderOptions, setGenderOptions] = useState<ManagedOption[]>([]);
-	const [pronounOptions, setPronounOptions] = useState<ManagedOption[]>([]);
+
+	const { data: managedGenders } = useManagedGenders();
+	const { data: managedPronouns } = useManagedPronouns();
+	const { data: blockedProfileIdsData } = useBlockedProfileIds();
+	const { mutateAsync: blockProfileMutation, isPending: isBlockingProfile } = useBlockProfile();
+	const { mutateAsync: unblockProfileMutation, isPending: isUnblockingProfile } = useUnblockProfile();
+
+	const genderOptions = useMemo(() => {
+		return managedGenders?.map((item) => ({
+			value: item.genderId,
+			label: item.gender,
+		})) ?? [];
+	}, [managedGenders]);
+
+	const pronounOptions = useMemo(() => {
+		return managedPronouns?.map((item) => ({
+			value: item.pronounId,
+			label: item.pronoun,
+		})) ?? [];
+	}, [managedPronouns]);
+
 	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
 		Record<string, ChatContactIndexRecord>
 	>({});
-	const [blockedProfileIds, setBlockedProfileIds] = useState<Set<string>>(
-		() => new Set(),
-	);
-	const [mutatingBlockProfileId, setMutatingBlockProfileId] = useState<string | null>(
-		null,
-	);
+
+	const blockedProfileIds = useMemo(() => new Set(blockedProfileIdsData ?? []), [blockedProfileIdsData]);
+
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
 	);
@@ -104,6 +129,68 @@ export function GridPage() {
 	const isMountedRef = useRef(true);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
+	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
+	const [isSearchOpen, setIsSearchOpen] = useState(false);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
+	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
+	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
+
+	const isDesktop = useDesktopBreakpoint();
+	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+
+	useEffect(() => {
+		if (isDesktop) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		if (typeof window === "undefined" || !window.visualViewport) {
+			setMobileKeyboardInset(0);
+			return;
+		}
+
+		const viewport = window.visualViewport;
+
+		const updateKeyboardInset = () => {
+			const layoutHeight = window.innerHeight;
+			const visibleBottom = viewport.height + viewport.offsetTop;
+			const overlap = Math.max(0, Math.round(layoutHeight - visibleBottom));
+			// Ignore tiny viewport shifts from browser chrome changes.
+			setMobileKeyboardInset(overlap >= 60 ? overlap : 0);
+		};
+
+		updateKeyboardInset();
+		viewport.addEventListener("resize", updateKeyboardInset);
+		viewport.addEventListener("scroll", updateKeyboardInset);
+
+		return () => {
+			viewport.removeEventListener("resize", updateKeyboardInset);
+			viewport.removeEventListener("scroll", updateKeyboardInset);
+		};
+	}, [isDesktop]);
+
+	const handleFetchNotes = useCallback(async () => {
+		if (isFetchingNotes || hasAttemptedFetchNotes) return;
+		setIsFetchingNotes(true);
+		try {
+			const notes = await apiFunctions.getFavoriteNotes();
+			appLog.info("Fetched favorite notes:", notes);
+			setFavoriteNotes(notes);
+			setHasAttemptedFetchNotes(true);
+		} catch (error) {
+			appLog.error("Failed to fetch favorite notes:", error);
+			toast.error(t("favorites.get_notes_failed"));
+		} finally {
+			setIsFetchingNotes(false);
+		}
+	}, [apiFunctions, isFetchingNotes, hasAttemptedFetchNotes, t]);
+
+	useEffect(() => {
+		if (isSearchOpen && !hasAttemptedFetchNotes) {
+			void handleFetchNotes();
+		}
+	}, [isSearchOpen, hasAttemptedFetchNotes, handleFetchNotes]);
 
 	const {
 		browseFilters,
@@ -125,6 +212,7 @@ export function GridPage() {
 		sortBy,
 		setSortBy,
 		browseRequestFilters,
+		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
 	} = useBrowseFilters(persistedBrowseFilters);
@@ -150,78 +238,14 @@ export function GridPage() {
 	}, []);
 
 	useEffect(() => {
-		const loadManagedOptions = async () => {
-			const cachedGenders = getCachedGenderOptions();
-			const cachedPronouns = getCachedPronounOptions();
-
-			if (cachedGenders) {
-				setGenderOptions(cachedGenders);
-			}
-
-			if (cachedPronouns) {
-				setPronounOptions(cachedPronouns);
-			}
-
-			if (cachedGenders && cachedPronouns) {
-				return;
-			}
-
-			try {
-				const [genders, pronouns] = await Promise.all([
-					apiFunctions.getManagedGenders(),
-					apiFunctions.getManagedPronouns(),
-				]);
-
-				const nextGenderOptions = genders.map((item) => ({
-					value: item.genderId,
-					label: item.gender,
-				}));
-				setGenderOptions(nextGenderOptions);
-				setCachedGenderOptions(nextGenderOptions);
-
-				const nextPronounOptions = pronouns.map((item) => ({
-					value: item.pronounId,
-					label: item.pronoun,
-				}));
-				setPronounOptions(nextPronounOptions);
-				setCachedPronounOptions(nextPronounOptions);
-			} catch {
-				if (!cachedGenders) {
-					setGenderOptions([]);
-				}
-				if (!cachedPronouns) {
-					setPronounOptions([]);
-				}
-			}
-		};
-
-		void loadManagedOptions();
-	}, [apiFunctions]);
-
-	useEffect(() => {
-		let cancelled = false;
-		void apiFunctions
-			.getBlockedProfileIds()
-			.then((profileIds) => {
-				if (cancelled || !isMountedRef.current) {
-					return;
-				}
-				setBlockedProfileIds(new Set(profileIds));
-			})
-			.catch(() => {
-				if (!cancelled && isMountedRef.current) {
-					setBlockedProfileIds(new Set());
-				}
-			});
-
-		return () => {
-			cancelled = true;
-		};
-	}, [apiFunctions]);
-
-	useEffect(() => {
 		if (!userId) {
 			setProfileImageHash(null);
+			return;
+		}
+
+		const cachedHash = getCachedOwnProfilePhotoHash();
+		if (cachedHash !== undefined) {
+			setProfileImageHash(cachedHash);
 			return;
 		}
 
@@ -241,7 +265,9 @@ export function GridPage() {
 						: null);
 
 				if (!cancelled) {
-					setProfileImageHash(firstHash ?? null);
+					const nextHash = firstHash ?? null;
+					setProfileImageHash(nextHash);
+					setCachedOwnProfilePhotoHash(nextHash);
 				}
 			} catch {
 				if (!cancelled) {
@@ -301,21 +327,84 @@ export function GridPage() {
 		[apiFunctions, BROWSE_LOAD_TIMEOUT_MS],
 	);
 
+	const refreshLocation = useCallback(async () => {
+		if (!useAutoLocation || !("geolocation" in navigator)) {
+			return;
+		}
+
+		const getPosition = (options: PositionOptions) =>
+			new Promise<GeolocationPosition>((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject, options);
+			});
+
+		try {
+			// First attempt with high accuracy
+			const position = await getPosition({
+				enableHighAccuracy: true,
+				timeout: 15000,
+				maximumAge: 10000, // Allow 10s old cached data
+			});
+
+			const lat = position.coords.latitude;
+			const lon = position.coords.longitude;
+			const nextGeohash = encodeGeohash(lat, lon);
+
+			await setPreferences({
+				geohash: nextGeohash,
+			});
+
+			appLog.info("[grid] auto-location updated", { lat, lon });
+			return nextGeohash;
+		} catch (error: any) {
+			// If HighAccuracy fails, try once without (often more stable in emulator/buildings)
+			if (error.code === 3 || error.code === 2) { // Timeout or PositionUnavailable
+				try {
+					const fallbackPosition = await getPosition({
+						enableHighAccuracy: false,
+						timeout: 10000,
+						maximumAge: 60000,
+					});
+					const lat = fallbackPosition.coords.latitude;
+					const lon = fallbackPosition.coords.longitude;
+					const nextGeohash = encodeGeohash(lat, lon);
+					await setPreferences({ geohash: nextGeohash });
+					appLog.info("[grid] auto-location updated (fallback)", { lat, lon });
+					return nextGeohash;
+				} catch (fallbackError: any) {
+					appLog.error("[grid] auto-location fallback failed", {
+						code: fallbackError.code,
+						message: fallbackError.message
+					});
+				}
+			} else {
+				appLog.error("[grid] auto-location failed", {
+					code: error.code,
+					message: error.message
+				});
+			}
+			return null;
+		}
+	}, [useAutoLocation, setPreferences]);
+
 	const loadBrowseCards = useCallback(
 		async ({
 			page,
 			preferCache = true,
 			showLoadingState = true,
+			overrideGeohash,
 		}: {
 			page?: number;
 			preferCache?: boolean;
 			showLoadingState?: boolean;
+			overrideGeohash?: string;
 		} = {}) => {
 			if (isLoadingPreferences) {
 				return;
 			}
 
-			if (!geohash) {
+			const activeGeohash = overrideGeohash || geohash;
+
+			if (!activeGeohash) {
 				if (!isMountedRef.current) {
 					return;
 				}
@@ -328,7 +417,12 @@ export function GridPage() {
 				return;
 			}
 
-			const cached = preferCache ? getCachedBrowseCards(browseCacheKey) : null;
+			// Use the correct cache key for the active geohash
+			const activeCacheKey = overrideGeohash
+				? `${overrideGeohash}:${JSON.stringify(browseRequestFilters)}`
+				: browseCacheKey;
+
+			const cached = preferCache ? getCachedBrowseCards(activeCacheKey) : null;
 			if (!isMountedRef.current) {
 				return;
 			}
@@ -351,7 +445,7 @@ export function GridPage() {
 
 			try {
 				const parsed = await getBrowseCardsWithTimeout({
-					geohash,
+					geohash: activeGeohash,
 					page,
 					filters: browseRequestFilters,
 				});
@@ -372,7 +466,7 @@ export function GridPage() {
 
 				setCards(parsed.cards);
 				setCachedBrowseCards(
-					browseCacheKey,
+					activeCacheKey,
 					parsed.cards,
 					parsed.nextPage ?? null,
 				);
@@ -410,8 +504,34 @@ export function GridPage() {
 	);
 
 	useEffect(() => {
-		void loadBrowseCards();
-	}, [loadBrowseCards]);
+		const SESSION_REFRESH_KEY = "grid_initial_location_refreshed";
+		const hasRefreshedThisSession = sessionStorage.getItem(SESSION_REFRESH_KEY) === "true";
+
+		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedThisSession) {
+			appLog.info("[grid] triggering initial session auto-location refresh");
+			void refreshLocation().finally(() => {
+				if (isMountedRef.current) {
+					setInitialLocationChecked(true);
+					sessionStorage.setItem(SESSION_REFRESH_KEY, "true");
+				}
+			});
+		} else if (!isLoadingPreferences && !initialLocationChecked) {
+			setInitialLocationChecked(true);
+		}
+	}, [isLoadingPreferences, useAutoLocation, refreshLocation, initialLocationChecked]);
+
+	useEffect(() => {
+		if (geohash || initialLocationChecked) {
+			// Only show the loading spinner if we don't have any cards yet.
+			// This prevents the spinner from appearing when returning from a profile.
+			const shouldShowLoading = cards.length === 0;
+			void loadBrowseCards({
+				showLoadingState: shouldShowLoading,
+				preferCache: true,
+			});
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [loadBrowseCards, initialLocationChecked, geohash]);
 
 	// Reset scroll restoration state when cache key (filters/location) changes
 	useEffect(() => {
@@ -492,6 +612,45 @@ export function GridPage() {
 			window.clearTimeout(timeout);
 		};
 	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
+
+	const handleAutoRefresh = useCallback(async () => {
+		appLog.info("[grid] auto-refresh triggered");
+		let activeGeohash = geohash;
+		if (browseCacheKey) {
+			sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
+		}
+		if (useAutoLocation) {
+			const next = await refreshLocation();
+			if (next) {
+				activeGeohash = next;
+			}
+		}
+		return loadBrowseCards({
+			preferCache: false,
+			showLoadingState: false,
+			overrideGeohash: activeGeohash || undefined,
+		});
+	}, [browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+
+		const enabled = localStorage.getItem("fg-auto-refresh-enabled") === "true";
+		const intervalMinutes = parseInt(localStorage.getItem("fg-auto-refresh-interval") || "5", 10);
+
+		if (!enabled || isNaN(intervalMinutes) || intervalMinutes <= 0) {
+			return;
+		}
+
+		const intervalMs = intervalMinutes * 60 * 1000;
+		appLog.info(`[grid] auto-refresh scheduled every ${intervalMinutes} minutes`);
+
+		const timer = setInterval(() => {
+			void handleAutoRefresh();
+		}, intervalMs);
+
+		return () => clearInterval(timer);
+	}, [handleAutoRefresh]);
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
@@ -597,39 +756,70 @@ export function GridPage() {
 	);
 
 	const sortedCards = useMemo(() => {
-		if (sortBy === "default") return cards;
-		return [...cards].sort((a, b) => {
-			if (sortBy === "distance") {
-				const distA = a.distanceMeters ?? Infinity;
-				const distB = b.distanceMeters ?? Infinity;
-				return distA - distB;
-			}
-			if (sortBy === "age-asc") {
-				const ageA = a.age ?? Infinity;
-				const ageB = b.age ?? Infinity;
-				return ageA - ageB;
-			}
-			if (sortBy === "age-desc") {
-				const ageA = a.age ?? -Infinity;
-				const ageB = b.age ?? -Infinity;
-				return ageB - ageA;
-			}
-			if (sortBy === "popular") {
-				const popA = a.isPopular ? 1 : 0;
-				const popB = b.isPopular ? 1 : 0;
-				if (popA !== popB) return popB - popA;
-				const distA = a.distanceMeters ?? Infinity;
-				const distB = b.distanceMeters ?? Infinity;
-				return distA - distB;
-			}
-			if (sortBy === "name") {
-				const nameA = a.displayName ?? "";
-				const nameB = b.displayName ?? "";
-				return nameA.localeCompare(nameB);
-			}
-			return 0;
-		});
-	}, [cards, sortBy]);
+		const allCards = (SHOW_DEMO_DATA && showDebugInfo) ? [...DEMO_CARDS, ...cards] : cards;
+		let results: BrowseCard[];
+
+		if (sortBy === "default") {
+			results = allCards;
+		} else {
+			results = [...allCards].sort((a, b) => {
+				if (sortBy === "distance") {
+					const distA = a.distanceMeters ?? Infinity;
+					const distB = b.distanceMeters ?? Infinity;
+					return distA - distB;
+				}
+				if (sortBy === "age-asc") {
+					const ageA = a.age ?? Infinity;
+					const ageB = b.age ?? Infinity;
+					return ageA - ageB;
+				}
+				if (sortBy === "age-desc") {
+					const ageA = a.age ?? -Infinity;
+					const ageB = b.age ?? -Infinity;
+					return ageB - ageA;
+				}
+				if (sortBy === "popular") {
+					const popA = a.isPopular ? 1 : 0;
+					const popB = b.isPopular ? 1 : 0;
+					if (popA !== popB) return popB - popA;
+					const distA = a.distanceMeters ?? Infinity;
+					const distB = b.distanceMeters ?? Infinity;
+					return distA - distB;
+				}
+				if (sortBy === "name") {
+					const nameA = a.displayName ?? "";
+					const nameB = b.displayName ?? "";
+					return nameA.localeCompare(nameB);
+				}
+				return 0;
+			});
+		}
+
+		if (browseFilters.isVisiting) {
+			results = results.filter((card) => card.isVisiting === true);
+		}
+
+		if (searchTerm) {
+			const lower = searchTerm.toLowerCase();
+			results = results.filter((card) => {
+				const matchesName = card.displayName?.toLowerCase().includes(lower) ||
+					card.profileId.toLowerCase().includes(lower);
+
+				if (matchesName) return true;
+
+				// Check favorite notes
+				const noteMatch = favoriteNotes.find(n => String(n.counterpartyId) === String(card.profileId));
+				if (noteMatch) {
+					return noteMatch.notes.toLowerCase().includes(lower) ||
+						noteMatch.phoneNumber.toLowerCase().includes(lower);
+				}
+
+				return false;
+			});
+		}
+
+		return results;
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, searchTerm, favoriteNotes]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -687,6 +877,7 @@ export function GridPage() {
 		const nextParams = new URLSearchParams();
 		nextParams.set("targetProfileId", profileId);
 		nextParams.set("returnTo", `${location.pathname}${location.search}`);
+        appLog.info("Profile", profileId);
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
@@ -732,14 +923,8 @@ export function GridPage() {
 
 	const performBlockProfile = useCallback(
 		async (targetProfileId: string) => {
-			setMutatingBlockProfileId(targetProfileId);
 			try {
-				await apiFunctions.blockProfile(targetProfileId);
-				setBlockedProfileIds((prev) => {
-					const next = new Set(prev);
-					next.add(targetProfileId);
-					return next;
-				});
+				await blockProfileMutation(targetProfileId);
 				setCards((prev) => prev.filter((card) => card.profileId !== targetProfileId));
 				if (activeProfileId === targetProfileId) {
 					setActiveProfileId(null);
@@ -751,23 +936,15 @@ export function GridPage() {
 						? error.message
 						: t("profile_details.block_failed"),
 				);
-			} finally {
-				setMutatingBlockProfileId(null);
 			}
 		},
-		[activeProfileId, apiFunctions, t],
+		[activeProfileId, blockProfileMutation, t],
 	);
 
 	const performUnblockProfile = useCallback(
 		async (targetProfileId: string) => {
-			setMutatingBlockProfileId(targetProfileId);
 			try {
-				await apiFunctions.unblockProfile(targetProfileId);
-				setBlockedProfileIds((prev) => {
-					const next = new Set(prev);
-					next.delete(targetProfileId);
-					return next;
-				});
+				await unblockProfileMutation(targetProfileId);
 				toast.success(t("profile_details.unblock_success"));
 			} catch (error) {
 				toast.error(
@@ -775,16 +952,14 @@ export function GridPage() {
 						? error.message
 						: t("profile_details.unblock_failed"),
 				);
-			} finally {
-				setMutatingBlockProfileId(null);
 			}
 		},
-		[apiFunctions, t],
+		[unblockProfileMutation, t],
 	);
 
 	const handleBlockProfile = useCallback(
 		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
+			if (isBlockingProfile || isUnblockingProfile) {
 				return;
 			}
 
@@ -796,12 +971,12 @@ export function GridPage() {
 			setDontAskAgainChecked(false);
 			setPendingProfileConfirm({ action: "block", profileId: targetProfileId });
 		},
-		[mutatingBlockProfileId, performBlockProfile, skipBlockConfirm],
+		[isBlockingProfile, isUnblockingProfile, performBlockProfile, skipBlockConfirm],
 	);
 
 	const handleUnblockProfile = useCallback(
 		async (targetProfileId: string) => {
-			if (mutatingBlockProfileId) {
+			if (isBlockingProfile || isUnblockingProfile) {
 				return;
 			}
 
@@ -813,7 +988,7 @@ export function GridPage() {
 			setDontAskAgainChecked(false);
 			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
 		},
-		[mutatingBlockProfileId, performUnblockProfile, skipUnblockConfirm],
+		[isBlockingProfile, isUnblockingProfile, performUnblockProfile, skipUnblockConfirm],
 	);
 
 	const handleToggleFavoriteProfile = useCallback(
@@ -871,14 +1046,14 @@ export function GridPage() {
 	);
 
 	const handleCancelProfileConfirm = useCallback(() => {
-		if (mutatingBlockProfileId) {
+		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 		setPendingProfileConfirm(null);
-	}, [mutatingBlockProfileId]);
+	}, [isBlockingProfile, isUnblockingProfile]);
 
 	const handleConfirmProfileAction = useCallback(async () => {
-		if (!pendingProfileConfirm || mutatingBlockProfileId) {
+		if (!pendingProfileConfirm || isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
 
@@ -901,17 +1076,16 @@ export function GridPage() {
 		await performUnblockProfile(profileId);
 	}, [
 		dontAskAgainChecked,
-		mutatingBlockProfileId,
 		pendingProfileConfirm,
 		performBlockProfile,
 		performUnblockProfile,
+		isBlockingProfile,
+		isUnblockingProfile,
 	]);
-
-	const activeFilterCount = Object.keys(browseRequestFilters).length;
 
 	return (
 		<>
-			{showDebugInfo && debugLoadSource && (
+			{showDebugInfo && debugLoadSource && !SHOW_DEMO_DATA && (
 				<div
 					className={cn(
 						"fixed bottom-20 left-4 z-[9999] rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-widest text-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4",
@@ -926,11 +1100,22 @@ export function GridPage() {
 			<PullToRefreshContainer
 				className="app-screen overflow-x-hidden !px-0"
 				style={{ width: "100%" }}
-				onRefresh={() => {
+				onRefresh={async () => {
+					let activeGeohash = geohash;
 					if (browseCacheKey) {
 						sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
 					}
-					return loadBrowseCards({ preferCache: false, showLoadingState: false });
+					if (useAutoLocation) {
+						const next = await refreshLocation();
+						if (next) {
+							activeGeohash = next;
+						}
+					}
+					return loadBrowseCards({
+						preferCache: false,
+						showLoadingState: false,
+						overrideGeohash: activeGeohash || undefined
+					});
 				}}
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
@@ -1026,6 +1211,19 @@ export function GridPage() {
 										onClick={() =>
 											setBrowseFilters((prev: typeof browseFilters) => ({
 												...prev,
+												onlineOnly: !prev.onlineOnly,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+									>
+										{t("browse_filters.options.online")}
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
 												favorites: !prev.favorites,
 											}))
 										}
@@ -1043,12 +1241,33 @@ export function GridPage() {
 										onClick={() =>
 											setBrowseFilters((prev: typeof browseFilters) => ({
 												...prev,
-												onlineOnly: !prev.onlineOnly,
+												rightNow: !prev.rightNow,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										aria-label={t("browse_filters.options.right_now")}
+										title={t("browse_filters.options.right_now")}
 									>
-										{t("browse_filters.options.online")}
+										<Droplet
+											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
+										/>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												isVisiting: !prev.isVisiting,
+											}))
+										}
+										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										aria-label={t("profile_details.visiting")}
+										title={t("profile_details.visiting")}
+									>
+										<Plane
+											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+										/>
 									</button>
 
 									{hasActiveBrowseFilters ? (
@@ -1171,6 +1390,50 @@ export function GridPage() {
 										</span>
 									</button>
 
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												rightNow: !prev.rightNow,
+											}))
+										}
+										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
+											browseFilters.rightNow
+												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Droplet
+											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
+										/>
+										<span className="hidden lg:inline">
+											{t("browse_filters.options.right_now")}
+										</span>
+									</button>
+
+									<button
+										type="button"
+										onClick={() =>
+											setBrowseFilters((prev: typeof browseFilters) => ({
+												...prev,
+												isVisiting: !prev.isVisiting,
+											}))
+										}
+										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
+											browseFilters.isVisiting
+												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Plane
+											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+										/>
+										<span className="hidden lg:inline">
+											{t("profile_details.visiting")}
+										</span>
+									</button>
+
 									{hasActiveBrowseFilters ? (
 										<button
 											type="button"
@@ -1214,7 +1477,11 @@ export function GridPage() {
 						isLoadingCards={isLoadingCards}
 						cardsError={cardsError}
 						cards={sortedCards}
-						chatContactIndexByProfileId={chatContactIndexByProfileId}
+						chatContactIndexByProfileId={
+							(SHOW_DEMO_DATA && showDebugInfo)
+								? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
+								: chatContactIndexByProfileId
+						}
 						onSelectProfile={handleSelectProfile}
 						onMessageProfile={handleMessageProfile}
 						hasMore={nextPage !== null}
@@ -1225,6 +1492,65 @@ export function GridPage() {
 					/>
 				</div>
 			</PullToRefreshContainer>
+
+			<div
+				className={cn(
+					"fixed inset-x-0 z-[60] pointer-events-none transition-all duration-300 ease-out",
+					(browseFilters.favorites && !activeProfileId) ? "opacity-100" : "opacity-0"
+				)}
+				style={{
+					bottom: `calc(${isDesktop ? "9rem" : "7.5rem"} + ${mobileKeyboardInset}px)`
+				}}
+			>
+				<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
+					<div className="absolute bottom-0 right-4 flex items-end gap-3 translate-x-0 lg:right-[16%] lg:translate-x-1/2 pointer-events-auto">
+						{isSearchOpen && (
+							<div className="flex flex-col items-end gap-2">
+								{favoriteNotes.length > 0 && !isFetchingNotes && (
+									<div className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60 backdrop-blur-md animate-badge-in">
+										{t("favorites.notes_loaded", { count: favoriteNotes.length })}
+									</div>
+								)}
+								<div className="w-64 sm:w-80 overflow-hidden rounded-full border border-white/10 bg-white/5 p-1 shadow-2xl backdrop-blur-2xl animate-search-in pointer-events-auto max-w-[calc(100vw-5rem)]">
+									<div className="flex items-center gap-3 px-4 py-2.5">
+										{isFetchingNotes ? (
+											<div className="flex h-5 w-5 items-center justify-center">
+												<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+											</div>
+										) : (
+											<Search className="h-5 w-5 text-white/70" />
+										)}
+										<input
+											type="text"
+											autoFocus
+											placeholder={isFetchingNotes ? t("favorites.loading_notes") : t("favorites.search_placeholder")}
+											className="w-full bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40"
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											onKeyDown={(e) => {
+												if (e.key === "Escape") {
+													e.stopPropagation();
+													e.nativeEvent.stopImmediatePropagation();
+													setIsSearchOpen(false);
+												}
+												if (e.key === "Enter") setIsSearchOpen(false);
+											}}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+						<button
+							type="button"
+							onClick={() => setIsSearchOpen(!isSearchOpen)}
+							className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-xl transition-all duration-200 ease-out active:scale-95 hover:opacity-90"
+							aria-label={t("browse_page.search")}
+						>
+							<Search className="h-7 w-7 stroke-[2.5]" />
+						</button>
+					</div>
+				</div>
+			</div>
 
 			<ProfileDetailsModal
 				isOpen={Boolean(activeProfileId)}
@@ -1239,9 +1565,7 @@ export function GridPage() {
 					activeProfileId && mutatingFavoriteProfileId === activeProfileId,
 				)}
 				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
-				isBlockingProfile={Boolean(
-					activeProfileId && mutatingBlockProfileId === activeProfileId,
-				)}
+				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				isTapBlocked={hasSentTapRecently}
@@ -1276,7 +1600,7 @@ export function GridPage() {
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
-				isProcessing={Boolean(mutatingBlockProfileId)}
+				isProcessing={isBlockingProfile || isUnblockingProfile}
 				confirmTone={
 					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
 				}

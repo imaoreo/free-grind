@@ -10,9 +10,10 @@ import { createAlbumMethods } from "./api/albumMethods";
 import { createProfileMethods } from "./api/profileMethods";
 import { createInterestMethods } from "./api/interestMethods";
 import { createAgeVerificationMethods } from "./api/ageVerificationMethods";
-import { createFeedMethods, type RightNowFeedItem } from "./api/feedMethods";
+import { createFeedMethods } from "./api/feedMethods";
 import { createPresenceMethods } from "./api/presenceMethods";
 import { createFavoritesMethods } from "./api/favoritesMethods";
+import type { RightNowFeedItem, RightNowCreatePostRequest, RightNowCreatePostMedia, RightNowUpdatePostRequest } from "../types/right-now";
 
 export {
 	ApiFunctionError,
@@ -21,7 +22,7 @@ export {
 	registerPresence,
 };
 
-export type { RightNowFeedItem };
+export type { RightNowFeedItem, RightNowCreatePostRequest, RightNowCreatePostMedia, RightNowUpdatePostRequest };
 
 export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => string) {
 	const chatService = createChatService(fetchRest, t);
@@ -33,7 +34,7 @@ export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => s
 		...createProfileMethods(fetchRest, t),
 		...createAgeVerificationMethods(fetchRest, t),
 		...createFeedMethods(fetchRest, t),
-		...createPresenceMethods(),
+		...createPresenceMethods(fetchRest),
 		...createFavoritesMethods(fetchRest, t),
 
 		async request(

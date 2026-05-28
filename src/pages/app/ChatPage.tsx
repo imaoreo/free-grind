@@ -22,6 +22,7 @@ import {
 } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useBlockProfile } from "../../hooks/queries/useProfileQueries";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
 import { type ChatApiError } from "../../services/chatService";
@@ -31,6 +32,7 @@ import {
 	CHAT_REALTIME_STATUS,
 	getChatRealtimeStatus,
 } from "../../components/ChatRealtimeBridge";
+import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
 import {
 	messageSchema,
 	type ConversationEntry,
@@ -62,8 +64,8 @@ import {
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
-	useDesktopBreakpoint,
 } from "./chat/chatUtils";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
 import {
 	clearUnreadCountForProfile,
@@ -75,7 +77,8 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
-
+import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
+import { isChatGhosted } from "../../utils/privacy";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -84,6 +87,7 @@ export function ChatPage() {
 	const { conversationId: routeConversationId } = useParams();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const service = useApiFunctions();
+	const { mutateAsync: blockProfileMutation } = useBlockProfile();
 	const { userId } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -125,8 +129,18 @@ export function ChatPage() {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
 		if (nextFilters) {
 			setInboxFilters(nextFilters);
+
+			// Clear the state from the history entry so it doesn't re-apply when returning to this page
+			const safeState =
+				typeof location.state === "object" && location.state !== null
+					? (location.state as Record<string, unknown>)
+					: {};
+			navigate(location.pathname + location.search, {
+				replace: true,
+				state: { ...safeState, inboxFiltersDraft: undefined },
+			});
 		}
-	}, [location.key, location.state]);
+	}, [location.key, location.state, navigate, location.pathname, location.search]);
 
 	const activeInboxFilters = useMemo(() => {
 		const next: InboxFilters = {
@@ -353,10 +367,6 @@ export function ChatPage() {
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
 		null,
 	);
-	const [zoomScale, setZoomScale] = useState(1);
-	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
-	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
-	const lastDistRef = useRef<number | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -381,6 +391,14 @@ export function ChatPage() {
 	>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>(() => getChatRealtimeStatus());
+
+	const albumViewerPhotos = useMemo<PhotoViewerMedia[]>(() => {
+		if (!albumViewer) return [];
+		return albumViewer.content.map((item) => ({
+			url: item.url || item.thumbUrl || item.coverUrl || "",
+			type: item.contentType?.startsWith("video/") ? "video" : "image",
+		}));
+	}, [albumViewer]);
 
 	const maxActivityTimestamp = useMemo(() => {
 		return conversations.reduce(
@@ -951,6 +969,73 @@ export function ChatPage() {
 					}
 				}
 
+// --- AUTO BLOCK CHECK (HISTORICAL CHAT SCANNER) ---
+				let shouldNukeThread = false;
+				let blockReason = "";
+
+				// 1. Check if their historical messages contain bad words
+				for (const m of responseMessages) {
+					let messageText = "";
+					const msgBody: any = m.body;
+					if (msgBody && typeof msgBody.text === "string") {
+						messageText = msgBody.text;
+					}
+					
+					const isIncoming = userId != null && Number(m.senderId) !== Number(userId);
+
+					if (isIncoming && shouldAutoBlock(messageText, "chat")) {
+						shouldNukeThread = true;
+						blockReason = "Keyword in message history";
+						break;
+					}
+				}
+
+				const otherParticipant = getOtherParticipant(selectedConversation || { data: { participants: [] } } as any, userId);
+				const blockId = otherParticipant?.profileId || (responseMessages[0] && responseMessages[0].senderId);
+
+				if (shouldNukeThread) {
+					appLog.info(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
+					
+					if (blockId) {
+						blockProfileMutation(String(blockId)).catch(() => {});
+					}
+
+					setThreadMessages([]);
+					setThreadConversationId(null);
+					if (isDesktop) {
+						setSelectedDesktopConversationId(null);
+					} else {
+						navigate("/chat", { replace: true });
+					}
+					toast.success(`Auto-blocked: ${blockReason}`);
+					return; // Stop loading the rest of the thread!
+				}
+
+				// 2. Fetch their profile in the background to check their Age AND Bio
+				if (blockId) {
+					service.getProfileDetail(String(blockId)).then((profile) => {
+						const matchedBioWord = shouldAutoBlock(profile.aboutMe, "chat");
+						const isBadAge = isOutsideAgeLimits(profile.age, "chat");
+
+						if (matchedBioWord || isBadAge) {
+							const reason = isBadAge ? `Age limit (${profile.age})` : `Keyword in Bio`;
+							appLog.info(`[AutoBlock] Sweeping conversation due to: ${reason}`);
+							
+							blockProfileMutation(String(blockId)).catch(() => {});
+							
+							setThreadMessages([]);
+							setThreadConversationId(null);
+							if (isDesktop) {
+								setSelectedDesktopConversationId(null);
+							} else {
+								navigate("/chat", { replace: true });
+							}
+							toast.success(`Auto-blocked: ${reason}`);
+						}
+					}).catch(() => {});
+				}
+				// --------------------------------------------------
+
 				setThreadMessages((previous) => {
 					const map = new Map<string, UiMessage>();
 					if (older) {
@@ -1074,11 +1159,14 @@ export function ChatPage() {
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
 								syncConversation((conversation) => {
-									const other = getOtherParticipant(conversation, userId);
-									if (other?.profileId) {
-										const pid = String(other.profileId);
-										void clearUnreadCountForProfile(pid).catch(() => {});
-										setChatContactIndexByProfileId((prev) => {
+ 								// --- GHOST CHECK ---
+ 								if (isChatGhosted(conversationId)) return conversation; 
+ 								// -------------------
+ 								const other = getOtherParticipant(conversation, userId);
+ 								if (other?.profileId) {
+ 									const pid = String(other.profileId);
+ 									void clearUnreadCountForProfile(pid).catch(() => {});
+ 									setChatContactIndexByProfileId((prev) => {
 											const existing = prev[pid];
 											if (!existing) return prev;
 											return {
@@ -1227,23 +1315,28 @@ export function ChatPage() {
 				const isActive = selectedConversationIdRef.current === conversation.data.conversationId;
 
 				if (isActive && !isMine) {
-					void service
-						.markRead(conversation.data.conversationId, latestMessage.messageId)
-						.catch(() => {});
-					const other = getOtherParticipant(conversation, userId);
-					if (other?.profileId) {
-						const pid = String(other.profileId);
-						void clearUnreadCountForProfile(pid).catch(() => {});
-						setChatContactIndexByProfileId((prev) => {
-							const existing = prev[pid];
-							if (!existing) return prev;
-							return {
-								...prev,
-								[pid]: { ...existing, unreadCount: 0 },
-							};
-						});
-					}
-				}
+ 				void service
+ 					.markRead(conversation.data.conversationId, latestMessage.messageId)
+ 					.catch(() => {});
+ 				
+ 				// --- GHOST CHECK ---
+ 				if (!isChatGhosted(conversation.data.conversationId)) {
+ 					const other = getOtherParticipant(conversation, userId);
+ 					if (other?.profileId) {
+ 						const pid = String(other.profileId);
+ 						void clearUnreadCountForProfile(pid).catch(() => {});
+ 						setChatContactIndexByProfileId((prev) => {
+ 							const existing = prev[pid];
+ 							if (!existing) return prev;
+ 							return {
+ 								...prev,
+ 								[pid]: { ...existing, unreadCount: 0 },
+ 							};
+ 						});
+ 					}
+ 				}
+ 				// -------------------
+ 			}
 
 				return {
 					...conversation,
@@ -1892,7 +1985,7 @@ export function ChatPage() {
 			setIsBlockingProfileId(targetProfileId);
 
 			try {
-				await service.blockProfile(targetProfileId);
+				await blockProfileMutation(targetProfileId);
 				setConversations((previous) =>
 					previous.filter(
 						(conversation) =>
@@ -2617,21 +2710,22 @@ export function ChatPage() {
 
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
-			if (!selectedConversation || !userId) {
-				return;
-			}
-			const targetProfile = getOtherParticipant(selectedConversation, userId);
-			if (!targetProfile?.profileId) {
-				toast.error(t("chat.errors.album_share_missing_recipient"));
-				return;
-			}
+        const targetProfile = selectedConversation
+            ? getOtherParticipant(selectedConversation, userId)
+            : null;
+        const recipientProfileId = targetProfile?.profileId ?? targetProfileId;
 
-			setPendingAlbumShare({
-				albumId,
-				albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
-			});
-		},
-		[selectedConversation, t, userId],
+        if (!recipientProfileId) {
+            toast.error(t("chat.errors.album_share_missing_recipient"));
+            return;
+        }
+
+        setPendingAlbumShare({
+            albumId,
+            albumName: albumName?.trim() || t("chat.album_fallback", { id: albumId }),
+        });
+    },
+    [selectedConversation, targetProfileId, t, userId],
 	);
 
 	const closePendingAlbumShare = useCallback(() => {
@@ -2643,42 +2737,39 @@ export function ChatPage() {
 	}, [isSharingAlbum]);
 
 	const confirmPendingAlbumShare = useCallback(async (expirationType: any = "INDEFINITE") => {
-		if (!selectedConversation || !userId || !pendingAlbumShare) {
-			return;
-		}
+        if (!pendingAlbumShare) return;
 
-		const targetProfile = getOtherParticipant(selectedConversation, userId);
-		if (!targetProfile?.profileId) {
-			toast.error(t("chat.errors.album_share_missing_recipient"));
-			return;
-		}
+        const targetProfile = selectedConversation
+            ? getOtherParticipant(selectedConversation, userId)
+            : null;
+        const recipientProfileId = targetProfile?.profileId ?? targetProfileId;
 
-		setIsSharingAlbum(true);
-		try {
-			await service.shareAlbum({
-				albumId: pendingAlbumShare.albumId,
-				profiles: [
-					{
-						profileId: targetProfile.profileId,
-						expirationType,
-					},
-				],
-			});
-			toast.success(t("chat.toasts.album_shared"));
-			setPendingAlbumShare(null);
-			setIsAlbumPickerOpen(false);
-			void loadThread({
-				conversationId: selectedConversation.data.conversationId,
-				older: false,
-			});
-		} catch (error) {
-			toast.error(
-				error instanceof Error ? error.message : t("chat.errors.album_share_failed"),
-			);
-		} finally {
-			setIsSharingAlbum(false);
-		}
-	}, [loadThread, pendingAlbumShare, selectedConversation, service, t, userId]);
+        if (!recipientProfileId) {
+            toast.error(t("chat.errors.album_share_missing_recipient"));
+            return;
+        }
+
+        setIsSharingAlbum(true);
+        try {
+            await service.shareAlbum({
+                albumId: pendingAlbumShare.albumId,
+                profiles: [{ profileId: recipientProfileId, expirationType }],
+            });
+            toast.success(t("chat.toasts.album_shared"));
+            setPendingAlbumShare(null);
+            setIsAlbumPickerOpen(false);
+            if (selectedConversation) {
+                void loadThread({
+                    conversationId: selectedConversation.data.conversationId,
+                    older: false,
+                });
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+        } finally {
+            setIsSharingAlbum(false);
+        }
+    }, [loadThread, pendingAlbumShare, selectedConversation, targetProfileId, service, t, userId]);
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
@@ -2704,8 +2795,6 @@ export function ChatPage() {
 
 	const closeAlbumMediaViewer = useCallback(() => {
 		setAlbumViewerMediaIndex(null);
-		setZoomScale(1);
-		setZoomOffset({ x: 0, y: 0 });
 	}, []);
 
 	const openAlbumMediaViewer = useCallback(
@@ -2724,65 +2813,6 @@ export function ChatPage() {
 		},
 		[albumViewer],
 	);
-
-	const showPreviousAlbumMedia = useCallback(() => {
-		if (!albumViewer || albumViewerMediaIndex === null) {
-			return;
-		}
-
-		setAlbumViewerMediaIndex(
-			(albumViewerMediaIndex - 1 + albumViewer.content.length) %
-				albumViewer.content.length,
-		);
-	}, [albumViewer, albumViewerMediaIndex]);
-
-	const showNextAlbumMedia = useCallback(() => {
-		if (!albumViewer || albumViewerMediaIndex === null) {
-			return;
-		}
-
-		setAlbumViewerMediaIndex(
-			(albumViewerMediaIndex + 1) % albumViewer.content.length,
-		);
-	}, [albumViewer, albumViewerMediaIndex]);
-
-	useEffect(() => {
-		setZoomScale(1);
-		setZoomOffset({ x: 0, y: 0 });
-	}, [albumViewerMediaIndex]);
-
-	useEffect(() => {
-		if (albumViewerMediaIndex === null) {
-			return;
-		}
-
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "Escape") {
-				closeAlbumMediaViewer();
-				return;
-			}
-
-			if (event.key === "ArrowLeft") {
-				showPreviousAlbumMedia();
-				return;
-			}
-
-			if (event.key === "ArrowRight") {
-				showNextAlbumMedia();
-			}
-		};
-
-		window.addEventListener("keydown", handleKeyDown);
-
-		return () => {
-			window.removeEventListener("keydown", handleKeyDown);
-		};
-	}, [
-		albumViewerMediaIndex,
-		closeAlbumMediaViewer,
-		showNextAlbumMedia,
-		showPreviousAlbumMedia,
-	]);
 
 	const toggleAlbumPicker = useCallback(async () => {
 		if (isAlbumPickerOpen) {
@@ -3012,18 +3042,11 @@ export function ChatPage() {
 		}
 
 		setFullScreenImageUrl(null);
-		setZoomScale(1);
-		setZoomOffset({ x: 0, y: 0 });
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
-	}, [fullScreenImageUrl]);
-
-	useEffect(() => {
-		setZoomScale(1);
-		setZoomOffset({ x: 0, y: 0 });
 	}, [fullScreenImageUrl]);
 
 	useEffect(() => {
@@ -3051,44 +3074,6 @@ export function ChatPage() {
 			window.removeEventListener("popstate", handlePopState);
 		};
 	}, [fullScreenImageUrl]);
-
-	const handlePhotoTouchStart = (e: React.TouchEvent) => {
-		if (e.touches.length === 1) {
-			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-		} else if (e.touches.length === 2) {
-			const dist = Math.hypot(
-				e.touches[0].clientX - e.touches[1].clientX,
-				e.touches[0].clientY - e.touches[1].clientY,
-			);
-			lastDistRef.current = dist;
-		}
-	};
-
-	const handlePhotoTouchMove = (e: React.TouchEvent) => {
-		if (e.touches.length === 1 && zoomScale > 1 && lastTouchRef.current) {
-			const dx = e.touches[0].clientX - lastTouchRef.current.x;
-			const dy = e.touches[0].clientY - lastTouchRef.current.y;
-			setZoomOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-		} else if (e.touches.length === 2 && lastDistRef.current) {
-			const dist = Math.hypot(
-				e.touches[0].clientX - e.touches[1].clientX,
-				e.touches[0].clientY - e.touches[1].clientY,
-			);
-			const delta = dist / lastDistRef.current;
-			setZoomScale((prev) => Math.min(Math.max(1, prev * delta), 4));
-			lastDistRef.current = dist;
-		}
-	};
-
-	const handlePhotoTouchEnd = () => {
-		lastTouchRef.current = null;
-		lastDistRef.current = null;
-		if (zoomScale <= 1.05) {
-			setZoomScale(1);
-			setZoomOffset({ x: 0, y: 0 });
-		}
-	};
 
 	const renderInbox = (
 		<ChatInboxPanel
@@ -3343,133 +3328,18 @@ export function ChatPage() {
 				</div>
 			) : null}
 
-			{albumViewer && albumViewerMediaIndex !== null
-				? (() => {
-						const selected = albumViewer.content[albumViewerMediaIndex] ?? null;
-						if (!selected) {
-							return null;
-						}
-						const mediaUrl =
-							selected.url || selected.thumbUrl || selected.coverUrl;
-						if (!mediaUrl) {
-							return null;
-						}
+			<PhotoViewer
+				isOpen={albumViewer !== null && albumViewerMediaIndex !== null}
+				onClose={closeAlbumMediaViewer}
+				photos={albumViewerPhotos}
+				initialIndex={albumViewerMediaIndex ?? 0}
+			/>
 
-						const isVideo = selected.contentType?.startsWith("video/");
-						return (
-							<div
-								className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
-								onClick={closeAlbumMediaViewer}
-								onTouchStart={handlePhotoTouchStart}
-								onTouchMove={handlePhotoTouchMove}
-								onTouchEnd={handlePhotoTouchEnd}
-							>
-								<button
-									type="button"
-									onClick={(event) => {
-										event.stopPropagation();
-										closeAlbumMediaViewer();
-									}}
-									className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
-									aria-label="Close album media viewer"
-								>
-									<X className="h-5 w-5" />
-								</button>
-
-								<div
-									className="relative z-[82] flex max-h-full w-full max-w-5xl flex-col items-center justify-center gap-3"
-									onClick={(event) => event.stopPropagation()}
-								>
-									<button
-										type="button"
-										onClick={showPreviousAlbumMedia}
-										className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
-										aria-label="Previous album media"
-									>
-										<ChevronLeft className="h-5 w-5" />
-									</button>
-									<button
-										type="button"
-										onClick={showNextAlbumMedia}
-										className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
-										aria-label="Next album media"
-									>
-										<ChevronRight className="h-5 w-5" />
-									</button>
-
-									<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-										<div className="relative overflow-hidden rounded-xl">
-											{isVideo ? (
-												<video
-													src={mediaUrl}
-													controls
-													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
-													style={{
-														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-														touchAction: "none",
-													}}
-												/>
-											) : (
-												<img
-													src={mediaUrl}
-													alt="Album content"
-													className="max-h-[82vh] w-auto max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
-													style={{
-														transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-														transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-														touchAction: "none",
-													}}
-												/>
-											)}
-										</div>
-									</div>
-
-									<p className="rounded-full bg-black/50 px-3 py-1 text-xs text-white">
-										{albumViewerMediaIndex + 1} / {albumViewer.content.length}
-									</p>
-								</div>
-							</div>
-						);
-					})()
-				: null}
-
-			{fullScreenImageUrl ? (
-				<div
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-					onClick={closeFullScreenImage}
-					onTouchStart={handlePhotoTouchStart}
-					onTouchMove={handlePhotoTouchMove}
-					onTouchEnd={handlePhotoTouchEnd}
-				>
-					<button
-						type="button"
-						onClick={(event) => {
-							event.stopPropagation();
-							closeFullScreenImage();
-						}}
-						className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[51] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
-						aria-label="Close image viewer"
-					>
-						<X className="h-5 w-5" />
-					</button>
-					<div className="relative flex h-full w-full items-center justify-center overflow-hidden">
-						<div className="relative overflow-hidden rounded-xl">
-							<img
-								src={fullScreenImageUrl}
-								alt="Media"
-								className="max-h-full max-w-full object-contain transition-transform duration-200 ease-out will-change-transform"
-								style={{
-									transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
-									transition: lastDistRef.current || lastTouchRef.current ? "none" : undefined,
-									touchAction: "none",
-								}}
-								onClick={(event) => event.stopPropagation()}
-							/>
-						</div>
-					</div>
-				</div>
-			) : null}
+			<PhotoViewer
+				isOpen={!!fullScreenImageUrl}
+				onClose={closeFullScreenImage}
+				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
+			/>
 		</section>
 	);
 }

@@ -12,6 +12,8 @@ export type SharedAlbumItem = {
 export type AlbumViewer = {
 	albumId: number;
 	albumName: string | null;
+	profileId: number;
+	profileName: string;
 	content: Array<{
 		contentId: number;
 		contentType: string | null;

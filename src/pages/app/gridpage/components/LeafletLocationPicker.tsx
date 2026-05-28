@@ -7,6 +7,8 @@ type LeafletLocationPickerProps = {
 	onPick: (lat: number, lon: number) => void;
 	onError: (message: string) => void;
 	className?: string;
+	defaultZoom?: number;
+	initialCenter?: [number, number];
 };
 
 export function LeafletLocationPicker({
@@ -14,6 +16,8 @@ export function LeafletLocationPicker({
 	onPick,
 	onError,
 	className = "h-72 w-full",
+	defaultZoom = 18,
+	initialCenter = [20, 0],
 }: LeafletLocationPickerProps) {
 	const { t } = useTranslation();
 	const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -40,8 +44,8 @@ export function LeafletLocationPicker({
 				}).setView(
 					selectedLocation
 						? [selectedLocation.lat, selectedLocation.lon]
-						: [20, 0],
-					selectedLocation ? 18 : 2,
+						: initialCenter,
+					selectedLocation ? defaultZoom : 2,
 				);
 
 				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -82,7 +86,7 @@ export function LeafletLocationPicker({
 				markerRef.current = null;
 			}
 		};
-	}, [onError, onPick, selectedLocation, t]);
+	}, [defaultZoom, onError, onPick, selectedLocation, t]);
 
 	useEffect(() => {
 		const map = mapRef.current;
@@ -108,11 +112,11 @@ export function LeafletLocationPicker({
 
 		map.setView(
 			[selectedLocation.lat, selectedLocation.lon],
-			Math.max(18, map.getZoom()),
+			Math.max(defaultZoom, map.getZoom()),
 		);
 
 		map.invalidateSize();
-	}, [selectedLocation]);
+	}, [defaultZoom, selectedLocation]);
 
 	return <div ref={mapContainerRef} className={className} />;
 }

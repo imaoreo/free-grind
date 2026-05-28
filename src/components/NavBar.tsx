@@ -1,15 +1,18 @@
 import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { cn } from "../utils/cn";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/useAuth";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
+	markInterestSeen,
 	getInboxLastSeen,
 	INBOX_SEEN_EVENT,
+	markInboxSeen,
 } from "../services/seenStore";
 import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
 import { messageSchema, type Message } from "../types/messages";
@@ -62,36 +65,51 @@ export function NavBar() {
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
+
+	const pathRef = useRef(location.pathname);
+	useEffect(() => {
+		pathRef.current = location.pathname;
+	}, [location.pathname]);
+
 	const [activeTab, setActiveTab] = useState("browse");
 	const [unreadCount, setUnreadCount] = useState(0);
 	const [interestUnseen, setInterestUnseen] = useState(false);
 	const [inboxUnseen, setInboxUnseen] = useState(false);
+
+	// Read preferences directly from localStorage (defaulting to true if not set)
+	const [showRightNow] = useState(() => window.localStorage.getItem("fg-show-right-now") !== "false");
+	const [showInterest] = useState(() => window.localStorage.getItem("fg-show-interest") !== "false");
+
 	const navItems = [
 		{
 			value: "browse",
 			label: t("nav.browse"),
 			icon: GridIcon,
 			path: "/",
+			visible: true, // Mandatory
 		},
 		{
 			value: "right-now",
 			label: t("nav.right_now"),
 			icon: Droplet,
 			path: "/right-now",
+			visible: showRightNow, // Toggleable
 		},
 		{
 			value: "interest",
 			label: t("nav.interest"),
 			icon: Flame,
 			path: "/interest",
+			visible: showInterest, // Toggleable
 		},
 		{
 			value: "inbox",
 			label: t("nav.inbox"),
 			icon: MessageCircle,
 			path: "/chat",
+			visible: true, // Mandatory
 		},
-	];
+	].filter(item => item.visible);
 
 	// Update active tab based on current path
 	useEffect(() => {
@@ -106,14 +124,14 @@ export function NavBar() {
 		if (currentItem) {
 			setActiveTab(currentItem.value);
 		}
-	}, [location.pathname]);
+	}, [location.pathname, navItems]);
 
 	useEffect(() => {
 		let cancelled = false;
-		const isAtInbox = location.pathname.startsWith("/chat");
 
 		const refreshInboxState = async () => {
 			if (document.hidden) return;
+			const isAtInbox = pathRef.current.startsWith("/chat") || pathRef.current === "/settings/shared-albums";
 			try {
 				// Fetch the latest inbox summary to sync unread counts and global "seen" state
 				const response = await apiFunctions.listConversations({
@@ -162,6 +180,7 @@ export function NavBar() {
 		const intervalId = window.setInterval(refreshInboxState, 60_000);
 
 		const handleRealtime = (event: Event) => {
+			const isAtInbox = pathRef.current.startsWith("/chat") || pathRef.current === "/settings/shared-albums";
 			// If we are already looking at the inbox, suppress the dot immediately
 			if (isAtInbox) {
 				setInboxUnseen(false);
@@ -209,16 +228,23 @@ export function NavBar() {
 			window.removeEventListener(INBOX_SEEN_EVENT, onSeen as EventListener);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions, location.pathname, userId]);
+	}, [apiFunctions, userId]);
+
+	// Clear the inbox dot immediately when navigating to the chat section or shared albums
+	useEffect(() => {
+		if (location.pathname.startsWith("/chat") || location.pathname === "/settings/shared-albums") {
+			setInboxUnseen(false);
+		}
+	}, [location.pathname]);
 
 	// Track whether the Interest tab has anything new since the user last
 	// looked. Polls taps + views and listens for live tap events.
 	useEffect(() => {
 		let cancelled = false;
-		const isAtInterest = location.pathname.startsWith("/interest");
 
 		const refreshInterestUnseen = async () => {
 			if (document.hidden) return;
+			const isAtInterest = pathRef.current === "/interest";
 			try {
 				const [tapsResponse, viewsResponse] = await Promise.all([
 					apiFunctions.getTaps(),
@@ -279,6 +305,7 @@ export function NavBar() {
 		}, 60_000);
 
 		const onTap = () => {
+			const isAtInterest = pathRef.current === "/interest";
 			if (!isAtInterest) {
 				setInterestUnseen(true);
 			}
@@ -304,7 +331,14 @@ export function NavBar() {
 			);
 			window.removeEventListener("visibilitychange", onVisibilityChange);
 		};
-	}, [apiFunctions, location.pathname]);
+	}, [apiFunctions]);
+
+	// Clear the interest dot immediately when navigating to the interest section
+	useEffect(() => {
+		if (location.pathname === "/interest") {
+			setInterestUnseen(false);
+		}
+	}, [location.pathname]);
 
 	const handleTabChange = (value: string) => {
 		setActiveTab(value);
@@ -313,6 +347,12 @@ export function NavBar() {
 			navigate(item.path);
 		}
 	};
+
+	// Determine the grid column class safely based on exactly how many tabs remain
+	const gridColsClass = 
+		navItems.length === 2 ? "grid-cols-2" : 
+		navItems.length === 3 ? "grid-cols-3" : 
+		"grid-cols-4";
 
 	return (
 		<nav className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] md:px-4 md:pb-[calc(env(safe-area-inset-bottom,0px)+14px)]">
@@ -325,22 +365,41 @@ export function NavBar() {
 				}}
 			>
 				<Tabs value={activeTab} onValueChange={handleTabChange}>
-					<TabsList className="grid h-16 w-full grid-cols-4 bg-transparent p-0 md:h-[4.1rem]">
+					<TabsList className={`grid h-16 w-full ${gridColsClass} bg-transparent p-0 md:h-[4.1rem]`}>
 						{navItems.map((item) => {
 							const Icon = item.icon;
 							return (
 								<TabsTrigger
 									key={item.value}
 									value={item.value}
-									className="flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)] md:gap-1.5"
+									className={cn(
+										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
+										item.value === "right-now"
+											? "focus-visible:ring-[var(--right-now)] data-[state=active]:bg-[var(--right-now)] data-[state=active]:text-white"
+											: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
+									)}
 								>
 									<div className="relative">
 										<Icon className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem]" />
 										{(item.value === "inbox" && inboxUnseen) ||
 										(item.value === "interest" && interestUnseen) ? (
 											<span className="absolute -right-1 -top-1 flex h-2 w-2">
-												<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75"></span>
-												<span className="relative inline-block h-2 w-2 rounded-full bg-[var(--accent)] ring-1 ring-[var(--surface)]"></span>
+												<span
+													className={cn(
+														"absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
+														activeTab === "right-now"
+															? "bg-[var(--right-now)]"
+															: "bg-[var(--accent)]",
+													)}
+												></span>
+												<span
+													className={cn(
+														"relative inline-block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
+														activeTab === "right-now"
+															? "bg-[var(--right-now)]"
+															: "bg-[var(--accent)]",
+													)}
+												></span>
 											</span>
 										) : null}
 									</div>

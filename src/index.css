@@ -11,6 +11,76 @@
 	--animate-living-flame-loop: living-emoji 4s ease-in-out infinite, super-pulse 4s ease-in-out infinite;
 	--animate-halo-loop: halo-loop 4s ease-in-out infinite;
 
+	/* Modal animations */
+	--animate-modal-in: modal-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-modal-out: modal-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-modal-top-in: modal-top-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-modal-top-out: modal-top-out 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	--animate-backdrop-in: backdrop-in 0.35s ease-out forwards;
+	--animate-backdrop-out: backdrop-out 0.25s ease-in forwards;
+	--animate-tooltip-in: tooltip-in 0.2s ease-out forwards;
+	--animate-search-in: search-in 0.3s ease-out forwards;
+	--animate-badge-in: badge-in 0.3s ease-out forwards;
+	--animate-morph-glow: morph-glow 8s ease-in-out infinite;
+
+	@keyframes morph-glow {
+		0%, 100% {
+			transform: scale(1) translate(0, 0);
+			border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+		}
+		25% {
+			transform: scale(1.1) translate(5%, 5%);
+			border-radius: 40% 60% 50% 50% / 50% 60% 40% 50%;
+		}
+		50% {
+			transform: scale(1.2) translate(-5%, 10%);
+			border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
+		}
+		75% {
+			transform: scale(1.1) translate(-10%, -5%);
+			border-radius: 60% 40% 50% 50% / 40% 40% 60% 60%;
+		}
+	}
+
+	@keyframes badge-in {
+		from { opacity: 0; transform: translateY(8px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	@keyframes search-in {
+		from { opacity: 0; transform: translateX(20px) scale(0.98); }
+		to { opacity: 1; transform: translateX(0) scale(1); }
+	}
+
+	@keyframes tooltip-in {
+		from { opacity: 0; transform: translateY(-8px) scale(0.95) translateX(-12px); }
+		to { opacity: 1; transform: translateY(0) scale(1) translateX(-12px); }
+	}
+	@keyframes modal-in {
+		from { opacity: 0; transform: scale(0.92) translateY(15px); }
+		to { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+	}
+	@keyframes modal-out {
+		from { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+		to { opacity: 0; transform: scale(0.92) translateY(15px); }
+	}
+	@keyframes modal-top-in {
+		from { opacity: 0; transform: scale(0.92) translateY(-15px); }
+		to { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+	}
+	@keyframes modal-top-out {
+		from { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
+		to { opacity: 0; transform: scale(0.92) translateY(-15px); }
+	}
+	@keyframes backdrop-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+	@keyframes backdrop-out {
+		from { opacity: 1; }
+		to { opacity: 0; }
+	}
+
 	@keyframes ripple-out {
 		0% {
 			transform: scale(1);
@@ -148,6 +218,7 @@
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
 		--accent-readable: #765900;
+		--right-now: #9333ea;
 		--content-max: 1200px;
 		/* Base horizontal padding for the app, shared across components for visual consistency */
 		--app-px: clamp(12px, 2.6vw, 28px);
@@ -395,12 +466,13 @@
 		inset: 0;
 		background: radial-gradient(
 			circle at 14% -10%,
-			var(--accent) 0%,
+			var(--app-accent-gradient, var(--accent)) 0%,
 			transparent 46%
 		);
 		opacity: 0.12;
 		pointer-events: none;
 		z-index: -1;
+		transition: background 0.5s ease;
 	}
 
 	.app-shell::after {

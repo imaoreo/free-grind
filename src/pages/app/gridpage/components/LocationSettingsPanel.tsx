@@ -20,6 +20,7 @@ type LocationSettingsPanelProps = {
 	onMapPick: (lat: number, lon: number) => void;
 	onMapPickerError: (message: string) => void;
 	onUseSelectedLocation: () => void;
+	initialCenter?: [number, number];
 };
 
 export function LocationSettingsPanel({
@@ -38,6 +39,7 @@ export function LocationSettingsPanel({
 	onMapPick,
 	onMapPickerError,
 	onUseSelectedLocation,
+	initialCenter,
 }: LocationSettingsPanelProps) {
 	const { t } = useTranslation();
 
@@ -147,6 +149,8 @@ export function LocationSettingsPanel({
 								selectedLocation={selectedLocation}
 								onPick={onMapPick}
 								onError={onMapPickerError}
+								defaultZoom={11}
+								initialCenter={initialCenter}
 							/>
 						)
 					) : (

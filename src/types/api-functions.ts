@@ -7,6 +7,10 @@ import type {
 } from "./albums";
 import type { InterestTapsResponse, InterestViewsResponse } from "./interest";
 import type { MultipartUpload } from "./chat-service";
+import type {
+	RightNowCreatePostRequest,
+	RightNowCreatePostResponse,
+} from "./right-now";
 
 export type ApiFunctionName =
 	| "getOwnAlbums"
@@ -23,7 +27,8 @@ export type ApiFunctionName =
 	| "openSharedAlbum"
 	| "getViews"
 	| "getTaps"
-	| "tap";
+	| "tap"
+	| "createRightNowPost";
 
 export interface CreateOwnAlbumInput {
 	albumName: string;
@@ -73,6 +78,8 @@ export interface TapResult {
 	isMutual: boolean;
 }
 
+export type CreateRightNowPostInput = RightNowCreatePostRequest;
+
 export interface ApiFunctionResultMap {
 	getOwnAlbums: Album[];
 	getOwnAlbumDetails: AlbumDetail;
@@ -89,6 +96,7 @@ export interface ApiFunctionResultMap {
 	getViews: InterestViewsResponse;
 	getTaps: InterestTapsResponse;
 	tap: TapResult;
+	createRightNowPost: RightNowCreatePostResponse;
 }
 
 export type ApiFunctionResult<T extends ApiFunctionName> = ApiFunctionResultMap[T];

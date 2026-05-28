@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "automation": "Automation",
+        "automation_desc": "Configure automated blocking rules and automatic grid refresh.",
         "issue_board": "Issues & Feature Requests",
         "issue_board_desc": "Browse and search reported bugs and feature requests.",
         "report_issue": "Report Bug or Feature",
@@ -50,6 +52,35 @@
         "count_one": "{{count}} blocked account",
         "count_other": "{{count}} blocked accounts"
     },
+    "settings_automation": {
+        "auto_block_title": "Message Auto-Block",
+        "apply_to_inbox": "Apply to Inbox",
+        "apply_to_inbox_desc": "Instantly blocks new chats that match your criteria.",
+        "forbidden_keywords_title": "Forbidden Keywords",
+        "forbidden_keywords_desc": "Block profiles or messages containing these words. Separate with commas (e.g. snapchat, crypto, bot).",
+        "keywords_placeholder": "Type keywords here...",
+        "export_txt": "Export (.txt)",
+        "import_txt": "Import (.txt)",
+        "keywords_imported": "Keywords imported! Click Save to apply.",
+        "keywords_exported": "Keywords exported!",
+        "age_limits_title": "Age Limits",
+        "age_limits_desc": "Block anyone outside of this age range.",
+        "update_block_rules": "Update Block Rules",
+        "block_rules_updated": "Auto-block rules updated!",
+        "auto_refresh_title": "Automatic Grid Refresh",
+        "auto_refresh_desc": "Keep your session active and your location updated by automatically refreshing the grid. You must stay on the grid for the refresh to take effect.",
+        "enable_refresh": "Enable Refresh",
+        "enable_refresh_desc": "Automatically triggers a refresh at the interval below.",
+        "refresh_interval": "Refresh Interval",
+        "refresh_interval_unit": "{{count}} min.",
+        "refresh_technical_note": "Technical note: On mobile, this only works while the app is active or in the foreground and will drain the battery.",
+        "update_refresh_settings": "Update Refresh Settings",
+        "refresh_settings_updated": "Refresh interval updated!",
+        "chat_block_enabled": "Inbox auto-block enabled",
+        "chat_block_disabled": "Inbox auto-block disabled",
+        "auto_refresh_enabled": "Auto-refresh enabled",
+        "auto_refresh_disabled": "Auto-refresh disabled"
+    },
     "shared_albums": {
         "title": "Shared Albums",
         "subtitle": "Browse all albums shared by people in your chats.",
@@ -86,24 +117,56 @@
     "right_now": {
         "title": "Right Now",
         "refreshing": "Refreshing Right Now…",
-        "anonymous": "Anonymous",
-        "hosting_subtitle": "{{name}} is Hosting in Right Now",
-        "member_subtitle": "{{name}} is in Right Now",
         "distance": "Distance",
         "recent": "Recent",
         "hosting": "Hosting",
         "filters": "Filters",
         "filter_summary": "Position: {{position}} · Age: {{age}}",
         "try_again": "Try again",
-        "empty": "Nobody here right now.",
-        "error_load": "Failed to load Right Now",
+        "empty": "No active sessions nearby.",
+        "error_load": "Failed to load Right Now feed",
         "message_aria": "Message {{name}}",
         "any_position": "Any",
         "just_now": "Just now",
         "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
         "days_short": "{{count}}d",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "create_session_title": "Right Now",
+        "edit_session_title": "Edit Session",
+        "session_placeholder": "What are you looking for?",
+        "char_limit": "{{count}}/140",
+        "add_photo": "Add photo",
+        "i_am_hosting": "Hosting",
+        "show_on_map": "Show me on map",
+        "start_now": "Start Now",
+        "update_now": "Update Now",
+        "remaining": "remaining",
+        "visibility": "Visibility",
+        "status_hidden": "Currently hidden",
+        "status_visible": "Publicly visible",
+        "weekly_limit": "Weekly Sessions",
+        "remaining_count": "available",
+        "next_refresh": "Next refresh",
+        "refresh_time": "Friday, 5:00 PM",
+        "limit_reached_title": "Limit reached",
+        "limit_reached_desc": "You've used all your sessions for this week.",
+        "uploading": "Uploading...",
+        "updating": "Updating...",
+        "starting_session": "Starting session...",
+        "ending_session": "Ending...",
+        "end_session": "End Session",
+        "session_updated": "Session updated!",
+        "session_created": "Session started!",
+        "session_ended": "Session ended",
+        "session_expired": "Session expired",
+        "error_fetch_session": "Could not load session data",
+        "error_upload": "Upload failed",
+        "error_session_failed": "Failed to start session",
+        "error_session_update_failed": "Failed to update session",
+        "error_end_failed": "Failed to end session",
+        "upload_preview_alt": "Upload preview",
+        "close_aria": "Close"
     },
     "right_now_filters": {
         "title": "Right Now Filters",
@@ -145,6 +208,11 @@
             "favorites": "Favorites",
             "hot": "Hot",
             "shuffle": "Shuffle"
+        },
+        "local_filters": {
+            "title": "Local Filters",
+            "description": "These filters apply instantly to the profiles already loaded.",
+            "is_visiting": "Visiting"
         }
     },
     "browse_location": {
@@ -366,6 +434,26 @@
                 "my_tags": "My Tags",
                 "my_tags_placeholder": "Keyword tags, separated by commas",
                 "no_tags_added": "No tags added yet."
+            },
+            "visiting_mode": {
+                "title": "Mode",
+                "description": "Home, visiting, or auto",
+                "loading": "Loading mode…",
+                "error": "Could not load mode.",
+                "options": {
+                    "auto": {
+                        "label": "Auto",
+                        "description": "Let Grindr choose the mode for your current location."
+                    },
+                    "home": {
+                        "label": "Home",
+                        "description": "Show your profile in home mode."
+                    },
+                    "visiting": {
+                        "label": "Visiting",
+                        "description": "Show your profile in visiting mode."
+                    }
+                }
             },
             "states": {
                 "title": "States",
@@ -615,6 +703,7 @@
         "share_location_label": "Share location",
         "share_location_confirm": "Share this location?",
         "drawer_label": "Drawer",
+        "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
         "expiration": {
             "title": "Access Duration",
@@ -741,8 +830,10 @@
         },
         "new_conversation": {
             "title": "New conversation",
-            "subtitle": "Message profile #{{profileId}} to start chatting.",
-            "write_first_message": "Write your first message..."
+            "subtitle": "Profile #{{profileId}}",
+            "write_first_message": "Write your first message...",
+            "no_messages_yet": "No messages yet",
+            "send_first_message_hint": "Send a message below to start the conversation."
         }
     },
     "chat_drawer": {
@@ -773,7 +864,12 @@
         "added": "Added to favorites",
         "removed": "Removed from favorites",
         "add_failed": "Failed to add favorite",
-        "remove_failed": "Failed to remove favorite"
+        "remove_failed": "Failed to remove favorite",
+        "get_notes_failed": "Failed to load notes",
+        "loading_notes": "Loading notes...",
+        "notes_loaded_one": "{{count}} favorite note loaded",
+        "notes_loaded_other": "{{count}} favorite notes loaded",
+        "search_placeholder": "Search notes..."
     },
     "profile_details": {
         "title": "Profile details",
@@ -804,6 +900,7 @@
         "unblock_success": "Profile unblocked",
         "block_failed": "Failed to block profile",
         "unblock_failed": "Failed to unblock profile",
+        "visiting": "Visiting",
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
         "chatted_before": "Chatted before",
@@ -963,8 +1060,16 @@
         "view_count_one": "{{count}} view",
         "view_count_other": "{{count}} views",
         "viewed": "Viewed",
-        "preview": "Preview",
-        "private_viewer": "Private viewer",
+        "recovered_tooltip": "Identified from local history",
+        "onboarding": {
+            "title": "Profile Visitors",
+            "limitation_title": "How it works",
+            "limitation_desc": "Grindr normally only shows the very last visitor in full. Others are typically hidden behind a paywall or shown as anonymous previews.",
+            "recovery_title": "Smart Recovery",
+            "recovery_desc": "Free Grind automatically matches anonymous visitors with your local history. If we find a match, the profile will be revealed to you.",
+            "button": "Got it!"
+        },
+        "unknown_profile": "Unknown Profile",
         "unknown_time": "Unknown time",
         "tap_labels": {
             "friendly": "Friendly",
@@ -1001,6 +1106,9 @@
             "load_browse_profiles": "Failed to load browse profiles",
             "load_profile_details": "Failed to load profile details",
             "load_profile": "Failed to load profile",
+            "load_visiting_mode": "Failed to load profile mode",
+            "invalid_visiting_mode_response": "Invalid profile mode response",
+            "save_visiting_mode": "Failed to save profile mode",
             "save_profile": "Failed to save profile",
             "update_photos": "Failed to update profile photos",
             "delete_photos": "Failed to delete profile photos",
@@ -1011,7 +1119,8 @@
             "liveness_failed": "Liveness3d verification failed",
             "enrollment_failed": "Enrollment verification failed",
             "document_failed": "Document verification failed",
-            "load_right_now": "Failed to load Right Now feed"
+            "load_right_now": "Failed to load Right Now feed",
+            "session_right_now": "Failed to start session"
         }
     },
     "errors": {

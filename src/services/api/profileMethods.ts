@@ -12,6 +12,8 @@ import type {
 	ProfileImageUploadResult,
 } from "../../types/api-functions";
 import type { RestFetcher } from "../../types/chat-service";
+import type { VisitingMode } from "../../types/visiting";
+import { isVisitingMode } from "../../types/visiting";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 
 export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) => string) {
@@ -236,6 +238,7 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			const parsed = profileDetailResponseSchema.parse(
 				await parseJsonSafe(response),
 			);
+
 			return parsed.profiles[0];
 		},
 
@@ -243,6 +246,35 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			const response = await fetchRest(`/v7/profiles/${profileId}`);
 			await assertSuccess(response, t("api.errors.load_profile"));
 			return parseJsonSafe(response);
+		},
+
+		async getVisitingMode(): Promise<VisitingMode> {
+			const response = await fetchRest("/v1/visiting/settings");
+			await assertSuccess(response, t("api.errors.load_visiting_mode"));
+			const payload = await parseJsonSafe(response);
+			const setting =
+				typeof payload === "object" && payload !== null
+					? (payload as { setting?: unknown }).setting
+					: null;
+
+			if (!isVisitingMode(setting)) {
+				throw new ApiFunctionError(
+					t("api.errors.invalid_visiting_mode_response"),
+					response.status,
+					payload,
+				);
+			}
+
+			return setting;
+		},
+
+		async updateVisitingMode(setting: VisitingMode): Promise<{ ok: true }> {
+			const response = await fetchRest("/v1/visiting/settings", {
+				method: "PUT",
+				body: { setting },
+			});
+			await assertSuccess(response, t("api.errors.save_visiting_mode"));
+			return { ok: true };
 		},
 
 		async updateMyProfile(payload: unknown): Promise<{ ok: true }> {
