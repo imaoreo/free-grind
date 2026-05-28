@@ -1,5 +1,6 @@
 import type { RestFetcher, RestResponse } from "../types/chat-service";
 import { hasAnalyticsConsent } from "../utils/analyticsConsent";
+import { appLog } from "../utils/logger";
 
 export class ApiFunctionError extends Error {
 	status: number;
@@ -169,12 +170,10 @@ export async function trackUpdateCheck(data: {
 
 		const status = "status" in response ? response.status : (response as Response).status;
 		if (status < 200 || status >= 300) {
-			console.warn(
-				`Failed to track update check: ${status}`
-			);
+			appLog.warn(`Failed to track update check: ${status}`);
 		}
 	} catch (error) {
-		console.warn("Update tracking error:", error);
+		appLog.error("Update tracking error:", error);
 	}
 }
 
@@ -200,11 +199,9 @@ export async function registerPresence(profileId: string | number, fetchRest?: R
 
 		const status = "status" in response ? response.status : (response as Response).status;
 		if (status < 200 || status >= 300) {
-			console.warn(
-				`Failed to register presence: ${status}`
-			);
+			appLog.warn(`Failed to register presence: ${status}`);
 		}
 	} catch (error) {
-		console.warn("Presence registration error:", error);
+		appLog.error("Presence registration error:", error);
 	}
 }

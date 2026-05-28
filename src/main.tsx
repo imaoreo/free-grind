@@ -9,6 +9,7 @@ import "./i18n";
 import { markHotswapStartupReady, autoCheckAndInstallUpdate } from "./services/hotswap";
 import { initChatContactIndex } from "./services/chatContactIndex";
 import { isTauri } from "@tauri-apps/api/core";
+import { appLog } from "./utils/logger";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 import "./index.css";
 
@@ -27,7 +28,7 @@ const queryClient = new QueryClient({
 void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
 if (isTauri()) {
 	void initChatContactIndex().catch((err) => {
-		console.warn("[chat-index] failed to initialize:", err);
+		appLog.warn("[chat-index] failed to initialize:", err);
 	});
 }
 

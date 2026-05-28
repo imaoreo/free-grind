@@ -21,6 +21,7 @@ import {
 import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { appLog } from "../../utils/logger";
 import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -196,7 +197,7 @@ export function SettingsPage() {
 		} catch (error) {
 			const msg = getErrorMessage(error, t("settings.failed_update_check"));
 			if (import.meta.env.DEV) {
-				console.error("Update check failed:", error, "| message:", msg);
+				appLog.error("Update check failed:", error, "| message:", msg);
 			}
 			toast.error(msg, { duration: 10000 });
 		} finally {
@@ -236,7 +237,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Switch update environment failed:", error);
+				appLog.error("Switch update environment failed:", error);
 			}
 			toast.error(t("settings.failed_switch_env"));
 		} finally {
@@ -278,7 +279,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Contributor channel switch failed:", error);
+				appLog.error("Contributor channel switch failed:", error);
 			}
 			toast.error("Failed to switch to contributor channel.");
 		} finally {
@@ -300,7 +301,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Leave contributor channel failed:", error);
+				appLog.error("Leave contributor channel failed:", error);
 			}
 			toast.error("Failed to leave contributor channel.");
 		} finally {

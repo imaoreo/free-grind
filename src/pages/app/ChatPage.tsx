@@ -994,7 +994,7 @@ export function ChatPage() {
 				const blockId = otherParticipant?.profileId || (responseMessages[0] && responseMessages[0].senderId);
 
 				if (shouldNukeThread) {
-					console.log(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
+					appLog.info(`[AutoBlock] Sweeping historical conversation. Reason: ${blockReason}`);
 					
 					if (blockId) {
 						blockProfileMutation(String(blockId)).catch(() => {});
@@ -1019,7 +1019,7 @@ export function ChatPage() {
 
 						if (matchedBioWord || isBadAge) {
 							const reason = isBadAge ? `Age limit (${profile.age})` : `Keyword in Bio`;
-							console.log(`[AutoBlock] Sweeping conversation due to: ${reason}`);
+							appLog.info(`[AutoBlock] Sweeping conversation due to: ${reason}`);
 							
 							blockProfileMutation(String(blockId)).catch(() => {});
 							

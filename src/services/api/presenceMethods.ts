@@ -1,6 +1,7 @@
 import type { RestFetcher } from "../../types/chat-service";
 import { GRINDAPI_BASE, registerPresence, trackUpdateCheck } from "../apiHelpers";
 import { hasAnalyticsConsent } from "../../utils/analyticsConsent";
+import { appLog } from "../../utils/logger";
 
 export function createPresenceMethods(fetchRest?: RestFetcher) {
 	return {
@@ -20,7 +21,7 @@ export function createPresenceMethods(fetchRest?: RestFetcher) {
 				: [String(profileIds)];
 
 			if (ids.length > 50) {
-				console.warn("checkPresence: truncating to 50 IDs (received " + ids.length + ")");
+				appLog.warn(`checkPresence: truncating to 50 IDs (received ${ids.length})`);
 				ids.length = 50;
 			}
 
@@ -33,15 +34,13 @@ export function createPresenceMethods(fetchRest?: RestFetcher) {
 					: await fetch(url, { method: "GET" });
 
 				if (response.status !== 200) {
-					console.warn(
-						`Failed to check presence: ${response.status}`
-					);
+					appLog.warn(`Failed to check presence: ${response.status}`);
 					return {};
 				}
 
 				return (await response.json()) as Record<string, boolean>;
 			} catch (error) {
-				console.warn("Presence check error:", error);
+				appLog.error("Presence check error:", error);
 				return {};
 			}
 		},
