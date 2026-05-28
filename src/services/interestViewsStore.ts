@@ -1,3 +1,5 @@
+import { appLog } from "../utils/logger";
+
 type StoredInterestView = {
 	profileId: string;
 	displayName: string;
@@ -32,11 +34,11 @@ function openDatabase(): Promise<IDBDatabase | null> {
 
 			request.onsuccess = () => resolve(request.result);
 			request.onerror = (e) => {
-				console.error("IDB Open Error:", e);
+				appLog.error("[interestStore] IDB Open Error", e);
 				resolve(null);
 			};
 		} catch (err) {
-			console.error("IDB Fatal Error:", err);
+			appLog.error("[interestStore] IDB Fatal Error", err);
 			resolve(null);
 		}
 	});
@@ -75,7 +77,8 @@ export const interestViewsStore = {
 				void this.cleanup();
 			};
 
-			request.onerror = () => {
+			request.onerror = (event) => {
+				appLog.error("[interestStore] getAll request failed", event);
 				db.close();
 				resolve([]);
 			};
@@ -105,7 +108,7 @@ export const interestViewsStore = {
 			};
 
 			tx.onerror = (e) => {
-				console.error("IDB Upsert Error:", e);
+				appLog.error("[interestStore] IDB Upsert Error", e);
 				db.close();
 				resolve();
 			};
@@ -155,7 +158,8 @@ export const interestViewsStore = {
 				resolve();
 			};
 
-			tx.onerror = () => {
+			tx.onerror = (event) => {
+				appLog.error("[interestStore] cleanup transaction failed", event);
 				db.close();
 				resolve();
 			};
