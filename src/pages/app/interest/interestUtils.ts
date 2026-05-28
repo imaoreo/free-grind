@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import i18n from "../../../i18n";
+import { formatRelativeTime } from "../../../utils/relativeTime";
 import type { StoredInterestView } from "../../../services/interestViewsStore";
 import { validateMediaHash } from "../../../utils/media";
 
@@ -275,50 +275,13 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 	}).filter((it): it is InterestItem => it !== null);
 }
 
-const relativeTimeFormatterCache = new Map<string, Intl.RelativeTimeFormat>();
-
-function getRelativeTimeFormatter(lng: string, options: Intl.RelativeTimeFormatOptions) {
-	const key = `${lng}-${JSON.stringify(options)}`;
-	if (!relativeTimeFormatterCache.has(key)) {
-		relativeTimeFormatterCache.set(key, new Intl.RelativeTimeFormat(lng, options));
-	}
-	return relativeTimeFormatterCache.get(key)!;
-}
-
 export function formatTimestamp(
 	timestamp: number | null,
 	t: TFunction,
 	now: number = Date.now(),
 ): string {
-	if (!timestamp || !Number.isFinite(timestamp)) {
-		return t("interest_page.unknown_time");
-	}
-
-	const lang = i18n.language;
-	const formatter = getRelativeTimeFormatter(lang, {
-		numeric: "auto",
-	});
-
-	const diffMs = timestamp - now;
-	const minuteMs = 60 * 1000;
-	const hourMs = 60 * minuteMs;
-	const dayMs = 24 * hourMs;
-
-	if (Math.abs(diffMs) < hourMs) {
-		const mins = Math.round(diffMs / minuteMs);
-		if (mins === 0) return t("browse_page.status_just_now");
-		return formatter.format(mins, "minute");
-	}
-
-	if (Math.abs(diffMs) < dayMs) {
-		return formatter.format(Math.round(diffMs / hourMs), "hour");
-	}
-
-	if (Math.abs(diffMs) < dayMs * 7) {
-		return formatter.format(Math.round(diffMs / dayMs), "day");
-	}
-
-	return new Date(timestamp).toLocaleDateString();
+	const formatted = formatRelativeTime(timestamp, now);
+	return formatted || t("interest_page.unknown_time");
 }
 
 export function tapLabel(tapType: number | null, t: TFunction): string {
