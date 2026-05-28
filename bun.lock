@@ -8,7 +8,7 @@
         "@msgpack/msgpack": "^3.1.3",
         "@radix-ui/react-tabs": "^1.1.13",
         "@tailwindcss/vite": "^4.2.2",
-        "@tanstack/react-query": "^5.66.0",
+        "@tanstack/react-query": "^5.100.14",
         "@tauri-apps/api": "2.10.1",
         "@tauri-apps/plugin-fs": "~2",
         "@tauri-apps/plugin-geolocation": "~2",
@@ -21,6 +21,7 @@
         "i18next-browser-languagedetector": "^8.2.1",
         "i18next-http-backend": "^3.0.6",
         "leaflet": "^1.9.4",
+        "lenis": "^1.3.23",
         "react": "^19",
         "react-dom": "^19",
         "react-hot-toast": "^2.4.1",
@@ -647,6 +648,8 @@
     "kleur": ["kleur@3.0.3", "", {}, "sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w=="],
 
     "leaflet": ["leaflet@1.9.4", "", {}, "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="],
+
+    "lenis": ["lenis@1.3.23", "", { "peerDependencies": { "@nuxt/kit": ">=3.0.0", "react": ">=17.0.0", "vue": ">=3.0.0" }, "optionalPeers": ["@nuxt/kit", "react", "vue"] }, "sha512-YxYq3TJqj9sJNv0V9SkyQHejt14xwyIwgDaaMK89Uf9SxQfIszu+gTQSSphh6BWlLTNVKvvXAGkg+Zf+oFIevg=="],
 
     "levn": ["levn@0.4.1", "", { "dependencies": { "prelude-ls": "^1.2.1", "type-check": "~0.4.0" } }, "sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ=="],
 
