@@ -1,9 +1,60 @@
 use rand;
 use reqwest::header::{HeaderMap, HeaderValue};
+use serde::Deserialize;
+use std::sync::OnceLock;
+use std::time::Duration;
 
-const APP_VERSION: &str = "26.9.1.163471";
-const BUILD_NUMBER: &str = "163471";
+const DEFAULT_APP_VERSION: &str = "26.9.1.163471";
+const DEFAULT_BUILD_NUMBER: &str = "163471";
 const TIMEZONE: &str = "Europe/Madrid";
+const VERSION_FILE_URL: &str = "https://raw.githubusercontent.com/imaoreo/free-grind/main/version.json";
+
+#[derive(Debug, Deserialize)]
+struct VersionJson {
+    #[serde(alias = "appVersion", alias = "version")]
+    app_version: String,
+    #[serde(alias = "buildNumber", alias = "build")]
+    build_number: String,
+}
+
+#[derive(Debug)]
+struct VersionInfo {
+    app_version: String,
+    build_number: String,
+}
+
+static VERSION_INFO: OnceLock<VersionInfo> = OnceLock::new();
+
+fn fetch_version_info() -> Option<VersionInfo> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+
+    let response = client.get(VERSION_FILE_URL).send().ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+
+    let parsed = response.json::<VersionJson>().ok()?;
+    if parsed.app_version.trim().is_empty() || parsed.build_number.trim().is_empty() {
+        return None;
+    }
+
+    Some(VersionInfo {
+        app_version: parsed.app_version,
+        build_number: parsed.build_number,
+    })
+}
+
+fn version_info() -> &'static VersionInfo {
+    VERSION_INFO.get_or_init(|| {
+        fetch_version_info().unwrap_or_else(|| VersionInfo {
+            app_version: DEFAULT_APP_VERSION.to_string(),
+            build_number: DEFAULT_BUILD_NUMBER.to_string(),
+        })
+    })
+}
 
 #[derive(Clone, Debug)]
 pub struct DeviceInfo {
@@ -77,8 +128,11 @@ pub fn build_headers(
     headers.insert("Accept", HeaderValue::from_static("application/json"));
 
     // 6. User-Agent
+    let version_info = version_info();
     let user_agent = format!(
-        "grindr3/{APP_VERSION};{BUILD_NUMBER};{subscription_tier};Android {};{};{}",
+        "grindr3/{};{};{subscription_tier};Android {};{};{}",
+        version_info.app_version,
+        version_info.build_number,
         device.android_version, device.device_model, device.manufacturer
     );
     headers.insert("User-Agent", HeaderValue::from_str(&user_agent).unwrap());
