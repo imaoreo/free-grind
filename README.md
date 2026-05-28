@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://discord.gg/cJqTaWPMFF"><img src="https://img.shields.io/discord/1496182396033175823?label=Discord&logo=discord" alt="Discord"></a>
   <a href="https://t.me/fre-grind"><img src="https://img.shields.io/badge/Telegram-2CA5E0?style=flat&logo=telegram&logoColor=white" alt="Telegram"></a>
-  <a href="https://github.com/kezza2k7/free-grind/releases"><img src="https://img.shields.io/github/v/release/kezza2k7/free-grind?logo=github&label=Release" alt="Latest Release"></a>
+  <a href="https://github.com/imaoreo/free-grind/releases"><img src="https://img.shields.io/github/v/release/imaoreo/free-grind?logo=github&label=Release" alt="Latest Release"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Personal%20Use-blue" alt="License"></a>
   <a href="https://freegrind.imaoreo.dev/issues"><img src="https://img.shields.io/badge/Issues-freegrind.imaoreo.dev-blue?logo=bugatti" alt="Issues"></a>
 </p>
@@ -34,7 +34,7 @@ Free Grind does not collect personal data, display ads, or generate revenue of a
 
 ## Downloads
 
-- Download the latest stable release from the [releases page](https://github.com/kezza2k7/free-grind/releases).
+- Download the latest stable release from the [releases page](https://github.com/imaoreo/free-grind/releases).
 - You can build the latest version yourself by following the [Development](#development) guide below.
 
 ## Features
@@ -94,6 +94,36 @@ Free Grind does not collect personal data, display ads, or generate revenue of a
 
 Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get started.
 
+### Local Setup
+
+```bash
+bun install
+```
+
+### Common Commands
+
+```bash
+# Desktop (Tauri + Vite)
+bun run dev
+
+# Web only
+bun run dev:web
+
+# Android dev
+bun run dev:android
+
+# iOS dev (simulator configurable via IOS_SIMULATOR)
+bun run dev:ios
+
+# Android APK build
+bun run build:android:apk
+
+# iOS IPA build
+bun run build:ios:ipa
+```
+
+All Tauri commands are routed through shell scripts in [scripts](scripts) and use Bun (`bunx`) instead of pnpm/nix workflows.
+
 All contributions must be aligned with [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) and is hosted at [https://freegrinddocs.imaoreo.dev/](https://freegrinddocs.imaoreo.dev/) — contributions to reverse engineering and documentation are especially valued.
@@ -128,7 +158,7 @@ The API reference documentation lives in [`docs/`](./docs/content/grindr-api/) a
 
 This project is open to all kinds of contributions — code, documentation, bug reports, and reverse engineering.
 
-- **Code contributions:** [open a pull request](https://github.com/kezza2k7/free-grind/pulls) on GitHub.
+- **Code contributions:** [open a pull request](https://github.com/imaoreo/free-grind/pulls) on GitHub.
 - **Bug reports & feature requests:** submit them on our website at [freegrind.imaoreo.dev/issues](https://freegrind.imaoreo.dev/issues).
 - **Community discussion & support:** join us on [Discord](https://discord.gg/cJqTaWPMFF).
 

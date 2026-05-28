@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { MessageCircle, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../../components/ui/button";
 import { EmptyState } from "../../../components/ui/states";
@@ -13,6 +13,8 @@ type AlbumViewerPanelProps = {
 	selectedViewerItem: AlbumContent | null;
 	closeViewer: () => void;
 	openFullScreen: (index: number) => void;
+	onMessageProfile: (profileId: number) => void;
+	onViewProfile: (profileId: number) => void;
 };
 
 export function AlbumViewerPanel({
@@ -22,6 +24,8 @@ export function AlbumViewerPanel({
 	selectedViewerItem,
 	closeViewer,
 	openFullScreen,
+	onMessageProfile,
+	onViewProfile,
 }: AlbumViewerPanelProps) {
 	const { t } = useTranslation();
 
@@ -34,20 +38,23 @@ export function AlbumViewerPanel({
 				className="mx-auto flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden border border-[var(--border)] bg-[var(--surface)] sm:h-full sm:rounded-2xl"
 				onClick={(event) => event.stopPropagation()}
 			>
-				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-4 py-3 sm:px-5">
-					<div className="min-w-0">
+				<div className="border-b border-[var(--border)] px-4 py-3 sm:px-5">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0">
 						<p className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
 							{t("shared_albums.album_label")}
 						</p>
 						<p className="truncate text-lg font-semibold">
 							{viewer.albumName?.trim() || `Album #${viewer.albumId}`}
 						</p>
+						<p className="truncate text-xs text-[var(--text-muted)]">
+							{viewer.profileName}
+						</p>
 						<p className="text-xs text-[var(--text-muted)]">
 							{t("shared_albums.items_count", { count: viewer.content.length })}
 							{selectedViewerItem ? ` · ${viewerIndex + 1}/${viewer.content.length}` : ""}
 						</p>
 					</div>
-					<div className="flex items-center gap-2">
 						<Button
 							type="button"
 							size="icon"
@@ -56,6 +63,28 @@ export function AlbumViewerPanel({
 							aria-label={t("shared_albums.close_viewer")}
 						>
 							<X className="h-4 w-4" />
+						</Button>
+					</div>
+					<div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:items-center">
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							onClick={() => onMessageProfile(viewer.profileId)}
+							className="min-w-0 justify-center gap-1.5"
+						>
+							<MessageCircle className="h-4 w-4" />
+							<span className="truncate">{t("profile_details.message")}</span>
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							size="sm"
+							onClick={() => onViewProfile(viewer.profileId)}
+							className="min-w-0 justify-center gap-1.5"
+						>
+							<UserRound className="h-4 w-4" />
+							<span className="truncate">{t("chat.view_profile")}</span>
 						</Button>
 					</div>
 				</div>

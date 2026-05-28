@@ -29,7 +29,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
-    "prepublishOnly": "cp ../README.md . && pnpm build"
+    "prepublishOnly": "cp ../README.md . && bun run build"
   },
   "peerDependencies": {
     "@tauri-apps/api": ">=2.0.0"

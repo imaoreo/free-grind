@@ -1,10 +1,62 @@
 use rand;
 use reqwest::header::{HeaderMap, HeaderValue};
+use serde::Deserialize;
+use std::sync::OnceLock;
+use std::time::Duration;
 
-const APP_VERSION: &str = "26.7.0.159416";
-const BUILD_NUMBER: &str = "159416";
+const DEFAULT_APP_VERSION: &str = "26.9.1.163471";
+const DEFAULT_BUILD_NUMBER: &str = "163471";
 const TIMEZONE: &str = "Europe/Madrid";
+const VERSION_FILE_URL: &str = "https://raw.githubusercontent.com/imaoreo/free-grind/main/version.json";
 
+#[derive(Debug, Deserialize)]
+struct VersionJson {
+    #[serde(alias = "appVersion", alias = "version")]
+    app_version: String,
+    #[serde(alias = "buildNumber", alias = "build")]
+    build_number: String,
+}
+
+#[derive(Debug)]
+struct VersionInfo {
+    app_version: String,
+    build_number: String,
+}
+
+static VERSION_INFO: OnceLock<VersionInfo> = OnceLock::new();
+
+fn fetch_version_info() -> Option<VersionInfo> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .ok()?;
+
+    let response = client.get(VERSION_FILE_URL).send().ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+
+    let parsed = response.json::<VersionJson>().ok()?;
+    if parsed.app_version.trim().is_empty() || parsed.build_number.trim().is_empty() {
+        return None;
+    }
+
+    Some(VersionInfo {
+        app_version: parsed.app_version,
+        build_number: parsed.build_number,
+    })
+}
+
+fn version_info() -> &'static VersionInfo {
+    VERSION_INFO.get_or_init(|| {
+        fetch_version_info().unwrap_or_else(|| VersionInfo {
+            app_version: DEFAULT_APP_VERSION.to_string(),
+            build_number: DEFAULT_BUILD_NUMBER.to_string(),
+        })
+    })
+}
+
+#[derive(Clone, Debug)]
 pub struct DeviceInfo {
     pub device_type: u8,
     pub device_id: String,
@@ -18,8 +70,8 @@ pub struct DeviceInfo {
 
 impl Default for DeviceInfo {
     fn default() -> Self {
-        let device_id =
-            format!("{:x}", rand::random::<u64>()) + &format!("{:x}", rand::random::<u64>());
+        // deviceId must be exactly 16 hexadecimal characters
+        let device_id = format!("{:016x}", rand::random::<u64>());
         Self {
             device_type: 2,
             device_id,
@@ -33,9 +85,32 @@ impl Default for DeviceInfo {
     }
 }
 
-pub fn build_default_headers(device: &DeviceInfo, subscription_tier: &str) -> HeaderMap {
+pub fn build_headers(
+    device: &DeviceInfo,
+    subscription_tier: &str,
+    auth_token: Option<&str>,
+) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
+    // The order of headers is strictly checked by the API.
+    // 1. Authorization
+    if let Some(token) = auth_token {
+        headers.insert("Authorization", HeaderValue::from_str(token).unwrap());
+    }
+
+    // 2. L-Time-Zone
+    headers.insert("L-Time-Zone", HeaderValue::from_static(TIMEZONE));
+
+    // 3. L-Grindr-Roles
+    if auth_token.is_some() {
+        let roles = format!("[{}]", subscription_tier.to_uppercase());
+        headers.insert(
+            "L-Grindr-Roles",
+            HeaderValue::from_str(&roles).unwrap(),
+        );
+    }
+
+    // 4. L-Device-Info
     let device_info = format!(
         "{};GLOBAL;{};{};{};{}",
         device.device_id,
@@ -49,20 +124,27 @@ pub fn build_default_headers(device: &DeviceInfo, subscription_tier: &str) -> He
         HeaderValue::from_str(&device_info).unwrap(),
     );
 
+    // 5. Accept
+    headers.insert("Accept", HeaderValue::from_static("application/json"));
+
+    // 6. User-Agent
+    let version_info = version_info();
     let user_agent = format!(
-        "grindr3/{APP_VERSION};{BUILD_NUMBER};{subscription_tier};Android {};{};{}",
+        "grindr3/{};{};{subscription_tier};Android {};{};{}",
+        version_info.app_version,
+        version_info.build_number,
         device.android_version, device.device_model, device.manufacturer
     );
     headers.insert("User-Agent", HeaderValue::from_str(&user_agent).unwrap());
 
-    headers.insert("requireRealDeviceInfo", HeaderValue::from_static("true"));
-
-    headers.insert("L-Time-Zone", HeaderValue::from_static(TIMEZONE));
-
+    // 7. L-Locale
     headers.insert("L-Locale", HeaderValue::from_static("en_US"));
+
+    // 8. Accept-Language
     headers.insert("Accept-Language", HeaderValue::from_static("en-US"));
 
-    headers.insert("Accept", HeaderValue::from_static("application/json"));
+    // Additional headers
+    headers.insert("requireRealDeviceInfo", HeaderValue::from_static("true"));
 
     headers
 }

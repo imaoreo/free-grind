@@ -16,3 +16,4 @@ frontend.tar.gz
 frontend.tar.gz.sig
 src-tauri/gen/
 !src-tauri/gen/android/app/src/main/AndroidManifest.xml
+/.build

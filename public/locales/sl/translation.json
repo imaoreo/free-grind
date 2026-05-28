@@ -269,6 +269,26 @@
                 "my_tags_placeholder": "",
                 "no_tags_added": ""
             },
+            "visiting_mode": {
+                "title": "",
+                "description": "",
+                "loading": "",
+                "error": "",
+                "options": {
+                    "auto": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "home": {
+                        "label": "",
+                        "description": ""
+                    },
+                    "visiting": {
+                        "label": "",
+                        "description": ""
+                    }
+                }
+            },
             "states": {
                 "title": "",
                 "description": "",
@@ -419,6 +439,8 @@
         "open_search": "",
         "open_filters": "",
         "profile": "",
+        "drawer_label": "",
+        "drawer_unavailable": "",
         "no_conversations_match": "",
         "no_conversations": "",
         "no_messages_yet": "",

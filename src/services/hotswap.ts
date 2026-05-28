@@ -30,12 +30,24 @@ let startupReadyNotified = false;
 const HOTSWAP_CHANNEL_STORAGE_KEY = "hotswap-channel";
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const HOTSWAP_CHANNELS = ["main", "development", "testingwjay"] as const;
-const DEV_ONLY_CHANNEL: HotswapChannel = "testingwjay";
+const DEV_ONLY_CHANNEL = "testingwjay" as const;
 
-export type HotswapChannel = (typeof HOTSWAP_CHANNELS)[number];
+/** A contributor channel is always prefixed with "contrib-" */
+type ContributorChannel = `contrib-${string}`;
+
+export type HotswapChannel = (typeof HOTSWAP_CHANNELS)[number] | ContributorChannel;
+
+export function isContributorChannel(ch: string): ch is ContributorChannel {
+	return /^contrib-[a-z0-9_-]{1,32}$/.test(ch);
+}
+
+export function getContributorHandle(ch: HotswapChannel): string | null {
+	if (isContributorChannel(ch)) return ch.slice("contrib-".length);
+	return null;
+}
 
 function isHotswapChannel(value: string): value is HotswapChannel {
-	return HOTSWAP_CHANNELS.includes(value as HotswapChannel);
+	return (HOTSWAP_CHANNELS as readonly string[]).includes(value) || isContributorChannel(value);
 }
 
 function resolveDefaultChannel(): HotswapChannel {
@@ -235,6 +247,10 @@ export async function setHotswapChannel(channel: HotswapChannel): Promise<void> 
 	}
 
 	await configure({ channel });
+}
+
+export async function clearContributorChannel(): Promise<void> {
+	await setHotswapChannel("main");
 }
 
 export async function checkForHotswapUpdate(): Promise<HotswapCheckResult> {

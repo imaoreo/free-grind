@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { appLog } from "../../utils/logger";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import { encodeGeohash } from "../../utils/geohash";
+import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
 import {
 	geocodeResultSchema,
 	type GeocodeResult,
@@ -12,10 +13,13 @@ import {
 } from "./GridPage.types";
 import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPanel";
 
+import { useApi } from "../../hooks/useApi";
+
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
 	const { t } = useTranslation();
-	const { setPreferences } = usePreferences();
+	const { fetchRest } = useApi();
+	const { setPreferences, geohash, locationName } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
 	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -27,16 +31,50 @@ export function BrowseLocationPage() {
 		useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
 
+	const initialCenter = (() => {
+		if (geohash) {
+			try {
+				const decoded = decodeGeohash(geohash);
+				return [
+					(decoded.lat[0] + decoded.lat[1]) / 2,
+					(decoded.lon[0] + decoded.lon[1]) / 2,
+				] as [number, number];
+			} catch {
+				return undefined;
+			}
+		}
+		return undefined;
+	})();
+
+	useEffect(() => {
+		if (geohash && !selectedLocation) {
+			try {
+				const decoded = decodeGeohash(geohash);
+				const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+				const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+				setSelectedLocation({
+					lat,
+					lon,
+					label: locationName ?? t("browse_location.current_location_label"),
+				});
+			} catch (e) {
+				appLog.error("Failed to decode geohash from preferences", e);
+			}
+		}
+	}, [geohash, locationName, t]);
+
 	const updateLocationPreference = async (
 		lat: number,
 		lon: number,
 		label?: string,
+		isAuto?: boolean,
 	) => {
 		const nextGeohash = encodeGeohash(lat, lon);
 		const finalLabel = label ?? t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
 		await setPreferences({
 			geohash: nextGeohash,
-			locationName: finalLabel
+			locationName: finalLabel,
+			useAutoLocation: isAuto ?? false
 		});
 		setSelectedLocation({
 			lat,
@@ -71,6 +109,7 @@ export function BrowseLocationPage() {
 				position.coords.latitude,
 				position.coords.longitude,
 				t("browse_location.current_location_label"),
+				true,
 			);
 		} catch {
 			setLocationError(t("browse_location.error_access"));
@@ -89,21 +128,15 @@ export function BrowseLocationPage() {
 		setIsSearchingLocation(true);
 
 		try {
-			const response = await fetch(
+			const response = await fetchRest(
 				`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
 					query,
 				)}`,
 				{
-					signal,
-					headers: {
-						"User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-					},
+					method: "GET",
+					abortController: controller,
 				},
 			);
-
-			if (!response.ok) {
-				throw new Error("Failed to search location");
-			}
 
 			const parsed = z.array(geocodeResultSchema).parse(await response.json());
 			setLocationResults(parsed);
@@ -203,6 +236,7 @@ export function BrowseLocationPage() {
 							selectedLocation.label,
 						);
 					}}
+					initialCenter={initialCenter}
 				/>
 			</div>
 		</section>

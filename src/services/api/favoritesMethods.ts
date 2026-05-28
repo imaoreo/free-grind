@@ -16,5 +16,13 @@ export function createFavoritesMethods(fetchRest: RestFetcher, t: (key: string) 
 			});
 			await assertSuccess(response, t("favorites.remove_failed"));
 		},
+
+		async getFavoriteNotes(): Promise<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>> {
+			const response = await fetchRest("/v1/favorites/notes", {
+				method: "GET",
+			});
+			await assertSuccess(response, t("favorites.get_notes_failed"));
+			return response.json();
+		},
 	};
 }

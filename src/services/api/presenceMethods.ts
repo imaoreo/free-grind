@@ -1,10 +1,12 @@
+import type { RestFetcher } from "../../types/chat-service";
 import { GRINDAPI_BASE, registerPresence, trackUpdateCheck } from "../apiHelpers";
 import { hasAnalyticsConsent } from "../../utils/analyticsConsent";
+import { appLog } from "../../utils/logger";
 
-export function createPresenceMethods() {
+export function createPresenceMethods(fetchRest?: RestFetcher) {
 	return {
 		async registerPresence(profileId: string | number): Promise<void> {
-			await registerPresence(profileId);
+			await registerPresence(profileId, fetchRest);
 		},
 
 		async checkPresence(
@@ -19,26 +21,26 @@ export function createPresenceMethods() {
 				: [String(profileIds)];
 
 			if (ids.length > 50) {
-				console.warn("checkPresence: truncating to 50 IDs (received " + ids.length + ")");
+				appLog.warn(`checkPresence: truncating to 50 IDs (received ${ids.length})`);
 				ids.length = 50;
 			}
 
 			try {
 				const query = new URLSearchParams({ ids: ids.join(",") });
-				const response = await fetch(`${GRINDAPI_BASE}/api/presence/check?${query}`, {
-					method: "GET",
-				});
+				const url = `${GRINDAPI_BASE}/api/presence/check?${query}`;
 
-				if (!response.ok) {
-					console.warn(
-						`Failed to check presence: ${response.status} ${response.statusText}`
-					);
+				const response = fetchRest
+					? await fetchRest(url, { method: "GET" })
+					: await fetch(url, { method: "GET" });
+
+				if (response.status !== 200) {
+					appLog.warn(`Failed to check presence: ${response.status}`);
 					return {};
 				}
 
 				return (await response.json()) as Record<string, boolean>;
 			} catch (error) {
-				console.warn("Presence check error:", error);
+				appLog.error("Presence check error:", error);
 				return {};
 			}
 		},
@@ -50,7 +52,7 @@ export function createPresenceMethods() {
 			version: string;
 			appVersion: string;
 		}): Promise<void> {
-			await trackUpdateCheck(data);
+			await trackUpdateCheck(data, fetchRest);
 		},
 	};
 }

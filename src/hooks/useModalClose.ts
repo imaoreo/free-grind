@@ -16,12 +16,13 @@ export function useModalClose({
 
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
+				event.stopPropagation();
 				onClose();
 			}
 		};
 
-		window.addEventListener("keydown", onKeyDown);
-		return () => window.removeEventListener("keydown", onKeyDown);
+		window.addEventListener("keydown", onKeyDown, { capture: true });
+		return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
 	}, [escapeKey, isOpen, onClose]);
 }
 

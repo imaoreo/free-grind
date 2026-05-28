@@ -30,6 +30,12 @@ impl From<reqwest::Error> for AppError {
     }
 }
 
+impl From<serde_json::Error> for AppError {
+    fn from(e: serde_json::Error) -> Self {
+        AppError::Http(e.to_string())
+    }
+}
+
 impl From<AppError> for String {
     fn from(e: AppError) -> Self {
         e.to_string()

@@ -12,7 +12,6 @@ import { GridPage } from "./pages/app/GridPage.tsx";
 import { BrowseFiltersPage } from "./pages/app/BrowseFiltersPage.tsx";
 import { BrowseLocationPage } from "./pages/app/BrowseLocationPage";
 import { RightNowPage } from "./pages/app/RightNowPage";
-import { RightNowFiltersPage } from "./pages/app/RightNowFiltersPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
 import { ChatFiltersPage } from "./pages/app/ChatFiltersPage";
@@ -29,10 +28,13 @@ import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
+import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
+import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
+import { EntitlementsBridge } from "./components/EntitlementsBridge";
 import { usePreferences } from "./contexts/PreferencesContext";
 
 function ErrorPage() {
@@ -73,6 +75,7 @@ export default function App() {
 				<PushNotificationBridge />
 				<ChatRealtimeBridge />
 				<ActiveRouteBridge />
+				<EntitlementsBridge />
 				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
@@ -97,7 +100,6 @@ export default function App() {
 							<Route path="/browse/filters" element={<BrowseFiltersPage />} />
 							<Route path="/browse/location" element={<BrowseLocationPage />} />
 							<Route path="/right-now" element={<RightNowPage />} />
-							<Route path="/right-now/filters" element={<RightNowFiltersPage />} />
 							<Route path="/interest" element={<InterestPage />} />
 							<Route path="/chat" element={<ChatPage />} />
 							<Route path="/chat/filters" element={<ChatFiltersPage />} />
@@ -105,9 +107,11 @@ export default function App() {
 							<Route path="/chat/:conversationId" element={<ChatPage />} />
 							<Route path="/profile/:profileId" element={<GridProfilePage />} />
 							<Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/settings/automation" element={<SettingsAutomationPage />} />
 							<Route path="/settings/about" element={<AboutPage />} />
 							<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 							<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
+							<Route path="/settings/saved-phrases" element={<SettingsSavedPhrasesPage />} />
 							<Route
 								path="/settings/api-inspector"
 								element={

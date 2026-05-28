@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "rea
 
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import { appLog } from "../../../utils/logger";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { Avatar } from "../../../components/ui/avatar";
@@ -172,7 +173,7 @@ export function ChatThreadMessages({
 			await navigator.clipboard.writeText(content);
 			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
 		} catch (error) {
-			console.error("Copy failed", error);
+			appLog.error("Copy failed", error);
 		}
 		setOpenMessageActionId(null);
 	}, [t, setOpenMessageActionId]);
@@ -871,15 +872,61 @@ export function ChatThreadMessages({
 															if (!loc && !hasText) return null;
 
 															return (
-																<button
-																	type="button"
-																	onClick={() => void handleCopy(message)}
-																	className="rounded-md border border-black/20 px-2 py-1"
-																>
-																	{t("chat.actions.copy", { defaultValue: "Copy" })}
-																</button>
+																<>
+																	<button
+																		type="button"
+																		onClick={() => void handleCopy(message)}
+																		className="rounded-md border border-black/20 px-2 py-1 transition hover:bg-black/10"
+																	>
+																		{t("chat.actions.copy", { defaultValue: "Copy" })}
+																	</button>
+																	
+																	{!mine ? (
+																		<button
+																			type="button"
+																			onClick={() => {
+																				const wordToBan = window.prompt("Trim this message down to the specific keyword you want to ban:", hasText ? body.text : "");
+																				if (wordToBan && wordToBan.trim()) {
+																					const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+																					const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+																					window.localStorage.setItem("fg-forbidden-words", newList);
+																					toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+																					setOpenMessageActionId(null);
+																				}
+																			}}
+																			className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-500 transition hover:bg-red-500/20"
+																		>
+																			Ban Word
+																		</button>
+																	) : null}
+																</>
 															);
 														})()}
+                                                        
+
+                                                        {/* --- DOWNLOAD BUTTON (DESKTOP) --- */}
+																	{imageUrl || videoUrl || audioUrl ? (
+																		<button
+																			type="button"
+																			onClick={() => {
+																				const url = imageUrl || videoUrl || audioUrl;
+																				if (!url) return;
+																				const a = document.createElement("a");
+																				a.href = url;
+																				a.download = `media-${Date.now()}`;
+																				a.target = "_blank";
+																				document.body.appendChild(a);
+																				a.click();
+																				document.body.removeChild(a);
+																				setOpenMessageActionId(null);
+																			}}
+																			className="rounded-md border border-black/20 px-2 py-1 transition hover:bg-black/10"
+																		>
+																			Download
+																		</button>
+																	) : null}
+																	{/* --------------------------------- */}
+
 														{mine && !message.unsent ? (
 															<button
 																type="button"

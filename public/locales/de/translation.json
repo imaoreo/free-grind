@@ -8,6 +8,8 @@
         "profile_editor_desc": "Bearbeite Profildetails, Identität und Einstellungen.",
         "customizability": "Personalisierung",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
+        "automation": "Automation",
+        "automation_desc": "Konfiguriere automatische Blockierregeln und Grid-Aktualisierungen.",
         "report_issue": "Fehler oder Feature melden",
         "report_issue_desc": "Sende Fehlermeldungen und Feature-Wünsche an das Team.",
         "about": "Über Free Grind",
@@ -33,6 +35,35 @@
         "switched_and_updated": "Zu {{channel}} gewechselt und Update angewendet. Lade neu…",
         "switched_channel": "Zu {{channel}} gewechselt. Lade neu…",
         "failed_switch_env": "Fehler beim Wechseln der Update-Umgebung."
+    },
+    "settings_automation": {
+        "auto_block_title": "Nachrichten Auto-Block",
+        "apply_to_inbox": "Auf Posteingang anwenden",
+        "apply_to_inbox_desc": "Blockiert sofort neue Chats, die deinen Kriterien entsprechen.",
+        "forbidden_keywords_title": "Verbotene Schlüsselwörter",
+        "forbidden_keywords_desc": "Blockiere Profile oder Nachrichten, die diese Wörter enthalten. Trenne sie mit Kommas (z.B. Snapchat, Krypto, Bot).",
+        "keywords_placeholder": "Schlüsselwörter hier eingeben...",
+        "export_txt": "Exportieren (.txt)",
+        "import_txt": "Importieren (.txt)",
+        "keywords_imported": "Schlüsselwörter importiert! Klicke auf Speichern zum Übernehmen.",
+        "keywords_exported": "Schlüsselwörter exportiert!",
+        "age_limits_title": "Altersgrenzen",
+        "age_limits_desc": "Blockiere jeden außerhalb dieses Altersbereichs.",
+        "update_block_rules": "Blockierregeln aktualisieren",
+        "block_rules_updated": "Auto-Block-Regeln aktualisiert!",
+        "auto_refresh_title": "Automatische Grid-Aktualisierung",
+        "auto_refresh_desc": "Halte deine Sitzung aktiv und deinen Standort aktuell, indem das Grid automatisch aktualisiert wird. Du musst dich dafür am Grid befinden.",
+        "enable_refresh": "Aktualisierung aktivieren",
+        "enable_refresh_desc": "Löst automatisch eine Aktualisierung im untenstehenden Intervall aus.",
+        "refresh_interval": "Aktualisierungsintervall",
+        "refresh_interval_unit": "{{count}} Min.",
+        "refresh_technical_note": "Technischer Hinweis: Auf Mobilgeräten funktioniert dies nur, wenn die App aktiv oder im Vordergrund ist, und führt zu erhöhtem Akkuverbrauch.",
+        "update_refresh_settings": "Aktualisierungseinstellungen speichern",
+        "refresh_settings_updated": "Aktualisierungsintervall aktualisiert!",
+        "chat_block_enabled": "Posteingang Auto-Block aktiviert",
+        "chat_block_disabled": "Posteingang Auto-Block deaktiviert",
+        "auto_refresh_enabled": "Auto-Refresh aktiviert",
+        "auto_refresh_disabled": "Auto-Refresh deaktiviert"
     },
     "shared_albums": {
         "title": "Geteilte Alben",
@@ -70,24 +101,56 @@
     "right_now": {
         "title": "Right Now",
         "refreshing": "Aktualisiere Right Now…",
-        "anonymous": "Anonym",
-        "hosting_subtitle": "{{name}} hostet gerade",
-        "member_subtitle": "{{name}} ist gerade right now",
         "distance": "Entfernung",
         "recent": "Neueste",
         "hosting": "Hosting",
         "filters": "Filter",
         "filter_summary": "Position: {{position}} · Alter: {{age}}",
         "try_again": "Erneut versuchen",
-        "empty": "Gerade niemand hier.",
-        "error_load": "Laden fehlgeschlagen",
+        "empty": "Keine aktiven Sessions in der Nähe.",
+        "error_load": "Feed konnte nicht geladen werden",
         "message_aria": "{{name}} Nachricht senden",
         "any_position": "Alle",
         "just_now": "Gerade eben",
         "minutes_short": "{{count}}Min",
         "hours_short": "{{count}}Std",
         "days_short": "{{count}}T",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "create_session_title": "Right Now",
+        "edit_session_title": "Session bearbeiten",
+        "session_placeholder": "Was suchst du gerade?",
+        "char_limit": "{{count}}/140",
+        "add_photo": "Foto hinzufügen",
+        "i_am_hosting": "Hosting",
+        "show_on_map": "Mich auf der Karte anzeigen",
+        "start_now": "Jetzt starten",
+        "update_now": "Jetzt aktualisieren",
+        "remaining": "verbleibend",
+        "visibility": "Sichtbarkeit",
+        "status_hidden": "Aktuell verborgen",
+        "status_visible": "Öffentlich sichtbar",
+        "weekly_limit": "Wöchentliche Sessions",
+        "remaining_count": "verfügbar",
+        "next_refresh": "Nächster Refresh",
+        "refresh_time": "Freitag, 17:00 Uhr",
+        "limit_reached_title": "Limit erreicht",
+        "limit_reached_desc": "Du hast alle deine Sessions für diese Woche aufgebraucht.",
+        "uploading": "Wird hochgeladen...",
+        "updating": "Wird aktualisiert...",
+        "starting_session": "Session wird gestartet...",
+        "ending_session": "Beenden...",
+        "end_session": "Session beenden",
+        "session_updated": "Session aktualisiert!",
+        "session_created": "Session gestartet!",
+        "session_ended": "Session beendet",
+        "session_expired": "Session abgelaufen",
+        "error_fetch_session": "Session-Daten konnten nicht geladen werden",
+        "error_upload": "Upload fehlgeschlagen",
+        "error_session_failed": "Session konnte nicht gestartet werden",
+        "error_session_update_failed": "Session konnte nicht aktualisiert werden",
+        "error_end_failed": "Session konnte nicht beendet werden",
+        "upload_preview_alt": "Upload-Vorschau",
+        "close_aria": "Schließen"
     },
     "right_now_filters": {
         "title": "Right now Filter",
@@ -129,6 +192,11 @@
             "favorites": "Favoriten",
             "hot": "Hot",
             "shuffle": "Zufällig"
+        },
+        "local_filters": {
+            "title": "Lokale Filter",
+            "description": "Diese Filter werden sofort auf die bereits geladenen Profile angewendet.",
+            "is_visiting": "Auf Besuch"
         }
     },
     "browse_location": {
@@ -351,6 +419,26 @@
                 "my_tags_placeholder": "Schlüsselwörter, durch Kommas getrennt",
                 "no_tags_added": "Noch keine Tags hinzugefügt."
             },
+            "visiting_mode": {
+                "title": "Modus",
+                "description": "Zuhause, Besuch oder Auto",
+                "loading": "Modus wird geladen…",
+                "error": "Modus konnte nicht geladen werden.",
+                "options": {
+                    "auto": {
+                        "label": "Auto",
+                        "description": "Grindr wählt den Modus passend zu deinem aktuellen Standort."
+                    },
+                    "home": {
+                        "label": "Zuhause",
+                        "description": "Zeige dein Profil im Zuhause-Modus."
+                    },
+                    "visiting": {
+                        "label": "Besuch",
+                        "description": "Zeige dein Profil im Besuchsmodus."
+                    }
+                }
+            },
             "states": {
                 "title": "Status",
                 "description": "Sichtbare Statistiken und Profilmerkmale",
@@ -562,9 +650,10 @@
         "delete_conversation_confirm": "Diese Konversation löschen? Dies kann nicht rückgängig gemacht werden.",
         "open_conversation_actions": "Konversationsaktionen öffnen",
         "share_album_label": "Album teilen",
-        "drawer_label": "Drawer",
         "share_location_label": "Standort teilen",
         "share_location_confirm": "Diesen Standort teilen?",
+        "drawer_label": "Galerie",
+        "drawer_unavailable": "Sende eine Nachricht um die Galerie zu öffnen.",
         "share_album": "Album teilen",
         "expiration": {
             "title": "Zugriffsdauer",
@@ -680,8 +769,8 @@
             "create_album_failed": "Album konnte nicht erstellt werden",
             "load_album_details": "Albumdetails konnten nicht geladen werden",
             "upload_media_failed": "Medien-Upload fehlgeschlagen",
-            "load_drawer_media": "Drawer-Medien konnten nicht geladen werden",
-            "send_drawer_media": "Medien aus dem Drawer konnten nicht gesendet werden",
+            "load_drawer_media": "Galerie-Medien konnten nicht geladen werden",
+            "send_drawer_media": "Medien aus der Galerie konnten nicht gesendet werden",
             "delete_conversation": "Konversation konnte nicht gelöscht werden"
         },
         "toasts": {
@@ -693,13 +782,15 @@
         },
         "new_conversation": {
             "title": "Neue Konversation",
-            "subtitle": "Sende eine Nachricht an Profil #{{profileId}}, um den Chat zu starten.",
-            "write_first_message": "Schreibe deine erste Nachricht..."
+            "subtitle": "Profil #{{profileId}}",
+            "write_first_message": "Schreibe deine erste Nachricht...",
+            "no_messages_yet": "Noch keine Nachrichten",
+            "send_first_message_hint": "Sende eine Nachricht um den Chat zu starten."
         }
     },
     "chat_drawer": {
-        "title": "Drawer",
-        "empty": "Dein Drawer ist leer.",
+        "title": "Galerie",
+        "empty": "Deine Galerie ist leer.",
         "retry": "Erneut versuchen",
         "send": "Senden ({{count}})",
         "sending": "Senden...",
@@ -707,13 +798,13 @@
         "error_send_failed": "Fehler beim Senden der Medien.",
         "add_photo": "Foto hinzufügen",
         "delete_media": "Medien löschen",
-        "media_alt": "Drawer-Medien",
+        "media_alt": "Galerie-Medien",
         "take_photo": "Foto aufnehmen",
         "upload_photo": "Foto hochladen",
-        "add_to_drawer": "Zum Drawer hinzufügen",
+        "add_to_drawer": "Zur Galerie hinzufügen",
         "invalid_file_type": "Bitte wähle ein Foto aus.",
-        "delete_confirm_title": "Aus Drawer löschen?",
-        "delete_confirm_message": "Bist du sicher, dass du dieses Medium aus deinem Drawer löschen möchtest?",
+        "delete_confirm_title": "Aus Galerie löschen?",
+        "delete_confirm_message": "Bist du sicher, dass du dieses Medium aus deiner Galerie löschen möchtest?",
         "delete_confirm_label": "Löschen",
         "is_expiring_toggle_on": "10s",
         "is_expiring_toggle_off": "Aus",
@@ -725,7 +816,12 @@
         "added": "Zu Favoriten hinzugefügt",
         "removed": "Aus Favoriten entfernt",
         "add_failed": "Fehler beim Hinzufügen zu Favoriten",
-        "remove_failed": "Fehler beim Entfernen von Favoriten"
+        "remove_failed": "Fehler beim Entfernen von Favoriten",
+        "get_notes_failed": "Fehler beim Laden der Notizen",
+        "loading_notes": "Lade Notizen...",
+        "notes_loaded_one": "{{count}} Favoriten-Notiz geladen",
+        "notes_loaded_other": "{{count}} Favoriten-Notizen geladen",
+        "search_placeholder": "Suche in Notizen..."
     },
     "profile_details": {
         "title": "Profildetails",
@@ -756,6 +852,7 @@
         "unblock_success": "Profil entsperrt",
         "block_failed": "Profil konnte nicht blockiert werden",
         "unblock_failed": "Profil konnte nicht entsperrt werden",
+        "visiting": "Auf Besuch",
         "chat_history": "Chat-Verlauf",
         "last_message": "Letzte Nachricht {{time}}",
         "chatted_before": "Zuvor gechattet",
@@ -898,7 +995,7 @@
         }
     },
     "interest_page": {
-        "title": "Interesse",
+        "title": "Interest",
         "profile_fallback": "Profil {{id}}",
         "tabs": {
             "views": "Besucher",
@@ -915,8 +1012,16 @@
         "view_count_one": "{{count}} Besuch",
         "view_count_other": "{{count}} Besuche",
         "viewed": "Angesehen",
-        "preview": "Vorschau",
-        "private_viewer": "Privater Besucher",
+        "recovered_tooltip": "Aus lokalem Verlauf wiedererkannt",
+        "onboarding": {
+            "title": "Profilbesucher",
+            "limitation_title": "Funktionsweise",
+            "limitation_desc": "Grindr zeigt normalerweise nur den allerletzten Besucher vollständig an. Andere sind oft hinter einer Paywall verborgen oder werden nur als anonyme Vorschau angezeigt.",
+            "recovery_title": "Intelligente Erkennung",
+            "recovery_desc": "Free Grind gleicht unbekannte Besucher automatisch mit deinem lokalen Verlauf ab. Finden wir eine Übereinstimmung, decken wir das Profil für dich auf.",
+            "button": "Verstanden!"
+        },
+        "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",
         "tap_labels": {
             "friendly": "Freundlich",
@@ -953,6 +1058,9 @@
             "load_browse_profiles": "Profile konnten nicht geladen werden",
             "load_profile_details": "Profildetails konnten nicht geladen werden",
             "load_profile": "Profil konnte nicht geladen werden",
+            "load_visiting_mode": "Profilmodus konnte nicht geladen werden",
+            "invalid_visiting_mode_response": "Ungültige Antwort für Profilmodus",
+            "save_visiting_mode": "Profilmodus konnte nicht gespeichert werden",
             "save_profile": "Profil konnte nicht gespeichert werden",
             "update_photos": "Profilfotos konnten nicht aktualisiert werden",
             "delete_photos": "Profilfotos konnten nicht gelöscht werden",
@@ -963,7 +1071,8 @@
             "liveness_failed": "Liveness3d-Prüfung fehlgeschlagen",
             "enrollment_failed": "Registrierung fehlgeschlagen",
             "document_failed": "Dokumentenprüfung fehlgeschlagen",
-            "load_right_now": "Right Now Feed konnte nicht geladen werden"
+            "load_right_now": "Right Now Feed konnte nicht geladen werden",
+            "session_right_now": "Session konnte nicht gestartet werden"
         }
     },
     "errors": {
