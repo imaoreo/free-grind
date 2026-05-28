@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { appLog } from "../../utils/logger";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
 import {
@@ -57,7 +58,7 @@ export function BrowseLocationPage() {
 					label: locationName ?? t("browse_location.current_location_label"),
 				});
 			} catch (e) {
-				console.error("Failed to decode geohash from preferences", e);
+				appLog.error("Failed to decode geohash from preferences", e);
 			}
 		}
 	}, [geohash, locationName, t]);

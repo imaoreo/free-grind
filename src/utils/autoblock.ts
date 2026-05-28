@@ -1,8 +1,9 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { isTauriRuntime } from "../services/tauriWebSocket";
+import { appLog } from "./logger";
 
 export async function notifyAutoBlock(profileName: string, reason: string) {
-    console.log(`[AutoBlock] Banned: ${profileName} | Reason: ${reason}`);
+    appLog.info(`[AutoBlock] Banned: ${profileName} | Reason: ${reason}`);
 
     if (!isTauriRuntime()) return;
 
@@ -20,7 +21,7 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
             });
         }
     } catch (e) {
-        console.error("Failed to send notification", e);
+        appLog.error("Failed to send notification", e);
     }
 }
 

@@ -38,6 +38,7 @@ import type {
 import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../utils/autoblock";
 import { isChatGhosted } from "../utils/privacy";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "./apiHelpers";
+import { appLog } from "../utils/logger";
 
 export { ApiFunctionError as ChatApiError };
 
@@ -174,7 +175,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			const safeEntries: ConversationEntry[] = [];
 			for (const entry of parsed.entries) {
 				const data: any = entry.data;
-                //console.log(`[Age Debug] Who is this?`, data.participants?.[0]);
+                // appLog.debug(`[Age Debug] Who is this?`, data.participants?.[0]);
 				
 				const displayName = data.name || (data.participants && data.participants[0]?.displayName) || "";
 				const aboutMe = data.participants?.[0]?.aboutMe || "";
