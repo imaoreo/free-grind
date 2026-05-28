@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "rea
 
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import { appLog } from "../../../utils/logger";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { Avatar } from "../../../components/ui/avatar";
@@ -172,7 +173,7 @@ export function ChatThreadMessages({
 			await navigator.clipboard.writeText(content);
 			toast.success(t("chat.toasts.copied", { defaultValue: "Copied to clipboard" }));
 		} catch (error) {
-			console.error("Copy failed", error);
+			appLog.error("Copy failed", error);
 		}
 		setOpenMessageActionId(null);
 	}, [t, setOpenMessageActionId]);

@@ -1,6 +1,7 @@
 import { X, Plus, Home, Camera, Map, Loader2, CheckCircle2, AlertCircle, EyeOff, Droplet, Info, Lock, Hourglass } from "lucide-react";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { appLog } from "../../../utils/logger";
 import toast from "react-hot-toast";
 import { cn } from "../../../utils/cn";
 import { usePreferences } from "../../../contexts/PreferencesContext";
@@ -82,7 +83,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					setThumbnailUrl(m.data?.thumbnailUrl ?? m.thumbnailUrl);
 				}
 			} catch (error) {
-				console.error("Failed to fetch active post:", error);
+				appLog.error("Failed to fetch active post:", error);
 				toast.error(t("right_now.error_fetch_session"));
 				setDebugInfo({
 					time: new Date().toLocaleTimeString(),
@@ -209,7 +210,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 				setThumbnailUrl(result.thumbnailUrl);
 			}
 		} catch (error) {
-			console.error("Upload failed", error);
+			appLog.error("Upload failed", error);
 			toast.error(t("right_now.error_upload"));
 		} finally {
 			setIsUploading(false);
@@ -269,12 +270,16 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					await setPreferences({
 						activeRightNowId: id,
 						activeRightNowExpiresAt: expiresAt,
+						rightNowRemaining: Math.max(0, rightNowRemaining - 1),
 					});
 				} else {
 					const response = await apiFunctions.createRightNowPost(createPayload);
+					// Fallback to local duration if server doesn't provide expiration
+					const expiresAt = response.post.expiration || (Date.now() + sessionDuration);
 					await setPreferences({
 						activeRightNowId: response.post.id,
-						activeRightNowExpiresAt: response.post.expiration,
+						activeRightNowExpiresAt: expiresAt,
+						rightNowRemaining: Math.max(0, rightNowRemaining - 1),
 					});
 				}
 			}
@@ -288,15 +293,10 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 				},
 			);
 
-			// Manually decrement remaining count if it was a new post
-			if (!isEditMode) {
-				void setPreferences({ rightNowRemaining: Math.max(0, rightNowRemaining - 1) });
-			}
-
 			onPost(isEditMode);
 			handleClose();
 		} catch (error) {
-			console.error("Failed to post:", error);
+			appLog.error("Failed to post:", error);
 			toast.error(isEditMode ? t("right_now.error_session_update_failed") : t("right_now.error_session_failed"));
 		} finally {
 			setIsPosting(false);
@@ -328,7 +328,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 			});
 			handleClose();
 		} catch (error) {
-			console.error("Failed to end session:", error);
+			appLog.error("Failed to end session:", error);
 			toast.error(t("right_now.error_end_failed"));
 		} finally {
 			setIsEnding(false);

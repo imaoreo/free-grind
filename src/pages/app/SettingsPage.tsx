@@ -15,12 +15,13 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
-    ShieldBan,
+    Workflow,
 	UserX,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { appLog } from "../../utils/logger";
 import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -196,7 +197,7 @@ export function SettingsPage() {
 		} catch (error) {
 			const msg = getErrorMessage(error, t("settings.failed_update_check"));
 			if (import.meta.env.DEV) {
-				console.error("Update check failed:", error, "| message:", msg);
+				appLog.error("Update check failed:", error, "| message:", msg);
 			}
 			toast.error(msg, { duration: 10000 });
 		} finally {
@@ -236,7 +237,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Switch update environment failed:", error);
+				appLog.error("Switch update environment failed:", error);
 			}
 			toast.error(t("settings.failed_switch_env"));
 		} finally {
@@ -278,7 +279,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Contributor channel switch failed:", error);
+				appLog.error("Contributor channel switch failed:", error);
 			}
 			toast.error("Failed to switch to contributor channel.");
 		} finally {
@@ -300,7 +301,7 @@ export function SettingsPage() {
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
-				console.error("Leave contributor channel failed:", error);
+				appLog.error("Leave contributor channel failed:", error);
 			}
 			toast.error("Failed to leave contributor channel.");
 		} finally {
@@ -343,29 +344,6 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
                 
-{/* --- AUTO BLOCK MENU BUTTON --- */}
-				<button
-					type="button"
-					onClick={() => navigate("/settings/auto-block")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-red-500/10 p-2.5 shrink-0">
-							<ShieldBan className="h-5 w-5 text-red-500" />
-						</div>
-						<div>
-							<p className="text-base font-semibold text-red-400">
-								Auto-Block Features
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								Configure automated blocking rules for keywords and age.
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-				{/* ----------------------------- */}
-
 				<button
 					type="button"
 					onClick={() => navigate("/settings/customizability")}
@@ -386,6 +364,29 @@ export function SettingsPage() {
 					</div>
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
+
+{/* --- AUTOMATION MENU BUTTON --- */}
+				<button
+					type="button"
+					onClick={() => navigate("/settings/automation")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
+							<Workflow className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.automation")}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.automation_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+				{/* ----------------------------- */}
 
 				<button
 					type="button"

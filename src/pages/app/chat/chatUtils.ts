@@ -7,6 +7,7 @@ import {
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../../utils/media";
+import { formatRelativeTime } from "../../../utils/relativeTime";
 import blankProfileImage from "../../../images/blank-profile.png";
 import { appLog } from "../../../utils/logger";
 
@@ -106,36 +107,8 @@ function getDateTimeFormatter(lng: string, options: Intl.DateTimeFormatOptions) 
 
 export function formatConversationTime(
 	timestamp: number | null | undefined,
-	locale?: string,
 ): string {
-	if (!timestamp) {
-		return "";
-	}
-
-	const lang = locale || i18n.language;
-	const inboxRelativeTime = getRelativeTimeFormatter(lang, {
-		numeric: "auto",
-	});
-
-	const now = Date.now();
-	const diffMs = timestamp - now;
-	const minuteMs = 60 * 1000;
-	const hourMs = 60 * minuteMs;
-	const dayMs = 24 * hourMs;
-
-	if (Math.abs(diffMs) < hourMs) {
-		return inboxRelativeTime.format(Math.round(diffMs / minuteMs), "minute");
-	}
-
-	if (Math.abs(diffMs) < dayMs) {
-		return inboxRelativeTime.format(Math.round(diffMs / hourMs), "hour");
-	}
-
-	if (Math.abs(diffMs) < dayMs * 7) {
-		return inboxRelativeTime.format(Math.round(diffMs / dayMs), "day");
-	}
-
-	return new Date(timestamp).toLocaleDateString();
+	return formatRelativeTime(timestamp);
 }
 
 export function formatMessageTime(

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { appLog } from "../utils/logger";
 
 type NativePushNotificationDetail = {
 	event?: string;
@@ -113,11 +114,11 @@ export function PushNotificationBridge() {
 
 		const handleDetail = (detail: NativePushNotificationDetail) => {
 			if (!markHandled(detail)) {
-				console.info("[PUSH_EVENT] Skipping duplicate push payload", detail);
+				appLog.info("[PUSH_EVENT] Skipping duplicate push payload", detail);
 				return;
 			}
 
-			console.info("[PUSH_EVENT] Received native push payload", detail);
+			appLog.info("[PUSH_EVENT] Received native push payload", detail);
 
 			if (detail.event === "opened") {
 				const route = getNotificationRoute(detail);
@@ -125,7 +126,7 @@ export function PushNotificationBridge() {
 					try {
 						navigate(route);
 					} catch (error) {
-						console.error(
+						appLog.error(
 							"[PUSH_EVENT] Failed to navigate to notification route",
 							error,
 						);
@@ -138,7 +139,7 @@ export function PushNotificationBridge() {
 		const onPushNotification = (event: Event) => {
 			const detail = (event as CustomEvent).detail;
 			if (!isPushNotificationDetail(detail)) {
-				console.warn("[PUSH_EVENT] Ignoring malformed native push payload", detail);
+				appLog.warn("[PUSH_EVENT] Ignoring malformed native push payload", detail);
 				return;
 			}
 

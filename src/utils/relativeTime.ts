@@ -1,9 +1,24 @@
+import i18n from "../i18n";
+
+// Optimization: Cache the formatter to avoid expensive re-instantiation in long lists
+const formatterCache = new Map<string, Intl.RelativeTimeFormat>();
+
+function getRelativeFormatter(lang: string) {
+	if (!formatterCache.has(lang)) {
+		formatterCache.set(
+			lang,
+			new Intl.RelativeTimeFormat(lang, {
+				numeric: "auto",
+				style: "long",
+			}),
+		);
+	}
+	return formatterCache.get(lang)!;
+}
+
 /**
- * Format a timestamp as a short relative string ("Just now", "10 mins ago",
- * "Yesterday", "3 days ago") falling back to a locale date for older values.
- *
- * Strings are intentionally inline (English) to match the rest of this
- * codebase, which already hard-codes similar labels in ChatPage.
+ * Format a timestamp as a short relative string falling back to a locale date for older values.
+ * Uses Intl.RelativeTimeFormat and synchronizes with the app's current i18n language.
  */
 export function formatRelativeTime(
 	timestamp: number | null | undefined,
@@ -14,29 +29,31 @@ export function formatRelativeTime(
 	}
 
 	const diffMs = now - timestamp;
-	if (diffMs < 0) {
-		return "Just now";
+	const lang = i18n.language;
+
+	// For very recent items, show a localized "Just now" or similar.
+	// We use Math.abs just in case of minor clock drift.
+	if (Math.abs(diffMs) < 60000) {
+		return i18n.t("browse_page.status_just_now");
 	}
 
-	const sec = Math.floor(diffMs / 1000);
-	if (sec < 45) return "Just now";
+	const formatter = getRelativeFormatter(lang);
 
-	const min = Math.floor(sec / 60);
-	if (min < 1) return "Just now";
-	if (min === 1) return "1 min ago";
-	if (min < 60) return `${min} mins ago`;
+	const seconds = Math.floor(diffMs / 1000);
+	const minutes = Math.floor(seconds / 60);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
 
-	const hour = Math.floor(min / 60);
-	if (hour === 1) return "1 hour ago";
-	if (hour < 24) return `${hour} hours ago`;
+	if (minutes < 60) {
+		return formatter.format(-minutes, "minute");
+	}
+	if (hours < 24) {
+		return formatter.format(-hours, "hour");
+	}
+	if (days < 7) {
+		return formatter.format(-days, "day");
+	}
 
-	const day = Math.floor(hour / 24);
-	if (day === 1) return "Yesterday";
-	if (day < 7) return `${day} days ago`;
-
-	const week = Math.floor(day / 7);
-	if (week === 1) return "1 week ago";
-	if (week < 5) return `${week} weeks ago`;
-
-	return new Date(timestamp).toLocaleDateString();
+	// For older dates, use the browser's default locale date format
+	return new Date(timestamp).toLocaleDateString(lang);
 }

@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 
 		void apiFunctions.registerPresence(state.userId);
-	});
+	}, [state.userId, state.isLoading, apiFunctions]);
 
 	// Receive Android native FCM token and sync it to Grindr once authenticated.
 	useEffect(() => {
