@@ -118,7 +118,7 @@ export function BrowseLocationPage() {
 		}
 	};
 
-	const performSearch = async (query: string, signal?: AbortSignal) => {
+	const performSearch = async (query: string) => {
 		if (!query || query === lastSearchedQuery) {
 			setIsSearchingLocation(false);
 			return;
@@ -134,17 +134,13 @@ export function BrowseLocationPage() {
 				)}`,
 				{
 					method: "GET",
-					abortController: controller,
 				},
 			);
 
 			const parsed = z.array(geocodeResultSchema).parse(await response.json());
 			setLocationResults(parsed);
 			setLocationError(null);
-		} catch (error) {
-			if (error instanceof Error && error.name === "AbortError") {
-				return;
-			}
+		} catch {
 			setLocationError(t("browse_location.error_search_failed"));
 		} finally {
 			setIsSearchingLocation(false);
@@ -161,14 +157,12 @@ export function BrowseLocationPage() {
 			return;
 		}
 
-		const controller = new AbortController();
 		const timer = setTimeout(() => {
-			void performSearch(query, controller.signal);
+			void performSearch(query);
 		}, 800);
 
 		return () => {
 			clearTimeout(timer);
-			controller.abort();
 		};
 	}, [locationQuery]);
 

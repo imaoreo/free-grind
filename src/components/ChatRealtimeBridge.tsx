@@ -284,7 +284,7 @@ export function ChatRealtimeBridge() {
 						const matchedWord = getMatchedForbiddenWord(messageText, "chat");
 
 						if (isIncoming && matchedWord) {
-							notifyAutoBlock(`Spam Intercepted`, `Keyword: "${matchedWord}"\nMessage: "${messageText}"`);
+							notifyAutoBlock("Spam Intercepted", `Keyword: "${matchedWord}"`);
 							
 							if (m.senderId) {
 								apiFunctions.blockProfile(String(m.senderId)).catch(() => {});
