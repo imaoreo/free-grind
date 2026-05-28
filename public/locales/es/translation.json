@@ -86,15 +86,50 @@
         "filters": "Filtros",
         "filter_summary": "Posición: {{position}} · Edad: {{age}}",
         "try_again": "Inténtalo de nuevo",
-        "empty": "Nadie está en Right Now.",
-        "error_load": "Error al cargar Right Now",
+        "empty": "Nadie cerca está en Right Now.",
+        "error_load": "Error al cargar la página de Right Now",
         "message_aria": "Escribir a {{name}}",
         "any_position": "Sin establecer",
         "just_now": "Ahora mismo",
         "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
         "days_short": "{{count}}d",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "edit_session_title": "Editar sesión",
+        "session_placeholder": "¿Qué estás buscando ahora?",
+        "char_limit": "{{count}}/140",
+        "add_photo": "Añadir foto",
+        "i_am_hosting": "Alojar",
+        "show_on_map": "Mostrarme en el mapa",
+        "start_now": "Empezar ahora",
+        "update_now": "Actualizar ahora",
+        "remaining": "restante",
+        "visibility": "Visibilidad",
+        "status_hidden": "Actualmente oculto",
+        "status_visible": "Visible públicamente",
+        "weekly_limit": "Sesiones semanales",
+        "remaining_count": "disponible(s)",
+        "next_refresh": "Siguiente disponible",
+        "refresh_time": "Viernes, 17:00",
+        "limit_reached_title": "Límite alcanzado",
+        "limit_reached_desc": "Ya has usado todas tus sesiones esta semana.",
+        "uploading": "Subiendo...",
+        "updating": "Actualizando...",
+        "starting_session": "Comenzando sesión...",
+        "ending_session": "Finalizando...",
+        "end_session": "Finalizar sesión",
+        "session_updated": "¡Sesión actualizada!",
+        "session_created": "¡Sesión iniciada!",
+        "session_ended": "Sesión finalizada",
+        "session_expired": "Sesión caducada",
+        "error_fetch_session": "No se pudo cargar los datos de la sesión",
+        "error_upload": "Error con la subida",
+        "error_session_failed": "Error al iniciar sesión",
+        "error_session_update_failed": "Error al actualizar sesión",
+        "error_end_failed": "Error al terminar sesión",
+        "upload_preview_alt": "Previsualización de la subida",
+        "close_aria": "Cerrar",
+        "create_session_title": "Right Now"
     },
     "right_now_filters": {
         "title": "Filtros Right Now",
@@ -136,6 +171,11 @@
             "youngest": "Más joven",
             "default": "Por defecto",
             "distance": "Distancia"
+        },
+        "local_filters": {
+            "title": "Filtros locales",
+            "description": "Estos filtros se aplican instantáneamente a los perfiles ya cargados.",
+            "is_visiting": "Visitando"
         }
     },
     "about_page": {
@@ -456,7 +496,7 @@
             "write_first_message": "Escribe tu primer mensaje...",
             "title": "Nueva conversación",
             "subtitle": "Perfil #{{profileId}}",
-            "no_messages_yet": "",
+            "no_messages_yet": "Sin mensajes todavía",
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
         "loading_albums": "Cargando álbumes...",
@@ -578,7 +618,9 @@
             "upload_media_failed": "Error al subir el contenido",
             "load_drawer_media": "Error al cargar contenido de la galería",
             "send_drawer_media": "Error al enviar contenido de la galería",
-            "delete_conversation": "Error al eliminar conversación"
+            "delete_conversation": "Error al eliminar conversación",
+            "no_location_set": "La ubicación no está establecida en los ajustes",
+            "invalid_location": "Formato de ubicación inválido"
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
@@ -625,7 +667,9 @@
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
         "drawer_label": "Galería",
-        "drawer_unavailable": ""
+        "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
+        "share_location_label": "Compartir ubicación",
+        "share_location_confirm": "¿Compartir esta ubicación?"
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",
@@ -794,7 +838,9 @@
         "block_failed": "Error al bloquear perfil",
         "unblock_failed": "Error al desbloquear perfil",
         "unfavorite": "Quitar de favoritos",
-        "dont_ask_again": "No preguntar de nuevo"
+        "dont_ask_again": "No preguntar de nuevo",
+        "visiting": "Visitando",
+        "location_finder_location_copied": "Ubicación copiada al portapapeles"
     },
     "nav": {
         "browse": "Navegar",
@@ -879,7 +925,17 @@
             "hot": "Popular",
             "looking": "Buscando",
             "default": "Tap"
-        }
+        },
+        "recovered_tooltip": "Identificado del historial local",
+        "onboarding": {
+            "title": "Visitantes de perfil",
+            "limitation_title": "Cómo funciona",
+            "limitation_desc": "Grindr normalmente solo muestra el último visitante al completo. Los demás por lo general están ocultos tras un muro de pago o se muestra como previsualizaciones anónimas.",
+            "recovery_desc": "Free Grindr relaciona automáticamente los visitantes anónimos con tu historial local. Si encontramos una coincidencia, el perfil se te revelará.",
+            "button": "¡Entendido!",
+            "recovery_title": "Recuperación inteligente"
+        },
+        "unknown_profile": "Perfil desconocido"
     },
     "browse_location": {
         "title": "Buscar ubicación",
@@ -979,7 +1035,8 @@
             "liveness_failed": "Error en la verificación de Liveness3d",
             "enrollment_failed": "Error en la verificación de inscripción",
             "document_failed": "Error en la verificación de documentación",
-            "load_right_now": "Error al cargar la página de Right Now"
+            "load_right_now": "Error al cargar la página de Right Now",
+            "session_right_now": "Error al iniciar sesión"
         }
     },
     "errors": {
@@ -1073,7 +1130,11 @@
         "delete_confirm_message": "¿Estás seguro de que quieres borrar este contenido de la galería?",
         "delete_confirm_label": "Borrar",
         "title": "Galería",
-        "media_alt": "Contenido de la galería"
+        "media_alt": "Contenido de la galería",
+        "is_expiring_toggle_on": "10s",
+        "is_expiring_send": "Enviar efímera {{count}}",
+        "is_expiring_title_on": "Efímera (10s)",
+        "is_expiring_title_off": "Enviar normal"
     },
     "favorites": {
         "added": "Añadido a favoritos",
