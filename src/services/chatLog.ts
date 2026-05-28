@@ -17,6 +17,8 @@ import {
 } from "@tauri-apps/plugin-fs";
 import type { Message } from "../types/messages";
 
+import { appLog } from "../utils/logger";
+
 const LOG_DIR = "chat-log";
 let writeQueue: Promise<void> = Promise.resolve();
 
@@ -63,7 +65,8 @@ export async function readLog(conversationId: string): Promise<ChatLogData> {
 		}
 
 		return { messages: [] };
-	} catch {
+	} catch (error) {
+		appLog.error(`[chatLog] readLog failed for ${conversationId}`, error);
 		return { messages: [] };
 	}
 }
@@ -123,8 +126,8 @@ export async function appendMessages(
 			await writeTextFile(logPath(conversationId), JSON.stringify(newData), {
 				baseDir: BaseDirectory.AppData,
 			});
-		} catch {
-			// Best effort only.
+		} catch (error) {
+			appLog.error(`[chatLog] appendMessages failed for ${conversationId}`, error);
 		}
 	};
 
@@ -168,13 +171,13 @@ export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 						) {
 							result[conversationId] = (parsed as any).messages;
 						}
-					} catch {
-						// Skip unreadable files.
+					} catch (error) {
+						appLog.warn(`[chatLog] exportAllLogs skipping unreadable file: ${name}`, error);
 					}
 				}),
 		);
-	} catch {
-		// Return whatever was collected.
+	} catch (error) {
+		appLog.error("[chatLog] exportAllLogs failed", error);
 	}
 
 	return result;
@@ -191,7 +194,7 @@ export async function clearLog(conversationId: string): Promise<void> {
 			return;
 		}
 		await remove(path, { baseDir: BaseDirectory.AppData });
-	} catch {
-		// Best effort only.
+	} catch (error) {
+		appLog.error(`[chatLog] clearLog failed for ${conversationId}`, error);
 	}
 }
