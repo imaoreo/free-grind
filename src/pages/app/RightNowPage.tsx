@@ -654,7 +654,7 @@ export function RightNowPage() {
 				) : (
 					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{items.map((item) => (
-							<div key={item.profileId} className="px-0">
+							<div key={`${item.id}-${item.profileId}`} className="px-0">
 								<RightNowRow
 									item={item}
 									onMessage={handleMessage}

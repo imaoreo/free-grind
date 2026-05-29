@@ -18,7 +18,16 @@ export function useRightNowFeed(params: RightNowQueryParams) {
 	return useQuery({
 		queryKey: ["rightnow", "feed", params],
 		queryFn: async () => {
-			return await api.getRightNowFeed(params);
+			const items = await api.getRightNowFeed(params);
+			// Deduplicate items by their ID to prevent React "duplicate key" errors
+			// if the API returns overlapping data during refreshes.
+			const seen = new Set();
+			return items.filter((item) => {
+				const key = item.id ?? item.profileId;
+				if (seen.has(key)) return false;
+				seen.add(key);
+				return true;
+			});
 		},
 		staleTime: DEFAULT_STALE_TIME_MS,
 		refetchOnWindowFocus: true,

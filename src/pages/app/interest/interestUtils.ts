@@ -258,12 +258,15 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 	const root = asObject(payload);
 	if (!root || !Array.isArray(root.profiles)) return [];
 
-	return root.profiles.map((entry) => {
+	const mergedMap = new Map<string, InterestItem>();
+
+	for (const entry of root.profiles) {
 		const obj = asObject(entry);
-		if (!obj) return null;
+		if (!obj) continue;
 		const profileId = toStringId(obj.profileId) ?? toStringId(obj.senderId);
-		if (!profileId) return null;
-		return {
+		if (!profileId) continue;
+
+		const incoming: InterestItem = {
 			profileId,
 			displayName: getItemDisplayName(obj, profileId),
 			imageHash: getItemImageHash(obj),
@@ -272,7 +275,15 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 			viewCount: null,
 			canOpenProfile: true,
 		};
-	}).filter((it): it is InterestItem => it !== null);
+
+		const existing = mergedMap.get(profileId);
+		// For taps, we prefer the one with the newer timestamp if duplicates exist
+		if (!existing || (incoming.timestamp ?? 0) > (existing.timestamp ?? 0)) {
+			mergedMap.set(profileId, incoming);
+		}
+	}
+
+	return Array.from(mergedMap.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 }
 
 export function formatTimestamp(
