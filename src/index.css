@@ -22,6 +22,10 @@
 	--animate-search-in: search-in 0.3s ease-out forwards;
 	--animate-badge-in: badge-in 0.3s ease-out forwards;
 	--animate-morph-glow: morph-glow 8s ease-in-out infinite;
+	--animate-spin: spin 1s linear infinite;
+	--animate-fade-in: fade-in 0.4s ease-out forwards;
+	--animate-fade-in-subtle: fade-in-subtle 0.4s ease-out both;
+	--animate-reveal-row: reveal-row 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 
 	@keyframes morph-glow {
 		0%, 100% {
@@ -71,6 +75,30 @@
 	@keyframes modal-top-out {
 		from { opacity: 1; transform: scale(1) translateY(0) translateZ(0.1px); }
 		to { opacity: 0; transform: scale(0.92) translateY(-15px); }
+	}
+	@keyframes spin {
+		from { transform: rotate(0deg); }
+		to { transform: rotate(360deg); }
+	}
+	@keyframes fade-in {
+		from { opacity: 0; }
+		to { opacity: 1; }
+	}
+	@keyframes fade-in-subtle {
+		from { opacity: 0; }
+		to { opacity: 0.4; }
+	}
+	@keyframes reveal-row {
+		from {
+			opacity: 0;
+			transform: translateY(var(--reveal-translate-y, 40px)) scale(var(--reveal-scale, 0.92));
+			filter: blur(var(--reveal-blur, 4px));
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0) scale(1);
+			filter: blur(0);
+		}
 	}
 	@keyframes backdrop-in {
 		from { opacity: 0; }

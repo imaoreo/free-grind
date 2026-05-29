@@ -30,3 +30,20 @@ export const DEFAULT_STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
  * - main.tsx (Global QueryClient default)
  */
 export const DEFAULT_GC_TIME_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Reveal on Scroll effect strengths.
+ */
+export const REVEAL_STRENGTH_SUBTLE = {
+	translateY: "20px",
+	scale: "0.96",
+	blur: "2px",
+} as const;
+
+export const REVEAL_STRENGTH_PRONOUNCED = {
+	translateY: "40px",
+	scale: "0.92",
+	blur: "4px",
+} as const;
+
+export type RevealStrength = "subtle" | "pronounced";

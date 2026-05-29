@@ -11,6 +11,7 @@ import z from "zod";
 import { appLog } from "../utils/logger";
 import { geohashSchema } from "../utils/geohash";
 import { UNIT_PRESETS, type UnitsPreset } from "../utils/units";
+import { REVEAL_STRENGTH_SUBTLE, REVEAL_STRENGTH_PRONOUNCED, type RevealStrength } from "../config/ui-constants";
 
 export const COLOR_SCHEMES = ["system", "light", "dark"] as const;
 export type ColorScheme = (typeof COLOR_SCHEMES)[number];
@@ -155,6 +156,8 @@ const preferencesSchema = z.object({
 	activeRightNowId: z.number().nullable().optional(),
 	activeRightNowExpiresAt: z.number().nullable().optional(),
 	rightNowRemaining: z.number().default(0),
+	revealEffectEnabled: z.boolean().default(true),
+	revealEffectStrength: z.enum(["subtle", "pronounced"]).default("subtle"),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -181,6 +184,8 @@ type PreferencesAction =
 	| { type: "SET_AUTO_LOCATION"; payload: boolean }
 	| { type: "SET_RIGHT_NOW_TEST_MODE"; payload: boolean }
 	| { type: "SET_RIGHT_NOW_REMAINING"; payload: number }
+	| { type: "SET_REVEAL_EFFECT_ENABLED"; payload: boolean }
+	| { type: "SET_REVEAL_EFFECT_STRENGTH"; payload: RevealStrength }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
@@ -213,6 +218,10 @@ function preferencesReducer(
 			return { ...state, rightNowTestMode: action.payload };
 		case "SET_RIGHT_NOW_REMAINING":
 			return { ...state, rightNowRemaining: action.payload };
+		case "SET_REVEAL_EFFECT_ENABLED":
+			return { ...state, revealEffectEnabled: action.payload };
+		case "SET_REVEAL_EFFECT_STRENGTH":
+			return { ...state, revealEffectStrength: action.payload };
 		case "SET_RIGHT_NOW_STATUS":
 			return {
 				...state,
@@ -230,11 +239,16 @@ function preferencesReducer(
 	}
 }
 
-function applyTheme(colorScheme: ColorScheme, accentColor: string, accentContrast: string) {
+function applyTheme(colorScheme: ColorScheme, accentColor: string, accentContrast: string, revealStrength: RevealStrength) {
 	const root = document.documentElement;
 	root.setAttribute("data-scheme", colorScheme);
 	root.style.setProperty("--accent", accentColor);
 	root.style.setProperty("--accent-contrast", accentContrast);
+
+	const strength = revealStrength === "pronounced" ? REVEAL_STRENGTH_PRONOUNCED : REVEAL_STRENGTH_SUBTLE;
+	root.style.setProperty("--reveal-translate-y", strength.translateY);
+	root.style.setProperty("--reveal-scale", strength.scale);
+	root.style.setProperty("--reveal-blur", strength.blur);
 
 	const styles = getComputedStyle(root);
 	const backgroundColor = styles.getPropertyValue("--bg").trim();
@@ -269,6 +283,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		activeRightNowId: null,
 		activeRightNowExpiresAt: null,
 		rightNowRemaining: 0,
+		revealEffectEnabled: true,
+		revealEffectStrength: "subtle",
 		isLoading: true,
 	});
 
@@ -291,6 +307,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_AUTO_LOCATION", payload: parsed.useAutoLocation });
 					dispatch({ type: "SET_RIGHT_NOW_TEST_MODE", payload: parsed.rightNowTestMode });
 					dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: parsed.rightNowRemaining });
+					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
+					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: parsed.revealEffectStrength });
 					dispatch({
 						type: "SET_RIGHT_NOW_STATUS",
 						payload: {
@@ -302,7 +320,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 						type: "SET_ACCENT",
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
 					});
-					applyTheme(parsed.colorScheme, parsed.accentColor, parsed.accentContrast);
+					applyTheme(parsed.colorScheme, parsed.accentColor, parsed.accentContrast, parsed.revealEffectStrength);
 				}
 			} catch (error) {
 				appLog.error("Failed to load preferences:", error);
@@ -335,6 +353,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				useAutoLocation: currentState.useAutoLocation,
 				rightNowTestMode: currentState.rightNowTestMode,
 				rightNowRemaining: currentState.rightNowRemaining,
+				revealEffectEnabled: currentState.revealEffectEnabled,
+				revealEffectStrength: currentState.revealEffectStrength,
 				activeRightNowId: currentState.activeRightNowId ?? null,
 				activeRightNowExpiresAt: currentState.activeRightNowExpiresAt ?? null,
 				...newValues,
@@ -382,6 +402,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			if (newValues.rightNowRemaining !== undefined) {
 				dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: newValues.rightNowRemaining });
 			}
+			if (newValues.revealEffectEnabled !== undefined) {
+				dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: newValues.revealEffectEnabled });
+			}
+			if (newValues.revealEffectStrength !== undefined) {
+				dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: newValues.revealEffectStrength });
+			}
 			if (
 				newValues.activeRightNowId !== undefined ||
 				newValues.activeRightNowExpiresAt !== undefined
@@ -415,6 +441,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				preferences.colorScheme,
 				preferences.accentColor,
 				preferences.accentContrast,
+				preferences.revealEffectStrength,
 			);
 
 			// Persist to localStorage
@@ -439,6 +466,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		activeRightNowId: state.activeRightNowId,
 		activeRightNowExpiresAt: state.activeRightNowExpiresAt,
 		rightNowRemaining: state.rightNowRemaining,
+		revealEffectEnabled: state.revealEffectEnabled,
+		revealEffectStrength: state.revealEffectStrength,
 		setPreferences,
 		isLoading: state.isLoading,
 	};

@@ -19,6 +19,7 @@ import { formatDistance } from "./gridpage/utils";
 import { formatRelativeTime } from "../../utils/relativeTime";
 import { cn } from "../../utils/cn";
 import { ProfileImage } from "../../components/ui/profile-image";
+import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
 	type RightNowFiltersDraft,
@@ -213,6 +214,7 @@ function RightNowRow({
 }) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
+	const { ref, revealClass } = useRevealOnScroll();
 	const name = getItemName(item, t);
 	const isHosting = item.hosting;
 	const imageUrl = getItemDisplayImageUrl(item);
@@ -231,7 +233,13 @@ function RightNowRow({
 	}, [item.media]);
 
 	return (
-		<div className="flex items-start gap-3 px-5 py-4">
+		<div
+			ref={ref}
+			className={cn(
+				"flex items-start gap-3 px-5 py-4 border-b border-[var(--surface-2)]",
+				revealClass
+			)}
+		>
 			<button
 				type="button"
 				className="relative mt-0.5 shrink-0"
@@ -307,6 +315,25 @@ function RightNowRow({
 			>
 				<MessageSquare className="h-4 w-4" />
 			</button>
+		</div>
+	);
+}
+
+function RightNowSkeleton() {
+	return (
+		<div className="flex items-start gap-3 px-5 py-4 animate-pulse">
+			<div className="h-14 w-14 shrink-0 rounded-full bg-[var(--surface-2)]" />
+			<div className="flex-1 space-y-3 pt-1">
+				<div className="space-y-2">
+					<div className="h-4 w-[85%] rounded bg-[var(--surface-2)]" />
+					<div className="h-4 w-[60%] rounded bg-[var(--surface-2)]" />
+				</div>
+				<div className="flex items-center gap-3">
+					<div className="h-3 w-16 rounded bg-[var(--surface-2)]" />
+					<div className="h-3 w-12 rounded bg-[var(--surface-2)]" />
+				</div>
+			</div>
+			<div className="h-10 w-10 shrink-0 rounded-full bg-[var(--surface-2)]" />
 		</div>
 	);
 }
@@ -618,9 +645,11 @@ export function RightNowPage() {
 			</header>
 
 			<FeedScrollContainer ref={feedContainerRef}>
-				{isLoading && items.length === 0 ? (
-					<div className="flex items-center justify-center py-16">
-						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+				{isLoading ? (
+					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+						{Array.from({ length: 6 }).map((_, i) => (
+							<RightNowSkeleton key={i} />
+						))}
 					</div>
 				) : error ? (
 					<div className="px-[var(--app-px)] py-8 text-center">
@@ -639,7 +668,7 @@ export function RightNowPage() {
 						<p className="text-sm text-[var(--text-muted)]">{t("right_now.empty")}</p>
 					</div>
 				) : (
-					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+					<div className="mx-auto max-w-2xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{items.map((item) => (
 							<div key={`${item.id}-${item.profileId}`} className="px-0">
 								<RightNowRow

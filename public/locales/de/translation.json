@@ -534,6 +534,16 @@
         "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "columns_2": "2 Spalten",
         "columns_3": "3 Spalten",
+        "reveal_effect": {
+            "title": "Reveal-Effekt",
+            "description": "Der Reveal-Effekt animiert Elemente beim Scrollen. Du kannst ihn deaktivieren oder die Intensität anpassen.",
+            "enable": "Reveal-Effekt aktivieren",
+            "enable_desc": "Elemente beim Erscheinen im Sichtfeld dezent animieren.",
+            "strengths": {
+                "subtle": "Dezent",
+                "pronounced": "Ausgeprägt"
+            }
+        },
         "preview": "Vorschau",
         "preview_primary": "Primär-Button",
         "preview_outlined": "Umrandet",
