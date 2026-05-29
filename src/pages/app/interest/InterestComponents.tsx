@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import blankProfileImage from "../../../images/blank-profile.png";
 import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREVIEW_ID_PREFIX } from "./interestUtils";
+import { cn } from "../../../utils/cn";
 
 export function InterestTabs({
 	activeTab,
@@ -84,62 +85,83 @@ export function InterestRow({
 				: t("interest_page.viewed")
 			: null;
 
+	const displayName = item.displayName
+		? item.displayName
+		: isPrivate
+			? t("interest_page.unknown_profile")
+			: t("interest_page.profile_fallback", { id: item.profileId });
+
 	return (
-		<button
-			type="button"
-			onClick={() => {
-				if (item.canOpenProfile) {
-					onOpenProfile(item.profileId);
-				}
-			}}
-			disabled={isPrivate}
-			className={`flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition ${
-				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]"
-			}`}
+		<div
+			className={cn(
+				"flex items-start gap-3 px-5 py-4 transition-colors",
+				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40"
+			)}
 		>
-			<div className="relative h-12 w-12 shrink-0">
-				<div className="h-full w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img src={imageSrc} alt={item.displayName === t("interest_page.unknown_profile") ? t("interest_page.unknown_profile") : item.displayName} className="h-full w-full object-cover" />
+			{/* Avatar */}
+			<button
+				type="button"
+				onClick={() => !isPrivate && onOpenProfile(item.profileId)}
+				disabled={isPrivate}
+				className="relative mt-0.5 shrink-0"
+			>
+				<div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--surface-2)]">
+					<img
+						src={imageSrc}
+						alt={displayName}
+						className="h-full w-full object-cover"
+					/>
 				</div>
 				{isPrivate && (
 					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-2 ring-[var(--surface)]">
 						<Lock className="h-3 w-3" />
 					</div>
 				)}
-			</div>
+			</button>
 
+			{/* Info */}
 			<div className="min-w-0 flex-1">
-				<div className="flex items-center gap-1.5">
-					<p className={`truncate text-sm font-semibold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
-						{item.displayName
-							? item.displayName
-							: isPrivate
-								? t("interest_page.unknown_profile")
-								: t("interest_page.profile_fallback", { id: item.profileId })}
+				<button
+					type="button"
+					onClick={() => !isPrivate && onOpenProfile(item.profileId)}
+					disabled={isPrivate}
+					className="w-full text-left"
+				>
+					<div className="flex items-center gap-1.5">
+						<p className={`truncate text-sm font-bold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+							{displayName}
+						</p>
+						{isRecovered && (
+							<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+						)}
+					</div>
+					<p className="mt-0.5 truncate text-xs text-[var(--text-muted)] font-medium">
+						{formatTimestamp(item.timestamp, t, now)}
 					</p>
-					{isRecovered && (
-						<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+
+					{mode === "views" && !isPrivate && trailing && (
+						<div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] opacity-80">
+							<Eye className="h-3 w-3" />
+							{trailing}
+						</div>
 					)}
-				</div>
-				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t, now)}</p>
+				</button>
 			</div>
 
-			<span
-				className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ${
-					mode === "views" && !isPrivate ? "bg-[var(--surface-2)]" : ""
-				}`}
-			>
-				{mode === "views" ? (
-					!isPrivate && (
-						<>
-							<Eye className="h-3.5 w-3.5" />
-							{trailing}
-						</>
-					)
-				) : (
-					<span className="text-2xl leading-none">{getTapEmoji(item.tapType)}</span>
-				)}
-			</span>
-		</button>
+			{/* Action Area (Emoji for Taps) */}
+			{mode === "taps" && (
+				<div
+					className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--accent)]/40 text-[var(--accent)] backdrop-blur-xl"
+					style={{
+						backgroundColor: "color-mix(in srgb, var(--accent), transparent 88%)",
+						boxShadow: "0 4px 10px color-mix(in srgb, var(--accent), transparent 85%)"
+					}}
+				>
+					<span className="text-2xl leading-none select-none">
+						{getTapEmoji(item.tapType)}
+					</span>
+				</div>
+			)}
+		</div>
 	);
 }
