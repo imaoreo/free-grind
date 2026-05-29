@@ -33,6 +33,22 @@ export interface SquareCrop {
 }
 
 /**
+ * Calculates a centered square crop for an image file.
+ * Returns coordinates in pixels: top, left, right, bottom.
+ */
+export async function calculateSquareCrop(file: File): Promise<SquareCrop> {
+	const bitmap = await createImageBitmap(file);
+	const side = Math.min(bitmap.width, bitmap.height);
+	const left = Math.round((bitmap.width - side) / 2);
+	const top = Math.round((bitmap.height - side) / 2);
+	const right = left + side;
+	const bottom = top + side;
+	bitmap.close();
+
+	return { top, left, right, bottom };
+}
+
+/**
  * Resizes and crops an image file to a 1024x1024 square Blob.
  * This ensures compatibility with legacy endpoints and prevents server-side cropping issues.
  */
