@@ -107,7 +107,9 @@
         "minutes_short": "{{count}} m",
         "hours_short": "{{count}}h",
         "days_short": "{{count}}d",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "add_photo": "Adicionar foto",
+        "close_aria": "Fechar"
     },
     "right_now_filters": {
         "title": "Right Now Filtros",
