@@ -23,6 +23,7 @@ import {
 } from "./interest/interestUtils";
 import { InterestTabs, InterestRow } from "./interest/InterestComponents";
 import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
+import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { cn } from "../../utils/cn";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
@@ -139,13 +140,23 @@ export function InterestPage() {
 		prevTabRef.current = activeTab;
 	}, [activeTab]);
 
-	// Clear all scroll memory only when NEW activity is detected (because the list top has changed)
+	// Clear scroll memory for a specific tab when NEW activity is detected in that tab
+	const prevMaxViewsTs = useRef(0);
+	const prevMaxTapsTs = useRef(0);
+
 	useEffect(() => {
-		if (maxInterestTimestamp > 0) {
+		const maxViews = views.length > 0 ? Math.max(...views.map(v => v.timestamp ?? 0)) : 0;
+		if (maxViews > prevMaxViewsTs.current && prevMaxViewsTs.current > 0) {
 			sessionStorage.removeItem("interest-scroll-views");
+		}
+		prevMaxViewsTs.current = maxViews;
+
+		const maxTaps = taps.length > 0 ? Math.max(...taps.map(t => t.timestamp ?? 0)) : 0;
+		if (maxTaps > prevMaxTapsTs.current && prevMaxTapsTs.current > 0) {
 			sessionStorage.removeItem("interest-scroll-taps");
 		}
-	}, [maxInterestTimestamp]);
+		prevMaxTapsTs.current = maxTaps;
+	}, [views, taps]);
 
 	useEffect(() => {
 		const container = feedContainerRef.current;
@@ -163,7 +174,7 @@ export function InterestPage() {
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
 		return () => container.removeEventListener("scroll", handleScroll);
-	}, []);
+	}, [activeTab]);
 
 	useLayoutEffect(() => {
 		if (displayedItems.length > 0 && !isQueryLoading && !hasRestoredScroll && feedContainerRef.current) {
@@ -172,10 +183,9 @@ export function InterestPage() {
 			if (saved) {
 				try {
 					const { top, timestamp } = JSON.parse(saved);
-					const FIVE_MINUTES = 5 * 60 * 1000;
 
-					// Only restore if the scroll position is less than 5 minutes old
-					if (Date.now() - timestamp < FIVE_MINUTES && top > 0) {
+					// Only restore if the scroll position is less than the timeout
+					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS && top > 0) {
 						feedContainerRef.current.scrollTop = top;
 					} else {
 						// Clean up expired scroll data

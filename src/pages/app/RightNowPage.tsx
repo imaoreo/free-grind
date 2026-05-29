@@ -12,6 +12,7 @@ import {
 	SlidersHorizontal,
 } from "lucide-react";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useRightNowFeed } from "../../hooks/queries/useRightNowQueries";
 import type { RightNowFeedItem } from "../../services/apiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
@@ -32,38 +33,9 @@ import { RightNowPostPage } from "./rightnow/RightNowPostPage";
 import { RightNowFiltersPage } from "./RightNowFiltersPage";
 import { PhotoViewer } from "../../components/PhotoViewer";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { getCachedRightNowFeed, setCachedRightNowFeed } from "./rightnow/rightnow-cache";
+import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 
 type SortOption = RightNowSortOption;
-
-function buildRightNowFeedCacheKey(
-	sort: SortOption,
-	hostingOnly: boolean,
-	ageMin: number,
-	ageMax: number,
-	positionFilter: string,
-): string {
-	return [sort, hostingOnly ? "hosting" : "all", ageMin, ageMax, positionFilter || "any"].join("|");
-}
-
-function sortItemsByOption(items: RightNowFeedItem[], sort: SortOption): RightNowFeedItem[] {
-	const sorted = [...items];
-	if (sort === "DISTANCE") {
-		sorted.sort((left, right) => {
-			const leftDistance = left.distanceMeters ?? Number.POSITIVE_INFINITY;
-			const rightDistance = right.distanceMeters ?? Number.POSITIVE_INFINITY;
-			return leftDistance - rightDistance;
-		});
-		return sorted;
-	}
-
-	sorted.sort((left, right) => {
-		const leftPostedAt = left.postedAt ?? 0;
-		const rightPostedAt = right.postedAt ?? 0;
-		return rightPostedAt - leftPostedAt;
-	});
-	return sorted;
-}
 
 function parseFiltersFromLocationState(
 	state: unknown,
@@ -105,7 +77,6 @@ function getItemName(item: RightNowFeedItem, t: TFunction): string {
 }
 
 function getItemImageUrl(item: RightNowFeedItem): string | null {
-	// Only use the profileImageMediaHash for the avatar circle
 	return item.profileImageMediaHash && validateMediaHash(item.profileImageMediaHash)
 		? getThumbImageUrl(item.profileImageMediaHash, "320x320")
 		: null;
@@ -129,7 +100,7 @@ function PostMediaGrid({
 	const isDesktop = useDesktopBreakpoint();
 	if (!media || media.length === 0) return null;
 
-	const items = media.slice(0, 3); // Limit to max 3 as requested
+	const items = media.slice(0, 3);
 	const count = items.length;
 
 	return (
@@ -257,7 +228,6 @@ function RightNowRow({
 
 	return (
 		<div className="flex items-start gap-3 px-5 py-4">
-			{/* Avatar */}
 			<button
 				type="button"
 				className="relative mt-0.5 shrink-0"
@@ -271,7 +241,6 @@ function RightNowRow({
 				) : null}
 			</button>
 
-			{/* Text info */}
 			<div className="min-w-0 flex-1">
 				<button
 					type="button"
@@ -316,7 +285,6 @@ function RightNowRow({
 					</div>
 				</button>
 
-				{/* Post Images Grid */}
 				<PostMediaGrid
 					media={item.media}
 					onOpenPhoto={(index) => onOpenPhoto(photos, index)}
@@ -341,25 +309,10 @@ function RightNowRow({
 
 export function RightNowPage() {
 	const { t } = useTranslation();
-	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
-	const initialCacheKey = useMemo(
-		() =>
-			buildRightNowFeedCacheKey(
-				persistedFilters.sort,
-				persistedFilters.hostingOnly,
-				persistedFilters.ageMin,
-				persistedFilters.ageMax,
-				persistedFilters.positionFilter,
-			),
-		[persistedFilters],
-	);
 
-	const [items, setItems] = useState<RightNowFeedItem[]>(() => getCachedRightNowFeed(initialCacheKey) || []);
-	const [isLoading, setIsLoading] = useState(() => !getCachedRightNowFeed(initialCacheKey));
-	const [error, setError] = useState<string | null>(null);
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
 	const [hostingOnly, setHostingOnly] = useState(persistedFilters.hostingOnly);
 	const [ageMin, setAgeMin] = useState(persistedFilters.ageMin);
@@ -368,6 +321,16 @@ export function RightNowPage() {
 		persistedFilters.positionFilter,
 	);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+
+	const queryParams = useMemo(() => ({
+		sort,
+		hosting: hostingOnly ? true : undefined,
+		ageMin: ageMin > 18 ? ageMin : undefined,
+		ageMax: ageMax < 99 ? ageMax : undefined,
+		sexualPositions: positionFilter || undefined,
+	}), [sort, hostingOnly, ageMin, ageMax, positionFilter]);
+
+	const { data: items = [], isLoading, error, refetch } = useRightNowFeed(queryParams);
 
 	const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
 	const [viewerIndex, setViewerIndex] = useState(0);
@@ -385,7 +348,6 @@ export function RightNowPage() {
 	const [isFiltersMounted, setIsFiltersMounted] = useState(false);
 	const [fabPhase, setFabPhase] = useState<RightNowFABPhase>("idle");
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
-	const unfilteredItemsRef = useRef<RightNowFeedItem[] | null>(null);
 
 	const handlePostClick = useCallback(() => {
 		setIsPosting(true);
@@ -396,10 +358,9 @@ export function RightNowPage() {
 		if (!isEdit) {
 			setFabPhase("loading");
 		}
-		setIsPosting(false); // Button starts fading in
-		// Let the modal stay for 300ms to finish its animation
+		setIsPosting(false);
 		setTimeout(() => setIsModalMounted(false), 300);
-	}, [setFabPhase]);
+	}, []);
 
 	const handleCloseModal = useCallback(() => {
 		setIsPosting(false);
@@ -441,7 +402,6 @@ export function RightNowPage() {
 			setAgeMax(next.ageMax);
 			setPositionFilter(next.positionFilter);
 
-			// Clear the state from the history entry so it doesn't re-apply when returning to this page
 			const safeState =
 				typeof location.state === "object" && location.state !== null
 					? (location.state as Record<string, unknown>)
@@ -451,16 +411,7 @@ export function RightNowPage() {
 				state: { ...safeState, rightNowFiltersDraft: undefined },
 			});
 		}
-	}, [
-		location.key,
-		location.state,
-		navigate,
-		location.pathname,
-		location.search,
-		ageMin,
-		ageMax,
-		positionFilter,
-	]);
+	}, [location.key, location.state, navigate, location.pathname, location.search, ageMin, ageMax, positionFilter]);
 
 	useEffect(() => {
 		saveRightNowFiltersDraft({
@@ -473,7 +424,6 @@ export function RightNowPage() {
 	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
 
 	const { activeRightNowId, activeRightNowExpiresAt, rightNowRemaining, setPreferences, developerMode, showDebugInfo, rightNowTestMode } = usePreferences();
-	const isMountedRef = useRef(true);
 
 	const isSessionActive = useMemo(() => {
 		if (!activeRightNowId || !activeRightNowExpiresAt) return false;
@@ -481,19 +431,15 @@ export function RightNowPage() {
 	}, [activeRightNowId, activeRightNowExpiresAt]);
 
 	useEffect(() => {
-		// Only transition idle -> countdown if the session is clearly active
-		// We add a small buffer (2s) to avoid fighting with the FAB's own countdown
 		const isClearlyActive = activeRightNowId && activeRightNowExpiresAt && (Date.now() < activeRightNowExpiresAt - 2000);
 
 		if (isClearlyActive && fabPhase === "idle" && !isPosting) {
 			setFabPhase("countdown");
 		} else if (!isSessionActive && fabPhase === "countdown" && !isPosting) {
-			// Session ended or expired
 			setFabPhase("idle");
 		}
 	}, [isSessionActive, fabPhase, isPosting, activeRightNowId, activeRightNowExpiresAt]);
 
-	// Auto-clear expired session from preferences
 	useEffect(() => {
 		if (!isSessionActive && activeRightNowId) {
 			void setPreferences({
@@ -503,79 +449,18 @@ export function RightNowPage() {
 		}
 	}, [isSessionActive, activeRightNowId, setPreferences]);
 
-	useEffect(() => {
-		isMountedRef.current = true;
-		return () => {
-			isMountedRef.current = false;
-		};
-	}, []);
-
-	const loadFeed = useCallback(async (ignoreCache = false) => {
-		const cacheKey = buildRightNowFeedCacheKey(
-			sort,
-			hostingOnly,
-			ageMin,
-			ageMax,
-			positionFilter,
-		);
-		if (!ignoreCache) {
-			const cached = getCachedRightNowFeed(cacheKey);
-			if (cached) {
-				setItems(cached);
-				if (!hostingOnly) {
-					unfilteredItemsRef.current = cached;
-				}
-				setIsLoading(false);
-				return;
-			}
-		}
-
-		setIsLoading(true);
-		setError(null);
-		try {
-			const result = await apiFunctions.getRightNowFeed({
-				sort,
-				hosting: hostingOnly ? true : undefined,
-				ageMin: ageMin > 18 ? ageMin : undefined,
-				ageMax: ageMax < 99 ? ageMax : undefined,
-				sexualPositions: positionFilter || undefined,
-			});
-			if (isMountedRef.current) {
-				setItems(result);
-				if (!hostingOnly) {
-					unfilteredItemsRef.current = result;
-				}
-				setCachedRightNowFeed(result, cacheKey);
-			}
-		} catch (err) {
-			if (isMountedRef.current) {
-				setError(
-					err instanceof Error ? err.message : t("right_now.error_load"),
-				);
-			}
-		} finally {
-			if (isMountedRef.current) {
-				setIsLoading(false);
-			}
-		}
-	}, [apiFunctions, sort, hostingOnly, ageMin, ageMax, positionFilter, t]);
-
-	useEffect(() => {
-		void loadFeed();
-	}, [loadFeed]);
-
-	useEffect(() => {
-		setHasRestoredScroll(false);
-		sessionStorage.removeItem("rightnow-scroll");
-	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
-
+	// Scroll Memory logic
 	useEffect(() => {
 		const container = feedContainerRef.current;
 		if (!container) return;
 
 		const handleScroll = () => {
 			if (container.scrollTop > 0) {
-				sessionStorage.setItem("rightnow-scroll", container.scrollTop.toString());
+				const scrollData = {
+					top: container.scrollTop,
+					timestamp: Date.now()
+				};
+				sessionStorage.setItem("rightnow-scroll", JSON.stringify(scrollData));
 			}
 		};
 
@@ -585,11 +470,25 @@ export function RightNowPage() {
 
 	useLayoutEffect(() => {
 		if (items.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
-			const saved = sessionStorage.getItem("rightnow-scroll");
+			const storageKey = "rightnow-scroll";
+			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
-				const scrollTop = parseInt(saved, 10);
-				if (scrollTop > 0) {
-					feedContainerRef.current.scrollTop = scrollTop;
+				try {
+					const parsed = JSON.parse(saved);
+					// Safety check: is it our new object format or just an old number?
+					if (parsed && typeof parsed === "object" && "top" in parsed) {
+						const { top, timestamp } = parsed;
+						if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS && top > 0) {
+							feedContainerRef.current.scrollTop = top;
+						} else {
+							sessionStorage.removeItem(storageKey);
+						}
+					} else {
+						// Old numeric format, clear it
+						sessionStorage.removeItem(storageKey);
+					}
+				} catch (e) {
+					sessionStorage.removeItem(storageKey);
 				}
 			}
 			setHasRestoredScroll(true);
@@ -615,51 +514,14 @@ export function RightNowPage() {
 	);
 
 	const toggleSort = useCallback(() => {
-		setSort((prev) => {
-			const next = prev === "DISTANCE" ? "RECENCY" : "DISTANCE";
-			const nextKey = buildRightNowFeedCacheKey(
-				next,
-				hostingOnly,
-				ageMin,
-				ageMax,
-				positionFilter,
-			);
-			const cached = getCachedRightNowFeed(nextKey);
-			if (cached) {
-				setItems(cached);
-			} else {
-				setItems((current) => sortItemsByOption(current, next));
-			}
-			return next;
-		});
-	}, [hostingOnly, ageMin, ageMax, positionFilter]);
+		setSort((prev) => (prev === "DISTANCE" ? "RECENCY" : "DISTANCE"));
+		setHasRestoredScroll(false);
+	}, []);
 
 	const toggleHostingOnly = useCallback(() => {
-		setHostingOnly((previous) => {
-			const next = !previous;
-			const nextKey = buildRightNowFeedCacheKey(
-				sort,
-				next,
-				ageMin,
-				ageMax,
-				positionFilter,
-			);
-			const cached = getCachedRightNowFeed(nextKey);
-			if (cached) {
-				setItems(cached);
-				return next;
-			}
-
-			if (next) {
-				unfilteredItemsRef.current = items;
-				setItems((current) => current.filter((item) => item.hosting));
-			} else if (unfilteredItemsRef.current) {
-				setItems(unfilteredItemsRef.current);
-			}
-
-			return next;
-		});
-	}, [sort, ageMin, ageMax, positionFilter, items]);
+		setHostingOnly((previous) => !previous);
+		setHasRestoredScroll(false);
+	}, []);
 
 	const openFilters = useCallback(() => {
 		setIsFiltersOpen(true);
@@ -670,18 +532,8 @@ export function RightNowPage() {
 		setAgeMin(draft.ageMin);
 		setAgeMax(draft.ageMax);
 		setPositionFilter(draft.positionFilter);
-		const nextKey = buildRightNowFeedCacheKey(
-			sort,
-			hostingOnly,
-			draft.ageMin,
-			draft.ageMax,
-			draft.positionFilter,
-		);
-		const cached = getCachedRightNowFeed(nextKey);
-		if (cached) {
-			setItems(cached);
-		}
-	}, [sort, hostingOnly]);
+		setHasRestoredScroll(false);
+	}, []);
 
 	const handleCloseFilters = useCallback(() => {
 		setIsFiltersOpen(false);
@@ -694,21 +546,18 @@ export function RightNowPage() {
 			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 			contentClassName="flex flex-1 flex-col min-h-0"
 			style={{ overflow: "visible", overflowX: "hidden" }}
-			onRefresh={() => loadFeed(true)}
+			onRefresh={() => refetch()}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
 			spinnerColor="var(--right-now)"
 		>
-			{/* Header */}
 			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
 				<div
 					className="absolute -top-64 left-1/2 h-[600px] w-[200vw] -translate-x-1/2"
 					style={{
 						zIndex: -1,
-						// Use the --right-now color for the glow effect
 						background: "radial-gradient(ellipse 100% 100% at 50% 0%, var(--right-now) 0%, color-mix(in srgb, var(--right-now), transparent 40%) 15%, color-mix(in srgb, var(--right-now), transparent 85%) 60%, transparent 100%)",
-						// The mask remains for the shaping
 						maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
 						WebkitMaskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
 						backdropFilter: "blur(12px)",
@@ -719,7 +568,6 @@ export function RightNowPage() {
 					<h1 className="app-title">{t("right_now.title")}</h1>
 
 					<div className="flex flex-wrap items-center gap-2 pb-1">
-						{/* Sort by Distance / Recency */}
 						<button
 							type="button"
 							onClick={toggleSort}
@@ -732,7 +580,6 @@ export function RightNowPage() {
 							{sort === "DISTANCE" ? t("right_now.distance") : t("right_now.recent")}
 						</button>
 
-						{/* Hosting toggle */}
 						<button
 							type="button"
 							onClick={toggleHostingOnly}
@@ -775,7 +622,6 @@ export function RightNowPage() {
 				</div>
 			</header>
 
-			{/* Feed */}
 			<div className="relative flex-1 min-h-0 -mt-32">
 				<div
 					ref={feedContainerRef}
@@ -785,16 +631,16 @@ export function RightNowPage() {
 						WebkitMaskImage: "linear-gradient(to bottom, transparent, black 220px)",
 					}}
 				>
-				{isLoading ? (
+				{isLoading && items.length === 0 ? (
 					<div className="flex items-center justify-center py-16">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
 					</div>
 				) : error ? (
 					<div className="px-[var(--app-px)] py-8 text-center">
-						<p className="mb-3 text-sm text-[var(--text-muted)]">{error}</p>
+						<p className="mb-3 text-sm text-[var(--text-muted)]">{error instanceof Error ? error.message : String(error)}</p>
 						<button
 							type="button"
-							onClick={() => void loadFeed()}
+							onClick={() => void refetch()}
 							className="rounded-full border border-[var(--right-now)]/30 px-4 py-2 text-sm font-bold text-[var(--right-now)]/70 transition-all hover:border-[var(--right-now)]/50 hover:text-[var(--right-now)] active:scale-95"
 							style={{ backgroundColor: "color-mix(in srgb, var(--right-now), transparent 95%)" }}
 						>
@@ -825,7 +671,6 @@ export function RightNowPage() {
 
 		<div className="fixed inset-x-0 bottom-30 z-[60] pointer-events-none md:bottom-36">
 			<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
-				{/* Debug Toggle FAB (Bottom Left) */}
 				{developerMode && showDebugInfo && (
 					<div
 						className={cn(
