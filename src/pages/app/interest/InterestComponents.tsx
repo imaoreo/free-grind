@@ -1,7 +1,7 @@
 import { Eye, Lock, History } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
-import blankProfileImage from "../../../images/blank-profile.png";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREVIEW_ID_PREFIX } from "./interestUtils";
 import { cn } from "../../../utils/cn";
 
@@ -73,7 +73,7 @@ export function InterestRow({
 	now: number;
 }) {
 	const { t } = useTranslation();
-	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : blankProfileImage;
+	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : null;
 
 	const isPrivate = !item.canOpenProfile;
 	const isRecovered = !!item.isFromCache && !isPrivate && !item.profileId.startsWith(PREVIEW_ID_PREFIX);
@@ -105,11 +105,10 @@ export function InterestRow({
 				disabled={isPrivate}
 				className="relative mt-0.5 shrink-0"
 			>
-				<div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img
+				<div className="h-14 w-14 overflow-hidden rounded-full">
+					<ProfileImage
 						src={imageSrc}
 						alt={displayName}
-						className="h-full w-full object-cover"
 					/>
 				</div>
 				{isPrivate && (

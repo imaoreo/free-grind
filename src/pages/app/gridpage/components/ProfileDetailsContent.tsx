@@ -13,7 +13,7 @@ import {
 	shouldHideField,
 } from "../utils";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
-import blankProfileImage from "../../../../images/blank-profile.png";
+import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
@@ -275,11 +275,9 @@ export function ProfileDetailsContent({
 						)}
 					</>
 				) : (
-					<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-						<img
-							src={blankProfileImage}
+					<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
+						<ProfileImage
 							alt={t("profile_details.default_profile")}
-							className="aspect-square w-full object-cover"
 						/>
 					</div>
 				)}

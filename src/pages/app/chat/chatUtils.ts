@@ -8,7 +8,6 @@ import {
 	validateMediaHash,
 } from "../../../utils/media";
 import { formatRelativeTime } from "../../../utils/relativeTime";
-import blankProfileImage from "../../../images/blank-profile.png";
 import { appLog } from "../../../utils/logger";
 
 export type ChatFiltersDraft = {
@@ -596,9 +595,9 @@ export function getMessageLocation(
 	return null;
 }
 
-export function getParticipantAvatarUrl(hash: string | null | undefined): string {
+export function getParticipantAvatarUrl(hash: string | null | undefined): string | null {
 	if (!hash || !validateMediaHash(hash)) {
-		return blankProfileImage;
+		return null;
 	}
 
 	return getProfileImageUrl(hash);

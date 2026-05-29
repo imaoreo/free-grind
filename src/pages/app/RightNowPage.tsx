@@ -17,7 +17,7 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
 import { formatRelativeTime } from "../../utils/relativeTime";
 import { cn } from "../../utils/cn";
-import blankProfileImage from "../../images/blank-profile.png";
+import { ProfileImage } from "../../components/ui/profile-image";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
 	type RightNowFiltersDraft,
@@ -111,8 +111,8 @@ function getItemImageUrl(item: RightNowFeedItem): string | null {
 		: null;
 }
 
-function getItemDisplayImageUrl(item: RightNowFeedItem): string {
-	return getItemImageUrl(item) ?? blankProfileImage;
+function getItemDisplayImageUrl(item: RightNowFeedItem): string | null {
+	return getItemImageUrl(item);
 }
 
 function isItemOnline(item: RightNowFeedItem): boolean {
@@ -263,8 +263,8 @@ function RightNowRow({
 				className="relative mt-0.5 shrink-0"
 				onClick={() => onSelect(item.profileId)}
 			>
-				<div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img src={imageUrl} alt={name || ""} className="h-full w-full object-cover" />
+				<div className="h-14 w-14 overflow-hidden rounded-full">
+					<ProfileImage src={imageUrl} alt={name || ""} />
 				</div>
 				{isOnline ? (
 					<span className="absolute bottom-0.5 left-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-green-500" />
