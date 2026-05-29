@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type ReactNode, type TouchEvent } from "react";
+import { useCallback, useRef, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -16,9 +16,6 @@ type PullToRefreshContainerProps = {
 	maxPullPx?: number;
 	spinnerColor?: string;
 	contentClassName?: string;
-	onTouchStartExtra?: (event: TouchEvent<HTMLDivElement>) => void;
-	onTouchMoveExtra?: (event: TouchEvent<HTMLDivElement>) => void;
-	onTouchEndExtra?: (event: TouchEvent<HTMLDivElement>) => void;
 };
 
 export function PullToRefreshContainer({
@@ -35,116 +32,106 @@ export function PullToRefreshContainer({
 	maxPullPx = 96,
 	spinnerColor,
 	contentClassName,
-	onTouchStartExtra,
-	onTouchMoveExtra,
-	onTouchEndExtra,
 }: PullToRefreshContainerProps) {
 	const { t } = useTranslation();
 	const [pullDistance, setPullDistance] = useState(0);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	const containerRef = useRef<HTMLDivElement>(null);
 	const touchStartYRef = useRef<number | null>(null);
 	const touchStartXRef = useRef<number | null>(null);
 	const isPullingRef = useRef(false);
 
 	const canStartPull = useCallback(() => {
+		if (isDisabled || isRefreshing) return false;
 		const isAtTopValue = typeof isAtTop === "function" ? isAtTop() : true;
-		return isAtTopValue && window.scrollY <= 0;
-	}, [isAtTop]);
+		// Check scrollY to ensure we are at the absolute top of the viewport
+		return isAtTopValue && window.scrollY <= 1;
+	}, [isAtTop, isDisabled, isRefreshing]);
 
-	const handleRefresh = useCallback(() => {
-		if (isDisabled || isRefreshing) {
-			return;
-		}
-
+	const handleRefresh = useCallback(async () => {
+		if (isDisabled || isRefreshing) return;
 		setIsRefreshing(true);
-		void Promise.resolve()
-			.then(onRefresh)
-			.finally(() => {
-				setIsRefreshing(false);
-			});
+		try {
+			await onRefresh();
+		} finally {
+			setIsRefreshing(false);
+			setPullDistance(0);
+		}
 	}, [isDisabled, isRefreshing, onRefresh]);
 
-	const handleTouchStart = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			onTouchStartExtra?.(event);
-			if (isDisabled || isRefreshing || !canStartPull()) {
+	useEffect(() => {
+		const element = containerRef.current;
+		if (!element) return;
+
+		const onTouchStart = (e: TouchEvent) => {
+			if (!canStartPull()) {
 				touchStartYRef.current = null;
-				touchStartXRef.current = null;
+				isPullingRef.current = false;
+				return;
+			}
+			touchStartYRef.current = e.touches[0].clientY;
+			touchStartXRef.current = e.touches[0].clientX;
+			isPullingRef.current = true;
+		};
+
+		const onTouchMove = (e: TouchEvent) => {
+			if (!isPullingRef.current || touchStartYRef.current === null) return;
+
+			const currentY = e.touches[0].clientY;
+			const currentX = e.touches[0].clientX;
+			const deltaY = currentY - touchStartYRef.current;
+			const deltaX = currentX - (touchStartXRef.current ?? currentX);
+
+			// If the user swipes more horizontally than vertically, abort Pull-to-Refresh
+			// to allow for native horizontal gestures (like swiping cards/menus)
+			if (Math.abs(deltaX) > Math.abs(deltaY) && pullDistance === 0) {
 				isPullingRef.current = false;
 				return;
 			}
 
-			touchStartYRef.current = event.touches[0]?.clientY ?? null;
-			touchStartXRef.current = event.touches[0]?.clientX ?? null;
-			isPullingRef.current = touchStartYRef.current !== null;
-		},
-		[canStartPull, isDisabled, isRefreshing, onTouchStartExtra],
-	);
+			if (deltaY > 0 && window.scrollY <= 1) {
+				// IMPORTANT: Only preventDefault if we are at the top and pulling down.
+				// This fixes the "Unable to preventDefault inside passive event listener" error.
+				if (e.cancelable) {
+					e.preventDefault();
+				}
 
-	const handleTouchMove = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			onTouchMoveExtra?.(event);
-			if (!isPullingRef.current) {
-				return;
-			}
-
-			const startY = touchStartYRef.current;
-			const startX = touchStartXRef.current;
-			if (startY == null) {
-				return;
-			}
-
-			const currentY = event.touches[0]?.clientY ?? startY;
-			const currentX = event.touches[0]?.clientX ?? (startX ?? 0);
-			const deltaY = currentY - startY;
-			const deltaX = startX == null ? 0 : currentX - startX;
-
-			if (Math.abs(deltaX) > Math.abs(deltaY) + 8) {
+				// Calculate pull with resistance (0.4 multiplier)
+				const pull = Math.min(deltaY * 0.4, maxPullPx);
+				setPullDistance(pull);
+			} else if (deltaY < 0 && pullDistance > 0) {
+				// Allow sliding back up to cancel the pull
+				setPullDistance(Math.max(0, deltaY * 0.4));
+			} else {
+				// Let native scrolling take over if we aren't pulling from the top
 				isPullingRef.current = false;
+			}
+		};
+
+		const onTouchEnd = () => {
+			if (isPullingRef.current && pullDistance >= thresholdPx) {
+				void handleRefresh();
+			} else {
 				setPullDistance(0);
-				return;
 			}
-
-			if (deltaY < 0) {
-				// If the user moves their finger up, they are scrolling down into the content.
-				// We must disable pulling for this gesture to avoid conflicts if they drag back up.
-				isPullingRef.current = false;
-				setPullDistance(0);
-				return;
-			}
-
-			if (deltaY === 0) {
-				setPullDistance(0);
-				return;
-			}
-
-			event.preventDefault();
-
-			// Apply resistance
-			let pull = deltaY * 0.45;
-			if (pull > maxPullPx) {
-				touchStartYRef.current = currentY - maxPullPx / 0.45;
-				pull = maxPullPx;
-			}
-
-			setPullDistance(pull);
-		},
-		[maxPullPx, onTouchMoveExtra],
-	);
-
-	const finishTouch = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			onTouchEndExtra?.(event);
-			if (pullDistance >= thresholdPx) {
-				handleRefresh();
-			}
-			touchStartYRef.current = null;
-			touchStartXRef.current = null;
 			isPullingRef.current = false;
-			setPullDistance(0);
-		},
-		[handleRefresh, onTouchEndExtra, pullDistance, thresholdPx],
-	);
+			touchStartYRef.current = null;
+		};
+
+		// Register listeners with passive: false to allow preventDefault() for the pull effect
+		element.addEventListener("touchstart", onTouchStart, { passive: true });
+		element.addEventListener("touchmove", onTouchMove, { passive: false });
+		element.addEventListener("touchend", onTouchEnd, { passive: true });
+		element.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+		return () => {
+			element.removeEventListener("touchstart", onTouchStart);
+			element.removeEventListener("touchmove", onTouchMove);
+			element.removeEventListener("touchend", onTouchEnd);
+			element.removeEventListener("touchcancel", onTouchEnd);
+		};
+	}, [canStartPull, handleRefresh, maxPullPx, pullDistance, thresholdPx]);
 
 	const rotation = !isRefreshing
 		? 480 * (1 - Math.pow(1 - pullDistance / maxPullPx, 2))
@@ -152,32 +139,33 @@ export function PullToRefreshContainer({
 
 	return (
 		<div
+			ref={containerRef}
 			className={className}
-			style={{ position: "relative", overflow: "hidden", ...style }}
-			onTouchStart={handleTouchStart}
-			onTouchMove={handleTouchMove}
-			onTouchEnd={finishTouch}
-			onTouchCancel={finishTouch}
+			style={{
+				position: "relative",
+				// touchAction: pan-y allows the browser to handle native 120Hz scrolling
+				touchAction: "pan-y",
+				...style
+			}}
 		>
-			{/* Indicator Layer - Matches the pull distance for a tighter look */}
+			{/* Indicator Layer */}
 			<div
 				className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-center justify-center overflow-hidden"
 				style={{
 					height: "64px",
 					opacity: pullDistance > 0 || isRefreshing ? 1 : 0,
 					transform: `translateY(${isRefreshing ? 0 : pullDistance - 64}px)`,
-					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s ease, opacity 0.3s ease" : "none",
+					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s cubic-bezier(0.2, 1, 0.3, 1), opacity 0.2s" : "none",
 					willChange: "transform, opacity",
 				}}
 			>
 				<div className="flex flex-col items-center gap-2">
-					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 shadow-lg shadow-black/5">
+					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 shadow-lg">
 						<RefreshCw
 							className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
 							style={{
 								color: spinnerColor ?? "var(--accent)",
 								transform: rotation !== undefined ? `rotate(${rotation}deg)` : undefined,
-								willChange: "transform",
 							}}
 						/>
 					</div>
@@ -196,7 +184,7 @@ export function PullToRefreshContainer({
 				className={contentClassName}
 				style={{
 					transform: `translateY(${isRefreshing ? 64 : pullDistance}px)`,
-					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s ease" : "none",
+					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s cubic-bezier(0.2, 1, 0.3, 1)" : "none",
 					willChange: "transform",
 				}}
 			>
