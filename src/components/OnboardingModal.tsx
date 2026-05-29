@@ -1,5 +1,5 @@
 import { X, type LucideIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { Button } from "./ui/button";
 
 interface OnboardingModalProps {
@@ -21,6 +21,24 @@ export function OnboardingModal({
 }: OnboardingModalProps) {
 	const [isClosing, setIsClosing] = useState(false);
 
+	// Prevent background scrolling while the modal is open
+	useEffect(() => {
+		const originalStyle = window.getComputedStyle(document.body).overflow;
+		document.body.style.overflow = "hidden";
+
+		// For iOS/Touchscreen consistency
+		const handleTouchMove = (e: TouchEvent) => {
+			if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
+			e.preventDefault();
+		};
+		document.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+		return () => {
+			document.body.style.overflow = originalStyle;
+			document.removeEventListener("touchmove", handleTouchMove);
+		};
+	}, []);
+
 	const handleClose = () => {
 		setIsClosing(true);
 		setTimeout(() => {
@@ -40,7 +58,7 @@ export function OnboardingModal({
 	};
 
 	return (
-		<div className="fixed inset-0 z-[100] flex items-end justify-center p-4 pb-12 sm:items-center sm:pb-4 no-touch-callout isolate">
+		<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 no-touch-callout isolate">
 			{/* Backdrop - Separate to prevent blur flicker during modal animation */}
 			<div
 				className={`absolute inset-0 bg-black/45 backdrop-blur-sm ${
