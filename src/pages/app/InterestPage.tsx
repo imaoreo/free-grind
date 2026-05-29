@@ -23,8 +23,12 @@ import {
 } from "./interest/interestUtils";
 import { InterestTabs, InterestRow } from "./interest/InterestComponents";
 import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
-import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
+import {
+	SCROLL_RESTORATION_TIMEOUT_MS,
+} from "../../config/ui-constants";
 import { cn } from "../../utils/cn";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
 
@@ -287,19 +291,7 @@ export function InterestPage() {
 		>
 			{/* Header */}
 			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
-				<div
-					className="absolute -top-64 left-1/2 h-[600px] w-[200vw] -translate-x-1/2"
-					style={{
-						zIndex: -1,
-						// Use the --accent color for the glow effect
-						background: "radial-gradient(ellipse 100% 100% at 50% 0%, var(--accent) 0%, color-mix(in srgb, var(--accent), transparent 40%) 15%, color-mix(in srgb, var(--accent), transparent 85%) 60%, transparent 100%)",
-						// The mask remains for the shaping
-						maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						WebkitMaskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						backdropFilter: "blur(12px)",
-						WebkitBackdropFilter: "blur(12px)",
-					}}
-				/>
+				<PageHeaderBackground color="var(--accent)" />
 				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
 					<h1 className="app-title">{t("interest_page.title")}</h1>
 					<div className="flex items-end gap-3">
@@ -312,20 +304,13 @@ export function InterestPage() {
 				</div>
 			</header>
 
-			{/* Feed */}
-			<div className="relative flex-1 min-h-0 -mt-32">
-				<div
-					ref={feedContainerRef}
-					className="h-full overflow-y-auto pt-32"
-					style={{
-						maskImage: "linear-gradient(to bottom, transparent, black 220px)",
-						WebkitMaskImage: "linear-gradient(to bottom, transparent, black 220px)",
-					}}
-					onTouchStart={handleTouchStart}
-					onTouchEnd={handleTouchEnd}
-				>
-					<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
-						<div className="px-[var(--app-px)] space-y-4">
+			<FeedScrollContainer
+				ref={feedContainerRef}
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}
+			>
+				<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+					<div className="px-[var(--app-px)] space-y-4">
 							{activeTab === "views" && viewedCount != null ? (
 								<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
 									<p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
@@ -382,9 +367,8 @@ export function InterestPage() {
 								)}
 							</div>
 						) : null}
-					</div>
 				</div>
-			</div>
+			</FeedScrollContainer>
 		</PullToRefreshContainer>
 		{showOnboarding && activeTab === "views" && (
 			<InterestOnboardingModal

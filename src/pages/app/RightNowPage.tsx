@@ -33,7 +33,11 @@ import { RightNowPostPage } from "./rightnow/RightNowPostPage";
 import { RightNowFiltersPage } from "./RightNowFiltersPage";
 import { PhotoViewer } from "../../components/PhotoViewer";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
+import {
+	SCROLL_RESTORATION_TIMEOUT_MS,
+} from "../../config/ui-constants";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 
 type SortOption = RightNowSortOption;
 
@@ -551,19 +555,10 @@ export function RightNowPage() {
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
 			spinnerColor="var(--right-now)"
+			spinnerIconColor="white"
 		>
 			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
-				<div
-					className="absolute -top-64 left-1/2 h-[600px] w-[200vw] -translate-x-1/2"
-					style={{
-						zIndex: -1,
-						background: "radial-gradient(ellipse 100% 100% at 50% 0%, var(--right-now) 0%, color-mix(in srgb, var(--right-now), transparent 40%) 15%, color-mix(in srgb, var(--right-now), transparent 85%) 60%, transparent 100%)",
-						maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						WebkitMaskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						backdropFilter: "blur(12px)",
-						WebkitBackdropFilter: "blur(12px)",
-					}}
-				/>
+				<PageHeaderBackground color="var(--right-now)" />
 				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
 					<h1 className="app-title">{t("right_now.title")}</h1>
 
@@ -622,15 +617,7 @@ export function RightNowPage() {
 				</div>
 			</header>
 
-			<div className="relative flex-1 min-h-0 -mt-32">
-				<div
-					ref={feedContainerRef}
-					className="h-full overflow-y-auto pt-32"
-					style={{
-						maskImage: "linear-gradient(to bottom, transparent, black 220px)",
-						WebkitMaskImage: "linear-gradient(to bottom, transparent, black 220px)",
-					}}
-				>
+			<FeedScrollContainer ref={feedContainerRef}>
 				{isLoading && items.length === 0 ? (
 					<div className="flex items-center justify-center py-16">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
@@ -665,8 +652,7 @@ export function RightNowPage() {
 						))}
 					</div>
 				)}
-			</div>
-		</div>
+			</FeedScrollContainer>
 		</PullToRefreshContainer>
 
 		<div className="fixed inset-x-0 bottom-30 z-[60] pointer-events-none md:bottom-36">

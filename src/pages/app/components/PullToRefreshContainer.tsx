@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PTR_CONTENT_STOP_PX, PTR_MAX_PULL_PX, PTR_THRESHOLD_PX } from "../../../config/design-config";
 
 type PullToRefreshContainerProps = {
 	children: ReactNode;
@@ -14,7 +15,9 @@ type PullToRefreshContainerProps = {
 	releaseLabel?: string;
 	thresholdPx?: number;
 	maxPullPx?: number;
+	maxContentPullPx?: number;
 	spinnerColor?: string;
+	spinnerIconColor?: string;
 	contentClassName?: string;
 };
 
@@ -28,9 +31,11 @@ export function PullToRefreshContainer({
 	refreshingLabel,
 	pullLabel,
 	releaseLabel,
-	thresholdPx = 64,
-	maxPullPx = 96,
+	thresholdPx = PTR_THRESHOLD_PX,
+	maxPullPx = PTR_MAX_PULL_PX,
+	maxContentPullPx = PTR_CONTENT_STOP_PX,
 	spinnerColor,
+	spinnerIconColor,
 	contentClassName,
 }: PullToRefreshContainerProps) {
 	const { t } = useTranslation();
@@ -134,8 +139,12 @@ export function PullToRefreshContainer({
 	}, [canStartPull, handleRefresh, maxPullPx, pullDistance, thresholdPx]);
 
 	const rotation = !isRefreshing
-		? 480 * (1 - Math.pow(1 - pullDistance / maxPullPx, 2))
+		? 720 * (1 - Math.pow(1 - pullDistance / maxPullPx, 1.6))
 		: undefined;
+
+	const labelOpacity = isRefreshing
+		? 1
+		: Math.max(0, 1 - Math.max(0, pullDistance - maxContentPullPx) / (maxPullPx - maxContentPullPx));
 
 	return (
 		<div
@@ -152,24 +161,33 @@ export function PullToRefreshContainer({
 			<div
 				className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-center justify-center overflow-hidden"
 				style={{
-					height: "64px",
+					height: `${maxContentPullPx}px`,
 					opacity: pullDistance > 0 || isRefreshing ? 1 : 0,
-					transform: `translateY(${isRefreshing ? 0 : pullDistance - 64}px)`,
+					transform: `translateY(${isRefreshing ? 0 : pullDistance - maxContentPullPx}px)`,
 					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s cubic-bezier(0.2, 1, 0.3, 1), opacity 0.2s" : "none",
 					willChange: "transform, opacity",
 				}}
 			>
 				<div className="flex flex-col items-center gap-2">
-					<div className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 shadow-lg">
+					<div
+						className="rounded-full border border-black/5 p-2 shadow-xl"
+						style={{ backgroundColor: spinnerColor ?? "var(--accent)" }}
+					>
 						<RefreshCw
 							className={`h-5 w-5 ${isRefreshing ? "animate-spin" : ""}`}
 							style={{
-								color: spinnerColor ?? "var(--accent)",
+								color: spinnerIconColor ?? "var(--accent-contrast)",
 								transform: rotation !== undefined ? `rotate(${rotation}deg)` : undefined,
 							}}
 						/>
 					</div>
-					<span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text)]">
+					<span
+						className="text-[10px] font-bold uppercase tracking-wider text-[var(--text)]"
+						style={{
+							opacity: labelOpacity,
+							transition: isRefreshing || pullDistance === 0 ? "opacity 0.2s" : "none"
+						}}
+					>
 						{isRefreshing
 							? (refreshingLabel ?? t("pull_to_refresh.refreshing"))
 							: pullDistance >= thresholdPx
@@ -183,7 +201,7 @@ export function PullToRefreshContainer({
 			<div
 				className={contentClassName}
 				style={{
-					transform: `translateY(${isRefreshing ? 64 : pullDistance}px)`,
+					transform: `translateY(${isRefreshing ? maxContentPullPx : Math.min(pullDistance, maxContentPullPx)}px)`,
 					transition: isRefreshing || pullDistance === 0 ? "transform 0.3s cubic-bezier(0.2, 1, 0.3, 1)" : "none",
 					willChange: "transform",
 				}}
