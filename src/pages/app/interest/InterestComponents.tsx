@@ -4,6 +4,7 @@ import { getThumbImageUrl } from "../../../utils/media";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREVIEW_ID_PREFIX } from "./interestUtils";
 import { cn } from "../../../utils/cn";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 
 export function InterestTabs({
 	activeTab,
@@ -73,6 +74,7 @@ export function InterestRow({
 	now: number;
 }) {
 	const { t } = useTranslation();
+	const { ref, revealClass } = useRevealOnScroll();
 	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : null;
 
 	const isPrivate = !item.canOpenProfile;
@@ -93,9 +95,11 @@ export function InterestRow({
 
 	return (
 		<div
+			ref={ref}
 			className={cn(
-				"flex items-start gap-3 px-5 py-4 transition-colors",
-				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40"
+				"flex items-start gap-3 px-5 py-4 transition-colors border-b border-[var(--surface-2)] last:border-0",
+				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40",
+				revealClass
 			)}
 		>
 			{/* Avatar */}

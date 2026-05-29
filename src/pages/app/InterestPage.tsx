@@ -1,5 +1,5 @@
-import { Loader2 } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type TouchEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -31,6 +31,19 @@ import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
+
+function InterestSkeleton() {
+	return (
+		<div className="flex items-center gap-3 px-[var(--app-px)] py-4 animate-pulse">
+			<div className="h-12 w-12 shrink-0 rounded-full bg-[var(--surface-2)]" />
+			<div className="flex-1 space-y-2">
+				<div className="h-4 w-32 rounded bg-[var(--surface-2)]" />
+				<div className="h-3 w-20 rounded bg-[var(--surface-2)]" />
+			</div>
+			<div className="h-8 w-8 rounded-lg bg-[var(--surface-2)]" />
+		</div>
+	);
+}
 
 export function InterestPage() {
 	const { t } = useTranslation();
@@ -90,6 +103,7 @@ export function InterestPage() {
 	const ITEMS_PER_PAGE = 30;
 	const [viewsLimit, setViewsLimit] = useState(ITEMS_PER_PAGE);
 	const [tapsLimit, setTapsLimit] = useState(ITEMS_PER_PAGE);
+	const [isPending, startTransition] = useTransition();
 
 	const activeItems = useMemo(
 		() => (activeTab === "views" ? views : taps),
@@ -104,11 +118,13 @@ export function InterestPage() {
 	const hasMoreItems = activeItems.length > displayedItems.length;
 
 	const handleLoadMore = useCallback(() => {
-		if (activeTab === "views") {
-			setViewsLimit((prev) => prev + ITEMS_PER_PAGE);
-		} else {
-			setTapsLimit((prev) => prev + ITEMS_PER_PAGE);
-		}
+		startTransition(() => {
+			if (activeTab === "views") {
+				setViewsLimit((prev) => prev + ITEMS_PER_PAGE);
+			} else {
+				setTapsLimit((prev) => prev + ITEMS_PER_PAGE);
+			}
+		});
 	}, [activeTab]);
 
 	// Infinite scroll observer
@@ -310,63 +326,69 @@ export function InterestPage() {
 				onTouchEnd={handleTouchEnd}
 			>
 				<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
-					<div className="px-[var(--app-px)] space-y-4">
-							{activeTab === "views" && viewedCount != null ? (
-								<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-									<p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-										{t("interest_page.total_viewed_count")}
-									</p>
-									<p className="mt-1 text-lg font-semibold text-[var(--text)]">{viewedCount}</p>
-								</div>
-							) : null}
-
-							{isQueryLoading && activeItems.length === 0 ? (
-								<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-									<div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-										<Loader2 className="h-4 w-4 animate-spin" />
-										{t("interest_page.loading", { tab: t(`interest_page.tabs.${activeTab}`) })}
-									</div>
-								</div>
-							) : null}
-
-							{!isQueryLoading && queryError ? (
-								<ErrorState
-									title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
-									description={queryError instanceof Error ? queryError.message : String(queryError)}
-									onRetry={handleRefresh}
-								/>
-							) : null}
-
-							{!isQueryLoading && !queryError && activeItems.length === 0 ? (
-								<EmptyState
-									title={t(`interest_page.empty_${activeTab}`)}
-									description={t(`interest_page.empty_${activeTab}_desc`)}
-								/>
-							) : null}
+					{isQueryLoading && activeItems.length === 0 ? (
+						<div className="divide-y divide-[var(--surface-2)] border-t border-[var(--border)]/10">
+							{Array.from({ length: 8 }).map((_, i) => (
+								<InterestSkeleton key={i} />
+							))}
 						</div>
-
-						{(activeItems.length > 0) ? (
-							<div className="divide-y divide-[var(--surface-2)] border-t border-[var(--border)]/10">
-								{displayedItems.map((item) => (
-									<InterestRow
-										key={`${activeTab}-${item.profileId}-${item.timestamp ?? "na"}`}
-										item={item}
-										mode={activeTab}
-										onOpenProfile={handleOpenProfile}
-										now={nowTimestamp}
-									/>
-								))}
-
-								{hasMoreItems && (
-									<div
-										ref={loadMoreTriggerRef}
-										className="flex w-full items-center justify-center p-6"
-									>
-										<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+					) : (
+						<>
+							<div className="px-[var(--app-px)] space-y-4">
+								{activeTab === "views" && viewedCount != null ? (
+									<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+										<p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
+											{t("interest_page.total_viewed_count")}
+										</p>
+										<p className="mt-1 text-lg font-semibold text-[var(--text)]">{viewedCount}</p>
 									</div>
-								)}
+								) : null}
+
+								{queryError ? (
+									<ErrorState
+										title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
+										description={queryError instanceof Error ? queryError.message : String(queryError)}
+										onRetry={handleRefresh}
+									/>
+								) : null}
+
+								{!isQueryLoading && !queryError && activeItems.length === 0 ? (
+									<EmptyState
+										title={t(`interest_page.empty_${activeTab}`)}
+										description={t(`interest_page.empty_${activeTab}_desc`)}
+									/>
+								) : null}
 							</div>
-						) : null}
+
+							{(activeItems.length > 0) ? (
+								<div className="border-t border-[var(--border)]/10">
+									{displayedItems.map((item) => (
+										<InterestRow
+											key={`${activeTab}-${item.profileId}-${item.timestamp ?? "na"}`}
+											item={item}
+											mode={activeTab}
+											onOpenProfile={handleOpenProfile}
+											now={nowTimestamp}
+										/>
+									))}
+
+									{(hasMoreItems || isPending) && (
+										<div
+											ref={loadMoreTriggerRef}
+											className="flex w-full items-center justify-center p-6"
+										>
+											<RefreshCw
+												className={cn(
+													"h-5 w-5 text-[var(--text-muted)] transition-all duration-200",
+													isPending ? "animate-spin opacity-40" : "opacity-0"
+												)}
+											/>
+										</div>
+									)}
+								</div>
+							) : null}
+						</>
+					)}
 				</div>
 			</FeedScrollContainer>
 		</PullToRefreshContainer>
