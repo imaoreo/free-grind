@@ -37,6 +37,7 @@ import { isChatGhosted } from "../utils/privacy";
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
 export const TAP_RECEIVED_EVENT = "fg:tap-received";
+export const VIEW_RECEIVED_EVENT = "fg:view-received";
 
 // Global cache to allow late-mounting components (like ChatPage) to see the
 // current connection status immediately.
@@ -103,6 +104,27 @@ function parseTapPayload(payload: unknown): TapReceivedDetail | null {
 		timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
 		tapType: Number.isFinite(tapType as number) ? (tapType as number) : null,
 		isMutual: r.isMutual === true,
+	};
+}
+
+export type ViewReceivedDetail = {
+	profileId: string;
+	imageHash: string | null;
+	timestamp: number;
+	viewedCount: number;
+};
+
+function parseViewPayload(payload: unknown): ViewReceivedDetail | null {
+	if (!payload || typeof payload !== "object") return null;
+	const r = payload as Record<string, unknown>;
+	const mostRecent = r.mostRecent as Record<string, unknown> | undefined;
+	if (!mostRecent) return null;
+
+	return {
+		profileId: String(mostRecent.profileId),
+		imageHash: (mostRecent.photoHash as string) || null,
+		timestamp: Number(mostRecent.timestamp) || Date.now(),
+		viewedCount: Number(r.viewedCount) || 0,
 	};
 }
 
@@ -230,12 +252,24 @@ export function ChatRealtimeBridge() {
 						currentUserId != null &&
 						Number(tap.profileId) !== Number(currentUserId)
 					) {
+						appLog.debug(`[chat-ws:bridge] Incoming tap received from profileId: ${tap.profileId}`);
 						window.dispatchEvent(
 							new CustomEvent<TapReceivedDetail>(TAP_RECEIVED_EVENT, {
 								detail: tap,
 							}),
 						);
-						// appLog.debug("[chat-ws:bridge] tap", { from: tap.displayName });
+					}
+				}
+
+				if (envelope.type === "viewed_me.v1.new_view_received") {
+					const view = parseViewPayload(envelope.payload);
+					if (view) {
+						appLog.debug(`[chat-ws:bridge] Incoming view received. Total views: ${view.viewedCount}`);
+						window.dispatchEvent(
+							new CustomEvent<ViewReceivedDetail>(VIEW_RECEIVED_EVENT, {
+								detail: view,
+							}),
+						);
 					}
 				}
 

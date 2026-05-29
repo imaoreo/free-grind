@@ -17,6 +17,7 @@ import {
 import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
 import { messageSchema, type Message } from "../types/messages";
 import type { RealtimeEnvelope } from "../types/chat-realtime";
+import { useInterestData } from "../hooks/queries/useInterestQueries";
 
 /**
  * Extracts and validates chat messages from a variety of possible realtime envelope formats.
@@ -65,6 +66,7 @@ export function NavBar() {
 	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
+	const { data: interestData } = useInterestData();
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
@@ -238,100 +240,47 @@ export function NavBar() {
 	}, [location.pathname]);
 
 	// Track whether the Interest tab has anything new since the user last
-	// looked. Polls taps + views and listens for live tap events.
+	// looked. Listens for live update events via the useInterestData hook.
 	useEffect(() => {
-		let cancelled = false;
-
-		const refreshInterestUnseen = async () => {
-			if (document.hidden) return;
+		const refreshInterestUnseen = () => {
+			if (!interestData) return;
 			const isAtInterest = pathRef.current === "/interest";
-			try {
-				const [tapsResponse, viewsResponse] = await Promise.all([
-					apiFunctions.getTaps(),
-					apiFunctions.getViews(),
-				]);
-				const lastSeen = getInterestLastSeen();
-				const newest = (() => {
-					const tapsRaw = (tapsResponse as { profiles?: unknown[] }).profiles;
-					const viewsRaw = (viewsResponse as { profiles?: unknown[] }).profiles;
-					let max = 0;
-					for (const list of [tapsRaw, viewsRaw]) {
-						if (!Array.isArray(list)) continue;
-						for (const entry of list) {
-							if (!entry || typeof entry !== "object") continue;
-							const ts = (entry as { timestamp?: unknown }).timestamp;
-							const value =
-								typeof ts === "number"
-									? ts
-									: typeof ts === "string"
-										? Number(ts)
-										: 0;
-							if (Number.isFinite(value) && value > max) max = value;
-						}
-					}
-					return max;
-				})();
+			const lastSeen = getInterestLastSeen();
 
-				if (cancelled) return;
+			const newest = Math.max(
+				...(interestData.taps.map(t => t.timestamp || 0)),
+				...(interestData.views.map(v => v.timestamp || 0)),
+				0
+			);
 
-				// On first run (no stored seen timestamp), treat current state as
-				// already seen so we don't show a stale dot.
-				if (lastSeen === 0) {
-					if (newest > 0) {
-						window.localStorage.setItem(
-							"fg-interest-last-seen",
-							String(newest),
-						);
-					}
-					setInterestUnseen(false);
-					return;
-				}
-
-				// If we are currently on the interest page, ensure our "last seen"
-				// timestamp is at least as high as the newest item we just fetched.
-				if (isAtInterest && newest > lastSeen) {
+			// On first run (no stored seen timestamp), treat current state as
+			// already seen so we don't show a stale dot.
+			if (lastSeen === 0) {
+				if (newest > 0) {
 					markInterestSeen(newest);
 				}
-
-				setInterestUnseen(!isAtInterest && newest > lastSeen);
-			} catch {
-				if (!cancelled) setInterestUnseen(false);
+				setInterestUnseen(false);
+				return;
 			}
+
+			// If we are currently on the interest page, ensure our "last seen"
+			// timestamp is at least as high as the newest item.
+			if (isAtInterest && newest > lastSeen) {
+				markInterestSeen(newest);
+			}
+
+			setInterestUnseen(!isAtInterest && newest > lastSeen);
 		};
 
-		void refreshInterestUnseen();
-		const intervalId = window.setInterval(() => {
-			void refreshInterestUnseen();
-		}, 60_000);
+		refreshInterestUnseen();
 
-		const onTap = () => {
-			const isAtInterest = pathRef.current === "/interest";
-			if (!isAtInterest) {
-				setInterestUnseen(true);
-			}
-		};
 		const onSeen = () => setInterestUnseen(false);
-		const onVisibilityChange = () => {
-			if (!document.hidden) {
-				void refreshInterestUnseen();
-			}
-		};
-
-		window.addEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
 		window.addEventListener(INTEREST_SEEN_EVENT, onSeen as EventListener);
-		window.addEventListener("visibilitychange", onVisibilityChange);
 
 		return () => {
-			cancelled = true;
-			window.clearInterval(intervalId);
-			window.removeEventListener(TAP_RECEIVED_EVENT, onTap as EventListener);
-			window.removeEventListener(
-				INTEREST_SEEN_EVENT,
-				onSeen as EventListener,
-			);
-			window.removeEventListener("visibilitychange", onVisibilityChange);
+			window.removeEventListener(INTEREST_SEEN_EVENT, onSeen as EventListener);
 		};
-	}, [apiFunctions]);
+	}, [interestData]);
 
 	// Clear the interest dot immediately when navigating to the interest section
 	useEffect(() => {
