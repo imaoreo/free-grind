@@ -5,6 +5,7 @@ import { TAP_RECEIVED_EVENT, VIEW_RECEIVED_EVENT } from "../../components/ChatRe
 import { interestViewsStore } from "../../services/interestViewsStore";
 import { fromStoredView, toStoredView, normalizeViews, normalizeTaps } from "../../pages/app/interest/interestUtils";
 import { useTranslation } from "react-i18next";
+import { DEFAULT_STALE_TIME_MS } from "../../config/ui-constants";
 
 export function useInterestData() {
 	const api = useApiFunctions();
@@ -40,7 +41,7 @@ export function useInterestData() {
 				viewedCount: (viewsResponse as any)?.totalViewers || (viewsResponse as any)?.data?.totalViewers || 0
 			};
 		},
-		staleTime: 1000 * 60 * 5, // 5 minutes cache validity
+		staleTime: DEFAULT_STALE_TIME_MS,
 		refetchOnWindowFocus: true, // Auto-sync when app returns to foreground
 	});
 

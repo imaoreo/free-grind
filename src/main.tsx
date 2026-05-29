@@ -11,13 +11,14 @@ import { initChatContactIndex } from "./services/chatContactIndex";
 import { isTauri } from "@tauri-apps/api/core";
 import { appLog } from "./utils/logger";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
+import { DEFAULT_GC_TIME_MS } from "./config/ui-constants";
 import "./index.css";
 
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			staleTime: 0, // Data is immediately considered stale (refetch on mount)
-			gcTime: 1000 * 60 * 5, // Unused data is kept in memory for 5 minutes
+			gcTime: DEFAULT_GC_TIME_MS,
 			retry: 1,
 			refetchOnWindowFocus: false,
 		},
