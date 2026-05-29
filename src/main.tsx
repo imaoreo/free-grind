@@ -24,8 +24,11 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Run sequentially: configure + notifyReady first, then check for updates
-void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+// Only enable Hotswap OTA updates in production. In development, this conflicts with Vite HMR
+// and can lead to unexpected reloads or WebSocket connection issues with the dev server.
+if (import.meta.env.PROD) {
+	void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+}
 if (isTauri()) {
 	void initChatContactIndex().catch((err) => {
 		appLog.warn("[chat-index] failed to initialize:", err);
