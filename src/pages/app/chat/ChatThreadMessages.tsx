@@ -1,4 +1,5 @@
 import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -688,11 +689,16 @@ export function ChatThreadMessages({
 												{location ? (
 													<button
 														type="button"
-														onClick={() => {
+														onClick={async () => {
 															const url = isDesktop
 																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
 																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
-															window.open(url, "_blank");
+															try {
+																await openUrl(url);
+															} catch (error) {
+																appLog.error("Failed to open map URL", error);
+																window.open(url, "_blank");
+															}
 														}}
 														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
 															mine
