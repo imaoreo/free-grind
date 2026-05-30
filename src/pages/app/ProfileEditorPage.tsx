@@ -40,6 +40,7 @@ import {
 	parseDateInput,
 	parseNullableInteger,
 	parseNullableNumber,
+	parseNullableWeight,
 	normalizeTagList,
 	profileResponseSchema,
 	profileSchema,
@@ -144,7 +145,7 @@ export function ProfileEditorPage() {
 		[t],
 	);
 
-	const loadProfile = useCallback(async () => {
+	const loadProfile = useCallback(async (options?: { silent?: boolean }) => {
 		if (!userId) {
 			setProfile(null);
 			setIsLoadingProfile(false);
@@ -152,7 +153,9 @@ export function ProfileEditorPage() {
 		}
 
 		try {
-			setIsLoadingProfile(true);
+			if (!options?.silent) {
+				setIsLoadingProfile(true);
+			}
 			setProfileError(null);
 			const parsed = profileResponseSchema.parse(
 				await apiFunctions.getRawProfile(userId),
@@ -168,7 +171,7 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
-	const loadVisitingMode = useCallback(async () => {
+	const loadVisitingMode = useCallback(async (options?: { silent?: boolean }) => {
 		if (!userId) {
 			setSavedVisitingMode("AUTO");
 			setDraftVisitingMode("AUTO");
@@ -178,7 +181,9 @@ export function ProfileEditorPage() {
 		}
 
 		try {
-			setIsLoadingVisitingMode(true);
+			if (!options?.silent) {
+				setIsLoadingVisitingMode(true);
+			}
 			setVisitingModeError(null);
 			setSavedVisitingMode(await apiFunctions.getVisitingMode());
 		} catch (error) {
@@ -381,36 +386,74 @@ export function ProfileEditorPage() {
 
 		try {
 			if (hasProfileChanges) {
-				await apiFunctions.updateMyProfile({
-					displayName: draft.displayName.trim() || null,
-					aboutMe: draft.aboutMe.trim() || null,
-					profileTags: tagList,
-					showAge: draft.showAge,
-					age: parseNullableInteger(draft.age),
-					height: parseNullableNumber(draft.height),
-					weight: parseNullableNumber(draft.weight),
-					ethnicity: parseNullableInteger(draft.ethnicity),
-					bodyType: parseNullableInteger(draft.bodyType),
-					showPosition: draft.showPosition,
-					sexualPosition: parseNullableInteger(draft.sexualPosition),
-					showTribes: draft.showTribes,
-					grindrTribes: draft.grindrTribes,
-					relationshipStatus: parseNullableInteger(draft.relationshipStatus),
-					lookingFor: draft.lookingFor,
-					meetAt: draft.meetAt,
-					nsfw: parseNullableInteger(draft.nsfw),
-					genders: draft.genders,
-					pronouns: draft.pronouns,
-					hivStatus: parseNullableInteger(draft.hivStatus),
-					lastTestedDate: parseDateInput(draft.lastTestedDate),
-					sexualHealth: draft.sexualHealth,
-					vaccines: draft.vaccines,
-					socialNetworks: {
-						instagram: { userId: draft.instagram.trim() || null },
-						twitter: { userId: draft.twitter.trim() || null },
-						facebook: { userId: draft.facebook.trim() || null },
-					},
-				});
+				const payload: Record<string, any> = {};
+
+				// Helper to compare and add simple values
+				const addIfChanged = (key: keyof ProfileDraft, payloadKey: string, transform: (v: any) => any = (v) => v) => {
+					const draftValue = transform(draft[key]);
+					const savedValue = transform(savedDraft[key]);
+					if (JSON.stringify(draftValue) !== JSON.stringify(savedValue)) {
+						payload[payloadKey] = draftValue;
+					}
+				};
+
+				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
+				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
+				addIfChanged("showAge", "showAge");
+				addIfChanged("age", "age", parseNullableInteger);
+				addIfChanged("height", "height", parseNullableNumber);
+				addIfChanged("weight", "weight", parseNullableWeight);
+				addIfChanged("ethnicity", "ethnicity", parseNullableInteger);
+				addIfChanged("bodyType", "bodyType", parseNullableInteger);
+				addIfChanged("showPosition", "showPosition");
+				addIfChanged("sexualPosition", "sexualPosition", parseNullableInteger);
+				addIfChanged("showTribes", "showTribes");
+				addIfChanged("grindrTribes", "grindrTribes");
+				addIfChanged("relationshipStatus", "relationshipStatus", parseNullableInteger);
+				addIfChanged("lookingFor", "lookingFor");
+				addIfChanged("meetAt", "meetAt");
+				addIfChanged("nsfw", "nsfw", parseNullableInteger);
+				addIfChanged("genders", "genders");
+				addIfChanged("pronouns", "pronouns");
+				addIfChanged("hivStatus", "hivStatus", parseNullableInteger);
+				addIfChanged("lastTestedDate", "lastTestedDate", parseDateInput);
+				addIfChanged("sexualHealth", "sexualHealth");
+				addIfChanged("vaccines", "vaccines");
+
+				// Handle tags separately due to different structure
+				const savedTags = profile?.profileTags ?? [];
+				if (JSON.stringify(tagList) !== JSON.stringify(savedTags)) {
+					payload.profileTags = tagList;
+				}
+
+				// Handle social networks selectively
+				const social: Record<string, any> = {};
+				if (draft.instagram.trim() !== (profile?.socialNetworks?.instagram?.userId ?? "")) {
+					social.instagram = { userId: draft.instagram.trim() || null };
+				}
+				if (draft.twitter.trim() !== (profile?.socialNetworks?.twitter?.userId ?? "")) {
+					social.twitter = { userId: draft.twitter.trim() || null };
+				}
+				if (draft.facebook.trim() !== (profile?.socialNetworks?.facebook?.userId ?? "")) {
+					social.facebook = { userId: draft.facebook.trim() || null };
+				}
+
+				if (Object.keys(social).length > 0) {
+					payload.socialNetworks = social;
+				}
+
+				if (Object.keys(payload).length > 0) {
+					await apiFunctions.updateMyProfile(payload);
+
+					// Update local profile state immediately
+					setProfile((current) => {
+						if (!current) return null;
+						return {
+							...current,
+							...payload,
+						};
+					});
+				}
 			}
 
 			if (hasVisitingModeChanges) {
@@ -419,9 +462,6 @@ export function ProfileEditorPage() {
 			}
 
 			toast.success(t("profile_editor.toasts.updated"));
-			if (hasProfileChanges) {
-				await loadProfile();
-			}
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -630,13 +670,13 @@ export function ProfileEditorPage() {
 					</p>
 				</header>
 
-				{isLoadingProfile ? (
+				{isLoadingProfile && !profile ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-medium text-[var(--text-muted)]">
 							{t("profile_editor.loading")}
 						</p>
 					</div>
-				) : profileError ? (
+				) : profileError && !profile ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
 						<p className="text-sm font-semibold">
 							{t("profile_editor.error_load")}
