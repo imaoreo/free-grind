@@ -242,13 +242,12 @@
 
 @layer base {
 	:root {
+		/* --- Shared / Global --- */
 		color-scheme: light dark;
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
-		--accent-readable: #765900;
 		--right-now: #9333ea;
 		--content-max: 1200px;
-		/* Base horizontal padding for the app, shared across components for visual consistency */
 		--app-px: clamp(12px, 2.6vw, 28px);
 		--radius-sm: 12px;
 		--radius-md: 16px;
@@ -259,40 +258,8 @@
 		--space-4: 16px;
 		--space-5: 24px;
 		--space-6: 32px;
-		--bg: #f5f7fa;
-		--surface: #ffffff;
-		--surface-2: #eceff4;
-		--text: #131821;
-		--text-muted: #606a79;
-		--border: #d7dce3;
-		background-color: var(--bg);
-	}
 
-	@media (prefers-color-scheme: dark) {
-		:root:not([data-scheme="light"]) {
-			--bg: #0f131a;
-			--surface: #161d27;
-			--surface-2: #1f2835;
-			--text: #f3f5f8;
-			--text-muted: #96a2b6;
-			--border: #2b3646;
-			--accent-readable: #ffcc01;
-		}
-	}
-
-	:root[data-scheme="dark"] {
-		color-scheme: dark;
-		--bg: #0f131a;
-		--surface: #161d27;
-		--surface-2: #1f2835;
-		--text: #f3f5f8;
-		--text-muted: #96a2b6;
-		--border: #2b3646;
-		--accent-readable: #ffcc01;
-	}
-
-	:root[data-scheme="light"] {
-		color-scheme: light;
+		/* --- Theme Definition: LIGHT (Default) --- */
 		--bg: #f5f7fa;
 		--surface: #ffffff;
 		--surface-2: #eceff4;
@@ -300,6 +267,86 @@
 		--text-muted: #606a79;
 		--border: #d7dce3;
 		--accent-readable: #765900;
+
+		/* Header Glow (Light) */
+		--header-glow-mix-1: 0%;
+		--header-glow-mix-2: 2%;
+		--header-glow-mix-3: 10%;
+		--header-glow-stop-1: 32%;
+		--header-glow-stop-2: 52%;
+		--header-glow-stop-3: 78%;
+		--header-glow-darken: 16%;
+		--header-noise-opacity: 0.08;
+
+		/* --- Theme Internal: DARK VALUES --- */
+		--dark-bg: #0f131a;
+		--dark-surface: #161d27;
+		--dark-surface-2: #1f2835;
+		--dark-text: #f3f5f8;
+		--dark-text-muted: #96a2b6;
+		--dark-border: #2b3646;
+		--dark-accent-readable: #ffcc01;
+		--dark-glow-1: 10%;
+		--dark-glow-2: 40%;
+		--dark-glow-3: 75%;
+		--dark-glow-stop-1: 15%;
+		--dark-glow-stop-2: 30%;
+		--dark-glow-stop-3: 55%;
+		--dark-mask-stop-1: 25%;
+		--dark-mask-stop-2: 60%;
+		--dark-glow-darken: 0%;
+		--dark-noise: 0.03;
+
+		background-color: var(--bg);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:root:not([data-scheme="light"]) {
+			--bg: var(--dark-bg);
+			--surface: var(--dark-surface);
+			--surface-2: var(--dark-surface-2);
+			--text: var(--dark-text);
+			--text-muted: var(--dark-text-muted);
+			--border: var(--dark-border);
+			--accent-readable: var(--dark-accent-readable);
+
+			--header-glow-mix-1: var(--dark-glow-1);
+			--header-glow-mix-2: var(--dark-glow-2);
+			--header-glow-mix-3: var(--dark-glow-3);
+			--header-glow-stop-1: var(--dark-glow-stop-1);
+			--header-glow-stop-2: var(--dark-glow-stop-2);
+			--header-glow-stop-3: var(--dark-glow-stop-3);
+			--header-mask-stop-1: var(--dark-mask-stop-1);
+			--header-mask-stop-2: var(--dark-mask-stop-2);
+			--header-glow-darken: var(--dark-glow-darken);
+			--header-noise-opacity: var(--dark-noise);
+		}
+	}
+
+	:root[data-scheme="dark"] {
+		color-scheme: dark;
+		--bg: var(--dark-bg);
+		--surface: var(--dark-surface);
+		--surface-2: var(--dark-surface-2);
+		--text: var(--dark-text);
+		--text-muted: var(--dark-text-muted);
+		--border: var(--dark-border);
+		--accent-readable: var(--dark-accent-readable);
+
+		--header-glow-mix-1: var(--dark-glow-1);
+		--header-glow-mix-2: var(--dark-glow-2);
+		--header-glow-mix-3: var(--dark-glow-3);
+		--header-glow-stop-1: var(--dark-glow-stop-1);
+		--header-glow-stop-2: var(--dark-glow-stop-2);
+		--header-glow-stop-3: var(--dark-glow-stop-3);
+		--header-mask-stop-1: var(--dark-mask-stop-1);
+		--header-mask-stop-2: var(--dark-mask-stop-2);
+		--header-glow-darken: var(--dark-glow-darken);
+		--header-noise-opacity: var(--dark-noise);
+	}
+
+	:root[data-scheme="light"] {
+		color-scheme: light;
 	}
 
 	html,
@@ -492,6 +539,7 @@
 	   Using position: fixed ensures the glow stays locked to the viewport during scrolling, maintaining
 	   consistent intensity and positioning regardless of page length. This ensures a seamless visual
 	   transition between short loading states and long, scrollable content pages. */
+
 	.app-shell::before {
 		content: "";
 		position: fixed;
@@ -524,6 +572,7 @@
 		pointer-events: none;
 		z-index: -1;
 	}
+
 
 	.app-screen {
 		min-height: 100dvh;
@@ -612,6 +661,13 @@
 		font-size: 0.98rem;
 		line-height: 1.5;
 		color: var(--text-muted);
+	}
+
+	.glass-pill {
+		@apply rounded-full border shadow-2xl backdrop-blur-xl transition-all;
+		background-color: color-mix(in srgb, var(--pill-color, var(--accent)), transparent 88%);
+		border-color: color-mix(in srgb, var(--pill-color, var(--accent)), transparent 40%);
+		border-width: 1px;
 	}
 
 	.no-touch-callout {

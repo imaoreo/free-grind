@@ -1011,7 +1011,8 @@
             "views": "Besucher",
             "taps": "Taps"
         },
-        "total_viewed_count": "Besucheranzahl",
+        "total_viewed_count": "Gesamt",
+        "total_taps_count": "Gesamt",
         "refreshing": "{{tab}} wird aktualisiert...",
         "loading": "{{tab}} wird geladen...",
         "error_load": "{{tab}} konnte nicht geladen werden",
@@ -1029,7 +1030,7 @@
             "limitation_desc": "Grindr zeigt normalerweise nur den allerletzten Besucher vollständig an. Andere sind oft hinter einer Paywall verborgen oder werden nur als anonyme Vorschau angezeigt.",
             "recovery_title": "Intelligente Erkennung",
             "recovery_desc": "Free Grind gleicht unbekannte Besucher automatisch mit deinem lokalen Verlauf ab. Finden wir eine Übereinstimmung, decken wir das Profil für dich auf.",
-            "button": "Verstanden!"
+            "button": "Verstanden"
         },
         "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",

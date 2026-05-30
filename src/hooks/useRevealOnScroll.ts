@@ -30,12 +30,16 @@ function processNext() {
  */
 export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 0px") {
 	const { revealEffectEnabled } = usePreferences();
-	const [isVisible, setIsVisible] = useState(false);
-	const [wasVisibleInitially, setWasVisibleInitially] = useState(false);
+	// Use boolean cast to avoid undefined issues
+	const isEnabled = !!revealEffectEnabled;
+	const [isVisible, setIsVisible] = useState(!isEnabled);
+	const [wasVisibleInitially, setWasVisibleInitially] = useState(!isEnabled);
 	const [animationsEnabled, setAnimationsEnabled] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
+		if (!isEnabled) return;
+
 		const element = ref.current;
 		if (!element) return;
 

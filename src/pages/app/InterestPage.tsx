@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Eye, ArrowLeftRight } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type TouchEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -29,18 +29,32 @@ import {
 import { cn } from "../../utils/cn";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
 
-function InterestSkeleton() {
+// SET THIS TO TRUE FOR DEBUGGING: Always triggers bounce and long delay on refresh
+const ALWAYS_BOUNCE_FOR_DEBUG = false;
+
+// Persistent flag for the session to prevent multiple bounces when navigating back and forth
+let globalHasBounced = false;
+
+function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
-		<div className="flex items-center gap-3 px-[var(--app-px)] py-4 animate-pulse">
-			<div className="h-12 w-12 shrink-0 rounded-full bg-[var(--surface-2)]" />
-			<div className="flex-1 space-y-2">
+		<div className="relative flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
+			<div className="h-15 w-15 shrink-0 rounded-full bg-[var(--surface-2)]" />
+			<div className="min-w-0 flex-1">
 				<div className="h-4 w-32 rounded bg-[var(--surface-2)]" />
-				<div className="h-3 w-20 rounded bg-[var(--surface-2)]" />
+				<div className="mt-2 h-3 w-20 rounded bg-[var(--surface-2)]" />
 			</div>
-			<div className="h-8 w-8 rounded-lg bg-[var(--surface-2)]" />
+			<div className="shrink-0 flex items-center justify-center h-12 w-12">
+				{mode === "taps" ? (
+					<div className="h-12 w-12 rounded-full bg-[var(--surface-2)]" />
+				) : (
+					<div className="h-8 w-12 rounded-full bg-[var(--surface-2)]" />
+				)}
+			</div>
+			<div className="absolute bottom-0 right-0 left-0 h-px bg-[var(--surface-2)]" />
 		</div>
 	);
 }
@@ -50,17 +64,21 @@ export function InterestPage() {
 	const api = useApiFunctions();
 	const navigate = useNavigate();
 	const location = useLocation();
+	const isDesktop = useDesktopBreakpoint();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
-	const activeTab: InterestTab = searchParams.get("tab") === "views" || (!searchParams.get("tab") && defaultSetting === "views") ? "views" : "taps";
+	const activeTab: InterestTab = searchParams.get("tab") === "taps" || searchParams.get("tab") === "views"
+		? (searchParams.get("tab") as InterestTab)
+		: defaultSetting;
 
-	const { data, isLoading: isQueryLoading, error: queryError, refetch } = useInterestData();
+	const { data, isLoading: isQueryLoading, isFetching, error: queryError, refetch } = useInterestData();
 
 	const views = data?.views ?? [];
 	const taps = data?.taps ?? [];
 	const viewedCount = data?.viewedCount ?? null;
 
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
+	const [showCountLabel, setShowCountLabel] = useState(false);
 
 	// Track the newest activity across both taps and views.
 	const maxInterestTimestamp = useMemo(() => {
@@ -78,7 +96,24 @@ export function InterestPage() {
 	const [showOnboarding, setShowOnboarding] = useState(() => {
 		return !localStorage.getItem(ONBOARDING_KEY);
 	});
+	const [shouldBounce, setShouldBounce] = useState(false);
 	const touchStartXRef = useRef<number | null>(null);
+
+	const isFirstRender = useRef(true);
+
+	// Trigger peek animation
+	useEffect(() => {
+		if (!ALWAYS_BOUNCE_FOR_DEBUG && globalHasBounced) return;
+
+		const timer = setTimeout(() => {
+			setShouldBounce(true);
+			globalHasBounced = true;
+			// Reset bounce state after animation finishes
+			setTimeout(() => setShouldBounce(false), 1000);
+		}, 600);
+		return () => clearTimeout(timer);
+	}, []);
+
 	const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
@@ -101,8 +136,30 @@ export function InterestPage() {
 	}, []);
 
 	const ITEMS_PER_PAGE = 30;
-	const [viewsLimit, setViewsLimit] = useState(ITEMS_PER_PAGE);
-	const [tapsLimit, setTapsLimit] = useState(ITEMS_PER_PAGE);
+	const [viewsLimit, setViewsLimit] = useState(() => {
+		const saved = sessionStorage.getItem("interest-scroll-views");
+		if (saved) {
+			try {
+				const { limit, timestamp } = JSON.parse(saved);
+				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+					return limit;
+				}
+			} catch (e) {}
+		}
+		return ITEMS_PER_PAGE;
+	});
+	const [tapsLimit, setTapsLimit] = useState(() => {
+		const saved = sessionStorage.getItem("interest-scroll-taps");
+		if (saved) {
+			try {
+				const { limit, timestamp } = JSON.parse(saved);
+				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+					return limit;
+				}
+			} catch (e) {}
+		}
+		return ITEMS_PER_PAGE;
+	});
 	const [isPending, startTransition] = useTransition();
 
 	const activeItems = useMemo(
@@ -154,10 +211,12 @@ export function InterestPage() {
 
 	// Reset limits and scroll restoration when changing tabs
 	useEffect(() => {
-		setViewsLimit(ITEMS_PER_PAGE);
-		setTapsLimit(ITEMS_PER_PAGE);
-		setHasRestoredScroll(false);
-		prevTabRef.current = activeTab;
+		if (prevTabRef.current !== activeTab) {
+			setViewsLimit(ITEMS_PER_PAGE);
+			setTapsLimit(ITEMS_PER_PAGE);
+			setHasRestoredScroll(false);
+			prevTabRef.current = activeTab;
+		}
 	}, [activeTab]);
 
 	// Clear scroll memory for a specific tab when NEW activity is detected in that tab
@@ -186,6 +245,7 @@ export function InterestPage() {
 			if (container.scrollTop > 0) {
 				const scrollData = {
 					top: container.scrollTop,
+					limit: activeTab === "views" ? viewsLimit : tapsLimit,
 					timestamp: Date.now()
 				};
 				sessionStorage.setItem(`interest-scroll-${activeTab}`, JSON.stringify(scrollData));
@@ -194,7 +254,7 @@ export function InterestPage() {
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
 		return () => container.removeEventListener("scroll", handleScroll);
-	}, [activeTab]);
+	}, [activeTab, viewsLimit, tapsLimit]);
 
 	useLayoutEffect(() => {
 		if (displayedItems.length > 0 && !isQueryLoading && !hasRestoredScroll && feedContainerRef.current) {
@@ -235,6 +295,28 @@ export function InterestPage() {
 			markInterestSeen(Math.max(Date.now(), maxInterestTimestamp));
 		}
 	}, [activeTab, maxInterestTimestamp, data]);
+
+	// Animate the count label: show it briefly on tab change, then hide it.
+	useEffect(() => {
+		setShowCountLabel(false);
+
+		// Synchronize with the bounce: Only long delay if a bounce is actually happening
+		// ALWAYS_BOUNCE_FOR_DEBUG forces the long delay.
+		// Otherwise, we only wait long if it's the very first render AND we haven't bounced yet.
+		const willBounceNow = !globalHasBounced;
+		const isInitialLook = ALWAYS_BOUNCE_FOR_DEBUG || (isFirstRender.current && willBounceNow);
+
+		const delay = isInitialLook ? 2200 : 800;
+		const timer = setTimeout(() => setShowCountLabel(true), delay);
+		const hideTimer = setTimeout(() => setShowCountLabel(false), delay + 4000);
+
+		isFirstRender.current = false;
+
+		return () => {
+			clearTimeout(timer);
+			clearTimeout(hideTimer);
+		};
+	}, [activeTab]);
 
 	const handleRefresh = useCallback(() => {
 		if (activeTab === "views") {
@@ -306,16 +388,64 @@ export function InterestPage() {
 			spinnerColor="var(--accent)"
 		>
 			{/* Header */}
-			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
+			<header className="relative z-20 flex shrink-0 flex-col pb-3 pointer-events-none">
 				<PageHeaderBackground color="var(--accent)" />
-				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
-					<h1 className="app-title">{t("interest_page.title")}</h1>
-					<div className="flex items-end gap-3">
-						<InterestTabs
-							activeTab={activeTab}
-							onViewsClick={() => handleSetActiveTab("views")}
-							onTapsClick={() => handleSetActiveTab("taps")}
-						/>
+				<div className="pointer-events-auto flex flex-col gap-3 mx-auto w-full max-w-4xl">
+					<div className="px-[var(--app-px)]">
+						<h1 className="app-title">{t("interest_page.title")}</h1>
+					</div>
+
+					<div className="flex flex-col gap-3">
+						<div className="flex items-center justify-between pl-[var(--app-px)] pr-[26px]">
+							<InterestTabs
+								activeTab={activeTab}
+								onViewsClick={() => handleSetActiveTab("views")}
+								onTapsClick={() => handleSetActiveTab("taps")}
+								firstTab={defaultSetting}
+								shouldBounce={shouldBounce}
+							/>
+
+							<div
+								className={cn(
+									"glass-pill flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
+									activeTab === "views" ? "-mr-[4.5px]" : "-mr-[1.5px]",
+									showCountLabel
+										? "h-11 pl-4 pr-0"
+										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-11 pl-0 pr-0")
+								)}
+							>
+								<div className="flex items-center justify-end transition-all duration-500">
+									<div
+										className={cn(
+											"flex transition-all duration-500 ease-in-out overflow-hidden",
+											showCountLabel ? "opacity-100 max-w-[200px] mr-2" : "opacity-0 max-w-0 mr-0 pointer-events-none"
+										)}
+									>
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] leading-none whitespace-nowrap">
+											{activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
+										</p>
+									</div>
+									<div className="relative flex items-center justify-center">
+										<div className={cn(
+											"flex items-center justify-center transition-all duration-500",
+											activeTab === "views" ? "w-[51px]" : "w-[46px]"
+										)}>
+											<p className={cn(
+												"text-sm font-bold text-[var(--accent)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
+												isFetching && !isQueryLoading ? "opacity-0" : "opacity-100"
+											)}>
+												{activeTab === "views" ? viewedCount : taps.length}
+											</p>
+										</div>
+										{isFetching && !isQueryLoading && (
+											<div className="absolute inset-0 flex items-center justify-center">
+												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
+											</div>
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</header>
@@ -324,26 +454,18 @@ export function InterestPage() {
 				ref={feedContainerRef}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
+				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "translate-x-8")}
 			>
-				<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+				<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-1">
 					{isQueryLoading && activeItems.length === 0 ? (
-						<div className="divide-y divide-[var(--surface-2)] border-t border-[var(--border)]/10">
+						<div className="border-t border-[var(--border)]/10">
 							{Array.from({ length: 8 }).map((_, i) => (
-								<InterestSkeleton key={i} />
+								<InterestSkeleton key={i} mode={activeTab} />
 							))}
 						</div>
 					) : (
 						<>
 							<div className="px-[var(--app-px)] space-y-4">
-								{activeTab === "views" && viewedCount != null ? (
-									<div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-										<p className="text-xs font-medium uppercase tracking-[0.08em] text-[var(--text-muted)]">
-											{t("interest_page.total_viewed_count")}
-										</p>
-										<p className="mt-1 text-lg font-semibold text-[var(--text)]">{viewedCount}</p>
-									</div>
-								) : null}
-
 								{queryError ? (
 									<ErrorState
 										title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
@@ -398,6 +520,36 @@ export function InterestPage() {
 				onConfirm={handleAcknowledgeOnboarding}
 			/>
 		)}
+
+		{/* Paging Dots Pill */}
+		<div className="pointer-events-none fixed bottom-32 left-1/2 z-50 -translate-x-1/2">
+			<div className="glass-pill inline-flex items-center gap-1.5 px-2.5 py-1.5">
+				{/* The order of dots must match the order of InterestTabs (defaultSetting) */}
+				{defaultSetting === "views" ? (
+					<>
+						<div className={cn(
+							"h-1 rounded-full transition-all duration-300",
+							activeTab === "views" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
+						)} />
+						<div className={cn(
+							"h-1 rounded-full transition-all duration-300",
+							activeTab === "taps" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
+						)} />
+					</>
+				) : (
+					<>
+						<div className={cn(
+							"h-1 rounded-full transition-all duration-300",
+							activeTab === "taps" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
+						)} />
+						<div className={cn(
+							"h-1 rounded-full transition-all duration-300",
+							activeTab === "views" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
+						)} />
+					</>
+				)}
+			</div>
+		</div>
 	</>
 	);
 }

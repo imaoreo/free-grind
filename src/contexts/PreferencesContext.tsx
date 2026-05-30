@@ -293,8 +293,17 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		const loadPreferences = async () => {
 			try {
 				const stored = localStorage.getItem(STORAGE_KEY);
+				const isDesktopDevice = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+				const deviceDefaultStrength = isDesktopDevice ? "pronounced" : "subtle";
+
 				if (stored) {
 					const decoded = JSON.parse(stored);
+
+					// If the strength wasn't explicitly saved yet, use the device-based default
+					if (decoded.revealEffectStrength === undefined) {
+						decoded.revealEffectStrength = deviceDefaultStrength;
+					}
+
 					const parsed = preferencesSchema.parse(decoded);
 					dispatch({ type: "SET_GEOHASH", payload: parsed.geohash });
 					dispatch({ type: "SET_LOCATION_NAME", payload: parsed.locationName ?? null });
@@ -321,6 +330,11 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 						payload: { color: parsed.accentColor, contrast: parsed.accentContrast },
 					});
 					applyTheme(parsed.colorScheme, parsed.accentColor, parsed.accentContrast, parsed.revealEffectStrength);
+				} else {
+					// No stored preferences at all, apply device defaults immediately
+					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: deviceDefaultStrength });
+					// We also need to apply the theme with these defaults
+					applyTheme("system", "#ffcc01", "#1a1a1a", deviceDefaultStrength);
 				}
 			} catch (error) {
 				appLog.error("Failed to load preferences:", error);
