@@ -212,7 +212,10 @@ export function ChatDrawerPanel({
 				</div>
 
 				{/* Content Grid */}
-				<div className="flex-1 overflow-y-auto max-h-[60vh] rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+				<div
+					data-lenis-prevent
+					className="flex-1 overflow-y-auto max-h-[60vh] rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+				>
 					{isLoading ? (
 					<div className="flex h-full items-center justify-center py-8">
 						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />

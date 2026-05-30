@@ -264,6 +264,7 @@ export function ChatInboxPanel({
 				<div
 					ref={inboxListRef}
 					onScroll={markUserScroll}
+					data-lenis-prevent
 					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}
 				>
 					{filteredConversations.map((conversation) => {

@@ -283,9 +283,10 @@ export function ChatThreadMessages({
 	return (
 		<div
 			ref={threadScrollContainerRef}
-                onScroll={handleThreadScroll}
-										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
-                        >
+			onScroll={handleThreadScroll}
+			data-lenis-prevent
+			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
+		>
 						{messagePageKey ? (
 							<button
 								type="button"
