@@ -77,7 +77,7 @@ export function OnboardingModal({
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Decorative Header */}
-				<div className="bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] p-8 text-center relative text-[var(--accent-contrast)]">
+				<div className="bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] p-8 text-center relative text-white">
 					<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)] shadow-xl">
 						<HeaderIcon className="h-8 w-8" />
 					</div>
@@ -100,7 +100,7 @@ export function OnboardingModal({
 					<div className="pt-2">
 						<Button
 							variant="primary"
-							className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-[var(--accent)]/20"
+							className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-[var(--accent)]/20 !text-white"
 							onClick={handleConfirm}
 						>
 							{buttonLabel}

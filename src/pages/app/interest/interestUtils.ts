@@ -14,6 +14,7 @@ export type InterestItem = {
 	viewCount: number | null;
 	canOpenProfile: boolean;
 	isFromCache?: boolean;
+	isMutual?: boolean;
 };
 
 export const PREVIEW_ID_PREFIX = "preview:";
@@ -74,6 +75,7 @@ function mergeViewItem(
 		viewCount: incoming.viewCount ?? cached.viewCount,
 		canOpenProfile: incoming.canOpenProfile || cached.canOpenProfile,
 		isFromCache: incoming.isFromCache ?? cached.isFromCache,
+		isMutual: incoming.isMutual ?? cached.isMutual,
 	};
 }
 
@@ -274,6 +276,7 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 			tapType: toNumber(obj.tapType),
 			viewCount: null,
 			canOpenProfile: true,
+			isMutual: obj.isMutual === true || obj.mutual === true,
 		};
 
 		const existing = mergedMap.get(profileId);

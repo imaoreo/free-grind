@@ -306,10 +306,10 @@ function RightNowRow({
 			<button
 				type="button"
 				onClick={() => onMessage(item.profileId)}
-				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/30 text-[var(--right-now)] transition-all active:scale-95 hover:border-[var(--right-now)]/40"
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/35 text-[var(--right-now)] transition-all active:scale-95 hover:border-[var(--right-now)]/45"
 				style={{
-					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 90%)",
-					boxShadow: "0 3px 12px color-mix(in srgb, var(--right-now), transparent 82%)"
+					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 92%)",
+					boxShadow: "0 2px 8px color-mix(in srgb, var(--right-now), transparent 94%)"
 				}}
 				aria-label={t("right_now.message_aria", { name: name || "" })}
 			>
@@ -342,6 +342,7 @@ export function RightNowPage() {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const isDesktop = useDesktopBreakpoint();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
 
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
@@ -590,9 +591,9 @@ export function RightNowPage() {
 			spinnerColor="var(--right-now)"
 			spinnerIconColor="white"
 		>
-			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
+			<header className="relative z-20 grid gap-3 pointer-events-none">
 				<PageHeaderBackground color="var(--right-now)" />
-				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
+				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl px-[var(--app-px)]">
 					<h1 className="app-title">{t("right_now.title")}</h1>
 
 					<div className="flex flex-wrap items-center gap-2 pb-1">
@@ -612,15 +613,14 @@ export function RightNowPage() {
 							type="button"
 							onClick={toggleHostingOnly}
 							className={cn(
-								"shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
+								"glass-pill shrink-0 px-4 py-2 text-sm font-bold active:scale-95",
 								hostingOnly
 									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
-									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+									: "text-[var(--right-now)] hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
 							)}
 							style={!hostingOnly ? {
-								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
-							} : undefined}
+								"--pill-color": "var(--right-now)",
+							} as React.CSSProperties : undefined}
 						>
 							{t("right_now.hosting")}
 						</button>
@@ -629,15 +629,14 @@ export function RightNowPage() {
 							type="button"
 							onClick={openFilters}
 							className={cn(
-								"inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-bold transition-all active:scale-95",
+								"glass-pill inline-flex min-h-10 items-center gap-1.5 px-4 text-sm font-bold active:scale-95",
 								hasAdvancedFilters
 									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
-									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+									: "text-[var(--right-now)] hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
 							)}
 							style={!hasAdvancedFilters ? {
-								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
-							} : undefined}
+								"--pill-color": "var(--right-now)",
+							} as React.CSSProperties : undefined}
 						>
 							<SlidersHorizontal className="h-3.5 w-3.5" />
 							{t("right_now.filters")}
@@ -652,7 +651,7 @@ export function RightNowPage() {
 
 			<FeedScrollContainer ref={feedContainerRef}>
 				{isLoading ? (
-					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+					<div className="mx-auto max-w-4xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{Array.from({ length: 6 }).map((_, i) => (
 							<RightNowSkeleton key={i} />
 						))}
@@ -674,7 +673,7 @@ export function RightNowPage() {
 						<p className="text-sm text-[var(--text-muted)]">{t("right_now.empty")}</p>
 					</div>
 				) : (
-					<div className="mx-auto max-w-2xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+					<div className="mx-auto max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{items.map((item) => (
 							<div key={`${item.id}-${item.profileId}`} className="px-0">
 								<RightNowRow
