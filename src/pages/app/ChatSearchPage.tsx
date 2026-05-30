@@ -312,7 +312,10 @@ export function ChatSearchPage() {
 							{t("chat_search.min_chars")}
 						</div>
 					) : (
-						<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+						<div
+							data-lenis-prevent
+							className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1"
+						>
 							{searchMode === "conversations"
 								? conversationSearchResults.map((result) => (
 										<button
