@@ -100,7 +100,7 @@
 			filter: blur(0);
 		}
 	}
-	@keyframes backdrop-in {
+    @keyframes backdrop-in {
 		from { opacity: 0; }
 		to { opacity: 1; }
 	}
@@ -339,8 +339,12 @@
 	}
 }
 
-@layer components {
+@layer utilities {
+	.h-15 { height: 3.75rem; }
+	.w-15 { width: 3.75rem; }
+}
 
+@layer components {
     /* Chat */
 	.chat-reaction-pill {
 		will-change: transform;
@@ -493,9 +497,11 @@
 		position: fixed;
 		inset: 0;
 		background: radial-gradient(
-			circle at 14% -10%,
+			circle at 14% -10% in oklab,
 			var(--app-accent-gradient, var(--accent)) 0%,
-			transparent 46%
+			color-mix(in oklab, var(--app-accent-gradient, var(--accent)), transparent 55%) 14%,
+			color-mix(in oklab, var(--app-accent-gradient, var(--accent)), transparent 88%) 26%,
+			transparent 40%
 		);
 		opacity: 0.12;
 		pointer-events: none;
@@ -508,9 +514,11 @@
 		position: fixed;
 		inset: 0;
 		background: radial-gradient(
-			circle at 90% -20%,
+			circle at 90% -20% in oklab,
 			var(--surface-2) 0%,
-			transparent 55%
+			color-mix(in oklab, var(--surface-2), transparent 60%) 16%,
+			color-mix(in oklab, var(--surface-2), transparent 92%) 32%,
+			transparent 46%
 		);
 		opacity: 0.46;
 		pointer-events: none;
