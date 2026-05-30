@@ -236,16 +236,16 @@ function RightNowRow({
 		<div
 			ref={ref}
 			className={cn(
-				"flex items-start gap-3 px-5 py-4 border-b border-[var(--surface-2)]",
+				"flex items-center gap-4 pl-5 pr-6 py-4 border-b border-[var(--surface-2)]",
 				revealClass
 			)}
 		>
 			<button
 				type="button"
-				className="relative mt-0.5 shrink-0"
+				className="relative shrink-0"
 				onClick={() => onSelect(item.profileId)}
 			>
-				<div className="h-14 w-14 overflow-hidden rounded-full">
+				<div className="h-15 w-15 overflow-hidden rounded-full shadow-sm">
 					<ProfileImage src={imageUrl} alt={name || ""} />
 				</div>
 				{isOnline ? (
@@ -306,10 +306,10 @@ function RightNowRow({
 			<button
 				type="button"
 				onClick={() => onMessage(item.profileId)}
-				className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl transition-all active:scale-95 hover:border-[var(--right-now)]/60"
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/30 text-[var(--right-now)] transition-all active:scale-95 hover:border-[var(--right-now)]/40"
 				style={{
-					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-					boxShadow: "0 4px 10px color-mix(in srgb, var(--right-now), transparent 85%)"
+					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 90%)",
+					boxShadow: "0 3px 12px color-mix(in srgb, var(--right-now), transparent 82%)"
 				}}
 				aria-label={t("right_now.message_aria", { name: name || "" })}
 			>
@@ -321,8 +321,8 @@ function RightNowRow({
 
 function RightNowSkeleton() {
 	return (
-		<div className="flex items-start gap-3 px-5 py-4 animate-pulse">
-			<div className="h-14 w-14 shrink-0 rounded-full bg-[var(--surface-2)]" />
+		<div className="flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
+			<div className="h-15 w-15 shrink-0 rounded-full bg-[var(--surface-2)]" />
 			<div className="flex-1 space-y-3 pt-1">
 				<div className="space-y-2">
 					<div className="h-4 w-[85%] rounded bg-[var(--surface-2)]" />
@@ -546,12 +546,16 @@ export function RightNowPage() {
 
 	const toggleSort = useCallback(() => {
 		setSort((prev) => (prev === "DISTANCE" ? "RECENCY" : "DISTANCE"));
-		setHasRestoredScroll(false);
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
 	}, []);
 
 	const toggleHostingOnly = useCallback(() => {
 		setHostingOnly((previous) => !previous);
-		setHasRestoredScroll(false);
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
 	}, []);
 
 	const openFilters = useCallback(() => {
@@ -563,7 +567,9 @@ export function RightNowPage() {
 		setAgeMin(draft.ageMin);
 		setAgeMax(draft.ageMax);
 		setPositionFilter(draft.positionFilter);
-		setHasRestoredScroll(false);
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
 	}, []);
 
 	const handleCloseFilters = useCallback(() => {
