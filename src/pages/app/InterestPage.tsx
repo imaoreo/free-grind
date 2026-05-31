@@ -30,6 +30,7 @@ import { cn } from "../../utils/cn";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
+import { usePreferences } from "../../contexts/PreferencesContext";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
 
@@ -81,8 +82,20 @@ export function InterestPage() {
 	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
 	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
 
-	const newViewsCount = useMemo(() => views.filter(v => (v.timestamp ?? 0) > lastSeenViews).length, [views, lastSeenViews]);
-	const newTapsCount = useMemo(() => taps.filter(t => (t.timestamp ?? 0) > lastSeenTaps).length, [taps, lastSeenTaps]);
+	const { developerMode, showDebugInfo } = usePreferences();
+	const [demoMode, setDemoMode] = useState(0); // 0: Off, 1: Taps, 2: Views, 3: Both
+	const [demoViewsCount, setDemoViewsCount] = useState(0);
+	const [demoTapsCount, setDemoTapsCount] = useState(0);
+
+	const newViewsCount = useMemo(() => {
+		if (demoMode !== 0) return demoViewsCount;
+		return views.filter(v => (v.timestamp ?? 0) > lastSeenViews).length;
+	}, [views, lastSeenViews, demoMode, demoViewsCount]);
+
+	const newTapsCount = useMemo(() => {
+		if (demoMode !== 0) return demoTapsCount;
+		return taps.filter(t => (t.timestamp ?? 0) > lastSeenTaps).length;
+	}, [taps, lastSeenTaps, demoMode, demoTapsCount]);
 
 	// Mark active tab as seen
 	useEffect(() => {
@@ -91,14 +104,42 @@ export function InterestPage() {
 			const maxInItems = items.length > 0 ? Math.max(...items.map(i => i.timestamp ?? 0)) : 0;
 			const at = Math.max(Date.now(), maxInItems);
 
-			markInterestTabSeen(activeTab, at);
-			if (activeTab === "views") {
-				setLastSeenViews(at);
-			} else {
-				setLastSeenTaps(at);
-			}
+			// Delay marking as seen to allow the tab transition to finish smoothly
+			// without the width of the tab changing mid-animation.
+			const timer = setTimeout(() => {
+				if (demoMode !== 0) {
+					if (activeTab === "views") setDemoViewsCount(0);
+					else setDemoTapsCount(0);
+				}
+
+				markInterestTabSeen(activeTab, at);
+				if (activeTab === "views") {
+					setLastSeenViews(at);
+				} else {
+					setLastSeenTaps(at);
+				}
+			}, 300);
+
+			return () => clearTimeout(timer);
 		}
-	}, [activeTab, data, views, taps]);
+	}, [activeTab, data, views, taps, demoMode]);
+
+	const handleSetDemoMode = useCallback((mode: number) => {
+		setDemoMode(mode);
+		if (mode === 1) { // Taps
+			setDemoTapsCount(5);
+			setDemoViewsCount(0);
+		} else if (mode === 2) { // Visitors
+			setDemoViewsCount(12);
+			setDemoTapsCount(0);
+		} else if (mode === 3) { // Both
+			setDemoViewsCount(12);
+			setDemoTapsCount(5);
+		} else {
+			setDemoViewsCount(0);
+			setDemoTapsCount(0);
+		}
+	}, []);
 
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const [showCountLabel, setShowCountLabel] = useState(false);
@@ -243,27 +284,27 @@ export function InterestPage() {
 	}, [activeTab]);
 
 	// Clear scroll memory for a specific tab when NEW activity is detected in that tab
-	const prevMaxViewsTs = useRef(0);
-	const prevMaxTapsTs = useRef(0);
+	const prevMaxViewsTs = useRef(lastSeenViews);
+	const prevMaxTapsTs = useRef(lastSeenTaps);
 
 	useEffect(() => {
 		const maxViews = views.length > 0 ? Math.max(...views.map(v => v.timestamp ?? 0)) : 0;
-		if (maxViews > prevMaxViewsTs.current && prevMaxViewsTs.current > 0) {
+		if (maxViews > prevMaxViewsTs.current) {
 			sessionStorage.removeItem("interest-scroll-views");
 			if (activeTab === "views") {
 				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 			}
 		}
-		prevMaxViewsTs.current = maxViews;
+		if (maxViews > 0) prevMaxViewsTs.current = maxViews;
 
 		const maxTaps = taps.length > 0 ? Math.max(...taps.map(t => t.timestamp ?? 0)) : 0;
-		if (maxTaps > prevMaxTapsTs.current && prevMaxTapsTs.current > 0) {
+		if (maxTaps > prevMaxTapsTs.current) {
 			sessionStorage.removeItem("interest-scroll-taps");
 			if (activeTab === "taps") {
 				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 			}
 		}
-		prevMaxTapsTs.current = maxTaps;
+		if (maxTaps > 0) prevMaxTapsTs.current = maxTaps;
 	}, [views, taps, activeTab]);
 
 	useEffect(() => {
@@ -288,6 +329,20 @@ export function InterestPage() {
 	useLayoutEffect(() => {
 		if (displayedItems.length > 0 && !isQueryLoading && !hasRestoredScroll && feedContainerRef.current) {
 			const storageKey = `interest-scroll-${activeTab}`;
+
+			// If there's new activity since the last time we "saw" this tab,
+			// don't restore the scroll position - stay at the top.
+			const currentItems = activeTab === "views" ? views : taps;
+			const maxTs = currentItems.length > 0 ? Math.max(...currentItems.map(i => i.timestamp ?? 0)) : 0;
+			const lastSeen = activeTab === "views" ? lastSeenViews : lastSeenTaps;
+
+			if (maxTs > lastSeen) {
+				sessionStorage.removeItem(storageKey);
+				feedContainerRef.current.scrollTop = 0;
+				setHasRestoredScroll(true);
+				return;
+			}
+
 			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
 				try {
@@ -309,7 +364,7 @@ export function InterestPage() {
 			}
 			setHasRestoredScroll(true);
 		}
-	}, [displayedItems.length, isQueryLoading, hasRestoredScroll, activeTab]);
+	}, [displayedItems.length, isQueryLoading, hasRestoredScroll, activeTab, lastSeenViews, lastSeenTaps, views, taps]);
 
 	// Keep relative timestamps fresh.
 	useEffect(() => {
@@ -433,8 +488,16 @@ export function InterestPage() {
 			<header className="relative z-20 flex shrink-0 flex-col pb-3 pointer-events-none">
 				<PageHeaderBackground color="var(--accent)" />
 				<div className="pointer-events-auto flex flex-col gap-3 mx-auto w-full max-w-4xl">
-					<div className="px-[var(--app-px)]">
+					<div className="px-[var(--app-px)] flex items-center justify-between">
 						<h1 className="app-title">{t("interest_page.title")}</h1>
+						{developerMode && showDebugInfo && (
+							<button
+								onClick={() => handleSetDemoMode((demoMode + 1) % 4)}
+								className="text-[10px] font-bold bg-white/10 hover:bg-white/20 px-3 py-1 rounded-full text-white/40 transition-colors uppercase tracking-widest"
+							>
+								Demo: {["Off", "Taps", "Visitors", "Both"][demoMode]}
+							</button>
+						)}
 					</div>
 
 					<div className="flex flex-col gap-3">
