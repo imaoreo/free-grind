@@ -481,6 +481,18 @@ export function RightNowPage() {
 		}
 	}, [isSessionActive, activeRightNowId, setPreferences]);
 
+	// Clear scroll memory for RightNow when NEW activity is detected
+	const prevMaxPostedAt = useRef(0);
+
+	useEffect(() => {
+		const maxPostedAt = items.length > 0 ? Math.max(...items.map(i => i.postedAt ?? 0)) : 0;
+		if (maxPostedAt > prevMaxPostedAt.current && prevMaxPostedAt.current > 0) {
+			sessionStorage.removeItem("rightnow-scroll");
+			feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+		}
+		prevMaxPostedAt.current = maxPostedAt;
+	}, [items]);
+
 	// Scroll Memory logic
 	useEffect(() => {
 		const container = feedContainerRef.current;
@@ -514,14 +526,20 @@ export function RightNowPage() {
 							feedContainerRef.current.scrollTop = top;
 						} else {
 							sessionStorage.removeItem(storageKey);
+							feedContainerRef.current.scrollTop = 0;
 						}
 					} else {
 						// Old numeric format, clear it
 						sessionStorage.removeItem(storageKey);
+						feedContainerRef.current.scrollTop = 0;
 					}
 				} catch (e) {
 					sessionStorage.removeItem(storageKey);
+					feedContainerRef.current.scrollTop = 0;
 				}
+			} else {
+				// No saved scroll, ensure we start at the top
+				feedContainerRef.current.scrollTop = 0;
 			}
 			setHasRestoredScroll(true);
 		}
@@ -584,7 +602,12 @@ export function RightNowPage() {
 			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 			contentClassName="flex flex-1 flex-col min-h-0"
 			style={{ overflow: "visible", overflowX: "hidden" }}
-			onRefresh={() => refetch()}
+			onRefresh={() => {
+				sessionStorage.removeItem("rightnow-scroll");
+				setHasRestoredScroll(true);
+				feedContainerRef.current?.scrollTo(0, 0);
+				void refetch();
+			}}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
@@ -596,7 +619,7 @@ export function RightNowPage() {
 				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl px-[var(--app-px)]">
 					<h1 className="app-title">{t("right_now.title")}</h1>
 
-					<div className="flex flex-wrap items-center gap-2 pb-1">
+					<div className="flex flex-wrap items-center gap-2 pb-4">
 						<button
 							type="button"
 							onClick={toggleSort}

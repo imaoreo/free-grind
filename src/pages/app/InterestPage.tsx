@@ -38,6 +38,7 @@ const ALWAYS_BOUNCE_FOR_DEBUG = false;
 
 // Persistent flag for the session to prevent multiple bounces when navigating back and forth
 let globalHasBounced = false;
+let globalHasShownCount = false;
 
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
@@ -227,15 +228,21 @@ export function InterestPage() {
 		const maxViews = views.length > 0 ? Math.max(...views.map(v => v.timestamp ?? 0)) : 0;
 		if (maxViews > prevMaxViewsTs.current && prevMaxViewsTs.current > 0) {
 			sessionStorage.removeItem("interest-scroll-views");
+			if (activeTab === "views") {
+				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+			}
 		}
 		prevMaxViewsTs.current = maxViews;
 
 		const maxTaps = taps.length > 0 ? Math.max(...taps.map(t => t.timestamp ?? 0)) : 0;
 		if (maxTaps > prevMaxTapsTs.current && prevMaxTapsTs.current > 0) {
 			sessionStorage.removeItem("interest-scroll-taps");
+			if (activeTab === "taps") {
+				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+			}
 		}
 		prevMaxTapsTs.current = maxTaps;
-	}, [views, taps]);
+	}, [views, taps, activeTab]);
 
 	useEffect(() => {
 		const container = feedContainerRef.current;
@@ -307,23 +314,36 @@ export function InterestPage() {
 		const isInitialLook = ALWAYS_BOUNCE_FOR_DEBUG || (isFirstRender.current && willBounceNow);
 
 		const delay = isInitialLook ? 2200 : 800;
-		const timer = setTimeout(() => setShowCountLabel(true), delay);
-		const hideTimer = setTimeout(() => setShowCountLabel(false), delay + 4000);
+
+		// Only show the animation once per session, but keep the delay logic above for future use
+		if (ALWAYS_BOUNCE_FOR_DEBUG || !globalHasShownCount) {
+			const timer = setTimeout(() => {
+				setShowCountLabel(true);
+				globalHasShownCount = true;
+			}, delay);
+			const hideTimer = setTimeout(() => setShowCountLabel(false), delay + 4000);
+
+			isFirstRender.current = false;
+
+			return () => {
+				clearTimeout(timer);
+				clearTimeout(hideTimer);
+			};
+		}
 
 		isFirstRender.current = false;
-
-		return () => {
-			clearTimeout(timer);
-			clearTimeout(hideTimer);
-		};
 	}, [activeTab]);
 
 	const handleRefresh = useCallback(() => {
 		if (activeTab === "views") {
 			setViewsLimit(ITEMS_PER_PAGE);
+			sessionStorage.removeItem("interest-scroll-views");
 		} else {
 			setTapsLimit(ITEMS_PER_PAGE);
+			sessionStorage.removeItem("interest-scroll-taps");
 		}
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
 		void refetch();
 	}, [activeTab, refetch, ITEMS_PER_PAGE]);
 
@@ -408,7 +428,7 @@ export function InterestPage() {
 							<div
 								className={cn(
 									"glass-pill flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
-									activeTab === "views" ? "-mr-[4.5px]" : "-mr-[1.5px]",
+									activeTab === "views" ? "-mr-[1.5px]" : "mr-0.5",
 									showCountLabel
 										? "h-11 pl-4 pr-0"
 										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-11 pl-0 pr-0")
@@ -456,7 +476,7 @@ export function InterestPage() {
 				onTouchEnd={handleTouchEnd}
 				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "translate-x-8")}
 			>
-				<div className="mx-auto w-full max-w-4xl space-y-4 pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-1">
+				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-1">
 					{isQueryLoading && activeItems.length === 0 ? (
 						<div className="border-t border-[var(--border)]/10">
 							{Array.from({ length: 8 }).map((_, i) => (
@@ -464,25 +484,27 @@ export function InterestPage() {
 							))}
 						</div>
 					) : (
-						<>
-							<div className="px-[var(--app-px)] space-y-4">
-								{queryError ? (
-									<ErrorState
-										title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
-										description={queryError instanceof Error ? queryError.message : String(queryError)}
-										onRetry={handleRefresh}
-									/>
-								) : null}
+						<div className="flex flex-col">
+							{(queryError || (!isQueryLoading && activeItems.length === 0)) && (
+								<div className="px-[var(--app-px)] py-4 space-y-4">
+									{queryError ? (
+										<ErrorState
+											title={t("interest_page.error_load", { tab: t(`interest_page.tabs.${activeTab}`) })}
+											description={queryError instanceof Error ? queryError.message : String(queryError)}
+											onRetry={handleRefresh}
+										/>
+									) : null}
 
-								{!isQueryLoading && !queryError && activeItems.length === 0 ? (
-									<EmptyState
-										title={t(`interest_page.empty_${activeTab}`)}
-										description={t(`interest_page.empty_${activeTab}_desc`)}
-									/>
-								) : null}
-							</div>
+									{!isQueryLoading && !queryError && activeItems.length === 0 ? (
+										<EmptyState
+											title={t(`interest_page.empty_${activeTab}`)}
+											description={t(`interest_page.empty_${activeTab}_desc`)}
+										/>
+									) : null}
+								</div>
+							)}
 
-							{(activeItems.length > 0) ? (
+							{activeItems.length > 0 && (
 								<div className="border-t border-[var(--border)]/10">
 									{displayedItems.map((item) => (
 										<InterestRow
@@ -508,8 +530,8 @@ export function InterestPage() {
 										</div>
 									)}
 								</div>
-							) : null}
-						</>
+							)}
+						</div>
 					)}
 				</div>
 			</FeedScrollContainer>
