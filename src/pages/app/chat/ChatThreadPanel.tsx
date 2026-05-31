@@ -52,6 +52,7 @@ import {
 	getMessageAudioUrl,
 } from "./chatUtils";
 import { formatDistance } from "../gridpage/utils";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
@@ -574,10 +575,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											: "border-[var(--border)] hover:border-[var(--accent)]"
 									}`}
 								>
-									<img
+									<ProfileImage
 										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
 										alt={displayName}
-										className="h-full w-full object-cover"
 									/>
 								</button>
 								<div className="min-w-0">
