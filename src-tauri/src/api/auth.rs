@@ -603,33 +603,76 @@ impl GrindrClient {
             device.advertising_id = new_advertising_id.clone();
         }
 
-        let session = Session {
+        // Set the JWT as the current session so the Authorization header is available
+        // when we immediately attempt to exchange it for a full session with an authToken.
+        *self.session.write().await = Some(Session {
             email: String::new(),
             profile_id: claims.profile_id.clone(),
             session_id: token.to_owned(),
             auth_token: String::new(),
             expires_at: claims.exp,
-            device_id: new_device_id,
-            advertising_id: new_advertising_id,
-        };
+            device_id: new_device_id.clone(),
+            advertising_id: new_advertising_id.clone(),
+        });
 
-        if let Err(error) = AuthStorage::set_session(&session) {
-            #[cfg(debug_assertions)]
-        eprintln!(
-                "[HTTP-AUTH] Failed to persist JWT session (continuing in-memory only): {}",
-                error
-            );
+        // Try to exchange the JWT for a full session (sessionId + authToken) so that
+        // subsequent refreshes work the same way as email/password login.
+        // We send the JWT as the authToken field; Grindr validates the request via the
+        // Authorization header (Grindr3 <JWT>) and the body authToken together.
+        let body = RefreshRequest::new(String::new(), token.to_owned());
+        match Box::pin(self.create_session(&body, new_device_id.clone(), new_advertising_id.clone())).await {
+            Ok(session) => {
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[HTTP-AUTH] login_with_jwt exchange succeeded; profile_id={}, has_auth_token={}",
+                    session.profile_id,
+                    !session.auth_token.is_empty()
+                );
+                let profile_id = session.profile_id.clone();
+                if let Err(error) = AuthStorage::set_session(&session) {
+                    #[cfg(debug_assertions)]
+                    eprintln!(
+                        "[HTTP-AUTH] Failed to persist exchanged session (continuing in-memory only): {}",
+                        error
+                    );
+                }
+                *self.session.write().await = Some(session);
+                Ok(LoginResult { profile_id })
+            }
+            Err(exchange_error) => {
+                // Exchange failed — fall back to storing the JWT directly.
+                // The session will work until the JWT expires (~15-30 min).
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[HTTP-AUTH] login_with_jwt exchange failed (falling back to JWT-only session): {exchange_error}"
+                );
+                let session = Session {
+                    email: String::new(),
+                    profile_id: claims.profile_id.clone(),
+                    session_id: token.to_owned(),
+                    auth_token: String::new(),
+                    expires_at: claims.exp,
+                    device_id: new_device_id,
+                    advertising_id: new_advertising_id,
+                };
+                if let Err(error) = AuthStorage::set_session(&session) {
+                    #[cfg(debug_assertions)]
+                    eprintln!(
+                        "[HTTP-AUTH] Failed to persist JWT session (continuing in-memory only): {}",
+                        error
+                    );
+                }
+                *self.session.write().await = Some(session);
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[HTTP-AUTH] login_with_jwt (JWT-only) succeeded; profile_id={}",
+                    claims.profile_id
+                );
+                Ok(LoginResult {
+                    profile_id: claims.profile_id,
+                })
+            }
         }
-        *self.session.write().await = Some(session);
-        #[cfg(debug_assertions)]
-        eprintln!(
-            "[HTTP-AUTH] login_with_jwt succeeded; profile_id={}",
-            claims.profile_id
-        );
-
-        Ok(LoginResult {
-            profile_id: claims.profile_id,
-        })
     }
 
     pub async fn refresh_token(&self) -> Result<LoginResult, AppError> {
@@ -638,7 +681,16 @@ impl GrindrClient {
             .as_ref()
             .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?;
 
-        let body = RefreshRequest::new(session.email.clone(), session.auth_token.clone());
+        // For JWT-only sessions (no authToken), use the current session_id as the authToken.
+        // Grindr validates via the Authorization header; this mirrors how the initial
+        // JWT exchange is attempted in login_with_jwt.
+        let auth_token = if session.auth_token.is_empty() {
+            session.session_id.clone()
+        } else {
+            session.auth_token.clone()
+        };
+
+        let body = RefreshRequest::new(session.email.clone(), auth_token);
         let device_id = session.device_id.clone();
         let advertising_id = session.advertising_id.clone();
 
