@@ -1,4 +1,5 @@
 import type { RestFetcher } from "../../types/chat-service";
+import { appLog } from "../../utils/logger";
 import { assertSuccess, parseJsonSafe } from "../apiHelpers";
 import {
 	type RightNowCreatePostRequest,
@@ -36,6 +37,11 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 			};
 		}): Promise<RightNowUploadMediaResponse> {
 			const { top, left, right, bottom } = params.coords;
+			appLog.info("POST /v1/media/upload REQUEST:", {
+				coords: params.coords,
+				contentType: params.contentType,
+				bodyLength: params.body.length
+			});
 			const url = `/v1/media/upload?img_1_bottom=${bottom}&img_1_left=${left}&img_1_right=${right}&img_1_top=${top}`;
 			const response = await fetchRest(url, {
 				method: "POST",
@@ -44,6 +50,7 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 			});
 			await assertSuccess(response, t("api.errors.upload_image"));
 			const payload = await parseJsonSafe(response);
+			appLog.info("POST /v1/media/upload RESPONSE:", payload);
 			return rightNowUploadMediaResponseSchema.parse(payload);
 		},
 
@@ -103,6 +110,7 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 
 		async createRightNowPost(params: RightNowCreatePostRequest): Promise<RightNowCreatePostResponse> {
 			const validated = rightNowCreatePostRequestSchema.parse(params);
+			appLog.info("POST /v3/rightnow/posts REQUEST:", validated);
 			const url = "/v3/rightnow/posts";
 			const response = await fetchRest(url, {
 				method: "POST",
@@ -110,6 +118,7 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 			});
 			await assertSuccess(response, t("api.errors.session_right_now"));
 			const payload = await parseJsonSafe(response);
+			appLog.info("POST /v3/rightnow/posts RESPONSE:", payload);
 			return rightNowCreatePostResponseSchema.parse(payload);
 		},
 
@@ -118,6 +127,7 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 			const response = await fetchRest(url);
 			await assertSuccess(response, t("api.errors.load_right_now"));
 			const payload = await parseJsonSafe(response);
+			appLog.info("GET /v3/rightnow/active-post RESPONSE:", payload);
 			return rightNowCreatePostResponseSchema.parse(payload);
 		},
 
@@ -126,12 +136,15 @@ export function createFeedMethods(fetchRest: RestFetcher, t: (key: string, defau
 			params: RightNowUpdatePostRequest,
 		): Promise<{ ok: true }> {
 			const validated = rightNowUpdatePostRequestSchema.parse(params);
+			appLog.info(`PATCH /v3/rightnow/posts/${postId} REQUEST:`, validated);
 			const url = `/v3/rightnow/posts/${postId}`;
 			const response = await fetchRest(url, {
 				method: "PATCH",
 				body: validated,
 			});
 			await assertSuccess(response, t("api.errors.update_right_now", "Failed to update post"));
+			const payload = await parseJsonSafe(response).catch(() => null);
+			appLog.info(`PATCH /v3/rightnow/posts/${postId} RESPONSE:`, payload);
 			return { ok: true };
 		},
 	};

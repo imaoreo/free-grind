@@ -14,11 +14,11 @@
         "about_desc": "Objetivos do projeto, créditos, licença e links para a documentação.",
         "api_inspector": "Inspetor de API",
         "api_inspector_desc": "Visualize o histórico de solicitações e respostas para depuração.",
-        "my_albums": "Meus álbuns",
+        "my_albums": "Meus Álbuns",
         "my_albums_desc": "Criar, renomear e excluir álbuns privados.",
-        "blocked_accounts": "Contas bloqueadas",
+        "blocked_accounts": "Contas Bloqueadas",
         "blocked_accounts_desc": "Veja quem você bloqueou e desbloqueie essas pessoas quando quiser.",
-        "export_chat": "Exportar dados do chat",
+        "export_chat": "Exportar Dados do Chat",
         "export_chat_desc": "Baixe todas as mensagens armazenadas localmente como um arquivo JSON.",
         "check_updates": "Verifique se há atualizações",
         "check_now": "Confira agora",
@@ -27,16 +27,18 @@
         "checking": "Verificando…",
         "exporting": "Exportador…",
         "logout": "Sair",
-        "back_to_browse": "Voltar à navegação",
+        "back_to_browse": "Voltar para Explorar",
         "ota_available_only_tauri": "As atualizações OTA estão disponíveis apenas no aplicativo Tauri.",
         "latest_version": "Você já possui a versão mais recente.",
         "update_installed": "Atualização instalada. Recarregando agora…",
         "failed_update_check": "Falha ao verificar ou aplicar a atualização.",
-        "switched_and_updated": "Mudei para o {{canal}} e apliquei a atualização. Recarregando…",
-        "switched_channel": "Canal Alterado. Recarregando…",
+        "switched_and_updated": "Mudei para o {{channel}} e apliquei a atualização. Recarregando…",
+        "switched_channel": "Alterado para {{channel}}. Recarregando…",
         "failed_switch_env": "Falha ao alternar o ambiente de atualização.",
-        "issue_board": "Problemas e solicitações de recursos",
-        "issue_board_desc": "Navegue e pesquise erros relatados e solicitações de recursos."
+        "issue_board": "Problemas e Solicitações de Recursos",
+        "issue_board_desc": "Navegue e pesquise erros relatados e solicitações de recursos.",
+        "automation": "Automação",
+        "automation_desc": "Configure regras de bloqueio automatizadas e atualização automática da grade."
     },
     "settings_blocked": {
         "title": "Contas bloqueadas",
@@ -107,14 +109,49 @@
         "minutes_short": "{{count}} m",
         "hours_short": "{{count}}h",
         "days_short": "{{count}}d",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "add_photo": "Adicionar foto",
+        "close_aria": "Fechar",
+        "create_session_title": "Right Now",
+        "edit_session_title": "Editar sessão",
+        "session_placeholder": "O que você está procurando?",
+        "char_limit": "{{count}}/140",
+        "i_am_hosting": "Hospedando",
+        "show_on_map": "Me mostrar no mapa",
+        "start_now": "Iniciar Agora",
+        "update_now": "Atualizar Agora",
+        "remaining": "restante",
+        "visibility": "Visibilidade",
+        "status_hidden": "Atualmente oculto",
+        "status_visible": "Publicamente visível",
+        "weekly_limit": "Sessões Semanais",
+        "remaining_count": "disponível",
+        "next_refresh": "Próxima atualização",
+        "refresh_time": "Sexta-feira, 17h00",
+        "limit_reached_title": "Limite atingido",
+        "limit_reached_desc": "Você já utilizou todas as suas sessões desta semana.",
+        "uploading": "Enviando...",
+        "updating": "Atualizando...",
+        "starting_session": "Iniciando sessão...",
+        "ending_session": "Encerrando...",
+        "end_session": "Encerrar sessão",
+        "session_updated": "Sessão atualizada!",
+        "session_created": "Sessão iniciada!",
+        "session_ended": "Sessão encerrada",
+        "session_expired": "Sessão expirada",
+        "error_fetch_session": "Não foi possível carregar os dados da sessão",
+        "error_upload": "Falha no envio",
+        "error_session_failed": "Falha ao iniciar sessão",
+        "error_session_update_failed": "Falha ao atualizar sessão",
+        "error_end_failed": "Falha ao encerrar sessão",
+        "upload_preview_alt": "Prévia do envio"
     },
     "right_now_filters": {
         "title": "Right Now Filtros",
         "subtitle": "Aprimore o feed do Right Now",
         "apply": "Aplicar",
         "position": "Posição",
-        "age_range": "Faixa etária",
+        "age_range": "Faixa Etária",
         "back_aria": "Voltar"
     },
     "browse_filters": {
@@ -149,10 +186,15 @@
             "favorites": "Favoritos",
             "hot": "Quente",
             "shuffle": "Embaralhar"
+        },
+        "local_filters": {
+            "title": "Filtros locais",
+            "description": "Estes filtros são aplicados instantaneamente aos perfis já carregados.",
+            "is_visiting": "Visitando"
         }
     },
     "browse_location": {
-        "title": "Procurar",
+        "title": "Explorar Localização",
         "subtitle": "Escolha de onde seu feed deve ser carregado.",
         "back_aria": "Voltar à navegação",
         "error_geolocation": "A geolocalização não está disponível neste dispositivo.",
@@ -384,7 +426,7 @@
                 "weight": "Peso",
                 "weight_placeholder": "Peso em kg",
                 "ethnicity": "Etnia",
-                "body_type": "Tipo de corpo",
+                "body_type": "Tipo Físico",
                 "show_position": "Mostrar posição",
                 "show_position_desc": "Permita que as pessoas vejam sua posição no perfil.",
                 "position": "Posição",
@@ -430,6 +472,26 @@
             "other": {
                 "title": "Outras informações",
                 "user_id": "ID do usuário"
+            },
+            "visiting_mode": {
+                "title": "Modo",
+                "description": "Casa, visitando ou automático",
+                "loading": "Carregando modo…",
+                "error": "Não foi possível carregar o modo.",
+                "options": {
+                    "auto": {
+                        "label": "Automático",
+                        "description": "Deixe o Grindr escolher o modo para a sua localização atual."
+                    },
+                    "home": {
+                        "label": "Casa",
+                        "description": "Mostrar seu perfil no modo casa."
+                    },
+                    "visiting": {
+                        "label": "Visitando",
+                        "description": "Mostrar seu perfil no modo visitando."
+                    }
+                }
             }
         },
         "actions": {
@@ -697,7 +759,9 @@
             "upload_media_failed": "Falha ao carregar a mídia",
             "load_drawer_media": "Falha ao carregar a mídia da pasta",
             "send_drawer_media": "Falha ao enviar mídia da pasta",
-            "delete_conversation": "Falha ao excluir a conversa"
+            "delete_conversation": "Falha ao excluir a conversa",
+            "no_location_set": "Nenhuma localização definida nas configurações",
+            "invalid_location": "Formato de localização inválido"
         },
         "toasts": {
             "cleared_local_history": "Histórico local apagado nesse bate-papo",
@@ -708,8 +772,10 @@
         },
         "new_conversation": {
             "title": "Nova conversa",
-            "subtitle": "Envie uma mensagem para o perfil #{{profileId}} para iniciar uma conversa.",
-            "write_first_message": "Escreva sua primeira mensagem..."
+            "subtitle": "Perfil #{{profileId}}",
+            "write_first_message": "Escreva sua primeira mensagem...",
+            "no_messages_yet": "Nenhuma mensagem ainda",
+            "send_first_message_hint": "Envie uma mensagem abaixo para iniciar a conversa."
         },
         "delete_conversation": "Apagar conversa",
         "delete_conversation_in_progress": "Apagando conversa...",
@@ -728,7 +794,9 @@
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",
         "drawer_label": "Pasta",
-        "drawer_unavailable": "Send a message first to use the drawer"
+        "drawer_unavailable": "Envie uma mensagem primeiro para usar o menu",
+        "share_location_label": "Compartilhar localização",
+        "share_location_confirm": "Compartilhar este local?"
     },
     "profile_details": {
         "title": "Detalhes do perfil",
@@ -767,7 +835,7 @@
         "run_location_finder": "Executar localizador",
         "location_finder_running": "Localizador em execução",
         "location_finder": "Localizador",
-        "location_finder_confirm": "Aviso: Localizador\n\nEste recurso funciona atualizando repetidamente sua localização no servidor para triangular a posição de outro usuário.\n\n• Isso pode levar vários minutos para ser concluído.\n\n• Sua conta pode ser sinalizada ou banida.\n\nDeseja continuar?",
+        "location_finder_confirm": "⚠️ Aviso: Localizador\n\nEste recurso funciona atualizando sua localização repetidamente no servidor para triangular a posição de outro usuário.\n\n• Isso pode levar vários minutos para ser concluído\n• Isso pode resultar na sinalização ou no banimento da sua conta\n\nDeseja continuar?",
         "location_finder_error_distance": "Não foi possível obter a distância do alvo.",
         "location_finder_start": "Distância alvo: {{distance}}m. Iniciando {{rounds}} rodadas de triangulação.",
         "location_finder_round_complete": "Volta {{round}} concluída. {{lat}}, {{lon}}. Distância estimada: ~{{distance}}m.",
@@ -897,7 +965,9 @@
             }
         },
         "unfavorite": "Remover favorito",
-        "dont_ask_again": "Não pergunte novamente"
+        "dont_ask_again": "Não pergunte novamente",
+        "visiting": "Visitando",
+        "location_finder_location_copied": "Localização copiada para a área de transferência"
     },
     "interest_page": {
         "title": "Interesse",
@@ -926,7 +996,17 @@
             "hot": "Quente",
             "looking": "Olhando",
             "default": "Toque"
-        }
+        },
+        "recovered_tooltip": "Identificado a partir da história local",
+        "onboarding": {
+            "title": "Visitantes do Perfil",
+            "limitation_title": "Como funciona",
+            "limitation_desc": "O Grindr normalmente só mostra o último visitante por completo. Os outros geralmente ficam ocultos atrás de um paywall ou são exibidos como prévias anônimas.",
+            "recovery_title": "Recuperação Inteligente",
+            "recovery_desc": "O Free Grind compara automaticamente visitantes anônimos com seu histórico local. Se encontrarmos uma correspondência, o perfil será revelado a você.",
+            "button": "Entendi!"
+        },
+        "unknown_profile": "Perfil Desconhecido"
     },
     "api": {
         "errors": {
@@ -950,7 +1030,7 @@
             "open_shared_album": "Não foi possível abrir o álbum compartilhado",
             "load_genders": "Falha ao carregar os gêneros",
             "invalid_genders_response": "Resposta de gêneros inválidos",
-            "load_pronouns": "Resposta de gêneros inválidos",
+            "load_pronouns": "Falha ao carregar pronomes",
             "invalid_pronouns_response": "Resposta com pronomes inválidos",
             "load_profile_media": "Falha ao carregar o perfil de mídia",
             "load_browse_profiles": "Falha ao carregar os perfis de navegação",
@@ -966,7 +1046,11 @@
             "liveness_failed": "A verificação 3D de vivacidade falhou",
             "enrollment_failed": "Falha na verificação de registro",
             "document_failed": "A verificação do documento falhou",
-            "load_right_now": "Falha ao carregar o feed Right Now"
+            "load_right_now": "Falha ao carregar o feed Right Now",
+            "load_visiting_mode": "Falha ao carregar o modo de perfil",
+            "invalid_visiting_mode_response": "Resposta do modo de perfil inválida",
+            "save_visiting_mode": "Falha ao salvar o modo de perfil",
+            "session_right_now": "Falha ao iniciar a sessão"
         }
     },
     "errors": {
@@ -1047,12 +1131,52 @@
         "delete_confirm_message": "Tem certeza de que deseja excluir esta mídia da sua pasta?",
         "delete_confirm_label": "Excluir",
         "title": "Pasta",
-        "media_alt": "Pasta de mídia"
+        "media_alt": "Pasta de mídia",
+        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_off": "Desativado",
+        "is_expiring_send": "Enviar como temporária ({{count}})",
+        "is_expiring_title_on": "Expira em (10s)",
+        "is_expiring_title_off": "Enviar normalmente"
     },
     "favorites": {
         "added": "Adicionado aos favoritos",
         "removed": "Removido dos favoritos",
         "add_failed": "Não foi possível adicionar aos favoritos",
-        "remove_failed": "Não foi possível remover os favoritos"
+        "remove_failed": "Não foi possível remover os favoritos",
+        "get_notes_failed": "Falha ao carregar anotações",
+        "loading_notes": "Carregando anotações...",
+        "search_placeholder": "Buscar anotações...",
+        "notes_loaded_one": "Português (Brasil), Muitos (1000000, 2000000)",
+        "notes_loaded_many": "{{count}} de anotações de favorito carregadas",
+        "notes_loaded_other": "{{count}} anotações de favorito carregadas"
+    },
+    "settings_automation": {
+        "auto_block_title": "Bloqueio Automático de Mensagens",
+        "apply_to_inbox": "Aplicar à Caixa de Entrada",
+        "apply_to_inbox_desc": "Bloqueia instantaneamente novos chats que correspondam aos seus critérios.",
+        "forbidden_keywords_title": "Palavras-chave Proibidas",
+        "forbidden_keywords_desc": "Bloqueie perfis ou mensagens que contenham estas palavras. Separe com vírgulas (ex: snapchat, crypto, bot).",
+        "keywords_placeholder": "Digite as palavras-chave aqui...",
+        "export_txt": "Exportar (.txt)",
+        "import_txt": "Importar (.txt)",
+        "keywords_imported": "Palavras-chave importadas! Clique em Salvar para aplicar.",
+        "keywords_exported": "Palavras-chave exportadas!",
+        "age_limits_title": "Limites de Idade",
+        "age_limits_desc": "Bloqueie qualquer pessoa fora desta faixa etária.",
+        "update_block_rules": "Atualizar Regras de Bloqueio",
+        "block_rules_updated": "Atualização Automática da Grade!",
+        "auto_refresh_title": "Atualização Automática da Grade",
+        "auto_refresh_desc": "Mantenha sua sessão ativa e sua localização atualizada recarregando a grade automaticamente. Você deve permanecer na grade para que a atualização tenha efeito.",
+        "enable_refresh": "Ativar Atualização",
+        "enable_refresh_desc": "Aciona automaticamente uma atualização no intervalo abaixo.",
+        "refresh_interval": "Intervalo de Atualização",
+        "refresh_interval_unit": "{{count}} min.",
+        "refresh_technical_note": "Nota técnica: No celular, isso só funciona enquanto o aplicativo estiver ativo ou em primeiro plano, e consumirá muita bateria.",
+        "update_refresh_settings": "Atualizar Configurações de Atualização",
+        "refresh_settings_updated": "Intervalo de atualização atualizado!",
+        "chat_block_enabled": "Bloqueio automático da caixa de entrada ativado",
+        "chat_block_disabled": "Bloqueio automático da caixa de entrada desativado",
+        "auto_refresh_enabled": "Atualização automática ativada",
+        "auto_refresh_disabled": "Atualização automática desativada"
     }
 }
