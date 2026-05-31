@@ -18,6 +18,7 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
 import { formatRelativeTime } from "../../utils/relativeTime";
 import { cn } from "../../utils/cn";
+import { getRightNowLastSeen, markRightNowSeen } from "../../services/seenStore";
 import { ProfileImage } from "../../components/ui/profile-image";
 import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
@@ -353,6 +354,7 @@ export function RightNowPage() {
 		persistedFilters.positionFilter,
 	);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+	const [lastSeenRightNow, setLastSeenRightNow] = useState(() => getRightNowLastSeen());
 
 	const queryParams = useMemo(() => ({
 		sort,
@@ -481,16 +483,26 @@ export function RightNowPage() {
 		}
 	}, [isSessionActive, activeRightNowId, setPreferences]);
 
-	// Clear scroll memory for RightNow when NEW activity is detected
-	const prevMaxPostedAt = useRef(0);
+	// Mark as seen whenever the user is on this page so the NavBar dot clears
+	useEffect(() => {
+		if (items.length > 0) {
+			const maxTs = Math.max(...items.map(i => i.postedAt ?? 0));
+			const at = Math.max(Date.now(), maxTs);
+			markRightNowSeen(at);
+			setLastSeenRightNow(at);
+		}
+	}, [items]);
+
+	// Clear scroll memory for RightNow when NEW activity is detected in real-time
+	const prevMaxPostedAt = useRef(lastSeenRightNow);
 
 	useEffect(() => {
 		const maxPostedAt = items.length > 0 ? Math.max(...items.map(i => i.postedAt ?? 0)) : 0;
-		if (maxPostedAt > prevMaxPostedAt.current && prevMaxPostedAt.current > 0) {
+		if (maxPostedAt > prevMaxPostedAt.current) {
 			sessionStorage.removeItem("rightnow-scroll");
 			feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 		}
-		prevMaxPostedAt.current = maxPostedAt;
+		if (maxPostedAt > 0) prevMaxPostedAt.current = maxPostedAt;
 	}, [items]);
 
 	// Scroll Memory logic
@@ -515,6 +527,17 @@ export function RightNowPage() {
 	useLayoutEffect(() => {
 		if (items.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
 			const storageKey = "rightnow-scroll";
+
+			// If there's new activity since the last time we "saw" this page,
+			// don't restore the scroll position - stay at the top.
+			const maxTs = Math.max(...items.map(i => i.postedAt ?? 0));
+			if (maxTs > lastSeenRightNow) {
+				sessionStorage.removeItem(storageKey);
+				feedContainerRef.current.scrollTop = 0;
+				setHasRestoredScroll(true);
+				return;
+			}
+
 			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
 				try {
@@ -543,7 +566,8 @@ export function RightNowPage() {
 			}
 			setHasRestoredScroll(true);
 		}
-	}, [items.length, isLoading, hasRestoredScroll]);
+	}, [items.length, isLoading, hasRestoredScroll, lastSeenRightNow, items]);
+
 
 	const handleMessage = useCallback(
 		(profileId: string) => {

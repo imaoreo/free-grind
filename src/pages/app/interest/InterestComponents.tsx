@@ -49,22 +49,36 @@ export const InterestTabs = memo(function InterestTabs({
 		? (activeTab === "views" ? 0 : 1)
 		: (activeTab === "taps" ? 0 : 1);
 
-	// Measure the active tab's width and position
+	// Sync indicator with the active tab's position and size in real-time
 	useLayoutEffect(() => {
 		const activeEl = tabsRef.current[activeIndex];
-		if (activeEl) {
+		if (!activeEl) return;
+
+		const updateIndicator = () => {
 			setIndicatorStyle({
 				left: activeEl.offsetLeft,
 				width: activeEl.offsetWidth,
 			});
-			if (!isReady) {
-				// Wait two frames to ensure the width is applied before enabling transition
-				requestAnimationFrame(() => {
-					requestAnimationFrame(() => setIsReady(true));
-				});
-			}
+		};
+
+		// Initial measurement
+		updateIndicator();
+
+		// Use ResizeObserver to catch width changes during the badge transition
+		const resizeObserver = new ResizeObserver(() => {
+			updateIndicator();
+		});
+
+		resizeObserver.observe(activeEl);
+
+		if (!isReady) {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => setIsReady(true));
+			});
 		}
-	}, [activeIndex, isReady]);
+
+		return () => resizeObserver.disconnect();
+	}, [activeIndex, isReady, newViewsCount, newTapsCount]);
 
 	return (
 		<div className="glass-pill relative inline-flex items-center p-1">
@@ -100,18 +114,19 @@ export const InterestTabs = memo(function InterestTabs({
 					)}
 				>
 					<span>{label}</span>
-					{counts[i] > 0 && (
-						<span
-							className={cn(
-								"ml-2 flex h-4.5 min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[10px] font-black transition-colors duration-300",
-								activeIndex === i
-									? "bg-white text-[var(--accent)]"
-									: "bg-[var(--accent)] text-white"
-							)}
-						>
-							{counts[i] > 99 ? "99+" : counts[i]}
-						</span>
-					)}
+					<span
+						className={cn(
+							"flex h-4.5 items-center justify-center rounded-full text-[10px] font-black transition-all duration-300 ease-out overflow-hidden",
+							counts[i] > 0
+								? "ml-2 min-w-[1.125rem] px-1 opacity-100 scale-100"
+								: "ml-0 min-w-0 w-0 px-0 opacity-0 scale-50 pointer-events-none",
+							activeIndex === i
+								? "bg-white text-[var(--accent)]"
+								: "bg-[var(--accent)] text-white"
+						)}
+					>
+						{counts[i] > 0 ? (counts[i] > 99 ? "99+" : counts[i]) : ""}
+					</span>
 				</button>
 			))}
 		</div>
