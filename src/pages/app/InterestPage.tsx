@@ -457,19 +457,23 @@ export function InterestPage() {
 			const endX = event.changedTouches[0]?.clientX ?? startX;
 			const deltaX = startX - endX;
 
-			// Swipe left (positive deltaX) -> go to next tab (views -> taps)
-			if (deltaX > 70 && activeTab === "views") {
-				handleSetActiveTab("taps");
+			const isViewsFirst = defaultSetting === "views";
+			const leftTab = isViewsFirst ? "views" : "taps";
+			const rightTab = isViewsFirst ? "taps" : "views";
+
+			// Swipe left (positive deltaX) -> move to the right tab
+			if (deltaX > 70 && activeTab === leftTab) {
+				handleSetActiveTab(rightTab);
 			}
 
-			// Swipe right (negative deltaX) -> go to previous tab (taps -> views)
-			if (deltaX < -70 && activeTab === "taps") {
-				handleSetActiveTab("views");
+			// Swipe right (negative deltaX) -> move to the left tab
+			if (deltaX < -70 && activeTab === rightTab) {
+				handleSetActiveTab(leftTab);
 			}
 
 			touchStartXRef.current = null;
 		},
-		[activeTab, handleSetActiveTab],
+		[activeTab, handleSetActiveTab, defaultSetting],
 	);
 
 	return (
@@ -561,7 +565,7 @@ export function InterestPage() {
 				ref={feedContainerRef}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
-				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "translate-x-8")}
+				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "-translate-x-8")}
 			>
 				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-0">
 					{isQueryLoading && activeItems.length === 0 ? (
