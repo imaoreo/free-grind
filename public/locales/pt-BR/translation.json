@@ -1117,7 +1117,7 @@
     "chat_drawer": {
         "empty": "Sua pasta está vazia.",
         "retry": "Tente novamente",
-        "send": "Enviar {{count}}",
+        "send": "Enviar ({{count}})",
         "sending": "Enviando...",
         "error_no_selection": "Por favor, selecione pelo menos uma imagem.",
         "error_send_failed": "Falha ao enviar a mídia.",
