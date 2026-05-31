@@ -141,6 +141,7 @@ export const InterestRow = memo(function InterestRow({
 
 	const isPrivate = !item.canOpenProfile;
 	const isRecovered = !!item.isFromCache && !isPrivate && !item.profileId.startsWith(PREVIEW_ID_PREFIX);
+	const isOnline = typeof item.onlineUntil === "number" && item.onlineUntil > now;
 
 	const displayName = item.displayName
 		? item.displayName
@@ -164,14 +165,17 @@ export const InterestRow = memo(function InterestRow({
 				disabled={isPrivate}
 				className="relative shrink-0"
 			>
-				<div className="h-15 w-15 overflow-hidden rounded-full shadow-sm">
+				<div className="h-15 w-15 squircle drop-shadow-sm bg-[var(--surface-2)]">
 					<ProfileImage
 						src={imageSrc}
 						alt={displayName}
 					/>
 				</div>
+				{isOnline && (
+					<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm z-10" />
+				)}
 				{isPrivate && (
-					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)]">
+					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)] z-10">
 						<Lock className="h-3 w-3" />
 					</div>
 				)}

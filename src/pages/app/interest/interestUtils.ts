@@ -15,6 +15,7 @@ export type InterestItem = {
 	canOpenProfile: boolean;
 	isFromCache?: boolean;
 	isMutual?: boolean;
+	onlineUntil?: number | null;
 };
 
 export const PREVIEW_ID_PREFIX = "preview:";
@@ -76,6 +77,7 @@ function mergeViewItem(
 		canOpenProfile: incoming.canOpenProfile || cached.canOpenProfile,
 		isFromCache: incoming.isFromCache ?? cached.isFromCache,
 		isMutual: incoming.isMutual ?? cached.isMutual,
+		onlineUntil: incoming.onlineUntil ?? cached.onlineUntil,
 	};
 }
 
@@ -214,6 +216,7 @@ export function normalizeViews(
 			viewCount: toNumber(asObject(obj.viewedCount)?.totalCount),
 			canOpenProfile: true,
 			isFromCache: false,
+			onlineUntil: toNumber(obj.onlineUntil),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -236,6 +239,7 @@ export function normalizeViews(
 			viewCount: toNumber(asObject(obj.viewedCount)?.totalCount),
 			canOpenProfile: recoveredMatch ? true : (getViewProfileId(obj) !== null),
 			isFromCache: !!recoveredMatch,
+			onlineUntil: recoveredMatch ? recoveredMatch.onlineUntil : toNumber(obj.onlineUntil),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -277,6 +281,7 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 			viewCount: null,
 			canOpenProfile: true,
 			isMutual: obj.isMutual === true || obj.mutual === true,
+			onlineUntil: toNumber(obj.onlineUntil),
 		};
 
 		const existing = mergedMap.get(profileId);

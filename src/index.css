@@ -389,6 +389,14 @@
 @layer utilities {
 	.h-15 { height: 3.75rem; }
 	.w-15 { width: 3.75rem; }
+	.squircle {
+		border-radius: 32%;
+		mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,6.7 6.7,0 50,0 C 93.3,0 100,6.7 100,50 C 100,93.3 93.3,100 50,100 C 6.7,100 0,93.3 0,50' fill='%23000'/%3E%3C/svg%3E");
+		mask-size: 100% 100%;
+		-webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M 0,50 C 0,6.7 6.7,0 50,0 C 93.3,0 100,6.7 100,50 C 100,93.3 93.3,100 50,100 C 6.7,100 0,93.3 0,50' fill='%23000'/%3E%3C/svg%3E");
+		-webkit-mask-size: 100% 100%;
+		overflow: hidden;
+	}
 }
 
 @layer components {
