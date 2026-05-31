@@ -8,6 +8,10 @@ const STAGGER_MS = 30;
 let pendingReveals: { offsetTop: number; resolve: () => void }[] = [];
 let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Global state to track if the initial reveal period has passed for the current "view"
+let globalAnimationsEnabled = false;
+let lastUrl = "";
+
 function processNext() {
 	if (pendingReveals.length === 0) {
 		revealTimer = null;
@@ -30,12 +34,17 @@ function processNext() {
  */
 export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 0px") {
 	const { revealEffectEnabled } = usePreferences();
-	// Use boolean cast to avoid undefined issues
 	const isEnabled = !!revealEffectEnabled;
 	const [isVisible, setIsVisible] = useState(!isEnabled);
 	const [wasVisibleInitially, setWasVisibleInitially] = useState(!isEnabled);
-	const [animationsEnabled, setAnimationsEnabled] = useState(false);
 	const ref = useRef<HTMLDivElement>(null);
+
+	// URL-based reset for global animation state (resets when navigating to a new page or tab)
+	const currentUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
+	if (currentUrl !== lastUrl) {
+		lastUrl = currentUrl;
+		globalAnimationsEnabled = false;
+	}
 
 	useEffect(() => {
 		if (!isEnabled) return;
@@ -43,26 +52,32 @@ export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 
 		const element = ref.current;
 		if (!element) return;
 
-		// Disable animations for the first 400ms (mount/scroll restoration)
-		const timer = setTimeout(() => setAnimationsEnabled(true), 400);
+		// If this is a new page/view, we wait a bit before enabling animations
+		// (this avoids a wave of animations during initial mount/scroll restoration)
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		if (!globalAnimationsEnabled) {
+			timer = setTimeout(() => {
+				globalAnimationsEnabled = true;
+			}, 400);
+		}
 
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				if (entry.isIntersecting) {
-					if (!animationsEnabled) {
-						// Elements visible on mount are shown immediately without any animation logic
-						setIsVisible(true);
-						setWasVisibleInitially(true);
-					} else {
-						// Add to queue and sort by actual document position
-						pendingReveals.push({
-							offsetTop: (entry.target as HTMLElement).offsetTop,
-							resolve: () => setIsVisible(true)
-						});
+					// ALWAYS use the queue to guarantee top-to-bottom order
+					pendingReveals.push({
+						offsetTop: (entry.target as HTMLElement).offsetTop,
+						resolve: () => {
+							setIsVisible(true);
+							// Only skip animation if we are still in the initial "pop-in" protection period
+							if (!globalAnimationsEnabled) {
+								setWasVisibleInitially(true);
+							}
+						},
+					});
 
-						if (!revealTimer) {
-							revealTimer = setTimeout(processNext, 0);
-						}
+					if (!revealTimer) {
+						revealTimer = setTimeout(processNext, 0);
 					}
 					observer.unobserve(element);
 				}
@@ -73,10 +88,10 @@ export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 
 		observer.observe(element);
 
 		return () => {
-			clearTimeout(timer);
+			if (timer) clearTimeout(timer);
 			if (element) observer.unobserve(element);
 		};
-	}, [threshold, rootMargin, animationsEnabled]);
+	}, [threshold, rootMargin, isEnabled, currentUrl]);
 
 	let revealClass = "opacity-0";
 	if (!revealEffectEnabled) {
