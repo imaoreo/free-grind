@@ -3,7 +3,7 @@
  * These are separated to allow HMR (Hot Module Replacement) without full page reloads.
  */
 
-export const FEED_HEADER_OFFSET = "8rem";
+export const FEED_HEADER_OFFSET = "7rem";
 export const FEED_MASK_GRADIENT_STOP = "200px";
 
 // --- Header Glow Design ---

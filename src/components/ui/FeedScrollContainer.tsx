@@ -71,7 +71,7 @@ export const FeedScrollContainer = forwardRef<HTMLDivElement, FeedScrollContaine
 					}}
 					{...props}
 				>
-					<div className="min-h-full">
+					<div>
 						{children}
 					</div>
 				</div>
