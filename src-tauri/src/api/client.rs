@@ -69,11 +69,11 @@ impl GrindrClient {
                 eprintln!("[HTTP-CLIENT] No stored session found; starting unauthenticated.");
                 None
             }
-            Err(error) => {
+            Err(_error) => {
                 #[cfg(debug_assertions)]
                 eprintln!(
                     "[HTTP-CLIENT] Failed to restore persisted session (continuing unauthenticated): {}",
-                    error
+                    _error
                 );
                 None
             }

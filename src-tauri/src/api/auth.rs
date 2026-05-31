@@ -345,20 +345,20 @@ impl AuthStorage {
     pub fn get_session() -> Result<Option<Session>, AppError> {
         let entry = match Self::get_session_entry() {
             Ok(entry) => entry,
-            Err(error) => {
+            Err(_error) => {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
         eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS, trying fallback session file: {}",
-                        error
+                        _error
                     );
                     return Self::read_macos_fallback_session();
                 }
 
                 #[cfg(not(target_os = "macos"))]
                 {
-                    return Err(error);
+                    return Err(_error);
                 }
             }
         };
@@ -375,20 +375,20 @@ impl AuthStorage {
                     return Ok(None);
                 }
             }
-            Err(e) => {
+            Err(_e) => {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
         eprintln!(
                         "[HTTP-AUTH] Keyring read failed on macOS, trying fallback session file: {}",
-                        e
+                        _e
                     );
                     return Self::read_macos_fallback_session();
                 }
 
                 #[cfg(not(target_os = "macos"))]
                 {
-                    return Err(AppError::Auth(e.to_string()));
+                    return Err(AppError::Auth(_e.to_string()));
                 }
             }
         };
@@ -402,20 +402,20 @@ impl AuthStorage {
         let session_bytes = rmp_serde::encode::to_vec(session).unwrap();
         let entry = match Self::get_session_entry() {
             Ok(entry) => entry,
-            Err(error) => {
+            Err(_error) => {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
         eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS, writing fallback session file: {}",
-                        error
+                        _error
                     );
                     return Self::write_macos_fallback_session(session);
                 }
 
                 #[cfg(not(target_os = "macos"))]
                 {
-                    return Err(error);
+                    return Err(_error);
                 }
             }
         };
@@ -427,20 +427,20 @@ impl AuthStorage {
                 }
                 Ok(())
             }
-            Err(error) => {
+            Err(_error) => {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
         eprintln!(
                         "[HTTP-AUTH] Keyring write failed on macOS, writing fallback session file: {}",
-                        error
+                        _error
                     );
                     return Self::write_macos_fallback_session(session);
                 }
 
                 #[cfg(not(target_os = "macos"))]
                 {
-                    Err(AppError::Auth(error.to_string()))
+                    Err(AppError::Auth(_error.to_string()))
                 }
             }
         }
@@ -450,10 +450,10 @@ impl AuthStorage {
     pub fn clear_session() -> Result<(), AppError> {
         let entry = match Self::get_session_entry() {
             Ok(entry) => Some(entry),
-            Err(error) => {
+            Err(_error) => {
                 #[cfg(not(target_os = "macos"))]
                 {
-                    return Err(error);
+                    return Err(_error);
                 }
 
                 #[cfg(target_os = "macos")]
@@ -461,7 +461,7 @@ impl AuthStorage {
                     #[cfg(debug_assertions)]
         eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS during clear, continuing with fallback clear: {}",
-                        error
+                        _error
                     );
                     None
                 }
@@ -470,10 +470,10 @@ impl AuthStorage {
         if let Some(entry) = entry {
             match entry.delete_credential() {
                 Ok(()) | Err(keyring_core::Error::NoEntry) => {}
-                Err(error) => {
+                Err(_error) => {
                     #[cfg(not(target_os = "macos"))]
                     {
-                        return Err(AppError::Auth(error.to_string()));
+                        return Err(AppError::Auth(_error.to_string()));
                     }
 
                     #[cfg(target_os = "macos")]
@@ -481,7 +481,7 @@ impl AuthStorage {
                         #[cfg(debug_assertions)]
         eprintln!(
                             "[HTTP-AUTH] Keyring clear failed on macOS, continuing with fallback clear: {}",
-                            error
+                            _error
                         );
                     }
                 }
@@ -540,11 +540,11 @@ impl GrindrClient {
             "[HTTP-AUTH] Saving session to storage; profile_id={}, expires_at={}",
             session.profile_id, session.expires_at
         );
-        if let Err(error) = AuthStorage::set_session(&session) {
+        if let Err(_error) = AuthStorage::set_session(&session) {
             #[cfg(debug_assertions)]
         eprintln!(
                 "[HTTP-AUTH] Failed to persist session (continuing in-memory only): {}",
-                error
+                _error
             );
         }
 
@@ -629,11 +629,11 @@ impl GrindrClient {
                     !session.auth_token.is_empty()
                 );
                 let profile_id = session.profile_id.clone();
-                if let Err(error) = AuthStorage::set_session(&session) {
+                if let Err(_error) = AuthStorage::set_session(&session) {
                     #[cfg(debug_assertions)]
                     eprintln!(
                         "[HTTP-AUTH] Failed to persist exchanged session (continuing in-memory only): {}",
-                        error
+                        _error
                     );
                 }
                 *self.session.write().await = Some(session);
@@ -655,11 +655,11 @@ impl GrindrClient {
                     device_id: new_device_id,
                     advertising_id: new_advertising_id,
                 };
-                if let Err(error) = AuthStorage::set_session(&session) {
+                if let Err(_error) = AuthStorage::set_session(&session) {
                     #[cfg(debug_assertions)]
                     eprintln!(
                         "[HTTP-AUTH] Failed to persist JWT session (continuing in-memory only): {}",
-                        error
+                        _error
                     );
                 }
                 *self.session.write().await = Some(session);
