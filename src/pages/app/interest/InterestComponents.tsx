@@ -13,12 +13,16 @@ export const InterestTabs = memo(function InterestTabs({
 	onTapsClick,
 	firstTab = "taps",
 	shouldBounce = false,
+	newViewsCount = 0,
+	newTapsCount = 0,
 }: {
 	activeTab: InterestTab;
 	onViewsClick: () => void;
 	onTapsClick: () => void;
 	firstTab?: InterestTab;
 	shouldBounce?: boolean;
+	newViewsCount?: number;
+	newTapsCount?: number;
 }) {
 	const { t } = useTranslation();
 	const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
@@ -35,6 +39,10 @@ export const InterestTabs = memo(function InterestTabs({
 	const handlers = isViewsFirst
 		? [onViewsClick, onTapsClick]
 		: [onTapsClick, onViewsClick];
+
+	const counts = isViewsFirst
+		? [newViewsCount, newTapsCount]
+		: [newTapsCount, newViewsCount];
 
 	// Index of the currently active tab in the visual array
 	const activeIndex = isViewsFirst
@@ -91,7 +99,19 @@ export const InterestTabs = memo(function InterestTabs({
 							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
 					)}
 				>
-					{label}
+					<span>{label}</span>
+					{counts[i] > 0 && (
+						<span
+							className={cn(
+								"ml-2 flex h-4.5 min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[10px] font-black transition-colors duration-300",
+								activeIndex === i
+									? "bg-white text-[var(--accent)]"
+									: "bg-[var(--accent)] text-white"
+							)}
+						>
+							{counts[i] > 99 ? "99+" : counts[i]}
+						</span>
+					)}
 				</button>
 			))}
 		</div>

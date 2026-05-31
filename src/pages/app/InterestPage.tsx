@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useInterestData } from "../../hooks/queries/useInterestQueries";
-import { markInterestSeen } from "../../services/seenStore";
+import { markInterestSeen, getInterestTabLastSeen, markInterestTabSeen } from "../../services/seenStore";
 import { EmptyState, ErrorState } from "../../components/ui/states";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
@@ -77,6 +77,28 @@ export function InterestPage() {
 	const views = data?.views ?? [];
 	const taps = data?.taps ?? [];
 	const viewedCount = data?.viewedCount ?? null;
+
+	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
+	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
+
+	const newViewsCount = useMemo(() => views.filter(v => (v.timestamp ?? 0) > lastSeenViews).length, [views, lastSeenViews]);
+	const newTapsCount = useMemo(() => taps.filter(t => (t.timestamp ?? 0) > lastSeenTaps).length, [taps, lastSeenTaps]);
+
+	// Mark active tab as seen
+	useEffect(() => {
+		if (data) {
+			const items = activeTab === "views" ? views : taps;
+			const maxInItems = items.length > 0 ? Math.max(...items.map(i => i.timestamp ?? 0)) : 0;
+			const at = Math.max(Date.now(), maxInItems);
+
+			markInterestTabSeen(activeTab, at);
+			if (activeTab === "views") {
+				setLastSeenViews(at);
+			} else {
+				setLastSeenTaps(at);
+			}
+		}
+	}, [activeTab, data, views, taps]);
 
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const [showCountLabel, setShowCountLabel] = useState(false);
@@ -423,6 +445,8 @@ export function InterestPage() {
 								onTapsClick={() => handleSetActiveTab("taps")}
 								firstTab={defaultSetting}
 								shouldBounce={shouldBounce}
+								newViewsCount={newViewsCount}
+								newTapsCount={newTapsCount}
 							/>
 
 							<div
@@ -438,7 +462,7 @@ export function InterestPage() {
 									<div
 										className={cn(
 											"flex transition-all duration-500 ease-in-out overflow-hidden",
-											showCountLabel ? "opacity-100 max-w-[200px] mr-2" : "opacity-0 max-w-0 mr-0 pointer-events-none"
+											showCountLabel ? "opacity-100 max-w-[200px] mr-0" : "opacity-0 max-w-0 mr-0 pointer-events-none"
 										)}
 									>
 										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] leading-none whitespace-nowrap">
