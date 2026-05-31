@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { cn } from "../../../utils/cn";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import { decodeGeohash } from "../../../utils/geohash";
-import { calculateSquareCrop } from "../../../utils/media";
+import { prepare1024SquareImage } from "../../../utils/media";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import type { RightNowCreatePostRequest, RightNowUpdatePostRequest } from "../../../services/apiFunctions";
 import { buildBinaryUpload } from "../chat/chatUtils";
@@ -80,7 +80,8 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					const m = post.media[0];
 					// Handle both nested (simulation) and flat (real API) structures
 					setMediaId(m.data?.mediaId ?? m.mediaId);
-					setThumbnailUrl(m.data?.thumbnailUrl ?? m.thumbnailUrl);
+					// Use fullImageUrl for full image preview
+					setThumbnailUrl(m.data?.fullImageUrl ?? m.fullImageUrl ?? m.data?.thumbnailUrl ?? m.thumbnailUrl);
 				}
 			} catch (error) {
 				appLog.error("Failed to fetch active post:", error);
@@ -192,14 +193,18 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 		if (!file) return;
 
 		setIsUploading(true);
+
 		try {
 			if (rightNowTestMode) {
 				const result = await simulateUploadMedia(file);
 				setMediaId(result.mediaId);
 				setThumbnailUrl(result.thumbnailUrl);
 			} else {
-				const { body, contentType } = await buildBinaryUpload(file);
-				const coords = await calculateSquareCrop(file);
+				// 1. Resize locally to 1024px to prevent 500 error and corner-crop
+				const resizedBlob = await prepare1024SquareImage(file);
+				const body = new Uint8Array(await resizedBlob.arrayBuffer());
+				const contentType = "image/jpeg";
+				const coords = { top: 0, left: 0, right: 1024, bottom: 1024 };
 
 				const result = await apiFunctions.uploadRightNowMedia({
 					body,
@@ -207,6 +212,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					coords,
 				});
 				setMediaId(result.mediaId);
+				// 2. Only show image AFTER successful upload from server response
 				setThumbnailUrl(result.thumbnailUrl);
 			}
 		} catch (error) {
