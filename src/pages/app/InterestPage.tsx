@@ -46,14 +46,14 @@ function InterestSkeleton({ mode }: { mode: InterestTab }) {
 		<div className="relative flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
 			<div className="h-15 w-15 shrink-0 squircle bg-[var(--surface-2)]" />
 			<div className="min-w-0 flex-1">
-				<div className="h-4 w-32 rounded bg-[var(--surface-2)]" />
-				<div className="mt-2 h-3 w-20 rounded bg-[var(--surface-2)]" />
+				<div className="h-3.5 w-32 rounded bg-[var(--surface-2)]" />
+				<div className="mt-1 h-3 w-20 rounded bg-[var(--surface-2)]" />
 			</div>
 			<div className="shrink-0 flex items-center justify-center h-12 w-12">
 				{mode === "taps" ? (
 					<div className="h-12 w-12 rounded-full bg-[var(--surface-2)]" />
 				) : (
-					<div className="h-8 w-12 rounded-full bg-[var(--surface-2)]" />
+					<div className="h-8 w-14 rounded-full bg-[var(--surface-2)]" />
 				)}
 			</div>
 			<div className="absolute bottom-0 right-0 left-0 h-px bg-[var(--surface-2)]" />
@@ -501,7 +501,7 @@ export function InterestPage() {
 					</div>
 
 					<div className="flex flex-col gap-3">
-						<div className="flex items-center justify-between pl-[var(--app-px)] pr-[26px]">
+						<div className="flex items-center justify-between pl-[var(--app-px)] pr-6">
 							<InterestTabs
 								activeTab={activeTab}
 								onViewsClick={() => handleSetActiveTab("views")}
@@ -514,11 +514,11 @@ export function InterestPage() {
 
 							<div
 								className={cn(
-									"glass-pill flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
-									activeTab === "views" ? "-mr-[1.5px]" : "mr-0.5",
+									"glass-pill neutral flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
+									activeTab === "views" && "-mr-[2.5px]",
 									showCountLabel
-										? "h-11 pl-4 pr-0"
-										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-11 pl-0 pr-0")
+										? "h-10 pl-4 pr-0"
+										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-10 pl-0 pr-0")
 								)}
 							>
 								<div className="flex items-center justify-end transition-all duration-500">
@@ -528,7 +528,7 @@ export function InterestPage() {
 											showCountLabel ? "opacity-100 max-w-[200px] mr-0" : "opacity-0 max-w-0 mr-0 pointer-events-none"
 										)}
 									>
-										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--accent)] leading-none whitespace-nowrap">
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] leading-none whitespace-nowrap">
 											{activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
 										</p>
 									</div>
@@ -538,7 +538,7 @@ export function InterestPage() {
 											activeTab === "views" ? "w-[51px]" : "w-[46px]"
 										)}>
 											<p className={cn(
-												"text-sm font-bold text-[var(--accent)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
+												"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
 												isFetching && !isQueryLoading ? "opacity-0" : "opacity-100"
 											)}>
 												{activeTab === "views" ? viewedCount : taps.length}
@@ -546,7 +546,7 @@ export function InterestPage() {
 										</div>
 										{isFetching && !isQueryLoading && (
 											<div className="absolute inset-0 flex items-center justify-center">
-												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--accent)]" />
+												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />
 											</div>
 										)}
 									</div>
@@ -563,7 +563,7 @@ export function InterestPage() {
 				onTouchEnd={handleTouchEnd}
 				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "translate-x-8")}
 			>
-				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-1">
+				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-0">
 					{isQueryLoading && activeItems.length === 0 ? (
 						<div className="border-t border-[var(--border)]/10">
 							{Array.from({ length: 8 }).map((_, i) => (

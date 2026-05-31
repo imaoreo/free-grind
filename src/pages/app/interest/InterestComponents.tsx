@@ -106,7 +106,7 @@ export const InterestTabs = memo(function InterestTabs({
 					type="button"
 					onClick={handlers[i]}
 					className={cn(
-						"relative z-10 flex h-9 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
+						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
 						shouldBounce && "translate-x-2",
 						activeIndex === i
 							? "text-white text-base font-black tracking-tight"
