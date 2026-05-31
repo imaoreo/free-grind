@@ -11,6 +11,7 @@ let revealTimer: ReturnType<typeof setTimeout> | null = null;
 // Global state to track if the initial reveal period has passed for the current "view"
 let globalAnimationsEnabled = false;
 let lastUrl = "";
+let activeHooksCount = 0;
 
 function processNext() {
 	if (pendingReveals.length === 0) {
@@ -34,17 +35,37 @@ function processNext() {
  */
 export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 0px") {
 	const { revealEffectEnabled } = usePreferences();
+	const currentUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
+
 	const isEnabled = !!revealEffectEnabled;
 	const [isVisible, setIsVisible] = useState(!isEnabled);
 	const [wasVisibleInitially, setWasVisibleInitially] = useState(!isEnabled);
 	const ref = useRef<HTMLDivElement>(null);
 
 	// URL-based reset for global animation state (resets when navigating to a new page or tab)
-	const currentUrl = typeof window !== "undefined" ? window.location.pathname + window.location.search : "";
 	if (currentUrl !== lastUrl) {
 		lastUrl = currentUrl;
 		globalAnimationsEnabled = false;
+
+		// Clear the queue and timer when navigating to a new page to prevent ghost animations
+		pendingReveals = [];
+		if (revealTimer) {
+			clearTimeout(revealTimer);
+			revealTimer = null;
+		}
 	}
+
+	// Track the number of active hooks to reset global state when navigating away to a page without reveal effects
+	useEffect(() => {
+		activeHooksCount++;
+		return () => {
+			activeHooksCount--;
+			if (activeHooksCount === 0) {
+				globalAnimationsEnabled = false;
+				lastUrl = "";
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		if (!isEnabled) return;
@@ -64,20 +85,22 @@ export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				if (entry.isIntersecting) {
-					// ALWAYS use the queue to guarantee top-to-bottom order
-					pendingReveals.push({
-						offsetTop: (entry.target as HTMLElement).offsetTop,
-						resolve: () => {
-							setIsVisible(true);
-							// Only skip animation if we are still in the initial "pop-in" protection period
-							if (!globalAnimationsEnabled) {
-								setWasVisibleInitially(true);
-							}
-						},
-					});
+					if (!globalAnimationsEnabled) {
+						// Show initially visible elements immediately without delay/animation
+						setIsVisible(true);
+						setWasVisibleInitially(true);
+					} else {
+						// ALWAYS use the queue to guarantee top-to-bottom order
+						pendingReveals.push({
+							offsetTop: (entry.target as HTMLElement).offsetTop,
+							resolve: () => {
+								setIsVisible(true);
+							},
+						});
 
-					if (!revealTimer) {
-						revealTimer = setTimeout(processNext, 0);
+						if (!revealTimer) {
+							revealTimer = setTimeout(processNext, 0);
+						}
 					}
 					observer.unobserve(element);
 				}
