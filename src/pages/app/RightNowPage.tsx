@@ -245,11 +245,11 @@ function RightNowRow({
 				className="relative shrink-0"
 				onClick={() => onSelect(item.profileId)}
 			>
-				<div className="h-15 w-15 overflow-hidden rounded-full shadow-sm">
+				<div className="h-15 w-15 squircle drop-shadow-sm bg-[var(--surface-2)]">
 					<ProfileImage src={imageUrl} alt={name || ""} />
 				</div>
 				{isOnline ? (
-					<span className="absolute bottom-0.5 left-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-green-500" />
+					<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm z-10" />
 				) : null}
 			</button>
 
@@ -322,7 +322,7 @@ function RightNowRow({
 function RightNowSkeleton() {
 	return (
 		<div className="flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
-			<div className="h-15 w-15 shrink-0 rounded-full bg-[var(--surface-2)]" />
+			<div className="h-15 w-15 shrink-0 squircle bg-[var(--surface-2)]" />
 			<div className="flex-1 space-y-3 pt-1">
 				<div className="space-y-2">
 					<div className="h-4 w-[85%] rounded bg-[var(--surface-2)]" />
