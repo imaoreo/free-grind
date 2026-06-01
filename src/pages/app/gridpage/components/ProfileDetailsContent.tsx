@@ -199,7 +199,7 @@ export function ProfileDetailsContent({
 							<>
 								{/* Mobile Carousel View: We use negative margins (-mx and -mt) to break out of the parent padding
 								   and achieve a seamless edge-to-edge look that flushes with the header and screen sides. */}
-								<div className="sm:hidden -mx-[var(--app-px)] -mt-4">
+								<div className="sm:hidden -mx-[var(--app-px)]">
 									<div
 										ref={mobileCarouselRef}
 										onScroll={handleMobileCarouselScroll}
