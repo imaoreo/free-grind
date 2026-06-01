@@ -179,6 +179,16 @@ export function ProfileDetailsContent({
 		void onToggleFavoriteProfile(messageProfileId, isFavorite);
 	};
 
+	const showGlassQuickActions =
+		showMobileCarousel &&
+		!isDesktopLike &&
+		activeProfilePhotoHashes.length > 0 &&
+		Boolean(messageProfileId && onMessageProfile);
+	const glassActionButtonClassName =
+		"inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-white/18 text-white shadow-[0_10px_30px_-16px_rgba(0,0,0,0.9)] backdrop-blur-md transition hover:bg-white/24 disabled:opacity-60";
+	const glassWideActionButtonClassName =
+		"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/45 bg-white/18 px-3 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(0,0,0,0.9)] backdrop-blur-md transition hover:bg-white/24 disabled:opacity-60";
+
 	return (
 		<div className="grid gap-6">
 			<div>
@@ -197,14 +207,16 @@ export function ProfileDetailsContent({
 										className="flex snap-x snap-mandatory overflow-x-auto border-b border-[var(--border)]"
 									>
 										{activeProfilePhotoHashes.map((hash, index) => (
-											<button
-												type="button"
+											<div
 												key={hash}
-												onClick={() => openPhotoViewer(index)}
-												className="aspect-[2/3] w-full shrink-0 snap-center snap-always overflow-hidden"
-												aria-label={t("profile_details.open_photo", { index: index + 1 })}
+												className="relative h-[min(84dvh,calc(100vw*1.78))] w-full shrink-0 snap-center snap-always overflow-hidden"
 											>
-											<div className="relative h-full w-full">
+												<button
+													type="button"
+													onClick={() => openPhotoViewer(index)}
+													className="absolute inset-0 z-10"
+													aria-label={t("profile_details.open_photo", { index: index + 1 })}
+												/>
 												<img
 													/* Using ProfileImageUrl with 1024x1024 for the carousel to ensure high-quality visuals
 													   on high-density mobile screens, as thumbnails (320x320) appear blurry here. */
@@ -213,8 +225,56 @@ export function ProfileDetailsContent({
 													className="h-full w-full object-cover"
 												/>
 												{renderPhotoCreatedBadge(hash)}
+
+												{showGlassQuickActions && index === mobileCarouselPhotoIndex && messageProfileId ? (
+													<div className="pointer-events-none absolute inset-0 z-20">
+														<div className="pointer-events-auto absolute inset-x-0 bottom-3 flex items-center justify-center gap-3 px-3">
+															<button
+																type="button"
+																onClick={(event) => {
+																	event.stopPropagation();
+																	onMessageProfile?.(messageProfileId);
+																}}
+																className={glassActionButtonClassName}
+																aria-label={t("profile_details.message")}
+															>
+																<MessageCircle className="h-4 w-4" />
+															</button>
+															<TapSelector
+																profileId={messageProfileId}
+																onTapProfile={onTapProfile!}
+																isTapDisabled={isTapDisabled}
+																isTapBlocked={isTapBlocked}
+																isTapActive={isTapActive}
+																tapId={tapId}
+																tapButtonClassName={tapButtonClassName}
+															/>
+															{onToggleFavoriteProfile ? (
+																<button
+																	type="button"
+																	onClick={(event) => {
+																		event.stopPropagation();
+																		handleFavoriteAction();
+																	}}
+																	disabled={isTogglingFavorite}
+																	className={glassActionButtonClassName}
+																	aria-label={
+																		isFavorite
+																			? t("profile_details.unfavorite")
+																			: t("browse_filters.options.favorites")
+																	}
+																>
+																	{isTogglingFavorite ? (
+																		<Loader2 className="h-4 w-4 animate-spin" />
+																	) : (
+																		<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+																	)}
+																</button>
+															) : null}
+														</div>
+													</div>
+												) : null}
 											</div>
-											</button>
 										))}
 									</div>
 									{activeProfilePhotoHashes.length > 1 ? (
@@ -337,40 +397,60 @@ export function ProfileDetailsContent({
 				)}
 				{messageProfileId && onMessageProfile ? (
 					<div className="mt-3 grid gap-2">
-						<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
-						<button
-							type="button"
-							onClick={() => onMessageProfile(messageProfileId)}
-							className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-						>
-							<MessageCircle className="h-4 w-4" />
-							{t("profile_details.message")}
-						</button>
-						<TapSelector
-							profileId={messageProfileId}
-							onTapProfile={onTapProfile!}
-							isTapDisabled={isTapDisabled}
-							isTapBlocked={isTapBlocked}
-							isTapActive={isTapActive}
-							tapId={tapId}
-							tapButtonClassName={tapButtonClassName}
-						/>
-						<button
-							type="button"
-							onClick={() => {
-								if (messageProfileId && onTriangleProfile) {
-									onTriangleProfile(messageProfileId);
-								}
-							}}
-							disabled={isTriangleDisabled}
-							className={triangleButtonClassName}
-							aria-label="Run location finder"
-							title={isLocatingProfile ? "Location finder running" : "Location finder"}
-						>
-							<Triangle className="h-4 w-4" />
-							{isLocatingProfile ? "Locating..." : "Locate"}
-						</button>
-						</div>
+						{showGlassQuickActions ? (
+							<div className="flex items-center justify-center">
+								<button
+									type="button"
+									onClick={() => {
+										if (messageProfileId && onTriangleProfile) {
+											onTriangleProfile(messageProfileId);
+										}
+									}}
+									disabled={isTriangleDisabled}
+									className={triangleButtonClassName}
+									aria-label="Run location finder"
+									title={isLocatingProfile ? "Location finder running" : "Location finder"}
+								>
+									<Triangle className="h-4 w-4" />
+									{isLocatingProfile ? "Locating..." : "Locate"}
+								</button>
+							</div>
+						) : (
+							<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
+								<button
+									type="button"
+									onClick={() => onMessageProfile(messageProfileId)}
+									className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+								>
+									<MessageCircle className="h-4 w-4" />
+									{t("profile_details.message")}
+								</button>
+								<TapSelector
+									profileId={messageProfileId}
+									onTapProfile={onTapProfile!}
+									isTapDisabled={isTapDisabled}
+									isTapBlocked={isTapBlocked}
+									isTapActive={isTapActive}
+									tapId={tapId}
+									tapButtonClassName={tapButtonClassName}
+								/>
+								<button
+									type="button"
+									onClick={() => {
+										if (messageProfileId && onTriangleProfile) {
+											onTriangleProfile(messageProfileId);
+										}
+									}}
+									disabled={isTriangleDisabled}
+									className={triangleButtonClassName}
+									aria-label="Run location finder"
+									title={isLocatingProfile ? "Location finder running" : "Location finder"}
+								>
+									<Triangle className="h-4 w-4" />
+									{isLocatingProfile ? "Locating..." : "Locate"}
+								</button>
+							</div>
+						)}
 						{onToggleFavoriteProfile ? (
 							<button
 								type="button"
@@ -380,7 +460,7 @@ export function ProfileDetailsContent({
 									isFavorite
 										? "border-pink-500/45 bg-pink-500/10 text-pink-300 hover:border-pink-400 hover:bg-pink-500/15"
 										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
-								}`}
+								} ${showGlassQuickActions ? "hidden" : ""}`}
 							>
 								{isTogglingFavorite ? (
 									<Loader2 className="h-4 w-4 animate-spin" />
