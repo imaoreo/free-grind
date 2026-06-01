@@ -205,14 +205,18 @@ jobs:
             const releaseId = Number(process.env.RELEASE_ID);
 
             const mimeTypes = {
-              '.dmg':    'application/x-apple-diskimage',
-              '.gz':     'application/gzip',
-              '.sig':    'text/plain',
-              '.exe':    'application/vnd.microsoft.portable-executable',
-              '.msi':    'application/x-msi',
+              '.dmg':         'application/x-apple-diskimage',
+              '.gz':          'application/gzip',
+              '.tar.gz':      'application/gzip',
+              '.tar.gz.sig':  'text/plain',
+              '.sig':         'text/plain',
+              '.exe':         'application/vnd.microsoft.portable-executable',
+              '.exe.sig':     'text/plain',
+              '.msi':         'application/x-msi',
+              '.msi.sig':     'text/plain',
             };
 
-            // Collect installable bundles (skip updater-only .sig unless paired with bundle)
+            // Collect installable bundles
             const searchDirs = {
               'macos-universal': ['dmg', 'macos'],
               'windows-x64':     ['nsis', 'msi'],
@@ -220,7 +224,8 @@ jobs:
 
             const subDirs = searchDirs[suffix] ?? [];
             const uploads = [];
-            const allowedExts = new Set(['.dmg', '.exe', '.msi', '.sig', '.gz', '.tar.gz', '.tar.gz.sig']);
+            // Ordered longest-first so multi-part extensions are matched before shorter ones
+            const allowedExts = ['.tar.gz.sig', '.tar.gz', '.exe.sig', '.msi.sig', '.dmg', '.exe', '.msi'];
 
             for (const sub of subDirs) {
               const dir = path.join(bundleDir, sub);
@@ -228,13 +233,9 @@ jobs:
               for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
                 if (!entry.isFile()) continue;
                 const file = entry.name;
-                const ext = path.extname(file);
-                const doubleExt = file.endsWith('.tar.gz') ? '.tar.gz'
-                                : file.endsWith('.tar.gz.sig') ? '.tar.gz.sig'
-                                : null;
-                const finalExt = doubleExt ?? ext;
-                if (!allowedExts.has(finalExt)) continue;
-                const mime = mimeTypes[finalExt] ?? mimeTypes[ext] ?? 'application/octet-stream';
+                const finalExt = allowedExts.find(e => file.endsWith(e));
+                if (!finalExt) continue;
+                const mime = mimeTypes[finalExt] ?? 'application/octet-stream';
                 uploads.push({
                   src: path.join(dir, file),
                   name: `free-grind-v${version}-${suffix}${finalExt}`,
