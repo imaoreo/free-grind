@@ -340,7 +340,7 @@ export function ProfileEditorFormSections({
 								<span
 									className={`rounded-xl border p-2 ${
 										active
-											? "border-[var(--accent-contrast)]/30 bg-[var(--accent-contrast)]/15"
+											? "border-transparent bg-[var(--accent-contrast)] text-[var(--accent)]"
 											: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]"
 									}`}
 								>
