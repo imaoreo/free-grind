@@ -10,7 +10,7 @@ use crate::state::AppState;
 
 use super::client::GrindrClient;
 use super::client::BASE_URL;
-use super::headers::build_headers;
+use super::headers::{build_headers, build_user_agent};
 
 #[derive(Serialize, Deserialize)]
 pub struct RawResponse {
@@ -76,7 +76,8 @@ impl GrindrClient {
                 h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
                 h
             } else {
-                build_headers(device, "Free", auth_token.as_deref())
+                let user_agent = build_user_agent(device, "Free");
+                build_headers(device, &user_agent, auth_token.as_deref())
             };
             let mut request = self.http.request(method.clone(), &url).headers(headers);
             if let Some(body) = body {
@@ -187,7 +188,8 @@ impl GrindrClient {
                 h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
                 h
             } else {
-                build_headers(device, "Free", auth_token.as_deref())
+                let user_agent = build_user_agent(device, "Free");
+                build_headers(device, &user_agent, auth_token.as_deref())
             };
             let mut request = self.http.request(method.clone(), &url).headers(headers);
 

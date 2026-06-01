@@ -7,7 +7,7 @@ use url::Url;
 use crate::error::AppError;
 
 use super::auth::{AuthStorage, Session};
-use super::headers::{build_headers, DeviceInfo};
+use super::headers::{build_user_agent, DeviceInfo, DeviceStorage};
 
 pub const BASE_URL: &str = "https://grindr.mobi";
 
@@ -49,7 +49,18 @@ impl GrindrClient {
 
 impl GrindrClient {
     pub fn new() -> Result<Self, AppError> {
-        let mut device = DeviceInfo::default();
+        let mut device = match DeviceStorage::load() {
+            Ok(Some(saved_device)) => saved_device,
+            Ok(None) => DeviceInfo::default(),
+            Err(_error) => {
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "[HTTP-CLIENT] Failed to load persisted device (using generated default): {}",
+                    _error
+                );
+                DeviceInfo::default()
+            }
+        };
         let cookie_store = Arc::new(CookieStoreMutex::new(Default::default()));
 
         let session = match AuthStorage::get_session() {
@@ -59,9 +70,20 @@ impl GrindrClient {
                     "[HTTP-CLIENT] Restored session for profile_id={}",
                     session.profile_id
                 );
-                // Restore device IDs from the session
-                device.device_id = session.device_id.clone();
-                device.advertising_id = session.advertising_id.clone();
+                // Keep backward compatibility with existing sessions by aligning IDs.
+                if device.device_id != session.device_id
+                    || device.advertising_id != session.advertising_id
+                {
+                    device.device_id = session.device_id.clone();
+                    device.advertising_id = session.advertising_id.clone();
+                    if let Err(_error) = DeviceStorage::save(&device) {
+                        #[cfg(debug_assertions)]
+                        eprintln!(
+                            "[HTTP-CLIENT] Failed to persist session-aligned device: {}",
+                            _error
+                        );
+                    }
+                }
                 Some(session)
             }
             Ok(None) => {
@@ -79,12 +101,15 @@ impl GrindrClient {
             }
         };
 
-        let headers = build_headers(&device, "Free", None);
-        let user_agent = headers
-            .get("User-Agent")
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_owned();
+        if let Err(_error) = DeviceStorage::save(&device) {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP-CLIENT] Failed to persist startup device profile: {}",
+                _error
+            );
+        }
+
+        let user_agent = build_user_agent(&device, "Free");
 
         #[cfg(target_os = "windows")]
         let http = {

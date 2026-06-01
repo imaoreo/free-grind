@@ -8,6 +8,7 @@ use crate::error::AppError;
 use crate::state::AppState;
 
 use super::client::GrindrClient;
+use super::headers::{DeviceInfo, DeviceStorage};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Session {
@@ -558,14 +559,22 @@ impl GrindrClient {
             email.chars().next().unwrap_or('?')
         );
 
-        // Generate NEW device IDs for a new login
-        let new_device_id = format!("{:016x}", rand::random::<u64>());
-        let new_advertising_id = uuid::Uuid::new_v4().to_string();
+        // New login gets a fresh full device profile.
+        let new_device = DeviceInfo::default();
+        let new_device_id = new_device.device_id.clone();
+        let new_advertising_id = new_device.advertising_id.clone();
 
         {
             let mut device = self.device.write().await;
-            device.device_id = new_device_id.clone();
-            device.advertising_id = new_advertising_id.clone();
+            *device = new_device.clone();
+        }
+
+        if let Err(_error) = DeviceStorage::save(&new_device) {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP-AUTH] Failed to persist login device profile (continuing in-memory): {}",
+                _error
+            );
         }
 
         let body = LoginRequest::new(email.to_owned(), password.to_owned());
@@ -594,13 +603,21 @@ impl GrindrClient {
             e
         })?;
 
-        let new_device_id = format!("{:016x}", rand::random::<u64>());
-        let new_advertising_id = uuid::Uuid::new_v4().to_string();
+        let new_device = DeviceInfo::default();
+        let new_device_id = new_device.device_id.clone();
+        let new_advertising_id = new_device.advertising_id.clone();
 
         {
             let mut device = self.device.write().await;
-            device.device_id = new_device_id.clone();
-            device.advertising_id = new_advertising_id.clone();
+            *device = new_device.clone();
+        }
+
+        if let Err(_error) = DeviceStorage::save(&new_device) {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP-AUTH] Failed to persist JWT-login device profile (continuing in-memory): {}",
+                _error
+            );
         }
 
         // Set the JWT as the current session so the Authorization header is available
