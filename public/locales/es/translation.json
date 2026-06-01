@@ -36,7 +36,9 @@
         "blocked_accounts": "Cuentas bloqueadas",
         "blocked_accounts_desc": "Mira a quién has bloqueado y desbloquéalos en cualquier momento.",
         "issue_board": "Problemas y solicitudes de sugerencias",
-        "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias."
+        "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias.",
+        "automation": "Automatización",
+        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -1140,6 +1142,41 @@
         "added": "Añadido a favoritos",
         "removed": "Eliminado de favoritos",
         "add_failed": "Error al añadir a favoritos",
-        "remove_failed": "Error al eliminar de favoritos"
+        "remove_failed": "Error al eliminar de favoritos",
+        "get_notes_failed": "Error al cargar las notas",
+        "loading_notes": "Cargando las notas...",
+        "notes_loaded_one": "{{count}} nota de favorito cargado",
+        "notes_loaded_many": "{{count}} notas de favoritos cargados",
+        "notes_loaded_other": "{{count}} notas de favoritos cargados",
+        "search_placeholder": "Buscando notas..."
+    },
+    "settings_automation": {
+        "auto_block_title": "Auto-Bloquear Mensaje",
+        "apply_to_inbox": "Aplicar al buzón",
+        "apply_to_inbox_desc": "Bloquea instantáneamente nuevos chats que coincidan con tu criterio.",
+        "forbidden_keywords_title": "Palabras prohibidas",
+        "forbidden_keywords_desc": "Bloquea perfiles o mensajes que contengan estas palabras. Separa con comas (ej: snapchat, crypto, bot).",
+        "keywords_placeholder": "Escribe palabras clave aquí...",
+        "export_txt": "Exportar (.txt)",
+        "import_txt": "Importar (.txt)",
+        "keywords_imported": "¡Palabras claves importadas! Toca Guardar para aplicar.",
+        "keywords_exported": "¡Palabras claves exportadas!",
+        "age_limits_title": "Límites de edad",
+        "age_limits_desc": "Bloquea a cualquiera que esté fuera de este rango de edad.",
+        "update_block_rules": "Actualizar reglas de bloqueo",
+        "block_rules_updated": "¡Reglas de bloqueo automático actualizadas!",
+        "auto_refresh_title": "Recargar del Navegar automático",
+        "auto_refresh_desc": "Mantén tu sesión activa y tu ubicación actualizada recargando de forma automática la cuadrícula. Debes permanecer en Navegar para que la recarga haga efecto.",
+        "enable_refresh": "Habilita la recarga",
+        "enable_refresh_desc": "Se activa automáticamente una recarga en el intervalo que se muestra abajo.",
+        "refresh_interval": "Intervalo de recarga",
+        "refresh_interval_unit": "{{count}} min.",
+        "refresh_technical_note": "Nota técnica: En el móvil, esto solo funciona mientras la app está activa o en primer plano y consumirá batería.",
+        "update_refresh_settings": "Actualizar configuración de recarga",
+        "refresh_settings_updated": "¡Intervalo de recarga actualizada!",
+        "chat_block_enabled": "Auto-bloqueo en el buzón habilitado",
+        "chat_block_disabled": "Auto-bloqueo en el buzón deshabilitado",
+        "auto_refresh_enabled": "Auto recarga habilitada",
+        "auto_refresh_disabled": "Auto recarga deshabilitado"
     }
 }
