@@ -145,13 +145,16 @@ export function ProfileDetailsContent({
 		const timeLabel = meta?.createdAt ? formatDateTime24(meta.createdAt) : null;
 		if (!timeLabel && !meta?.takenOnGrindr) return null;
 		return (
-			<div className="pointer-events-none absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
+			<div className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
 				{meta?.takenOnGrindr ? (
-					<img
-						src={freegrindLogo}
-						alt={t("chat.thread.taken_on_grindr")}
-						className="h-3.5 w-3.5 rounded-full"
-					/>
+					<>
+						<img
+							src={freegrindLogo}
+							alt={t("chat.thread.taken_on_grindr")}
+							className="h-3.5 w-3.5 rounded-full"
+						/>
+						<span>{t("chat.thread.taken_on_grindr")}</span>
+					</>
 				) : null}
 				{timeLabel ? <span>{timeLabel}</span> : null}
 			</div>
@@ -186,8 +189,6 @@ export function ProfileDetailsContent({
 		Boolean(messageProfileId && onMessageProfile);
 	const glassActionButtonClassName =
 		"inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-white/18 text-white shadow-[0_10px_30px_-16px_rgba(0,0,0,0.9)] backdrop-blur-md transition hover:bg-white/24 disabled:opacity-60";
-	const glassWideActionButtonClassName =
-		"inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/45 bg-white/18 px-3 text-sm font-semibold text-white shadow-[0_10px_30px_-16px_rgba(0,0,0,0.9)] backdrop-blur-md transition hover:bg-white/24 disabled:opacity-60";
 
 	return (
 		<div className="grid gap-6">
