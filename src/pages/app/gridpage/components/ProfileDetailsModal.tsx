@@ -157,7 +157,7 @@ export function ProfileDetailsModal({
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
 	const isTapActive = effectiveTapVisualState !== "none";
-	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
+	const isTapDisabled = !onTapProfile || isTogglingProfile || isTapBlocked;
 	const isTriangleDisabled =
 		!onTriangleProfile || !messageProfileId || isLocatingProfile;
 	const tapButtonClassName =
@@ -404,17 +404,14 @@ export function ProfileDetailsModal({
 							<button
 								type="button"
 								onClick={onClose}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)]"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"
 								aria-label={t("settings.back_to_browse")}
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</button>
 						</div>
 
-						<div className="min-w-0 max-w-[50%] text-center">
-							<p className="truncate text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-								{t("profile_details.title")}
-							</p>
+						<div className="min-w-0 max-w-[50%] text-center drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]">
 							<div className="flex items-center justify-center gap-2 min-w-0">
 								<p className="truncate text-base font-semibold">{activeProfileName}</p>
 								{usesFreegrind && (
@@ -433,7 +430,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onPrevProfile}
 								disabled={!onPrevProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
 								aria-label={t("profile_details.previous_profile")}
 							>
 								<ChevronLeft className="h-4 w-4" />
@@ -442,7 +439,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onNextProfile}
 								disabled={!onNextProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] disabled:opacity-30"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
 								aria-label={t("profile_details.next_profile")}
 							>
 								<ChevronRight className="h-4 w-4" />
@@ -535,9 +532,6 @@ export function ProfileDetailsModal({
 			>
 				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
 					<div>
-						<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-							{t("profile_details.title")}
-						</p>
 						<p className="text-base font-semibold">{activeProfileName}</p>
 					</div>
 					<button
@@ -579,7 +573,7 @@ export function ProfileDetailsModal({
 							profileDistance={profileDistance}
 							chatContactStatus={chatContactStatus ?? null}
 							messageProfileId={messageProfileId}
-								usesFreegrind={usesFreegrind ?? false}
+							usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}
 							onTapProfile={onTapProfile}
 							onBlockProfile={onBlockProfile}
