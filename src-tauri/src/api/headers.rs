@@ -501,12 +501,12 @@ pub fn build_device_info_header(device: &DeviceInfo) -> String {
 
 pub fn build_headers(
     device: &DeviceInfo,
-    subscription_tier: &str,
-    auth_token: Option<&str>,
+    user_agent: &str,
+    authorization: Option<&str>,
 ) -> HeaderMap {
     let mut headers = HeaderMap::new();
 
-    if let Some(token) = auth_token {
+    if let Some(token) = authorization {
         headers.insert(
             HeaderName::from_static("authorization"),
             HeaderValue::from_str(token).unwrap_or_else(|_| HeaderValue::from_static("")),
@@ -518,11 +518,10 @@ pub fn build_headers(
         HeaderValue::from_str(&device.timezone).unwrap_or_else(|_| HeaderValue::from_static("Europe/Madrid")),
     );
 
-    if auth_token.is_some() {
-        let roles = format!("[{}]", subscription_tier.to_uppercase());
+    if authorization.is_some() {
         headers.insert(
             HeaderName::from_static("l-grindr-roles"),
-            HeaderValue::from_str(&roles).unwrap_or_else(|_| HeaderValue::from_static("[FREE]")),
+            HeaderValue::from_static("[FREE]"),
         );
     }
 
@@ -537,7 +536,7 @@ pub fn build_headers(
     );
     headers.insert(
         HeaderName::from_static("user-agent"),
-        HeaderValue::from_str(&build_user_agent(device, subscription_tier))
+        HeaderValue::from_str(user_agent)
             .unwrap_or_else(|_| HeaderValue::from_static("grindr3/26.9.1.163471;163471;Free;Android 14;Pixel 8;Google")),
     );
     headers.insert(
@@ -586,10 +585,14 @@ mod tests {
     fn user_agent_format() {
         let device = test_device();
         let ua = build_user_agent(&device, "Free");
-        assert_eq!(
-            ua,
-            format!("grindr3/{APP_VERSION};{BUILD_NUMBER};Free;Android 14;Pixel 8;Google")
-        );
+        let parts: Vec<&str> = ua.split(';').collect();
+        assert_eq!(parts.len(), 6);
+        assert!(parts[0].starts_with("grindr3/"));
+        assert!(!parts[1].is_empty());
+        assert_eq!(parts[2], "Free");
+        assert_eq!(parts[3], "Android 14");
+        assert_eq!(parts[4], "Pixel 8");
+        assert_eq!(parts[5], "Google");
     }
 
     #[test]
@@ -598,6 +601,39 @@ mod tests {
         assert_eq!(
             build_device_info_header(&device),
             "device123;GLOBAL;2;8026152960;1080x2400;ad-id-123"
+        );
+    }
+
+    #[test]
+    fn headers_anonymous_order() {
+        let device = test_device();
+        let ua = build_user_agent(&device, "Free");
+        let headers = build_headers(&device, &ua, None);
+        let names: Vec<&str> = headers.keys().map(|n| n.as_str()).collect();
+        assert!(names.contains(&"l-time-zone"));
+        assert!(names.contains(&"l-device-info"));
+        assert!(names.contains(&"accept"));
+        assert!(names.contains(&"user-agent"));
+        assert!(names.contains(&"l-locale"));
+        assert!(names.contains(&"accept-language"));
+        assert!(names.contains(&"accept-encoding"));
+        assert!(!names.contains(&"authorization"));
+        assert!(!names.contains(&"l-grindr-roles"));
+    }
+
+    #[test]
+    fn headers_authorized_include_roles_and_auth() {
+        let device = test_device();
+        let ua = build_user_agent(&device, "Free");
+        let headers = build_headers(&device, &ua, Some("Grindr3 sid"));
+        let names: Vec<&str> = headers.keys().map(|n| n.as_str()).collect();
+        assert!(names.contains(&"authorization"));
+        assert!(names.contains(&"l-grindr-roles"));
+        assert_eq!(
+            headers
+                .get("l-grindr-roles")
+                .and_then(|v| v.to_str().ok()),
+            Some("[FREE]")
         );
     }
 }

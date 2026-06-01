@@ -77,7 +77,11 @@ impl GrindrClient {
                 h
             } else {
                 let user_agent = build_user_agent(device, "Free");
-                build_headers(device, &user_agent, auth_token.as_deref())
+                let mut h = build_headers(device, &user_agent, auth_token.as_deref());
+                if path == "/v3/bootstrap" {
+                    h.remove("accept");
+                }
+                h
             };
             let mut request = self.http.request(method.clone(), &url).headers(headers);
             if let Some(body) = body {
@@ -189,7 +193,11 @@ impl GrindrClient {
                 h
             } else {
                 let user_agent = build_user_agent(device, "Free");
-                build_headers(device, &user_agent, auth_token.as_deref())
+                let mut h = build_headers(device, &user_agent, auth_token.as_deref());
+                if path == "/v3/bootstrap" {
+                    h.remove("accept");
+                }
+                h
             };
             let mut request = self.http.request(method.clone(), &url).headers(headers);
 
