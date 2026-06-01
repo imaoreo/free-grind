@@ -699,7 +699,7 @@ export function InterestPage() {
 		)}
 
 		{/* Paging Dots Pill */}
-		<div className="pointer-events-none fixed bottom-32 left-1/2 z-50 -translate-x-1/2">
+		<div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+124px)] left-1/2 z-50 -translate-x-1/2">
 			<div className="glass-pill inline-flex items-center gap-1.5 px-2.5 py-1.5">
 				{/* The order of dots must match the order of InterestTabs (defaultSetting) */}
 				{defaultSetting === "views" ? (
