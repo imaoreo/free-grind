@@ -697,36 +697,6 @@ export function InterestPage() {
 				onConfirm={handleAcknowledgeOnboarding}
 			/>
 		)}
-
-		{/* Paging Dots Pill */}
-		<div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+124px)] left-1/2 z-50 -translate-x-1/2">
-			<div className="glass-pill inline-flex items-center gap-1.5 px-2.5 py-1.5">
-				{/* The order of dots must match the order of InterestTabs (defaultSetting) */}
-				{defaultSetting === "views" ? (
-					<>
-						<div className={cn(
-							"h-1 rounded-full transition-all duration-300",
-							activeTab === "views" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
-						)} />
-						<div className={cn(
-							"h-1 rounded-full transition-all duration-300",
-							activeTab === "taps" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
-						)} />
-					</>
-				) : (
-					<>
-						<div className={cn(
-							"h-1 rounded-full transition-all duration-300",
-							activeTab === "taps" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
-						)} />
-						<div className={cn(
-							"h-1 rounded-full transition-all duration-300",
-							activeTab === "views" ? "w-4 bg-[var(--accent)]" : "w-1 bg-black/10 dark:bg-white/20"
-						)} />
-					</>
-				)}
-			</div>
-		</div>
 	</>
 	);
 }
