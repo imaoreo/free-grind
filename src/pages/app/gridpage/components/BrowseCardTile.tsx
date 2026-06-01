@@ -7,7 +7,7 @@ import {
 	getDisplayName,
 } from "../utils";
 import { cn } from "../../../../utils/cn";
-import blankProfileImage from "../../../../images/blank-profile.png";
+import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
@@ -73,11 +73,10 @@ export function BrowseCardTile({
 				)}
 
 				<div className="relative aspect-[5/5] bg-[var(--surface-2)] z-10 rounded-[inherit] overflow-hidden">
-					<img
-						src={card.primaryImageUrl ?? blankProfileImage}
+					<ProfileImage
+						src={card.primaryImageUrl}
 						alt={t("browse_page.profile_photo_alt", { name })}
 						className={cn(
-							"h-full w-full object-cover",
 							isDemoCard && "blur-md scale-110"
 						)}
 					/>

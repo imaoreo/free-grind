@@ -1,145 +1,272 @@
-import { Eye, Lock, History } from "lucide-react";
+import { useLayoutEffect, useRef, useState, memo } from "react";
+import { Eye, Lock, History, MoveHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
-import blankProfileImage from "../../../images/blank-profile.png";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREVIEW_ID_PREFIX } from "./interestUtils";
+import { cn } from "../../../utils/cn";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 
-export function InterestTabs({
+export const InterestTabs = memo(function InterestTabs({
 	activeTab,
 	onViewsClick,
 	onTapsClick,
+	firstTab = "taps",
+	shouldBounce = false,
+	newViewsCount = 0,
+	newTapsCount = 0,
 }: {
 	activeTab: InterestTab;
 	onViewsClick: () => void;
 	onTapsClick: () => void;
+	firstTab?: InterestTab;
+	shouldBounce?: boolean;
+	newViewsCount?: number;
+	newTapsCount?: number;
 }) {
 	const { t } = useTranslation();
+	const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
+	const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
+	const [isReady, setIsReady] = useState(false);
+
+	const isViewsFirst = firstTab === "views";
+
+	// Determine logical order of labels based on firstTab
+	const labels = isViewsFirst
+		? [t("interest_page.tabs.views"), t("interest_page.tabs.taps")]
+		: [t("interest_page.tabs.taps"), t("interest_page.tabs.views")];
+
+	const handlers = isViewsFirst
+		? [onViewsClick, onTapsClick]
+		: [onTapsClick, onViewsClick];
+
+	const counts = isViewsFirst
+		? [newViewsCount, newTapsCount]
+		: [newTapsCount, newViewsCount];
+
+	// Index of the currently active tab in the visual array
+	const activeIndex = isViewsFirst
+		? (activeTab === "views" ? 0 : 1)
+		: (activeTab === "taps" ? 0 : 1);
+
+	// Sync indicator with the active tab's position and size in real-time
+	useLayoutEffect(() => {
+		const activeEl = tabsRef.current[activeIndex];
+		if (!activeEl) return;
+
+		const updateIndicator = () => {
+			setIndicatorStyle({
+				left: activeEl.offsetLeft,
+				width: activeEl.offsetWidth,
+			});
+		};
+
+		// Initial measurement
+		updateIndicator();
+
+		// Use ResizeObserver to catch width changes during the badge transition
+		const resizeObserver = new ResizeObserver(() => {
+			updateIndicator();
+		});
+
+		resizeObserver.observe(activeEl);
+
+		if (!isReady) {
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => setIsReady(true));
+			});
+		}
+
+		return () => resizeObserver.disconnect();
+	}, [activeIndex, isReady, newViewsCount, newTapsCount]);
+
 	return (
-		<div className="flex min-h-10 items-end gap-3">
-			<button
-				type="button"
-				onClick={onViewsClick}
-				className={
-					activeTab === "views"
-						? "inline-flex items-end text-left"
-						: "inline-flex items-end text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
-				}
-				aria-current={activeTab === "views" ? "page" : undefined}
-			>
-				<span
-					className={
-						activeTab === "views"
-							? "text-2xl font-bold leading-none sm:text-3xl"
-							: "text-lg font-semibold leading-none sm:text-xl"
-					}
+		<div className="glass-pill relative inline-flex items-center p-1">
+			{/*
+				The Sliding Pill:
+				- Transitions width and position based on the measured active tab.
+				- This creates a natural "stretch" look as it moves.
+			*/}
+			<div
+				className={cn(
+					"absolute top-1 bottom-1 rounded-full bg-[var(--accent)] shadow-sm",
+					isReady ? "transition-all duration-300 ease-out" : "transition-none"
+				)}
+				style={{
+					width: indicatorStyle.width,
+					left: indicatorStyle.left,
+					transform: shouldBounce ? "translateX(8px)" : "translateX(0)",
+				}}
+			/>
+
+			{labels.map((label, i) => (
+				<button
+					key={label}
+					ref={(el) => (tabsRef.current[i] = el)}
+					type="button"
+					onClick={handlers[i]}
+					className={cn(
+						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
+						shouldBounce && "translate-x-2",
+						activeIndex === i
+							? "text-[var(--accent-contrast)] text-base font-black tracking-tight"
+							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
+					)}
 				>
-					{t("interest_page.tabs.views")}
-				</span>
-			</button>
-			<button
-				type="button"
-				onClick={onTapsClick}
-				className={
-					activeTab === "taps"
-						? "inline-flex items-end text-left"
-						: "inline-flex items-end text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
-				}
-				aria-current={activeTab === "taps" ? "page" : undefined}
-			>
-				<span
-					className={
-						activeTab === "taps"
-							? "text-2xl font-bold leading-none sm:text-3xl"
-							: "text-lg font-semibold leading-none sm:text-xl"
-					}
-				>
-					{t("interest_page.tabs.taps")}
-				</span>
-			</button>
+					<span>{label}</span>
+					<span
+						className={cn(
+							"flex h-4.5 items-center justify-center rounded-full text-[10px] font-black transition-all duration-300 ease-out overflow-hidden",
+							counts[i] > 0
+								? "ml-2 min-w-[1.125rem] px-1 opacity-100 scale-100"
+								: "ml-0 min-w-0 w-0 px-0 opacity-0 scale-50 pointer-events-none",
+							activeIndex === i
+								? "bg-[var(--accent-contrast)] text-[var(--accent)]"
+								: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+						)}
+					>
+						{counts[i] > 0 ? (counts[i] > 99 ? "99+" : counts[i]) : ""}
+					</span>
+				</button>
+			))}
 		</div>
 	);
-}
+});
 
-export function InterestRow({
+const emojiColorMap: Record<number, string> = {
+	0: "255, 200, 0", // 👋
+	1: "255, 140, 0", // 🔥
+	2: "168, 85, 247", // 😈
+};
+
+export const InterestRow = memo(function InterestRow({
 	item,
 	mode,
 	onOpenProfile,
 	now,
+	isFirst,
 }: {
 	item: InterestItem;
 	mode: InterestTab;
 	onOpenProfile: (profileId: string) => void;
 	now: number;
+	isFirst?: boolean;
 }) {
 	const { t } = useTranslation();
-	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : blankProfileImage;
+	const { ref, revealClass } = useRevealOnScroll();
+	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : null;
 
 	const isPrivate = !item.canOpenProfile;
 	const isRecovered = !!item.isFromCache && !isPrivate && !item.profileId.startsWith(PREVIEW_ID_PREFIX);
+	const isOnline = typeof item.onlineUntil === "number" && item.onlineUntil > now;
 
-	const trailing =
-		mode === "views"
-			? item.viewCount != null
-				? t("interest_page.view_count", { count: item.viewCount })
-				: t("interest_page.viewed")
-			: null;
+	const displayName = item.displayName
+		? item.displayName
+		: isPrivate
+			? t("interest_page.unknown_profile")
+			: t("interest_page.profile_fallback", { id: item.profileId });
 
 	return (
-		<button
-			type="button"
-			onClick={() => {
-				if (item.canOpenProfile) {
-					onOpenProfile(item.profileId);
-				}
-			}}
-			disabled={isPrivate}
-			className={`flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left transition ${
-				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]"
-			}`}
+		<div
+			ref={ref}
+			className={cn(
+				"relative flex items-center gap-4 pl-5 pr-6 py-4 transition-colors",
+				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40",
+				revealClass
+			)}
 		>
-			<div className="relative h-12 w-12 shrink-0">
-				<div className="h-full w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img src={imageSrc} alt={item.displayName === t("interest_page.unknown_profile") ? t("interest_page.unknown_profile") : item.displayName} className="h-full w-full object-cover" />
+			{/* Avatar */}
+			<button
+				type="button"
+				onClick={() => !isPrivate && onOpenProfile(item.profileId)}
+				disabled={isPrivate}
+				className="relative shrink-0"
+			>
+				<div className="h-15 w-15 squircle drop-shadow-sm bg-[var(--surface-2)]">
+					<ProfileImage
+						src={imageSrc}
+						alt={displayName}
+					/>
 				</div>
+				{isOnline && (
+					<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm z-10" />
+				)}
 				{isPrivate && (
-					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-2 ring-[var(--surface)]">
+					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)] z-10">
 						<Lock className="h-3 w-3" />
 					</div>
 				)}
+			</button>
+
+			{/* Info */}
+			<div className="min-w-0 flex-1">
+				<button
+					type="button"
+					onClick={() => !isPrivate && onOpenProfile(item.profileId)}
+					disabled={isPrivate}
+					className="w-full text-left"
+				>
+					<div className="flex items-center gap-1.5">
+						<p className={`truncate text-sm font-bold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+							{displayName}
+						</p>
+						{isRecovered && (
+							<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+						)}
+					</div>
+					<p className="mt-0.5 truncate text-xs text-[var(--text-muted)] font-medium">
+						{formatTimestamp(item.timestamp, t, now)}
+					</p>
+				</button>
 			</div>
 
-			<div className="min-w-0 flex-1">
-				<div className="flex items-center gap-1.5">
-					<p className={`truncate text-sm font-semibold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
-						{item.displayName
-							? item.displayName
-							: isPrivate
-								? t("interest_page.unknown_profile")
-								: t("interest_page.profile_fallback", { id: item.profileId })}
-					</p>
-					{isRecovered && (
-						<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+			{/* Action Area (Views or Taps) */}
+			{!isPrivate && (
+				<div className="shrink-0 flex items-center justify-center h-12 w-12">
+					{mode === "taps" ? (
+						<div
+							className="relative flex h-12 w-12 items-center justify-center rounded-full border"
+							style={{
+								backgroundColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.07)`,
+								borderColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.45)`,
+								boxShadow: `0 2px 8px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.05)`,
+								color: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})`
+							}}
+						>
+							<span className="text-2xl leading-none select-none">
+								{getTapEmoji(item.tapType)}
+							</span>
+							{item.isMutual && (
+								<div
+									className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-lg ring-0 ring-[var(--surface)]"
+									title={t("interest_page.mutual_tap_tooltip")}
+								>
+									<MoveHorizontal className="h-3 w-3" />
+								</div>
+							)}
+						</div>
+					) : (
+						<div
+							className="flex items-center gap-1.5 h-8 px-3 rounded-full border"
+							style={{
+								backgroundColor: "color-mix(in srgb, var(--text-muted), transparent 94%)",
+								borderColor: "color-mix(in srgb, var(--text-muted), transparent 60%)",
+							}}
+						>
+							<div className="flex items-center justify-center h-4 w-4">
+								<Eye className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+							</div>
+							<span className="text-xs font-bold leading-none tabular-nums text-[var(--text)]">
+								{item.viewCount || 1}
+							</span>
+						</div>
 					)}
 				</div>
-				<p className="truncate text-xs text-[var(--text-muted)]">{formatTimestamp(item.timestamp, t, now)}</p>
-			</div>
+			)}
 
-			<span
-				className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] ${
-					mode === "views" && !isPrivate ? "bg-[var(--surface-2)]" : ""
-				}`}
-			>
-				{mode === "views" ? (
-					!isPrivate && (
-						<>
-							<Eye className="h-3.5 w-3.5" />
-							{trailing}
-						</>
-					)
-				) : (
-					<span className="text-2xl leading-none">{getTapEmoji(item.tapType)}</span>
-				)}
-			</span>
-		</button>
+			{isFirst && <div className="absolute top-0 right-0 left-0 h-px bg-[var(--surface-2)]" />}
+			{/* Full-width Divider */}
+			<div className="absolute bottom-0 right-0 left-0 h-px bg-[var(--surface-2)]" />
+		</div>
 	);
-}
+});

@@ -12,12 +12,15 @@ import {
 	SlidersHorizontal,
 } from "lucide-react";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useRightNowFeed } from "../../hooks/queries/useRightNowQueries";
 import type { RightNowFeedItem } from "../../services/apiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { formatDistance } from "./gridpage/utils";
 import { formatRelativeTime } from "../../utils/relativeTime";
 import { cn } from "../../utils/cn";
-import blankProfileImage from "../../images/blank-profile.png";
+import { getRightNowLastSeen, markRightNowSeen } from "../../services/seenStore";
+import { ProfileImage } from "../../components/ui/profile-image";
+import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
 	type RightNowFiltersDraft,
@@ -32,38 +35,13 @@ import { RightNowPostPage } from "./rightnow/RightNowPostPage";
 import { RightNowFiltersPage } from "./RightNowFiltersPage";
 import { PhotoViewer } from "../../components/PhotoViewer";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { getCachedRightNowFeed, setCachedRightNowFeed } from "./rightnow/rightnow-cache";
+import {
+	SCROLL_RESTORATION_TIMEOUT_MS,
+} from "../../config/ui-constants";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 
 type SortOption = RightNowSortOption;
-
-function buildRightNowFeedCacheKey(
-	sort: SortOption,
-	hostingOnly: boolean,
-	ageMin: number,
-	ageMax: number,
-	positionFilter: string,
-): string {
-	return [sort, hostingOnly ? "hosting" : "all", ageMin, ageMax, positionFilter || "any"].join("|");
-}
-
-function sortItemsByOption(items: RightNowFeedItem[], sort: SortOption): RightNowFeedItem[] {
-	const sorted = [...items];
-	if (sort === "DISTANCE") {
-		sorted.sort((left, right) => {
-			const leftDistance = left.distanceMeters ?? Number.POSITIVE_INFINITY;
-			const rightDistance = right.distanceMeters ?? Number.POSITIVE_INFINITY;
-			return leftDistance - rightDistance;
-		});
-		return sorted;
-	}
-
-	sorted.sort((left, right) => {
-		const leftPostedAt = left.postedAt ?? 0;
-		const rightPostedAt = right.postedAt ?? 0;
-		return rightPostedAt - leftPostedAt;
-	});
-	return sorted;
-}
 
 function parseFiltersFromLocationState(
 	state: unknown,
@@ -105,14 +83,13 @@ function getItemName(item: RightNowFeedItem, t: TFunction): string {
 }
 
 function getItemImageUrl(item: RightNowFeedItem): string | null {
-	// Only use the profileImageMediaHash for the avatar circle
 	return item.profileImageMediaHash && validateMediaHash(item.profileImageMediaHash)
 		? getThumbImageUrl(item.profileImageMediaHash, "320x320")
 		: null;
 }
 
-function getItemDisplayImageUrl(item: RightNowFeedItem): string {
-	return getItemImageUrl(item) ?? blankProfileImage;
+function getItemDisplayImageUrl(item: RightNowFeedItem): string | null {
+	return getItemImageUrl(item);
 }
 
 function isItemOnline(item: RightNowFeedItem): boolean {
@@ -129,7 +106,7 @@ function PostMediaGrid({
 	const isDesktop = useDesktopBreakpoint();
 	if (!media || media.length === 0) return null;
 
-	const items = media.slice(0, 3); // Limit to max 3 as requested
+	const items = media.slice(0, 3);
 	const count = items.length;
 
 	return (
@@ -230,14 +207,17 @@ function RightNowRow({
 	onMessage,
 	onSelect,
 	onOpenPhoto,
+	isFirst,
 }: {
 	item: RightNowFeedItem;
 	onMessage: (profileId: string) => void;
 	onSelect: (profileId: string) => void;
 	onOpenPhoto: (photos: string[], index: number) => void;
+	isFirst?: boolean;
 }) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
+	const { ref, revealClass } = useRevealOnScroll();
 	const name = getItemName(item, t);
 	const isHosting = item.hosting;
 	const imageUrl = getItemDisplayImageUrl(item);
@@ -256,22 +236,27 @@ function RightNowRow({
 	}, [item.media]);
 
 	return (
-		<div className="flex items-start gap-3 px-5 py-4">
-			{/* Avatar */}
+		<div
+			ref={ref}
+			className={cn(
+				"flex items-center gap-4 pl-5 pr-6 py-4 border-b border-[var(--surface-2)]",
+				isFirst && "border-t",
+				revealClass
+			)}
+		>
 			<button
 				type="button"
-				className="relative mt-0.5 shrink-0"
+				className="relative shrink-0"
 				onClick={() => onSelect(item.profileId)}
 			>
-				<div className="h-14 w-14 overflow-hidden rounded-full bg-[var(--surface-2)]">
-					<img src={imageUrl} alt={name || ""} className="h-full w-full object-cover" />
+				<div className="h-15 w-15 squircle drop-shadow-sm bg-[var(--surface-2)]">
+					<ProfileImage src={imageUrl} alt={name || ""} />
 				</div>
 				{isOnline ? (
-					<span className="absolute bottom-0.5 left-0.5 h-3 w-3 rounded-full border-2 border-[var(--bg)] bg-green-500" />
+					<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm z-10" />
 				) : null}
 			</button>
 
-			{/* Text info */}
 			<div className="min-w-0 flex-1">
 				<button
 					type="button"
@@ -316,7 +301,6 @@ function RightNowRow({
 					</div>
 				</button>
 
-				{/* Post Images Grid */}
 				<PostMediaGrid
 					media={item.media}
 					onOpenPhoto={(index) => onOpenPhoto(photos, index)}
@@ -326,10 +310,10 @@ function RightNowRow({
 			<button
 				type="button"
 				onClick={() => onMessage(item.profileId)}
-				className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl transition-all active:scale-95 hover:border-[var(--right-now)]/60"
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--right-now)]/35 text-[var(--right-now)] transition-all active:scale-95 hover:border-[var(--right-now)]/45"
 				style={{
-					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-					boxShadow: "0 4px 10px color-mix(in srgb, var(--right-now), transparent 85%)"
+					backgroundColor: "color-mix(in srgb, var(--right-now), transparent 92%)",
+					boxShadow: "0 2px 8px color-mix(in srgb, var(--right-now), transparent 94%)"
 				}}
 				aria-label={t("right_now.message_aria", { name: name || "" })}
 			>
@@ -339,27 +323,32 @@ function RightNowRow({
 	);
 }
 
+function RightNowSkeleton() {
+	return (
+		<div className="flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
+			<div className="h-15 w-15 shrink-0 squircle bg-[var(--surface-2)]" />
+			<div className="flex-1 space-y-3 pt-1">
+				<div className="space-y-2">
+					<div className="h-4 w-[85%] rounded bg-[var(--surface-2)]" />
+					<div className="h-4 w-[60%] rounded bg-[var(--surface-2)]" />
+				</div>
+				<div className="flex items-center gap-3">
+					<div className="h-3 w-16 rounded bg-[var(--surface-2)]" />
+					<div className="h-3 w-12 rounded bg-[var(--surface-2)]" />
+				</div>
+			</div>
+			<div className="h-10 w-10 shrink-0 rounded-full bg-[var(--surface-2)]" />
+		</div>
+	);
+}
+
 export function RightNowPage() {
 	const { t } = useTranslation();
-	const apiFunctions = useApiFunctions();
 	const location = useLocation();
 	const navigate = useNavigate();
+	const isDesktop = useDesktopBreakpoint();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
-	const initialCacheKey = useMemo(
-		() =>
-			buildRightNowFeedCacheKey(
-				persistedFilters.sort,
-				persistedFilters.hostingOnly,
-				persistedFilters.ageMin,
-				persistedFilters.ageMax,
-				persistedFilters.positionFilter,
-			),
-		[persistedFilters],
-	);
 
-	const [items, setItems] = useState<RightNowFeedItem[]>(() => getCachedRightNowFeed(initialCacheKey) || []);
-	const [isLoading, setIsLoading] = useState(() => !getCachedRightNowFeed(initialCacheKey));
-	const [error, setError] = useState<string | null>(null);
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
 	const [hostingOnly, setHostingOnly] = useState(persistedFilters.hostingOnly);
 	const [ageMin, setAgeMin] = useState(persistedFilters.ageMin);
@@ -368,6 +357,17 @@ export function RightNowPage() {
 		persistedFilters.positionFilter,
 	);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
+	const [lastSeenRightNow, setLastSeenRightNow] = useState(() => getRightNowLastSeen());
+
+	const queryParams = useMemo(() => ({
+		sort,
+		hosting: hostingOnly ? true : undefined,
+		ageMin: ageMin > 18 ? ageMin : undefined,
+		ageMax: ageMax < 99 ? ageMax : undefined,
+		sexualPositions: positionFilter || undefined,
+	}), [sort, hostingOnly, ageMin, ageMax, positionFilter]);
+
+	const { data: items = [], isLoading, error, refetch } = useRightNowFeed(queryParams);
 
 	const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
 	const [viewerIndex, setViewerIndex] = useState(0);
@@ -385,7 +385,6 @@ export function RightNowPage() {
 	const [isFiltersMounted, setIsFiltersMounted] = useState(false);
 	const [fabPhase, setFabPhase] = useState<RightNowFABPhase>("idle");
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
-	const unfilteredItemsRef = useRef<RightNowFeedItem[] | null>(null);
 
 	const handlePostClick = useCallback(() => {
 		setIsPosting(true);
@@ -396,10 +395,9 @@ export function RightNowPage() {
 		if (!isEdit) {
 			setFabPhase("loading");
 		}
-		setIsPosting(false); // Button starts fading in
-		// Let the modal stay for 300ms to finish its animation
+		setIsPosting(false);
 		setTimeout(() => setIsModalMounted(false), 300);
-	}, [setFabPhase]);
+	}, []);
 
 	const handleCloseModal = useCallback(() => {
 		setIsPosting(false);
@@ -441,7 +439,6 @@ export function RightNowPage() {
 			setAgeMax(next.ageMax);
 			setPositionFilter(next.positionFilter);
 
-			// Clear the state from the history entry so it doesn't re-apply when returning to this page
 			const safeState =
 				typeof location.state === "object" && location.state !== null
 					? (location.state as Record<string, unknown>)
@@ -451,16 +448,7 @@ export function RightNowPage() {
 				state: { ...safeState, rightNowFiltersDraft: undefined },
 			});
 		}
-	}, [
-		location.key,
-		location.state,
-		navigate,
-		location.pathname,
-		location.search,
-		ageMin,
-		ageMax,
-		positionFilter,
-	]);
+	}, [location.key, location.state, navigate, location.pathname, location.search, ageMin, ageMax, positionFilter]);
 
 	useEffect(() => {
 		saveRightNowFiltersDraft({
@@ -473,7 +461,6 @@ export function RightNowPage() {
 	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
 
 	const { activeRightNowId, activeRightNowExpiresAt, rightNowRemaining, setPreferences, developerMode, showDebugInfo, rightNowTestMode } = usePreferences();
-	const isMountedRef = useRef(true);
 
 	const isSessionActive = useMemo(() => {
 		if (!activeRightNowId || !activeRightNowExpiresAt) return false;
@@ -481,19 +468,15 @@ export function RightNowPage() {
 	}, [activeRightNowId, activeRightNowExpiresAt]);
 
 	useEffect(() => {
-		// Only transition idle -> countdown if the session is clearly active
-		// We add a small buffer (2s) to avoid fighting with the FAB's own countdown
 		const isClearlyActive = activeRightNowId && activeRightNowExpiresAt && (Date.now() < activeRightNowExpiresAt - 2000);
 
 		if (isClearlyActive && fabPhase === "idle" && !isPosting) {
 			setFabPhase("countdown");
 		} else if (!isSessionActive && fabPhase === "countdown" && !isPosting) {
-			// Session ended or expired
 			setFabPhase("idle");
 		}
 	}, [isSessionActive, fabPhase, isPosting, activeRightNowId, activeRightNowExpiresAt]);
 
-	// Auto-clear expired session from preferences
 	useEffect(() => {
 		if (!isSessionActive && activeRightNowId) {
 			void setPreferences({
@@ -503,80 +486,39 @@ export function RightNowPage() {
 		}
 	}, [isSessionActive, activeRightNowId, setPreferences]);
 
+	// Mark as seen whenever the user is on this page so the NavBar dot clears
 	useEffect(() => {
-		isMountedRef.current = true;
-		return () => {
-			isMountedRef.current = false;
-		};
-	}, []);
-
-	const loadFeed = useCallback(async (ignoreCache = false) => {
-		const cacheKey = buildRightNowFeedCacheKey(
-			sort,
-			hostingOnly,
-			ageMin,
-			ageMax,
-			positionFilter,
-		);
-		if (!ignoreCache) {
-			const cached = getCachedRightNowFeed(cacheKey);
-			if (cached) {
-				setItems(cached);
-				if (!hostingOnly) {
-					unfilteredItemsRef.current = cached;
-				}
-				setIsLoading(false);
-				return;
-			}
+		if (items.length > 0) {
+			const maxTs = Math.max(...items.map(i => i.postedAt ?? 0));
+			const at = Math.max(Date.now(), maxTs);
+			markRightNowSeen(at);
+			setLastSeenRightNow(at);
 		}
+	}, [items]);
 
-		setIsLoading(true);
-		setError(null);
-		try {
-			const result = await apiFunctions.getRightNowFeed({
-				sort,
-				hosting: hostingOnly ? true : undefined,
-				ageMin: ageMin > 18 ? ageMin : undefined,
-				ageMax: ageMax < 99 ? ageMax : undefined,
-				sexualPositions: positionFilter || undefined,
-			});
-			if (isMountedRef.current) {
-				setItems(result);
-				if (!hostingOnly) {
-					unfilteredItemsRef.current = result;
-				}
-				setCachedRightNowFeed(result, cacheKey);
-			}
-		} catch (err) {
-			if (isMountedRef.current) {
-				setError(
-					err instanceof Error ? err.message : t("right_now.error_load"),
-				);
-			}
-		} finally {
-			if (isMountedRef.current) {
-				setIsLoading(false);
-			}
+	// Clear scroll memory for RightNow when NEW activity is detected in real-time
+	const prevMaxPostedAt = useRef(lastSeenRightNow);
+
+	useEffect(() => {
+		const maxPostedAt = items.length > 0 ? Math.max(...items.map(i => i.postedAt ?? 0)) : 0;
+		if (maxPostedAt > prevMaxPostedAt.current) {
+			sessionStorage.removeItem("rightnow-scroll");
+			feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
 		}
-	}, [apiFunctions, sort, hostingOnly, ageMin, ageMax, positionFilter, t]);
+		if (maxPostedAt > 0) prevMaxPostedAt.current = maxPostedAt;
+	}, [items]);
 
-	useEffect(() => {
-		void loadFeed();
-	}, [loadFeed]);
-
-	useEffect(() => {
-		setHasRestoredScroll(false);
-		sessionStorage.removeItem("rightnow-scroll");
-	}, [sort, hostingOnly, ageMin, ageMax, positionFilter]);
-
+	// Scroll Memory logic
 	useEffect(() => {
 		const container = feedContainerRef.current;
 		if (!container) return;
 
 		const handleScroll = () => {
-			if (container.scrollTop > 0) {
-				sessionStorage.setItem("rightnow-scroll", container.scrollTop.toString());
-			}
+			const scrollData = {
+				top: container.scrollTop,
+				timestamp: Date.now()
+			};
+			sessionStorage.setItem("rightnow-scroll", JSON.stringify(scrollData));
 		};
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
@@ -585,16 +527,48 @@ export function RightNowPage() {
 
 	useLayoutEffect(() => {
 		if (items.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
-			const saved = sessionStorage.getItem("rightnow-scroll");
+			const storageKey = "rightnow-scroll";
+
+			// If there's new activity since the last time we "saw" this page,
+			// don't restore the scroll position - stay at the top.
+			const maxTs = Math.max(...items.map(i => i.postedAt ?? 0));
+			if (maxTs > lastSeenRightNow) {
+				sessionStorage.removeItem(storageKey);
+				feedContainerRef.current.scrollTop = 0;
+				setHasRestoredScroll(true);
+				return;
+			}
+
+			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
-				const scrollTop = parseInt(saved, 10);
-				if (scrollTop > 0) {
-					feedContainerRef.current.scrollTop = scrollTop;
+				try {
+					const parsed = JSON.parse(saved);
+					// Safety check: is it our new object format or just an old number?
+					if (parsed && typeof parsed === "object" && "top" in parsed) {
+						const { top, timestamp } = parsed;
+						if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+							feedContainerRef.current.scrollTop = top;
+						} else {
+							sessionStorage.removeItem(storageKey);
+							feedContainerRef.current.scrollTop = 0;
+						}
+					} else {
+						// Old numeric format, clear it
+						sessionStorage.removeItem(storageKey);
+						feedContainerRef.current.scrollTop = 0;
+					}
+				} catch (e) {
+					sessionStorage.removeItem(storageKey);
+					feedContainerRef.current.scrollTop = 0;
 				}
+			} else {
+				// No saved scroll, ensure we start at the top
+				feedContainerRef.current.scrollTop = 0;
 			}
 			setHasRestoredScroll(true);
 		}
-	}, [items.length, isLoading, hasRestoredScroll]);
+	}, [items.length, isLoading, hasRestoredScroll, lastSeenRightNow, items]);
+
 
 	const handleMessage = useCallback(
 		(profileId: string) => {
@@ -615,51 +589,18 @@ export function RightNowPage() {
 	);
 
 	const toggleSort = useCallback(() => {
-		setSort((prev) => {
-			const next = prev === "DISTANCE" ? "RECENCY" : "DISTANCE";
-			const nextKey = buildRightNowFeedCacheKey(
-				next,
-				hostingOnly,
-				ageMin,
-				ageMax,
-				positionFilter,
-			);
-			const cached = getCachedRightNowFeed(nextKey);
-			if (cached) {
-				setItems(cached);
-			} else {
-				setItems((current) => sortItemsByOption(current, next));
-			}
-			return next;
-		});
-	}, [hostingOnly, ageMin, ageMax, positionFilter]);
+		setSort((prev) => (prev === "DISTANCE" ? "RECENCY" : "DISTANCE"));
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
+	}, []);
 
 	const toggleHostingOnly = useCallback(() => {
-		setHostingOnly((previous) => {
-			const next = !previous;
-			const nextKey = buildRightNowFeedCacheKey(
-				sort,
-				next,
-				ageMin,
-				ageMax,
-				positionFilter,
-			);
-			const cached = getCachedRightNowFeed(nextKey);
-			if (cached) {
-				setItems(cached);
-				return next;
-			}
-
-			if (next) {
-				unfilteredItemsRef.current = items;
-				setItems((current) => current.filter((item) => item.hosting));
-			} else if (unfilteredItemsRef.current) {
-				setItems(unfilteredItemsRef.current);
-			}
-
-			return next;
-		});
-	}, [sort, ageMin, ageMax, positionFilter, items]);
+		setHostingOnly((previous) => !previous);
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
+	}, []);
 
 	const openFilters = useCallback(() => {
 		setIsFiltersOpen(true);
@@ -670,18 +611,10 @@ export function RightNowPage() {
 		setAgeMin(draft.ageMin);
 		setAgeMax(draft.ageMax);
 		setPositionFilter(draft.positionFilter);
-		const nextKey = buildRightNowFeedCacheKey(
-			sort,
-			hostingOnly,
-			draft.ageMin,
-			draft.ageMax,
-			draft.positionFilter,
-		);
-		const cached = getCachedRightNowFeed(nextKey);
-		if (cached) {
-			setItems(cached);
-		}
-	}, [sort, hostingOnly]);
+		sessionStorage.removeItem("rightnow-scroll");
+		setHasRestoredScroll(true);
+		feedContainerRef.current?.scrollTo(0, 0);
+	}, []);
 
 	const handleCloseFilters = useCallback(() => {
 		setIsFiltersOpen(false);
@@ -694,32 +627,24 @@ export function RightNowPage() {
 			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 			contentClassName="flex flex-1 flex-col min-h-0"
 			style={{ overflow: "visible", overflowX: "hidden" }}
-			onRefresh={() => loadFeed(true)}
+			onRefresh={() => {
+				sessionStorage.removeItem("rightnow-scroll");
+				setHasRestoredScroll(true);
+				feedContainerRef.current?.scrollTo(0, 0);
+				void refetch();
+			}}
 			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("right_now.refreshing")}
 			spinnerColor="var(--right-now)"
+			spinnerIconColor="white"
 		>
-			{/* Header */}
-			<header className="relative z-20 grid gap-3 px-[var(--app-px)] pointer-events-none">
-				<div
-					className="absolute -top-64 left-1/2 h-[600px] w-[200vw] -translate-x-1/2"
-					style={{
-						zIndex: -1,
-						// Use the --right-now color for the glow effect
-						background: "radial-gradient(ellipse 100% 100% at 50% 0%, var(--right-now) 0%, color-mix(in srgb, var(--right-now), transparent 40%) 15%, color-mix(in srgb, var(--right-now), transparent 85%) 60%, transparent 100%)",
-						// The mask remains for the shaping
-						maskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						WebkitMaskImage: "radial-gradient(ellipse 80% 100% at 50% 0%, black 0%, black 35%, transparent 80%)",
-						backdropFilter: "blur(12px)",
-						WebkitBackdropFilter: "blur(12px)",
-					}}
-				/>
-				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl">
+			<header className="relative z-20 grid gap-3 pointer-events-none">
+				<PageHeaderBackground color="var(--right-now)" />
+				<div className="pointer-events-auto grid gap-3 mx-auto w-full max-w-4xl px-[var(--app-px)]">
 					<h1 className="app-title">{t("right_now.title")}</h1>
 
-					<div className="flex flex-wrap items-center gap-2 pb-1">
-						{/* Sort by Distance / Recency */}
+					<div className="flex flex-wrap items-center gap-2 pb-4">
 						<button
 							type="button"
 							onClick={toggleSort}
@@ -732,20 +657,18 @@ export function RightNowPage() {
 							{sort === "DISTANCE" ? t("right_now.distance") : t("right_now.recent")}
 						</button>
 
-						{/* Hosting toggle */}
 						<button
 							type="button"
 							onClick={toggleHostingOnly}
 							className={cn(
-								"shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-all active:scale-95",
+								"glass-pill shrink-0 px-4 py-2 text-sm font-bold active:scale-95",
 								hostingOnly
 									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
-									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+									: "text-[var(--right-now)] hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
 							)}
 							style={!hostingOnly ? {
-								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
-							} : undefined}
+								"--pill-color": "var(--right-now)",
+							} as React.CSSProperties : undefined}
 						>
 							{t("right_now.hosting")}
 						</button>
@@ -754,15 +677,14 @@ export function RightNowPage() {
 							type="button"
 							onClick={openFilters}
 							className={cn(
-								"inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-bold transition-all active:scale-95",
+								"glass-pill inline-flex min-h-10 items-center gap-1.5 px-4 text-sm font-bold active:scale-95",
 								hasAdvancedFilters
 									? "bg-[var(--right-now)] border-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
-									: "border-[var(--right-now)]/40 text-[var(--right-now)] backdrop-blur-xl hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
+									: "text-[var(--right-now)] hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20",
 							)}
 							style={!hasAdvancedFilters ? {
-								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
-								boxShadow: "0 4px 12px color-mix(in srgb, var(--right-now), transparent 85%)"
-							} : undefined}
+								"--pill-color": "var(--right-now)",
+							} as React.CSSProperties : undefined}
 						>
 							<SlidersHorizontal className="h-3.5 w-3.5" />
 							{t("right_now.filters")}
@@ -775,26 +697,21 @@ export function RightNowPage() {
 				</div>
 			</header>
 
-			{/* Feed */}
-			<div className="relative flex-1 min-h-0 -mt-32">
-				<div
-					ref={feedContainerRef}
-					className="h-full overflow-y-auto pt-32"
-					style={{
-						maskImage: "linear-gradient(to bottom, transparent, black 220px)",
-						WebkitMaskImage: "linear-gradient(to bottom, transparent, black 220px)",
-					}}
-				>
+			<FeedScrollContainer ref={feedContainerRef}>
 				{isLoading ? (
-					<div className="flex items-center justify-center py-16">
-						<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+					<div className="mx-auto max-w-4xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+						{Array.from({ length: 6 }).map((_, i) => (
+							<div key={i} className={cn(i === 0 && "border-t border-[var(--surface-2)]")}>
+								<RightNowSkeleton />
+							</div>
+						))}
 					</div>
 				) : error ? (
 					<div className="px-[var(--app-px)] py-8 text-center">
-						<p className="mb-3 text-sm text-[var(--text-muted)]">{error}</p>
+						<p className="mb-3 text-sm text-[var(--text-muted)]">{error instanceof Error ? error.message : String(error)}</p>
 						<button
 							type="button"
-							onClick={() => void loadFeed()}
+							onClick={() => void refetch()}
 							className="rounded-full border border-[var(--right-now)]/30 px-4 py-2 text-sm font-bold text-[var(--right-now)]/70 transition-all hover:border-[var(--right-now)]/50 hover:text-[var(--right-now)] active:scale-95"
 							style={{ backgroundColor: "color-mix(in srgb, var(--right-now), transparent 95%)" }}
 						>
@@ -806,26 +723,25 @@ export function RightNowPage() {
 						<p className="text-sm text-[var(--text-muted)]">{t("right_now.empty")}</p>
 					</div>
 				) : (
-					<div className="mx-auto max-w-2xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
-						{items.map((item) => (
-							<div key={item.profileId} className="px-0">
+					<div className="mx-auto max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+						{items.map((item, index) => (
+							<div key={`${item.id}-${item.profileId}`} className="px-0">
 								<RightNowRow
 									item={item}
 									onMessage={handleMessage}
 									onSelect={handleSelect}
 									onOpenPhoto={openPhotoViewer}
+									isFirst={index === 0}
 								/>
 							</div>
 						))}
 					</div>
 				)}
-			</div>
-		</div>
+			</FeedScrollContainer>
 		</PullToRefreshContainer>
 
 		<div className="fixed inset-x-0 bottom-30 z-[60] pointer-events-none md:bottom-36">
 			<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
-				{/* Debug Toggle FAB (Bottom Left) */}
 				{developerMode && showDebugInfo && (
 					<div
 						className={cn(

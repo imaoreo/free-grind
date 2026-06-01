@@ -40,6 +40,7 @@ import {
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
+import { FeedScrollContainer } from "../../../../components/ui/FeedScrollContainer";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -156,7 +157,7 @@ export function ProfileDetailsModal({
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
 	const isTapActive = effectiveTapVisualState !== "none";
-	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
+	const isTapDisabled = !onTapProfile || isTogglingProfile || isTapBlocked;
 	const isTriangleDisabled =
 		!onTriangleProfile || !messageProfileId || isLocatingProfile;
 	const tapButtonClassName =
@@ -396,10 +397,9 @@ export function ProfileDetailsModal({
 
 	if (variant === "page") {
 		return (
-			<section className="min-h-screen bg-[var(--bg)] pb-24">
-				<div className="w-full">
-					{/* Sticky header container using --app-px for consistent horizontal alignment with the main browse page */}
-					<div className="absolute inset-x-0 top-0 z-40 flex items-center gap-3 px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] text-white sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+			<div className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden bg-[var(--bg)]">
+				<header className="relative z-40 flex shrink-0 flex-col border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+					<div className="flex w-full items-center gap-3">
 						<div className="flex flex-1 justify-start">
 							<button
 								type="button"
@@ -446,9 +446,10 @@ export function ProfileDetailsModal({
 							</button>
 						</div>
 					</div>
+				</header>
 
-					{/* Main content area using --app-px for consistent padding */}
-					<div className="px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:py-5">
+				<FeedScrollContainer>
+					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:py-5">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("profile_details.loading")}
@@ -514,9 +515,9 @@ export function ProfileDetailsModal({
 							/>
 						) : null}
 					</div>
-				</div>
+				</FeedScrollContainer>
 				{photoViewerOverlay}
-			</section>
+			</div>
 		);
 	}
 
@@ -543,7 +544,10 @@ export function ProfileDetailsModal({
 					</button>
 				</div>
 
-				<div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] sm:p-5 sm:pb-6">
+				<div
+					data-lenis-prevent
+					className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] sm:p-5 sm:pb-6"
+				>
 					{isLoadingActiveProfile ? (
 						<p className="text-sm text-[var(--text-muted)]">
 							{t("profile_details.loading")}
@@ -569,7 +573,7 @@ export function ProfileDetailsModal({
 							profileDistance={profileDistance}
 							chatContactStatus={chatContactStatus ?? null}
 							messageProfileId={messageProfileId}
-								usesFreegrind={usesFreegrind ?? false}
+							usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={onMessageProfile}
 							onTapProfile={onTapProfile}
 							onBlockProfile={onBlockProfile}

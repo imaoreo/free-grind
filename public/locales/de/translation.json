@@ -534,6 +534,16 @@
         "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "columns_2": "2 Spalten",
         "columns_3": "3 Spalten",
+        "reveal_effect": {
+            "title": "Reveal-Effekt",
+            "description": "Der Reveal-Effekt animiert Elemente beim Scrollen. Du kannst ihn deaktivieren oder die Intensität anpassen.",
+            "enable": "Reveal-Effekt aktivieren",
+            "enable_desc": "Elemente beim Erscheinen im Sichtfeld dezent animieren.",
+            "strengths": {
+                "subtle": "Dezent",
+                "pronounced": "Ausgeprägt"
+            }
+        },
         "preview": "Vorschau",
         "preview_primary": "Primär-Button",
         "preview_outlined": "Umrandet",
@@ -1001,7 +1011,8 @@
             "views": "Besucher",
             "taps": "Taps"
         },
-        "total_viewed_count": "Besucheranzahl",
+        "total_viewed_count": "Gesamt",
+        "total_taps_count": "Gesamt",
         "refreshing": "{{tab}} wird aktualisiert...",
         "loading": "{{tab}} wird geladen...",
         "error_load": "{{tab}} konnte nicht geladen werden",
@@ -1019,7 +1030,7 @@
             "limitation_desc": "Grindr zeigt normalerweise nur den allerletzten Besucher vollständig an. Andere sind oft hinter einer Paywall verborgen oder werden nur als anonyme Vorschau angezeigt.",
             "recovery_title": "Intelligente Erkennung",
             "recovery_desc": "Free Grind gleicht unbekannte Besucher automatisch mit deinem lokalen Verlauf ab. Finden wir eine Übereinstimmung, decken wir das Profil für dich auf.",
-            "button": "Verstanden!"
+            "button": "Verstanden"
         },
         "unknown_profile": "Unbekanntes Profil",
         "unknown_time": "Unbekannte Zeit",

@@ -11,21 +11,25 @@ import { initChatContactIndex } from "./services/chatContactIndex";
 import { isTauri } from "@tauri-apps/api/core";
 import { appLog } from "./utils/logger";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
+import { DEFAULT_GC_TIME_MS } from "./config/ui-constants";
 import "./index.css";
 
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
 			staleTime: 0, // Data is immediately considered stale (refetch on mount)
-			gcTime: 1000 * 60 * 5, // Unused data is kept in memory for 5 minutes
+			gcTime: DEFAULT_GC_TIME_MS,
 			retry: 1,
 			refetchOnWindowFocus: false,
 		},
 	},
 });
 
-// Run sequentially: configure + notifyReady first, then check for updates
-void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+// Only enable Hotswap OTA updates in production. In development, this conflicts with Vite HMR
+// and can lead to unexpected reloads or WebSocket connection issues with the dev server.
+if (import.meta.env.PROD) {
+	void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+}
 if (isTauri()) {
 	void initChatContactIndex().catch((err) => {
 		appLog.warn("[chat-index] failed to initialize:", err);
