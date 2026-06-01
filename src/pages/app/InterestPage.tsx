@@ -505,7 +505,7 @@ export function InterestPage() {
 					</div>
 
 					<div className="flex flex-col gap-3">
-						<div className="flex items-center justify-between pl-[var(--app-px)] pr-6">
+						<div className="flex h-12 items-center justify-between pl-[var(--app-px)] pr-6 -mt-1">
 							<InterestTabs
 								activeTab={activeTab}
 								onViewsClick={() => handleSetActiveTab("views")}
@@ -521,8 +521,8 @@ export function InterestPage() {
 									"glass-pill neutral flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
 									activeTab === "views" && "-mr-[2.5px]",
 									showCountLabel
-										? "h-10 pl-4 pr-0"
-										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-10 pl-0 pr-0")
+										? (activeTab === "views" ? "h-10 pl-4 pr-0" : "h-12 pl-4 pr-0")
+										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-12 w-12 pl-0 pr-0")
 								)}
 							>
 								<div className="flex items-center justify-end transition-all duration-500">
@@ -539,7 +539,7 @@ export function InterestPage() {
 									<div className="relative flex items-center justify-center">
 										<div className={cn(
 											"flex items-center justify-center transition-all duration-500",
-											activeTab === "views" ? "w-[51px]" : "w-[46px]"
+											activeTab === "views" ? "w-[51px]" : "w-12"
 										)}>
 											<p className={cn(
 												"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",

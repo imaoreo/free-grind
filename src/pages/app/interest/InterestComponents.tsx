@@ -109,7 +109,7 @@ export const InterestTabs = memo(function InterestTabs({
 						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
 						shouldBounce && "translate-x-2",
 						activeIndex === i
-							? "text-white text-base font-black tracking-tight"
+							? "text-[var(--accent-contrast)] text-base font-black tracking-tight"
 							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
 					)}
 				>
@@ -122,7 +122,7 @@ export const InterestTabs = memo(function InterestTabs({
 								: "ml-0 min-w-0 w-0 px-0 opacity-0 scale-50 pointer-events-none",
 							activeIndex === i
 								? "bg-white text-[var(--accent)]"
-								: "bg-[var(--accent)] text-white"
+								: "bg-[var(--accent)] text-[var(--accent-contrast)]"
 						)}
 					>
 						{counts[i] > 0 ? (counts[i] > 99 ? "99+" : counts[i]) : ""}
