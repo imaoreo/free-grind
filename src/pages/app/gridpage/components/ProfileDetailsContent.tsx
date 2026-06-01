@@ -199,7 +199,7 @@ export function ProfileDetailsContent({
 							<>
 								{/* Mobile Carousel View: We use negative margins (-mx and -mt) to break out of the parent padding
 								   and achieve a seamless edge-to-edge look that flushes with the header and screen sides. */}
-								<div className="sm:hidden -mx-[var(--app-px)]">
+								<div className="relative sm:hidden -mx-[var(--app-px)]">
 									<div
 										ref={mobileCarouselRef}
 										onScroll={handleMobileCarouselScroll}
@@ -226,58 +226,51 @@ export function ProfileDetailsContent({
 													className="h-full w-full object-cover"
 												/>
 												{renderPhotoCreatedBadge(hash)}
-
-												{showGlassQuickActions && index === mobileCarouselPhotoIndex && messageProfileId ? (
-													<div className="pointer-events-none absolute inset-0 z-20">
-														<div className="pointer-events-auto absolute inset-x-0 bottom-3 flex items-center justify-center gap-3 px-3">
-															<button
-																type="button"
-																onClick={(event) => {
-																	event.stopPropagation();
-																	onMessageProfile?.(messageProfileId);
-																}}
-																className={glassActionButtonClassName}
-																aria-label={t("profile_details.message")}
-															>
-																<MessageCircle className="h-4 w-4" />
-															</button>
-															<TapSelector
-																profileId={messageProfileId}
-																onTapProfile={onTapProfile!}
-																isTapDisabled={isTapDisabled}
-																isTapBlocked={isTapBlocked}
-																isTapActive={isTapActive}
-																tapId={tapId}
-																tapButtonClassName={tapButtonClassName}
-															/>
-															{onToggleFavoriteProfile ? (
-																<button
-																	type="button"
-																	onClick={(event) => {
-																		event.stopPropagation();
-																		handleFavoriteAction();
-																	}}
-																	disabled={isTogglingFavorite}
-																	className={glassActionButtonClassName}
-																	aria-label={
-																		isFavorite
-																			? t("profile_details.unfavorite")
-																			: t("browse_filters.options.favorites")
-																	}
-																>
-																	{isTogglingFavorite ? (
-																		<Loader2 className="h-4 w-4 animate-spin" />
-																	) : (
-																		<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-																	)}
-																</button>
-															) : null}
-														</div>
-													</div>
-												) : null}
 											</div>
 										))}
 									</div>
+									{showGlassQuickActions && messageProfileId ? (
+										<div className="pointer-events-none absolute inset-x-0 bottom-6 z-20">
+											<div className="pointer-events-auto flex items-center justify-center gap-3 px-3">
+												<button
+													type="button"
+													onClick={() => onMessageProfile?.(messageProfileId)}
+													className={glassActionButtonClassName}
+													aria-label={t("profile_details.message")}
+												>
+													<MessageCircle className="h-4 w-4" />
+												</button>
+												<TapSelector
+													profileId={messageProfileId}
+													onTapProfile={onTapProfile!}
+													isTapDisabled={isTapDisabled}
+													isTapBlocked={isTapBlocked}
+													isTapActive={isTapActive}
+													tapId={tapId}
+													tapButtonClassName={tapButtonClassName}
+												/>
+												{onToggleFavoriteProfile ? (
+													<button
+														type="button"
+														onClick={handleFavoriteAction}
+														disabled={isTogglingFavorite}
+														className={glassActionButtonClassName}
+														aria-label={
+															isFavorite
+																? t("profile_details.unfavorite")
+																: t("browse_filters.options.favorites")
+														}
+													>
+														{isTogglingFavorite ? (
+															<Loader2 className="h-4 w-4 animate-spin" />
+														) : (
+															<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+														)}
+													</button>
+												) : null}
+											</div>
+										</div>
+									) : null}
 									{activeProfilePhotoHashes.length > 1 ? (
 										<div className="mt-2 flex items-center justify-center gap-1.5">
 											{activeProfilePhotoHashes.map((hash, index) => (
