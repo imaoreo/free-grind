@@ -8,6 +8,33 @@ const STAGGER_MS = 30;
 let pendingReveals: { offsetTop: number; resolve: () => void }[] = [];
 let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Scroll direction tracking
+let lastScrollY = typeof window !== "undefined" ? window.scrollY : 0;
+let scrollDirection: "up" | "down" = "down";
+
+if (typeof window !== "undefined") {
+	window.addEventListener(
+		"scroll",
+		(e) => {
+			const target = e.target;
+			const currentScrollY =
+				target === document || target === window
+					? window.scrollY
+					: target instanceof Element
+						? target.scrollTop
+						: lastScrollY;
+
+			if (currentScrollY > lastScrollY) {
+				scrollDirection = "down";
+			} else if (currentScrollY < lastScrollY) {
+				scrollDirection = "up";
+			}
+			lastScrollY = currentScrollY;
+		},
+		{ capture: true, passive: true },
+	);
+}
+
 // Global state to track if the initial reveal period has passed for the current "view"
 let globalAnimationsEnabled = false;
 let lastUrl = "";
@@ -19,8 +46,13 @@ function processNext() {
 		return;
 	}
 
-	// Always sort by document position to guarantee top-to-bottom order
-	pendingReveals.sort((a, b) => a.offsetTop - b.offsetTop);
+	// Always sort by document position to guarantee top-to-bottom order (if scrolling down)
+	// or bottom-to-top order (if scrolling up)
+	if (scrollDirection === "down") {
+		pendingReveals.sort((a, b) => a.offsetTop - b.offsetTop);
+	} else {
+		pendingReveals.sort((a, b) => b.offsetTop - a.offsetTop);
+	}
 
 	const next = pendingReveals.shift();
 	if (next) {
@@ -46,6 +78,10 @@ export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 
 	if (currentUrl !== lastUrl) {
 		lastUrl = currentUrl;
 		globalAnimationsEnabled = false;
+
+		// Reset scroll tracking
+		lastScrollY = typeof window !== "undefined" ? window.scrollY : 0;
+		scrollDirection = "down";
 
 		// Clear the queue and timer when navigating to a new page to prevent ghost animations
 		pendingReveals = [];
