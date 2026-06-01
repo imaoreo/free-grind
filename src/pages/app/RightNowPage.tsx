@@ -207,11 +207,13 @@ function RightNowRow({
 	onMessage,
 	onSelect,
 	onOpenPhoto,
+	isFirst,
 }: {
 	item: RightNowFeedItem;
 	onMessage: (profileId: string) => void;
 	onSelect: (profileId: string) => void;
 	onOpenPhoto: (photos: string[], index: number) => void;
+	isFirst?: boolean;
 }) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -238,6 +240,7 @@ function RightNowRow({
 			ref={ref}
 			className={cn(
 				"flex items-center gap-4 pl-5 pr-6 py-4 border-b border-[var(--surface-2)]",
+				isFirst && "border-t",
 				revealClass
 			)}
 		>
@@ -511,13 +514,11 @@ export function RightNowPage() {
 		if (!container) return;
 
 		const handleScroll = () => {
-			if (container.scrollTop > 0) {
-				const scrollData = {
-					top: container.scrollTop,
-					timestamp: Date.now()
-				};
-				sessionStorage.setItem("rightnow-scroll", JSON.stringify(scrollData));
-			}
+			const scrollData = {
+				top: container.scrollTop,
+				timestamp: Date.now()
+			};
+			sessionStorage.setItem("rightnow-scroll", JSON.stringify(scrollData));
 		};
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
@@ -545,7 +546,7 @@ export function RightNowPage() {
 					// Safety check: is it our new object format or just an old number?
 					if (parsed && typeof parsed === "object" && "top" in parsed) {
 						const { top, timestamp } = parsed;
-						if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS && top > 0) {
+						if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 							feedContainerRef.current.scrollTop = top;
 						} else {
 							sessionStorage.removeItem(storageKey);
@@ -700,7 +701,9 @@ export function RightNowPage() {
 				{isLoading ? (
 					<div className="mx-auto max-w-4xl divide-y divide-[var(--surface-2)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
 						{Array.from({ length: 6 }).map((_, i) => (
-							<RightNowSkeleton key={i} />
+							<div key={i} className={cn(i === 0 && "border-t border-[var(--surface-2)]")}>
+								<RightNowSkeleton />
+							</div>
 						))}
 					</div>
 				) : error ? (
@@ -721,13 +724,14 @@ export function RightNowPage() {
 					</div>
 				) : (
 					<div className="mx-auto max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
-						{items.map((item) => (
+						{items.map((item, index) => (
 							<div key={`${item.id}-${item.profileId}`} className="px-0">
 								<RightNowRow
 									item={item}
 									onMessage={handleMessage}
 									onSelect={handleSelect}
 									onOpenPhoto={openPhotoViewer}
+									isFirst={index === 0}
 								/>
 							</div>
 						))}

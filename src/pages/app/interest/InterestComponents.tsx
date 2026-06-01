@@ -121,7 +121,7 @@ export const InterestTabs = memo(function InterestTabs({
 								? "ml-2 min-w-[1.125rem] px-1 opacity-100 scale-100"
 								: "ml-0 min-w-0 w-0 px-0 opacity-0 scale-50 pointer-events-none",
 							activeIndex === i
-								? "bg-white text-[var(--accent)]"
+								? "bg-[var(--accent-contrast)] text-[var(--accent)]"
 								: "bg-[var(--accent)] text-[var(--accent-contrast)]"
 						)}
 					>
@@ -144,11 +144,13 @@ export const InterestRow = memo(function InterestRow({
 	mode,
 	onOpenProfile,
 	now,
+	isFirst,
 }: {
 	item: InterestItem;
 	mode: InterestTab;
 	onOpenProfile: (profileId: string) => void;
 	now: number;
+	isFirst?: boolean;
 }) {
 	const { t } = useTranslation();
 	const { ref, revealClass } = useRevealOnScroll();
@@ -225,10 +227,10 @@ export const InterestRow = memo(function InterestRow({
 						<div
 							className="relative flex h-12 w-12 items-center justify-center rounded-full border"
 							style={{
-								backgroundColor: `rgba(${emojiColorMap[item.tapType] || "255, 204, 1"}, 0.07)`,
-								borderColor: `rgba(${emojiColorMap[item.tapType] || "255, 204, 1"}, 0.45)`,
-								boxShadow: `0 2px 8px rgba(${emojiColorMap[item.tapType] || "255, 204, 1"}, 0.05)`,
-								color: `rgb(${emojiColorMap[item.tapType] || "255, 204, 1"})`
+								backgroundColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.07)`,
+								borderColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.45)`,
+								boxShadow: `0 2px 8px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.05)`,
+								color: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})`
 							}}
 						>
 							<span className="text-2xl leading-none select-none">
@@ -251,7 +253,9 @@ export const InterestRow = memo(function InterestRow({
 								borderColor: "color-mix(in srgb, var(--text-muted), transparent 60%)",
 							}}
 						>
-							<Eye className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+							<div className="flex items-center justify-center h-4 w-4">
+								<Eye className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+							</div>
 							<span className="text-xs font-bold leading-none tabular-nums text-[var(--text)]">
 								{item.viewCount || 1}
 							</span>
@@ -260,6 +264,7 @@ export const InterestRow = memo(function InterestRow({
 				</div>
 			)}
 
+			{isFirst && <div className="absolute top-0 right-0 left-0 h-px bg-[var(--surface-2)]" />}
 			{/* Full-width Divider */}
 			<div className="absolute bottom-0 right-0 left-0 h-px bg-[var(--surface-2)]" />
 		</div>
