@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
-import React, { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	createBackdropCloseHandler,
@@ -157,7 +157,7 @@ export function ProfileDetailsModal({
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
 	const isTapActive = effectiveTapVisualState !== "none";
-	const isTapDisabled = !onTapProfile || isTogglingProfile || isTapBlocked;
+	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
 	const isTriangleDisabled =
 		!onTriangleProfile || !messageProfileId || isLocatingProfile;
 	const tapButtonClassName =
