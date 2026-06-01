@@ -397,14 +397,14 @@ export function ProfileDetailsModal({
 
 	if (variant === "page") {
 		return (
-			<div className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden bg-[var(--bg)]">
-				<header className="relative z-40 flex shrink-0 flex-col border-b border-[var(--border)] bg-[var(--surface-2)] px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden bg-[var(--bg)]">
+				<header className="pointer-events-none absolute inset-x-0 top-0 z-40 flex shrink-0 flex-col px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
 					<div className="flex w-full items-center gap-3">
-						<div className="flex flex-1 justify-start">
+						<div className="pointer-events-auto flex flex-1 justify-start">
 							<button
 								type="button"
 								onClick={onClose}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"
 								aria-label={t("settings.back_to_browse")}
 							>
 								<ArrowLeft className="h-4 w-4" />
@@ -425,12 +425,12 @@ export function ProfileDetailsModal({
 							</div>
 						</div>
 
-						<div className="flex flex-1 items-center justify-end gap-1">
+						<div className="pointer-events-auto flex flex-1 items-center justify-end gap-1">
 							<button
 								type="button"
 								onClick={onPrevProfile}
 								disabled={!onPrevProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
 								aria-label={t("profile_details.previous_profile")}
 							>
 								<ChevronLeft className="h-4 w-4" />
@@ -439,7 +439,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onNextProfile}
 								disabled={!onNextProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-white/15 text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30"
 								aria-label={t("profile_details.next_profile")}
 							>
 								<ChevronRight className="h-4 w-4" />
