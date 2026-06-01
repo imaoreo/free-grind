@@ -12,6 +12,130 @@ use super::client::GrindrClient;
 use super::client::BASE_URL;
 use super::headers::{build_headers, build_user_agent};
 
+#[cfg(target_os = "android")]
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+#[cfg(target_os = "android")]
+use jni::objects::{JObject, JString, JValue};
+#[cfg(target_os = "android")]
+use jni::JavaVM;
+
+#[cfg(target_os = "android")]
+#[derive(Deserialize)]
+struct AndroidOkHttpResult {
+    status: u16,
+    #[serde(rename = "bodyBase64")]
+    body_base64: String,
+    error: Option<String>,
+}
+
+#[cfg(target_os = "android")]
+fn android_okhttp_execute(
+    method: &str,
+    url: &str,
+    headers: &reqwest::header::HeaderMap,
+    body: Option<Vec<u8>>,
+    content_type: Option<&str>,
+) -> Result<RawResponse, AppError> {
+    let headers_json = {
+        let mut m = serde_json::Map::new();
+        for (name, value) in headers {
+            if let Ok(s) = value.to_str() {
+                m.insert(name.to_string(), serde_json::Value::String(s.to_owned()));
+            }
+        }
+        serde_json::Value::Object(m).to_string()
+    };
+
+    let body_b64 = body.map(|b| STANDARD.encode(b));
+    let vm_ptr = ndk_context::android_context().vm();
+    let vm = unsafe { JavaVM::from_raw(vm_ptr.cast()) }
+        .map_err(|e| AppError::Http(format!("JNI VM init failed: {e}")))?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|e| AppError::Http(format!("JNI attach failed: {e}")))?;
+
+    let j_method = env
+        .new_string(method)
+        .map_err(|e| AppError::Http(format!("JNI method string failed: {e}")))?;
+    let j_url = env
+        .new_string(url)
+        .map_err(|e| AppError::Http(format!("JNI url string failed: {e}")))?;
+    let j_headers = env
+        .new_string(headers_json)
+        .map_err(|e| AppError::Http(format!("JNI headers string failed: {e}")))?;
+
+    let j_body = if let Some(b64) = body_b64 {
+        Some(
+            env.new_string(b64)
+                .map_err(|e| AppError::Http(format!("JNI body string failed: {e}")))?,
+        )
+    } else {
+        None
+    };
+
+    let j_content_type = if let Some(ct) = content_type {
+        Some(
+            env.new_string(ct)
+                .map_err(|e| AppError::Http(format!("JNI content-type string failed: {e}")))?,
+        )
+    } else {
+        None
+    };
+
+    let body_obj = j_body
+        .as_ref()
+        .map(|s| JObject::from(*s))
+        .unwrap_or_else(JObject::null);
+    let ct_obj = j_content_type
+        .as_ref()
+        .map(|s| JObject::from(*s))
+        .unwrap_or_else(JObject::null);
+
+    let ret = env
+        .call_static_method(
+            "dev/estopia/free_grind/OkHttpBridge",
+            "execute",
+            "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;",
+            &[
+                JValue::Object(&JObject::from(j_method)),
+                JValue::Object(&JObject::from(j_url)),
+                JValue::Object(&JObject::from(j_headers)),
+                JValue::Object(&body_obj),
+                JValue::Object(&ct_obj),
+            ],
+        )
+        .map_err(|e| AppError::Http(format!("JNI OkHttpBridge.execute failed: {e}")))?;
+
+    let j_out_obj = ret
+        .l()
+        .map_err(|e| AppError::Http(format!("JNI return object conversion failed: {e}")))?;
+    let j_out = JString::from(j_out_obj);
+    let out: String = env
+        .get_string(&j_out)
+        .map_err(|e| AppError::Http(format!("JNI return string read failed: {e}")))?
+        .into();
+
+    let parsed: AndroidOkHttpResult = serde_json::from_str(&out)
+        .map_err(|e| AppError::Http(format!("Android OkHttp bridge JSON parse failed: {e}")))?;
+
+    if parsed.status == 0 {
+        return Err(AppError::Http(
+            parsed
+                .error
+                .unwrap_or_else(|| "Android OkHttp bridge request failed".to_owned()),
+        ));
+    }
+
+    let body = STANDARD
+        .decode(parsed.body_base64)
+        .map_err(|e| AppError::Http(format!("Android OkHttp bridge base64 decode failed: {e}")))?;
+
+    Ok(RawResponse {
+        status: parsed.status,
+        body,
+    })
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct RawResponse {
     pub status: u16,
@@ -53,6 +177,39 @@ impl GrindrClient {
         TReq: Serialize + ?Sized,
         TResp: DeserializeOwned,
     {
+        #[cfg(target_os = "android")]
+        {
+            let is_external = path.starts_with("http") && !path.contains("grindr.mobi");
+            if !is_external {
+                let body_bytes = match body {
+                    Some(b) => Some(
+                        serde_json::to_vec(b)
+                            .map_err(|e| AppError::Http(format!("JSON encode failed: {e}")))?,
+                    ),
+                    None => None,
+                };
+
+                let raw = self
+                    .request_raw(method.clone(), path, body_bytes, Some("application/json"))
+                    .await?;
+
+                let text = String::from_utf8(raw.body).unwrap_or_default();
+                if !(200..300).contains(&raw.status) {
+                    let json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
+                    let code = json.get("code").and_then(|c| c.as_i64()).unwrap_or(0) as i32;
+                    let message = json
+                        .get("message")
+                        .and_then(|m| m.as_str())
+                        .unwrap_or_else(|| if text.is_empty() { "Unknown error" } else { &text })
+                        .to_owned();
+                    return Err(AppError::Api { code, message });
+                }
+
+                let resp = serde_json::from_str::<TResp>(&text).map_err(AppError::from)?;
+                return Ok(resp);
+            }
+        }
+
         let is_auth_path = path == "/v8/sessions" || path.starts_with("/public/");
         let url = if path.starts_with("http") {
             path.to_owned()
@@ -68,6 +225,51 @@ impl GrindrClient {
         }
 
         let device = self.device.read().await;
+
+        #[cfg(target_os = "android")]
+        {
+            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
+            if !is_external {
+                let make_headers = |auth: Option<&str>| {
+                    let user_agent = build_user_agent(&device, "Free");
+                    let mut h = build_headers(&device, &user_agent, auth);
+                    if path == "/v3/bootstrap" {
+                        h.remove("accept");
+                    }
+                    h
+                };
+
+                let headers = make_headers(auth_token.as_deref());
+                let mut raw = android_okhttp_execute(
+                    method.as_str(),
+                    &url,
+                    &headers,
+                    body.clone(),
+                    content_type,
+                )?;
+
+                if raw.status == 401 && !is_auth_path {
+                    let _lock = self.refresh_lock.lock().await;
+
+                    let current_token = self.authorization_header().await;
+                    if current_token == auth_token {
+                        let _ = Box::pin(self.refresh_token()).await;
+                    }
+
+                    let new_auth_token = self.authorization_header().await;
+                    let headers = make_headers(new_auth_token.as_deref());
+                    raw = android_okhttp_execute(
+                        method.as_str(),
+                        &url,
+                        &headers,
+                        body.clone(),
+                        content_type,
+                    )?;
+                }
+
+                return Ok(raw);
+            }
+        }
 
         let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
             let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
