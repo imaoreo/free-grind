@@ -74,18 +74,71 @@ export function InterestPage() {
 		: defaultSetting;
 
 	const { data, isLoading: isQueryLoading, isFetching, error: queryError, refetch } = useInterestData();
+	const [isDemoLoading, setIsDemoLoading] = useState(false);
+	const isLoading = isQueryLoading || isDemoLoading;
 
-	const views = data?.views ?? [];
-	const taps = data?.taps ?? [];
-	const viewedCount = data?.viewedCount ?? null;
+	const { developerMode, showDebugInfo } = usePreferences();
+	const [demoMode, setDemoMode] = useState(() => {
+		const saved = window.localStorage.getItem("fg-interest-demo-mode");
+		return saved ? Number.parseInt(saved, 10) : 0;
+	});
+	const [demoViewsCount, setDemoViewsCount] = useState(() => {
+		if (demoMode === 2 || demoMode === 3) return 12;
+		return 0;
+	});
+	const [demoTapsCount, setDemoTapsCount] = useState(() => {
+		if (demoMode === 1 || demoMode === 3) return 5;
+		return 0;
+	});
+
+	const [demoAddedViews, setDemoAddedViews] = useState<InterestItem[]>([]);
+	const [demoAddedTaps, setDemoAddedTaps] = useState<InterestItem[]>([]);
+
+	useEffect(() => {
+		if (demoMode === 0 || !developerMode) {
+			setDemoAddedViews([]);
+			setDemoAddedTaps([]);
+			return;
+		}
+
+		const startDelay = setTimeout(() => {
+			let cycle = 0;
+			const targetCounts = [5, 55, 555, 5555];
+
+			const interval = setInterval(() => {
+				const target = targetCounts[cycle % targetCounts.length];
+				cycle++;
+
+				if (demoMode === 1 || demoMode === 3) {
+					setDemoTapsCount(target);
+					setDemoAddedTaps(Array(target).fill({ profileId: "demo", timestamp: Date.now() }));
+				}
+				if (demoMode === 2 || demoMode === 3) {
+					setDemoViewsCount(target);
+					// To make viewedCount exactly match the target:
+					setDemoAddedViews(Array(target).fill({ profileId: "demo", timestamp: Date.now() }));
+				}
+			}, 5000);
+			return () => clearInterval(interval);
+		}, 7000);
+
+		return () => clearTimeout(startDelay);
+	}, [demoMode]);
+
+	const views = useMemo(() => {
+		const base = data?.views ?? [];
+		return demoMode !== 0 ? [...demoAddedViews, ...base] : base;
+	}, [data?.views, demoAddedViews, demoMode]);
+
+	const taps = useMemo(() => {
+		const base = data?.taps ?? [];
+		return demoMode !== 0 ? [...demoAddedTaps, ...base] : base;
+	}, [data?.taps, demoAddedTaps, demoMode]);
+
+	const viewedCount = demoMode !== 0 ? demoAddedViews.length : (data?.viewedCount ?? 0);
 
 	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
 	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
-
-	const { developerMode, showDebugInfo } = usePreferences();
-	const [demoMode, setDemoMode] = useState(0); // 0: Off, 1: Taps, 2: Views, 3: Both
-	const [demoViewsCount, setDemoViewsCount] = useState(0);
-	const [demoTapsCount, setDemoTapsCount] = useState(0);
 
 	const newViewsCount = useMemo(() => {
 		if (demoMode !== 0) return demoViewsCount;
@@ -126,6 +179,15 @@ export function InterestPage() {
 
 	const handleSetDemoMode = useCallback((mode: number) => {
 		setDemoMode(mode);
+		window.localStorage.setItem("fg-interest-demo-mode", mode.toString());
+		setDemoAddedViews([]);
+		setDemoAddedTaps([]);
+
+		if (mode !== 0) {
+			setIsDemoLoading(true);
+			setTimeout(() => setIsDemoLoading(false), 1000);
+		}
+
 		if (mode === 1) { // Taps
 			setDemoTapsCount(5);
 			setDemoViewsCount(0);
@@ -167,7 +229,7 @@ export function InterestPage() {
 
 	// Trigger peek animation
 	useEffect(() => {
-		if (!ALWAYS_BOUNCE_FOR_DEBUG && globalHasBounced) return;
+		if (!ALWAYS_BOUNCE_FOR_DEBUG && globalHasBounced && demoMode === 0) return;
 
 		const timer = setTimeout(() => {
 			setShouldBounce(true);
@@ -176,7 +238,7 @@ export function InterestPage() {
 			setTimeout(() => setShouldBounce(false), 1000);
 		}, 600);
 		return () => clearTimeout(timer);
-	}, []);
+	}, [demoMode]);
 
 	const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
@@ -250,7 +312,7 @@ export function InterestPage() {
 
 	// Infinite scroll observer
 	useEffect(() => {
-		if (!hasMoreItems || isQueryLoading) return;
+		if (!hasMoreItems || isLoading) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -271,7 +333,7 @@ export function InterestPage() {
 				observer.unobserve(currentTrigger);
 			}
 		};
-	}, [hasMoreItems, isQueryLoading, handleLoadMore]);
+	}, [hasMoreItems, isLoading, handleLoadMore]);
 
 	// Reset limits and scroll restoration when changing tabs
 	useEffect(() => {
@@ -312,14 +374,12 @@ export function InterestPage() {
 		if (!container) return;
 
 		const handleScroll = () => {
-			if (container.scrollTop > 0) {
-				const scrollData = {
-					top: container.scrollTop,
-					limit: activeTab === "views" ? viewsLimit : tapsLimit,
-					timestamp: Date.now()
-				};
-				sessionStorage.setItem(`interest-scroll-${activeTab}`, JSON.stringify(scrollData));
-			}
+			const scrollData = {
+				top: container.scrollTop,
+				limit: activeTab === "views" ? viewsLimit : tapsLimit,
+				timestamp: Date.now()
+			};
+			sessionStorage.setItem(`interest-scroll-${activeTab}`, JSON.stringify(scrollData));
 		};
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
@@ -327,7 +387,7 @@ export function InterestPage() {
 	}, [activeTab, viewsLimit, tapsLimit]);
 
 	useLayoutEffect(() => {
-		if (displayedItems.length > 0 && !isQueryLoading && !hasRestoredScroll && feedContainerRef.current) {
+		if (displayedItems.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
 			const storageKey = `interest-scroll-${activeTab}`;
 
 			// If there's new activity since the last time we "saw" this tab,
@@ -349,7 +409,7 @@ export function InterestPage() {
 					const { top, timestamp } = JSON.parse(saved);
 
 					// Only restore if the scroll position is less than the timeout
-					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS && top > 0) {
+					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 						feedContainerRef.current.scrollTop = top;
 					} else {
 						// Clean up expired scroll data
@@ -364,7 +424,7 @@ export function InterestPage() {
 			}
 			setHasRestoredScroll(true);
 		}
-	}, [displayedItems.length, isQueryLoading, hasRestoredScroll, activeTab, lastSeenViews, lastSeenTaps, views, taps]);
+	}, [displayedItems.length, isLoading, hasRestoredScroll, activeTab, lastSeenViews, lastSeenTaps, views, taps]);
 
 	// Keep relative timestamps fresh.
 	useEffect(() => {
@@ -387,13 +447,13 @@ export function InterestPage() {
 		// Synchronize with the bounce: Only long delay if a bounce is actually happening
 		// ALWAYS_BOUNCE_FOR_DEBUG forces the long delay.
 		// Otherwise, we only wait long if it's the very first render AND we haven't bounced yet.
-		const willBounceNow = !globalHasBounced;
+		const willBounceNow = !globalHasBounced || demoMode !== 0;
 		const isInitialLook = ALWAYS_BOUNCE_FOR_DEBUG || (isFirstRender.current && willBounceNow);
 
 		const delay = isInitialLook ? 2200 : 800;
 
 		// Only show the animation once per session, but keep the delay logic above for future use
-		if (ALWAYS_BOUNCE_FOR_DEBUG || !globalHasShownCount) {
+		if (ALWAYS_BOUNCE_FOR_DEBUG || !globalHasShownCount || demoMode !== 0) {
 			const timer = setTimeout(() => {
 				setShowCountLabel(true);
 				globalHasShownCount = true;
@@ -409,7 +469,7 @@ export function InterestPage() {
 		}
 
 		isFirstRender.current = false;
-	}, [activeTab]);
+	}, [activeTab, demoMode]);
 
 	const handleRefresh = useCallback(() => {
 		if (activeTab === "views") {
@@ -483,7 +543,7 @@ export function InterestPage() {
 			contentClassName="flex flex-1 flex-col min-h-0"
 			style={{ overflow: "visible", overflowX: "hidden" }}
 			onRefresh={handleRefresh}
-			isDisabled={isQueryLoading}
+			isDisabled={isLoading}
 			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("interest_page.refreshing", { tab: t(`interest_page.tabs.${activeTab}`) })}
 			spinnerColor="var(--accent)"
@@ -518,14 +578,17 @@ export function InterestPage() {
 
 							<div
 								className={cn(
-									"glass-pill neutral flex items-center justify-end overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
-									activeTab === "views" && "-mr-[2.5px]",
+									"glass-pill neutral flex items-center overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
+									activeTab === "views" && "-mr-[3.5px]",
 									showCountLabel
-										? (activeTab === "views" ? "h-10 pl-4 pr-0" : "h-12 pl-4 pr-0")
-										: (activeTab === "views" ? "h-8 pl-0 pr-0" : "h-12 w-12 pl-0 pr-0")
+										? "justify-end h-10 pl-4 pr-0 max-w-[300px]"
+										: (activeTab === "views" ? "justify-center h-8 pl-[1.5px] pr-[1px] min-w-[53.5px]" : "justify-center h-12 pl-0 pr-0 max-w-[48px]")
 								)}
 							>
-								<div className="flex items-center justify-end transition-all duration-500">
+								<div className={cn(
+									"flex items-center transition-all duration-500",
+									showCountLabel ? "justify-end" : "justify-center"
+								)}>
 									<div
 										className={cn(
 											"flex transition-all duration-500 ease-in-out overflow-hidden",
@@ -543,12 +606,12 @@ export function InterestPage() {
 										)}>
 											<p className={cn(
 												"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
-												isFetching && !isQueryLoading ? "opacity-0" : "opacity-100"
+												(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
 											)}>
 												{activeTab === "views" ? viewedCount : taps.length}
 											</p>
 										</div>
-										{isFetching && !isQueryLoading && (
+										{((isFetching && !isQueryLoading) || isDemoLoading) && (
 											<div className="absolute inset-0 flex items-center justify-center">
 												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />
 											</div>
@@ -568,7 +631,7 @@ export function InterestPage() {
 				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "-translate-x-8")}
 			>
 				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-0">
-					{isQueryLoading && activeItems.length === 0 ? (
+					{(isLoading && (activeItems.length === 0 || isDemoLoading)) ? (
 						<div className="border-t border-[var(--border)]/10">
 							{Array.from({ length: 8 }).map((_, i) => (
 								<InterestSkeleton key={i} mode={activeTab} />
@@ -576,7 +639,7 @@ export function InterestPage() {
 						</div>
 					) : (
 						<div className="flex flex-col">
-							{(queryError || (!isQueryLoading && activeItems.length === 0)) && (
+							{(queryError || (!isLoading && activeItems.length === 0)) && (
 								<div className="px-[var(--app-px)] py-4 space-y-4">
 									{queryError ? (
 										<ErrorState
@@ -586,7 +649,7 @@ export function InterestPage() {
 										/>
 									) : null}
 
-									{!isQueryLoading && !queryError && activeItems.length === 0 ? (
+									{!isLoading && !queryError && activeItems.length === 0 ? (
 										<EmptyState
 											title={t(`interest_page.empty_${activeTab}`)}
 											description={t(`interest_page.empty_${activeTab}_desc`)}
@@ -596,14 +659,15 @@ export function InterestPage() {
 							)}
 
 							{activeItems.length > 0 && (
-								<div className="border-t border-[var(--border)]/10">
-									{displayedItems.map((item) => (
+								<div className="flex flex-col">
+									{displayedItems.map((item, index) => (
 										<InterestRow
 											key={`${activeTab}-${item.profileId}-${item.timestamp ?? "na"}`}
 											item={item}
 											mode={activeTab}
 											onOpenProfile={handleOpenProfile}
 											now={nowTimestamp}
+											isFirst={index === 0}
 										/>
 									))}
 
