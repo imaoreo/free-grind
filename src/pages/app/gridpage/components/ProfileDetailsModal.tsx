@@ -397,7 +397,7 @@ export function ProfileDetailsModal({
 
 	if (variant === "page") {
 		return (
-			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden bg-[var(--bg)]">
+			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 !pt-0 overflow-x-hidden bg-[var(--bg)]">
 				<header className="pointer-events-none absolute inset-x-0 top-0 z-40 flex shrink-0 flex-col px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
 					<div className="flex w-full items-center gap-3">
 						<div className="pointer-events-auto flex flex-1 justify-start">
@@ -449,7 +449,7 @@ export function ProfileDetailsModal({
 				</header>
 
 				<FeedScrollContainer>
-					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-4 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:py-5">
+					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pt-0 sm:pb-5">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("profile_details.loading")}
