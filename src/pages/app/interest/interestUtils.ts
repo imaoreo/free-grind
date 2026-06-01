@@ -14,6 +14,8 @@ export type InterestItem = {
 	viewCount: number | null;
 	canOpenProfile: boolean;
 	isFromCache?: boolean;
+	isMutual?: boolean;
+	onlineUntil?: number | null;
 };
 
 export const PREVIEW_ID_PREFIX = "preview:";
@@ -74,6 +76,8 @@ function mergeViewItem(
 		viewCount: incoming.viewCount ?? cached.viewCount,
 		canOpenProfile: incoming.canOpenProfile || cached.canOpenProfile,
 		isFromCache: incoming.isFromCache ?? cached.isFromCache,
+		isMutual: incoming.isMutual ?? cached.isMutual,
+		onlineUntil: incoming.onlineUntil ?? cached.onlineUntil,
 	};
 }
 
@@ -212,6 +216,7 @@ export function normalizeViews(
 			viewCount: toNumber(asObject(obj.viewedCount)?.totalCount),
 			canOpenProfile: true,
 			isFromCache: false,
+			onlineUntil: toNumber(obj.onlineUntil),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -234,6 +239,7 @@ export function normalizeViews(
 			viewCount: toNumber(asObject(obj.viewedCount)?.totalCount),
 			canOpenProfile: recoveredMatch ? true : (getViewProfileId(obj) !== null),
 			isFromCache: !!recoveredMatch,
+			onlineUntil: recoveredMatch ? recoveredMatch.onlineUntil : toNumber(obj.onlineUntil),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -258,12 +264,15 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 	const root = asObject(payload);
 	if (!root || !Array.isArray(root.profiles)) return [];
 
-	return root.profiles.map((entry) => {
+	const mergedMap = new Map<string, InterestItem>();
+
+	for (const entry of root.profiles) {
 		const obj = asObject(entry);
-		if (!obj) return null;
+		if (!obj) continue;
 		const profileId = toStringId(obj.profileId) ?? toStringId(obj.senderId);
-		if (!profileId) return null;
-		return {
+		if (!profileId) continue;
+
+		const incoming: InterestItem = {
 			profileId,
 			displayName: getItemDisplayName(obj, profileId),
 			imageHash: getItemImageHash(obj),
@@ -271,8 +280,18 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 			tapType: toNumber(obj.tapType),
 			viewCount: null,
 			canOpenProfile: true,
+			isMutual: obj.isMutual === true || obj.mutual === true,
+			onlineUntil: toNumber(obj.onlineUntil),
 		};
-	}).filter((it): it is InterestItem => it !== null);
+
+		const existing = mergedMap.get(profileId);
+		// For taps, we prefer the one with the newer timestamp if duplicates exist
+		if (!existing || (incoming.timestamp ?? 0) > (existing.timestamp ?? 0)) {
+			mergedMap.set(profileId, incoming);
+		}
+	}
+
+	return Array.from(mergedMap.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 }
 
 export function formatTimestamp(

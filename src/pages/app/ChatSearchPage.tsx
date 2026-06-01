@@ -8,8 +8,8 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import type { ConversationEntry } from "../../types/messages";
 import type { ProfileSearchResult, SearchMode } from "../../types/chat-page";
 import { getProfileImageUrl, validateMediaHash } from "../../utils/media";
+import { ProfileImage } from "../../components/ui/profile-image";
 import { formatDistance } from "./gridpage/utils";
-import blankProfileImage from "../../images/blank-profile.png";
 import {
 	indexConversations,
 	searchConversationsLocal,
@@ -54,7 +54,7 @@ export function ChatSearchPage() {
 
 	const getSearchProfileImage = useCallback((hash: string | null | undefined) => {
 		if (!hash || !validateMediaHash(hash)) {
-			return blankProfileImage;
+			return null;
 		}
 
 		return getProfileImageUrl(hash);
@@ -312,7 +312,10 @@ export function ChatSearchPage() {
 							{t("chat_search.min_chars")}
 						</div>
 					) : (
-						<div className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1">
+						<div
+							data-lenis-prevent
+							className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1"
+						>
 							{searchMode === "conversations"
 								? conversationSearchResults.map((result) => (
 										<button
@@ -410,11 +413,10 @@ export function ChatSearchPage() {
 												}
 												className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
 											>
-												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-													<img
+												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)]">
+													<ProfileImage
 														src={getSearchProfileImage(profile.profileImageMediaHash)}
 														alt={profile.displayName || t("chat_search.profile_alt")}
-														className="h-full w-full object-cover"
 													/>
 												</div>
 												<div className="min-w-0 flex-1">

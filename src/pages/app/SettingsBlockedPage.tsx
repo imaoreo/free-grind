@@ -7,12 +7,12 @@ import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useBlockedProfileIds, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
-import blankProfileImage from "../../images/blank-profile.png";
+import { ProfileImage } from "../../components/ui/profile-image";
 
 type BlockedProfileListItem = {
 	profileId: string;
 	displayName: string;
-	avatarUrl: string;
+	avatarUrl: string | null;
 };
 
 export function SettingsBlockedPage() {
@@ -32,7 +32,7 @@ export function SettingsBlockedPage() {
 			if (typeof rawProfilePayload !== "object" || rawProfilePayload === null) {
 				return {
 					displayName: fallbackName,
-					avatarUrl: blankProfileImage,
+					avatarUrl: null,
 				};
 			}
 
@@ -40,7 +40,7 @@ export function SettingsBlockedPage() {
 			if (!Array.isArray(profiles) || profiles.length === 0) {
 				return {
 					displayName: fallbackName,
-					avatarUrl: blankProfileImage,
+					avatarUrl: null,
 				};
 			}
 
@@ -48,7 +48,7 @@ export function SettingsBlockedPage() {
 			if (typeof first !== "object" || first === null) {
 				return {
 					displayName: fallbackName,
-					avatarUrl: blankProfileImage,
+					avatarUrl: null,
 				};
 			}
 
@@ -62,7 +62,7 @@ export function SettingsBlockedPage() {
 			const avatarUrl =
 				typeof hashRaw === "string" && validateMediaHash(hashRaw)
 					? getThumbImageUrl(hashRaw, "75x75")
-					: blankProfileImage;
+					: null;
 
 			return { displayName, avatarUrl };
 		},
@@ -110,7 +110,7 @@ export function SettingsBlockedPage() {
 					.map((profileId) => ({
 						profileId,
 						displayName: t("profile_details.profile_fallback", { id: profileId }),
-						avatarUrl: blankProfileImage,
+						avatarUrl: null,
 					}));
 
 				setBlockedProfiles([...successful, ...fallbackItems]);
@@ -228,13 +228,14 @@ export function SettingsBlockedPage() {
 								className="surface-card flex items-center justify-between gap-3 p-4 sm:p-5"
 							>
 								<div className="flex min-w-0 items-center gap-3">
-									<img
-										src={profile.avatarUrl}
-										alt={t("profile_details.photo_alt", {
-											name: profile.displayName,
-										})}
-										className="h-11 w-11 shrink-0 rounded-full object-cover"
-									/>
+									<div className="h-11 w-11 shrink-0 overflow-hidden rounded-full">
+										<ProfileImage
+											src={profile.avatarUrl}
+											alt={t("profile_details.photo_alt", {
+												name: profile.displayName,
+											})}
+										/>
+									</div>
 									<div className="min-w-0">
 										<p className="truncate text-sm font-semibold text-[var(--text)] sm:text-base">
 											{profile.displayName}

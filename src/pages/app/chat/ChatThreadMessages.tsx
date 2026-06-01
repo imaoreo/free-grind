@@ -1,4 +1,5 @@
 import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
@@ -6,8 +7,7 @@ import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
-import { Avatar } from "../../../components/ui/avatar";
-import blankProfileImage from "../../../images/blank-profile.png";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
@@ -283,9 +283,10 @@ export function ChatThreadMessages({
 	return (
 		<div
 			ref={threadScrollContainerRef}
-                onScroll={handleThreadScroll}
-										className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
-                        >
+			onScroll={handleThreadScroll}
+			data-lenis-prevent
+			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
+		>
 						{messagePageKey ? (
 							<button
 								type="button"
@@ -362,7 +363,7 @@ export function ChatThreadMessages({
 									senderParticipant?.primaryMediaHash &&
 									validateMediaHash(senderParticipant.primaryMediaHash)
 										? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-										: blankProfileImage;
+										: null;
 								const senderLabel = mine
 									? t("chat.you")
 									: selectedConversation.data.name?.trim() || t("chat.unknown");
@@ -605,12 +606,12 @@ export function ChatThreadMessages({
 																</div>
 															)}
 															<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
-																<Avatar
-																	src={senderAvatarUrl}
-																	alt={senderLabel}
-																	fallback={senderLabel}
-																	className="h-16 w-16 border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm"
-																/>
+																<div className="h-16 w-16 overflow-hidden rounded-full border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm">
+																	<ProfileImage
+																		src={senderAvatarUrl}
+																		alt={senderLabel}
+																	/>
+																</div>
 																<p className="max-w-full truncate text-sm font-semibold leading-tight text-white drop-shadow">
 																	{senderLabel}
 																</p>
@@ -689,11 +690,16 @@ export function ChatThreadMessages({
 												{location ? (
 													<button
 														type="button"
-														onClick={() => {
+														onClick={async () => {
 															const url = isDesktop
 																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
 																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
-															window.open(url, "_blank");
+															try {
+																await openUrl(url);
+															} catch (error) {
+																appLog.error("Failed to open map URL", error);
+																window.open(url, "_blank");
+															}
 														}}
 														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
 															mine

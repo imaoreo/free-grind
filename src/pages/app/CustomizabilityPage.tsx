@@ -64,6 +64,8 @@ export function CustomizabilityPage() {
 		mobileGridColumns,
 		unitsPreset,
 		blurIncomingMedia,
+		revealEffectEnabled,
+		revealEffectStrength,
 		setPreferences,
 	} = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
@@ -314,11 +316,11 @@ export function CustomizabilityPage() {
 									style={{
 										borderColor: isActive ? "var(--accent)" : "var(--border)",
 										background: isActive
-											? "color-mix(in srgb, var(--accent) 12%, transparent)"
+											? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
 											: "var(--surface-2)",
 										color: isActive
 											? "var(--accent-readable)"
-											: "var(--text-muted)",
+											: "var(--text)",
 									}}
 								>
 									{icon}
@@ -512,6 +514,80 @@ export function CustomizabilityPage() {
 					{/* --------------------------- */}
 				</div>
 
+				{/* Reveal on Scroll Effect */}
+				<div className="surface-card p-4 sm:p-5">
+					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("customizability.reveal_effect.title")}
+					</p>
+					<p className="mb-4 text-sm text-[var(--text-muted)]">
+						{t("customizability.reveal_effect.description")}
+					</p>
+					<div className="flex flex-col gap-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-semibold">{t("customizability.reveal_effect.enable")}</p>
+								<p className="text-xs text-[var(--text-muted)]">{t("customizability.reveal_effect.enable_desc")}</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => void setPreferences({ revealEffectEnabled: !revealEffectEnabled })}
+								className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+									revealEffectEnabled ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"
+								}`}
+							>
+								<span
+									className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+										revealEffectEnabled ? "translate-x-5" : "translate-x-0"
+									}`}
+								/>
+							</button>
+						</div>
+
+						{revealEffectEnabled && (
+							<div className="grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => void setPreferences({ revealEffectStrength: "subtle" })}
+									className="rounded-xl border-2 p-3 text-sm font-semibold transition-all"
+									style={{
+										borderColor:
+											revealEffectStrength === "subtle" ? "var(--accent)" : "var(--border)",
+										background:
+											revealEffectStrength === "subtle"
+												? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+												: "var(--surface-2)",
+										color:
+											revealEffectStrength === "subtle"
+												? "var(--accent-readable)"
+												: "var(--text)",
+									}}
+								>
+									{t("customizability.reveal_effect.strengths.subtle")}
+								</button>
+								<button
+									type="button"
+									onClick={() => void setPreferences({ revealEffectStrength: "pronounced" })}
+									className="rounded-xl border-2 p-3 text-sm font-semibold transition-all"
+									style={{
+										borderColor:
+											revealEffectStrength === "pronounced" ? "var(--accent)" : "var(--border)",
+										background:
+											revealEffectStrength === "pronounced"
+												? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
+												: "var(--surface-2)",
+										color:
+											revealEffectStrength === "pronounced"
+												? "var(--accent-readable)"
+												: "var(--text)",
+									}}
+								>
+									{t("customizability.reveal_effect.strengths.pronounced")}
+								</button>
+							</div>
+						)}
+					</div>
+				</div>
+
 				{/* Browse Grid (Mobile) */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
@@ -527,12 +603,12 @@ export function CustomizabilityPage() {
 									mobileGridColumns === "2" ? "var(--accent)" : "var(--border)",
 								background:
 									mobileGridColumns === "2"
-										? "color-mix(in srgb, var(--accent) 12%, transparent)"
+										? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
 										: "var(--surface-2)",
 								color:
 									mobileGridColumns === "2"
 										? "var(--accent-readable)"
-										: "var(--text-muted)",
+										: "var(--text)",
 							}}
 						>
 							{t("customizability.columns_2")}
@@ -546,12 +622,12 @@ export function CustomizabilityPage() {
 									mobileGridColumns === "3" ? "var(--accent)" : "var(--border)",
 								background:
 									mobileGridColumns === "3"
-										? "color-mix(in srgb, var(--accent) 12%, transparent)"
+										? "color-mix(in srgb, var(--accent) 12%, var(--surface))"
 										: "var(--surface-2)",
 								color:
 									mobileGridColumns === "3"
 										? "var(--accent-readable)"
-										: "var(--text-muted)",
+										: "var(--text)",
 							}}
 						>
 							{t("customizability.columns_3")}
