@@ -79,6 +79,7 @@ import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
+import freegrindLogo from "../../images/freegrind-logo.webp";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -364,9 +365,12 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
-	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
-		null,
-	);
+	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
+	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
+		takenOnGrindr: boolean;
+		createdAtLabel: string | null;
+		timestamp: number;
+	} | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -3048,8 +3052,9 @@ export function ChatPage() {
 		setAttachmentTakenOnGrindr(false);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string) => {
+	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => {
 		setFullScreenImageUrl(imageUrl);
+		setFullScreenImageMeta(meta ?? null);
 	}, []);
 
 	const closeFullScreenImage = useCallback(() => {
@@ -3356,6 +3361,20 @@ export function ChatPage() {
 				isOpen={!!fullScreenImageUrl}
 				onClose={closeFullScreenImage}
 				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
+				renderExtraInfo={fullScreenImageMeta ? () => (
+                    <div className="flex items-center gap-2 text-xs text-white/80">
+						{fullScreenImageMeta.takenOnGrindr && (
+							<span className="inline-flex items-center gap-1">
+								<img src={freegrindLogo} alt={t("chat.thread.taken_on_grindr")} className="h-5 w-5 rounded-full logo-shine" />
+							</span>
+						)}
+						{fullScreenImageMeta.createdAtLabel && (
+							<span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] backdrop-blur-sm">
+								{fullScreenImageMeta.createdAtLabel}
+							</span>
+						)}
+					</div>
+				) : undefined}
 			/>
 		</section>
 	);

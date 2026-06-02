@@ -110,7 +110,7 @@ type ChatThreadPanelProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string) => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => void;
 	openAlbumViewerById: (albumId: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
