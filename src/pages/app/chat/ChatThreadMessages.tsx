@@ -46,7 +46,7 @@ type ChatThreadMessagesProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string) => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => void;
 	openAlbumViewerById: (albumId: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -475,7 +475,11 @@ export function ChatThreadMessages({
 																revealMediaMessage(message.messageId);
 																return;
 															}
-															openFullScreenImage(imageUrl);
+															openFullScreenImage(imageUrl, {
+																	takenOnGrindr: messageTakenOnGrindr,
+																	createdAtLabel: imageCreatedAtLabel,
+																	timestamp: message.timestamp,
+																});
 														}}
 														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
@@ -506,11 +510,8 @@ export function ChatThreadMessages({
 																		className="h-3.5 w-3.5 rounded-full"
 																	/>
 																) : null}
-
 																{imageCreatedAtLabel ? (
-																	<span>
-																		{` ${imageCreatedAtLabel}`}
-																	</span>
+																	<span>{` ${imageCreatedAtLabel}`}</span>
 																) : null}
 															</div>
 														) : null}
