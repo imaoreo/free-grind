@@ -253,15 +253,13 @@ export function ChatDrawerPanel({
 
 	return (
 		<div
-			className={`fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-sm no-touch-callout ${
-				isDesktop ? "pb-32" : ""
-			}`}
+			className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-sm no-touch-callout"
 			onClick={isSending || isAdding ? undefined : onBack}
 		>
 			<div
 				role="dialog"
 				aria-modal="true"
-				className="flex w-full flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] px-4 pt-4 shadow-2xl mx-3"
+				className={`flex w-full flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] px-4 pt-4 shadow-2xl ${isDesktop ? "max-w-[800px] mx-auto" : "mx-3"}`}
 				style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
 				onClick={(event) => event.stopPropagation()}
 			>
@@ -439,7 +437,7 @@ export function ChatDrawerPanel({
 									</button>
 								</div>
 							) : (
-								<div className="grid grid-cols-3 gap-0">
+								<div className={`grid gap-0 ${isDesktop ? "grid-cols-5" : "grid-cols-3"}`}>
 									{/* Camera button */}
 									<button
 										type="button"

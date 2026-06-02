@@ -37,7 +37,7 @@ export function AudioMessagePlayer({ src, messageId, mine }: Props) {
 	const [speedIdx, setSpeedIdx] = useState(0);
 
 	const waveform = seededWaveform(messageId, BARS);
-	const progress = duration > 0 ? currentTime / duration : 0;
+
 
 	const rafRef = useRef<number | null>(null);
 	const clipRef = useRef<HTMLDivElement | null>(null);
@@ -135,7 +135,7 @@ export function AudioMessagePlayer({ src, messageId, mine }: Props) {
 
 	return (
 		<div className="flex w-64 items-center gap-2.5 py-1">
-			<audio ref={audioRef} src={src} preload="metadata" className="hidden" />
+			<audio ref={audioRef} src={src} preload="metadata" className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden" />
 
 			<button
 				type="button"
