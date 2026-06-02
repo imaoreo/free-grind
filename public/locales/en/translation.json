@@ -788,7 +788,8 @@
             "only_image_video": "Only image and video attachments are supported.",
             "ready_to_send": "Ready to send: {{file}}",
             "looping": "looping",
-            "taken_on_grindr": "takenOnGrindr",
+            "taken_on_grindr": "Taken on Grindr watermark",
+            "taken_on_grindr_description": "Include the timestamp to certify the authenticy and recency of your photo",
             "send_attachment": "Send attachment",
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."

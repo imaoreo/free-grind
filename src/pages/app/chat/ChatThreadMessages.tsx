@@ -1,4 +1,6 @@
 import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
+import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
@@ -344,8 +346,11 @@ export function ChatThreadMessages({
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
 								const isLocationOnlyBubble =
 									Boolean(location) && messageText === t("chat.preview.sent_location");
+								const isAudioOnlyBubble =
+									Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
 								const isMediaOnlyBubble =
 									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
+								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
 									!mine &&
@@ -447,8 +452,8 @@ export function ChatThreadMessages({
 														? "bg-transparent p-0"
 														: `px-3 py-2 ${
 															mine
-																? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-																: "bg-[var(--surface-2)] text-[var(--text)]"
+																? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
+																: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
 														}`
 												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
 											>
@@ -471,7 +476,7 @@ export function ChatThreadMessages({
 															}
 															openFullScreenImage(imageUrl);
 														}}
-														className={`group/media ${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
@@ -577,7 +582,7 @@ export function ChatThreadMessages({
 																void openAlbumViewerById(albumId);
 															}
 														}}
-														className="group/media block w-full overflow-hidden rounded-2xl"
+														className={`group/media block w-full overflow-hidden rounded-2xl ${tailCorner}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 														disabled={!albumId || isLocked}
@@ -677,14 +682,7 @@ export function ChatThreadMessages({
 												) : null}
 
 												{audioUrl ? (
-													<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-														<audio
-															controls
-															preload="none"
-															src={audioUrl}
-															className="w-full"
-														/>
-													</div>
+													<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
 												) : null}
 
 												{location ? (
@@ -701,15 +699,16 @@ export function ChatThreadMessages({
 																window.open(url, "_blank");
 															}
 														}}
-														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
 															mine
 																? "bg-white/10 text-white"
 																: "bg-[var(--surface)] text-[var(--text)]"
 														}`}
 													>
-														<div className="flex items-center gap-3">
-															<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
-																<MapPin className="h-5 w-5" />
+														<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
+														<div className="flex items-center gap-3 p-3">
+															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]">
+																<MapPin className="h-4 w-4" />
 															</div>
 															<div className="min-w-0 flex-1">
 																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
@@ -722,14 +721,11 @@ export function ChatThreadMessages({
 														</div>
 
 														{isLocationOnlyBubble && (
-															<div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2 text-[10px] opacity-80">
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
-																</span>
+															<div className="flex items-center justify-end gap-2 px-3 pb-2 text-[10px] opacity-80">
 																{isDesktop &&
 																!pending &&
 																!isLocalClientMessageId(message.messageId) ? (
-																	<div className="flex items-center gap-1">
+																	<>
 																		<button
 																			type="button"
 																			onClick={(event) => {
@@ -754,8 +750,11 @@ export function ChatThreadMessages({
 																		>
 																			<Ellipsis className="h-3.5 w-3.5" />
 																		</button>
-																	</div>
+																	</>
 																) : null}
+																<span>
+																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+																</span>
 															</div>
 														)}
 													</button>
@@ -802,7 +801,7 @@ export function ChatThreadMessages({
 													</div>
 												) : null}
 
-												{!isMediaOnlyBubble ? (
+												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
 													<p className="whitespace-pre-wrap break-words">
 														{messageText}
 													</p>

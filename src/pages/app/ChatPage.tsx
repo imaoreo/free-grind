@@ -1583,6 +1583,9 @@ export function ChatPage() {
 			setThreadError(null);
 			setReplyTargetMessageId(null);
 			lastLoadedConversationIdRef.current = null;
+			setIsDrawerOpen(false);
+			setDrawerMedia([]);
+			setPendingAttachmentFile(null);
 			return;
 		}
 
@@ -2525,6 +2528,19 @@ export function ChatPage() {
 		sendMediaAttachment,
 	]);
 
+	const confirmAttachmentFile = useCallback(
+		(file: File) => {
+			void sendMediaAttachment(file, {
+				looping: attachmentLooping,
+				takenOnGrindr: attachmentTakenOnGrindr,
+			});
+			setPendingAttachmentFile(null);
+			setAttachmentLooping(false);
+			setAttachmentTakenOnGrindr(false);
+		},
+		[attachmentLooping, attachmentTakenOnGrindr, sendMediaAttachment],
+	);
+
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
@@ -3195,6 +3211,7 @@ export function ChatPage() {
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
 			confirmPendingAttachment={confirmPendingAttachment}
+			confirmAttachmentFile={confirmAttachmentFile}
 			cancelPendingAttachment={cancelPendingAttachment}
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}

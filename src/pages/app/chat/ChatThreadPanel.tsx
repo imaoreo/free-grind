@@ -16,7 +16,10 @@ import {
 	PencilLine,
 	Pin,
 	Reply,
+	RotateCw,
+	SendHorizontal,
 	Share2,
+	SquareCenterlineDashedHorizontal,
 	SquareStack,
 	TimerOff,
 	Trash2,
@@ -25,7 +28,9 @@ import {
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
@@ -57,6 +62,8 @@ import { ChatThreadMessages } from "./ChatThreadMessages";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
+import { ToggleRow } from "../../../components/ui/toggle-row";
+import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import {
 	loadSavedPhrases,
 	SAVED_PHRASES_UPDATED_EVENT,
@@ -128,6 +135,7 @@ type ChatThreadPanelProps = {
 	setAttachmentLooping: (value: boolean) => void;
 	setAttachmentTakenOnGrindr: (value: boolean) => void;
 	confirmPendingAttachment: () => void;
+	confirmAttachmentFile: (file: File) => void | Promise<void>;
 	cancelPendingAttachment: () => void;
 	isAlbumPickerOpen: boolean;
 	isLoadingAlbums: boolean;
@@ -174,6 +182,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
+	const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
+	const [attachmentCrop, setAttachmentCrop] = useState<Crop | undefined>(undefined);
+	const [attachmentCompletedCrop, setAttachmentCompletedCrop] = useState<PixelCrop | undefined>(undefined);
+	const [isDraggingAttachmentCrop, setIsDraggingAttachmentCrop] = useState(false);
+	const attachmentImgRef = useRef<HTMLImageElement | null>(null);
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
 	const [isDeleteConversationConfirmOpen, setIsDeleteConversationConfirmOpen] =
@@ -185,31 +198,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
 	});
-
-	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
-
-	const handleUsePhrase = (phrase: string) => {
-		setDraft(draft ? `${draft} ${phrase}` : phrase);
-	};
-
-	useEffect(() => {
-		const syncSavedPhrases = (event: Event) => {
-			const detail = (event as CustomEvent<string[]>).detail;
-			if (Array.isArray(detail)) {
-				setSavedPhrases(detail);
-				return;
-			}
-			setSavedPhrases(loadSavedPhrases());
-		};
-
-		window.addEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
-		window.addEventListener("storage", syncSavedPhrases);
-
-		return () => {
-			window.removeEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
-			window.removeEventListener("storage", syncSavedPhrases);
-		};
-	}, []);
 
 	const {
 		navigate,
@@ -275,7 +263,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		attachmentTakenOnGrindr,
 		setAttachmentLooping,
 		setAttachmentTakenOnGrindr,
-		confirmPendingAttachment,
+		confirmPendingAttachment: _confirmPendingAttachment,
+		confirmAttachmentFile,
 		cancelPendingAttachment,
 		isAlbumPickerOpen,
 		isLoadingAlbums,
@@ -308,6 +297,123 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onDeleteDrawerMedia,
 		onSendLocation,
 	} = props;
+
+    const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
+
+	useEffect(() => {
+		if (!pendingAttachmentFile) {
+			setAttachmentPreviewUrl(null);
+			setAttachmentCrop(undefined);
+			setAttachmentCompletedCrop(undefined);
+			return;
+		}
+		const url = URL.createObjectURL(pendingAttachmentFile);
+		setAttachmentPreviewUrl(url);
+		setAttachmentCrop(undefined);
+		setAttachmentCompletedCrop(undefined);
+		return () => URL.revokeObjectURL(url);
+	}, [pendingAttachmentFile]);
+
+	useEffect(() => {
+		if (!attachmentPreviewUrl) return;
+		setAttachmentCrop({ unit: "%", x: 0, y: 0, width: 100, height: 100 });
+	}, [attachmentPreviewUrl]);
+
+	const applyAttachmentTransform = useCallback(async (type: "flipH" | "rotateCw") => {
+		const img = attachmentImgRef.current;
+		if (!img || !img.complete || img.naturalWidth === 0) return;
+		const sw = img.naturalWidth;
+		const sh = img.naturalHeight;
+		const canvas = document.createElement("canvas");
+		canvas.width = type === "rotateCw" ? sh : sw;
+		canvas.height = type === "rotateCw" ? sw : sh;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return;
+		ctx.translate(canvas.width / 2, canvas.height / 2);
+		if (type === "flipH") ctx.scale(-1, 1);
+		if (type === "rotateCw") ctx.rotate(Math.PI / 2);
+		ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+		const blob = await new Promise<Blob | null>((resolve) =>
+			canvas.toBlob(resolve, "image/jpeg", 0.95),
+		);
+		if (!blob) return;
+		setAttachmentPreviewUrl((prev) => {
+			if (prev) URL.revokeObjectURL(prev);
+			return URL.createObjectURL(blob);
+		});
+	}, []);
+
+	const handleConfirmAttachment = useCallback(async () => {
+		if (!pendingAttachmentFile) return;
+		let fileToUpload: File = pendingAttachmentFile;
+		const isFullImage =
+			!attachmentCompletedCrop ||
+			!attachmentImgRef.current ||
+			(attachmentCompletedCrop.x <= 1 &&
+				attachmentCompletedCrop.y <= 1 &&
+				Math.abs(attachmentCompletedCrop.width - attachmentImgRef.current.width) <= 2 &&
+				Math.abs(attachmentCompletedCrop.height - attachmentImgRef.current.height) <= 2);
+		if (!isFullImage && attachmentCompletedCrop?.width && attachmentCompletedCrop.height && attachmentImgRef.current) {
+			const img = attachmentImgRef.current;
+			const scaleX = img.naturalWidth / img.width;
+			const scaleY = img.naturalHeight / img.height;
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.round(attachmentCompletedCrop.width * scaleX);
+			canvas.height = Math.round(attachmentCompletedCrop.height * scaleY);
+			const ctx = canvas.getContext("2d");
+			if (ctx) {
+				ctx.drawImage(
+					img,
+					attachmentCompletedCrop.x * scaleX,
+					attachmentCompletedCrop.y * scaleY,
+					attachmentCompletedCrop.width * scaleX,
+					attachmentCompletedCrop.height * scaleY,
+					0,
+					0,
+					canvas.width,
+					canvas.height,
+				);
+				fileToUpload = await new Promise<File>((resolve) => {
+					canvas.toBlob(
+						(blob) => {
+							if (!blob) { resolve(pendingAttachmentFile); return; }
+							resolve(new File([blob], pendingAttachmentFile.name, { type: pendingAttachmentFile.type || "image/jpeg" }));
+						},
+						pendingAttachmentFile.type || "image/jpeg",
+						0.92,
+					);
+				});
+			}
+		}
+		await confirmAttachmentFile(fileToUpload);
+	}, [pendingAttachmentFile, attachmentCompletedCrop, confirmAttachmentFile]);
+
+	const handleUsePhrase = (phrase: string) => {
+		setDraft(draft ? `${draft} ${phrase}` : phrase);
+	};
+
+	useEffect(() => {
+		const syncSavedPhrases = (event: Event) => {
+			const detail = (event as CustomEvent<string[]>).detail;
+			if (Array.isArray(detail)) {
+				setSavedPhrases(detail);
+				return;
+			}
+			setSavedPhrases(loadSavedPhrases());
+		};
+
+		window.addEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+		window.addEventListener("storage", syncSavedPhrases);
+
+		return () => {
+			window.removeEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
+			window.removeEventListener("storage", syncSavedPhrases);
+		};
+	}, []);
+    
+    const filteredPhrases = savedPhrases.filter((phrase) =>
+        draft.trim() === "" || phrase.toLowerCase().startsWith(draft.toLowerCase()),
+    );
 
     const [showGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
     const [isGhosted, setIsGhosted] = useState(true);
@@ -353,14 +459,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	};
 
 	const onFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		if (pendingLocationShare) {
-			void onSendLocation(pendingLocationShare.lat, pendingLocationShare.lon);
-			setPendingLocationShare(null);
-		} else {
-			handleSend(event);
-		}
-	};
+        event.preventDefault();
+        handleSend(event);
+    };
 
 	const handleCopy = async (message: UiMessage) => {
 		const location = getMessageLocation(message);
@@ -996,79 +1097,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								: undefined
 						}
 					>
-						<div className="mb-2 flex flex-wrap items-center gap-2">
-							<button
-								type="button"
-								onClick={() => {
-									toggleAlbumPicker();
-									if (isDrawerOpen) toggleDrawer();
-									if (pendingLocationShare) handleLocationShareRequest();
-								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label={t("chat.share_album_label")}
-								title={t("chat.share_album_label")}
+						{(isUploadingAttachment || uploadProgress > 0) && (
+							<div
+								className="h-0.5 bg-[var(--surface-2)] mb-3"
+								style={{ marginTop: "-12px", marginLeft: "calc(-1 * var(--app-px))", marginRight: "calc(-1 * var(--app-px))" }}
 							>
-								<Share2 className="h-4 w-4" />
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									attachmentInputRef.current?.click();
-									if (isDrawerOpen) toggleDrawer();
-									if (pendingLocationShare) handleLocationShareRequest();
-								}}
-								disabled={isUploadingAttachment}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-								aria-label={t("chat.attach_media")}
-								title={t("chat.attach_media")}
-							>
-								<ImagePlus className="h-4 w-4" />
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									toggleDrawer();
-									if (pendingLocationShare) handleLocationShareRequest();
-								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label={t("chat.drawer_label")}
-								title={t("chat.drawer_label")}
-							>
-								<SquareStack className="h-4 w-4" />
-							</button>
-							<button
-								type="button"
-								onClick={() => {
-									handleLocationShareRequest();
-									if (isDrawerOpen) toggleDrawer();
-								}}
-								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
-									pendingLocationShare
-										? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-										: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-								}`}
-								aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
-								title={t("chat.share_location_label", { defaultValue: "Share Location" })}
-							>
-								{pendingLocationShare ? (
-									<X className="h-4 w-4" />
-								) : (
-									<MapPin className="h-4 w-4" />
-								)}
-							</button>
-
-							<input
-								type="file"
-								ref={attachmentInputRef}
-								onChange={onAttachmentInput}
-								accept="image/*,video/*"
-								className="hidden"
-							/>
-
-							{/* --- QUICK PHRASE PILLS --- */}
-							{savedPhrases.length > 0 && (
+								<div
+									className="h-0.5 bg-[var(--accent)] transition-all duration-300"
+									style={{ width: `${Math.min(100, uploadProgress)}%` }}
+								/>
+							</div>
+						)}
+						<div className="flex items-end gap-2 mb-2">
+                            {/* --- QUICK PHRASE PILLS --- */}
+							{filteredPhrases.length > 0 && (
 								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-									{savedPhrases.map((phrase, idx) => (
+									{filteredPhrases.map((phrase, idx) => (
 										<button
 											key={idx}
 											type="button"
@@ -1081,74 +1125,132 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 							)}
 							{/* -------------------------- */}
+                        </div>
+
+                        {replyTargetMessage ? (
+							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
+								<div className="flex items-stretch">
+									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
+									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
+										<div className="min-w-0">
+											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
+												<Reply className="h-3 w-3" />
+												<span>
+													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
+														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
+															? t("chat.you")
+															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
+													}`}
+												</span>
+											</p>
+											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
+												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
+													{getMessagePreviewLabel(replyTargetMessage, t)}
+												</p>
+											</div>
+										</div>
+										<button
+											type="button"
+											onClick={clearReplyTarget}
+											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											aria-label={t("chat.actions.cancel")}
+											title={t("chat.actions.cancel")}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
+									</div>
+								</div>
+							</div>
+						) : null}
+
+						<div className="flex items-end gap-2 mb-2">
+							<textarea
+								value={draft}
+								onChange={(event) => setDraft(event.target.value)}
+								rows={1}
+								maxLength={1000}
+								placeholder={t("chat.write_message")}
+								className="input-field resize-none disabled:opacity-60"
+                                style={{ fieldSizing: "content", maxHeight: "115px" }}
+							/>
+							<button
+								type="submit"
+								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
+								className="btn-accent self-stretch shrink-0 px-4 text-sm"
+							>
+								<SendHorizontal className="h-4 w-4" />
+							</button>
 						</div>
 
-						{pendingLocationShare ? (
-							<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-								<div className="p-3">
-									<p className="text-xs font-medium text-[var(--text)]">
-										{t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
-									</p>
-								</div>
-								<div className="h-64 w-full border-t border-[var(--border)]">
-									<LeafletLocationPicker
-										selectedLocation={pendingLocationShare}
-										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
-										onError={(msg) => toast.error(msg)}
-										className="h-full w-full"
-										defaultZoom={18}
-									/>
-								</div>
-							</div>
-						) : null}
+                        <div className="mb-2 mx-5 flex items-center justify-between gap-2">
+							<button
+								type="button"
+								onClick={() => {
+									toggleAlbumPicker();
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label={t("chat.share_album_label")}
+								title={t("chat.share_album_label")}
+							>
+								<Share2 className="h-5 w-5" />
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									attachmentInputRef.current?.click();
+									if (isDrawerOpen) toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
+								disabled={isUploadingAttachment}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+								aria-label={t("chat.attach_media")}
+								title={t("chat.attach_media")}
+							>
+								<ImagePlus className="h-5 w-5" />
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									toggleDrawer();
+									if (pendingLocationShare) handleLocationShareRequest();
+								}}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label={t("chat.drawer_label")}
+								title={t("chat.drawer_label")}
+							>
+								<SquareStack className="h-5 w-5" />
+							</button>
+							<button
+								type="button"
+								onClick={() => {
+									handleLocationShareRequest();
+									if (isDrawerOpen) toggleDrawer();
+								}}
+								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${
+									pendingLocationShare
+										? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+										: "text-[var(--text-muted)] hover:text-[var(--text)]"
+								}`}
+								aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
+								title={t("chat.share_location_label", { defaultValue: "Share Location" })}
+							>
+								{pendingLocationShare ? (
+									<X className="h-5 w-5" />
+								) : (
+									<MapPin className="h-5 w-5" />
+								)}
+							</button>
 
-						{pendingAttachmentFile ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-								<p className="text-xs font-medium text-[var(--text)]">
-									{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
-								</p>
-								<div className="mt-2 grid gap-2">
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentLooping}
-											onChange={(event) =>
-												setAttachmentLooping(event.target.checked)
-											}
-										/>
-										<span>{t("chat.attachments.looping")}</span>
-									</label>
-									<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<input
-											type="checkbox"
-											checked={attachmentTakenOnGrindr}
-											onChange={(event) =>
-												setAttachmentTakenOnGrindr(event.target.checked)
-											}
-										/>
-										<span>{t("chat.attachments.taken_on_grindr")}</span>
-									</label>
-								</div>
-								<div className="mt-3 flex gap-2">
-									<button
-										type="button"
-										onClick={confirmPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-									>
-										{t("chat.attachments.send_attachment")}
-									</button>
-									<button
-										type="button"
-										onClick={cancelPendingAttachment}
-										disabled={isUploadingAttachment}
-										className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-									>
-										{t("chat.actions.cancel")}
-									</button>
-								</div>
-							</div>
-						) : null}
+							<input
+								type="file"
+								ref={attachmentInputRef}
+								onChange={onAttachmentInput}
+								accept="image/*,video/*"
+								className="hidden"
+							/>
+						</div>
 
 						{isAlbumPickerOpen ? (
 							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
@@ -1190,76 +1292,92 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						) : null}
 
-						{isUploadingAttachment || uploadProgress > 0 ? (
-							<div className="mb-2">
-								<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-									<span>{t("chat.attachments.uploading")}</span>
-									<span>{Math.round(uploadProgress)}%</span>
-								</div>
-								<div className="h-2 rounded-full bg-[var(--surface-2)]">
-									<div
-										className="h-2 rounded-full bg-[var(--accent)] transition-all"
-										style={{ width: `${Math.min(100, uploadProgress)}%` }}
-									/>
-								</div>
-							</div>
-						) : null}
+					</form>
 
-						{replyTargetMessage ? (
-							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-								<div className="flex items-stretch">
-									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
-									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
-										<div className="min-w-0">
-											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-												<Reply className="h-3 w-3" />
-												<span>
-													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
-														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-															? t("chat.you")
-															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
-													}`}
-												</span>
-											</p>
-											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
-												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
-													{getMessagePreviewLabel(replyTargetMessage, t)}
-												</p>
+					{pendingAttachmentFile ? (
+						<BottomDrawer
+							title={t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
+							onClose={cancelPendingAttachment}
+							onConfirm={() => void handleConfirmAttachment()}
+							confirmLabel={t("chat.attachments.send_attachment")}
+							cancelLabel={t("chat.actions.cancel")}
+							isProcessing={isUploadingAttachment}
+						>
+							{attachmentPreviewUrl && (
+								pendingAttachmentFile.type.startsWith("video/") ? (
+									<div className="px-3 pb-3">
+										<video src={attachmentPreviewUrl} controls className="w-full object-contain rounded-xl border border-[var(--border)]" style={{ maxHeight: "40dvh" }} />
+									</div>
+								) : (
+									<div className="px-3 pb-3">
+										<div className="flex justify-center">
+											<style>{`
+												@keyframes attach-logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+												.attach-logo-shine { animation: attach-logo-shine 2.8s ease-in-out infinite; }
+												.attach-crop .ReactCrop__crop-mask { display: none !important; } .attach-crop .ReactCrop__crop-selection { background-image: none !important; animation: none !important; outline: none !important; border: 3px solid rgba(255,255,255,0.6) !important; border-radius: 11px !important; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5) !important; }
+												.attach-crop .ord-n, .attach-crop .ord-s, .attach-crop .ord-e, .attach-crop .ord-w { display: none !important; }
+												.attach-crop .ReactCrop__drag-handle { background: transparent !important; border: none !important; width: 15px !important; height: 15px !important; }
+												.attach-crop .ord-nw { transform: translate(4px, 4px) !important; border-top: 2px solid white !important; border-left: 2px solid white !important; border-top-left-radius: 4px !important; }
+												.attach-crop .ord-ne { transform: translate(-4px, 4px) !important; border-top: 2px solid white !important; border-right: 2px solid white !important; border-top-right-radius: 4px !important; }
+												.attach-crop .ord-sw { transform: translate(4px, -4px) !important; border-bottom: 2px solid white !important; border-left: 2px solid white !important; border-bottom-left-radius: 4px !important; }
+												.attach-crop .ord-se { transform: translate(-4px, -4px) !important; border-bottom: 2px solid white !important; border-right: 2px solid white !important; border-bottom-right-radius: 4px !important; }
+											`}</style>
+											<div className="relative rounded-xl border border-[var(--border)] overflow-hidden">
+											<ReactCrop
+												crop={attachmentCrop}
+												onChange={(c) => { setIsDraggingAttachmentCrop(true); setAttachmentCrop(c); }}
+												onComplete={(c) => { setIsDraggingAttachmentCrop(false); setAttachmentCompletedCrop(c); }}
+												ruleOfThirds={isDraggingAttachmentCrop}
+												minWidth={150}
+												minHeight={150}
+												className="attach-crop ReactCrop--no-animate"
+												style={{ maxHeight: "45dvh", display: "block" }}
+											>
+												<img ref={attachmentImgRef} src={attachmentPreviewUrl} alt="Preview" className="block" style={{ maxHeight: "45dvh" }} />
+											</ReactCrop>
+											{attachmentTakenOnGrindr && attachmentCrop && (
+												<div
+													className="absolute inline-flex items-center gap-1.5 pointer-events-none"
+													style={{
+														left: `calc(${attachmentCrop.unit === "%" ? attachmentCrop.x + "%" : attachmentCrop.x + "px"} + 10px)`,
+														top: `calc(${attachmentCrop.unit === "%" ? (attachmentCrop.y + attachmentCrop.height) + "%" : (attachmentCrop.y + attachmentCrop.height) + "px"} - 10px)`,
+														transform: "translateY(-100%)",
+													}}
+												>
+													<img src={freegrindLogo} alt="" className="h-5 w-5 rounded-full attach-logo-shine" />
+													<span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white">
+														<span>{t("chat.time.just_now", { defaultValue: "just now" })}</span>
+													</span>
+												</div>
+											)}
 											</div>
 										</div>
-										<button
-											type="button"
-											onClick={clearReplyTarget}
-											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-											aria-label={t("chat.actions.cancel")}
-											title={t("chat.actions.cancel")}
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
+										<div className="mt-3 flex items-center justify-center gap-8">
+											<button type="button" onClick={() => void applyAttachmentTransform("flipH")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Flip horizontal">
+												<SquareCenterlineDashedHorizontal className="h-6 w-6" />
+											</button>
+											<button type="button" onClick={() => void applyAttachmentTransform("rotateCw")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Rotate clockwise">
+												<RotateCw className="h-6 w-6" />
+											</button>
+										</div>
 									</div>
-								</div>
+								)
+							)}
+							<div className="px-3 pb-3 grid gap-3">
+								<ToggleRow
+                                    checked={attachmentLooping}
+                                    onChange={setAttachmentLooping}
+                                    label={t("chat.attachments.looping")}
+                                />
+                                <ToggleRow
+                                    checked={attachmentTakenOnGrindr}
+                                    onChange={setAttachmentTakenOnGrindr}
+                                    label={t("chat.attachments.taken_on_grindr")}
+                                    description={t("chat.attachments.taken_on_grindr_description")}
+                                />
 							</div>
-						) : null}
-
-						<div className="flex items-end gap-2">
-							<textarea
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								rows={2}
-								maxLength={1000}
-								placeholder={t("chat.write_message")}
-								disabled={!!pendingLocationShare}
-								className="input-field min-h-[56px] resize-none disabled:opacity-60"
-							/>
-							<button
-								type="submit"
-								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-								className="btn-accent self-stretch shrink-0 px-4 text-sm"
-							>
-								{isSending ? t("chat.sending") : t("chat.send")}
-							</button>
-						</div>
-					</form>
+						</BottomDrawer>
+					) : null}
 
 					{isDrawerOpen ? (
 						<ChatDrawerPanel
@@ -1277,6 +1395,31 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							isDesktop={isDesktop}
 						/>
 					) : null}
+
+                    {pendingLocationShare ? (
+						<BottomDrawer
+							title={t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
+							onClose={() => setPendingLocationShare(null)}
+							onConfirm={() => {
+								void onSendLocation(pendingLocationShare.lat, pendingLocationShare.lon);
+								setPendingLocationShare(null);
+							}}
+							confirmLabel={t("chat.send")}
+							cancelLabel={t("chat.actions.cancel")}
+						>
+							<div className="px-3 pb-3">
+								<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
+									<LeafletLocationPicker
+										selectedLocation={pendingLocationShare}
+										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
+										onError={(msg) => toast.error(msg)}
+										className="h-full w-full"
+										defaultZoom={18}
+									/>
+								</div>
+							</div>
+						</BottomDrawer>
+                    ) : null}
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
 						<div
@@ -1404,25 +1547,34 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					{pendingAlbumShare && albumViewer === null ? (
 						<div
-							className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
-								isDesktop ? "pb-32" : ""
-							}`}
+							className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/45 backdrop-blur-sm no-touch-callout"
 							onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
 						>
 							<div
 								role="dialog"
 								aria-modal="true"
 								aria-labelledby="chat-album-share-confirm-title"
-								className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+								className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden mx-3"
 								onClick={(event) => event.stopPropagation()}
 							>
-								<p
-									id="chat-album-share-confirm-title"
-									className="text-sm font-semibold text-[var(--text)]"
-								>
-									{t("chat.share_album_label")}
-								</p>
-								<p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+								<div className="flex items-center justify-between px-4 py-3">
+									<p
+										id="chat-album-share-confirm-title"
+										className="text-sm font-semibold text-[var(--text)]"
+									>
+										{t("chat.share_album_label")}
+									</p>
+									<button
+										type="button"
+										onClick={closePendingAlbumShare}
+										disabled={isSharingAlbum}
+										className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
+									>
+										<X className="h-4 w-4" />
+									</button>
+								</div>
+								<div className="px-4 pb-3">
+								<p className="text-sm leading-relaxed text-[var(--text-muted)]">
 									{t("chat.confirm_share_album", {
 										album: pendingAlbumShare.albumName,
 									})}
@@ -1455,12 +1607,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</div>
 								</div>
 
-								<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+								</div>
+								<div className="flex gap-2 p-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
 									<button
 										type="button"
 										onClick={closePendingAlbumShare}
 										disabled={isSharingAlbum}
-										className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+										className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 									>
 										{t("chat.actions.cancel")}
 									</button>
@@ -1468,12 +1621,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										type="button"
 										onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
 										disabled={isSharingAlbum}
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+										className="flex-1 rounded-xl border border-[var(--accent)] bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 									>
 										{isSharingAlbum ? (
-											<Loader2 className="h-4 w-4 animate-spin" />
-										) : null}
-										<span>{t("chat.share")}</span>
+											<Loader2 className="mx-auto h-4 w-4 animate-spin" />
+										) : (
+											<span>{t("chat.share")}</span>
+										)}
 									</button>
 								</div>
 							</div>
@@ -1569,7 +1723,52 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         : undefined
                 }
             >
-				<div className="mb-2 flex flex-wrap items-center gap-2">
+				{(isUploadingAttachment || uploadProgress > 0) && (
+					<div className="absolute top-0 left-0 right-0 h-0.5 bg-[var(--surface-2)]">
+						<div
+							className="h-0.5 bg-[var(--accent)] transition-all duration-300"
+							style={{ width: `${Math.min(100, uploadProgress)}%` }}
+						/>
+					</div>
+				)}
+                <div className="flex items-end gap-2 mb-2">
+                    {/* --- QUICK PHRASE PILLS --- */}
+                    {filteredPhrases.length > 0 && (
+                        <div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {filteredPhrases.map((phrase, idx) => (
+                                <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => handleUsePhrase(phrase)}
+                                    className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+                                >
+                                    {phrase}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {/* -------------------------- */}
+                </div>
+                <div className="flex items-end gap-2 mb-2">
+					<textarea
+						value={draft}
+						onChange={(event) => setDraft(event.target.value)}
+						rows={1}
+						maxLength={1000}
+						placeholder={t("chat.new_conversation.write_first_message")}
+						className="input-field resize-none disabled:opacity-60"
+                        style={{ fieldSizing: "content", maxHeight: "115px" }}
+					/>
+					<button
+						type="submit"
+						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
+						className="btn-accent self-stretch shrink-0 px-4 text-sm"
+					>
+						{isSending ? t("chat.sending") : t("chat.send")}
+					</button>
+				</div>
+
+				<div className="mb-2 mx-5 flex items-center justify-between gap-2">
                     <button
                         type="button"
                         onClick={() => {
@@ -1577,11 +1776,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							if (isDrawerOpen) toggleDrawer();
 							if (pendingLocationShare) handleLocationShareRequest();
 						}}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
                         aria-label={t("chat.share_album_label")}
                         title={t("chat.share_album_label")}
                     >
-                        <Share2 className="h-4 w-4" />
+                        <Share2 className="h-5 w-5" />
                     </button>
                     <button
                         type="button"
@@ -1591,20 +1790,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							if (pendingLocationShare) handleLocationShareRequest();
 						}}
                         disabled={isUploadingAttachment}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
                         aria-label={t("chat.attach_media")}
                         title={t("chat.attach_media")}
                     >
-                        <ImagePlus className="h-4 w-4" />
+                        <ImagePlus className="h-5 w-5" />
                     </button>
                     <button
                         type="button"
                         disabled
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] opacity-40 cursor-not-allowed"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] opacity-40 cursor-not-allowed"
                         aria-label={t("chat.drawer_label")}
                         title={t("chat.drawer_unavailable", { defaultValue: "Send a message first to use the drawer" })}
                     >
-                        <SquareStack className="h-4 w-4" />
+                        <SquareStack className="h-5 w-5" />
                     </button>
 					<button
                         type="button"
@@ -1612,113 +1811,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							handleLocationShareRequest();
 							if (isDrawerOpen) toggleDrawer();
 						}}
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition ${
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${
                             pendingLocationShare
-                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+                                : "text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
                         }`}
                         aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
                         title={t("chat.share_location_label", { defaultValue: "Share Location" })}
                     >
                         {pendingLocationShare ? (
-                            <X className="h-4 w-4" />
+                            <X className="h-5 w-5" />
                         ) : (
-                            <MapPin className="h-4 w-4" />
+                            <MapPin className="h-5 w-5" />
                         )}
                     </button>
 
-							<input
-								type="file"
-								ref={attachmentInputRef}
-								onChange={onAttachmentInput}
-								accept="image/*,video/*"
-								className="hidden"
-							/>
-
-							{/* --- QUICK PHRASE PILLS --- */}
-							{savedPhrases.length > 0 && (
-								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-									{savedPhrases.map((phrase, idx) => (
-										<button
-											key={idx}
-											type="button"
-											onClick={() => handleUsePhrase(phrase)}
-											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
-										>
-											{phrase}
-										</button>
-									))}
-								</div>
-							)}
-							{/* -------------------------- */}
-						</div>
-
-				{pendingLocationShare ? (
-					<div className="mb-2 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-						<div className="p-3">
-							<p className="text-xs font-medium text-[var(--text)]">
-								{t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
-							</p>
-						</div>
-						<div className="h-64 w-full border-t border-[var(--border)]">
-							<LeafletLocationPicker
-								selectedLocation={pendingLocationShare}
-								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
-								onError={(msg) => toast.error(msg)}
-								className="h-full w-full"
-								defaultZoom={18}
-							/>
-						</div>
-					</div>
-				) : null}
-
-				{pendingAttachmentFile ? (
-					<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-						<p className="text-xs font-medium text-[var(--text)]">
-							{t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
-						</p>
-						<div className="mt-2 grid gap-2">
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentLooping}
-									onChange={(event) =>
-										setAttachmentLooping(event.target.checked)
-									}
-								/>
-								<span>{t("chat.attachments.looping")}</span>
-							</label>
-							<label className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-								<input
-									type="checkbox"
-									checked={attachmentTakenOnGrindr}
-									onChange={(event) =>
-										setAttachmentTakenOnGrindr(event.target.checked)
-									}
-								/>
-								<span>{t("chat.attachments.taken_on_grindr")}</span>
-							</label>
-						</div>
-						<div className="mt-3 flex gap-2">
-							<button
-								type="button"
-								onClick={confirmPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px]"
-							>
-								{t("chat.attachments.send_attachment")}
-							</button>
-							<button
-								type="button"
-								onClick={cancelPendingAttachment}
-								disabled={isUploadingAttachment}
-								className="rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)]"
-							>
-								{t("chat.actions.cancel")}
-							</button>
-						</div>
-					</div>
-				) : null}
+                    <input
+                        type="file"
+                        ref={attachmentInputRef}
+                        onChange={onAttachmentInput}
+                        accept="image/*,video/*"
+                        className="hidden"
+                    />
+                </div>
 
                 {isAlbumPickerOpen ? (
                     <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
@@ -1760,62 +1875,148 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                     </div>
                 ) : null}
 
-				{isUploadingAttachment || uploadProgress > 0 ? (
-					<div className="mb-2">
-						<div className="mb-1 flex justify-between text-[11px] text-[var(--text-muted)]">
-							<span>{t("chat.attachments.uploading")}</span>
-							<span>{Math.round(uploadProgress)}%</span>
-						</div>
-						<div className="h-2 rounded-full bg-[var(--surface-2)]">
-							<div
-								className="h-2 rounded-full bg-[var(--accent)] transition-all"
-								style={{ width: `${Math.min(100, uploadProgress)}%` }}
+			</form>
+
+			{pendingAttachmentFile ? (
+				<BottomDrawer
+					title={t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
+					onClose={cancelPendingAttachment}
+					onConfirm={() => void handleConfirmAttachment()}
+					confirmLabel={t("chat.attachments.send_attachment")}
+					cancelLabel={t("chat.actions.cancel")}
+					isProcessing={isUploadingAttachment}
+				>
+					{attachmentPreviewUrl && (
+						pendingAttachmentFile.type.startsWith("video/") ? (
+							<div className="px-3 pb-3">
+								<video src={attachmentPreviewUrl} controls className="w-full object-contain rounded-xl border border-[var(--border)]" style={{ maxHeight: "40dvh" }} />
+							</div>
+						) : (
+							<div className="px-3 pb-3">
+								<div className="flex justify-center">
+									<style>{`
+										@keyframes attach-logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+										.attach-logo-shine { animation: attach-logo-shine 2.8s ease-in-out infinite; }
+										.attach-crop .ReactCrop__crop-mask { display: none !important; } .attach-crop .ReactCrop__crop-selection { background-image: none !important; animation: none !important; outline: none !important; border: 3px solid rgba(255,255,255,0.6) !important; border-radius: 11px !important; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5) !important; }
+										.attach-crop .ord-n, .attach-crop .ord-s, .attach-crop .ord-e, .attach-crop .ord-w { display: none !important; }
+										.attach-crop .ReactCrop__drag-handle { background: transparent !important; border: none !important; width: 15px !important; height: 15px !important; }
+										.attach-crop .ord-nw { transform: translate(4px, 4px) !important; border-top: 2px solid white !important; border-left: 2px solid white !important; }
+										.attach-crop .ord-ne { transform: translate(-4px, 4px) !important; border-top: 2px solid white !important; border-right: 2px solid white !important; }
+										.attach-crop .ord-sw { transform: translate(4px, -4px) !important; border-bottom: 2px solid white !important; border-left: 2px solid white !important; }
+										.attach-crop .ord-se { transform: translate(-4px, -4px) !important; border-bottom: 2px solid white !important; border-right: 2px solid white !important; }
+									`}</style>
+									<div className="relative rounded-xl border border-[var(--border)] overflow-hidden">
+									<ReactCrop
+										crop={attachmentCrop}
+										onChange={(c) => { setIsDraggingAttachmentCrop(true); setAttachmentCrop(c); }}
+										onComplete={(c) => { setIsDraggingAttachmentCrop(false); setAttachmentCompletedCrop(c); }}
+										ruleOfThirds={isDraggingAttachmentCrop}
+										minWidth={150}
+										minHeight={150}
+										className="attach-crop ReactCrop--no-animate"
+										style={{ maxHeight: "45dvh", display: "block" }}
+									>
+										<img ref={attachmentImgRef} src={attachmentPreviewUrl} alt="Preview" className="block" style={{ maxHeight: "45dvh" }} />
+									</ReactCrop>
+									{attachmentTakenOnGrindr && attachmentCrop && (
+										<div
+											className="absolute inline-flex items-center gap-1.5 pointer-events-none"
+											style={{
+												left: `calc(${attachmentCrop.unit === "%" ? attachmentCrop.x + "%" : attachmentCrop.x + "px"} + 10px)`,
+												top: `calc(${attachmentCrop.unit === "%" ? (attachmentCrop.y + attachmentCrop.height) + "%" : (attachmentCrop.y + attachmentCrop.height) + "px"} - 10px)`,
+												transform: "translateY(-100%)",
+											}}
+										>
+											<img src={freegrindLogo} alt="" className="h-5 w-5 rounded-full attach-logo-shine" />
+											<span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white">
+												<span>{t("chat.time.just_now", { defaultValue: "just now" })}</span>
+											</span>
+										</div>
+									)}
+									</div>
+								</div>
+								<div className="mt-3 flex items-center justify-center gap-8">
+									<button type="button" onClick={() => void applyAttachmentTransform("flipH")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Flip horizontal">
+										<SquareCenterlineDashedHorizontal className="h-6 w-6" />
+									</button>
+									<button type="button" onClick={() => void applyAttachmentTransform("rotateCw")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Rotate clockwise">
+										<RotateCw className="h-6 w-6" />
+									</button>
+								</div>
+							</div>
+						)
+					)}
+					<div className="px-3 pb-3 grid gap-3">
+						<ToggleRow 
+                            checked={attachmentLooping}
+                            onChange={setAttachmentLooping}
+                            label={t("chat.attachments.looping")}
+                        />
+                        <ToggleRow
+                            checked={attachmentTakenOnGrindr}
+                            onChange={setAttachmentTakenOnGrindr}
+                            label={t("chat.attachments.taken_on_grindr")}
+                            description={t("chat.attachments.taken_on_grindr_description")}
+                        />
+					</div>
+				</BottomDrawer>
+			) : null}
+
+			{pendingLocationShare ? (
+				<BottomDrawer
+					title={t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
+					onClose={() => setPendingLocationShare(null)}
+					onConfirm={() => {
+						void onSendLocation(pendingLocationShare.lat, pendingLocationShare.lon);
+						setPendingLocationShare(null);
+					}}
+					confirmLabel={t("chat.send")}
+					cancelLabel={t("chat.actions.cancel")}
+				>
+					<div className="px-3 pb-3">
+						<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
+							<LeafletLocationPicker
+								selectedLocation={pendingLocationShare}
+								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
+								onError={(msg) => toast.error(msg)}
+								className="h-full w-full"
+								defaultZoom={18}
 							/>
 						</div>
 					</div>
-				) : null}
-
-				<div className="flex items-end gap-2">
-					<textarea
-						value={draft}
-						onChange={(event) => setDraft(event.target.value)}
-						rows={2}
-						maxLength={1000}
-						placeholder={t("chat.new_conversation.write_first_message")}
-						disabled={!!pendingLocationShare}
-						className="input-field min-h-[56px] resize-none disabled:opacity-60"
-					/>
-					<button
-						type="submit"
-						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-						className="btn-accent self-stretch shrink-0 px-4 text-sm"
-					>
-						{isSending ? t("chat.sending") : t("chat.send")}
-					</button>
-				</div>
-			</form>
+				</BottomDrawer>
+			) : null}
 
             {pendingAlbumShare && albumViewer === null ? (
                 <div
-                    className={`fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout ${
-                        isDesktop ? "pb-32" : ""
-                    }`}
+                    className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/45 backdrop-blur-sm no-touch-callout"
                     onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
                 >
                     <div
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="chat-album-share-confirm-title"
-                        className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-4 shadow-2xl"
+                        className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden mx-3"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <p
-                            id="chat-album-share-confirm-title"
-                            className="text-sm font-semibold text-[var(--text)]"
-                        >
-                            {t("chat.share_album_label")}
-                        </p>
-                        <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+                        <div className="flex items-center justify-between px-4 py-3">
+                            <p
+                                id="chat-album-share-confirm-title"
+                                className="text-sm font-semibold text-[var(--text)]"
+                            >
+                                {t("chat.share_album_label")}
+                            </p>
+                            <button
+                                type="button"
+                                onClick={closePendingAlbumShare}
+                                disabled={isSharingAlbum}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="px-4 pb-3">
+                        <p className="text-sm leading-relaxed text-[var(--text-muted)]">
                             {t("chat.confirm_share_album", {
                                 album: pendingAlbumShare.albumName,
                             })}
@@ -1848,12 +2049,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                             </div>
                         </div>
 
-                        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        </div>
+                        <div className="flex gap-2 p-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
                             <button
                                 type="button"
                                 onClick={closePendingAlbumShare}
                                 disabled={isSharingAlbum}
-                                className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+                                className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
                             >
                                 {t("chat.actions.cancel")}
                             </button>
@@ -1861,12 +2063,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                 type="button"
                                 onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
                                 disabled={isSharingAlbum}
-                                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+                                className="flex-1 rounded-xl border border-[var(--accent)] bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
                             >
                                 {isSharingAlbum ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : null}
-                                <span>{t("chat.share")}</span>
+                                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                                ) : (
+                                    <span>{t("chat.share")}</span>
+                                )}
                             </button>
                         </div>
                     </div>
