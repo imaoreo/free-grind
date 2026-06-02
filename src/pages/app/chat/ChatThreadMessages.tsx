@@ -346,7 +346,8 @@ export function ChatThreadMessages({
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
 								const isLocationOnlyBubble =
 									Boolean(location) && messageText === t("chat.preview.sent_location");
-								const isAudioOnlyBubble =
+								const hasVisualMedia = Boolean(imageUrl) || Boolean(videoUrl) || isAlbumOnlyBubble || isLocationOnlyBubble;
+							const isAudioOnlyBubble =
 									Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
 								const isMediaOnlyBubble =
 									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
@@ -455,12 +456,12 @@ export function ChatThreadMessages({
 																? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
 																: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
 														}`
-												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
+												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
 											>
-												{localOnly ? (
-													<p className="mb-1 text-xs opacity-60">
+												{localOnly && !hasVisualMedia ? (
+													<span className="mb-1.5 block w-fit rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-semibold">
 														{t("chat.thread.from_local_history")}
-													</p>
+													</span>
 												) : null}
 												{imageUrl ? (
 													<button
@@ -486,6 +487,11 @@ export function ChatThreadMessages({
 															alt={t("chat.thread.shared_alt")}
 															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
 														/>
+														{localOnly && (
+															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																{t("chat.thread.from_local_history")}
+															</span>
+														)}
 														{isExpiringImage ? (
 															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
 																1
@@ -591,6 +597,11 @@ export function ChatThreadMessages({
 															<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
 																<Album className="h-8 w-8" />
 															</div>
+															{localOnly && (
+																<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																	{t("chat.thread.from_local_history")}
+																</span>
+															)}
 															{albumCover ? (
 																<img
 																	src={albumCover}
@@ -663,7 +674,7 @@ export function ChatThreadMessages({
 
 												{videoUrl ? (
 														<div
-															className="group/media mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
+															className="group/media relative mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
 															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 															onClick={() => {
@@ -672,6 +683,11 @@ export function ChatThreadMessages({
 																}
 															}}
 														>
+														{localOnly && (
+															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																{t("chat.thread.from_local_history")}
+															</span>
+														)}
 														<video
 															controls
 															preload="metadata"
@@ -705,7 +721,14 @@ export function ChatThreadMessages({
 																: "bg-[var(--surface)] text-[var(--text)]"
 														}`}
 													>
-														<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
+														<div className="relative">
+									<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
+									{localOnly && (
+										<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+											{t("chat.thread.from_local_history")}
+										</span>
+									)}
+								</div>
 														<div className="flex items-center gap-3 p-3">
 															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]">
 																<MapPin className="h-4 w-4" />

@@ -11,6 +11,7 @@ import {
 	Infinity,
 	Loader2,
 	MapPin,
+	BookMarked,
 	MessageCircleOff,
 	MessageCircleX,
 	PencilLine,
@@ -1242,6 +1243,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<MapPin className="h-5 w-5" />
 								)}
 							</button>
+							<button
+								type="button"
+								onClick={() => navigate("/settings/saved-phrases")}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
+								title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
+							>
+								<BookMarked className="h-5 w-5" />
+							</button>
 
 							<input
 								type="file"
@@ -1824,6 +1834,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         ) : (
                             <MapPin className="h-5 w-5" />
                         )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => navigate("/settings/saved-phrases")}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
+                        title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
+                    >
+                        <BookMarked className="h-5 w-5" />
                     </button>
 
                     <input
