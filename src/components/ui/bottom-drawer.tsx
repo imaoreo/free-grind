@@ -9,6 +9,7 @@ interface BottomDrawerProps {
 	cancelLabel: string;
 	isProcessing?: boolean;
 	zIndex?: string;
+	isDesktop?: boolean;
 	children: ReactNode;
 }
 
@@ -19,7 +20,8 @@ export function BottomDrawer({
 	confirmLabel,
 	cancelLabel,
 	isProcessing = false,
-	zIndex = "z-40",
+	zIndex = "z-[60]",
+	isDesktop = false,
 	children,
 }: BottomDrawerProps) {
 	return (
@@ -28,7 +30,7 @@ export function BottomDrawer({
 			onClick={isProcessing ? undefined : onClose}
 		>
 			<div
-				className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden mx-3"
+				className={`flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"}`}
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div className="flex items-center justify-between px-4 py-3">

@@ -1312,6 +1312,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							confirmLabel={t("chat.attachments.send_attachment")}
 							cancelLabel={t("chat.actions.cancel")}
 							isProcessing={isUploadingAttachment}
+							isDesktop={isDesktop}
 						>
 							{attachmentPreviewUrl && (
 								pendingAttachmentFile.type.startsWith("video/") ? (
@@ -1416,6 +1417,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							}}
 							confirmLabel={t("chat.send")}
 							cancelLabel={t("chat.actions.cancel")}
+							isDesktop={isDesktop}
 						>
 							<div className="px-3 pb-3">
 								<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
@@ -1564,7 +1566,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								role="dialog"
 								aria-modal="true"
 								aria-labelledby="chat-album-share-confirm-title"
-								className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden mx-3"
+								className={`flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"}`}
 								onClick={(event) => event.stopPropagation()}
 							>
 								<div className="flex items-center justify-between px-4 py-3">
@@ -1904,6 +1906,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					confirmLabel={t("chat.attachments.send_attachment")}
 					cancelLabel={t("chat.actions.cancel")}
 					isProcessing={isUploadingAttachment}
+					isDesktop={true}
 				>
 					{attachmentPreviewUrl && (
 						pendingAttachmentFile.type.startsWith("video/") ? (
@@ -1991,6 +1994,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					}}
 					confirmLabel={t("chat.send")}
 					cancelLabel={t("chat.actions.cancel")}
+					isDesktop={true}
 				>
 					<div className="px-3 pb-3">
 						<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
@@ -2015,7 +2019,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="chat-album-share-confirm-title"
-                        className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden mx-3"
+                        className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden w-full max-w-[800px] mx-auto"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="flex items-center justify-between px-4 py-3">
