@@ -21,6 +21,7 @@ import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { useModalClose } from "../../../hooks/useModalClose";
+import { BottomSheet } from "../../../components/ui/bottom-sheet";
 
 export interface DrawerMedia {
 	id: number;
@@ -252,18 +253,14 @@ export function ChatDrawerPanel({
 	}, [deletingMediaId]);
 
 	return (
-		<div
-			className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-sm no-touch-callout"
-			onClick={isSending || isAdding ? undefined : onBack}
+		<BottomSheet
+			onClose={isSending || isAdding ? () => {} : onBack}
+			isProcessing={isSending || isAdding}
+			isDesktop={isDesktop}
+			bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
+			panelClassName="px-4"
 		>
-			<div
-				role="dialog"
-				aria-modal="true"
-				className={`flex w-full flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] px-4 pt-4 shadow-2xl ${isDesktop ? "max-w-[800px] mx-auto" : "mx-3"}`}
-				style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
-				onClick={(event) => event.stopPropagation()}
-			>
-				<div className="mb-4 flex items-center justify-between">
+			<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-sm font-semibold text-[var(--text)]">
 						{pendingAddFile
 							? t("chat_drawer.add_photo")
@@ -544,7 +541,7 @@ export function ChatDrawerPanel({
 
 						{/* Footer - Send button */}
 						{hasSelection ? (
-							<div className="mt-3 border-t border-[var(--border)] pt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
 								<button
 									type="button"
 									onClick={() => setSelectedIds(new Set())}
@@ -611,7 +608,6 @@ export function ChatDrawerPanel({
 					isProcessing={confirmDeleteMediaId != null && deletingMediaId === confirmDeleteMediaId}
 					confirmTone="danger"
 				/>
-			</div>
-		</div>
+		</BottomSheet>
 	);
 }
