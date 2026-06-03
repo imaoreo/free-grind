@@ -592,7 +592,25 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		setAlbumViewer(null);
+		setAlbumViewerMediaIndex(null);
 	}, [selectedConversationId]);
+
+	const isAlbumOpen = albumViewer !== null;
+	useEffect(() => {
+		if (!isAlbumOpen) return;
+		const prevState = history.state;
+		history.pushState({ albumOpen: true }, "");
+		const onPopState = () => {
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
+		};
+		window.addEventListener("popstate", onPopState);
+		return () => {
+			window.removeEventListener("popstate", onPopState);
+			if (history.state?.albumOpen) history.replaceState(prevState, "");
+		};
+	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -3248,6 +3266,7 @@ export function ChatPage() {
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
 			albumViewer={albumViewer}
+			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
 		/>
 	);
 
