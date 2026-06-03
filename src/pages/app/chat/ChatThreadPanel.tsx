@@ -654,7 +654,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				return (
 					<>
 						<div
-							className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+							className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : "-mx-3 sm:-mx-4 px-3 sm:px-4"}`}
 							style={
 								!isDesktop
 									? {
@@ -1114,7 +1114,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					<form
 						onSubmit={onFormSubmit}
-						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
 						style={
 							!isDesktop
 								? {
@@ -1135,24 +1135,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								/>
 							</div>
 						)}
-						<div className="flex items-end gap-2 mb-2">
-                            {/* --- QUICK PHRASE PILLS --- */}
-							{filteredPhrases.length > 0 && (
-								<div className="flex flex-1 items-center gap-2 overflow-x-auto pb-1 -mb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-									{filteredPhrases.map((phrase, idx) => (
+						{/* --- QUICK PHRASE PILLS --- */}
+						{filteredPhrases.length > 0 && (
+							<div className="mb-2 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+								{filteredPhrases.map((phrase, idx) => {
+									const isExact = phrase.toLowerCase() === draft.trim().toLowerCase();
+									return (
 										<button
 											key={idx}
 											type="button"
 											onClick={() => handleUsePhrase(phrase)}
-											className="shrink-0 whitespace-nowrap rounded-lg bg-[var(--surface-2)] border border-[var(--border)] px-3 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-95"
+											className={`shrink-0 whitespace-nowrap rounded-2xl rounded-bl-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
+												isExact
+													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+													: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+											}`}
 										>
 											{phrase}
 										</button>
-									))}
-								</div>
-							)}
-							{/* -------------------------- */}
-                        </div>
+									);
+								})}
+							</div>
+						)}
+						{/* -------------------------- */}
 
                         {replyTargetMessage ? (
 							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
@@ -1255,24 +1260,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									handleLocationShareRequest();
 									if (isDrawerOpen) toggleDrawer();
 								}}
-								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${
-									pendingLocationShare
-										? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-										: "text-[var(--text-muted)] hover:text-[var(--text)]"
-								}`}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
 								aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
 								title={t("chat.share_location_label", { defaultValue: "Share Location" })}
 							>
-								{pendingLocationShare ? (
-									<X className="h-5 w-5" />
-								) : (
-									<MapPin className="h-5 w-5" />
-								)}
+								<MapPin className="h-5 w-5" />
 							</button>
 							<button
 								type="button"
 								onClick={() => setIsSavedPhrasesOpen((prev) => !prev)}
-								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${isSavedPhrasesOpen ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
 								aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 								title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 							>
@@ -1529,7 +1526,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								<div className="border-t border-[var(--border)]" />
 
 								{/* Phrases list */}
-								<div data-lenis-prevent className="overflow-y-auto max-h-[40dvh] p-3">
+								<div data-lenis-prevent className="overflow-y-auto max-h-[40dvh]">
 									{savedPhrases.length === 0 ? (
 										<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
 											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
@@ -1543,30 +1540,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											</p>
 										</div>
 									) : (
-										<div className="grid gap-1">
+										<div>
 											{savedPhrases.map((phrase, originalIndex) => (
-												<div
-													key={originalIndex}
-													className="flex items-center rounded-xl transition hover:bg-[var(--surface-2)]"
-												>
-													<button
-														type="button"
-														onClick={() => {
-															handleUsePhrase(phrase);
-															setIsSavedPhrasesOpen(false);
-														}}
-														className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm text-[var(--text)]"
-													>
-														{phrase}
-													</button>
-													<button
-														type="button"
-														onClick={() => handleDeletePhrase(originalIndex)}
-														className="mr-1.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-red-400"
-														aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
-													>
-														<Trash2 className="h-3.5 w-3.5" />
-													</button>
+												<div key={originalIndex} className="group flex items-center px-4">
+													<div className="flex flex-1 items-center gap-1 py-3">
+														<button
+															type="button"
+															onClick={() => {
+																handleUsePhrase(phrase);
+																setIsSavedPhrasesOpen(false);
+															}}
+															className="min-w-0 flex-1 text-left text-sm text-[var(--text)] transition hover:text-[var(--accent)]"
+														>
+															{phrase}
+														</button>
+														<button
+															type="button"
+															onClick={() => handleDeletePhrase(originalIndex)}
+															className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-red-400"
+															aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+														>
+															<Trash2 className="h-3.5 w-3.5" />
+														</button>
+													</div>
 												</div>
 											))}
 										</div>
@@ -1806,7 +1802,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
             }
         >
             <div
-                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : ""}`}
+                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : "-mx-3 sm:-mx-4 px-3 sm:px-4"}`}
                 style={
                     !isDesktop
                         ? {
@@ -1868,7 +1864,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 			<form
 				onSubmit={onFormSubmit}
-				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3"} border-t border-[var(--border)] bg-[var(--surface)]`}
+				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
                 style={
                     !isDesktop
                         ? {
@@ -1966,19 +1962,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							handleLocationShareRequest();
 							if (isDrawerOpen) toggleDrawer();
 						}}
-                        className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${
-                            pendingLocationShare
-                                ? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-                                : "text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-                        }`}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
                         aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
                         title={t("chat.share_location_label", { defaultValue: "Share Location" })}
                     >
-                        {pendingLocationShare ? (
-                            <X className="h-5 w-5" />
-                        ) : (
-                            <MapPin className="h-5 w-5" />
-                        )}
+                        <MapPin className="h-5 w-5" />
                     </button>
                     <button
                         type="button"
