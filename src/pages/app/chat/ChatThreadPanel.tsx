@@ -38,7 +38,6 @@ import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
 import {
-	createBackdropCloseHandler,
 	useModalClose,
 } from "../../../hooks/useModalClose";
 import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
@@ -67,6 +66,7 @@ import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
+import { BottomSheet } from "../../../components/ui/bottom-sheet";
 import {
 	loadSavedPhrases,
 	saveSavedPhrases,
@@ -188,6 +188,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
+	const [phrasesExpanded, setPhrasesExpanded] = useState(false);
 	const [newPhraseInput, setNewPhraseInput] = useState("");
 
 	const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
@@ -571,9 +572,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		};
 	}, [isDesktop]);
 
-	const handlePendingAlbumShareBackdropClose = createBackdropCloseHandler(
-		closePendingAlbumShare,
-	);
 	const renderThread = selectedConversation ? (
 		<div
 			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
@@ -1457,19 +1455,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                     ) : null}
 
 					{isSavedPhrasesOpen ? (
-						<div
-							className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-sm no-touch-callout"
-							onClick={() => setIsSavedPhrasesOpen(false)}
+						<BottomSheet
+							onClose={() => {
+								if (phrasesExpanded) setPhrasesExpanded(false);
+								else setIsSavedPhrasesOpen(false);
+							}}
+							onExpand={() => setPhrasesExpanded(true)}
+							isDesktop={isDesktop}
+							bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
 						>
-							<div
-								role="dialog"
-								aria-modal="true"
-								className={`flex w-full flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"}`}
-								style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
-								onClick={(e) => e.stopPropagation()}
-							>
-								{/* Header */}
-								<div className="flex items-center justify-between px-4 pt-4 pb-3">
+							{/* Header */}
+							<div className="flex items-center justify-between px-4 pb-3">
 									<div className="flex items-center gap-2">
 										<p className="text-sm font-semibold text-[var(--text)]">
 											{t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
@@ -1526,7 +1522,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								<div className="border-t border-[var(--border)]" />
 
 								{/* Phrases list */}
-								<div data-lenis-prevent className="overflow-y-auto max-h-[40dvh]">
+								<div data-lenis-prevent className="overflow-y-auto" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
 									{savedPhrases.length === 0 ? (
 										<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
 											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
@@ -1568,8 +1564,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										</div>
 									)}
 								</div>
-							</div>
-						</div>
+						</BottomSheet>
 					) : null}
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
@@ -1697,18 +1692,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					) : null}
 
 					{pendingAlbumShare && albumViewer === null ? (
-						<div
-							className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/45 backdrop-blur-sm no-touch-callout"
-							onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
+						<BottomSheet
+							onClose={isSharingAlbum ? () => {} : closePendingAlbumShare}
+							isProcessing={isSharingAlbum}
+							isDesktop={isDesktop}
 						>
-							<div
-								role="dialog"
-								aria-modal="true"
-								aria-labelledby="chat-album-share-confirm-title"
-								className={`flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"}`}
-								onClick={(event) => event.stopPropagation()}
-							>
-								<div className="flex items-center justify-between px-4 py-3">
+								<div className="flex items-center justify-between px-4 pb-3">
 									<p
 										id="chat-album-share-confirm-title"
 										className="text-sm font-semibold text-[var(--text)]"
@@ -1781,8 +1770,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										)}
 									</button>
 								</div>
-							</div>
-						</div>
+						</BottomSheet>
 					) : null}
 				</>
 			)}
@@ -2142,17 +2130,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			) : null}
 
             {pendingAlbumShare && albumViewer === null ? (
-                <div
-                    className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/45 backdrop-blur-sm no-touch-callout"
-                    onClick={isSharingAlbum ? undefined : handlePendingAlbumShareBackdropClose}
+                <BottomSheet
+                    onClose={isSharingAlbum ? () => {} : closePendingAlbumShare}
+                    isProcessing={isSharingAlbum}
+                    isDesktop={true}
                 >
-                    <div
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="chat-album-share-confirm-title"
-                        className="flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[var(--surface)] shadow-2xl overflow-hidden w-full max-w-[800px] mx-auto"
-                        onClick={(event) => event.stopPropagation()}
-                    >
                         <div className="flex items-center justify-between px-4 py-3">
                             <p
                                 id="chat-album-share-confirm-title"
@@ -2226,8 +2208,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                 )}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </BottomSheet>
             ) : null}
 		</div>
 	) : (
