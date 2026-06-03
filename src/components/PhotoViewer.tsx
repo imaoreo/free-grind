@@ -243,8 +243,6 @@ export function PhotoViewer({
 						{safeIndex + 1} / {photos.length}
 					</p>
 				)}
-
-				
 			</div>
 		</div>
 	);
