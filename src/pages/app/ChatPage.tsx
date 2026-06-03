@@ -64,6 +64,7 @@ import {
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
+    formatDateTime24
 } from "./chat/chatUtils";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
@@ -3362,18 +3363,22 @@ export function ChatPage() {
 				onClose={closeFullScreenImage}
 				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
 				renderExtraInfo={fullScreenImageMeta ? () => (
-                    <div className="flex items-center gap-2 text-xs text-white/80">
-						{fullScreenImageMeta.takenOnGrindr && (
-							<span className="inline-flex items-center gap-1">
-								<img src={freegrindLogo} alt={t("chat.thread.taken_on_grindr")} className="h-5 w-5 rounded-full logo-shine" />
-							</span>
-						)}
-						{fullScreenImageMeta.createdAtLabel && (
-							<span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] backdrop-blur-sm">
-								{fullScreenImageMeta.createdAtLabel}
-							</span>
-						)}
-					</div>
+                    <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+                        <style>{`
+                            @keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+                            .logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
+                        `}</style>
+                        {fullScreenImageMeta.takenOnGrindr ? (
+                            <img
+                                src={freegrindLogo}
+                                alt={t("chat.thread.taken_on_grindr")}
+                                className="h-3.5 w-3.5 rounded-full logo-shine"
+                            />
+                        ) : null}
+                        {fullScreenImageMeta.timestamp ? (
+                            <span>{formatDateTime24(fullScreenImageMeta.timestamp)}</span>
+                        ) : null}
+                    </p>
 				) : undefined}
 			/>
 		</section>
