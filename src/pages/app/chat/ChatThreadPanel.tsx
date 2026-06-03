@@ -1438,7 +1438,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								setPendingLocationShare(null);
 							}}
 							confirmLabel={t("chat.send")}
-							cancelLabel={t("chat.actions.cancel")}
 							isDesktop={isDesktop}
 						>
 							<div className="px-3 pb-3">
