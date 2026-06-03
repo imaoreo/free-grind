@@ -1458,8 +1458,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					{isSavedPhrasesOpen ? (
 						<BottomSheet
 							onClose={() => {
-								if (phrasesExpanded) setPhrasesExpanded(false);
-								else setIsSavedPhrasesOpen(false);
+								setPhrasesExpanded(false);
+								setIsSavedPhrasesOpen(false);
 							}}
 							onExpand={() => setPhrasesExpanded(true)}
 							isDesktop={isDesktop}
