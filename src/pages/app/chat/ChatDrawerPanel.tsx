@@ -21,7 +21,7 @@ import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { useModalClose } from "../../../hooks/useModalClose";
-import { BottomSheet } from "../../../components/ui/bottom-sheet";
+import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 
 export interface DrawerMedia {
 	id: number;
@@ -266,13 +266,15 @@ export function ChatDrawerPanel({
 							? t("chat_drawer.add_photo")
 							: t("chat_drawer.title", { defaultValue: "Drawer" })}
 					</h3>
-					<button
-						type="button"
-						onClick={pendingAddFile ? cancelAddPhoto : onBack}
-						className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-					>
-						<X className="h-4 w-4" />
-					</button>
+					{pendingAddFile ? (
+						<button type="button" onClick={cancelAddPhoto} className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+							<X className="h-4 w-4" />
+						</button>
+					) : (
+						<SheetClose className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+							<X className="h-4 w-4" />
+						</SheetClose>
+					)}
 				</div>
 
 				<input type="file" ref={uploadInputRef} onChange={onPickDrawerPhoto} accept="image/*" className="hidden" />
@@ -480,11 +482,13 @@ export function ChatDrawerPanel({
 										const isImage = item.contentType.startsWith("image/");
 
 										return (
-											<button
+											<div
 												key={item.id}
-												type="button"
+												role="button"
+												tabIndex={0}
 												onClick={() => toggleSelection(item.id)}
-												className="relative aspect-square overflow-hidden border-0 transition"
+												onKeyDown={(e) => e.key === "Enter" && toggleSelection(item.id)}
+												className="relative aspect-square overflow-hidden border-0 transition cursor-pointer"
 												style={{
 													borderColor: isSelected ? "var(--accent)" : "transparent",
 													background: isSelected
@@ -532,7 +536,7 @@ export function ChatDrawerPanel({
 														<X className="h-3 w-3" />
 													)}
 												</button>
-											</button>
+											</div>
 										);
 									})}
 								</div>
