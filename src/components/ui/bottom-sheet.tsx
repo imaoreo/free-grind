@@ -148,6 +148,7 @@ export function BottomSheet({
 						transition: isAnimating ? "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)" : "none",
 						willChange: "transform",
 						paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+						minHeight: isDesktop ? undefined : "50dvh",
 					}}
 					onClick={(e) => e.stopPropagation()}
 				>
