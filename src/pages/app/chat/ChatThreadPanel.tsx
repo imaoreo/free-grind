@@ -11,6 +11,8 @@ import {
 	Infinity,
 	Loader2,
 	MapPin,
+	Plus,
+	Settings2,
 	BookMarked,
 	MessageCircleOff,
 	MessageCircleX,
@@ -67,6 +69,8 @@ import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import {
 	loadSavedPhrases,
+	saveSavedPhrases,
+
 	SAVED_PHRASES_UPDATED_EVENT,
 } from "../../../services/savedPhrases";
 
@@ -183,6 +187,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
+	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
+	const [newPhraseInput, setNewPhraseInput] = useState("");
+
 	const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
 	const [attachmentCrop, setAttachmentCrop] = useState<Crop | undefined>(undefined);
 	const [attachmentCompletedCrop, setAttachmentCompletedCrop] = useState<PixelCrop | undefined>(undefined);
@@ -393,6 +400,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setDraft(draft ? `${draft} ${phrase}` : phrase);
 	};
 
+	const handleAddPhrase = () => {
+		const trimmed = newPhraseInput.trim();
+		if (!trimmed) return;
+		const updated = saveSavedPhrases([...savedPhrases, trimmed]);
+		setSavedPhrases(updated);
+		setNewPhraseInput("");
+	};
+
+	const handleDeletePhrase = (index: number) => {
+		const updated = saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+		setSavedPhrases(updated);
+	};
+
+
 	useEffect(() => {
 		const syncSavedPhrases = (event: Event) => {
 			const detail = (event as CustomEvent<string[]>).detail;
@@ -506,6 +527,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isOpen: isDeleteConversationConfirmOpen,
 		onClose: closeDeleteConversationConfirm,
 		escapeKey: !isDeletingConversation,
+	});
+
+	useModalClose({
+		isOpen: isSavedPhrasesOpen,
+		onClose: () => setIsSavedPhrasesOpen(false),
 	});
 
 	useEffect(() => {
@@ -1164,22 +1190,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						) : null}
 
-						<div className="flex items-end gap-2 mb-2">
+						<div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
 							<textarea
 								value={draft}
 								onChange={(event) => setDraft(event.target.value)}
 								rows={1}
 								maxLength={1000}
 								placeholder={t("chat.write_message")}
-								className="input-field resize-none disabled:opacity-60"
+								className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
                                 style={{ fieldSizing: "content", maxHeight: "115px" }}
 							/>
 							<button
 								type="submit"
 								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-								className="btn-accent self-stretch shrink-0 px-4 text-sm"
+								className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] transition hover:opacity-80 disabled:opacity-30"
 							>
-								<SendHorizontal className="h-4 w-4" />
+								{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
 							</button>
 						</div>
 
@@ -1245,8 +1271,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</button>
 							<button
 								type="button"
-								onClick={() => navigate("/settings/saved-phrases")}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								onClick={() => setIsSavedPhrasesOpen((prev) => !prev)}
+								className={`inline-flex h-9 w-9 items-center justify-center rounded-xl transition ${isSavedPhrasesOpen ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "text-[var(--text-muted)] hover:text-[var(--text)]"}`}
 								aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 								title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 							>
@@ -1432,6 +1458,123 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						</BottomDrawer>
                     ) : null}
+
+					{isSavedPhrasesOpen ? (
+						<div
+							className="fixed inset-0 z-[60] flex items-end bg-black/45 backdrop-blur-sm no-touch-callout"
+							onClick={() => setIsSavedPhrasesOpen(false)}
+						>
+							<div
+								role="dialog"
+								aria-modal="true"
+								className={`flex w-full flex-col rounded-t-2xl border-x border-t border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"}`}
+								style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+								onClick={(e) => e.stopPropagation()}
+							>
+								{/* Header */}
+								<div className="flex items-center justify-between px-4 pt-4 pb-3">
+									<div className="flex items-center gap-2">
+										<p className="text-sm font-semibold text-[var(--text)]">
+											{t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
+										</p>
+										{savedPhrases.length > 0 && (
+											<span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">
+												{savedPhrases.length}
+											</span>
+										)}
+									</div>
+									<div className="flex items-center gap-1">
+										<button
+											type="button"
+											onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/saved-phrases"); }}
+											className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+											aria-label={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}
+											title={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}
+										>
+											<Settings2 className="h-4 w-4" />
+										</button>
+										<button
+											type="button"
+											onClick={() => setIsSavedPhrasesOpen(false)}
+											className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+										>
+											<X className="h-4 w-4" />
+										</button>
+									</div>
+								</div>
+
+								{/* Add input */}
+								<div className="px-3 pb-3">
+									<div className="flex gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5">
+										<input
+											type="text"
+											value={newPhraseInput}
+											onChange={(e) => setNewPhraseInput(e.target.value)}
+											onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddPhrase(); } }}
+											placeholder={t("settings_saved_phrases.new_placeholder", { defaultValue: "Add a new phrase..." })}
+											className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none"
+										/>
+										<button
+											type="button"
+											onClick={handleAddPhrase}
+											disabled={!newPhraseInput.trim()}
+											className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-40"
+										>
+											<Plus className="h-3.5 w-3.5" />
+											{t("settings_saved_phrases.add", { defaultValue: "Add" })}
+										</button>
+									</div>
+								</div>
+
+								<div className="border-t border-[var(--border)]" />
+
+								{/* Phrases list */}
+								<div data-lenis-prevent className="overflow-y-auto max-h-[40dvh] p-3">
+									{savedPhrases.length === 0 ? (
+										<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
+											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
+												<BookMarked className="h-5 w-5 opacity-60" />
+											</div>
+											<p className="text-sm font-medium">
+												{t("settings_saved_phrases.empty", { defaultValue: "No saved phrases yet." })}
+											</p>
+											<p className="text-xs opacity-60">
+												{t("settings_saved_phrases.empty_hint", { defaultValue: "Type above to add your first phrase." })}
+											</p>
+										</div>
+									) : (
+										<div className="grid gap-1">
+											{savedPhrases.map((phrase, originalIndex) => (
+												<div
+													key={originalIndex}
+													className="flex items-center rounded-xl transition hover:bg-[var(--surface-2)]"
+												>
+													<button
+														type="button"
+														onClick={() => {
+															handleUsePhrase(phrase);
+															setIsSavedPhrasesOpen(false);
+														}}
+														className="min-w-0 flex-1 px-3 py-2.5 text-left text-sm text-[var(--text)]"
+													>
+														{phrase}
+													</button>
+													<button
+														type="button"
+														onClick={() => handleDeletePhrase(originalIndex)}
+														className="mr-1.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-red-400"
+														aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+													>
+														<Trash2 className="h-3.5 w-3.5" />
+													</button>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							</div>
+						</div>
+					) : null}
 
 					{!isDesktop && selectedActionMessage && albumViewer === null ? (
 						<div
@@ -1761,22 +1904,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                     )}
                     {/* -------------------------- */}
                 </div>
-                <div className="flex items-end gap-2 mb-2">
+                <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
 					<textarea
 						value={draft}
 						onChange={(event) => setDraft(event.target.value)}
 						rows={1}
 						maxLength={1000}
 						placeholder={t("chat.new_conversation.write_first_message")}
-						className="input-field resize-none disabled:opacity-60"
+						className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
                         style={{ fieldSizing: "content", maxHeight: "115px" }}
 					/>
 					<button
 						type="submit"
 						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
-						className="btn-accent self-stretch shrink-0 px-4 text-sm"
+						className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-sm bg-[var(--accent)] text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-40"
 					>
-						{isSending ? t("chat.sending") : t("chat.send")}
+						{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
 					</button>
 				</div>
 
