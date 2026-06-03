@@ -4,6 +4,7 @@ import {
 	Bell,
 	Bookmark,
 	Bug,
+	ChevronLeft,
 	ChevronRight,
 	ClipboardList,
 	Download,
@@ -311,14 +312,24 @@ export function SettingsPage() {
 
 	return (
 		<section className="app-screen">
-			<header className="mb-6">
-				<h1 className="app-title mb-2">{t("settings.title")}</h1>
-				<p className="app-subtitle">{t("settings.subtitle")}</p>
-				{developerMode ? (
-					<p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
-						Developer Mode
-					</p>
-				) : null}
+			<header className="mb-6 flex items-center gap-3">
+				<button
+					type="button"
+					onClick={() => navigate("/")}
+					className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)]"
+					aria-label={t("settings.back_to_browse")}
+				>
+					<ChevronLeft className="h-4 w-4" />
+				</button>
+				<div>
+					<h1 className="app-title mb-1">{t("settings.title")}</h1>
+					<p className="app-subtitle">{t("settings.subtitle")}</p>
+					{developerMode ? (
+						<p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
+							Developer Mode
+						</p>
+					) : null}
+				</div>
 			</header>
 
 			<div className="grid gap-4">
@@ -807,15 +818,22 @@ export function SettingsPage() {
 					</div>
 				) : null}
 
-				<div className="mt-2 flex flex-wrap items-center gap-3">
-					<Button type="button" onClick={() => navigate("/")}>
-						{t("settings.back_to_browse")}
-					</Button>
-					<Button type="button" variant="primary" onClick={handleLogout}>
-						<LogOut className="h-4 w-4" />
+                <div className="surface-card rounded-3xl p-5 sm:p-6">
+					<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 						{t("settings.logout")}
-					</Button>
+					</p>
+					<p className="mt-1.5 text-sm leading-relaxed text-[var(--text-muted)]">
+						{t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })}
+					</p>
+					<button
+						type="button"
+						onClick={handleLogout}
+						className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+					>
+						{t("settings.logout")}
+					</button>
 				</div>
+
 			</div>
 		</section>
 	);

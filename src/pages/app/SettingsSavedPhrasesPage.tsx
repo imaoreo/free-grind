@@ -102,11 +102,8 @@ export function SettingsSavedPhrasesPage() {
 
 	return (
 		<section className="app-screen">
-			<BackToSettings />
 			<header className="mb-6">
-				<p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
-					{t("settings_saved_phrases.label", { defaultValue: "Chat" })}
-				</p>
+				<BackToSettings />
 				<h1 className="app-title mt-2">
 					{t("settings_saved_phrases.title", {
 						defaultValue: "Saved Phrases",
