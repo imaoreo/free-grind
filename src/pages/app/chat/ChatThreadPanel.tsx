@@ -66,7 +66,7 @@ import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
-import { BottomSheet } from "../../../components/ui/bottom-sheet";
+import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import {
 	loadSavedPhrases,
 	saveSavedPhrases,
@@ -515,7 +515,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	useModalClose({
 		isOpen: pendingAlbumShare !== null,
 		onClose: closePendingAlbumShare,
-		escapeKey: !isSharingAlbum,
+		escapeKey: false,
 	});
 
 	useModalClose({
@@ -533,6 +533,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	useModalClose({
 		isOpen: isSavedPhrasesOpen,
 		onClose: () => setIsSavedPhrasesOpen(false),
+		escapeKey: false,
 	});
 
 	useEffect(() => {
@@ -1205,7 +1206,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							/>
 							<button
 								type="submit"
-								disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
+								disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
 								className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] transition hover:opacity-80 disabled:opacity-30"
 							>
 								{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
@@ -1486,13 +1487,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										>
 											<Settings2 className="h-4 w-4" />
 										</button>
-										<button
-											type="button"
-											onClick={() => setIsSavedPhrasesOpen(false)}
-											className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-										>
+										<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 											<X className="h-4 w-4" />
-										</button>
+										</SheetClose>
 									</div>
 								</div>
 
@@ -1540,16 +1537,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											{savedPhrases.map((phrase, originalIndex) => (
 												<div key={originalIndex} className="group flex items-center px-4">
 													<div className="flex flex-1 items-center gap-1 py-3">
-														<button
-															type="button"
-															onClick={() => {
-																handleUsePhrase(phrase);
-																setIsSavedPhrasesOpen(false);
-															}}
+														<SheetClose
+															onClick={() => handleUsePhrase(phrase)}
 															className="min-w-0 flex-1 text-left text-sm text-[var(--text)] transition hover:text-[var(--accent)]"
 														>
 															{phrase}
-														</button>
+														</SheetClose>
 														<button
 															type="button"
 															onClick={() => handleDeletePhrase(originalIndex)}
@@ -1704,14 +1697,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									>
 										{t("chat.share_album_label")}
 									</p>
-									<button
-										type="button"
-										onClick={closePendingAlbumShare}
+									<SheetClose
 										disabled={isSharingAlbum}
 										className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
 									>
 										<X className="h-4 w-4" />
-									</button>
+									</SheetClose>
 								</div>
 								<div className="px-4 pb-3">
 								<p className="text-sm leading-relaxed text-[var(--text-muted)]">
@@ -1748,15 +1739,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 
 								</div>
-								<div className="flex gap-2 p-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-									<button
-										type="button"
-										onClick={closePendingAlbumShare}
+								<div className="flex gap-2 p-3">
+									<SheetClose
 										disabled={isSharingAlbum}
 										className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 									>
 										{t("chat.actions.cancel")}
-									</button>
+									</SheetClose>
 									<button
 										type="button"
 										onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
@@ -1900,7 +1889,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					/>
 					<button
 						type="submit"
-						disabled={isSending || (!pendingLocationShare && draft.trim().length === 0)}
+						disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
 						className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-sm bg-[var(--accent)] text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-40"
 					>
 						{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
@@ -2142,14 +2131,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                             >
                                 {t("chat.share_album_label")}
                             </p>
-                            <button
-                                type="button"
-                                onClick={closePendingAlbumShare}
+                            <SheetClose
                                 disabled={isSharingAlbum}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
                             >
                                 <X className="h-4 w-4" />
-                            </button>
+                            </SheetClose>
                         </div>
                         <div className="px-4 pb-3">
                         <p className="text-sm leading-relaxed text-[var(--text-muted)]">
@@ -2187,14 +2174,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
                         </div>
                         <div className="flex gap-2 p-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-                            <button
-                                type="button"
-                                onClick={closePendingAlbumShare}
+                            <SheetClose
                                 disabled={isSharingAlbum}
                                 className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
                             >
                                 {t("chat.actions.cancel")}
-                            </button>
+                            </SheetClose>
                             <button
                                 type="button"
                                 onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
