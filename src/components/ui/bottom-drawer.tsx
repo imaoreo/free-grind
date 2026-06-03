@@ -7,7 +7,7 @@ interface BottomDrawerProps {
 	onClose: () => void;
 	onConfirm: () => void;
 	confirmLabel: string;
-	cancelLabel: string;
+	cancelLabel?: string;
 	isProcessing?: boolean;
 	zIndex?: string;
 	isDesktop?: boolean;
@@ -43,12 +43,14 @@ export function BottomDrawer({
 			</div>
 			{children}
 			<div className="flex gap-2 px-3">
-				<SheetClose
-					disabled={isProcessing}
-					className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-				>
-					{cancelLabel}
-				</SheetClose>
+				{cancelLabel && (
+					<SheetClose
+						disabled={isProcessing}
+						className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+					>
+						{cancelLabel}
+					</SheetClose>
+				)}
 				<button
 					type="button"
 					onClick={onConfirm}

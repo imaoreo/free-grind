@@ -436,13 +436,13 @@ export function ChatDrawerPanel({
 									</button>
 								</div>
 							) : (
-								<div className={`grid gap-0 ${isDesktop ? "grid-cols-5" : "grid-cols-3"}`}>
+								<div className={`grid gap-px bg-[var(--border)] ${isDesktop ? "grid-cols-5" : "grid-cols-3"}`}>
 									{/* Camera button */}
 									<button
 										type="button"
 										onClick={() => cameraInputRef.current?.click()}
-										disabled={isAdding}
-										className="relative aspect-square border-r border-b border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
+										disabled={isAdding || hasSelection}
+										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.take_photo")}
 										title={t("chat_drawer.take_photo")}
 									>
@@ -452,9 +452,9 @@ export function ChatDrawerPanel({
 											) : (
 												<span className="relative inline-flex">
 													<Camera className="h-5 w-5" />
-													<span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+													{!hasSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
 														<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
-													</span>
+													</span>}
 												</span>
 											)}
 										</div>
@@ -463,17 +463,17 @@ export function ChatDrawerPanel({
 									<button
 										type="button"
 										onClick={() => uploadInputRef.current?.click()}
-										disabled={isAdding}
-										className="relative aspect-square border-r border-b border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
+										disabled={isAdding || hasSelection}
+										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.upload_photo")}
 										title={t("chat_drawer.upload_photo")}
 									>
 										<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
 											<span className="relative inline-flex">
 												<Upload className="h-5 w-5" />
-												<span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
-														<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
-													</span>
+												{!hasSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+													<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
+												</span>}
 											</span>
 										</div>
 									</button>
@@ -488,13 +488,10 @@ export function ChatDrawerPanel({
 												tabIndex={0}
 												onClick={() => toggleSelection(item.id)}
 												onKeyDown={(e) => e.key === "Enter" && toggleSelection(item.id)}
-												className="relative aspect-square overflow-hidden border-0 transition cursor-pointer"
+												className="relative aspect-square overflow-hidden transition cursor-pointer"
 												style={{
-													borderColor: isSelected ? "var(--accent)" : "transparent",
-													background: isSelected
-														? "color-mix(in srgb, var(--accent) 16%, var(--surface-2))"
-														: "var(--surface-2)",
-													borderWidth: isSelected ? "2px" : "0px",
+													outline: isSelected ? "2px solid var(--accent)" : "none",
+													outlineOffset: "-2px",
 												}}
 											>
 												{isImage ? (
@@ -510,16 +507,26 @@ export function ChatDrawerPanel({
 													/>
 												)}
 
-												{isSelected ? (
+												{item.used && !isSelected ? (
 													<div className="absolute inset-0 flex items-center justify-center bg-black/40">
-														<Check className="h-4 w-4 text-white" />
+														<span className="text-[11px] font-semibold uppercase tracking-widest text-white/90">
+															{t("chat_drawer.sent", { defaultValue: "Sent" })}
+														</span>
 													</div>
 												) : null}
 
-												{item.used ? (
-													<div className="absolute top-0.5 right-0.5 inline-flex items-center rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-														✓
+												{isSelected ? (
+													<div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--accent) 45%, transparent)" }}>
+														<Check className="h-5 w-5 text-white drop-shadow" />
 													</div>
+												) : null}
+
+												{item.takenOnGrindr ? (
+													<img
+														src={freegrindLogo}
+														alt=""
+														className="absolute bottom-1 left-1 h-4 w-4 rounded-full logo-shine"
+													/>
 												) : null}
 
 												<button
@@ -545,14 +552,7 @@ export function ChatDrawerPanel({
 
 						{/* Footer - Send button */}
 						{hasSelection ? (
-							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-								<button
-									type="button"
-									onClick={() => setSelectedIds(new Set())}
-									className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								>
-									{t("chat.actions.cancel")}
-								</button>
+							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">
 								<div className="flex flex-1 gap-2">
 									<button
 										type="button"
