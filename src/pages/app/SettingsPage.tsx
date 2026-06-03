@@ -322,13 +322,15 @@ export function SettingsPage() {
 					<ChevronLeft className="h-4 w-4" />
 				</button>
 				<div>
-					<h1 className="app-title mb-1">{t("settings.title")}</h1>
+					<div className="mb-1 flex items-center gap-2">
+						<h1 className="app-title">{t("settings.title")}</h1>
+						{developerMode ? (
+							<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-contrast)]">
+								Developer Mode
+							</span>
+						) : null}
+					</div>
 					<p className="app-subtitle">{t("settings.subtitle")}</p>
-					{developerMode ? (
-						<p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
-							Developer Mode
-						</p>
-					) : null}
 				</div>
 			</header>
 

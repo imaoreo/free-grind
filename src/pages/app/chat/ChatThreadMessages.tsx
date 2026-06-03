@@ -719,7 +719,7 @@ export function ChatThreadMessages({
 														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
 															mine
 																? "bg-white/10 text-white"
-																: "bg-[var(--surface)] text-[var(--text)]"
+																: "bg-[var(--surface-2)] text-[var(--text)]"
 														}`}
 													>
 														<div className="relative">
