@@ -177,6 +177,7 @@ type ChatThreadPanelProps = {
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
 	albumViewer: AlbumViewerState | null;
+	onCloseAlbumViewer: () => void;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -292,6 +293,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessage,
 		selectedActionMessageMine,
 		albumViewer,
+		onCloseAlbumViewer,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -670,7 +672,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                 {!isDesktop && (
                                     <button
                                         type="button"
-                                        onClick={() => navigate("/chat")}
+                                        onClick={() => { if (albumViewer) { onCloseAlbumViewer(); return; } navigate("/chat"); }}
                                         className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
                                         aria-label={t("browse_location.back_aria")}
                                     >
