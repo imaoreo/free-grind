@@ -1144,7 +1144,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											key={idx}
 											type="button"
 											onClick={() => handleUsePhrase(phrase)}
-											className={`shrink-0 whitespace-nowrap rounded-2xl rounded-bl-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
+											className={`shrink-0 whitespace-nowrap rounded-2xl rounded-br-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
 												isExact
 													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
