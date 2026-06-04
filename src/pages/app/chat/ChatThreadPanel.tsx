@@ -575,7 +575,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		};
 	}, [isDesktop]);
 
-	const renderThread = selectedConversation ? (
+	const renderThread = (selectedConversation || targetProfileId) ? (
 		<div
 			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
 				isDesktop ? "surface-card" : ""
@@ -589,7 +589,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					: undefined
 			}
 		>
-			{(() => {
+			{selectedConversation ? (() => {
 				const otherParticipant = getOtherParticipant(
 					selectedConversation,
 					userId,
@@ -1055,10 +1055,41 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						/>
 					</>
 				);
-			})()}
+			})() : (
+			<div
+				className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : "-mx-3 sm:-mx-4 px-3 sm:px-4"}`}
+				style={!isDesktop ? { top: 0, paddingTop: "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))" } : undefined}
+			>
+				<div className="min-w-0 flex items-center gap-3">
+					{!isDesktop && (
+						<button
+							type="button"
+							onClick={() => navigate("/")}
+							className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+							aria-label={t("browse_location.back_aria")}
+						>
+							<ChevronLeft className="h-4 w-4" />
+						</button>
+					)}
+					<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+						<User className="h-5 w-5 text-[var(--text-muted)]" />
+					</div>
+					<div className="min-w-0">
+						<p className="truncate text-lg font-semibold text-[var(--text-muted)]">{t("chat.new_conversation.title")}</p>
+						<p className="text-sm text-[var(--text-muted)]">{t("chat.new_conversation.subtitle", { profileId: targetProfileId })}</p>
+					</div>
+				</div>
+				<div className="flex items-center gap-2">
+					<button type="button" disabled className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] opacity-40 cursor-not-allowed" aria-label="Open conversation actions">
+						<Ellipsis className="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+			)}
 
-			{isLoadingThread &&
-			threadConversationId !== selectedConversation.data.conversationId ? (
+			{selectedConversation ? (
+				isLoadingThread &&
+				threadConversationId !== selectedConversation.data.conversationId ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
 					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat.loading_messages")}
 				</div>
@@ -1079,8 +1110,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					</button>
 				</div>
 			) : (
-				<>
-					<ChatThreadMessages
+				<ChatThreadMessages
 						isDesktop={isDesktop}
 						selectedConversation={selectedConversation}
 						userId={userId}
@@ -1111,7 +1141,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						threadBottomRef={threadBottomRef}
-					/>
+				/>
+				)
+			) : (
+				<div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
+					<div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text-muted)]">
+						<MessageCircleOff className="h-6 w-6 opacity-50" />
+					</div>
+					<div>
+						<p className="text-sm font-medium text-[var(--text-muted)]">{t("chat.new_conversation.no_messages_yet", { defaultValue: "No messages yet" })}</p>
+						<p className="mt-1 text-xs text-[var(--text-muted)] opacity-70">{t("chat.new_conversation.send_first_message_hint", { defaultValue: "Send a message below to start the conversation." })}</p>
+					</div>
+				</div>
+			)}
 
 					<form
 						onSubmit={onFormSubmit}
@@ -1160,7 +1202,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						)}
 						{/* -------------------------- */}
 
-                        {replyTargetMessage ? (
+                        {selectedConversation && replyTargetMessage ? (
 							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
 								<div className="flex items-stretch">
 									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
@@ -1172,7 +1214,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
 														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
 															? t("chat.you")
-															: (selectedConversation.data.name?.trim() || t("chat.unknown"))
+															: (selectedConversation?.data.name?.trim() || t("chat.unknown"))
 													}`}
 												</span>
 											</p>
@@ -1202,7 +1244,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								onChange={(event) => setDraft(event.target.value)}
 								rows={1}
 								maxLength={1000}
-								placeholder={t("chat.write_message")}
+								placeholder={selectedConversation ? t("chat.write_message") : t("chat.new_conversation.write_first_message")}
 								className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
                                 style={{ fieldSizing: "content", maxHeight: "115px" }}
 							/>
@@ -1232,6 +1274,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => {
+									if (!selectedConversation) { toast.error(t("chat.errors.no_conversation_yet", { defaultValue: "Send a text message first to unlock media." })); return; }
 									attachmentInputRef.current?.click();
 									if (isDrawerOpen) toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
@@ -1246,6 +1289,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => {
+									if (!selectedConversation) { toast.error(t("chat.errors.no_conversation_yet", { defaultValue: "Send a text message first to unlock media." })); return; }
 									toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
@@ -1414,7 +1458,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</BottomDrawer>
 					) : null}
 
-					{isDrawerOpen ? (
+					{selectedConversation && isDrawerOpen ? (
 						<ChatDrawerPanel
 							media={drawerMedia}
 							isLoading={isLoadingDrawer}
@@ -1762,504 +1806,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 						</BottomSheet>
 					) : null}
-				</>
-			)}
-		</div>
-	) : targetProfileId ? (
-		<div
-            className={`flex h-full flex-col overflow-hidden ${!isDesktop ? "overflow-hidden p-0" : "p-3 sm:p-4"} ${
-                isDesktop ? "surface-card" : ""
-            }`}
-            style={
-                !isDesktop
-                    ? {
-                        height:
-                            "calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
-                    }
-                    : undefined
-            }
-        >
-            <div
-                className={`mb-3 flex items-center justify-between gap-3 border-b border-[var(--border)] pb-3 ${!isDesktop ? "fixed inset-x-0 top-0 z-20 bg-[var(--surface)] py-3 px-[var(--app-px)]" : "-mx-3 sm:-mx-4 px-3 sm:px-4"}`}
-                style={
-                    !isDesktop
-                        ? {
-                            top: 0,
-                            paddingTop:
-                                "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))",
-                        }
-                        : undefined
-                }
-            >
-                <div className="min-w-0 flex items-center gap-3">
-                    {!isDesktop && (
-                        <button
-                            type="button"
-                            onClick={() => navigate("/")}
-                            className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
-                            aria-label={t("browse_location.back_aria")}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                    )}
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
-                        <User className="h-5 w-5 text-[var(--text-muted)]" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="truncate text-lg font-semibold text-[var(--text-muted)]">
-                            {t("chat.new_conversation.title")}
-                        </p>
-                        <p className="text-sm text-[var(--text-muted)]">
-                            {t("chat.new_conversation.subtitle", { profileId: targetProfileId })}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        disabled
-                        className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] opacity-40 cursor-not-allowed"
-                        aria-label="Open conversation actions"
-                    >
-                        <Ellipsis className="h-4 w-4" />
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]">
-                    <MessageCircleOff className="h-6 w-6 opacity-50" />
-                </div>
-                <div>
-                    <p className="text-sm font-medium text-[var(--text-muted)]">
-                        {t("chat.new_conversation.no_messages_yet", { defaultValue: "No messages yet" })}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--text-muted)] opacity-70">
-                        {t("chat.new_conversation.send_first_message_hint", { defaultValue: "Send a message below to start the conversation." })}
-                    </p>
-                </div>
-            </div>
-
-			<form
-				onSubmit={onFormSubmit}
-				className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
-                style={
-                    !isDesktop
-                        ? {
-                            bottom: `${mobileKeyboardInset}px`,
-                            paddingBottom: "max(12px, env(safe-area-inset-bottom))",
-                        }
-                        : undefined
-                }
-            >
-				{(isUploadingAttachment || uploadProgress > 0) && (
-					<div
-						className="h-0.5 bg-[var(--surface-2)] mb-3"
-						style={{ marginTop: "-12px", marginLeft: "calc(-1 * var(--app-px))", marginRight: "calc(-1 * var(--app-px))" }}
-					>
-						<div
-							className="h-0.5 bg-[var(--accent)] transition-all duration-300"
-							style={{ width: `${Math.min(100, uploadProgress)}%` }}
-						/>
-					</div>
-				)}
-				{/* --- QUICK PHRASE PILLS --- */}
-				{filteredPhrases.length > 0 && (
-					<div className="mb-2 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-						{filteredPhrases.map((phrase, idx) => {
-							const isExact = phrase.toLowerCase() === draft.trim().toLowerCase();
-							return (
-								<button
-									key={idx}
-									type="button"
-									onClick={() => handleUsePhrase(phrase)}
-									className={`shrink-0 whitespace-nowrap rounded-2xl rounded-br-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
-										isExact
-											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-											: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-									}`}
-								>
-									{phrase}
-								</button>
-							);
-						})}
-					</div>
-				)}
-				{/* -------------------------- */}
-
-                <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
-					<textarea
-						value={draft}
-						onChange={(event) => setDraft(event.target.value)}
-						rows={1}
-						maxLength={1000}
-						placeholder={t("chat.new_conversation.write_first_message")}
-						className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
-                        style={{ fieldSizing: "content", maxHeight: "115px" }}
-					/>
-					<button
-						type="submit"
-						disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
-						className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] transition hover:opacity-80 disabled:opacity-30"
-					>
-						{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-					</button>
-				</div>
-
-				<div className="mb-2 mx-5 flex items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        onClick={() => {
-							toggleAlbumPicker();
-							if (isDrawerOpen) toggleDrawer();
-							if (pendingLocationShare) handleLocationShareRequest();
-						}}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-                        aria-label={t("chat.share_album_label")}
-                        title={t("chat.share_album_label")}
-                    >
-                        <Share2 className="h-5 w-5" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-							attachmentInputRef.current?.click();
-							if (isDrawerOpen) toggleDrawer();
-							if (pendingLocationShare) handleLocationShareRequest();
-						}}
-                        disabled={isUploadingAttachment}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-                        aria-label={t("chat.attach_media")}
-                        title={t("chat.attach_media")}
-                    >
-                        <ImagePlus className="h-5 w-5" />
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] opacity-40 cursor-not-allowed"
-                        aria-label={t("chat.drawer_label")}
-                        title={t("chat.drawer_unavailable", { defaultValue: "Send a message first to use the drawer" })}
-                    >
-                        <SquareStack className="h-5 w-5" />
-                    </button>
-					<button
-                        type="button"
-                        onClick={() => {
-							handleLocationShareRequest();
-							if (isDrawerOpen) toggleDrawer();
-						}}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-                        aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
-                        title={t("chat.share_location_label", { defaultValue: "Share Location" })}
-                    >
-                        <MapPin className="h-5 w-5" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsSavedPhrasesOpen((prev) => !prev)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
-                        aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
-                        title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
-                    >
-                        <BookMarked className="h-5 w-5" />
-                    </button>
-
-                    <input
-                        type="file"
-                        ref={attachmentInputRef}
-                        onChange={onAttachmentInput}
-                        accept="image/*,video/*"
-                        className="hidden"
-                    />
-                </div>
-
-                {isAlbumPickerOpen ? (
-                    <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
-                        {isLoadingAlbums ? (
-                            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
-                            </div>
-                        ) : shareableAlbums.length === 0 ? (
-                            <p className="text-xs text-[var(--text-muted)]">
-                                {t("chat.no_albums_available")}
-                            </p>
-                        ) : (
-                            <div className="grid gap-2 sm:grid-cols-2">
-                                {shareableAlbums.map((album) => (
-                                    <div
-                                        key={album.albumId}
-                                        className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
-                                    >
-                                        <p className="truncate text-xs font-medium">
-                                            {album.albumName || t("chat.album_fallback", { id: album.albumId })}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                void shareAlbumToCurrentConversation(
-                                                    album.albumId,
-                                                    album.albumName,
-                                                )
-                                            }
-                                            disabled={!album.isShareable || isSharingAlbum}
-                                            className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
-                                        >
-                                            {t("chat.share")}
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ) : null}
-
-			</form>
-
-			{pendingAttachmentFile ? (
-				<BottomDrawer
-					title={t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
-					onClose={cancelPendingAttachment}
-					onConfirm={() => void handleConfirmAttachment()}
-					confirmLabel={t("chat.attachments.send_attachment")}
-					cancelLabel={t("chat.actions.cancel")}
-					isProcessing={isUploadingAttachment}
-					isDesktop={isDesktop}
-				>
-					{attachmentPreviewUrl && (
-						pendingAttachmentFile.type.startsWith("video/") ? (
-							<div className="px-3 pb-3">
-								<video src={attachmentPreviewUrl} controls className="w-full object-contain rounded-xl border border-[var(--border)]" style={{ maxHeight: "40dvh" }} />
-							</div>
-						) : (
-							<div className="px-3 pb-3">
-								<div className="flex justify-center">
-									<style>{`
-										@keyframes attach-logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
-										.attach-logo-shine { animation: attach-logo-shine 2.8s ease-in-out infinite; }
-										.attach-crop .ReactCrop__crop-mask { display: none !important; } .attach-crop .ReactCrop__crop-selection { background-image: none !important; animation: none !important; outline: none !important; border: 3px solid rgba(255,255,255,0.6) !important; border-radius: 11px !important; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5) !important; }
-										.attach-crop .ord-n, .attach-crop .ord-s, .attach-crop .ord-e, .attach-crop .ord-w { display: none !important; }
-										.attach-crop .ReactCrop__drag-handle { background: transparent !important; border: none !important; width: 15px !important; height: 15px !important; }
-										.attach-crop .ord-nw { transform: translate(4px, 4px) !important; border-top: 2px solid white !important; border-left: 2px solid white !important; }
-										.attach-crop .ord-ne { transform: translate(-4px, 4px) !important; border-top: 2px solid white !important; border-right: 2px solid white !important; }
-										.attach-crop .ord-sw { transform: translate(4px, -4px) !important; border-bottom: 2px solid white !important; border-left: 2px solid white !important; }
-										.attach-crop .ord-se { transform: translate(-4px, -4px) !important; border-bottom: 2px solid white !important; border-right: 2px solid white !important; }
-									`}</style>
-									<div className="relative rounded-xl border border-[var(--border)] overflow-hidden">
-									<ReactCrop
-										crop={attachmentCrop}
-										onChange={(c) => { setIsDraggingAttachmentCrop(true); setAttachmentCrop(c); }}
-										onComplete={(c) => { setIsDraggingAttachmentCrop(false); setAttachmentCompletedCrop(c); }}
-										ruleOfThirds={isDraggingAttachmentCrop}
-										minWidth={150}
-										minHeight={150}
-										className="attach-crop ReactCrop--no-animate"
-										style={{ maxHeight: "45dvh", display: "block" }}
-									>
-										<img ref={attachmentImgRef} src={attachmentPreviewUrl} alt="Preview" className="block" style={{ maxHeight: "45dvh" }} />
-									</ReactCrop>
-									{attachmentTakenOnGrindr && attachmentCrop && (
-										<div
-											className="absolute inline-flex items-center gap-1.5 pointer-events-none"
-											style={{
-												left: `calc(${attachmentCrop.unit === "%" ? attachmentCrop.x + "%" : attachmentCrop.x + "px"} + 10px)`,
-												top: `calc(${attachmentCrop.unit === "%" ? (attachmentCrop.y + attachmentCrop.height) + "%" : (attachmentCrop.y + attachmentCrop.height) + "px"} - 10px)`,
-												transform: "translateY(-100%)",
-											}}
-										>
-											<img src={freegrindLogo} alt="" className="h-5 w-5 rounded-full attach-logo-shine" />
-											<span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white">
-												<span>{t("chat.time.just_now", { defaultValue: "just now" })}</span>
-											</span>
-										</div>
-									)}
-									</div>
-								</div>
-								<div className="mt-3 flex items-center justify-center gap-8">
-									<button type="button" onClick={() => void applyAttachmentTransform("flipH")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Flip horizontal">
-										<SquareCenterlineDashedHorizontal className="h-6 w-6" />
-									</button>
-									<button type="button" onClick={() => void applyAttachmentTransform("rotateCw")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Rotate clockwise">
-										<RotateCw className="h-6 w-6" />
-									</button>
-								</div>
-							</div>
-						)
-					)}
-					<div className="px-3 pb-3 grid gap-3">
-						<ToggleRow 
-                            checked={attachmentLooping}
-                            onChange={setAttachmentLooping}
-                            label={t("chat.attachments.looping")}
-                        />
-                        <ToggleRow
-                            checked={attachmentTakenOnGrindr}
-                            onChange={setAttachmentTakenOnGrindr}
-                            label={t("chat.attachments.taken_on_grindr")}
-                            description={t("chat.attachments.taken_on_grindr_description")}
-                        />
-					</div>
-				</BottomDrawer>
-			) : null}
-
-			{pendingLocationShare ? (
-				<BottomDrawer
-					title={t("chat.share_location_confirm", { defaultValue: "Share this location?" })}
-					onClose={() => setPendingLocationShare(null)}
-					onConfirm={() => {
-						void onSendLocation(pendingLocationShare.lat, pendingLocationShare.lon);
-						setPendingLocationShare(null);
-					}}
-					confirmLabel={t("chat.send")}
-					isDesktop={isDesktop}
-				>
-					<div className="px-3 pb-3">
-						<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
-							<LeafletLocationPicker
-								selectedLocation={pendingLocationShare}
-								onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
-								onError={(msg) => toast.error(msg)}
-								className="h-full w-full"
-								defaultZoom={18}
-							/>
-						</div>
-					</div>
-				</BottomDrawer>
-			) : null}
-
-            {pendingAlbumShare && albumViewer === null ? (
-                <BottomSheet
-                    onClose={isSharingAlbum ? () => {} : closePendingAlbumShare}
-                    isProcessing={isSharingAlbum}
-                    isDesktop={true}
-                >
-                        <div className="flex items-center justify-between px-4 py-3">
-                            <p
-                                id="chat-album-share-confirm-title"
-                                className="text-sm font-semibold text-[var(--text)]"
-                            >
-                                {t("chat.share_album_label")}
-                            </p>
-                            <SheetClose
-                                disabled={isSharingAlbum}
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
-                            >
-                                <X className="h-4 w-4" />
-                            </SheetClose>
-                        </div>
-                        <div className="px-4 pb-3">
-                        <p className="text-sm leading-relaxed text-[var(--text-muted)]">
-                            {t("chat.confirm_share_album", {
-                                album: pendingAlbumShare.albumName,
-                            })}
-                        </p>
-
-                        <div className="mt-4">
-                            <label className="mb-1.5 block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                                {t("chat.expiration.title")}
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={selectedExpirationType}
-                                    onChange={(e) => setSelectedExpirationType(e.target.value)}
-                                    className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--text)] transition focus:border-[var(--accent)] focus:outline-none"
-                                >
-                                    <option value="INDEFINITE">{t("chat.expiration.indefinite")}</option>
-                                    <option value="ONCE">{t("chat.expiration.once")}</option>
-                                    <option value="TEN_MINUTES">{t("chat.expiration.ten_minutes")}</option>
-                                    <option value="ONE_HOUR">{t("chat.expiration.one_hour")}</option>
-                                    <option value="ONE_DAY">{t("chat.expiration.one_day")}</option>
-                                </select>
-                                <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-                                    {selectedExpirationType === "INDEFINITE" && <Infinity className="h-4 w-4" />}
-                                    {selectedExpirationType === "ONCE" && <TimerOff className="h-4 w-4" />}
-                                    {(selectedExpirationType === "TEN_MINUTES" || selectedExpirationType === "ONE_HOUR" || selectedExpirationType === "ONE_DAY") && <Hourglass className="h-4 w-4" />}
-                                </div>
-                                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-                                    <ChevronDown className="h-4 w-4" />
-                                </div>
-                            </div>
-                        </div>
-
-                        </div>
-                        <div className="flex gap-2 p-3" style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}>
-                            <SheetClose
-                                disabled={isSharingAlbum}
-                                className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-                            >
-                                {t("chat.actions.cancel")}
-                            </SheetClose>
-                            <button
-                                type="button"
-                                onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
-                                disabled={isSharingAlbum}
-                                className="flex-1 rounded-xl border border-[var(--accent)] bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
-                            >
-                                {isSharingAlbum ? (
-                                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-                                ) : (
-                                    <span>{t("chat.share")}</span>
-                                )}
-                            </button>
-                        </div>
-                </BottomSheet>
-            ) : null}
-
-			{isSavedPhrasesOpen ? (
-				<BottomSheet
-					onClose={() => { setPhrasesExpanded(false); setIsSavedPhrasesOpen(false); }}
-					onExpand={() => setPhrasesExpanded(true)}
-					isDesktop={isDesktop}
-					bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
-				>
-					<div className="flex items-center justify-between px-4 pb-3">
-						<div className="flex items-center gap-2">
-							<p className="text-sm font-semibold text-[var(--text)]">{t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}</p>
-							{savedPhrases.length > 0 && (
-								<span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">{savedPhrases.length}</span>
-							)}
-						</div>
-						<div className="flex items-center gap-1">
-							<button type="button" onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/saved-phrases"); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]" aria-label={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}>
-								<Settings2 className="h-4 w-4" />
-							</button>
-							<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
-								<X className="h-4 w-4" />
-							</SheetClose>
-						</div>
-					</div>
-					<div className="px-3 pb-3">
-						<div className="flex gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-1.5">
-							<input type="text" value={newPhraseInput} onChange={(e) => setNewPhraseInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddPhrase(); } }} placeholder={t("settings_saved_phrases.new_placeholder", { defaultValue: "Add a new phrase..." })} className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none" />
-							<button type="button" onClick={handleAddPhrase} disabled={!newPhraseInput.trim()} className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-40">
-								<Plus className="h-3.5 w-3.5" />
-								{t("settings_saved_phrases.add", { defaultValue: "Add" })}
-							</button>
-						</div>
-					</div>
-					<div className="border-t border-[var(--border)]" />
-					<div data-lenis-prevent className="overflow-y-auto" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
-						{savedPhrases.length === 0 ? (
-							<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
-								<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]"><BookMarked className="h-5 w-5 opacity-60" /></div>
-								<p className="text-sm font-medium">{t("settings_saved_phrases.empty", { defaultValue: "No saved phrases yet." })}</p>
-								<p className="text-xs opacity-60">{t("settings_saved_phrases.empty_hint", { defaultValue: "Type above to add your first phrase." })}</p>
-							</div>
-						) : (
-							<div>
-								{savedPhrases.map((phrase, originalIndex) => (
-									<div key={originalIndex} className="group flex items-center px-4">
-										<div className="flex flex-1 items-center gap-1 py-3">
-											<SheetClose onClick={() => handleUsePhrase(phrase)} className="min-w-0 flex-1 text-left text-sm text-[var(--text)] transition hover:text-[var(--accent)]">{phrase}</SheetClose>
-											<button type="button" onClick={() => handleDeletePhrase(originalIndex)} className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-red-400" aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}><Trash2 className="h-3.5 w-3.5" /></button>
-										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</div>
-				</BottomSheet>
-			) : null}
 		</div>
 	) : (
 		<div
