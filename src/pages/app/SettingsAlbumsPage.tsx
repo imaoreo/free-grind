@@ -1,7 +1,6 @@
 import {
 	ArrowDown,
 	ArrowUp,
-	FolderOpen,
 	Images,
 	Pencil,
 	Plus,
@@ -73,6 +72,7 @@ export function SettingsAlbumsPage() {
 	const [confirmDeleteContentKey, setConfirmDeleteContentKey] = useState<
 		string | null
 	>(null);
+	const [editOpenedAlbumId, setEditOpenedAlbumId] = useState<string | null>(null);
 
 	const loadAlbumsAndLimits = useCallback(async () => {
 		setIsLoading(true);
@@ -153,6 +153,10 @@ export function SettingsAlbumsPage() {
 	};
 
 	const cancelEditing = () => {
+		if (editOpenedAlbumId) {
+			setOpenAlbumId((prev) => prev === editOpenedAlbumId ? null : prev);
+			setEditOpenedAlbumId(null);
+		}
 		setEditingAlbumId(null);
 		setEditingName("");
 	};
@@ -521,15 +525,13 @@ export function SettingsAlbumsPage() {
 													<>
 														<button
 															type="button"
-															onClick={() => toggleAlbumOpen(album.albumId)}
-															className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] px-3 text-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
-														>
-															<FolderOpen className="h-3.5 w-3.5" />
-															{isOpen ? t("settings_albums.close") : t("settings_albums.open")}
-														</button>
-														<button
-															type="button"
-															onClick={() => startEditingAlbum(album)}
+															onClick={() => {
+																startEditingAlbum(album);
+																if (!isOpen) {
+																	toggleAlbumOpen(album.albumId);
+																	setEditOpenedAlbumId(album.albumId);
+																}
+															}}
 															className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
 															title={t("settings_albums.rename")}
 														>
