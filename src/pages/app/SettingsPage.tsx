@@ -820,17 +820,22 @@ export function SettingsPage() {
 					</div>
 				) : null}
 
-                <div className="surface-card rounded-3xl p-5 sm:p-6">
-					<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-						{t("settings.logout")}
-					</p>
-					<p className="mt-1.5 text-sm leading-relaxed text-[var(--text-muted)]">
-						{t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })}
-					</p>
+                <div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<LogOut className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.logout")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })}
+							</p>
+						</div>
+					</div>
 					<button
 						type="button"
 						onClick={handleLogout}
-						className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+						className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
 					>
 						{t("settings.logout")}
 					</button>

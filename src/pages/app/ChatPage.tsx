@@ -2912,14 +2912,13 @@ export function ChatPage() {
 	]);
 
 	const loadDrawerMedia = useCallback(async () => {
-		if (!selectedConversationId) {
-			return;
-		}
+		const cid = selectedConversationId ?? conversations[0]?.data.conversationId;
+		if (!cid) return;
 
 		setIsLoadingDrawer(true);
 		setDrawerError(null);
 		try {
-			const media = await service.getDrawerMedia(selectedConversationId);
+			const media = await service.getDrawerMedia(cid);
 			setDrawerMedia(media);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
@@ -2928,7 +2927,7 @@ export function ChatPage() {
 		} finally {
 			setIsLoadingDrawer(false);
 		}
-	}, [selectedConversationId, service, t]);
+	}, [selectedConversationId, conversations, service, t]);
 
 	const toggleDrawer = useCallback(async () => {
 		if (isDrawerOpen) {
