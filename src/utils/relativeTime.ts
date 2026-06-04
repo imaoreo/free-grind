@@ -1,9 +1,8 @@
 import i18n from "../i18n";
 
-// Optimization: Cache the formatter to avoid expensive re-instantiation in long lists
 const formatterCache = new Map<string, Intl.RelativeTimeFormat>();
 
-function getRelativeFormatter(lang: string) {
+function getLongRelativeFormatter(lang: string) {
 	if (!formatterCache.has(lang)) {
 		formatterCache.set(
 			lang,
@@ -16,10 +15,7 @@ function getRelativeFormatter(lang: string) {
 	return formatterCache.get(lang)!;
 }
 
-/**
- * Format a timestamp as a short relative string falling back to a locale date for older values.
- * Uses Intl.RelativeTimeFormat and synchronizes with the app's current i18n language.
- */
+// Formats as short relative units (e.g. 20m ago, 2h ago)
 export function formatRelativeTime(
 	timestamp: number | null | undefined,
 	now: number = Date.now(),
@@ -31,13 +27,45 @@ export function formatRelativeTime(
 	const diffMs = now - timestamp;
 	const lang = i18n.language;
 
-	// For very recent items, show a localized "Just now" or similar.
-	// We use Math.abs just in case of minor clock drift.
 	if (Math.abs(diffMs) < 60000) {
 		return i18n.t("browse_page.status_just_now");
 	}
 
-	const formatter = getRelativeFormatter(lang);
+	const seconds = Math.floor(diffMs / 1000);
+	const minutes = Math.floor(seconds / 60);
+	const hours = Math.floor(minutes / 60);
+	const days = Math.floor(hours / 24);
+
+	if (minutes < 60) {
+		return i18n.t("browse_page.status_minutes_ago", { count: minutes });
+	}
+	if (hours < 24) {
+		return i18n.t("browse_page.status_hours_ago", { count: hours });
+	}
+	if (days < 7) {
+		return i18n.t("browse_page.status_days_ago", { count: days });
+	}
+
+	return new Date(timestamp).toLocaleDateString(lang);
+}
+
+// Formats as long relative units (e.g. 20 minutes ago, 2 hours ago)
+export function formatLongRelativeTime(
+	timestamp: number | null | undefined,
+	now: number = Date.now(),
+): string {
+	if (!timestamp || !Number.isFinite(timestamp)) {
+		return "";
+	}
+
+	const diffMs = now - timestamp;
+	const lang = i18n.language;
+
+	if (Math.abs(diffMs) < 60000) {
+		return i18n.t("browse_page.status_just_now");
+	}
+
+	const formatter = getLongRelativeFormatter(lang);
 
 	const seconds = Math.floor(diffMs / 1000);
 	const minutes = Math.floor(seconds / 60);
@@ -54,6 +82,5 @@ export function formatRelativeTime(
 		return formatter.format(-days, "day");
 	}
 
-	// For older dates, use the browser's default locale date format
 	return new Date(timestamp).toLocaleDateString(lang);
 }

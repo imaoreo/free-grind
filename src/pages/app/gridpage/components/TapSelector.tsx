@@ -230,7 +230,7 @@ export function TapSelector({
 			)}
 
 			<div
-				className={`tab-menu select-none touch-none absolute bottom-4 left-32 z-[60] flex -translate-x-1/2 items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${showTapPicker ? "active" : ""}`}
+				className={`tab-menu select-none touch-none absolute bottom-full left-1/2 z-[60] flex -translate-x-1/2 items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl mb-4 ${showTapPicker ? "active" : ""}`}
 			>
 				{[1, 2, 0].map((id) => (
 					<div
@@ -270,7 +270,7 @@ export function TapSelector({
 								? "var(--halo-color)"
 								: undefined,
 					}}
-					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex h-16 w-16 items-center justify-center overflow-visible rounded-full border-2 bg-[var(--surface)] transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
+					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex items-center justify-center overflow-visible transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
 					aria-label={t("profile_details.tap_profile", "Tap profile")}
 					title={
 						isTapBlocked
@@ -281,9 +281,10 @@ export function TapSelector({
 					}
 				>
 					{(isTapActive || isIgniting) && (
-						<div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+						<div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none" style={{ borderRadius: "inherit" }}>
 							<div
-								className={`h-full w-full rounded-full tap-btn-outer-halo ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
+								className={`h-full w-full tap-btn-outer-halo ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
+								style={{ borderRadius: "inherit" }}
 							/>
 						</div>
 					)}

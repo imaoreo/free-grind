@@ -1,24 +1,24 @@
-import { Heart, Loader2, MessageCircle, Triangle } from "lucide-react";
-import { type RefObject, type UIEvent } from "react";
+import { Loader2, MessageCircle, MessagesSquare, Compass, Info, Ban } from "lucide-react";
+import { type RefObject, type UIEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
 	formatDistance,
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
-	formatOptionalNumber,
 	formatTimeAgo,
 	formatWeightKg,
 	shouldHideField,
+	getOnlineStatusMeta,
 } from "../utils";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
-import { formatDateTime24 } from "../../chat/chatUtils";
-import { formatRelativeTime } from "../../../../utils/relativeTime";
+import { formatRelativeTime, formatLongRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 
 type LabelMap = Record<number, string>;
@@ -93,28 +93,16 @@ export function ProfileDetailsContent({
 	photoCreatedAtByHash,
 	activeProfileName,
 	estimatedCreatedAt,
-	profileStatusLabel,
 	profileDistance,
 	chatContactStatus,
 	messageProfileId,
 	usesFreegrind,
-	onMessageProfile,
-	onTapProfile,
 	onBlockProfile,
 	onUnblockProfile,
-	onToggleFavoriteProfile,
-	isFavorite,
-	isTogglingFavorite,
 	isBlocked,
 	isBlockingProfile,
-	isTapDisabled,
-	isTapBlocked,
-	isTapActive,
-	tapId,
-	tapButtonClassName,
 	onTriangleProfile,
 	isTriangleDisabled,
-	triangleButtonClassName,
 	isLocatingProfile,
 	hasTagsContent,
 	hasAboutContent,
@@ -134,29 +122,84 @@ export function ProfileDetailsContent({
 	bodyTypeLabels,
 	ethnicityLabels,
 	relationshipStatusLabels,
+	onMessageProfile,
+	onTapProfile,
+	isTapDisabled,
+	isTapBlocked,
+	isTapActive,
+	tapId,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
 
+	const [showDetails, setShowDetails] = useState(false);
+
+	const hasLastOnline = typeof activeProfile.seen === "number" && Number.isFinite(activeProfile.seen);
+	const hasOnlineUntil = typeof activeProfile.onlineUntil === "number" && Number.isFinite(activeProfile.onlineUntil);
+	const referenceTimestamp = hasLastOnline
+		? (activeProfile.seen as number)
+		: hasOnlineUntil
+			? (activeProfile.onlineUntil as number)
+			: null;
+
+	const meta = getOnlineStatusMeta(activeProfile.seen, activeProfile.onlineUntil);
+
+	let statusColorClass = "bg-red-500";
+	let statusText = "";
+
+	if (meta.isOnline) {
+		statusColorClass = "bg-green-500";
+		statusText = t(meta.labelKey, { count: meta.count });
+	} else if (referenceTimestamp !== null) {
+		const diffMs = Math.max(0, Date.now() - referenceTimestamp);
+		const diffMins = Math.floor(diffMs / 60000);
+
+		if (diffMins < 60) {
+			statusColorClass = "bg-yellow-500";
+			statusText = `${t("browse_page.status_online")} ${formatLongRelativeTime(referenceTimestamp)}`;
+		} else {
+			statusColorClass = "bg-red-500";
+			statusText = meta.labelKey === "browse_page.status_offline"
+				? t(meta.labelKey)
+				: `${t("browse_page.status_online")} ${formatLongRelativeTime(referenceTimestamp)}`;
+		}
+	} else {
+		statusColorClass = "bg-red-500";
+		statusText = t("browse_page.status_offline");
+	}
+
+	const triggerLocate = () => {
+		if (messageProfileId && onTriangleProfile && !isTriangleDisabled && !isLocatingProfile) {
+			onTriangleProfile(messageProfileId);
+		}
+	};
+
+	const copyUserId = async () => {
+		try {
+			const { default: copy } = await import("copy-to-clipboard");
+			copy(activeProfile.profileId);
+			toast.success(t("profile_details.user_id_copied", { defaultValue: "User ID copied!" }), { id: "user-id-copy" });
+			if (navigator.vibrate) {
+				navigator.vibrate(50);
+			}
+		} catch (err) {
+			console.error("Failed to copy user ID", err);
+		}
+	};
+
 	const renderPhotoCreatedBadge = (hash: string) => {
 		const meta = photoCreatedAtByHash[hash] ?? null;
-		const timeLabel = meta?.createdAt ? formatDateTime24(meta.createdAt) : null;
-		if (!timeLabel && !meta?.takenOnGrindr) return null;
+		if (!meta?.takenOnGrindr) return null;
 		return (
 			<div className="pointer-events-none absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white ring-1 ring-white/25">
-				{meta?.takenOnGrindr ? (
-					<>
-						<img
-							src={freegrindLogo}
-							alt={t("chat.thread.taken_on_grindr")}
-							className="h-3.5 w-3.5 rounded-full"
-						/>
-						<span>{t("chat.thread.taken_on_grindr")}</span>
-					</>
-				) : null}
-				{timeLabel ? <span>{timeLabel}</span> : null}
+				<img
+					src={freegrindLogo}
+					alt={t("chat.thread.taken_on_grindr")}
+					className="h-3.5 w-3.5 rounded-full"
+				/>
+				<span>{t("chat.thread.taken_on_grindr")}</span>
 			</div>
 		);
 	};
@@ -174,21 +217,9 @@ export function ProfileDetailsContent({
 		onBlockProfile?.(messageProfileId);
 	};
 
-	const handleFavoriteAction = () => {
-		if (!messageProfileId || !onToggleFavoriteProfile || isTogglingFavorite) {
-			return;
-		}
 
-		void onToggleFavoriteProfile(messageProfileId, isFavorite);
-	};
 
-	const showGlassQuickActions =
-		showMobileCarousel &&
-		!isDesktopLike &&
-		activeProfilePhotoHashes.length > 0 &&
-		Boolean(messageProfileId && onMessageProfile);
-	const glassActionButtonClassName =
-		"inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-white/18 text-white shadow-[0_10px_30px_-16px_rgba(0,0,0,0.9)] backdrop-blur-md transition hover:bg-white/24 disabled:opacity-60";
+
 
 	return (
 		<div className="grid gap-6">
@@ -210,7 +241,7 @@ export function ProfileDetailsContent({
 										{activeProfilePhotoHashes.map((hash, index) => (
 											<div
 												key={hash}
-												className="relative h-[min(84dvh,calc(100vw*1.78))] w-full shrink-0 snap-center snap-always overflow-hidden"
+												className="relative h-[min(64dvh,calc(100vw*1.33))] w-full shrink-0 snap-center snap-always overflow-hidden"
 											>
 												<button
 													type="button"
@@ -229,48 +260,7 @@ export function ProfileDetailsContent({
 											</div>
 										))}
 									</div>
-									{showGlassQuickActions && messageProfileId ? (
-										<div className="pointer-events-none absolute inset-x-0 bottom-6 z-20">
-											<div className="pointer-events-auto flex items-center justify-center gap-3 px-3">
-												<button
-													type="button"
-													onClick={() => onMessageProfile?.(messageProfileId)}
-													className={glassActionButtonClassName}
-													aria-label={t("profile_details.message")}
-												>
-													<MessageCircle className="h-4 w-4" />
-												</button>
-												<TapSelector
-													profileId={messageProfileId}
-													onTapProfile={onTapProfile!}
-													isTapDisabled={isTapDisabled}
-													isTapBlocked={isTapBlocked}
-													isTapActive={isTapActive}
-													tapId={tapId}
-													tapButtonClassName={tapButtonClassName}
-												/>
-												{onToggleFavoriteProfile ? (
-													<button
-														type="button"
-														onClick={handleFavoriteAction}
-														disabled={isTogglingFavorite}
-														className={glassActionButtonClassName}
-														aria-label={
-															isFavorite
-																? t("profile_details.unfavorite")
-																: t("browse_filters.options.favorites")
-														}
-													>
-														{isTogglingFavorite ? (
-															<Loader2 className="h-4 w-4 animate-spin" />
-														) : (
-															<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-														)}
-													</button>
-												) : null}
-											</div>
-										</div>
-									) : null}
+
 									{activeProfilePhotoHashes.length > 1 ? (
 										<div className="mt-2 flex items-center justify-center gap-1.5">
 											{activeProfilePhotoHashes.map((hash, index) => (
@@ -329,54 +319,186 @@ export function ProfileDetailsContent({
 						)}
 					</>
 				) : (
-					<div className="max-w-sm overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
+					<div className="relative max-w-sm overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
 						<ProfileImage
 							alt={t("profile_details.default_profile")}
 						/>
+
 					</div>
 				)}
 			</div>
 
-			<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-				<div className="flex flex-wrap items-end justify-between gap-3">
-					<div>
-						<p className="text-lg font-semibold sm:text-xl">
-							{activeProfileName}
-							<span
-								className={`ml-2 font-medium text-[var(--text-muted)] ${
-									!activeProfile.age || !Number.isFinite(activeProfile.age)
-										? "text-sm"
-										: "text-base"
-								}`}
-							>
-								({formatOptionalNumber(activeProfile.age, t)})
+			{messageProfileId && onMessageProfile && (
+				<div className="flex items-center gap-3">
+					{(onBlockProfile || onUnblockProfile) && (
+						<button
+							type="button"
+							onClick={handleBlockAction}
+							disabled={isBlockingProfile}
+							className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border transition-all duration-200 active:scale-[0.98] disabled:opacity-70 cursor-pointer ${
+								isBlocked
+									? "border-red-500 bg-red-500/20 text-red-400 hover:brightness-110"
+									: "border-[var(--border)] bg-[var(--surface)] text-red-500/50 hover:text-red-400 hover:border-red-500/35"
+							}`}
+							title={
+								isBlocked
+									? t("profile_details.unblock")
+									: t("profile_details.block")
+							}
+							aria-label={
+								isBlocked
+									? t("profile_details.unblock")
+									: t("profile_details.block")
+							}
+						>
+							{isBlockingProfile ? (
+								<Loader2 className="h-5 w-5 animate-spin" />
+							) : (
+								<Ban className="h-5 w-5" />
+							)}
+						</button>
+					)}
+
+					<button
+						type="button"
+						onClick={() => onMessageProfile(messageProfileId)}
+						className="relative flex-1 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] text-zinc-950 font-bold tracking-wide transition-all duration-200 hover:brightness-105 active:scale-[0.98] shadow-md shadow-amber-500/10"
+					>
+						<MessageCircle className="h-5 w-5 text-zinc-950" />
+						<span>{t("profile_details.message")}</span>
+						{chatContactStatus?.unreadCount && chatContactStatus.unreadCount > 0 ? (
+							<span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-[var(--surface-2)]">
+								{chatContactStatus.unreadCount}
 							</span>
-						</p>
-						<p className="mt-1 text-xs text-[var(--text-muted)]">
-							<span className="font-semibold text-[var(--text)]">{t("profile_details.user_id")}:</span> {activeProfile.profileId}
-						</p>
-						<p className="mt-1 text-xs text-[var(--text-muted)]">
-							<span className="font-semibold text-[var(--text)]">{t("profile_details.est_created")}:</span> {estimatedCreatedAt}
-						</p>
-					</div>
-					<div className="grid gap-1 text-xs text-[var(--text-muted)] sm:text-right">
-						<p>
-							<span className="font-semibold text-[var(--text)]">{t("profile_details.status")}:</span> {profileStatusLabel}
-						</p>
-						<p>
-							<span className="font-semibold text-[var(--text)]">{t("profile_details.distance")}:</span> {formatDistance(profileDistance, t, unitsPreset)}
-						</p>
-					</div>
+						) : null}
+					</button>
+
+					<TapSelector
+						profileId={messageProfileId}
+						onTapProfile={onTapProfile!}
+						isTapDisabled={isTapDisabled}
+						isTapBlocked={isTapBlocked}
+						isTapActive={isTapActive}
+						tapId={tapId}
+						tapButtonClassName={
+							isTapActive
+								? "inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--accent)] bg-[var(--surface)] text-3xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative shrink-0"
+								: "inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)]/50 transition-all duration-200 shrink-0"
+						}
+					/>
 				</div>
-				{hasChatHistory ? (
-					<p className="mt-1 text-xs text-[var(--text-muted)]">
-						<span className="font-semibold text-[var(--text)]">{t("profile_details.chat_history")}:</span>{" "}
-						{lastMessageLabel ? t("profile_details.last_message", { time: lastMessageLabel }) : t("profile_details.chatted_before")}
-						{(chatContactStatus?.unreadCount ?? 0) > 0
-							? ` • ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
-							: ""}
-					</p>
-				) : null}
+			)}
+
+			<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-sm">
+				<div className="flex items-center justify-between gap-3">
+					<div className="min-w-0">
+						<p
+							onClick={copyUserId}
+							className="text-lg font-bold sm:text-xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)]"
+							title="Tap to copy User ID"
+						>
+							{activeProfileName}
+							{activeProfile.age && typeof activeProfile.age === "number" && Number.isInteger(activeProfile.age) && activeProfile.age > 0 && activeProfile.showAge !== false ? (
+								<>
+									<span className="mx-2 text-[var(--text-muted)] font-light text-base select-none">•</span>
+									<span className="font-semibold text-[var(--text-muted)] text-base">
+										{activeProfile.age}
+									</span>
+								</>
+							) : null}
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={() => setShowDetails(!showDetails)}
+						className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 active:scale-95 ${
+							showDetails
+								? "border-[var(--accent)] bg-[var(--accent)] text-zinc-950 shadow-[0_0_12px_rgba(245,158,11,0.2)]"
+								: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)]"
+						}`}
+						title="Toggle technical details"
+						aria-label="Toggle technical details"
+					>
+						<Info className="h-4.5 w-4.5" />
+					</button>
+				</div>
+
+				{/* Dash-Pills Row */}
+				<div className="mt-3.5 flex flex-wrap gap-2 items-center">
+					{/* Online status badge */}
+					<span
+						className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border backdrop-blur-md shadow-sm transition-all ${
+							meta.isOnline
+								? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.2)]"
+								: statusColorClass === "bg-yellow-500"
+									? "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_2px_10px_-3px_rgba(245,158,11,0.15)]"
+									: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
+						}`}
+					>
+						<span className="relative flex h-2 w-2 shrink-0">
+							{/* Breathing ping animation only when online (green / minutes left) */}
+							{meta.isOnline && (
+								<span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-emerald-400" />
+							)}
+							<span className={`relative inline-flex rounded-full h-2 w-2 ${
+								meta.isOnline
+									? "bg-emerald-500"
+									: statusColorClass === "bg-yellow-500"
+										? "bg-amber-500"
+										: "bg-zinc-400"
+							}`} />
+						</span>
+						{statusText}
+					</span>
+
+					{/* Distance badge */}
+					<button
+						type="button"
+						onClick={triggerLocate}
+						disabled={isTriangleDisabled || isLocatingProfile}
+						className={`group inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border backdrop-blur-md shadow-sm transition-all duration-300 active:scale-95 cursor-pointer ${
+							isLocatingProfile
+								? "bg-[var(--accent)] text-zinc-950 border-[var(--accent)] animate-pulse"
+								: "bg-[var(--surface-3)] hover:bg-[var(--surface)] text-[var(--text)] border-[var(--border)] hover:border-[var(--accent)]/50"
+						}`}
+						title="Tap to run location finder"
+					>
+						{isLocatingProfile ? (
+							<Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-950" />
+						) : (
+							<Compass className="h-3.5 w-3.5 text-[var(--accent)] transform transition-transform group-hover:rotate-45 duration-500" />
+						)}
+						<span>
+							{isLocatingProfile ? "Locating..." : formatDistance(profileDistance, t, unitsPreset)}
+						</span>
+					</button>
+
+					{/* Chat History badge */}
+					{hasChatHistory && (
+						<span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20 backdrop-blur-md shadow-sm shadow-[0_2px_10px_-3px_rgba(59,130,246,0.15)]">
+							<MessagesSquare className="h-3.5 w-3.5" />
+							<span>{lastMessageLabel || t("profile_details.chatted_before")}</span>
+						</span>
+					)}
+				</div>
+
+				{/* Expandable details panel */}
+				{showDetails && (
+					<div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-xs text-[var(--text-muted)] animate-in slide-in-from-top-2 duration-200">
+						<div
+							onClick={copyUserId}
+							className="cursor-pointer hover:bg-[var(--surface-2)] p-1.5 rounded-lg transition-colors"
+							title="Tap to copy User ID"
+						>
+							<span className="font-semibold block text-[10px] uppercase tracking-wider text-[var(--text-muted)]">User ID</span>
+							<span className="font-mono text-[var(--text)] select-all">{activeProfile.profileId}</span>
+						</div>
+						<div className="p-1.5">
+							<span className="font-semibold block text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Est. Created</span>
+							<span className="text-[var(--text)]">{estimatedCreatedAt}</span>
+						</div>
+					</div>
+				)}
 				{usesFreegrind && (
 					<div className="mt-2 flex items-center gap-2">
 						<img
@@ -387,112 +509,6 @@ export function ProfileDetailsContent({
 						/>
 					</div>
 				)}
-				{messageProfileId && onMessageProfile ? (
-					<div className="mt-3 grid gap-2">
-						{showGlassQuickActions ? (
-							<div className="flex items-center justify-center">
-								<button
-									type="button"
-									onClick={() => {
-										if (messageProfileId && onTriangleProfile) {
-											onTriangleProfile(messageProfileId);
-										}
-									}}
-									disabled={isTriangleDisabled}
-									className={triangleButtonClassName}
-									aria-label="Run location finder"
-									title={isLocatingProfile ? "Location finder running" : "Location finder"}
-								>
-									<Triangle className="h-4 w-4" />
-									{isLocatingProfile ? "Locating..." : "Locate"}
-								</button>
-							</div>
-						) : (
-							<div className="grid grid-cols-[1.2fr_auto_1.2fr] items-center gap-2">
-								<button
-									type="button"
-									onClick={() => onMessageProfile(messageProfileId)}
-									className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
-								>
-									<MessageCircle className="h-4 w-4" />
-									{t("profile_details.message")}
-								</button>
-								<TapSelector
-									profileId={messageProfileId}
-									onTapProfile={onTapProfile!}
-									isTapDisabled={isTapDisabled}
-									isTapBlocked={isTapBlocked}
-									isTapActive={isTapActive}
-									tapId={tapId}
-									tapButtonClassName={tapButtonClassName}
-								/>
-								<button
-									type="button"
-									onClick={() => {
-										if (messageProfileId && onTriangleProfile) {
-											onTriangleProfile(messageProfileId);
-										}
-									}}
-									disabled={isTriangleDisabled}
-									className={triangleButtonClassName}
-									aria-label="Run location finder"
-									title={isLocatingProfile ? "Location finder running" : "Location finder"}
-								>
-									<Triangle className="h-4 w-4" />
-									{isLocatingProfile ? "Locating..." : "Locate"}
-								</button>
-							</div>
-						)}
-						{onToggleFavoriteProfile ? (
-							<button
-								type="button"
-								onClick={handleFavoriteAction}
-								disabled={isTogglingFavorite}
-								className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
-									isFavorite
-										? "border-pink-500/45 bg-pink-500/10 text-pink-300 hover:border-pink-400 hover:bg-pink-500/15"
-										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
-								} ${showGlassQuickActions ? "hidden" : ""}`}
-							>
-								{isTogglingFavorite ? (
-									<Loader2 className="h-4 w-4 animate-spin" />
-								) : (
-									<Heart className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
-								)}
-								{isFavorite
-									? t("profile_details.unfavorite")
-									: t("browse_filters.options.favorites")}
-							</button>
-						) : null}
-						{(onBlockProfile || onUnblockProfile) ? (
-							<button
-								type="button"
-								onClick={handleBlockAction}
-								onPointerUp={(event) => {
-									if (event.pointerType === "mouse") {
-										return;
-									}
-									event.preventDefault();
-									handleBlockAction();
-								}}
-								disabled={isBlockingProfile}
-								className={`relative z-20 inline-flex h-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
-									isBlocked
-										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
-										: "border-red-500/45 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/15"
-								}`}
-							>
-								{isBlockingProfile
-									? isBlocked
-										? t("profile_details.unblock_in_progress")
-										: t("profile_details.block_in_progress")
-									: isBlocked
-										? t("profile_details.unblock")
-										: t("profile_details.block")}
-							</button>
-						) : null}
-					</div>
-				) : null}
 			</div>
 
 			<div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
@@ -520,7 +536,7 @@ export function ProfileDetailsContent({
 							<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 								{t("profile_details.about")}
 							</p>
-							<p className="mt-2 text-sm leading-relaxed text-[var(--text)]">
+							<p className="mt-2 text-sm leading-relaxed text-[var(--text)] whitespace-pre-line">
 								{activeProfile.aboutMe?.trim()}
 							</p>
 						</div>
@@ -853,6 +869,8 @@ export function ProfileDetailsContent({
 					)}
 				</div>
 			</div>
+
+
 		</div>
 	);
 }
