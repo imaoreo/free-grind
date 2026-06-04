@@ -1169,6 +1169,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
+						albumCoverMap={albumCoverMap}
 						threadBottomRef={threadBottomRef}
 				/>
 				)

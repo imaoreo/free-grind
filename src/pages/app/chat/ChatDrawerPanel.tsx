@@ -90,7 +90,7 @@ export function ChatDrawerPanel({
 	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
 	const [isExpiring, setIsExpiring] = useState(false);
 	const [selectAfterUpload, setSelectAfterUpload] = useState(false);
-	const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
+	const [selectedAlbumIds, setSelectedAlbumIds] = useState<Set<number>>(new Set());
 	const EXPIRY_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"];
 	const [albumExpirationType, setAlbumExpirationType] = useState("INDEFINITE");
 	const EXPIRY_LABELS: Record<string, string> = { INDEFINITE: "\u221e", ONCE: "1\u00d7", TEN_MINUTES: "10m", ONE_HOUR: "1h", ONE_DAY: "1d" };
@@ -148,7 +148,7 @@ export function ChatDrawerPanel({
 	});
 
 	const toggleSelection = useCallback((id: number) => {
-		setSelectedAlbumId(null);
+		setSelectedAlbumIds(new Set());
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
 			if (next.has(id)) {
@@ -176,7 +176,7 @@ export function ChatDrawerPanel({
 	}, [selectedIds, onSendMedia, onBack, t, isExpiring]);
 
 	const hasSelection = selectedIds.size > 0;
-	const hasAlbumSelection = selectedAlbumId !== null;
+	const hasAlbumSelection = selectedAlbumIds.size > 0;
 
 	const onPickDrawerPhoto = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -475,7 +475,7 @@ export function ChatDrawerPanel({
 											) : (
 												<span className="relative inline-flex">
 													<Camera className="h-5 w-5" />
-													{!hasSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+													{!hasSelection && !hasAlbumSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
 														<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
 													</span>}
 												</span>
@@ -494,7 +494,7 @@ export function ChatDrawerPanel({
 										<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
 											<span className="relative inline-flex">
 												<Upload className="h-5 w-5" />
-												{!hasSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+												{!hasSelection && !hasAlbumSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
 													<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
 												</span>}
 											</span>
@@ -504,15 +504,15 @@ export function ChatDrawerPanel({
 									{albums.map((album) => {
 										const cover = albumCoverMap.get(album.albumId);
 										const isShared = sharedAlbumIds.has(album.albumId);
-										const isSelected = selectedAlbumId === album.albumId;
+										const isSelected = selectedAlbumIds.has(album.albumId);
 										const dimmed = hasSelection && !isSelected;
 										return (
 											<div
 												key={`album-${album.albumId}`}
 												role="button"
 												tabIndex={0}
-												onClick={() => { if (!hasSelection) setSelectedAlbumId(isSelected ? null : album.albumId); }}
-												onKeyDown={(e) => e.key === "Enter" && !hasSelection && setSelectedAlbumId(isSelected ? null : album.albumId)}
+												onClick={() => { if (hasSelection) return; setSelectedAlbumIds(prev => { const n = new Set(prev); n.has(album.albumId) ? n.delete(album.albumId) : n.add(album.albumId); return n; }); }}
+												onKeyDown={(e) => { if (e.key === "Enter" && !hasSelection) { setSelectedAlbumIds(prev => { const n = new Set(prev); n.has(album.albumId) ? n.delete(album.albumId) : n.add(album.albumId); return n; }); } }}
 												className={`relative aspect-square overflow-hidden cursor-pointer transition ${dimmed ? "opacity-30 pointer-events-none" : ""}`}
 												style={{ outline: isSelected ? "2px solid var(--accent)" : "none", outlineOffset: "-2px" }}
 											>
@@ -522,7 +522,7 @@ export function ChatDrawerPanel({
 												<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 py-1">
 													<p className="truncate text-[9px] font-medium text-white leading-tight">{album.albumName || `#${album.albumId}`}</p>
 												</div>
-												{isShared && !isSelected ? <div className="absolute inset-0 flex items-center justify-center bg-black/40"><span className="text-[10px] font-semibold uppercase tracking-widest text-white/90">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span></div> : null}
+												<div className="absolute inset-0 flex items-center justify-center pointer-events-none">{isShared && !isSelected ? <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span> : null}</div>
 												{isSelected ? <div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--accent) 45%, transparent)" }}><Check className="h-5 w-5 text-white drop-shadow" /></div> : null}
 											</div>
 										);
@@ -602,15 +602,15 @@ export function ChatDrawerPanel({
 
 						{/* Footer - Album share button */}
 						{hasAlbumSelection ? (() => {
-							const isSelectedShared = selectedAlbumId != null && sharedAlbumIds.has(selectedAlbumId);
+							const isSelectedShared = selectedAlbumIds.size > 0 && [...selectedAlbumIds].every(id => sharedAlbumIds.has(id));
 							return (
 								<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">
 									{isSelectedShared ? (
 										<button
 											type="button"
 											onClick={() => {
-												if (selectedAlbumId == null || !onStopAlbumShare) return;
-												void onStopAlbumShare(selectedAlbumId).then(() => { setSelectedAlbumId(null); onBack(); });
+												if (selectedAlbumIds.size === 0 || !onStopAlbumShare) return;
+												void Promise.all([...selectedAlbumIds].map(id => onStopAlbumShare!(id))).then(() => { setSelectedAlbumIds(new Set()); onBack(); });
 											}}
 											disabled={isSharingAlbum}
 											className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-60"
@@ -635,8 +635,8 @@ export function ChatDrawerPanel({
 											<button
 												type="button"
 												onClick={() => {
-													if (selectedAlbumId == null || !onShareAlbum) return;
-													void onShareAlbum(selectedAlbumId, albumExpirationType).then(() => { setSelectedAlbumId(null); onBack(); });
+													if (selectedAlbumIds.size === 0 || !onShareAlbum) return;
+													void Promise.all([...selectedAlbumIds].map(id => onShareAlbum!(id, albumExpirationType))).then(() => { setSelectedAlbumIds(new Set()); onBack(); });
 												}}
 												disabled={isSharingAlbum}
 												className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"

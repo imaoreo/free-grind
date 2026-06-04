@@ -60,6 +60,7 @@ type ChatThreadMessagesProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	albumCoverMap: Map<number, string>;
 	threadBottomRef: { current: HTMLDivElement | null };
 };
 
@@ -147,6 +148,7 @@ export function ChatThreadMessages({
 	handleRetry,
 	handleReply,
 	handleStopAlbumShare,
+	albumCoverMap,
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
@@ -229,6 +231,15 @@ export function ChatThreadMessages({
 		for (const m of threadMessages) {
 			const aid = getMessageAlbumId(m);
 			if (aid) map.set(aid, m.messageId);
+		}
+		return map;
+	}, [threadMessages]);
+
+	const latestShareViewableByAlbum = useMemo(() => {
+		const map = new Map<number, boolean>();
+		for (const m of threadMessages) {
+			const aid = getMessageAlbumId(m);
+			if (aid) map.set(aid, (m.body as any)?.isViewable === true);
 		}
 		return map;
 	}, [threadMessages]);
@@ -384,7 +395,7 @@ export function ChatThreadMessages({
 								const audioUrl = getMessageAudioUrl(message);
 								const location = getMessageLocation(message);
 								const albumId = getMessageAlbumId(message);
-								const albumCover = getMessageAlbumCoverUrl(message);
+								const albumCover = (albumId ? albumCoverMap.get(albumId) : null) ?? getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
 								const isExpiringImage = message.type === "ExpiringImage";
 								const isAlbumMessage =
@@ -463,7 +474,9 @@ export function ChatThreadMessages({
 								// ownerProfileId is null when expired/locked, but isViewable is more reliable
 								// (e.g. sender may lock the album while ownerProfileId is still present).
 								// My own sent albums are never locked from my perspective.
-								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
+								// If the latest share of an album is viewable, all older shares unlock too.
+								const albumCurrentlyViewable = albumId ? latestShareViewableByAlbum.get(albumId) === true : false;
+								const isLocked = isAlbumMessage && !albumCurrentlyViewable;
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
