@@ -120,7 +120,7 @@ export function getCurrentHotswapChannel(): HotswapChannel {
 }
 
 export function isHotswapAvailable(): boolean {
-	return isTauri();
+	return isTauri() && import.meta.env.VITE_DISABLE_HOTSWAP !== "true";
 }
 
 export async function markHotswapStartupReady(): Promise<void> {
