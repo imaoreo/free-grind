@@ -1,12 +1,14 @@
 import {
 	ArrowDown,
 	ArrowUp,
-	FolderOpen,
+	Check,
 	Images,
 	Pencil,
 	Plus,
+	RefreshCcw,
 	Trash2,
 	Upload,
+	X,
 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
@@ -19,7 +21,9 @@ import {
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { Button } from "../../components/ui/button";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import {
 	EmptyState,
 	ErrorState,
@@ -38,6 +42,7 @@ import {
 
 export function SettingsAlbumsPage() {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const apiFunctions = useApiFunctions();
 	const [albums, setAlbums] = useState<Album[]>([]);
 	const [maxAlbums, setMaxAlbums] = useState<number>(1);
@@ -70,6 +75,7 @@ export function SettingsAlbumsPage() {
 	const [confirmDeleteContentKey, setConfirmDeleteContentKey] = useState<
 		string | null
 	>(null);
+	const [editOpenedAlbumId, setEditOpenedAlbumId] = useState<string | null>(null);
 
 	const loadAlbumsAndLimits = useCallback(async () => {
 		setIsLoading(true);
@@ -150,6 +156,10 @@ export function SettingsAlbumsPage() {
 	};
 
 	const cancelEditing = () => {
+		if (editOpenedAlbumId) {
+			setOpenAlbumId((prev) => prev === editOpenedAlbumId ? null : prev);
+			setEditOpenedAlbumId(null);
+		}
 		setEditingAlbumId(null);
 		setEditingName("");
 	};
@@ -391,36 +401,30 @@ export function SettingsAlbumsPage() {
 
 	return (
 		<section className="app-screen">
-			<div className="mx-auto grid w-full max-w-4xl gap-6">
-				<header className="grid gap-4">
+			<div className="grid gap-6">
+				<header>
 					<BackToSettings />
-
-					<div className="surface-card p-5 sm:p-6">
-						<div className="flex flex-wrap items-start justify-between gap-3">
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-									{t("settings_albums.label")}
-								</p>
-								<h1 className="app-title mt-2">{t("settings_albums.title")}</h1>
-								<p className="app-subtitle mt-2">
-									{freePlanHint} {t("settings_albums.usage", { count: albums.length, max: maxAlbums })}
-								</p>
-							</div>
-							<div className="rounded-2xl bg-[var(--surface-2)] p-3 text-sm font-medium">
-								{subscriptionType ?? t("settings_albums.unknown_plan")}
-							</div>
-						</div>
-					</div>
+					<h1 className="app-title mb-1">{t("settings_albums.title")}</h1>
+					<p className="app-subtitle">
+						{freePlanHint} {t("settings_albums.usage", { count: albums.length, max: maxAlbums })}
+					</p>
 				</header>
 
 				<section className="surface-card p-5 sm:p-6">
-					<div className="flex flex-wrap items-center gap-3">
+					<div className="flex items-center gap-2">
+						<Images className="h-5 w-5" />
+						<h2 className="text-lg font-semibold">{t("settings_albums.your_albums")}</h2>
+					</div>
+					{!canCreateAlbum && (
+						<p className="mt-0.5 text-sm text-[var(--text-muted)]">{t("settings_albums.limit_reached")}</p>
+					)}
+					<div className="mt-3 flex items-center gap-2">
 						<input
 							type="text"
 							value={createName}
 							onChange={(event) => setCreateName(event.target.value)}
 							placeholder={t("settings_albums.new_album_placeholder")}
-							className="input-field max-w-md"
+							className="input-field h-11 min-w-0 flex-1"
 							maxLength={255}
 						/>
 						<Button
@@ -433,42 +437,28 @@ export function SettingsAlbumsPage() {
 							{isCreating ? t("settings_albums.creating") : t("settings_albums.create")}
 						</Button>
 					</div>
+					</section>
 
-					{!canCreateAlbum && (
-						<p className="mt-3 text-sm text-[var(--text-muted)]">
-							{t("settings_albums.limit_reached")}
-						</p>
-					)}
-				</section>
-
-				<section className="surface-card p-5 sm:p-6">
-					<div className="mb-4 flex items-center gap-2">
-						<Images className="h-5 w-5" />
-						<h2 className="text-lg font-semibold">{t("settings_albums.your_albums")}</h2>
-					</div>
-
-					{isLoading ? (
-						<LoadingState
-							title={t("settings_albums.loading")}
-							description={t("settings_albums.loading_desc")}
-							compact
-						/>
-					) : error ? (
-						<ErrorState
-							title={t("settings_albums.error_load")}
-							description={error}
-							onRetry={() => {
-								void loadAlbumsAndLimits();
-							}}
-						/>
-					) : albums.length === 0 ? (
-						<EmptyState
-							title={t("settings_albums.empty")}
-							description={t("settings_albums.empty_desc")}
-						/>
-					) : (
-						<div className="grid gap-3">
-							{albums.map((album) => {
+				{isLoading ? (
+					<LoadingState
+						title={t("settings_albums.loading")}
+						description={t("settings_albums.loading_desc")}
+						compact
+					/>
+				) : error ? (
+					<ErrorState
+						title={t("settings_albums.error_load")}
+						description={error}
+						onRetry={() => void loadAlbumsAndLimits()}
+					/>
+				) : albums.length === 0 ? (
+					<EmptyState
+						title={t("settings_albums.empty")}
+						description={t("settings_albums.empty_desc")}
+					/>
+				) : (
+					<>
+						{albums.map((album) => {
 								const isEditing = editingAlbumId === album.albumId;
 								const isOpen = openAlbumId === album.albumId;
 								const detail = albumDetails[album.albumId];
@@ -476,167 +466,136 @@ export function SettingsAlbumsPage() {
 									loadingAlbumDetailsId === album.albumId;
 								const uploadInputId = `album-upload-${album.albumId}`;
 								const mediaCounts = countAlbumMedia(detail);
-								const isConfirmingAlbumDelete =
-									confirmDeleteAlbumId === album.albumId;
+
+								const coverUrl = detail?.content[0]?.thumbUrl || detail?.content[0]?.url || detail?.content[0]?.coverUrl;
 
 								return (
 									<div
 										key={album.albumId}
-										className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
+										className="surface-card p-4 sm:p-5"
 									>
-										<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-											{isEditing ? (
-												<input
-													type="text"
-													value={editingName}
-													onChange={(event) =>
-														setEditingName(event.target.value)
-													}
-													className="input-field w-full sm:max-w-md"
-													maxLength={255}
-												/>
+										<div className="flex items-center gap-3">
+											{coverUrl ? (
+												<img src={coverUrl} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
 											) : (
-												<div className="min-w-0 flex-1">
-													<p className="truncate text-base font-semibold">
-														{album.albumName?.trim() || t("settings_albums.untitled")}
-													</p>
-													<p className="break-all text-xs text-[var(--text-muted)]">
-														{t("settings_albums.album_id", { id: album.albumId })}
-													</p>
+												<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--text-muted)]">
+													<Images className="h-5 w-5 opacity-40" />
 												</div>
 											)}
-
-											<div className="flex flex-wrap items-center gap-2 sm:justify-end">
+											<div className="min-w-0 flex-1">
+												{isEditing ? (
+													<input
+														type="text"
+														value={editingName}
+														onChange={(event) => setEditingName(event.target.value)}
+														className="input-field w-full [min-height:0] !py-1.5 h-9"
+														maxLength={255}
+													/>
+												) : (
+													<p className="truncate font-semibold">
+														{album.albumName?.trim() || t("settings_albums.untitled")}
+													</p>
+												)}
+												{!isEditing && (
+												<p className="text-xs text-[var(--text-muted)]">
+													{detail ? `${detail.content.length} ${t("settings_albums.media_title").toLowerCase()}` : `#${album.albumId}`}
+												</p>
+											)}
+											</div>
+											<div className="flex shrink-0 items-center gap-2">
 												{isEditing ? (
 													<>
 														<button
 															type="button"
-															onClick={() =>
-																void saveEditingAlbum(album.albumId)
-															}
+															onClick={() => void saveEditingAlbum(album.albumId)}
 															disabled={isSavingEdit}
-															className="btn-accent rounded-xl px-3 py-2 text-sm"
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+														
+															title={t("settings_albums.save")}
 														>
-															{isSavingEdit ? t("settings_albums.saving") : t("settings_albums.save")}
+															<Check className="h-4 w-4" />
 														</button>
 														<button
 															type="button"
 															onClick={cancelEditing}
-															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] transition hover:border-[var(--text-muted)]"
+														
+															title={t("settings_albums.cancel")}
 														>
-															{t("settings_albums.cancel")}
+															<X className="h-4 w-4" />
 														</button>
 													</>
 												) : (
 													<>
 														<button
 															type="button"
-															onClick={() => toggleAlbumOpen(album.albumId)}
-															className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
-														>
-															<FolderOpen className="h-3.5 w-3.5" />
-															{isOpen ? t("settings_albums.close") : t("settings_albums.open")}
-														</button>
-														<button
-															type="button"
-															onClick={() => startEditingAlbum(album)}
-															className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
-														>
-															<Pencil className="h-3.5 w-3.5" /> {t("settings_albums.rename")}
-														</button>
-														<button
-															type="button"
 															onClick={() => {
-																if (isConfirmingAlbumDelete) {
-																	void deleteAlbum(album.albumId);
-																	return;
+																startEditingAlbum(album);
+																if (!isOpen) {
+																	toggleAlbumOpen(album.albumId);
+																	setEditOpenedAlbumId(album.albumId);
 																}
-
-																setConfirmDeleteAlbumId(album.albumId);
 															}}
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+															title={t("settings_albums.rename")}
+														>
+															<Pencil className="h-3.5 w-3.5" />
+														</button>
+														<button
+															type="button"
+															onClick={() => setConfirmDeleteAlbumId(album.albumId)}
 															disabled={deletingAlbumId === album.albumId}
-															className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] transition hover:border-red-400 hover:text-red-400"
+															title={t("settings_albums.delete")}
 														>
 															<Trash2 className="h-3.5 w-3.5" />
-															{deletingAlbumId === album.albumId
-																? t("settings_albums.deleting")
-																: isConfirmingAlbumDelete
-																	? t("settings_albums.confirm_delete")
-																	: t("settings_albums.delete")}
 														</button>
-														{isConfirmingAlbumDelete && (
-															<button
-																type="button"
-																onClick={() => setConfirmDeleteAlbumId(null)}
-																className="inline-flex items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
-															>
-																{t("settings_albums.cancel")}
-															</button>
-														)}
 													</>
 												)}
 											</div>
 										</div>
 
 										{isOpen && (
-											<div className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
-												<div className="flex flex-wrap items-center justify-between gap-3">
-													<div>
-														<p className="text-sm font-semibold">{t("settings_albums.media_title")}</p>
-														<p className="text-xs text-[var(--text-muted)]">
-															{t("settings_albums.media_counts_images", { count: mediaCounts.images })}
-															{mediaCounts.nonImages > 0
-																? t("settings_albums.media_counts_total", { count: mediaCounts.total })
-																: ""}
-															{t("settings_albums.media_desc")}
-														</p>
-													</div>
-
-													<div className="flex items-center gap-2">
+											<div className="mt-3">
+											<div className="-mx-4 mb-3 h-px bg-[var(--border)] sm:-mx-5" />
+												<div className="mb-2.5 flex items-center justify-between gap-2">
+													<p className="text-xs text-[var(--text-muted)]">
+														{t("settings_albums.media_counts_images", { count: mediaCounts.images })}
+														{mediaCounts.nonImages > 0 ? t("settings_albums.media_counts_total", { count: mediaCounts.total }) : ""}
+													</p>
+													<div className="flex items-center gap-1.5">
 														<input
 															id={uploadInputId}
 															type="file"
 															accept="image/*"
 															multiple
-															onChange={(event) =>
-																void handleUploadInputChange(
-																	album.albumId,
-																	event,
-																)
-															}
+															onChange={(event) => void handleUploadInputChange(album.albumId, event)}
 															className="hidden"
 														/>
 														<label
 															htmlFor={uploadInputId}
-															className="inline-flex cursor-pointer items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 text-xs transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
 														>
 															<Upload className="h-3.5 w-3.5" />
-															{uploadingAlbumId === album.albumId
-																? t("settings_albums.uploading")
-																: t("settings_albums.upload")}
+															{uploadingAlbumId === album.albumId ? t("settings_albums.uploading") : t("settings_albums.upload")}
 														</label>
 														<button
 															type="button"
-															onClick={() =>
-																void loadAlbumDetails(album.albumId, true)
-															}
-															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															onClick={() => void loadAlbumDetails(album.albumId, true)}
+															className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+															title={t("settings_albums.refresh")}
 														>
-															{t("settings_albums.refresh")}
+															<RefreshCcw className="h-3.5 w-3.5" />
 														</button>
 													</div>
 												</div>
 
 												{isLoadingDetails ? (
-													<p className="text-sm text-[var(--text-muted)]">
-														{t("settings_albums.loading_media")}
-													</p>
+													<p className="text-sm text-[var(--text-muted)]">{t("settings_albums.loading_media")}</p>
 												) : !detail || detail.content.length === 0 ? (
-													<p className="text-sm text-[var(--text-muted)]">
-														{t("settings_albums.no_media")}
-													</p>
+													<p className="text-sm text-[var(--text-muted)]">{t("settings_albums.no_media")}</p>
 												) : (
-													<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+													<div className={`grid gap-3 ${isDesktop ? "grid-cols-6" : "grid-cols-2"}`}>
 														{detail.content.map((item, index) => {
 															const imageUrl =
 																item.thumbUrl ||
@@ -647,13 +606,11 @@ export function SettingsAlbumsPage() {
 															const canMoveDown =
 																index < detail.content.length - 1;
 															const deleteKey = `${album.albumId}:${item.contentId}`;
-															const isConfirmingContentDelete =
-																confirmDeleteContentKey === deleteKey;
 
 															return (
 																<div
 																	key={`${album.albumId}-${item.contentId}`}
-																	className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+																	className="relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
 																>
 																	{imageUrl ? (
 																		<img
@@ -665,89 +622,81 @@ export function SettingsAlbumsPage() {
 																		<div className="aspect-square w-full bg-[var(--surface)]" />
 																	)}
 
-																	<div className="grid grid-cols-3 gap-1 p-2">
-																		<button
-																			type="button"
-																			onClick={() =>
-																				void reorderAlbumContent(
-																					album.albumId,
-																					detail.content,
-																					index,
-																					index - 1,
-																				)
-																			}
-																			disabled={
-																				!canMoveUp ||
-																				reorderingAlbumId === album.albumId
-																			}
-																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
-																		>
-																			<ArrowUp className="h-3.5 w-3.5" />
-																		</button>
-																		<button
-																			type="button"
-																			onClick={() =>
-																				void reorderAlbumContent(
-																					album.albumId,
-																					detail.content,
-																					index,
-																					index + 1,
-																				)
-																			}
-																			disabled={
-																				!canMoveDown ||
-																				reorderingAlbumId === album.albumId
-																			}
-																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
-																		>
-																			<ArrowDown className="h-3.5 w-3.5" />
-																		</button>
-																		<button
-																			type="button"
-																			onClick={() => {
-																				if (isConfirmingContentDelete) {
-																					void deleteAlbumPicture(
-																						album.albumId,
-																						item.contentId,
-																					);
-																					return;
-																				}
-
-																				setConfirmDeleteContentKey(deleteKey);
-																			}}
-																			disabled={
-																				deletingContentKey === deleteKey
-																			}
-																			className="inline-flex items-center justify-center rounded-md border border-[var(--border)] py-1"
-																		>
-																			<Trash2 className="h-3.5 w-3.5" />
-																		</button>
-																		{isConfirmingContentDelete && (
+																	<div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-1 bg-gradient-to-t from-black/70 to-transparent p-1.5">
+																		<div className="flex gap-1">
 																			<button
 																				type="button"
-																				onClick={() =>
-																					setConfirmDeleteContentKey(null)
-																				}
-																				className="col-span-3 rounded-md border border-[var(--border)] py-1 text-xs"
+																				onClick={() => void reorderAlbumContent(album.albumId, detail.content, index, index - 1)}
+																				disabled={!canMoveUp || reorderingAlbumId === album.albumId}
+																				className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm disabled:opacity-30"
 																			>
-																				{t("settings_albums.cancel_delete_content")}
+																				<ArrowUp className="h-3 w-3" />
 																			</button>
-																		)}
+																			<button
+																				type="button"
+																				onClick={() => void reorderAlbumContent(album.albumId, detail.content, index, index + 1)}
+																				disabled={!canMoveDown || reorderingAlbumId === album.albumId}
+																				className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm disabled:opacity-30"
+																			>
+																				<ArrowDown className="h-3 w-3" />
+																			</button>
+																		</div>
+																		<button
+																			type="button"
+																			onClick={() => setConfirmDeleteContentKey(deleteKey)}
+																			disabled={deletingContentKey === deleteKey}
+																			className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-black/50 text-white backdrop-blur-sm disabled:opacity-30"
+																			title={t("settings_albums.delete")}
+																		>
+																			<Trash2 className="h-3 w-3" />
+																		</button>
 																	</div>
 																</div>
 															);
 														})}
 													</div>
 												)}
-											</div>
-										)}
-									</div>
+										</div>
+									)}
+								</div>
 								);
 							})}
-						</div>
-					)}
-				</section>
+					</>
+				)}
+
 			</div>
+
+			<ConfirmDialog
+				isOpen={confirmDeleteAlbumId !== null}
+				title={t("settings_albums.confirm_delete")}
+				message={t("settings_albums.confirm_delete_message", {
+					defaultValue: "This album and all its content will be permanently deleted.",
+				})}
+				confirmLabel={deletingAlbumId ? t("settings_albums.deleting") : t("settings_albums.delete")}
+				cancelLabel={t("settings_albums.cancel")}
+				onConfirm={() => confirmDeleteAlbumId ? void deleteAlbum(confirmDeleteAlbumId) : undefined}
+				onCancel={() => setConfirmDeleteAlbumId(null)}
+				isProcessing={deletingAlbumId !== null}
+				confirmTone="danger"
+			/>
+
+			<ConfirmDialog
+				isOpen={confirmDeleteContentKey !== null}
+				title={t("settings_albums.confirm_delete")}
+				message={t("settings_albums.confirm_delete_content_message", {
+					defaultValue: "This image will be permanently removed from the album.",
+				})}
+				confirmLabel={deletingContentKey ? t("settings_albums.deleting") : t("settings_albums.delete")}
+				cancelLabel={t("settings_albums.cancel")}
+				onConfirm={() => {
+					if (!confirmDeleteContentKey) return;
+					const [albumId, contentId] = confirmDeleteContentKey.split(":");
+					void deleteAlbumPicture(albumId, contentId);
+				}}
+				onCancel={() => setConfirmDeleteContentKey(null)}
+				isProcessing={deletingContentKey !== null}
+				confirmTone="danger"
+			/>
 		</section>
 	);
 }
