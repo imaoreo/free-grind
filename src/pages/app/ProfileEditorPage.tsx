@@ -660,15 +660,11 @@ export function ProfileEditorPage() {
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
-				<header className="space-y-3">
-					<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-						{t("profile_editor.management")}
-					</p>
-					<h1 className="app-title">{t("profile_editor.title")}</h1>
-					<p className="max-w-[65ch] text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
-						{t("profile_editor.subtitle")}
-					</p>
-				</header>
+                <header>
+                    <BackToSettings />
+                    <h1 className="app-title mb-2">{t("profile_editor.title")}</h1>
+                    <p className="app-subtitle">{t("profile_editor.subtitle")}</p>
+                </header>
 
 				{isLoadingProfile && !profile ? (
 					<div className="surface-card rounded-3xl p-5 sm:p-6">
@@ -814,16 +810,6 @@ export function ProfileEditorPage() {
 						</div>
 					</div>
 				)}
-
-				<div className="mt-1 flex flex-wrap items-center gap-3">
-					<BackToSettings />
-					<button
-						onClick={handleLogout}
-						className="btn-accent min-h-11 px-4 py-2.5 font-semibold"
-					>
-						{t("settings.logout")}
-					</button>
-				</div>
 			</div>
 		</section>
 	);

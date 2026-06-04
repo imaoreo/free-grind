@@ -185,9 +185,15 @@ export function TapSelector({
 				const selectedId = Number(emojiItem.getAttribute("data-id"));
 				selectTap(selectedId);
 			} else {
-				// Released elsewhere: Keep menu open for click selection,
-				// but release capture so regular clicks/hovers work.
-				e.currentTarget.releasePointerCapture(e.pointerId);
+				// Always close when releasing outside a selection so a transparent
+				// backdrop never gets stuck above global navigation.
+				setShowTapPicker(false);
+				setHoveredId(null);
+				setPreviewId(null);
+				lastSwitchedId.current = null;
+				if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+					e.currentTarget.releasePointerCapture(e.pointerId);
+				}
 			}
 		} else {
 			// Simple tap logic
@@ -198,6 +204,33 @@ export function TapSelector({
 			}
 		}
 	};
+
+	const handlePointerCancel = (e: React.PointerEvent) => {
+		if (longPressTimer.current) {
+			clearTimeout(longPressTimer.current);
+			longPressTimer.current = null;
+		}
+		setShowTapPicker(false);
+		setHoveredId(null);
+		setPreviewId(null);
+		lastSwitchedId.current = null;
+		if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+			e.currentTarget.releasePointerCapture(e.pointerId);
+		}
+	};
+
+	useEffect(() => {
+		return () => {
+			if (longPressTimer.current) {
+				clearTimeout(longPressTimer.current);
+				longPressTimer.current = null;
+			}
+			if (switchTimerRef.current) {
+				clearTimeout(switchTimerRef.current);
+				switchTimerRef.current = null;
+			}
+		};
+	}, []);
 
 	const getTapEmoji = (id: number) => {
 		switch (id) {
@@ -262,7 +295,7 @@ export function TapSelector({
 					onPointerDown={handlePointerDown}
 					onPointerMove={handlePointerMove}
 					onPointerUp={handlePointerUp}
-					onPointerCancel={handlePointerUp}
+					onPointerCancel={handlePointerCancel}
 					disabled={isTapDisabled || isTappingInternal}
 					style={{
 						borderColor:

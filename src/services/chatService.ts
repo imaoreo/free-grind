@@ -500,6 +500,17 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			await assertSuccess(response, t("chat.errors.album_share_failed"));
 		},
 
+		async stopAlbumShare(albumId: number, recipientProfileId: number) {
+			const response = await fetchRest(
+				`/v1/albums/${albumId}/unshares`,
+				{
+					method: "PUT",
+					body: { profiles: [{ profileId: recipientProfileId, shareId: 0 }] },
+				},
+			);
+			await assertSuccess(response, t("chat.errors.album_share_failed"));
+		},
+
 		async getDrawerMedia(
 			conversationId: string,
 		): Promise<Array<{

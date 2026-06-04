@@ -19,6 +19,7 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 	const { t } = useTranslation();
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
+	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const [ageMin, setAgeMin] = useState(initialDraft.ageMin);
 	const [ageMax, setAgeMax] = useState(initialDraft.ageMax);
@@ -38,10 +39,23 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 			window.history.back();
 		}
 
-		setTimeout(() => {
+		if (closeTimeoutRef.current) {
+			clearTimeout(closeTimeoutRef.current);
+		}
+		closeTimeoutRef.current = setTimeout(() => {
+			closeTimeoutRef.current = null;
 			onClose();
 		}, 300);
 	}, [onClose]);
+
+	useEffect(() => {
+		return () => {
+			if (closeTimeoutRef.current) {
+				clearTimeout(closeTimeoutRef.current);
+				closeTimeoutRef.current = null;
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		if (window.history.state?.modal !== "right-now-filters") {
@@ -70,7 +84,11 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 	};
 
 	return (
-		<div className="fixed inset-0 z-40 flex flex-col no-touch-callout isolate">
+		<div
+			className={`fixed inset-0 z-40 flex flex-col no-touch-callout isolate ${
+				isClosing ? "pointer-events-none" : ""
+			}`}
+		>
 			{/* Backdrop */}
 			<div
 				className={`absolute inset-0 bg-black/45 backdrop-blur-sm ${

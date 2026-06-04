@@ -1,4 +1,4 @@
-import { Download, Plus, Trash2, Upload } from "lucide-react";
+import { BookMarked, Download, Plus, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -102,11 +102,8 @@ export function SettingsSavedPhrasesPage() {
 
 	return (
 		<section className="app-screen">
-			<BackToSettings />
 			<header className="mb-6">
-				<p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-readable)]">
-					{t("settings_saved_phrases.label", { defaultValue: "Chat" })}
-				</p>
+				<BackToSettings />
 				<h1 className="app-title mt-2">
 					{t("settings_saved_phrases.title", {
 						defaultValue: "Saved Phrases",
@@ -192,19 +189,24 @@ export function SettingsSavedPhrasesPage() {
 						<h2 className="text-lg font-semibold">
 							{t("settings_saved_phrases.current", { defaultValue: "Current Phrases" })}
 						</h2>
-						<span className="text-xs text-[var(--text-muted)]">
-							{t("settings_saved_phrases.count", {
-								count: savedPhrases.length,
-								defaultValue: "{{count}} saved",
-							})}
-						</span>
+						{savedPhrases.length > 0 && (
+							<span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">
+								{savedPhrases.length}
+							</span>
+						)}
 					</div>
 					{savedPhrases.length === 0 ? (
-						<p className="text-sm text-[var(--text-muted)]">
-							{t("settings_saved_phrases.empty", {
-								defaultValue: "No saved phrases yet.",
-							})}
-						</p>
+						<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
+							<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
+								<BookMarked className="h-5 w-5 opacity-60" />
+							</div>
+							<p className="text-sm font-medium">
+								{t("settings_saved_phrases.empty", { defaultValue: "No saved phrases yet." })}
+							</p>
+							<p className="text-xs opacity-60">
+								{t("settings_saved_phrases.empty_hint", { defaultValue: "Type above to add your first phrase." })}
+							</p>
+						</div>
 					) : (
 						<div className="grid gap-2">
 							{savedPhrases.map((phrase, index) => (

@@ -58,12 +58,14 @@ import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
 	extractImageHashFromSignedUrl,
+	getMessageAlbumId,
 	getMessageImageUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
+    formatDateTime24
 } from "./chat/chatUtils";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
@@ -79,6 +81,7 @@ import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
+import freegrindLogo from "../../images/freegrind-logo.webp";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -364,9 +367,12 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
-	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(
-		null,
-	);
+	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
+	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
+		takenOnGrindr: boolean;
+		createdAtLabel: string | null;
+		timestamp: number;
+	} | null>(null);
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -587,7 +593,25 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		setAlbumViewer(null);
+		setAlbumViewerMediaIndex(null);
 	}, [selectedConversationId]);
+
+	const isAlbumOpen = albumViewer !== null;
+	useEffect(() => {
+		if (!isAlbumOpen) return;
+		const prevState = history.state;
+		history.pushState({ albumOpen: true }, "");
+		const onPopState = () => {
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
+		};
+		window.addEventListener("popstate", onPopState);
+		return () => {
+			window.removeEventListener("popstate", onPopState);
+			if (history.state?.albumOpen) history.replaceState(prevState, "");
+		};
+	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -1583,6 +1607,9 @@ export function ChatPage() {
 			setThreadError(null);
 			setReplyTargetMessageId(null);
 			lastLoadedConversationIdRef.current = null;
+			setIsDrawerOpen(false);
+			setDrawerMedia([]);
+			setPendingAttachmentFile(null);
 			return;
 		}
 
@@ -2525,6 +2552,19 @@ export function ChatPage() {
 		sendMediaAttachment,
 	]);
 
+	const confirmAttachmentFile = useCallback(
+		(file: File) => {
+			void sendMediaAttachment(file, {
+				looping: attachmentLooping,
+				takenOnGrindr: attachmentTakenOnGrindr,
+			});
+			setPendingAttachmentFile(null);
+			setAttachmentLooping(false);
+			setAttachmentTakenOnGrindr(false);
+		},
+		[attachmentLooping, attachmentTakenOnGrindr, sendMediaAttachment],
+	);
+
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
@@ -2708,6 +2748,29 @@ export function ChatPage() {
 		}
 	};
 
+	const handleStopAlbumShare = useCallback(async (albumId: number) => {
+		if (!selectedConversation || isMutatingMessageId) return;
+		const recipient = getOtherParticipant(selectedConversation, userId);
+		if (!recipient) return;
+		setIsMutatingMessageId(String(albumId));
+		try {
+			await service.stopAlbumShare(albumId, recipient.profileId);
+			toast.success(t("chat.toasts.album_share_stopped", { defaultValue: "Album share stopped." }));
+			setThreadMessages((prev) =>
+				prev.map((msg) => {
+					if (getMessageAlbumId(msg) !== albumId) return msg;
+					const body = msg.body as Record<string, unknown>;
+					return { ...msg, body: { ...body, isViewable: false, ownerProfileId: null } };
+				}),
+			);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+		} finally {
+			setIsMutatingMessageId(null);
+			setOpenMessageActionId(null);
+		}
+	}, [selectedConversation, userId, isMutatingMessageId, t]);
+
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
         const targetProfile = selectedConversation
@@ -2771,6 +2834,22 @@ export function ChatPage() {
         }
     }, [loadThread, pendingAlbumShare, selectedConversation, targetProfileId, service, t, userId]);
 
+	const handleShareAlbumFromDrawer = useCallback(async (albumId: number, expirationType: string) => {
+		if (!selectedConversation) return;
+		const recipient = getOtherParticipant(selectedConversation, userId);
+		if (!recipient) return;
+		setIsSharingAlbum(true);
+		try {
+			await service.shareAlbum({ albumId, profiles: [{ profileId: recipient.profileId, expirationType: expirationType as any }] });
+			toast.success(t("chat.toasts.album_shared"));
+			void loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+		} finally {
+			setIsSharingAlbum(false);
+		}
+	}, [selectedConversation, userId, t, loadThread]);
+
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
 			setIsAlbumViewerLoading(true);
@@ -2820,15 +2899,8 @@ export function ChatPage() {
 			return;
 		}
 
-		const albums = shareableAlbums.length > 0 ? shareableAlbums : await loadAlbums();
-		const shareable = albums.filter((album) => album.isShareable);
-
-		if (shareable.length === 1) {
-			void shareAlbumToCurrentConversation(
-				shareable[0].albumId,
-				shareable[0].albumName,
-			);
-			return;
+		if (shareableAlbums.length === 0) {
+			await loadAlbums();
 		}
 
 		setIsAlbumPickerOpen(true);
@@ -2840,14 +2912,13 @@ export function ChatPage() {
 	]);
 
 	const loadDrawerMedia = useCallback(async () => {
-		if (!selectedConversationId) {
-			return;
-		}
+		const cid = selectedConversationId ?? conversations[0]?.data.conversationId;
+		if (!cid) return;
 
 		setIsLoadingDrawer(true);
 		setDrawerError(null);
 		try {
-			const media = await service.getDrawerMedia(selectedConversationId);
+			const media = await service.getDrawerMedia(cid);
 			setDrawerMedia(media);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
@@ -2856,7 +2927,7 @@ export function ChatPage() {
 		} finally {
 			setIsLoadingDrawer(false);
 		}
-	}, [selectedConversationId, service, t]);
+	}, [selectedConversationId, conversations, service, t]);
 
 	const toggleDrawer = useCallback(async () => {
 		if (isDrawerOpen) {
@@ -2865,10 +2936,11 @@ export function ChatPage() {
 		}
 
 		setIsDrawerOpen(true);
-		if (drawerMedia.length === 0) {
-			await loadDrawerMedia();
-		}
-	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
+		const [, ] = await Promise.all([
+			drawerMedia.length === 0 ? loadDrawerMedia() : Promise.resolve(),
+			shareableAlbums.length === 0 ? loadAlbums() : Promise.resolve(),
+		]);
+	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia, shareableAlbums.length, loadAlbums]);
 
 	const sendDrawerMedia = useCallback(
 		async (mediaIds: number[], isExpiring?: boolean) => {
@@ -3032,8 +3104,9 @@ export function ChatPage() {
 		setAttachmentTakenOnGrindr(false);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string) => {
+	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => {
 		setFullScreenImageUrl(imageUrl);
+		setFullScreenImageMeta(meta ?? null);
 	}, []);
 
 	const closeFullScreenImage = useCallback(() => {
@@ -3182,6 +3255,7 @@ export function ChatPage() {
 			handleDelete={handleDelete}
 			handleRetry={handleRetry}
 			handleReply={handleReplyToMessage}
+			handleStopAlbumShare={handleStopAlbumShare}
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
@@ -3195,6 +3269,7 @@ export function ChatPage() {
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
 			confirmPendingAttachment={confirmPendingAttachment}
+			confirmAttachmentFile={confirmAttachmentFile}
 			cancelPendingAttachment={cancelPendingAttachment}
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}
@@ -3215,6 +3290,8 @@ export function ChatPage() {
 			onSendDrawerMedia={sendDrawerMedia}
 			onAddDrawerMedia={addDrawerMedia}
 			onDeleteDrawerMedia={deleteDrawerMedia}
+			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
+			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
 			uploadProgress={uploadProgress}
 			draft={draft}
@@ -3225,6 +3302,7 @@ export function ChatPage() {
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
 			albumViewer={albumViewer}
+			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
 		/>
 	);
 
@@ -3339,6 +3417,24 @@ export function ChatPage() {
 				isOpen={!!fullScreenImageUrl}
 				onClose={closeFullScreenImage}
 				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
+				renderExtraInfo={fullScreenImageMeta ? () => (
+                    <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+                        <style>{`
+                            @keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+                            .logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
+                        `}</style>
+                        {fullScreenImageMeta.takenOnGrindr ? (
+                            <img
+                                src={freegrindLogo}
+                                alt={t("chat.thread.taken_on_grindr")}
+                                className="h-3.5 w-3.5 rounded-full logo-shine"
+                            />
+                        ) : null}
+                        {fullScreenImageMeta.timestamp ? (
+                            <span>{formatDateTime24(fullScreenImageMeta.timestamp)}</span>
+                        ) : null}
+                    </p>
+				) : undefined}
 			/>
 		</section>
 	);
