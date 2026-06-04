@@ -7,7 +7,8 @@ use std::time::Duration;
 const DEFAULT_APP_VERSION: &str = "26.9.1.163471";
 const DEFAULT_BUILD_NUMBER: &str = "163471";
 const TIMEZONE: &str = "Europe/Madrid";
-const VERSION_FILE_URL: &str = "https://raw.githubusercontent.com/imaoreo/free-grind/main/version.json";
+const VERSION_FILE_URL: &str =
+    "https://raw.githubusercontent.com/imaoreo/free-grind/main/version.json";
 
 #[derive(Debug, Deserialize)]
 struct VersionJson {
@@ -104,10 +105,7 @@ pub fn build_headers(
     // 3. L-Grindr-Roles
     if auth_token.is_some() {
         let roles = format!("[{}]", subscription_tier.to_uppercase());
-        headers.insert(
-            "L-Grindr-Roles",
-            HeaderValue::from_str(&roles).unwrap(),
-        );
+        headers.insert("L-Grindr-Roles", HeaderValue::from_str(&roles).unwrap());
     }
 
     // 4. L-Device-Info
@@ -133,7 +131,9 @@ pub fn build_headers(
         "grindr3/{};{};{subscription_tier};Android {};{};{}",
         version_info.app_version,
         version_info.build_number,
-        device.android_version, device.device_model, device.manufacturer
+        device.android_version,
+        device.device_model,
+        device.manufacturer
     );
     headers.insert("User-Agent", HeaderValue::from_str(&user_agent).unwrap());
 

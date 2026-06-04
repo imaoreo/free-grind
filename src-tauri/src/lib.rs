@@ -1,7 +1,9 @@
 mod api;
 mod error;
+mod instance_lock;
 mod state;
 mod storage;
+mod windows_instance;
 
 use std::sync::Arc;
 
@@ -14,6 +16,11 @@ pub fn run() {
     // Install the ring crypto provider for rustls (required for
     // tokio-tungstenite when using rustls TLS backend).
     let _ = rustls::crypto::ring::default_provider().install_default();
+
+    #[cfg(target_os = "windows")]
+    {
+        windows_instance::WindowsInstance::init();
+    }
 
     // Keyring initialization should not block app startup.
     // Some environments (including certain Intel macOS setups) can fail keychain init.
@@ -29,6 +36,15 @@ pub fn run() {
     // Platform-specific setup for plugins
     #[cfg(not(mobile))]
     {
+        #[cfg(target_os = "windows")]
+        let _instance_lock_guard = match instance_lock::acquire_for_current_child_instance() {
+            Ok(guard) => guard,
+            Err(error) => {
+                eprintln!("Free Grind failed to acquire child instance lock: {}", error);
+                return;
+            }
+        };
+
         let context = tauri::generate_context!();
         let (hotswap, context) = match tauri_plugin_hotswap::init(context) {
             Ok((h, c)) => (h, c),
@@ -48,6 +64,12 @@ pub fn run() {
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
             .invoke_handler(tauri::generate_handler![
+                api::runtime::runtime_context,
+                api::runtime::create_child_instance,
+                api::runtime::list_child_instances,
+                api::runtime::rename_child_instance,
+                api::runtime::remove_child_instance,
+                api::runtime::launch_child_instance,
                 api::auth::login,
                 api::auth::login_with_jwt,
                 api::auth::refresh_token,
@@ -86,6 +108,12 @@ pub fn run() {
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
             .invoke_handler(tauri::generate_handler![
+                api::runtime::runtime_context,
+                api::runtime::create_child_instance,
+                api::runtime::list_child_instances,
+                api::runtime::rename_child_instance,
+                api::runtime::remove_child_instance,
+                api::runtime::launch_child_instance,
                 api::auth::login,
                 api::auth::login_with_jwt,
                 api::auth::refresh_token,
