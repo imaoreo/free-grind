@@ -500,6 +500,7 @@
 	.tab-menu {
 		background: radial-gradient(circle at center, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0) 80%);
 		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		transform: rotate(-15deg) translateY(20px) translateX(-50%);
 		transform-origin: left bottom;
 		opacity: 0;

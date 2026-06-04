@@ -311,6 +311,7 @@ export function NavBar() {
 					backgroundColor: "rgba(22, 29, 39, 0.9)",
 					background: "color-mix(in srgb, var(--surface) 90%, transparent)",
 					backdropFilter: "blur(16px)",
+					WebkitBackdropFilter: "blur(16px)",
 				}}
 			>
 				<Tabs value={activeTab} onValueChange={handleTabChange}>

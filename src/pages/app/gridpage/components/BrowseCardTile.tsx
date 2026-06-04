@@ -1,5 +1,5 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { MapPin, MessageCircle, Plane, Star, Zap, Droplet } from "lucide-react";
+import { Navigation, NavigationOff, MessageCircle, Plane, Star, Zap, Droplet, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
@@ -32,7 +32,6 @@ export function BrowseCardTile({
 	const { unitsPreset, showDebugInfo } = usePreferences();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
-	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
 	const usesFreegrind = usePresenceCheck(card.profileId);
 	const isDemoCard = card.profileId.toString().startsWith("demo-");
 	const isVisiting = card.isVisiting === true;
@@ -44,6 +43,21 @@ export function BrowseCardTile({
 	const unreadCount = Math.max(databaseUnread, apiUnread);
 	const hasChatted = Boolean(chatContactStatus?.hasChatted) || card.chatted === true || unreadCount > 0;
 	const isFavorite = card.favorite === true;
+
+	let formattedTimeText = "";
+	if (onlineStatus.count != null) {
+		if (onlineStatus.labelKey === "browse_page.status_minutes_ago") {
+			formattedTimeText = `${onlineStatus.count}m`;
+		} else if (onlineStatus.labelKey === "browse_page.status_hours_ago") {
+			formattedTimeText = `${onlineStatus.count}h`;
+		} else if (onlineStatus.labelKey === "browse_page.status_days_ago") {
+			formattedTimeText = `${onlineStatus.count}d`;
+		} else {
+			formattedTimeText = t(onlineStatus.labelKey, { count: onlineStatus.count });
+		}
+	} else {
+		formattedTimeText = t(onlineStatus.labelKey);
+	}
 
 
 	return (
@@ -92,7 +106,6 @@ export function BrowseCardTile({
 						<div className="min-w-0 flex-1">
 							<p className="text-sm sm:text-base font-bold leading-tight truncate">
 								{name}
-								{age && <span className="font-semibold text-white/90 ml-1"> {age}</span>}
 							</p>
 						</div>
 
@@ -128,8 +141,9 @@ export function BrowseCardTile({
 							{onlineStatus.isOnline ? (
 								<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
 							) : (
-								<span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm sm:text-[11px]">
-									{t(onlineStatus.labelKey, { count: onlineStatus.count })}
+								<span className="inline-flex items-center gap-0.5 rounded-full bg-black/55 pl-1.5 pr-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm sm:text-[11px]">
+									<Clock className="h-3 w-3 shrink-0 mr-0.5 opacity-80" />
+									{formattedTimeText}
 								</span>
 							)}
 						</div>
@@ -168,10 +182,16 @@ export function BrowseCardTile({
 					</div>
 
 					{/* Bottom-left: Distance */}
-					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
-						<span className="inline-flex items-center gap-1 text-xs font-semibold">
-							<MapPin className="h-3.5 w-3.5" />
-							{formatDistance(card.distanceMeters, t, unitsPreset)}
+					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 pb-1 pt-0.5 text-white">
+						<span className="inline-flex items-center gap-0.5 text-[10px] font-bold leading-none sm:text-[11px]">
+							{card.distanceMeters == null || !Number.isFinite(card.distanceMeters) ? (
+								<NavigationOff className="h-2.5 w-2.5 shrink-0 mr-0.5 text-white/60" title={t("browse_page.distance_hidden", "Distance hidden")} />
+							) : (
+								<>
+									<Navigation className="h-2.5 w-2.5 shrink-0 mr-0.5" />
+									{formatDistance(card.distanceMeters, t, unitsPreset)}
+								</>
+							)}
 						</span>
 					</div>
 				</div>

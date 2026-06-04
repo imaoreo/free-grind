@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, MessagesSquare, Compass, Info, Ban } from "lucide-react";
+import { Loader2, MessageCircle, MessagesSquare, Compass, Info, Ban, Fingerprint, CalendarDays, Navigation, NavigationOff } from "lucide-react";
 import { type RefObject, type UIEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -389,24 +389,24 @@ export function ProfileDetailsContent({
 				</div>
 			)}
 
-			<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 shadow-sm">
+			<div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface-2)] to-color-mix(in srgb, var(--surface-2) 90%, var(--surface)) p-4 shadow-sm">
 				<div className="flex items-center justify-between gap-3">
 					<div className="min-w-0">
-						<p
+						<h2
 							onClick={copyUserId}
-							className="text-lg font-bold sm:text-xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)]"
+							className="text-lg font-bold sm:text-xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)] flex items-center gap-1.5"
 							title="Tap to copy User ID"
 						>
-							{activeProfileName}
+							<span className="text-[var(--text)]">{activeProfileName}</span>
 							{activeProfile.age && typeof activeProfile.age === "number" && Number.isInteger(activeProfile.age) && activeProfile.age > 0 && activeProfile.showAge !== false ? (
 								<>
-									<span className="mx-2 text-[var(--text-muted)] font-light text-base select-none">•</span>
-									<span className="font-semibold text-[var(--text-muted)] text-base">
+									<span className="text-[var(--text-muted)] opacity-40 text-sm select-none">•</span>
+									<span className="font-bold text-base sm:text-lg text-[var(--accent-readable)] select-none">
 										{activeProfile.age}
 									</span>
 								</>
 							) : null}
-						</p>
+						</h2>
 					</div>
 					<button
 						type="button"
@@ -459,14 +459,18 @@ export function ProfileDetailsContent({
 						className={`group inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border backdrop-blur-md shadow-sm transition-all duration-300 active:scale-95 cursor-pointer ${
 							isLocatingProfile
 								? "bg-[var(--accent)] text-zinc-950 border-[var(--accent)] animate-pulse"
-								: "bg-[var(--surface-3)] hover:bg-[var(--surface)] text-[var(--text)] border-[var(--border)] hover:border-[var(--accent)]/50"
+								: profileDistance == null || !Number.isFinite(profileDistance)
+									? "bg-[var(--surface-3)]/60 text-[var(--text-muted)] border-[var(--border)]/75"
+									: "bg-[var(--surface-3)] hover:bg-[var(--surface)] text-[var(--text)] border-[var(--border)] hover:border-[var(--accent)]/50"
 						}`}
 						title="Tap to run location finder"
 					>
 						{isLocatingProfile ? (
 							<Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-950" />
+						) : profileDistance == null || !Number.isFinite(profileDistance) ? (
+							<NavigationOff className="h-3 w-3 shrink-0" />
 						) : (
-							<Compass className="h-3.5 w-3.5 text-[var(--accent)] transform transition-transform group-hover:rotate-45 duration-500" />
+							<Navigation className="h-3 w-3 text-[var(--accent)] transform transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 duration-300" />
 						)}
 						<span>
 							{isLocatingProfile ? "Locating..." : formatDistance(profileDistance, t, unitsPreset)}
@@ -484,29 +488,35 @@ export function ProfileDetailsContent({
 
 				{/* Expandable details panel */}
 				{showDetails && (
-					<div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2.5 text-xs text-[var(--text-muted)] animate-in slide-in-from-top-2 duration-200">
+					<div className="mt-3.5 grid grid-cols-2 gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text-muted)] animate-in slide-in-from-top-2 duration-200">
 						<div
 							onClick={copyUserId}
-							className="cursor-pointer hover:bg-[var(--surface-2)] p-1.5 rounded-lg transition-colors"
+							className="cursor-pointer hover:bg-[var(--surface-2)] p-2 rounded-lg transition-colors flex flex-col gap-1"
 							title="Tap to copy User ID"
 						>
-							<span className="font-semibold block text-[10px] uppercase tracking-wider text-[var(--text-muted)]">User ID</span>
-							<span className="font-mono text-[var(--text)] select-all">{activeProfile.profileId}</span>
+							<span className="font-semibold text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+								<Fingerprint className="h-3.5 w-3.5 text-[var(--accent)]" />
+								User ID
+							</span>
+							<span className="font-mono text-[var(--text)] select-all truncate">{activeProfile.profileId}</span>
 						</div>
-						<div className="p-1.5">
-							<span className="font-semibold block text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Est. Created</span>
-							<span className="text-[var(--text)]">{estimatedCreatedAt}</span>
+						<div className="p-2 flex flex-col gap-1">
+							<span className="font-semibold text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+								<CalendarDays className="h-3.5 w-3.5 text-[var(--accent)]" />
+								Estimated Created
+							</span>
+							<span className="text-[var(--text)] truncate">{estimatedCreatedAt}</span>
 						</div>
 					</div>
 				)}
 				{usesFreegrind && (
-					<div className="mt-2 flex items-center gap-2">
+					<div className="mt-3 flex items-center gap-2 rounded-xl bg-amber-500/5 border border-amber-500/10 px-3 py-1.5 text-xs text-amber-500/90 w-fit">
 						<img
 							src={freegrindLogo}
 							alt="Free Grind user"
-							title={t("profile_details.uses_free_grind")}
-							className="h-5 w-5 rounded-full border border-[var(--border)]"
+							className="h-4.5 w-4.5 rounded-full"
 						/>
+						<span className="font-medium">{t("profile_details.uses_free_grind", "Uses FreeGrind")}</span>
 					</div>
 				)}
 			</div>
