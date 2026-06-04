@@ -238,6 +238,10 @@ export function ChatThreadMessages({
 		triggered: boolean;
 	} | null>(null);
 
+	const lastTapRef = useRef<{ messageId: string; time: number } | null>(null);
+	const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const pendingTapActionRef = useRef<(() => void) | null>(null);
+
 	const handleMobileTouchStart = useCallback(
 		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
 			startMessageLongPress(message.messageId);
@@ -281,6 +285,51 @@ export function ChatThreadMessages({
 		swipeStateRef.current = null;
 		endMessageLongPress();
 	}, [endMessageLongPress]);
+
+	const scheduleMobileTap = useCallback(
+		(message: UiMessage, action: (() => void) | null) => {
+			if (messageLongPressTriggeredRef.current) {
+				messageLongPressTriggeredRef.current = false;
+				return;
+			}
+
+			if (pendingTapTimerRef.current !== null) {
+				clearTimeout(pendingTapTimerRef.current);
+				pendingTapTimerRef.current = null;
+				pendingTapActionRef.current = null;
+			}
+
+			const now = Date.now();
+			const last = lastTapRef.current;
+
+			if (last && last.messageId === message.messageId && now - last.time < 300) {
+				lastTapRef.current = null;
+				void handleReact(message);
+				return;
+			}
+
+			lastTapRef.current = { messageId: message.messageId, time: now };
+
+			if (action) {
+				pendingTapActionRef.current = action;
+				pendingTapTimerRef.current = setTimeout(() => {
+					const act = pendingTapActionRef.current;
+					pendingTapTimerRef.current = null;
+					pendingTapActionRef.current = null;
+					act?.();
+				}, 280);
+			}
+		},
+		[handleReact, messageLongPressTriggeredRef],
+	);
+
+	useEffect(() => {
+		return () => {
+			if (pendingTapTimerRef.current !== null) {
+				clearTimeout(pendingTapTimerRef.current);
+			}
+		};
+	}, []);
 
 	return (
 		<div
@@ -442,7 +491,8 @@ export function ChatThreadMessages({
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
-												onDoubleClick={() => void handleMessageTap(message)}
+												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
+												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
 												onTouchStart={(event) => handleMobileTouchStart(event, message)}
 												onTouchEnd={handleMobileTouchEnd}
 												onTouchCancel={handleMobileTouchEnd}
@@ -466,20 +516,32 @@ export function ChatThreadMessages({
 												{imageUrl ? (
 													<button
 														type="button"
-														onClick={() => {
-															if (messageLongPressTriggeredRef.current) {
-																messageLongPressTriggeredRef.current = false;
-																return;
-															}
-															if (shouldBlurIncomingMedia && !isDesktop) {
-																revealMediaMessage(message.messageId);
-																return;
-															}
-															openFullScreenImage(imageUrl, {
+														onClick={(event) => {
+															event.stopPropagation();
+															if (isDesktop) {
+																openFullScreenImage(imageUrl, {
 																	takenOnGrindr: messageTakenOnGrindr,
 																	createdAtLabel: imageCreatedAtLabel,
 																	timestamp: message.timestamp,
 																});
+																return;
+															}
+															if (messageLongPressTriggeredRef.current) {
+																messageLongPressTriggeredRef.current = false;
+																return;
+															}
+															if (shouldBlurIncomingMedia) {
+																revealMediaMessage(message.messageId);
+																lastTapRef.current = null;
+																return;
+															}
+															scheduleMobileTap(message, () => {
+																openFullScreenImage(imageUrl, {
+																	takenOnGrindr: messageTakenOnGrindr,
+																	createdAtLabel: imageCreatedAtLabel,
+																	timestamp: message.timestamp,
+																});
+															});
 														}}
 														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
@@ -576,23 +638,28 @@ export function ChatThreadMessages({
 												{isAlbumOnlyBubble ? (
 													<button
 														type="button"
-														onClick={() => {
-															if (shouldBlurIncomingMedia && !isDesktop) {
-																revealMediaMessage(message.messageId);
+														onClick={(event) => {
+															event.stopPropagation();
+															if (isDesktop) {
+																if (albumId && !isLocked) void openAlbumViewerById(albumId);
 																return;
 															}
 															if (messageLongPressTriggeredRef.current) {
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
-															if (albumId) {
-																void openAlbumViewerById(albumId);
+															if (shouldBlurIncomingMedia) {
+																revealMediaMessage(message.messageId);
+																lastTapRef.current = null;
+																return;
 															}
+															scheduleMobileTap(message, () => {
+																if (albumId && !isLocked) void openAlbumViewerById(albumId);
+															});
 														}}
 														className={`group/media block w-full overflow-hidden rounded-2xl ${tailCorner}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
-														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
 															<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
@@ -678,9 +745,11 @@ export function ChatThreadMessages({
 															className="group/media relative mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
 															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
-															onClick={() => {
+															onClick={(event) => {
+																event.stopPropagation();
 																if (shouldBlurIncomingMedia && !isDesktop) {
 																	revealMediaMessage(message.messageId);
+																	lastTapRef.current = null;
 																}
 															}}
 														>
@@ -699,22 +768,31 @@ export function ChatThreadMessages({
 												) : null}
 
 												{audioUrl ? (
-													<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
+													<div onClick={(e) => e.stopPropagation()}>
+														<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
+													</div>
 												) : null}
 
 												{location ? (
 													<button
 														type="button"
-														onClick={async () => {
+														onClick={(event) => {
+															event.stopPropagation();
 															const url = isDesktop
 																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
 																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
-															try {
-																await openUrl(url);
-															} catch (error) {
-																appLog.error("Failed to open map URL", error);
-																window.open(url, "_blank");
+															const doOpen = () => {
+																openUrl(url).catch((error) => {
+																	appLog.error("Failed to open map URL", error);
+																	window.open(url, "_blank");
+																});
+															};
+															if (isDesktop) { doOpen(); return; }
+															if (messageLongPressTriggeredRef.current) {
+																messageLongPressTriggeredRef.current = false;
+																return;
 															}
+															scheduleMobileTap(message, doOpen);
 														}}
 														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
 															mine
@@ -804,10 +882,9 @@ export function ChatThreadMessages({
 															</span>
 															<button
 																type="button"
-																onClick={() => {
-																	if (albumId) {
-																		void openAlbumViewerById(albumId);
-																	}
+																onClick={(event) => {
+																	event.stopPropagation();
+																	if (albumId) void openAlbumViewerById(albumId);
 																}}
 																className="rounded-md border border-black/20 px-2 py-1 text-[11px]"
 																disabled={!albumId || isLocked}
@@ -832,23 +909,12 @@ export function ChatThreadMessages({
 												) : null}
 
 														{!isLocalClientMessageId(message.messageId) ? (
-													<button
-														type="button"
-														onClick={() => void handleReact(message)}
-														disabled={isMutatingMessageId === message.messageId}
-																className={`${fireButtonClass} z-10 cursor-pointer transition-opacity ${
-															message.reactions.length > 0
-																? "opacity-100"
-																: "opacity-0 group-hover/bubble:opacity-60"
-														} hover:opacity-80`}
-													>
-														<span className={`chat-reaction-flame text-2xl inline-flex ${
-															reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
-														}`}>
-															🔥
-														</span>
-													</button>
-												) : null}
+															<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+																message.reactions.length > 0 ? "opacity-100" : "opacity-0"
+															} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
+																🔥
+															</span>
+														) : null}
 
 												{!isMediaOnlyBubble ? (
 												<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -994,7 +1060,7 @@ export function ChatThreadMessages({
 												{failed ? (
 													<button
 														type="button"
-														onClick={() => handleRetry(message)}
+														onClick={(event) => { event.stopPropagation(); handleRetry(message); }}
 														className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 py-1 text-[11px] font-semibold"
 													>
 														{t("chat.retry")}
