@@ -40,12 +40,26 @@ export function ConfirmDialog({
 
 		if (isOpen) {
 			if (!dialog.open) {
-				dialog.showModal();
+				try {
+					dialog.showModal();
+				} catch {
+					// Fallback avoids leaving the UI inert if showModal cannot transition state.
+					dialog.show();
+				}
 			}
 		} else if (dialog.open) {
 			dialog.close();
 		}
 	}, [isOpen]);
+
+	useEffect(() => {
+		return () => {
+			const dialog = dialogRef.current;
+			if (dialog?.open) {
+				dialog.close();
+			}
+		};
+	}, []);
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
