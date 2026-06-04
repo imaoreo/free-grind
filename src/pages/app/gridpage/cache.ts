@@ -67,6 +67,22 @@ export function getCachedBrowseCards(
 	return getFromCache(browseCache, cacheKey);
 }
 
+export function findCachedBrowseCard(profileId: string): BrowseCard | null {
+	for (const entry of browseCache.values()) {
+		if (entry.expiresAt > Date.now()) {
+			const found = entry.value.cards.find((c) => String(c.profileId) === profileId);
+			if (found) {
+				return found;
+			}
+		}
+	}
+	return null;
+}
+
+export function isProfileInCache(profileId: string): boolean {
+	return !!findCachedBrowseCard(profileId) || !!getCachedProfileDetail(profileId);
+}
+
 export function setCachedBrowseCards(
 	cacheKey: string,
 	cards: BrowseCard[],

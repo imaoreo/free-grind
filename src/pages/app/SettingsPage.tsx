@@ -15,6 +15,7 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
+	ShieldAlert,
     Workflow,
 	UserX,
 } from "lucide-react";
@@ -80,9 +81,6 @@ export function SettingsPage() {
 	const [fcmSyncedToken, setFcmSyncedToken] = useState<string | null>(() => window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY));
 	const [fcmEventLog, setFcmEventLog] = useState<{ time: string; token: string }[]>([]);
 	const [manualToken, setManualToken] = useState("");
-    const [forbiddenWords, setForbiddenWords] = useState(() => window.localStorage.getItem("fg-forbidden-words") || "");
-    const [blockOnGrid, setBlockOnGrid] = useState(() => window.localStorage.getItem("fg-block-grid") === "true");
-	const [blockOnChat, setBlockOnChat] = useState(() => window.localStorage.getItem("fg-block-chat") !== "false"); // Default to true
 	const fcmLogRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -557,6 +555,27 @@ export function SettingsPage() {
 							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("settings.blocked_accounts_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+ 
+				<button
+					type="button"
+					onClick={() => navigate("/settings/block-detector")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<ShieldAlert className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.block_detector", { defaultValue: "Block Detector" })}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.block_detector_desc", { defaultValue: "See who blocked you and when" })}
 							</p>
 						</div>
 					</div>

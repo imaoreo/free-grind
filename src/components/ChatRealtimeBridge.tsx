@@ -33,6 +33,9 @@ import { getConversation } from "../services/conversationDirectory";
 import { shouldAutoBlock, getMatchedForbiddenWord, notifyAutoBlock } from "../utils/autoblock";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { isChatGhosted } from "../utils/privacy";
+import toast from "react-hot-toast";
+import { findCachedBrowseCard, getCachedProfileDetail, isProfileInCache } from "../pages/app/gridpage/cache";
+import { addBlockEvent, addRawBlockLog } from "../services/blockDetectorStore";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
@@ -161,7 +164,7 @@ function extractMessages(envelope: RealtimeEnvelope): Message[] {
 
 export function ChatRealtimeBridge() {
 	const { userId } = useAuth();
-	const { callMethod } = useApi();
+	const { callMethod, fetchRest } = useApi();
     const apiFunctions = useApiFunctions();
 	const location = useLocation();
 
@@ -270,6 +273,177 @@ export function ChatRealtimeBridge() {
 								detail: view,
 							}),
 						);
+					}
+				}
+
+				// Catch-all block and delete diagnostics
+				const envelopeType = envelope.type || "";
+				if (
+					envelopeType.toLowerCase().includes("block") ||
+					envelopeType.toLowerCase().includes("delete")
+				) {
+					appLog.info(`[chat-ws:bridge] Detected block/delete event: type=${envelopeType}`, envelope);
+					
+					// 1. Attempt to resolve blocker profileId
+					let resolvedId: string | null = null;
+					let currentUserId = userIdRef.current;
+					let userIdSource = "ref";
+					if (currentUserId == null) {
+						const storedId = window.localStorage.getItem("fg-user-id");
+						if (storedId) {
+							currentUserId = Number(storedId);
+							userIdSource = "localStorage";
+						}
+					}
+
+					for (const obj of [envelope.payload, envelope.data, envelope]) {
+						if (!obj || typeof obj !== "object") continue;
+						const r = obj as Record<string, unknown>;
+						
+						// Try from conversation ID lookup
+						const cid = (r.conversationId || r.cid || r.conversation_id) as string | undefined;
+						if (cid) {
+							if (currentUserId != null) {
+								const conv = getConversation(cid);
+								if (conv) {
+									const other = getOtherParticipant(conv, currentUserId);
+									if (other?.profileId) {
+										resolvedId = String(other.profileId);
+									}
+								}
+								if (!resolvedId) {
+									const parts = cid.split(":");
+									if (parts.length === 2) {
+										const p1 = parts[0];
+										const p2 = parts[1];
+										if (Number(p1) === Number(currentUserId)) {
+											resolvedId = p2;
+										} else if (Number(p2) === Number(currentUserId)) {
+											resolvedId = p1;
+										}
+									}
+								}
+							}
+							
+							// Fallback: split and match cached profiles if currentUserId is not available
+							if (!resolvedId) {
+								const parts = cid.split(":");
+								if (parts.length === 2) {
+									const p1 = parts[0];
+									const p2 = parts[1];
+									const hasP1 = isProfileInCache(p1);
+									const hasP2 = isProfileInCache(p2);
+									if (hasP1 && !hasP2) {
+										resolvedId = p1;
+									} else if (hasP2 && !hasP1) {
+										resolvedId = p2;
+									}
+								}
+							}
+						}
+
+						// Try from conversationIds array
+						const conversationIds = r.conversationIds || r.cids || r.conversation_ids;
+						if (Array.isArray(conversationIds) && !resolvedId) {
+							for (const cid of conversationIds) {
+								if (typeof cid !== "string") continue;
+								if (currentUserId != null) {
+									const parts = cid.split(":");
+									if (parts.length === 2) {
+										const p1 = parts[0];
+										const p2 = parts[1];
+										if (Number(p1) === Number(currentUserId)) {
+											resolvedId = p2;
+											break;
+										} else if (Number(p2) === Number(currentUserId)) {
+											resolvedId = p1;
+											break;
+										}
+									}
+								}
+								// Fallback: match by cache
+								const parts = cid.split(":");
+								if (parts.length === 2) {
+									const p1 = parts[0];
+									const p2 = parts[1];
+									const hasP1 = isProfileInCache(p1);
+									const hasP2 = isProfileInCache(p2);
+									if (hasP1 && !hasP2) {
+										resolvedId = p1;
+										break;
+									} else if (hasP2 && !hasP1) {
+										resolvedId = p2;
+										break;
+									}
+								}
+							}
+						}
+
+						// Direct profile/sender ID
+						if (!resolvedId) {
+							const rawId = r.profileId ?? r.senderId ?? r.userId ?? r.sender_id;
+							if (rawId != null) {
+								if (currentUserId != null) {
+									if (Number(rawId) !== Number(currentUserId)) {
+										resolvedId = String(rawId);
+									}
+								} else {
+									resolvedId = String(rawId);
+								}
+							}
+						}
+					}
+
+					// 2. Log raw data + debug info for diagnostics
+					addRawBlockLog({
+						type: envelopeType,
+						payload: {
+							raw: envelope.payload || envelope.data || envelope,
+							_debug: {
+								currentUserId,
+								userIdSource,
+								resolvedId,
+							}
+						},
+					});
+
+					// 3. Resolve name/photo from cache if we have a resolvedId
+					if (resolvedId) {
+						let displayName: string | null = null;
+						let imageHash: string | null = null;
+
+						const cachedCard = findCachedBrowseCard(resolvedId);
+						if (cachedCard) {
+							displayName = cachedCard.displayName || null;
+							imageHash = cachedCard.imageHash || null;
+						}
+
+						if (!displayName) {
+							const cachedDetail = getCachedProfileDetail(resolvedId);
+							if (cachedDetail) {
+								displayName = cachedDetail.displayName || null;
+								imageHash = cachedDetail.profileImageMediaHash || null;
+							}
+						}
+
+						const label = displayName || `Profile ID: ${resolvedId}`;
+
+						toast(`Block/delete event from ${label}`, {
+							icon: "🚫",
+							duration: 6000,
+						});
+
+						addBlockEvent({
+							profileId: resolvedId,
+							displayName,
+							imageHash,
+							timestamp: Date.now(),
+						});
+					} else {
+						toast(`Unresolved block/delete event: ${envelopeType}`, {
+							icon: "⚠️",
+							duration: 5000,
+						});
 					}
 				}
 
