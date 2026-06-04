@@ -392,25 +392,12 @@ export function SettingsAlbumsPage() {
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-4xl gap-6">
-				<header className="grid gap-4">
+				<header className="mb-6">
 					<BackToSettings />
-
-					<div className="surface-card p-5 sm:p-6">
-						<div className="flex flex-wrap items-start justify-between gap-3">
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
-									{t("settings_albums.label")}
-								</p>
-								<h1 className="app-title mt-2">{t("settings_albums.title")}</h1>
-								<p className="app-subtitle mt-2">
-									{freePlanHint} {t("settings_albums.usage", { count: albums.length, max: maxAlbums })}
-								</p>
-							</div>
-							<div className="rounded-2xl bg-[var(--surface-2)] p-3 text-sm font-medium">
-								{subscriptionType ?? t("settings_albums.unknown_plan")}
-							</div>
-						</div>
-					</div>
+					<h1 className="app-title mb-2">{t("settings_albums.title")}</h1>
+					<p className="app-subtitle">
+						{freePlanHint} {t("settings_albums.usage", { count: albums.length, max: maxAlbums })}
+					</p>
 				</header>
 
 				<section className="surface-card p-5 sm:p-6">

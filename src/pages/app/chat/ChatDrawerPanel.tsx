@@ -55,6 +55,7 @@ interface ChatDrawerPanelProps {
 	onShareAlbum?: (albumId: number, expirationType: string) => Promise<void>;
 	isSharingAlbum?: boolean;
 	onStopAlbumShare?: (albumId: number) => Promise<void>;
+	noConversation?: boolean;
 }
 
 export function ChatDrawerPanel({
@@ -77,6 +78,7 @@ export function ChatDrawerPanel({
 	onShareAlbum,
 	isSharingAlbum = false,
 	onStopAlbumShare,
+	noConversation = false,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -464,7 +466,7 @@ export function ChatDrawerPanel({
 									<button
 										type="button"
 										onClick={() => cameraInputRef.current?.click()}
-										disabled={isAdding || hasSelection || hasAlbumSelection}
+										disabled={isAdding || hasSelection || hasAlbumSelection || noConversation}
 										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.take_photo")}
 										title={t("chat_drawer.take_photo")}
@@ -475,7 +477,7 @@ export function ChatDrawerPanel({
 											) : (
 												<span className="relative inline-flex">
 													<Camera className="h-5 w-5" />
-													{!hasSelection && !hasAlbumSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+													{!hasSelection && !hasAlbumSelection && !noConversation && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
 														<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
 													</span>}
 												</span>
@@ -486,7 +488,7 @@ export function ChatDrawerPanel({
 									<button
 										type="button"
 										onClick={() => uploadInputRef.current?.click()}
-										disabled={isAdding || hasSelection || hasAlbumSelection}
+										disabled={isAdding || hasSelection || hasAlbumSelection || noConversation}
 										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.upload_photo")}
 										title={t("chat_drawer.upload_photo")}
@@ -494,7 +496,7 @@ export function ChatDrawerPanel({
 										<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
 											<span className="relative inline-flex">
 												<Upload className="h-5 w-5" />
-												{!hasSelection && !hasAlbumSelection && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+												{!hasSelection && !hasAlbumSelection && !noConversation && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
 													<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
 												</span>}
 											</span>
@@ -536,9 +538,9 @@ export function ChatDrawerPanel({
 												key={item.id}
 												role="button"
 												tabIndex={0}
-												onClick={() => { if (!hasAlbumSelection) toggleSelection(item.id); }}
-												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && toggleSelection(item.id)}
-												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection ? "opacity-30 pointer-events-none" : ""}`}
+												onClick={() => { if (!hasAlbumSelection && !noConversation) toggleSelection(item.id); }}
+												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && !noConversation && toggleSelection(item.id)}
+												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection || noConversation ? "opacity-30 pointer-events-none" : ""}`}
 												style={{
 													outline: isSelected ? "2px solid var(--accent)" : "none",
 													outlineOffset: "-2px",

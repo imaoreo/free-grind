@@ -1169,7 +1169,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
-						albumCoverMap={albumCoverMap}
 						threadBottomRef={threadBottomRef}
 				/>
 				)
@@ -1306,7 +1305,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => {
-									if (!selectedConversation) { toast.error(t("chat.errors.no_conversation_yet", { defaultValue: "Send a text message first to unlock media." })); return; }
 									toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
@@ -1436,7 +1434,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</BottomDrawer>
 					) : null}
 
-					{selectedConversation && isDrawerOpen ? (
+					{isDrawerOpen ? (
 						<ChatDrawerPanel
 							media={drawerMedia}
 							isLoading={isLoadingDrawer}
@@ -1457,6 +1455,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							sharedAlbumIds={sharedAlbumIds}
 							isSharingAlbum={isSharingAlbum}
 							isDesktop={isDesktop}
+							noConversation={!selectedConversation}
 						/>
 					) : null}
 
