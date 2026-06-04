@@ -488,7 +488,7 @@ export function SettingsAlbumsPage() {
 														type="text"
 														value={editingName}
 														onChange={(event) => setEditingName(event.target.value)}
-														className="input-field w-full"
+														className="input-field h-11 w-full"
 														maxLength={255}
 													/>
 												) : (
