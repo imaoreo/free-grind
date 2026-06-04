@@ -1,4 +1,6 @@
 import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
+import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
@@ -44,7 +46,7 @@ type ChatThreadMessagesProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string) => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => void;
 	openAlbumViewerById: (albumId: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -57,6 +59,7 @@ type ChatThreadMessagesProps = {
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
+	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 };
 
@@ -143,6 +146,7 @@ export function ChatThreadMessages({
 	handleDelete,
 	handleRetry,
 	handleReply,
+	handleStopAlbumShare,
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
@@ -236,6 +240,10 @@ export function ChatThreadMessages({
 		triggered: boolean;
 	} | null>(null);
 
+	const lastTapRef = useRef<{ messageId: string; time: number } | null>(null);
+	const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const pendingTapActionRef = useRef<(() => void) | null>(null);
+
 	const handleMobileTouchStart = useCallback(
 		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
 			startMessageLongPress(message.messageId);
@@ -279,6 +287,51 @@ export function ChatThreadMessages({
 		swipeStateRef.current = null;
 		endMessageLongPress();
 	}, [endMessageLongPress]);
+
+	const scheduleMobileTap = useCallback(
+		(message: UiMessage, action: (() => void) | null) => {
+			if (messageLongPressTriggeredRef.current) {
+				messageLongPressTriggeredRef.current = false;
+				return;
+			}
+
+			if (pendingTapTimerRef.current !== null) {
+				clearTimeout(pendingTapTimerRef.current);
+				pendingTapTimerRef.current = null;
+				pendingTapActionRef.current = null;
+			}
+
+			const now = Date.now();
+			const last = lastTapRef.current;
+
+			if (last && last.messageId === message.messageId && now - last.time < 300) {
+				lastTapRef.current = null;
+				void handleReact(message);
+				return;
+			}
+
+			lastTapRef.current = { messageId: message.messageId, time: now };
+
+			if (action) {
+				pendingTapActionRef.current = action;
+				pendingTapTimerRef.current = setTimeout(() => {
+					const act = pendingTapActionRef.current;
+					pendingTapTimerRef.current = null;
+					pendingTapActionRef.current = null;
+					act?.();
+				}, 280);
+			}
+		},
+		[handleReact, messageLongPressTriggeredRef],
+	);
+
+	useEffect(() => {
+		return () => {
+			if (pendingTapTimerRef.current !== null) {
+				clearTimeout(pendingTapTimerRef.current);
+			}
+		};
+	}, []);
 
 	return (
 		<div
@@ -344,8 +397,12 @@ export function ChatThreadMessages({
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
 								const isLocationOnlyBubble =
 									Boolean(location) && messageText === t("chat.preview.sent_location");
+								const hasVisualMedia = Boolean(imageUrl) || Boolean(videoUrl) || isAlbumOnlyBubble || isLocationOnlyBubble;
+							const isAudioOnlyBubble =
+									Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
 								const isMediaOnlyBubble =
 									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
+								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
 									!mine &&
@@ -406,7 +463,7 @@ export function ChatThreadMessages({
 								// ownerProfileId is null when expired/locked, but isViewable is more reliable
 								// (e.g. sender may lock the album while ownerProfileId is still present).
 								// My own sent albums are never locked from my perspective.
-								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable) && message.senderId !== userId;
+								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
@@ -436,7 +493,8 @@ export function ChatThreadMessages({
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
-												onDoubleClick={() => void handleMessageTap(message)}
+												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
+												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
 												onTouchStart={(event) => handleMobileTouchStart(event, message)}
 												onTouchEnd={handleMobileTouchEnd}
 												onTouchCancel={handleMobileTouchEnd}
@@ -447,31 +505,47 @@ export function ChatThreadMessages({
 														? "bg-transparent p-0"
 														: `px-3 py-2 ${
 															mine
-																? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-																: "bg-[var(--surface-2)] text-[var(--text)]"
+																? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
+																: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
 														}`
-												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-60 ring-1 ring-dashed ring-[var(--text-muted)]" : ""}`}
+												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
 											>
-												{localOnly ? (
-													<p className="mb-1 text-xs opacity-60">
+												{localOnly && !hasVisualMedia ? (
+													<span className="mb-1.5 block w-fit rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-semibold">
 														{t("chat.thread.from_local_history")}
-													</p>
+													</span>
 												) : null}
 												{imageUrl ? (
 													<button
 														type="button"
-														onClick={() => {
+														onClick={(event) => {
+															event.stopPropagation();
+															if (isDesktop) {
+																openFullScreenImage(imageUrl, {
+																	takenOnGrindr: messageTakenOnGrindr,
+																	createdAtLabel: imageCreatedAtLabel,
+																	timestamp: message.timestamp,
+																});
+																return;
+															}
 															if (messageLongPressTriggeredRef.current) {
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
-															if (shouldBlurIncomingMedia && !isDesktop) {
+															if (shouldBlurIncomingMedia) {
 																revealMediaMessage(message.messageId);
+																lastTapRef.current = null;
 																return;
 															}
-															openFullScreenImage(imageUrl);
+															scheduleMobileTap(message, () => {
+																openFullScreenImage(imageUrl, {
+																	takenOnGrindr: messageTakenOnGrindr,
+																	createdAtLabel: imageCreatedAtLabel,
+																	timestamp: message.timestamp,
+																});
+															});
 														}}
-														className={`group/media ${isImageOnlyBubble ? "block w-full overflow-hidden rounded-2xl" : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
@@ -481,6 +555,11 @@ export function ChatThreadMessages({
 															alt={t("chat.thread.shared_alt")}
 															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
 														/>
+														{localOnly && (
+															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																{t("chat.thread.from_local_history")}
+															</span>
+														)}
 														{isExpiringImage ? (
 															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
 																1
@@ -495,11 +574,8 @@ export function ChatThreadMessages({
 																		className="h-3.5 w-3.5 rounded-full"
 																	/>
 																) : null}
-
 																{imageCreatedAtLabel ? (
-																	<span>
-																		{` ${imageCreatedAtLabel}`}
-																	</span>
+																	<span>{` ${imageCreatedAtLabel}`}</span>
 																) : null}
 															</div>
 														) : null}
@@ -564,28 +640,38 @@ export function ChatThreadMessages({
 												{isAlbumOnlyBubble ? (
 													<button
 														type="button"
-														onClick={() => {
-															if (shouldBlurIncomingMedia && !isDesktop) {
-																revealMediaMessage(message.messageId);
+														onClick={(event) => {
+															event.stopPropagation();
+															if (isDesktop) {
+																if (albumId && !isLocked) void openAlbumViewerById(albumId);
 																return;
 															}
 															if (messageLongPressTriggeredRef.current) {
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
-															if (albumId) {
-																void openAlbumViewerById(albumId);
+															if (shouldBlurIncomingMedia) {
+																revealMediaMessage(message.messageId);
+																lastTapRef.current = null;
+																return;
 															}
+															scheduleMobileTap(message, () => {
+																if (albumId && !isLocked) void openAlbumViewerById(albumId);
+															});
 														}}
-														className="group/media block w-full overflow-hidden rounded-2xl"
+														className={`group/media block w-full overflow-hidden rounded-2xl ${tailCorner}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
-														disabled={!albumId || isLocked}
 													>
 														<div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
 															<div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
 																<Album className="h-8 w-8" />
 															</div>
+															{localOnly && (
+																<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																	{t("chat.thread.from_local_history")}
+																</span>
+															)}
 															{albumCover ? (
 																<img
 																	src={albumCover}
@@ -658,15 +744,22 @@ export function ChatThreadMessages({
 
 												{videoUrl ? (
 														<div
-															className="group/media mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
+															className="group/media relative mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
 															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
-															onClick={() => {
+															onClick={(event) => {
+																event.stopPropagation();
 																if (shouldBlurIncomingMedia && !isDesktop) {
 																	revealMediaMessage(message.messageId);
+																	lastTapRef.current = null;
 																}
 															}}
 														>
+														{localOnly && (
+															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																{t("chat.thread.from_local_history")}
+															</span>
+														)}
 														<video
 															controls
 															preload="metadata"
@@ -677,39 +770,49 @@ export function ChatThreadMessages({
 												) : null}
 
 												{audioUrl ? (
-													<div className="mb-2 rounded-xl border border-black/10 bg-[color-mix(in_srgb,var(--surface)_76%,transparent)] p-2">
-														<audio
-															controls
-															preload="none"
-															src={audioUrl}
-															className="w-full"
-														/>
+													<div onClick={(e) => e.stopPropagation()}>
+														<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
 													</div>
 												) : null}
 
 												{location ? (
 													<button
 														type="button"
-														onClick={async () => {
+														onClick={(event) => {
+															event.stopPropagation();
 															const url = isDesktop
 																? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
 																: `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
-															try {
-																await openUrl(url);
-															} catch (error) {
-																appLog.error("Failed to open map URL", error);
-																window.open(url, "_blank");
+															const doOpen = () => {
+																openUrl(url).catch((error) => {
+																	appLog.error("Failed to open map URL", error);
+																	window.open(url, "_blank");
+																});
+															};
+															if (isDesktop) { doOpen(); return; }
+															if (messageLongPressTriggeredRef.current) {
+																messageLongPressTriggeredRef.current = false;
+																return;
 															}
+															scheduleMobileTap(message, doOpen);
 														}}
-														className={`mb-2 flex w-full flex-col gap-2 rounded-xl border border-black/10 p-3 text-left transition hover:brightness-110 ${
+														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
 															mine
 																? "bg-white/10 text-white"
-																: "bg-[var(--surface)] text-[var(--text)]"
+																: "bg-[var(--surface-2)] text-[var(--text)]"
 														}`}
 													>
-														<div className="flex items-center gap-3">
-															<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm">
-																<MapPin className="h-5 w-5" />
+														<div className="relative">
+									<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
+									{localOnly && (
+										<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+											{t("chat.thread.from_local_history")}
+										</span>
+									)}
+								</div>
+														<div className="flex items-center gap-3 p-3">
+															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]">
+																<MapPin className="h-4 w-4" />
 															</div>
 															<div className="min-w-0 flex-1">
 																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
@@ -722,14 +825,11 @@ export function ChatThreadMessages({
 														</div>
 
 														{isLocationOnlyBubble && (
-															<div className="flex items-center justify-between gap-2 border-t border-black/5 pt-2 text-[10px] opacity-80">
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
-																</span>
+															<div className="flex items-center justify-end gap-2 px-3 pb-2 text-[10px] opacity-80">
 																{isDesktop &&
 																!pending &&
 																!isLocalClientMessageId(message.messageId) ? (
-																	<div className="flex items-center gap-1">
+																	<>
 																		<button
 																			type="button"
 																			onClick={(event) => {
@@ -754,8 +854,11 @@ export function ChatThreadMessages({
 																		>
 																			<Ellipsis className="h-3.5 w-3.5" />
 																		</button>
-																	</div>
+																	</>
 																) : null}
+																<span>
+																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+																</span>
 															</div>
 														)}
 													</button>
@@ -781,10 +884,9 @@ export function ChatThreadMessages({
 															</span>
 															<button
 																type="button"
-																onClick={() => {
-																	if (albumId) {
-																		void openAlbumViewerById(albumId);
-																	}
+																onClick={(event) => {
+																	event.stopPropagation();
+																	if (albumId) void openAlbumViewerById(albumId);
 																}}
 																className="rounded-md border border-black/20 px-2 py-1 text-[11px]"
 																disabled={!albumId || isLocked}
@@ -802,30 +904,19 @@ export function ChatThreadMessages({
 													</div>
 												) : null}
 
-												{!isMediaOnlyBubble ? (
+												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
 													<p className="whitespace-pre-wrap break-words">
 														{messageText}
 													</p>
 												) : null}
 
 														{!isLocalClientMessageId(message.messageId) ? (
-													<button
-														type="button"
-														onClick={() => void handleReact(message)}
-														disabled={isMutatingMessageId === message.messageId}
-																className={`${fireButtonClass} z-10 cursor-pointer transition-opacity ${
-															message.reactions.length > 0
-																? "opacity-100"
-																: "opacity-0 group-hover/bubble:opacity-60"
-														} hover:opacity-80`}
-													>
-														<span className={`chat-reaction-flame text-2xl inline-flex ${
-															reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""
-														}`}>
-															🔥
-														</span>
-													</button>
-												) : null}
+															<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+																message.reactions.length > 0 ? "opacity-100" : "opacity-0"
+															} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
+																🔥
+															</span>
+														) : null}
 
 												{!isMediaOnlyBubble ? (
 												<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -957,6 +1048,16 @@ export function ChatThreadMessages({
 																{t("chat.actions.unsend")}
 															</button>
 														) : null}
+														{mine && isAlbumMessage && albumId && (message.body as any)?.isViewable ? (
+															<button
+																type="button"
+																onClick={() => void handleStopAlbumShare(albumId)}
+																disabled={isMutatingMessageId === message.messageId}
+																className="rounded-md border border-orange-500/40 bg-orange-500/10 px-2 py-1 text-orange-400 transition hover:bg-orange-500/20"
+															>
+																{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}
+															</button>
+														) : null}
 														<button
 															type="button"
 															onClick={() => void handleDelete(message)}
@@ -971,7 +1072,7 @@ export function ChatThreadMessages({
 												{failed ? (
 													<button
 														type="button"
-														onClick={() => handleRetry(message)}
+														onClick={(event) => { event.stopPropagation(); handleRetry(message); }}
 														className="mt-1 rounded-lg bg-[color-mix(in_srgb,var(--surface)_72%,transparent)] px-2 py-1 text-[11px] font-semibold"
 													>
 														{t("chat.retry")}
