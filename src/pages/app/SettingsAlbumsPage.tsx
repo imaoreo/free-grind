@@ -609,7 +609,7 @@ export function SettingsAlbumsPage() {
 														{t("settings_albums.no_media")}
 													</p>
 												) : (
-													<div className={`grid gap-3 ${isDesktop ? "grid-cols-6" : "grid-cols-3"}`}>
+													<div className={`grid gap-3 ${isDesktop ? "grid-cols-6" : "grid-cols-2"}`}>
 														{detail.content.map((item, index) => {
 															const imageUrl =
 																item.thumbUrl ||
