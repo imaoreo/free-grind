@@ -35,6 +35,7 @@ import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 import { EntitlementsBridge } from "./components/EntitlementsBridge";
+import { LocationPublishBridge } from "./components/LocationPublishBridge";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { usePreferences } from "./contexts/PreferencesContext";
 
@@ -78,6 +79,7 @@ export default function App() {
 					<ChatRealtimeBridge />
 					<ActiveRouteBridge />
 					<EntitlementsBridge />
+					<LocationPublishBridge />
 					<AnalyticsConsentPrompt />
 					<Routes>
 						<Route element={<RootLayout />}>
