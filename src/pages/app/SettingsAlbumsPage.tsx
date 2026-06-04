@@ -1,11 +1,14 @@
 import {
 	ArrowDown,
 	ArrowUp,
+	Check,
 	Images,
 	Pencil,
 	Plus,
+	RefreshCcw,
 	Trash2,
 	Upload,
+	X,
 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
@@ -408,57 +411,54 @@ export function SettingsAlbumsPage() {
 				</header>
 
 				<section className="surface-card p-5 sm:p-6">
-					<div className="mb-4">
-						<div className="flex items-center gap-2">
-							<Images className="h-5 w-5" />
-							<h2 className="text-lg font-semibold">{t("settings_albums.your_albums")}</h2>
-						</div>
-						{!canCreateAlbum && (
-							<p className="mt-0.5 text-sm text-[var(--text-muted)]">{t("settings_albums.limit_reached")}</p>
-						)}
-						<div className="mt-3 flex items-center gap-2">
-							<input
-								type="text"
-								value={createName}
-								onChange={(event) => setCreateName(event.target.value)}
-								placeholder={t("settings_albums.new_album_placeholder")}
-								className="input-field h-11 min-w-0 flex-1"
-								maxLength={255}
-							/>
-							<Button
-								type="button"
-								onClick={handleCreateAlbum}
-								disabled={!canCreateAlbum || isCreating}
-								variant="primary"
-							>
-								<Plus className="h-4 w-4" />
-								{isCreating ? t("settings_albums.creating") : t("settings_albums.create")}
-							</Button>
-						</div>
-						<div className="mt-4 h-px bg-[var(--border)]" />
+					<div className="flex items-center gap-2">
+						<Images className="h-5 w-5" />
+						<h2 className="text-lg font-semibold">{t("settings_albums.your_albums")}</h2>
 					</div>
-					{isLoading ? (
-						<LoadingState
-							title={t("settings_albums.loading")}
-							description={t("settings_albums.loading_desc")}
-							compact
+					{!canCreateAlbum && (
+						<p className="mt-0.5 text-sm text-[var(--text-muted)]">{t("settings_albums.limit_reached")}</p>
+					)}
+					<div className="mt-3 flex items-center gap-2">
+						<input
+							type="text"
+							value={createName}
+							onChange={(event) => setCreateName(event.target.value)}
+							placeholder={t("settings_albums.new_album_placeholder")}
+							className="input-field h-11 min-w-0 flex-1"
+							maxLength={255}
 						/>
-					) : error ? (
-						<ErrorState
-							title={t("settings_albums.error_load")}
-							description={error}
-							onRetry={() => {
-								void loadAlbumsAndLimits();
-							}}
-						/>
-					) : albums.length === 0 ? (
-						<EmptyState
-							title={t("settings_albums.empty")}
-							description={t("settings_albums.empty_desc")}
-						/>
-					) : (
-						<div className="grid gap-3">
-							{albums.map((album) => {
+						<Button
+							type="button"
+							onClick={handleCreateAlbum}
+							disabled={!canCreateAlbum || isCreating}
+							variant="primary"
+						>
+							<Plus className="h-4 w-4" />
+							{isCreating ? t("settings_albums.creating") : t("settings_albums.create")}
+						</Button>
+					</div>
+					</section>
+
+				{isLoading ? (
+					<LoadingState
+						title={t("settings_albums.loading")}
+						description={t("settings_albums.loading_desc")}
+						compact
+					/>
+				) : error ? (
+					<ErrorState
+						title={t("settings_albums.error_load")}
+						description={error}
+						onRetry={() => void loadAlbumsAndLimits()}
+					/>
+				) : albums.length === 0 ? (
+					<EmptyState
+						title={t("settings_albums.empty")}
+						description={t("settings_albums.empty_desc")}
+					/>
+				) : (
+					<>
+						{albums.map((album) => {
 								const isEditing = editingAlbumId === album.albumId;
 								const isOpen = openAlbumId === album.albumId;
 								const detail = albumDetails[album.albumId];
@@ -472,7 +472,7 @@ export function SettingsAlbumsPage() {
 								return (
 									<div
 										key={album.albumId}
-										className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4"
+										className="surface-card p-4 sm:p-5"
 									>
 										<div className="flex items-center gap-3">
 											{coverUrl ? (
@@ -488,7 +488,7 @@ export function SettingsAlbumsPage() {
 														type="text"
 														value={editingName}
 														onChange={(event) => setEditingName(event.target.value)}
-														className="input-field h-11 w-full"
+														className="input-field w-full [min-height:0] !py-1.5 h-9"
 														maxLength={255}
 													/>
 												) : (
@@ -509,16 +509,20 @@ export function SettingsAlbumsPage() {
 															type="button"
 															onClick={() => void saveEditingAlbum(album.albumId)}
 															disabled={isSavingEdit}
-															className="btn-accent inline-flex h-11 items-center rounded-xl px-3 text-sm"
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent)] text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+														
+															title={t("settings_albums.save")}
 														>
-															{isSavingEdit ? t("settings_albums.saving") : t("settings_albums.save")}
+															<Check className="h-4 w-4" />
 														</button>
 														<button
 															type="button"
 															onClick={cancelEditing}
-															className="inline-flex h-11 items-center rounded-xl border border-[var(--border)] px-3 text-sm"
+															className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] transition hover:border-[var(--text-muted)]"
+														
+															title={t("settings_albums.cancel")}
 														>
-															{t("settings_albums.cancel")}
+															<X className="h-4 w-4" />
 														</button>
 													</>
 												) : (
@@ -552,62 +556,44 @@ export function SettingsAlbumsPage() {
 										</div>
 
 										{isOpen && (
-											<div className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 sm:p-4">
-												<div className="flex flex-wrap items-center justify-between gap-3">
-													<div>
-														<p className="text-sm font-semibold">{t("settings_albums.media_title")}</p>
-														<p className="text-xs text-[var(--text-muted)]">
-															{t("settings_albums.media_counts_images", { count: mediaCounts.images })}
-															{mediaCounts.nonImages > 0
-																? t("settings_albums.media_counts_total", { count: mediaCounts.total })
-																: ""}
-															{t("settings_albums.media_desc")}
-														</p>
-													</div>
-
-													<div className="flex items-center gap-2">
+											<div className="mt-3">
+											<div className="-mx-4 mb-3 h-px bg-[var(--border)] sm:-mx-5" />
+												<div className="mb-2.5 flex items-center justify-between gap-2">
+													<p className="text-xs text-[var(--text-muted)]">
+														{t("settings_albums.media_counts_images", { count: mediaCounts.images })}
+														{mediaCounts.nonImages > 0 ? t("settings_albums.media_counts_total", { count: mediaCounts.total }) : ""}
+													</p>
+													<div className="flex items-center gap-1.5">
 														<input
 															id={uploadInputId}
 															type="file"
 															accept="image/*"
 															multiple
-															onChange={(event) =>
-																void handleUploadInputChange(
-																	album.albumId,
-																	event,
-																)
-															}
+															onChange={(event) => void handleUploadInputChange(album.albumId, event)}
 															className="hidden"
 														/>
 														<label
 															htmlFor={uploadInputId}
-															className="inline-flex cursor-pointer items-center gap-1 rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 text-xs transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
 														>
 															<Upload className="h-3.5 w-3.5" />
-															{uploadingAlbumId === album.albumId
-																? t("settings_albums.uploading")
-																: t("settings_albums.upload")}
+															{uploadingAlbumId === album.albumId ? t("settings_albums.uploading") : t("settings_albums.upload")}
 														</label>
 														<button
 															type="button"
-															onClick={() =>
-																void loadAlbumDetails(album.albumId, true)
-															}
-															className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm"
+															onClick={() => void loadAlbumDetails(album.albumId, true)}
+															className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+															title={t("settings_albums.refresh")}
 														>
-															{t("settings_albums.refresh")}
+															<RefreshCcw className="h-3.5 w-3.5" />
 														</button>
 													</div>
 												</div>
 
 												{isLoadingDetails ? (
-													<p className="text-sm text-[var(--text-muted)]">
-														{t("settings_albums.loading_media")}
-													</p>
+													<p className="text-sm text-[var(--text-muted)]">{t("settings_albums.loading_media")}</p>
 												) : !detail || detail.content.length === 0 ? (
-													<p className="text-sm text-[var(--text-muted)]">
-														{t("settings_albums.no_media")}
-													</p>
+													<p className="text-sm text-[var(--text-muted)]">{t("settings_albums.no_media")}</p>
 												) : (
 													<div className={`grid gap-3 ${isDesktop ? "grid-cols-6" : "grid-cols-2"}`}>
 														{detail.content.map((item, index) => {
@@ -670,14 +656,14 @@ export function SettingsAlbumsPage() {
 														})}
 													</div>
 												)}
-											</div>
-										)}
-									</div>
+										</div>
+									)}
+								</div>
 								);
 							})}
-						</div>
-					)}
-				</section>
+					</>
+				)}
+
 			</div>
 
 			<ConfirmDialog
