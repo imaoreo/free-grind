@@ -116,17 +116,7 @@ pub struct AuthStorage;
 impl AuthStorage {
     #[cfg(target_os = "windows")]
     fn windows_session_file_path() -> Result<PathBuf, AppError> {
-        let app_data = std::env::var_os("APPDATA")
-            .or_else(|| std::env::var_os("LOCALAPPDATA"))
-            .ok_or_else(|| {
-                AppError::Auth(
-                    "APPDATA and LOCALAPPDATA are not set; cannot resolve session path".to_owned(),
-                )
-            })?;
-
-        Ok(PathBuf::from(app_data)
-            .join("free-grind")
-            .join("session.msgpack"))
+        Ok(crate::windows_instance::WindowsInstance::current().session_file_path())
     }
 
     #[cfg(target_os = "windows")]
@@ -349,7 +339,7 @@ impl AuthStorage {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
-        eprintln!(
+                    eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS, trying fallback session file: {}",
                         _error
                     );
@@ -379,7 +369,7 @@ impl AuthStorage {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
-        eprintln!(
+                    eprintln!(
                         "[HTTP-AUTH] Keyring read failed on macOS, trying fallback session file: {}",
                         _e
                     );
@@ -406,7 +396,7 @@ impl AuthStorage {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
-        eprintln!(
+                    eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS, writing fallback session file: {}",
                         _error
                     );
@@ -431,7 +421,7 @@ impl AuthStorage {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
-        eprintln!(
+                    eprintln!(
                         "[HTTP-AUTH] Keyring write failed on macOS, writing fallback session file: {}",
                         _error
                     );
@@ -459,7 +449,7 @@ impl AuthStorage {
                 #[cfg(target_os = "macos")]
                 {
                     #[cfg(debug_assertions)]
-        eprintln!(
+                    eprintln!(
                         "[HTTP-AUTH] Keyring entry creation failed on macOS during clear, continuing with fallback clear: {}",
                         _error
                     );
@@ -479,7 +469,7 @@ impl AuthStorage {
                     #[cfg(target_os = "macos")]
                     {
                         #[cfg(debug_assertions)]
-        eprintln!(
+                        eprintln!(
                             "[HTTP-AUTH] Keyring clear failed on macOS, continuing with fallback clear: {}",
                             _error
                         );
@@ -511,7 +501,7 @@ impl GrindrClient {
             .await
             .map_err(|e| {
                 #[cfg(debug_assertions)]
-        eprintln!("[HTTP-AUTH] /v8/sessions request failed: {e}");
+                eprintln!("[HTTP-AUTH] /v8/sessions request failed: {e}");
                 e
             })?;
         #[cfg(debug_assertions)]
@@ -521,7 +511,7 @@ impl GrindrClient {
         );
         let claims = decode_session_jwt(&session_resp.session_id).map_err(|e| {
             #[cfg(debug_assertions)]
-        eprintln!("[HTTP-AUTH] JWT decode for session_id failed: {e}");
+            eprintln!("[HTTP-AUTH] JWT decode for session_id failed: {e}");
             e
         })?;
 
@@ -542,7 +532,7 @@ impl GrindrClient {
         );
         if let Err(_error) = AuthStorage::set_session(&session) {
             #[cfg(debug_assertions)]
-        eprintln!(
+            eprintln!(
                 "[HTTP-AUTH] Failed to persist session (continuing in-memory only): {}",
                 _error
             );
@@ -573,7 +563,7 @@ impl GrindrClient {
             .await
             .map_err(|e| {
                 #[cfg(debug_assertions)]
-        eprintln!("[HTTP-AUTH] login failed: {e}");
+                eprintln!("[HTTP-AUTH] login failed: {e}");
                 e
             })?;
         let profile_id = session.profile_id.clone();
@@ -587,10 +577,13 @@ impl GrindrClient {
 
     pub async fn login_with_jwt(&self, token: &str) -> Result<LoginResult, AppError> {
         #[cfg(debug_assertions)]
-        eprintln!("[HTTP-AUTH] login_with_jwt attempt; token_len={}", token.len());
+        eprintln!(
+            "[HTTP-AUTH] login_with_jwt attempt; token_len={}",
+            token.len()
+        );
         let claims = decode_session_jwt(token).map_err(|e| {
             #[cfg(debug_assertions)]
-        eprintln!("[HTTP-AUTH] JWT decode failed: {e}");
+            eprintln!("[HTTP-AUTH] JWT decode failed: {e}");
             e
         })?;
 
@@ -620,7 +613,13 @@ impl GrindrClient {
         // We send the JWT as the authToken field; Grindr validates the request via the
         // Authorization header (Grindr3 <JWT>) and the body authToken together.
         let body = RefreshRequest::new(String::new(), token.to_owned());
-        match Box::pin(self.create_session(&body, new_device_id.clone(), new_advertising_id.clone())).await {
+        match Box::pin(self.create_session(
+            &body,
+            new_device_id.clone(),
+            new_advertising_id.clone(),
+        ))
+        .await
+        {
             Ok(session) => {
                 #[cfg(debug_assertions)]
                 eprintln!(

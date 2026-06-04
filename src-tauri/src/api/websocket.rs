@@ -76,7 +76,7 @@ impl WsState {
 fn emit(app: &AppHandle, event: WsEvent) {
     if let Err(_error) = app.emit(WS_EVENT, &event) {
         #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] failed to emit event: {_error}");
+        eprintln!("[HTTP-WS] failed to emit event: {_error}");
     }
 }
 
@@ -101,7 +101,8 @@ pub async fn ws_connect(
     let session_id = {
         let guard = client.session.read().await;
         guard.as_ref().map(|s| s.session_id.clone())
-    }.ok_or_else(|| AppError::Auth("No active session for websocket".to_owned()))?;
+    }
+    .ok_or_else(|| AppError::Auth("No active session for websocket".to_owned()))?;
 
     // According to documentation, only User-Agent and Authorization are required.
     let authorization = format!("Grindr3 {}", session_id);
@@ -176,7 +177,7 @@ pub async fn ws_connect(
         Ok(pair) => pair,
         Err(error) => {
             #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] connect_async failed: {error}");
+            eprintln!("[HTTP-WS] connect_async failed: {error}");
             emit(
                 &app,
                 WsEvent::Error {
@@ -205,76 +206,76 @@ pub async fn ws_connect(
     let pump = tokio::spawn(async move {
         loop {
             tokio::select! {
-                outgoing = rx.recv() => {
-                    let Some(msg) = outgoing else {
-                        #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] writer channel closed, sending Close frame");
-                        let _ = writer.send(Message::Close(None)).await;
-                        let _ = writer.close().await;
-                        break;
-                    };
-                    let _kind_label = describe(&msg);
-                    if let Err(error) = writer.send(msg).await {
-                        #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] write error ({_kind_label}): {error}");
-                        emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
-                        break;
+                        outgoing = rx.recv() => {
+                            let Some(msg) = outgoing else {
+                                #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] writer channel closed, sending Close frame");
+                                let _ = writer.send(Message::Close(None)).await;
+                                let _ = writer.close().await;
+                                break;
+                            };
+                            let _kind_label = describe(&msg);
+                            if let Err(error) = writer.send(msg).await {
+                                #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] write error ({_kind_label}): {error}");
+                                emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
+                                break;
+                            }
+                            #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] -> sent {_kind_label}");
+                        }
+                        incoming = reader.next() => {
+                            match incoming {
+                                None => {
+                                    #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] stream ended");
+                                    emit(&app_for_pump, WsEvent::Close { code: 1006, reason: "stream-ended".into() });
+                                    break;
+                                }
+                                Some(Err(error)) => {
+                                    #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] read error: {error}");
+                                    emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
+                                    break;
+                                }
+                                Some(Ok(Message::Text(text))) => {
+                                    #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] <- text {} bytes", text.len());
+                                    emit(&app_for_pump, WsEvent::Message { data: text });
+                                }
+                                Some(Ok(Message::Binary(bytes))) => {
+                                    #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] <- binary {} bytes", bytes.len());
+                                    let len = bytes.len();
+                                    // Base64 encode without an external crate.
+                                    let data_b64 = base64_encode(&bytes);
+                                    emit(&app_for_pump, WsEvent::Binary { len, data_b64 });
+                                }
+                                Some(Ok(Message::Ping(_payload))) => {
+                                    #[cfg(debug_assertions)]
+                                    eprintln!("[HTTP-WS] <- ping {} bytes (auto-pong)", _payload.len());
+                                    emit(&app_for_pump, WsEvent::Ping);
+                                }
+                                Some(Ok(Message::Pong(_payload))) => {
+                                    #[cfg(debug_assertions)]
+                                    eprintln!("[HTTP-WS] <- pong {} bytes", _payload.len());
+                                    emit(&app_for_pump, WsEvent::Pong);
+                                }
+                                Some(Ok(Message::Close(frame))) => {
+                                    let (code, reason) = frame
+                                        .map(|f| (u16::from(f.code), f.reason.to_string()))
+                                        .unwrap_or((1000, String::new()));
+                                    #[cfg(debug_assertions)]
+            eprintln!("[HTTP-WS] <- close code={code} reason={reason:?}");
+                                    emit(&app_for_pump, WsEvent::Close { code, reason });
+                                    break;
+                                }
+                                Some(Ok(Message::Frame(_))) => {
+                                    // Raw frames not used in client mode.
+                                }
+                            }
+                        }
                     }
-                    #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] -> sent {_kind_label}");
-                }
-                incoming = reader.next() => {
-                    match incoming {
-                        None => {
-                            #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] stream ended");
-                            emit(&app_for_pump, WsEvent::Close { code: 1006, reason: "stream-ended".into() });
-                            break;
-                        }
-                        Some(Err(error)) => {
-                            #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] read error: {error}");
-                            emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
-                            break;
-                        }
-                        Some(Ok(Message::Text(text))) => {
-                            #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] <- text {} bytes", text.len());
-                            emit(&app_for_pump, WsEvent::Message { data: text });
-                        }
-                        Some(Ok(Message::Binary(bytes))) => {
-                            #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] <- binary {} bytes", bytes.len());
-                            let len = bytes.len();
-                            // Base64 encode without an external crate.
-                            let data_b64 = base64_encode(&bytes);
-                            emit(&app_for_pump, WsEvent::Binary { len, data_b64 });
-                        }
-                        Some(Ok(Message::Ping(_payload))) => {
-                            #[cfg(debug_assertions)]
-                            eprintln!("[HTTP-WS] <- ping {} bytes (auto-pong)", _payload.len());
-                            emit(&app_for_pump, WsEvent::Ping);
-                        }
-                        Some(Ok(Message::Pong(_payload))) => {
-                            #[cfg(debug_assertions)]
-                            eprintln!("[HTTP-WS] <- pong {} bytes", _payload.len());
-                            emit(&app_for_pump, WsEvent::Pong);
-                        }
-                        Some(Ok(Message::Close(frame))) => {
-                            let (code, reason) = frame
-                                .map(|f| (u16::from(f.code), f.reason.to_string()))
-                                .unwrap_or((1000, String::new()));
-                            #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] <- close code={code} reason={reason:?}");
-                            emit(&app_for_pump, WsEvent::Close { code, reason });
-                            break;
-                        }
-                        Some(Ok(Message::Frame(_))) => {
-                            // Raw frames not used in client mode.
-                        }
-                    }
-                }
-            }
         }
 
         // Drop self from state so future connects start clean.
@@ -282,7 +283,7 @@ pub async fn ws_connect(
         if guard.is_some() {
             *guard = None;
             #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] pump exit, cleared connection slot");
+            eprintln!("[HTTP-WS] pump exit, cleared connection slot");
         }
     });
 
