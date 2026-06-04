@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X, Star, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X, Loader2, Ban } from "lucide-react";
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -385,6 +385,19 @@ export function ProfileDetailsModal({
 		setSelectedPhotoIndex(null);
 	};
 
+	const handleBlockAction = () => {
+		if (!messageProfileId || isBlockingProfile) {
+			return;
+		}
+
+		if (isBlocked) {
+			onUnblockProfile?.(messageProfileId);
+			return;
+		}
+
+		onBlockProfile?.(messageProfileId);
+	};
+
 	const photoViewerOverlay = selectedPhotoIndex !== null && (
 		<PhotoViewer
 			isOpen={true}
@@ -418,24 +431,23 @@ export function ProfileDetailsModal({
 
 
 						<div className="pointer-events-auto flex flex-1 items-center justify-end gap-1">
-							{onToggleFavoriteProfile && messageProfileId && (
+							{(onBlockProfile || onUnblockProfile) && (
 								<button
 									type="button"
-									onClick={() => {
-										if (!isTogglingFavorite) {
-											void onToggleFavoriteProfile(messageProfileId, isFavorite);
-										}
-									}}
-									disabled={isTogglingFavorite}
-									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md disabled:opacity-30 mr-1.5 transition active:scale-95 ${
-										isFavorite ? "text-amber-400 border-amber-400/50" : ""
+									onClick={handleBlockAction}
+									disabled={isBlockingProfile}
+									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-md disabled:opacity-30 mr-1.5 transition active:scale-95 cursor-pointer ${
+										isBlocked
+											? "border-red-500/50 bg-red-500/20 text-red-400"
+											: "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] hover:text-red-400 hover:border-red-500/35"
 									}`}
-									aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
+									title={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
+									aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
 								>
-									{isTogglingFavorite ? (
+									{isBlockingProfile ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (
-										<Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+										<Ban className="h-4 w-4" />
 									)}
 								</button>
 							)}
@@ -548,26 +560,23 @@ export function ProfileDetailsModal({
 						<p className="text-base font-semibold">{activeProfileName}</p>
 					</div>
 					<div className="flex items-center gap-1.5">
-						{onToggleFavoriteProfile && messageProfileId && (
+						{(onBlockProfile || onUnblockProfile) && (
 							<button
 								type="button"
-								onClick={() => {
-									if (!isTogglingFavorite) {
-										void onToggleFavoriteProfile(messageProfileId, isFavorite);
-									}
-								}}
-								disabled={isTogglingFavorite}
-								className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 active:scale-95 ${
-									isFavorite
-										? "border-amber-500/40 bg-amber-500/10 text-amber-500"
-										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)]/50"
+								onClick={handleBlockAction}
+								disabled={isBlockingProfile}
+								className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 active:scale-95 cursor-pointer ${
+									isBlocked
+										? "border-red-500/40 bg-red-500/10 text-red-500 shadow-md shadow-red-500/5"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/5"
 								}`}
-								aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
+								title={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
+								aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
 							>
-								{isTogglingFavorite ? (
+								{isBlockingProfile ? (
 									<Loader2 className="h-3.5 w-3.5 animate-spin" />
 								) : (
-									<Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
+									<Ban className="h-3.5 w-3.5" />
 								)}
 							</button>
 						)}
