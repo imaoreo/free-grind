@@ -638,12 +638,12 @@ impl GrindrClient {
                 *self.session.write().await = Some(session);
                 Ok(LoginResult { profile_id })
             }
-            Err(exchange_error) => {
+            Err(_exchange_error) => {
                 // Exchange failed — fall back to storing the JWT directly.
                 // The session will work until the JWT expires (~15-30 min).
                 #[cfg(debug_assertions)]
                 eprintln!(
-                    "[HTTP-AUTH] login_with_jwt exchange failed (falling back to JWT-only session): {exchange_error}"
+                    "[HTTP-AUTH] login_with_jwt exchange failed (falling back to JWT-only session): {_exchange_error}"
                 );
                 let session = Session {
                     email: String::new(),
