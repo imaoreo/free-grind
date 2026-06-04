@@ -422,19 +422,10 @@ export function ProfileDetailsContent({
 						<Info className="h-4.5 w-4.5" />
 					</button>
 				</div>
-
-				{/* Dash-Pills Row */}
-				<div className="mt-3.5 flex flex-wrap gap-2 items-center">
-					{/* Online status badge */}
-					<span
-						className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border backdrop-blur-md shadow-sm transition-all ${
-							meta.isOnline
-								? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_2px_10px_-3px_rgba(16,185,129,0.2)]"
-								: statusColorClass === "bg-yellow-500"
-									? "bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_2px_10px_-3px_rgba(245,158,11,0.15)]"
-									: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20"
-						}`}
-					>
+				{/* Clean Info Row (Out of pills, same line, smaller text) */}
+				<div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-muted)]">
+					{/* Online status */}
+					<span className="flex items-center gap-1.5">
 						<span className="relative flex h-2 w-2 shrink-0">
 							{/* Breathing ping animation only when online (green / minutes left) */}
 							{meta.isOnline && (
@@ -448,64 +439,67 @@ export function ProfileDetailsContent({
 										: "bg-zinc-400"
 							}`} />
 						</span>
-						{statusText}
+						<span className="font-semibold text-[var(--text)]">{statusText}</span>
 					</span>
 
-					{/* Distance badge */}
-					<button
-						type="button"
-						onClick={triggerLocate}
-						disabled={isTriangleDisabled || isLocatingProfile}
-						className={`group inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border backdrop-blur-md shadow-sm transition-all duration-300 active:scale-95 cursor-pointer ${
-							isLocatingProfile
-								? "bg-[var(--accent)] text-zinc-950 border-[var(--accent)] animate-pulse"
-								: profileDistance == null || !Number.isFinite(profileDistance)
-									? "bg-[var(--surface-3)]/60 text-[var(--text-muted)] border-[var(--border)]/75"
-									: "bg-[var(--surface-3)] hover:bg-[var(--surface)] text-[var(--text)] border-[var(--border)] hover:border-[var(--accent)]/50"
-						}`}
-						title="Tap to run location finder"
-					>
-						{isLocatingProfile ? (
-							<Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-950" />
-						) : profileDistance == null || !Number.isFinite(profileDistance) ? (
-							<NavigationOff className="h-3 w-3 shrink-0" />
-						) : (
-							<Navigation className="h-3 w-3 text-[var(--accent)] transform transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 duration-300" />
-						)}
-						<span>
-							{isLocatingProfile ? "Locating..." : formatDistance(profileDistance, t, unitsPreset)}
-						</span>
-					</button>
+					<span className="opacity-40 select-none">•</span>
 
-					{/* Chat History badge */}
+					{/* Distance */}
+					<span className="flex items-center gap-1.5">
+						{isLocatingProfile ? (
+							<Loader2 className="h-3 w-3 animate-spin text-[var(--accent)]" />
+						) : profileDistance == null || !Number.isFinite(profileDistance) ? (
+							<Navigation className="h-3 w-3 opacity-45" />
+						) : (
+							<Navigation className="h-3 w-3 text-[var(--accent)]" />
+						)}
+						<button
+							type="button"
+							onClick={triggerLocate}
+							disabled={isTriangleDisabled || isLocatingProfile}
+							className="font-semibold text-[var(--text)] hover:text-[var(--accent)] transition-colors cursor-pointer disabled:pointer-events-none"
+							title="Tap to run location finder"
+						>
+							{isLocatingProfile ? "Locating..." : formatDistance(profileDistance, t, unitsPreset)}
+						</button>
+					</span>
+
 					{hasChatHistory && (
-						<span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-400 border border-blue-500/20 backdrop-blur-md shadow-sm shadow-[0_2px_10px_-3px_rgba(59,130,246,0.15)]">
-							<MessagesSquare className="h-3.5 w-3.5" />
-							<span>{lastMessageLabel || t("profile_details.chatted_before")}</span>
-						</span>
+						<>
+							<span className="opacity-40 select-none">•</span>
+							{/* Chat History */}
+							<span className="flex items-center gap-1.5">
+								<MessagesSquare className="h-3 w-3 text-blue-400" />
+								<span className="font-semibold text-[var(--text-muted)]">{lastMessageLabel || t("profile_details.chatted_before")}</span>
+							</span>
+						</>
 					)}
 				</div>
 
-				{/* Expandable details panel */}
+				{/* Expandable details panel (Sleeker and more premium vertical list) */}
 				{showDetails && (
-					<div className="mt-3.5 grid grid-cols-2 gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text-muted)] animate-in slide-in-from-top-2 duration-200">
+					<div className="mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)]/80 bg-[var(--surface-3)]/35 p-3 text-xs text-[var(--text-muted)] shadow-[inset_0_1px_2px_rgba(0,0,0,0.15)] animate-in slide-in-from-top-2 duration-200">
 						<div
 							onClick={copyUserId}
-							className="cursor-pointer hover:bg-[var(--surface-2)] p-2 rounded-lg transition-colors flex flex-col gap-1"
+							className="group cursor-pointer hover:bg-[var(--surface)]/70 p-2.5 rounded-lg border border-transparent hover:border-[var(--border)]/50 transition-all flex flex-col gap-1 min-w-0"
 							title="Tap to copy User ID"
 						>
-							<span className="font-semibold text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
-								<Fingerprint className="h-3.5 w-3.5 text-[var(--accent)]" />
+							<span className="font-bold text-[10px] uppercase tracking-[0.05em] text-[var(--text-muted)] flex items-center gap-1.5">
+								<Fingerprint className="h-3.5 w-3.5 text-[var(--accent)] transition-transform group-hover:scale-110" />
 								User ID
 							</span>
-							<span className="font-mono text-[var(--text)] select-all truncate">{activeProfile.profileId}</span>
+							<span className="font-mono text-[var(--text)] select-all truncate group-hover:text-[var(--accent)] transition-colors">
+								{activeProfile.profileId}
+							</span>
 						</div>
-						<div className="p-2 flex flex-col gap-1">
-							<span className="font-semibold text-[11px] text-[var(--text-muted)] flex items-center gap-1.5">
+						<div className="p-2.5 flex flex-col gap-1 min-w-0 border-t border-[var(--border)]/40 mt-1 pt-2">
+							<span className="font-bold text-[10px] uppercase tracking-[0.05em] text-[var(--text-muted)] flex items-center gap-1.5">
 								<CalendarDays className="h-3.5 w-3.5 text-[var(--accent)]" />
 								Estimated Created
 							</span>
-							<span className="text-[var(--text)] truncate">{estimatedCreatedAt}</span>
+							<span className="text-[var(--text)] truncate font-semibold">
+								{estimatedCreatedAt}
+							</span>
 						</div>
 					</div>
 				)}

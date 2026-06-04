@@ -266,7 +266,7 @@
         "status_hours_ago": "{{count}}h ago",
         "status_days_ago": "{{count}}d ago",
         "status_just_now": "Just now",
-        "distance_hidden": "hidden",
+        "distance_hidden": "Hidden",
         "unknown": "Unknown",
         "not_set": "Not set",
         "loading_nearby": "Loading nearby profiles",

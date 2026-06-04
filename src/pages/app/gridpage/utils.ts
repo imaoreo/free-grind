@@ -107,10 +107,10 @@ export function formatEstimatedAccountCreation(
 		return t ? t("browse_page.unknown") : "Unknown";
 	}
 
-	const formatter = getDateTimeFormatter(i18n.language, {
+	const formatter = getDateTimeFormatter("en-GB", {
+		day: "2-digit",
+		month: "2-digit",
 		year: "numeric",
-		month: "short",
-		day: "numeric",
 	});
 
 	return formatter.format(new Date(timestamp));
@@ -124,11 +124,11 @@ export function formatProfilePhotoCreatedAt(
 		return t ? t("browse_page.unknown") : "Unknown";
 	}
 
-	const formatter = getDateTimeFormatter(i18n.language, {
+	const formatter = getDateTimeFormatter("en-GB", {
+		day: "2-digit",
+		month: "2-digit",
 		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
+		hour: "2-digit",
 		minute: "2-digit",
 	});
 
