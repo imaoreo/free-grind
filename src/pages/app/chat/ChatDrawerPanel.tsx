@@ -1,4 +1,5 @@
 import {
+	Album,
 	Camera,
 	Check,
 	SquareCenterlineDashedHorizontal,
@@ -9,10 +10,12 @@ import {
 	Hourglass,
 	RefreshCw,
 	Send,
+	Share2,
 	Upload,
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { AlbumListItem } from "../../../types/chat-page";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
@@ -45,6 +48,13 @@ interface ChatDrawerPanelProps {
 	deletingMediaId: number | null;
 	onDeleteMedia: (mediaId: number) => void | Promise<void>;
 	isDesktop: boolean;
+	albums?: AlbumListItem[];
+	isLoadingAlbums?: boolean;
+	albumCoverMap?: Map<number, string>;
+	sharedAlbumIds?: Set<number>;
+	onShareAlbum?: (albumId: number, expirationType: string) => Promise<void>;
+	isSharingAlbum?: boolean;
+	onStopAlbumShare?: (albumId: number) => Promise<void>;
 }
 
 export function ChatDrawerPanel({
@@ -60,6 +70,13 @@ export function ChatDrawerPanel({
 	deletingMediaId,
 	onDeleteMedia,
 	isDesktop,
+	albums = [],
+	isLoadingAlbums = false,
+	albumCoverMap = new Map(),
+	sharedAlbumIds = new Set(),
+	onShareAlbum,
+	isSharingAlbum = false,
+	onStopAlbumShare,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -73,6 +90,10 @@ export function ChatDrawerPanel({
 	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
 	const [isExpiring, setIsExpiring] = useState(false);
 	const [selectAfterUpload, setSelectAfterUpload] = useState(false);
+	const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
+	const EXPIRY_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"];
+	const [albumExpirationType, setAlbumExpirationType] = useState("INDEFINITE");
+	const EXPIRY_LABELS: Record<string, string> = { INDEFINITE: "\u221e", ONCE: "1\u00d7", TEN_MINUTES: "10m", ONE_HOUR: "1h", ONE_DAY: "1d" };
 	const prevMediaIdsRef = useRef<Set<number>>(new Set());
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -127,6 +148,7 @@ export function ChatDrawerPanel({
 	});
 
 	const toggleSelection = useCallback((id: number) => {
+		setSelectedAlbumId(null);
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
 			if (next.has(id)) {
@@ -154,6 +176,7 @@ export function ChatDrawerPanel({
 	}, [selectedIds, onSendMedia, onBack, t, isExpiring]);
 
 	const hasSelection = selectedIds.size > 0;
+	const hasAlbumSelection = selectedAlbumId !== null;
 
 	const onPickDrawerPhoto = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -441,7 +464,7 @@ export function ChatDrawerPanel({
 									<button
 										type="button"
 										onClick={() => cameraInputRef.current?.click()}
-										disabled={isAdding || hasSelection}
+										disabled={isAdding || hasSelection || hasAlbumSelection}
 										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.take_photo")}
 										title={t("chat_drawer.take_photo")}
@@ -463,7 +486,7 @@ export function ChatDrawerPanel({
 									<button
 										type="button"
 										onClick={() => uploadInputRef.current?.click()}
-										disabled={isAdding || hasSelection}
+										disabled={isAdding || hasSelection || hasAlbumSelection}
 										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
 										aria-label={t("chat_drawer.upload_photo")}
 										title={t("chat_drawer.upload_photo")}
@@ -477,6 +500,33 @@ export function ChatDrawerPanel({
 											</span>
 										</div>
 									</button>
+									{/* Albums */}
+									{albums.map((album) => {
+										const cover = albumCoverMap.get(album.albumId);
+										const isShared = sharedAlbumIds.has(album.albumId);
+										const isSelected = selectedAlbumId === album.albumId;
+										const dimmed = hasSelection && !isSelected;
+										return (
+											<div
+												key={`album-${album.albumId}`}
+												role="button"
+												tabIndex={0}
+												onClick={() => { if (!hasSelection) setSelectedAlbumId(isSelected ? null : album.albumId); }}
+												onKeyDown={(e) => e.key === "Enter" && !hasSelection && setSelectedAlbumId(isSelected ? null : album.albumId)}
+												className={`relative aspect-square overflow-hidden cursor-pointer transition ${dimmed ? "opacity-30 pointer-events-none" : ""}`}
+												style={{ outline: isSelected ? "2px solid var(--accent)" : "none", outlineOffset: "-2px" }}
+											>
+												{cover ? <img src={cover} alt={album.albumName ?? ""} className="h-full w-full object-cover" /> : (
+													<div className="absolute inset-0 flex items-center justify-center bg-[var(--surface)] text-[var(--text-muted)]"><Album className="h-6 w-6 opacity-50" /></div>
+												)}
+												<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 py-1">
+													<p className="truncate text-[9px] font-medium text-white leading-tight">{album.albumName || `#${album.albumId}`}</p>
+												</div>
+												{isShared && !isSelected ? <div className="absolute inset-0 flex items-center justify-center bg-black/40"><span className="text-[10px] font-semibold uppercase tracking-widest text-white/90">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span></div> : null}
+												{isSelected ? <div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--accent) 45%, transparent)" }}><Check className="h-5 w-5 text-white drop-shadow" /></div> : null}
+											</div>
+										);
+									})}
 									{media.map((item) => {
 										const isSelected = selectedIds.has(item.id);
 										const isImage = item.contentType.startsWith("image/");
@@ -486,9 +536,9 @@ export function ChatDrawerPanel({
 												key={item.id}
 												role="button"
 												tabIndex={0}
-												onClick={() => toggleSelection(item.id)}
-												onKeyDown={(e) => e.key === "Enter" && toggleSelection(item.id)}
-												className="relative aspect-square overflow-hidden transition cursor-pointer"
+												onClick={() => { if (!hasAlbumSelection) toggleSelection(item.id); }}
+												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && toggleSelection(item.id)}
+												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection ? "opacity-30 pointer-events-none" : ""}`}
 												style={{
 													outline: isSelected ? "2px solid var(--accent)" : "none",
 													outlineOffset: "-2px",
@@ -550,6 +600,55 @@ export function ChatDrawerPanel({
 							)}
 						</div>
 
+						{/* Footer - Album share button */}
+						{hasAlbumSelection ? (() => {
+							const isSelectedShared = selectedAlbumId != null && sharedAlbumIds.has(selectedAlbumId);
+							return (
+								<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">
+									{isSelectedShared ? (
+										<button
+											type="button"
+											onClick={() => {
+												if (selectedAlbumId == null || !onStopAlbumShare) return;
+												void onStopAlbumShare(selectedAlbumId).then(() => { setSelectedAlbumId(null); onBack(); });
+											}}
+											disabled={isSharingAlbum}
+											className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-60"
+										>
+											{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+											<span>{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}</span>
+										</button>
+									) : (
+										<>
+											<button
+												type="button"
+												onClick={() => {
+													const idx = EXPIRY_OPTIONS.indexOf(albumExpirationType);
+													setAlbumExpirationType(EXPIRY_OPTIONS[(idx + 1) % EXPIRY_OPTIONS.length]);
+												}}
+												className="inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+												style={{ flexBasis: "22%" }}
+											>
+												<Hourglass className="h-4 w-4" />
+												<span className="text-sm font-semibold">{EXPIRY_LABELS[albumExpirationType]}</span>
+											</button>
+											<button
+												type="button"
+												onClick={() => {
+													if (selectedAlbumId == null || !onShareAlbum) return;
+													void onShareAlbum(selectedAlbumId, albumExpirationType).then(() => { setSelectedAlbumId(null); onBack(); });
+												}}
+												disabled={isSharingAlbum}
+												className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+											>
+												{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+												<span>{isSharingAlbum ? t("chat_drawer.sending") : t("chat.share")}</span>
+											</button>
+										</>
+									)}
+								</div>
+							);
+						})() : null}
 						{/* Footer - Send button */}
 						{hasSelection ? (
 							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">

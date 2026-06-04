@@ -1,6 +1,6 @@
 import {
+	Album,
 	Ban,
-	ChevronDown,
 	ChevronLeft,
 	Ellipsis,
     Eye,
@@ -31,7 +31,7 @@ import {
 	X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import type { NavigateFunction } from "react-router-dom";
@@ -57,6 +57,8 @@ import {
 	getMessageImageUrl,
 	getMessageVideoUrl,
 	getMessageAudioUrl,
+	getMessageAlbumId,
+	getMessageAlbumCoverUrl,
 } from "./chatUtils";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -127,6 +129,7 @@ type ChatThreadPanelProps = {
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
+	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
@@ -167,6 +170,8 @@ type ChatThreadPanelProps = {
 	onSendDrawerMedia: (mediaIds: number[], isExpiring?: boolean) => Promise<void>;
 	onAddDrawerMedia: (file: File, takenOnGrindr: boolean) => Promise<void>;
 	onDeleteDrawerMedia: (mediaId: number) => Promise<void>;
+	onShareAlbumFromDrawer: (albumId: number, expirationType: string) => Promise<void>;
+	onStopAlbumShareFromDrawer: (albumId: number) => Promise<void>;
 	onSendLocation: (lat: number, lon: number) => void | Promise<void>;
 	uploadProgress: number;
 	draft: string;
@@ -262,6 +267,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleDelete,
 		handleRetry,
 		handleReply,
+		handleStopAlbumShare,
 		threadBottomRef,
 		handleSend,
 		toggleAlbumPicker,
@@ -306,6 +312,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onSendDrawerMedia,
 		onAddDrawerMedia,
 		onDeleteDrawerMedia,
+		onShareAlbumFromDrawer,
+		onStopAlbumShareFromDrawer,
 		onSendLocation,
 	} = props;
 
@@ -439,6 +447,26 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
     const filteredPhrases = savedPhrases.filter((phrase) =>
         draft.trim() === "" || phrase.toLowerCase().startsWith(draft.toLowerCase()),
     );
+
+	const albumCoverMap = useMemo(() => {
+		const map = new Map<number, string>();
+		for (const msg of threadMessages) {
+			const aid = getMessageAlbumId(msg);
+			const cover = getMessageAlbumCoverUrl(msg);
+			if (aid && cover) map.set(aid, cover);
+		}
+		return map;
+	}, [threadMessages]);
+
+	const sharedAlbumIds = useMemo(() => {
+		const ids = new Set<number>();
+		for (const msg of threadMessages) {
+			const aid = getMessageAlbumId(msg);
+			const body = msg.body as any;
+			if (aid && body?.isViewable) ids.add(aid);
+		}
+		return ids;
+	}, [threadMessages]);
 
     const [showGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
     const [isGhosted, setIsGhosted] = useState(true);
@@ -1140,6 +1168,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleDelete={handleDelete}
 						handleRetry={handleRetry}
 						handleReply={handleReply}
+						handleStopAlbumShare={handleStopAlbumShare}
 						threadBottomRef={threadBottomRef}
 				/>
 				)
@@ -1261,19 +1290,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => {
-									toggleAlbumPicker();
-									if (isDrawerOpen) toggleDrawer();
-									if (pendingLocationShare) handleLocationShareRequest();
-								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-								aria-label={t("chat.share_album_label")}
-								title={t("chat.share_album_label")}
-							>
-								<Share2 className="h-5 w-5" />
-							</button>
-							<button
-								type="button"
-								onClick={() => {
 									if (!selectedConversation) { toast.error(t("chat.errors.no_conversation_yet", { defaultValue: "Send a text message first to unlock media." })); return; }
 									attachmentInputRef.current?.click();
 									if (isDrawerOpen) toggleDrawer();
@@ -1330,45 +1346,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							/>
 						</div>
 
-						{isAlbumPickerOpen ? (
-							<div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-2">
-								{isLoadingAlbums ? (
-									<div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-										<Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.loading_albums")}
-									</div>
-								) : shareableAlbums.length === 0 ? (
-									<p className="text-xs text-[var(--text-muted)]">
-										{t("chat.no_albums_available")}
-									</p>
-								) : (
-									<div className="grid gap-2 sm:grid-cols-2">
-										{shareableAlbums.map((album) => (
-											<div
-												key={album.albumId}
-												className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
-											>
-												<p className="truncate text-xs font-medium">
-													{album.albumName || t("chat.album_fallback", { id: album.albumId })}
-												</p>
-												<button
-													type="button"
-													onClick={() =>
-														void shareAlbumToCurrentConversation(
-															album.albumId,
-															album.albumName,
-														)
-													}
-													disabled={!album.isShareable || isSharingAlbum}
-													className="mt-2 rounded-md border border-[var(--border)] px-2 py-1 text-[11px] text-[var(--text-muted)] disabled:opacity-50"
-												>
-													{t("chat.share")}
-												</button>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-						) : null}
 
 					</form>
 
@@ -1471,6 +1448,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							onSendMedia={onSendDrawerMedia}
 							onAddMedia={onAddDrawerMedia}
 							onDeleteMedia={onDeleteDrawerMedia}
+							onShareAlbum={onShareAlbumFromDrawer}
+							onStopAlbumShare={onStopAlbumShareFromDrawer}
+							albums={shareableAlbums}
+							isLoadingAlbums={isLoadingAlbums}
+							albumCoverMap={albumCoverMap}
+							sharedAlbumIds={sharedAlbumIds}
+							isSharingAlbum={isSharingAlbum}
 							isDesktop={isDesktop}
 						/>
 					) : null}
@@ -1707,6 +1691,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											{t("chat.actions.unsend")}
 										</button>
 									) : null}
+									{(() => {
+										const albumId = getMessageAlbumId(selectedActionMessage);
+										const isViewable = (selectedActionMessage.body as any)?.isViewable;
+										if (!selectedActionMessageMine || !albumId || !isViewable) return null;
+										return (
+											<button
+												type="button"
+												onClick={() => void handleStopAlbumShare(albumId)}
+												disabled={isMutatingMessageId === selectedActionMessage.messageId}
+												className="w-full rounded-xl border border-orange-500/35 bg-orange-500/10 px-3 py-3 text-left text-sm font-medium text-orange-300 transition hover:bg-orange-500/15 disabled:opacity-60"
+											>
+												{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}
+											</button>
+										);
+									})()}
 									<button
 										type="button"
 										onClick={() => void handleDelete(selectedActionMessage)}
@@ -1729,83 +1728,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</div>
 					) : null}
 
-					{pendingAlbumShare && albumViewer === null ? (
-						<BottomSheet
-							onClose={isSharingAlbum ? () => {} : closePendingAlbumShare}
-							isProcessing={isSharingAlbum}
-							isDesktop={isDesktop}
-						>
-								<div className="flex items-center justify-between px-4 pb-3">
-									<p
-										id="chat-album-share-confirm-title"
-										className="text-sm font-semibold text-[var(--text)]"
-									>
-										{t("chat.share_album_label")}
-									</p>
-									<SheetClose
-										disabled={isSharingAlbum}
-										className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
-									>
-										<X className="h-4 w-4" />
-									</SheetClose>
-								</div>
-								<div className="px-4 pb-3">
-								<p className="text-sm leading-relaxed text-[var(--text-muted)]">
-									{t("chat.confirm_share_album", {
-										album: pendingAlbumShare.albumName,
-									})}
-								</p>
 
-								<div className="mt-4">
-									<label className="mb-1.5 block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-										{t("chat.expiration.title")}
-									</label>
-									<div className="relative">
-										<select
-											value={selectedExpirationType}
-											onChange={(e) => setSelectedExpirationType(e.target.value)}
-											className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface-2)] py-2.5 pl-10 pr-4 text-sm font-medium text-[var(--text)] transition focus:border-[var(--accent)] focus:outline-none"
-										>
-											<option value="INDEFINITE">{t("chat.expiration.indefinite")}</option>
-											<option value="ONCE">{t("chat.expiration.once")}</option>
-											<option value="TEN_MINUTES">{t("chat.expiration.ten_minutes")}</option>
-											<option value="ONE_HOUR">{t("chat.expiration.one_hour")}</option>
-											<option value="ONE_DAY">{t("chat.expiration.one_day")}</option>
-										</select>
-										<div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-											{selectedExpirationType === "INDEFINITE" && <Infinity className="h-4 w-4" />}
-											{selectedExpirationType === "ONCE" && <TimerOff className="h-4 w-4" />}
-											{(selectedExpirationType === "TEN_MINUTES" || selectedExpirationType === "ONE_HOUR" || selectedExpirationType === "ONE_DAY") && <Hourglass className="h-4 w-4" />}
-										</div>
-										<div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
-											<ChevronDown className="h-4 w-4" />
-										</div>
-									</div>
-								</div>
-
-								</div>
-								<div className="flex gap-2 p-3">
-									<SheetClose
-										disabled={isSharingAlbum}
-										className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2.5 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-									>
-										{t("chat.actions.cancel")}
-									</SheetClose>
-									<button
-										type="button"
-										onClick={() => void confirmPendingAlbumShare(selectedExpirationType)}
-										disabled={isSharingAlbum}
-										className="flex-1 rounded-xl border border-[var(--accent)] bg-[var(--accent)] py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
-									>
-										{isSharingAlbum ? (
-											<Loader2 className="mx-auto h-4 w-4 animate-spin" />
-										) : (
-											<span>{t("chat.share")}</span>
-										)}
-									</button>
-								</div>
-						</BottomSheet>
-					) : null}
 		</div>
 	) : (
 		<div
