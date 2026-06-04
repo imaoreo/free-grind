@@ -19,6 +19,7 @@ import {
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import {
@@ -39,6 +40,7 @@ import {
 
 export function SettingsAlbumsPage() {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const apiFunctions = useApiFunctions();
 	const [albums, setAlbums] = useState<Album[]>([]);
 	const [maxAlbums, setMaxAlbums] = useState<number>(1);
@@ -392,7 +394,7 @@ export function SettingsAlbumsPage() {
 
 	return (
 		<section className="app-screen">
-			<div className="mx-auto grid w-full max-w-4xl gap-6">
+			<div className="grid gap-6">
 				<header>
 					<BackToSettings />
 					<h1 className="app-title mb-1">{t("settings_albums.title")}</h1>
@@ -605,7 +607,7 @@ export function SettingsAlbumsPage() {
 														{t("settings_albums.no_media")}
 													</p>
 												) : (
-													<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+													<div className={`grid gap-3 ${isDesktop ? "grid-cols-6" : "grid-cols-3"}`}>
 														{detail.content.map((item, index) => {
 															const imageUrl =
 																item.thumbUrl ||
