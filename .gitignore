@@ -16,4 +16,6 @@ frontend.tar.gz
 frontend.tar.gz.sig
 src-tauri/gen/
 !src-tauri/gen/android/app/src/main/AndroidManifest.xml
+!src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml
+!src-tauri/gen/android/app/src/main/res/raw/free_grind_message.mp3
 /.build
