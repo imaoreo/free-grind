@@ -10,6 +10,15 @@ use std::path::PathBuf;
 #[cfg(target_os = "windows")]
 use std::{ffi::OsStr, fs};
 
+#[cfg(target_os = "windows")]
+fn current_exe_looks_like_manager() -> bool {
+    std::env::current_exe()
+        .ok()
+        .and_then(|path| path.file_stem().and_then(|s| s.to_str()).map(|s| s.to_ascii_lowercase()))
+        .map(|stem| stem.contains("manager"))
+        .unwrap_or(false)
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeContext {
@@ -29,8 +38,10 @@ pub fn runtime_context() -> RuntimeContext {
     #[cfg(target_os = "windows")]
     {
         let instance = crate::windows_instance::WindowsInstance::current();
+        let is_manager =
+            instance.is_manager() || instance.label() == "manager" || current_exe_looks_like_manager();
         return RuntimeContext {
-            mode: if instance.is_manager() {
+            mode: if is_manager {
                 "manager".to_owned()
             } else {
                 "child".to_owned()
@@ -202,6 +213,12 @@ pub fn launch_child_instance(label: String) -> Result<(), AppError> {
             .arg(format!("--instance={normalized}"))
             .env("FREE_GRIND_MODE", "child")
             .env("FREE_GRIND_INSTANCE", &normalized)
+            // The manager process runs with FREE_GRIND_MANAGER_FORCE=1. Child
+            // processes inherit the parent environment, so we must explicitly
+            // override the force flag and strip manager-only vars; otherwise the
+            // child detects itself as a manager and shows the manager UI.
+            .env("FREE_GRIND_MANAGER_FORCE", "0")
+            .env_remove("FREE_GRIND_CHILD_EXE")
             .spawn()
             .map_err(|error| {
                 AppError::Auth(format!(

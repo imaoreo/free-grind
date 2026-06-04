@@ -27,25 +27,30 @@ const queryClient = new QueryClient({
 	},
 });
 
-// Only enable Hotswap OTA updates in production. In development, this conflicts with Vite HMR
-// and can lead to unexpected reloads or WebSocket connection issues with the dev server.
-if (import.meta.env.PROD) {
-	void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
-}
-if (isTauri()) {
-	void initChatContactIndex().catch((err) => {
-		appLog.warn("[chat-index] failed to initialize:", err);
-	});
-}
-
 void (async () => {
 	const runtimeContext = await getRuntimeContext();
+	const renderManager =
+		runtimeContext.mode === "manager" || runtimeContext.instanceLabel === "manager";
+
+	if (!renderManager) {
+		// Only enable Hotswap OTA updates for child app mode in production.
+		// Manager mode should stay on the local manager UI bundle.
+		if (import.meta.env.PROD) {
+			void markHotswapStartupReady().then(() => autoCheckAndInstallUpdate());
+		}
+
+		if (isTauri()) {
+			void initChatContactIndex().catch((err) => {
+				appLog.warn("[chat-index] failed to initialize:", err);
+			});
+		}
+	}
 
 	ReactDOM.createRoot(document.getElementById("app")!).render(
 		<React.StrictMode>
 			<QueryClientProvider client={queryClient}>
 				<BrowserRouter>
-					{runtimeContext.mode === "manager" ? (
+					{renderManager ? (
 						<ManagerApp currentLabel={runtimeContext.instanceLabel} />
 					) : (
 						<App />
