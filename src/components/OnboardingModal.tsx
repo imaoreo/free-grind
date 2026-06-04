@@ -1,5 +1,5 @@
 import { X, type LucideIcon } from "lucide-react";
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Button } from "./ui/button";
 
 interface OnboardingModalProps {
@@ -20,6 +20,7 @@ export function OnboardingModal({
 	buttonLabel,
 }: OnboardingModalProps) {
 	const [isClosing, setIsClosing] = useState(false);
+	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Prevent background scrolling while the modal is open
 	useEffect(() => {
@@ -34,6 +35,10 @@ export function OnboardingModal({
 		document.addEventListener("touchmove", handleTouchMove, { passive: false });
 
 		return () => {
+			if (closeTimeoutRef.current) {
+				clearTimeout(closeTimeoutRef.current);
+				closeTimeoutRef.current = null;
+			}
 			document.body.style.overflow = originalStyle;
 			document.removeEventListener("touchmove", handleTouchMove);
 		};
@@ -41,7 +46,11 @@ export function OnboardingModal({
 
 	const handleClose = () => {
 		setIsClosing(true);
-		setTimeout(() => {
+		if (closeTimeoutRef.current) {
+			clearTimeout(closeTimeoutRef.current);
+		}
+		closeTimeoutRef.current = setTimeout(() => {
+			closeTimeoutRef.current = null;
 			onClose();
 		}, 300); // Match transition duration
 	};
@@ -49,7 +58,11 @@ export function OnboardingModal({
 	const handleConfirm = () => {
 		if (onConfirm) {
 			setIsClosing(true);
-			setTimeout(() => {
+			if (closeTimeoutRef.current) {
+				clearTimeout(closeTimeoutRef.current);
+			}
+			closeTimeoutRef.current = setTimeout(() => {
+				closeTimeoutRef.current = null;
 				onConfirm();
 			}, 300);
 		} else {
@@ -58,7 +71,11 @@ export function OnboardingModal({
 	};
 
 	return (
-		<div className="fixed inset-0 z-[100] flex items-center justify-center p-4 no-touch-callout isolate">
+		<div
+			className={`fixed inset-0 z-[100] flex items-center justify-center p-4 no-touch-callout isolate ${
+				isClosing ? "pointer-events-none" : ""
+			}`}
+		>
 			{/* Backdrop - Separate to prevent blur flicker during modal animation */}
 			<div
 				className={`absolute inset-0 bg-black/45 backdrop-blur-sm ${
