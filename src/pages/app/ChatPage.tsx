@@ -58,6 +58,7 @@ import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
 	extractImageHashFromSignedUrl,
+	getMessageAlbumId,
 	getMessageImageUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
@@ -2747,6 +2748,29 @@ export function ChatPage() {
 		}
 	};
 
+	const handleStopAlbumShare = useCallback(async (albumId: number) => {
+		if (!selectedConversation || isMutatingMessageId) return;
+		const recipient = getOtherParticipant(selectedConversation, userId);
+		if (!recipient) return;
+		setIsMutatingMessageId(String(albumId));
+		try {
+			await service.stopAlbumShare(albumId, recipient.profileId);
+			toast.success(t("chat.toasts.album_share_stopped", { defaultValue: "Album share stopped." }));
+			setThreadMessages((prev) =>
+				prev.map((msg) => {
+					if (getMessageAlbumId(msg) !== albumId) return msg;
+					const body = msg.body as Record<string, unknown>;
+					return { ...msg, body: { ...body, isViewable: false, ownerProfileId: null } };
+				}),
+			);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+		} finally {
+			setIsMutatingMessageId(null);
+			setOpenMessageActionId(null);
+		}
+	}, [selectedConversation, userId, isMutatingMessageId, t]);
+
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
         const targetProfile = selectedConversation
@@ -2810,6 +2834,22 @@ export function ChatPage() {
         }
     }, [loadThread, pendingAlbumShare, selectedConversation, targetProfileId, service, t, userId]);
 
+	const handleShareAlbumFromDrawer = useCallback(async (albumId: number, expirationType: string) => {
+		if (!selectedConversation) return;
+		const recipient = getOtherParticipant(selectedConversation, userId);
+		if (!recipient) return;
+		setIsSharingAlbum(true);
+		try {
+			await service.shareAlbum({ albumId, profiles: [{ profileId: recipient.profileId, expirationType: expirationType as any }] });
+			toast.success(t("chat.toasts.album_shared"));
+			void loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_share_failed"));
+		} finally {
+			setIsSharingAlbum(false);
+		}
+	}, [selectedConversation, userId, t, loadThread]);
+
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
 			setIsAlbumViewerLoading(true);
@@ -2859,15 +2899,8 @@ export function ChatPage() {
 			return;
 		}
 
-		const albums = shareableAlbums.length > 0 ? shareableAlbums : await loadAlbums();
-		const shareable = albums.filter((album) => album.isShareable);
-
-		if (shareable.length === 1) {
-			void shareAlbumToCurrentConversation(
-				shareable[0].albumId,
-				shareable[0].albumName,
-			);
-			return;
+		if (shareableAlbums.length === 0) {
+			await loadAlbums();
 		}
 
 		setIsAlbumPickerOpen(true);
@@ -2904,10 +2937,11 @@ export function ChatPage() {
 		}
 
 		setIsDrawerOpen(true);
-		if (drawerMedia.length === 0) {
-			await loadDrawerMedia();
-		}
-	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia]);
+		const [, ] = await Promise.all([
+			drawerMedia.length === 0 ? loadDrawerMedia() : Promise.resolve(),
+			shareableAlbums.length === 0 ? loadAlbums() : Promise.resolve(),
+		]);
+	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia, shareableAlbums.length, loadAlbums]);
 
 	const sendDrawerMedia = useCallback(
 		async (mediaIds: number[], isExpiring?: boolean) => {
@@ -3222,6 +3256,7 @@ export function ChatPage() {
 			handleDelete={handleDelete}
 			handleRetry={handleRetry}
 			handleReply={handleReplyToMessage}
+			handleStopAlbumShare={handleStopAlbumShare}
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
@@ -3256,6 +3291,8 @@ export function ChatPage() {
 			onSendDrawerMedia={sendDrawerMedia}
 			onAddDrawerMedia={addDrawerMedia}
 			onDeleteDrawerMedia={deleteDrawerMedia}
+			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
+			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
 			uploadProgress={uploadProgress}
 			draft={draft}

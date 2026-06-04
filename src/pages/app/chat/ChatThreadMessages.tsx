@@ -59,6 +59,7 @@ type ChatThreadMessagesProps = {
 	handleDelete: (message: Message) => void | Promise<void>;
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
+	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 };
 
@@ -145,6 +146,7 @@ export function ChatThreadMessages({
 	handleDelete,
 	handleRetry,
 	handleReply,
+	handleStopAlbumShare,
 	threadBottomRef,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
@@ -461,7 +463,7 @@ export function ChatThreadMessages({
 								// ownerProfileId is null when expired/locked, but isViewable is more reliable
 								// (e.g. sender may lock the album while ownerProfileId is still present).
 								// My own sent albums are never locked from my perspective.
-								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable) && message.senderId !== userId;
+								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
@@ -1044,6 +1046,16 @@ export function ChatThreadMessages({
 																className="rounded-md border border-black/20 px-2 py-1"
 															>
 																{t("chat.actions.unsend")}
+															</button>
+														) : null}
+														{mine && isAlbumMessage && albumId && (message.body as any)?.isViewable ? (
+															<button
+																type="button"
+																onClick={() => void handleStopAlbumShare(albumId)}
+																disabled={isMutatingMessageId === message.messageId}
+																className="rounded-md border border-orange-500/40 bg-orange-500/10 px-2 py-1 text-orange-400 transition hover:bg-orange-500/20"
+															>
+																{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}
 															</button>
 														) : null}
 														<button
