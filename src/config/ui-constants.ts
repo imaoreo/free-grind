@@ -47,3 +47,9 @@ export const REVEAL_STRENGTH_PRONOUNCED = {
 } as const;
 
 export type RevealStrength = "subtle" | "pronounced";
+
+/**
+ * Breakpoint for desktop layouts (corresponds to Tailwind's 'lg' breakpoint).
+ */
+export const DESKTOP_BREAKPOINT_PX = 1024;
+

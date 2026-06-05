@@ -2,6 +2,7 @@ import type { BrowseCard } from "../../GridPage.types";
 import { BrowseCardTile } from "./BrowseCardTile";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { cn } from "../../../../utils/cn";
+import { useDesktopBreakpoint } from "../../../../hooks/useDesktopBreakpoint";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -38,25 +39,7 @@ export function BrowseGrid({
 	const { t } = useTranslation();
 	const { mobileGridColumns } = usePreferences();
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
-	const [isDesktop, setIsDesktop] = useState(() => {
-		if (typeof window === "undefined") {
-			return false;
-		}
-		return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-	});
-
-	useEffect(() => {
-		if (typeof window === "undefined") {
-			return;
-		}
-
-		const query = window.matchMedia("(hover: hover) and (pointer: fine)");
-		const update = () => setIsDesktop(query.matches);
-
-		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
-	}, []);
+	const isDesktop = useDesktopBreakpoint();
 
 	useEffect(() => {
 		if (!hasMore || !onLoadMore) {

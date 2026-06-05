@@ -1,26 +1,27 @@
 import { useEffect, useState } from "react";
+import { DESKTOP_BREAKPOINT_PX } from "../config/ui-constants";
 
 /**
- * Hook to detect if the current device is a desktop (has a mouse/pointer and hover).
- * This is more reliable for scrolling behavior than screen width.
+ * Hook to detect if the window viewport is at or above the desktop breakpoint.
  */
 export function useDesktopBreakpoint() {
+	const queryStr = `(min-width: ${DESKTOP_BREAKPOINT_PX}px)`;
 	const [isDesktop, setIsDesktop] = useState(() =>
 		typeof window !== "undefined"
-			? window.matchMedia("(hover: hover) and (pointer: fine)").matches
+			? window.matchMedia(queryStr).matches
 			: false,
 	);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+		const query = window.matchMedia(queryStr);
 		const update = () => setIsDesktop(query.matches);
 
 		update();
 		query.addEventListener("change", update);
 		return () => query.removeEventListener("change", update);
-	}, []);
+	}, [queryStr]);
 
 	return isDesktop;
 }

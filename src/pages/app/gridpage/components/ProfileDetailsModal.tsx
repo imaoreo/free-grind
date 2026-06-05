@@ -38,6 +38,7 @@ import {
 	shouldHideField,
 } from "../utils";
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
+import { useDesktopBreakpoint } from "../../../../hooks/useDesktopBreakpoint";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
 import { FeedScrollContainer } from "../../../../components/ui/FeedScrollContainer";
@@ -280,12 +281,7 @@ export function ProfileDetailsModal({
 	);
 
 	const [mobileCarouselPhotoIndex, setMobileCarouselPhotoIndex] = useState(0);
-	const [isDesktopLike, setIsDesktopLike] = useState(() => {
-		if (typeof window === "undefined") {
-			return true;
-		}
-		return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-	});
+	const isDesktopLike = useDesktopBreakpoint();
 	const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
 	useModalClose({ isOpen, onClose });
 	const handleBackdropClose = useMemo(
@@ -302,14 +298,6 @@ export function ProfileDetailsModal({
 	useEffect(() => {
 		setSelectedPhotoIndex(null);
 	}, [activeProfile?.profileId, activeProfilePhotoHashes.length]);
-
-	useEffect(() => {
-		const query = window.matchMedia("(hover: hover) and (pointer: fine)");
-		const update = () => setIsDesktopLike(query.matches);
-		update();
-		query.addEventListener("change", update);
-		return () => query.removeEventListener("change", update);
-	}, []);
 
 	const handleMobileCarouselScroll = (event: UIEvent<HTMLDivElement>) => {
 		const { scrollLeft, clientWidth } = event.currentTarget;
