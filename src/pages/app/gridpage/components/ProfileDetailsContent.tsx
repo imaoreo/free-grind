@@ -830,28 +830,9 @@ export function ProfileDetailsContent({
 				</div>
 			</div>
 
-			{/* Plain text technical details & Block button at the bottom of the profile */}
-			<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)]/20 pt-4">
-				<div className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)] opacity-60">
-					<div className="flex items-center gap-1.5">
-						<span className="font-semibold">User ID:</span>
-						<button
-							type="button"
-							onClick={copyUserId}
-							className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
-							title="Click to copy User ID"
-						>
-							{activeProfile.profileId}
-						</button>
-					</div>
-					<p>
-						<span className="font-semibold">Estimated Created:</span>{" "}
-						{estimatedCreatedAt}
-					</p>
-				</div>
-
-				{/* Block/Unblock Button */}
-				{messageProfileId && (onBlockProfile || onUnblockProfile) && (
+			{/* Block/Unblock Button */}
+			{messageProfileId && (onBlockProfile || onUnblockProfile) && (
+				<div className="mt-4">
 					<button
 						type="button"
 						onClick={() => {
@@ -862,20 +843,39 @@ export function ProfileDetailsContent({
 							}
 						}}
 						disabled={isBlockingProfile}
-						className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-1.8 text-xs font-semibold transition active:scale-[0.95] cursor-pointer disabled:opacity-50 shrink-0 ${
+						className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
 							isBlocked
-								? "border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/15"
-								: "border-red-500/20 bg-transparent text-[color-mix(in_srgb,var(--text)_75%,red)] hover:bg-red-500/5 hover:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
+								? "border-red-500/35 bg-red-500/10 text-red-500 hover:bg-red-500/15"
+								: "border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-500/40 dark:border-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/20"
 						}`}
 					>
 						{isBlockingProfile ? (
-							<Loader2 className="h-3 w-3 animate-spin" />
+							<Loader2 className="h-4 w-4 animate-spin" />
 						) : (
-							<Ban className="h-3 w-3" />
+							<Ban className="h-4 w-4" />
 						)}
-						<span>{isBlocked ? t("profile_details.unblock", "Unblock") : t("profile_details.block", "Block")}</span>
+						<span>{isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}</span>
 					</button>
-				)}
+				</div>
+			)}
+
+			{/* Plain text technical details at the bottom of the profile */}
+			<div className="mt-4 flex flex-col gap-1 text-[11px] text-[var(--text-muted)] opacity-60 border-t border-[var(--border)]/20 pt-4">
+				<div className="flex items-center gap-1.5">
+					<span className="font-semibold">User ID:</span>
+					<button
+						type="button"
+						onClick={copyUserId}
+						className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
+						title="Click to copy User ID"
+					>
+						{activeProfile.profileId}
+					</button>
+				</div>
+				<p>
+					<span className="font-semibold">Estimated Created:</span>{" "}
+					{estimatedCreatedAt}
+				</p>
 			</div>
 
 
