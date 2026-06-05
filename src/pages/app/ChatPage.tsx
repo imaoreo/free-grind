@@ -1,5 +1,5 @@
 import {
-	ChevronLeft,
+    ChevronLeft,
 	ChevronRight,
 	Loader2,
 	X,
@@ -82,6 +82,8 @@ import { markInboxSeen } from "../../services/seenStore";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
+import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -127,6 +129,30 @@ export function ChatPage() {
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
+
+	useEffect(() => {
+		if (!userId) return;
+		const cached = getCachedOwnProfilePhotoHash();
+		if (cached !== undefined) {
+			setOwnProfilePhotoUrl(cached ? getThumbImageUrl(cached, "75x75") : null);
+			return;
+		}
+		void (async () => {
+			try {
+				const parsed = await service.getBrowseProfileMedia(userId);
+				const hash =
+					parsed.medias?.map((m) => m.mediaHash ?? "").find((h) => validateMediaHash(h)) ??
+					(parsed.profileImageMediaHash && validateMediaHash(parsed.profileImageMediaHash)
+						? parsed.profileImageMediaHash
+						: null) ??
+					null;
+				setCachedOwnProfilePhotoHash(hash);
+				setOwnProfilePhotoUrl(hash ? getThumbImageUrl(hash, "75x75") : null);
+			} catch {
+				setOwnProfilePhotoUrl(null);
+			}
+		})();
+	}, [userId, service]);
 
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
@@ -358,6 +384,8 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [albumCoverMap, setAlbumCoverMap] = useState<Map<number, string>>(new Map());
+	const [ownProfilePhotoUrl, setOwnProfilePhotoUrl] = useState<string | null>(null);
 	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
 		albumId: number;
 		albumName: string;
@@ -657,6 +685,21 @@ export function ChatPage() {
 				})
 				.filter((item) => Number.isFinite(item.albumId));
 			setShareableAlbums(mapped);
+
+			const coverEntries = await Promise.all(
+				mapped.map(async ({ albumId }) => {
+					try {
+						const detail = await service.getAlbum(albumId);
+						const first = detail.content?.[0];
+						const url = first?.thumbUrl || first?.url || first?.coverUrl;
+						return url ? ([albumId, url] as [number, string]) : null;
+					} catch {
+						return null;
+					}
+				}),
+			);
+			setAlbumCoverMap(new Map(coverEntries.filter((e): e is [number, string] => e !== null)));
+
 			return mapped;
 		} catch (error) {
 			toast.error(
@@ -3274,8 +3317,10 @@ export function ChatPage() {
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}
 			shareableAlbums={shareableAlbums}
+			albumCoverMap={albumCoverMap}
+			ownProfilePhotoUrl={ownProfilePhotoUrl}
 			isSharingAlbum={isSharingAlbum}
-				pendingAlbumShare={pendingAlbumShare}
+			pendingAlbumShare={pendingAlbumShare}
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
 			confirmPendingAlbumShare={confirmPendingAlbumShare}
 			closePendingAlbumShare={closePendingAlbumShare}
