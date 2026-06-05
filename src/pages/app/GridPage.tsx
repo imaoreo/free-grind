@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
+import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -1287,18 +1287,18 @@ export function GridPage() {
 					<div className="hidden sm:block">
 						<div className="mb-2 flex items-start justify-between gap-4">
 							<div>
-								<h1 className="app-title">{t("browse_page.title")}</h1>
-								<div className="mt-2 flex flex-wrap items-center gap-2">
-									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
-										<span
-											className="h-2 w-2 rounded-full bg-zinc-400"
-											aria-hidden="true"
-										/>
+								<h1 className="app-title flex items-center gap-2">
+									<span>{t("browse_page.title")}</span>
+									<span className="text-xs text-[var(--text-muted)] opacity-40 select-none">•</span>
+									<span className="text-lg font-bold text-[var(--accent)] tracking-tight flex items-center gap-1.5">
+										<Users className="h-4.5 w-4.5 stroke-[2.5]" />
 										<span>{cards.length}</span>
-									</div>
-									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
+									</span>
+								</h1>
+								<div className="mt-2 flex flex-wrap items-center gap-2">
+									<div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)]">
 										<span
-											className="h-2 w-2 rounded-full bg-emerald-500"
+											className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
 											aria-hidden="true"
 										/>
 										<span>{onlineCount}</span>
@@ -1461,7 +1461,7 @@ export function GridPage() {
 								</button>
 							</div>
 						</div>
-						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
+
 					</div>
 				</header>
 
