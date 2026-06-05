@@ -313,70 +313,9 @@ export function ProfileDetailsContent({
 				)}
 			</div>
 
-			{messageProfileId && onMessageProfile && (
-				<div className="flex items-center justify-center gap-6 px-6 py-3 rounded-full border border-white/10 bg-white/[0.03] dark:bg-zinc-900/10 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.5)] w-fit mx-auto mt-4 mb-2">
-					{/* Favorite Button */}
-					{onToggleFavoriteProfile && (
-						<button
-							type="button"
-							onClick={() => {
-								if (!isTogglingFavorite) {
-									void onToggleFavoriteProfile(messageProfileId, isFavorite);
-								}
-							}}
-							disabled={isTogglingFavorite}
-							className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 ${
-								isFavorite
-									? "border-amber-500/40 bg-amber-500/20 text-amber-400 shadow-md shadow-amber-500/10"
-									: "border-white/10 bg-white/5 text-zinc-300 hover:text-amber-400 hover:border-amber-500/40 hover:bg-amber-500/10"
-							}`}
-							title={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
-							aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
-						>
-							{isTogglingFavorite ? (
-								<Loader2 className="h-5 w-5 animate-spin" />
-							) : (
-								<Star className={`h-5 w-5 transition-transform duration-300 hover:scale-110 ${isFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
-							)}
-						</button>
-					)}
-
-					{/* Tap Button */}
-					<TapSelector
-						profileId={messageProfileId}
-						onTapProfile={onTapProfile!}
-						isTapDisabled={isTapDisabled}
-						isTapBlocked={isTapBlocked}
-						isTapActive={isTapActive}
-						tapId={tapId}
-						tapButtonClassName={
-							isTapActive
-								? "inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-white/10 text-3xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative shrink-0"
-								: "inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-[var(--text)] hover:border-[var(--accent)]/50 transition-all duration-300 shrink-0"
-						}
-					/>
-
-					{/* Message Button */}
-					<button
-						type="button"
-						onClick={() => onMessageProfile(messageProfileId)}
-						className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-[var(--accent)] hover:border-[var(--accent)]/40 hover:bg-[var(--accent)]/10 transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50"
-						title={t("profile_details.message")}
-						aria-label={t("profile_details.message")}
-					>
-						<MessageCircle className="h-5 w-5" />
-						{chatContactStatus?.unreadCount && chatContactStatus.unreadCount > 0 ? (
-							<span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white ring-2 ring-zinc-950 animate-bounce">
-								{chatContactStatus.unreadCount}
-							</span>
-						) : null}
-					</button>
-				</div>
-			)}
-
 			<div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface-2)] to-color-mix(in srgb, var(--surface-2) 90%, var(--surface)) p-4 shadow-sm">
 				<div className="flex items-center justify-between gap-3">
-					<div className="min-w-0">
+					<div className="flex items-center gap-2 min-w-0">
 						<h2
 							onClick={copyUserId}
 							className="text-lg font-bold sm:text-xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)] flex items-center gap-1.5"
@@ -393,6 +332,69 @@ export function ProfileDetailsContent({
 							) : null}
 						</h2>
 					</div>
+
+					{messageProfileId && (
+						<div className="flex items-center gap-2 shrink-0">
+							{/* Favorite Button */}
+							{onToggleFavoriteProfile && (
+								<button
+									type="button"
+									onClick={() => {
+										if (!isTogglingFavorite) {
+											void onToggleFavoriteProfile(messageProfileId, isFavorite);
+										}
+									}}
+									disabled={isTogglingFavorite}
+									className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 ${
+										isFavorite
+											? "border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 shadow-md shadow-amber-500/10"
+											: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/50 hover:bg-amber-500/10"
+									}`}
+									title={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
+									aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
+								>
+									{isTogglingFavorite ? (
+										<Loader2 className="h-4.5 w-4.5 animate-spin" />
+									) : (
+										<Star className={`h-4.5 w-4.5 transition-transform duration-300 hover:scale-110 ${isFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
+									)}
+								</button>
+							)}
+
+							{/* Tap Button */}
+							<TapSelector
+								profileId={messageProfileId}
+								onTapProfile={onTapProfile!}
+								isTapDisabled={isTapDisabled}
+								isTapBlocked={isTapBlocked}
+								isTapActive={isTapActive}
+								tapId={tapId}
+								tapButtonClassName={
+									isTapActive
+										? "inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface-2))] text-xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative shrink-0"
+										: "inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] transition-all duration-300 shrink-0"
+								}
+							/>
+
+							{/* Message Button */}
+							{onMessageProfile && (
+								<button
+									type="button"
+									onClick={() => onMessageProfile(messageProfileId)}
+									className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50"
+									title={t("profile_details.message")}
+									aria-label={t("profile_details.message")}
+								>
+									<MessageCircle className="h-4.5 w-4.5" />
+									{chatContactStatus?.unreadCount && chatContactStatus.unreadCount > 0 ? (
+										<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white ring-1 ring-[var(--surface-2)] animate-bounce">
+											{chatContactStatus.unreadCount}
+										</span>
+									) : null}
+								</button>
+							)}
+						</div>
+					)}
 				</div>
 				{/* Clean Info Row (Out of pills, same line, smaller text) */}
 				<div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-muted)]">
