@@ -35,6 +35,7 @@ import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import {
 	getChatContactIndexForProfiles,
@@ -137,6 +138,7 @@ export function GridPage() {
 	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
+	const isSmUp = useMediaQuery("(min-width: 640px)");
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 
 	useEffect(() => {
@@ -1121,9 +1123,10 @@ export function GridPage() {
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
 				<header className="mb-2 px-[var(--app-px)] sm:px-4">
-					<div className="sm:hidden">
+					{!isSmUp ? (
 						<div>
-							<div className="mb-1 flex items-center gap-2">
+							<div>
+								<div className="mb-1 flex items-center gap-2">
 								<button
 									type="button"
 									onClick={() => navigate("/settings")}
@@ -1283,10 +1286,10 @@ export function GridPage() {
 							</div>
 						</div>
 					</div>
-
-					<div className="hidden sm:block">
-						<div className="mb-2 flex items-start justify-between gap-4">
-							<div>
+					) : (
+						<div>
+							<div className="mb-2 flex items-start justify-between gap-4">
+								<div>
 								<h1 className="app-title flex items-center gap-2">
 									<span>{t("browse_page.title")}</span>
 									<span className="text-xs text-[var(--text-muted)] opacity-40 select-none">•</span>
@@ -1461,8 +1464,8 @@ export function GridPage() {
 								</button>
 							</div>
 						</div>
-
 					</div>
+					)}
 				</header>
 
 				<div
