@@ -1,7 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
-let pendingHistoryBack: ReturnType<typeof setTimeout> | null = null;
-
 const BottomSheetContext = createContext<() => void>(() => {});
 export const useBottomSheetClose = () => useContext(BottomSheetContext);
 
@@ -54,7 +52,8 @@ export function BottomSheet({
 	const dragStartY = useRef<number | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closingRef = useRef(false);
-	const closedByBackRef = useRef(false);
+	const backAlreadyDoneRef = useRef(false);
+	const didPushHistoryRef = useRef(false);
 	const animateCloseRef = useRef<() => void>(() => {});
 
 	// useEffect fires after browser has painted — double RAF ensures initial
@@ -74,6 +73,10 @@ export function BottomSheet({
 	const animateClose = useCallback(() => {
 		if (isProcessing || closingRef.current) return;
 		closingRef.current = true;
+		if (!backAlreadyDoneRef.current && didPushHistoryRef.current) {
+			didPushHistoryRef.current = false;
+			history.back();
+		}
 		setIsClosing(true);
 		closeTimerRef.current = setTimeout(onClose, 320);
 	}, [isProcessing, onClose]);
@@ -81,27 +84,18 @@ export function BottomSheet({
 	useEffect(() => { animateCloseRef.current = animateClose; }, [animateClose]);
 
 	useEffect(() => {
-		if (pendingHistoryBack !== null) {
-			clearTimeout(pendingHistoryBack);
-			pendingHistoryBack = null;
-			history.replaceState({ bottomSheet: true }, "");
-		} else {
+		if (!didPushHistoryRef.current) {
+			didPushHistoryRef.current = true;
 			history.pushState({ bottomSheet: true }, "");
 		}
 		const onPopState = () => {
-			closedByBackRef.current = true;
+			if (history.state?.bottomSheet) return;
+			if (closingRef.current) return;
+			backAlreadyDoneRef.current = true;
 			animateCloseRef.current();
 		};
 		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (!closedByBackRef.current) {
-				pendingHistoryBack = setTimeout(() => {
-					pendingHistoryBack = null;
-					if (history.state?.bottomSheet) history.back();
-				}, 50);
-			}
-		};
+		return () => window.removeEventListener("popstate", onPopState);
 	}, []);
 
 	useEffect(() => {

@@ -1466,6 +1466,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							isDesktop={isDesktop}
 							noConversation={!selectedConversation}
 							ownProfilePhotoUrl={ownProfilePhotoUrl}
+							onPreviewMedia={(url, meta) => openFullScreenImage(url, { ...meta, createdAtLabel: null })}
 						/>
 					) : null}
 

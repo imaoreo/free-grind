@@ -57,6 +57,7 @@ interface ChatDrawerPanelProps {
 	onStopAlbumShare?: (albumId: number) => Promise<void>;
 	noConversation?: boolean;
 	ownProfilePhotoUrl?: string | null;
+	onPreviewMedia?: (url: string, meta: { takenOnGrindr: boolean; timestamp: number }) => void;
 }
 
 export function ChatDrawerPanel({
@@ -81,6 +82,7 @@ export function ChatDrawerPanel({
 	onStopAlbumShare,
 	noConversation = false,
 	ownProfilePhotoUrl,
+	onPreviewMedia,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -101,6 +103,7 @@ export function ChatDrawerPanel({
 	const prevMediaIdsRef = useRef<Set<number>>(new Set());
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
+	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
 		if (!pendingAddFile) {
@@ -545,6 +548,14 @@ export function ChatDrawerPanel({
 												tabIndex={0}
 												onClick={() => { if (!hasAlbumSelection && !noConversation) toggleSelection(item.id); }}
 												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && !noConversation && toggleSelection(item.id)}
+												onTouchStart={() => {
+													if (!onPreviewMedia || !isImage) return;
+													longPressTimerRef.current = setTimeout(() => {
+														onPreviewMedia(item.url, { takenOnGrindr: item.takenOnGrindr, timestamp: item.createdTs });
+													}, 500);
+												}}
+												onTouchEnd={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; } }}
+												onTouchMove={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; } }}
 												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection || noConversation ? "opacity-30 pointer-events-none" : ""}`}
 												style={{
 													outline: isSelected ? "2px solid var(--accent)" : "none",
