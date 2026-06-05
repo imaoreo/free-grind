@@ -82,7 +82,7 @@ export function ConfirmDialog({
 
 	const confirmButtonClassName =
 		confirmTone === "danger"
-			? "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-500/50 bg-red-500/20 px-4 text-sm font-semibold text-red-200 transition hover:bg-red-500/30 disabled:opacity-60"
+			? "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 dark:bg-red-500/20 px-4 text-sm font-semibold text-red-700 dark:text-red-200 transition hover:bg-red-500/20 dark:hover:bg-red-500/30 disabled:opacity-60"
 			: "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60";
 
 	return (

@@ -419,26 +419,6 @@ export function ProfileDetailsModal({
 
 
 						<div className="pointer-events-auto flex flex-1 items-center justify-end gap-1">
-							{(onBlockProfile || onUnblockProfile) && (
-								<button
-									type="button"
-									onClick={handleBlockAction}
-									disabled={isBlockingProfile}
-									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border backdrop-blur-md disabled:opacity-30 mr-1.5 transition active:scale-95 cursor-pointer ${
-										isBlocked
-											? "border-red-500/50 bg-red-500/20 text-red-400"
-											: "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] hover:text-red-400 hover:border-red-500/35"
-									}`}
-									title={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
-									aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
-								>
-									{isBlockingProfile ? (
-										<Loader2 className="h-4 w-4 animate-spin" />
-									) : (
-										<Ban className="h-4 w-4" />
-									)}
-								</button>
-							)}
 							<button
 								type="button"
 								onClick={onPrevProfile}
@@ -462,7 +442,7 @@ export function ProfileDetailsModal({
 				</header>
 
 				<FeedScrollContainer>
-					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pt-0 sm:pb-5">
+					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("profile_details.loading")}
@@ -548,26 +528,6 @@ export function ProfileDetailsModal({
 						<p className="text-base font-semibold">{activeProfileName}</p>
 					</div>
 					<div className="flex items-center gap-1.5">
-						{(onBlockProfile || onUnblockProfile) && (
-							<button
-								type="button"
-								onClick={handleBlockAction}
-								disabled={isBlockingProfile}
-								className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200 active:scale-95 cursor-pointer ${
-									isBlocked
-										? "border-red-500/40 bg-red-500/10 text-red-500 shadow-md shadow-red-500/5"
-										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/5"
-								}`}
-								title={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
-								aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
-							>
-								{isBlockingProfile ? (
-									<Loader2 className="h-3.5 w-3.5 animate-spin" />
-								) : (
-									<Ban className="h-3.5 w-3.5" />
-								)}
-							</button>
-						)}
 						<button
 							type="button"
 							onClick={onClose}

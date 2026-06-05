@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star } from "lucide-react";
+import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban } from "lucide-react";
 import { type RefObject, type UIEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -75,6 +75,10 @@ type ProfileDetailsContentProps = {
 	bodyTypeLabels: LabelMap;
 	ethnicityLabels: LabelMap;
 	relationshipStatusLabels: LabelMap;
+	onBlockProfile?: (profileId: string) => void;
+	onUnblockProfile?: (profileId: string) => void;
+	isBlocked?: boolean;
+	isBlockingProfile?: boolean;
 };
 
 export function ProfileDetailsContent({
@@ -124,6 +128,10 @@ export function ProfileDetailsContent({
 	onToggleFavoriteProfile,
 	isFavorite,
 	isTogglingFavorite,
+	onBlockProfile,
+	onUnblockProfile,
+	isBlocked = false,
+	isBlockingProfile = false,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -822,23 +830,52 @@ export function ProfileDetailsContent({
 				</div>
 			</div>
 
-			{/* Plain text technical details at the bottom of the profile */}
-			<div className="mt-4 flex flex-col gap-1 text-[11px] text-[var(--text-muted)] opacity-60 border-t border-[var(--border)]/20 pt-4">
-				<div className="flex items-center gap-1.5">
-					<span className="font-semibold">User ID:</span>
+			{/* Plain text technical details & Block button at the bottom of the profile */}
+			<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)]/20 pt-4">
+				<div className="flex flex-col gap-1 text-[11px] text-[var(--text-muted)] opacity-60">
+					<div className="flex items-center gap-1.5">
+						<span className="font-semibold">User ID:</span>
+						<button
+							type="button"
+							onClick={copyUserId}
+							className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
+							title="Click to copy User ID"
+						>
+							{activeProfile.profileId}
+						</button>
+					</div>
+					<p>
+						<span className="font-semibold">Estimated Created:</span>{" "}
+						{estimatedCreatedAt}
+					</p>
+				</div>
+
+				{/* Block/Unblock Button */}
+				{messageProfileId && (onBlockProfile || onUnblockProfile) && (
 					<button
 						type="button"
-						onClick={copyUserId}
-						className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
-						title="Click to copy User ID"
+						onClick={() => {
+							if (isBlocked) {
+								onUnblockProfile?.(messageProfileId);
+							} else {
+								onBlockProfile?.(messageProfileId);
+							}
+						}}
+						disabled={isBlockingProfile}
+						className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3.5 py-1.8 text-xs font-semibold transition active:scale-[0.95] cursor-pointer disabled:opacity-50 shrink-0 ${
+							isBlocked
+								? "border-red-500/30 bg-red-500/10 text-red-500 hover:bg-red-500/15"
+								: "border-red-500/20 bg-transparent text-[color-mix(in_srgb,var(--text)_75%,red)] hover:bg-red-500/5 hover:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10"
+						}`}
 					>
-						{activeProfile.profileId}
+						{isBlockingProfile ? (
+							<Loader2 className="h-3 w-3 animate-spin" />
+						) : (
+							<Ban className="h-3 w-3" />
+						)}
+						<span>{isBlocked ? t("profile_details.unblock", "Unblock") : t("profile_details.block", "Block")}</span>
 					</button>
-				</div>
-				<p>
-					<span className="font-semibold">Estimated Created:</span>{" "}
-					{estimatedCreatedAt}
-				</p>
+				)}
 			</div>
 
 
