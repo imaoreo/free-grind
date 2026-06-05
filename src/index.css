@@ -384,6 +384,12 @@
 		font: inherit;
 		color: inherit;
 	}
+
+	select option,
+	select optgroup {
+		background-color: var(--surface);
+		color: var(--text);
+	}
 }
 
 @layer utilities {

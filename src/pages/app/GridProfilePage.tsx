@@ -431,6 +431,12 @@ export function GridProfilePage() {
             return;
         }
 
+        const currentDistance = activeProfile?.distance ?? null;
+        if (currentDistance === null || !Number.isFinite(currentDistance)) {
+            toast.error(t("profile_details.location_finder_error_distance"));
+            return;
+        }
+
         const confirmed = window.confirm(t("profile_details.location_finder_confirm"));
         if (!confirmed) {
             return;

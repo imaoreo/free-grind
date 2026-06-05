@@ -1,5 +1,5 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { Navigation, NavigationOff, MessageCircle, Plane, Star, Zap, Droplet, Clock } from "lucide-react";
+import { MapPin, MapPinOff, MessageCircle, Plane, Star, Zap, Droplet, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
@@ -185,10 +185,10 @@ export function BrowseCardTile({
 					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 pb-1 pt-0.5 text-white">
 						<span className="inline-flex items-center gap-0.5 text-[10px] font-bold leading-none sm:text-[11px]">
 							{card.distanceMeters == null || !Number.isFinite(card.distanceMeters) ? (
-								<NavigationOff className="h-2.5 w-2.5 shrink-0 mr-0.5 text-white/60" title={t("browse_page.distance_hidden", "Distance hidden")} />
+								<MapPinOff className="h-2.5 w-2.5 shrink-0 mr-0.5 text-white/60" title={t("browse_page.distance_hidden", "Distance hidden")} />
 							) : (
 								<>
-									<Navigation className="h-2.5 w-2.5 shrink-0 mr-0.5" />
+									<MapPin className="h-2.5 w-2.5 shrink-0 mr-0.5" />
 									{formatDistance(card.distanceMeters, t, unitsPreset)}
 								</>
 							)}

