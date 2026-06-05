@@ -18,6 +18,7 @@ import {
 import type { Message } from "../types/messages";
 
 import { appLog } from "../utils/logger";
+import { getLocalProfileId } from "../utils/profile";
 
 const LOG_DIR = "chat-log";
 let writeQueue: Promise<void> = Promise.resolve();
@@ -35,7 +36,7 @@ function safeId(conversationId: string): string {
 }
 
 function logPath(conversationId: string): string {
-	return `${LOG_DIR}/${safeId(conversationId)}.json`;
+	return `${LOG_DIR}/${getLocalProfileId()}_${safeId(conversationId)}.json`;
 }
 
 export type ChatLogData = {
@@ -143,6 +144,7 @@ export async function appendMessages(
  */
 export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 	const result: Record<string, Message[]> = {};
+	const prefix = `${getLocalProfileId()}_`;
 
 	try {
 		const dirExists = await exists(LOG_DIR, { baseDir: BaseDirectory.AppData });
@@ -152,10 +154,10 @@ export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 
 		await Promise.all(
 			entries
-				.filter((entry) => entry.name?.endsWith(".json"))
+				.filter((entry) => entry.name?.startsWith(prefix) && entry.name?.endsWith(".json"))
 				.map(async (entry) => {
 					const name = entry.name!;
-					const conversationId = name.slice(0, -5); // strip .json
+					const conversationId = name.slice(prefix.length, -5); // strip prefix and .json
 					try {
 						const text = await readTextFile(`${LOG_DIR}/${name}`, {
 							baseDir: BaseDirectory.AppData,

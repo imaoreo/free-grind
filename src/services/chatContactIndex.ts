@@ -5,8 +5,11 @@ import type {
 	InboxContactIndexInput,
 } from "../types/chat-contact-index";
 import { appLog } from "../utils/logger";
+import { getLocalProfileId } from "../utils/profile";
 
-const CHAT_INDEX_DB = "sqlite:chat_contact_index.sqlite3";
+function getDbName(): string {
+	return `sqlite:chat_contact_index_${getLocalProfileId()}.sqlite3`;
+}
 const SQLITE_BUSY_TIMEOUT_MS = 5_000;
 const SQLITE_LOCK_RETRY_DELAYS_MS = [30, 80, 180, 350] as const;
 
@@ -30,7 +33,7 @@ let writeQueue: Promise<void> = Promise.resolve();
 async function getDb(): Promise<Database> {
 	if (!dbPromise) {
 		dbPromise = (async () => {
-			const db = await Database.load(CHAT_INDEX_DB);
+			const db = await Database.load(getDbName());
 			// Enable WAL mode and a reasonable busy timeout to improve concurrency.
 			// Note: We avoid manual BEGIN transactions because the Tauri plugin uses a connection pool
 			// without session affinity, which makes manual transactions unreliable.
