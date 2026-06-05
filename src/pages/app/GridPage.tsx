@@ -128,6 +128,8 @@ export function GridPage() {
 		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
 	});
 	const isMountedRef = useRef(true);
+	const lastSyncedGeohashRef = useRef<string | null>(null);
+	const lastUserIdRef = useRef<string | number | null>(null);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
@@ -472,6 +474,7 @@ export function GridPage() {
 					parsed.nextPage ?? null,
 				);
 				setNextPage(parsed.nextPage ?? null);
+
 			} catch (error) {
 				if (!isMountedRef.current) {
 					return;
@@ -501,8 +504,87 @@ export function GridPage() {
 			browseCacheKey,
 			browseRequestFilters,
 			getBrowseCardsWithTimeout,
+			userId,
+			apiFunctions,
 		],
 	);
+
+	useEffect(() => {
+		// Reset tracking if the user logs out or switches accounts
+		if (userId !== lastUserIdRef.current) {
+			lastSyncedGeohashRef.current = null;
+			lastUserIdRef.current = userId;
+		}
+
+		if (!userId || !geohash) {
+			return;
+		}
+
+		if (lastSyncedGeohashRef.current === geohash) {
+			return;
+		}
+
+		// Update the sync marker immediately to prevent race/duplicate updates
+		lastSyncedGeohashRef.current = geohash;
+
+		appLog.info("[grid] geohash changed, publishing coordinates and syncing profile", { geohash });
+
+		// Decode geohash to get latitude/longitude
+		let lat = 0;
+		let lon = 0;
+		try {
+			const decoded = decodeGeohash(geohash);
+			lat = decoded.latitude;
+			lon = decoded.longitude;
+		} catch (e) {
+			appLog.error("[grid] Failed to decode geohash for sync", e);
+			return;
+		}
+
+		const publishLocationAndProfile = async () => {
+			// 1. Publish exact coordinates to /v4/location (matches official app)
+			const payloads = [
+				{ latitude: lat, longitude: lon },
+				{ lat, lon },
+				{ geohash },
+				{ nearbyGeoHash: geohash },
+			];
+
+			let locationSuccess = false;
+			for (const payload of payloads) {
+				try {
+					const response = await apiFunctions.request("/v4/location", {
+						method: "PUT",
+						body: payload,
+					});
+					if (response.status >= 200 && response.status < 300) {
+						locationSuccess = true;
+						break;
+					}
+				} catch {
+					continue;
+				}
+			}
+
+			if (locationSuccess) {
+				appLog.info("[grid] Published location to /v4/location successfully", { lat, lon });
+			} else {
+				appLog.warn("[grid] Failed to publish location to /v4/location with any payload format");
+			}
+
+			// 2. Sync profile to commit the location
+			await apiFunctions.updateMyProfile({});
+			appLog.info("[grid] Remote profile location sync successful", { geohash });
+		};
+
+		publishLocationAndProfile().catch((err) => {
+			appLog.error("[grid] Remote location/profile publishing failed", err);
+			// Clear the sync ref on failure so we retry on subsequent updates/refreshes
+			if (lastSyncedGeohashRef.current === geohash) {
+				lastSyncedGeohashRef.current = null;
+			}
+		});
+	}, [userId, geohash, apiFunctions]);
 
 	useEffect(() => {
 		const SESSION_REFRESH_KEY = "grid_initial_location_refreshed";
