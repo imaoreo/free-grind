@@ -325,13 +325,13 @@ export function TapSelector({
 						<div className="animate-ripple tap-btn-ripple" />
 					)}
 					<div
-						className={`relative z-10 flex h-7 w-7 items-center justify-center transition-all duration-300 tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : (displayId === 1 && isTapActive ? "animate-living-flame-loop" : "animate-living-loop")}` : "text-[var(--text-muted)]"} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}
+						className={`relative z-10 flex h-5 w-5 items-center justify-center transition-all duration-300 tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : (displayId === 1 && isTapActive ? "animate-living-flame-loop" : "animate-living-loop")}` : "text-[var(--text-muted)]"} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}
 					>
-						<span className="flex items-center justify-center text-2xl">
+						<span className="flex items-center justify-center text-[19px]">
 							{isTapActive || previewId !== null ? (
 								getTapEmoji(displayId)
 							) : (
-								<Flame className="h-7 w-7" strokeWidth={1.8} />
+								<Flame className="h-4.5 w-4.5" strokeWidth={1.8} />
 							)}
 						</span>
 					</div>

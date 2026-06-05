@@ -534,8 +534,8 @@ export function GridPage() {
 		let lon = 0;
 		try {
 			const decoded = decodeGeohash(geohash);
-			lat = decoded.latitude;
-			lon = decoded.longitude;
+			lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+			lon = (decoded.lon[0] + decoded.lon[1]) / 2;
 		} catch (e) {
 			appLog.error("[grid] Failed to decode geohash for sync", e);
 			return;
@@ -1352,51 +1352,68 @@ export function GridPage() {
 			>
 				<header className="mb-3 px-[var(--app-px)] sm:px-4">
 					{/* Top Header Bar (Unified) */}
-					<div className="flex items-center justify-between gap-4 mb-3">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
 						{/* Title & Stats Subtitle */}
-						<div>
-							<h1 className="app-title">{t("nav.browse")}</h1>
-							<div className="flex items-center gap-2 mt-1 text-xs font-semibold text-[var(--text-muted)] select-none">
-								<span className="inline-flex items-center gap-1.5">
-									<span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-									<span>
-										{t("browse_page.online_stats", "{{online}} of {{total}} online now", {
-											online: onlineCount,
-											total: cards.length,
-										})}
+						<div className="flex items-center justify-between sm:block w-full sm:w-auto">
+							<div>
+								<h1 className="app-title">{t("nav.browse")}</h1>
+								<div className="flex items-center gap-2 mt-1 text-xs font-semibold text-[var(--text-muted)] select-none">
+									<span className="inline-flex items-center gap-1.5">
+										<span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+										<span>
+											{t("browse_page.online_stats", "{{online}} of {{total}} online now", {
+												online: onlineCount,
+												total: cards.length,
+											})}
+										</span>
 									</span>
-								</span>
+								</div>
 							</div>
+
+							{/* Settings Avatar (only visible on mobile, hidden on sm+) */}
+							<button
+								type="button"
+								onClick={() => navigate("/settings")}
+								className="shrink-0 rounded-full transition-all active:scale-95 hover:scale-[1.03] sm:hidden cursor-pointer"
+								aria-label={t("browse_page.open_settings")}
+								title={t("browse_page.settings")}
+							>
+								<Avatar
+									src={profilePhotoUrl}
+									alt={t("browse_page.your_profile_photo")}
+									className="h-11 w-11"
+								/>
+							</button>
 						</div>
 
-						{/* Settings Avatar */}
-						<button
-							type="button"
-							onClick={() => navigate("/settings")}
-							className="shrink-0 rounded-full transition-all active:scale-95 hover:scale-[1.03]"
-							aria-label={t("browse_page.open_settings")}
-							title={t("browse_page.settings")}
-						>
-							<Avatar
-								src={profilePhotoUrl}
-								alt={t("browse_page.your_profile_photo")}
-								className="h-11 w-11"
-							/>
-						</button>
-					</div>
+						{/* Location Picker and Avatar Container (aligned right on sm+) */}
+						<div className="flex items-center gap-2 w-full sm:w-auto">
+							<button
+								type="button"
+								onClick={() => navigate("/browse/location")}
+								className="inline-flex min-h-11 flex-1 sm:flex-initial sm:w-[240px] items-center justify-start gap-2 rounded-2xl sm:rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] border border-[var(--border)] px-4 py-1.5 text-left text-sm font-medium text-[var(--text-muted)] transition active:scale-[0.99] hover:border-[var(--accent)] hover:text-[var(--text)] overflow-hidden cursor-pointer"
+							>
+								<MapPin className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+								<span className="truncate">
+									{locationName || t("browse_page.current_location")}
+								</span>
+							</button>
 
-					{/* Second Row: Location Picker */}
-					<div className="mb-3 flex flex-wrap items-center gap-2">
-						<button
-							type="button"
-							onClick={() => navigate("/browse/location")}
-							className="inline-flex min-h-11 w-full sm:w-fit sm:max-w-[280px] items-center justify-start gap-2 rounded-2xl sm:rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] border border-[var(--border)] px-4 py-1.5 text-left text-sm font-medium text-[var(--text-muted)] transition active:scale-[0.99] hover:border-[var(--accent)] hover:text-[var(--text)] overflow-hidden"
-						>
-							<MapPin className="h-4 w-4 shrink-0" />
-							<span className="truncate">
-								{locationName || t("browse_page.current_location")}
-							</span>
-						</button>
+							{/* Settings Avatar (hidden on mobile, visible on sm+) */}
+							<button
+								type="button"
+								onClick={() => navigate("/settings")}
+								className="shrink-0 rounded-full transition-all active:scale-95 hover:scale-[1.03] hidden sm:block cursor-pointer"
+								aria-label={t("browse_page.open_settings")}
+								title={t("browse_page.settings")}
+							>
+								<Avatar
+									src={profilePhotoUrl}
+									alt={t("browse_page.your_profile_photo")}
+									className="h-11 w-11"
+								/>
+							</button>
+						</div>
 					</div>
 
 					{/* Third Row: Filters / Actions Scrollable Bar */}
