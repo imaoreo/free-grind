@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
+let pendingHistoryBack: ReturnType<typeof setTimeout> | null = null;
+
 const BottomSheetContext = createContext<() => void>(() => {});
 export const useBottomSheetClose = () => useContext(BottomSheetContext);
 
@@ -79,8 +81,13 @@ export function BottomSheet({
 	useEffect(() => { animateCloseRef.current = animateClose; }, [animateClose]);
 
 	useEffect(() => {
-		const prevState = history.state;
-		history.pushState({ bottomSheet: true }, "");
+		if (pendingHistoryBack !== null) {
+			clearTimeout(pendingHistoryBack);
+			pendingHistoryBack = null;
+			history.replaceState({ bottomSheet: true }, "");
+		} else {
+			history.pushState({ bottomSheet: true }, "");
+		}
 		const onPopState = () => {
 			closedByBackRef.current = true;
 			animateCloseRef.current();
@@ -88,7 +95,12 @@ export function BottomSheet({
 		window.addEventListener("popstate", onPopState);
 		return () => {
 			window.removeEventListener("popstate", onPopState);
-			if (!closedByBackRef.current) history.replaceState(prevState, "");
+			if (!closedByBackRef.current) {
+				pendingHistoryBack = setTimeout(() => {
+					pendingHistoryBack = null;
+					if (history.state?.bottomSheet) history.back();
+				}, 50);
+			}
 		};
 	}, []);
 
@@ -140,6 +152,9 @@ export function BottomSheet({
 					transition: isVisible ? "opacity 0.3s ease" : "none",
 				}}
 				onClick={isProcessing ? undefined : animateClose}
+                onTouchStart={(e) => { if (e.target === e.currentTarget) onTouchStart(e); }}
+                onTouchMove={(e) => { if (dragStartY.current !== null) onTouchMove(e); }}
+                onTouchEnd={() => { if (dragStartY.current !== null) onTouchEnd(); }}
 			>
 				<div
 					className={`flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] ${bg} shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"} ${panelClassName}`}

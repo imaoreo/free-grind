@@ -148,6 +148,8 @@ type ChatThreadPanelProps = {
 	isAlbumPickerOpen: boolean;
 	isLoadingAlbums: boolean;
 	shareableAlbums: AlbumListItem[];
+	albumCoverMap?: Map<number, string>;
+	ownProfilePhotoUrl?: string | null;
 	isSharingAlbum: boolean;
 	pendingAlbumShare: {
 		albumId: number;
@@ -285,11 +287,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isAlbumPickerOpen,
 		isLoadingAlbums,
 		shareableAlbums,
+		albumCoverMap: externalAlbumCoverMap,
+		ownProfilePhotoUrl,
 		isSharingAlbum,
-			pendingAlbumShare,
+		pendingAlbumShare,
 		shareAlbumToCurrentConversation,
-			confirmPendingAlbumShare,
-			closePendingAlbumShare,
+        confirmPendingAlbumShare,
+        closePendingAlbumShare,
 		uploadProgress,
 		draft,
 		setDraft,
@@ -455,8 +459,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			const cover = getMessageAlbumCoverUrl(msg);
 			if (aid && cover) map.set(aid, cover);
 		}
+		if (externalAlbumCoverMap) {
+			for (const [aid, cover] of externalAlbumCoverMap) {
+				map.set(aid, cover);
+			}
+		}
 		return map;
-	}, [threadMessages]);
+	}, [threadMessages, externalAlbumCoverMap]);
 
 	const sharedAlbumIds = useMemo(() => {
 		const ids = new Set<number>();
@@ -1456,6 +1465,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							isSharingAlbum={isSharingAlbum}
 							isDesktop={isDesktop}
 							noConversation={!selectedConversation}
+							ownProfilePhotoUrl={ownProfilePhotoUrl}
 						/>
 					) : null}
 
@@ -1550,7 +1560,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								{/* Phrases list */}
 								<div data-lenis-prevent className="overflow-y-auto" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
 									{savedPhrases.length === 0 ? (
-										<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
+										<div className="flex flex-col items-center justify-center gap-2.5 text-center text-[var(--text-muted)]" style={{ minHeight: "40dvh" }}>
 											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
 												<BookMarked className="h-5 w-5 opacity-60" />
 											</div>
