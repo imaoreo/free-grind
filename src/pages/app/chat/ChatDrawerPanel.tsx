@@ -623,7 +623,7 @@ export function ChatDrawerPanel({
 											className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-60"
 										>
 											{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-											<span>{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}</span>
+											<span>{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })} ({selectedAlbumIds.size})</span>
 										</button>
 									) : (
 										<>
@@ -649,7 +649,7 @@ export function ChatDrawerPanel({
 												className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 											>
 												{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-												<span>{isSharingAlbum ? t("chat_drawer.sending") : t("chat.share")}</span>
+												<span>{isSharingAlbum ? t("chat_drawer.sending") : `${t("chat.share")} (${selectedAlbumIds.size})`}</span>
 											</button>
 										</>
 									)}
