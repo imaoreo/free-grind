@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X, Loader2, Ban } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -133,8 +133,16 @@ export function ProfileDetailsModal({
 		}
 
 		const value = activeProfile.displayName?.trim();
-		if (value) {
+		if (value && value !== "3" && value !== "4") {
 			return value;
+		}
+
+		if (value === "3") {
+			return t("profile_details.deleted_account", { defaultValue: "Deleted Account" });
+		}
+
+		if (value === "4") {
+			return t("profile_details.blocked_account", { defaultValue: "Blocked by User" });
 		}
 
 		return t("profile_details.profile_fallback", { id: activeProfile.profileId });
@@ -166,7 +174,7 @@ export function ProfileDetailsModal({
 	const isTapActive = effectiveTapVisualState !== "none";
 	const isTapDisabled = !onTapProfile || isTappingProfile || isTapBlocked;
 	const isTriangleDisabled =
-		!onTriangleProfile || !messageProfileId || isLocatingProfile;
+		!onTriangleProfile || !messageProfileId || isLocatingProfile || activeProfile?.isBlockable === null || activeProfile?.displayName === "3" || activeProfile?.displayName === "4";
 	const tapButtonClassName =
 		isTapActive
 			? "inline-flex h-16 w-16 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] text-4xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative"
@@ -379,18 +387,6 @@ export function ProfileDetailsModal({
 		setSelectedPhotoIndex(null);
 	};
 
-	const handleBlockAction = () => {
-		if (!messageProfileId || isBlockingProfile) {
-			return;
-		}
-
-		if (isBlocked) {
-			onUnblockProfile?.(messageProfileId);
-			return;
-		}
-
-		onBlockProfile?.(messageProfileId);
-	};
 
 	const photoViewerOverlay = selectedPhotoIndex !== null && (
 		<PhotoViewer

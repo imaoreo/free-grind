@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban, FileText, Trash2 } from "lucide-react";
+import { Loader2, MessageCircle, MessagesSquare, Navigation, Star, Ban, FileText, Trash2, ShieldAlert } from "lucide-react";
 import { type RefObject, type UIEvent, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -382,6 +382,31 @@ export function ProfileDetailsContent({
 					</div>
 				)}
 			</div>
+			{(activeProfile.isBlockable === null || activeProfile.displayName === "3" || activeProfile.displayName === "4") && (
+				<div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 flex items-start gap-3">
+					<div className="rounded-lg bg-red-500/20 p-1.5 text-red-400 shrink-0">
+						<ShieldAlert className="h-4 w-4" />
+					</div>
+					<div className="flex-1 min-w-0">
+						<p className="text-xs font-semibold text-red-400">
+							{activeProfile.displayName === "3"
+								? t("profile_details.deleted_alert_title", { defaultValue: "Account Deleted" })
+								: activeProfile.displayName === "4"
+									? t("profile_details.blocked_alert_title_explicit", { defaultValue: "Blocked by User" })
+									: t("profile_details.blocked_alert_title", { defaultValue: "Profile Unavailable" })
+							}
+						</p>
+						<p className="text-[11px] text-[var(--text-muted)] mt-0.5 leading-normal">
+							{activeProfile.displayName === "3"
+								? t("profile_details.deleted_alert_desc", { defaultValue: "This account has been deleted or deactivated." })
+								: activeProfile.displayName === "4"
+									? t("profile_details.blocked_alert_desc_explicit", { defaultValue: "This person has blocked you." })
+									: t("profile_details.blocked_alert_desc", { defaultValue: "This person is currently unavailable. They may have blocked you, or the account has been deactivated." })
+							}
+						</p>
+					</div>
+				</div>
+			)}
 
 			<div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface-2)] to-color-mix(in srgb, var(--surface-2) 90%, var(--surface)) p-4 shadow-sm">
 				<div className="flex items-center justify-between gap-3">
@@ -414,8 +439,8 @@ export function ProfileDetailsContent({
 											void onToggleFavoriteProfile(messageProfileId, isFavorite);
 										}
 									}}
-									disabled={isTogglingFavorite}
-									className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 ${
+									disabled={isTogglingFavorite || activeProfile.isBlockable === null || activeProfile.displayName === "3" || activeProfile.displayName === "4"}
+									className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
 										isFavorite
 											? "border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400 shadow-md shadow-amber-500/10"
 											: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-amber-500 hover:border-amber-500/50 hover:bg-amber-500/10"
@@ -435,7 +460,7 @@ export function ProfileDetailsContent({
 							<TapSelector
 								profileId={messageProfileId}
 								onTapProfile={onTapProfile!}
-								isTapDisabled={isTapDisabled}
+								isTapDisabled={isTapDisabled || activeProfile.isBlockable === null || activeProfile.displayName === "3" || activeProfile.displayName === "4"}
 								isTapBlocked={isTapBlocked}
 								isTapActive={isTapActive}
 								tapId={tapId}
@@ -450,8 +475,8 @@ export function ProfileDetailsContent({
 							{onMessageProfile && (
 								<button
 									type="button"
-									onClick={() => onMessageProfile(messageProfileId)}
-									className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50"
+									disabled={activeProfile.isBlockable === null || activeProfile.displayName === "3" || activeProfile.displayName === "4"}
+									className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 									title={t("profile_details.message")}
 									aria-label={t("profile_details.message")}
 								>
@@ -910,9 +935,29 @@ export function ProfileDetailsContent({
 				</div>
 			</div>
 
-			{/* Block/Unblock Button */}
-			{messageProfileId && (onBlockProfile || onUnblockProfile) && (
-				<div className="mt-4">
+			{/* Technical Details & Block Button Row */}
+			<div className="mt-6 flex items-center justify-between gap-4 border-t border-[var(--border)]/40 pt-4 px-1 text-[var(--text-muted)]">
+				{/* Left side: Technical details */}
+				<div className="flex flex-col gap-0.5 text-[11px] min-w-0">
+					<div className="flex items-center gap-1.5 min-w-0">
+						<span className="font-semibold shrink-0">User ID:</span>
+						<button
+							type="button"
+							onClick={copyUserId}
+							className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
+							title="Click to copy User ID"
+						>
+							{activeProfile.profileId}
+						</button>
+					</div>
+					<p className="truncate">
+						<span className="font-semibold">Estimated Created:</span>{" "}
+						{estimatedCreatedAt}
+					</p>
+				</div>
+
+				{/* Right side: Low-emphasis Block Button */}
+				{messageProfileId && (onBlockProfile || onUnblockProfile) && (
 					<button
 						type="button"
 						onClick={() => {
@@ -923,39 +968,22 @@ export function ProfileDetailsContent({
 							}
 						}}
 						disabled={isBlockingProfile}
-						className={`flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all duration-200 active:scale-[0.98] cursor-pointer disabled:opacity-50 ${
+						className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50 border ${
 							isBlocked
-								? "border-red-500/35 bg-red-500/10 text-red-500 hover:bg-red-500/15"
-								: "border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-500/40 dark:border-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/20"
+								? "border-red-500/30 bg-red-500/5 text-red-500 hover:bg-red-500/10"
+								: "border-[var(--border)] hover:border-red-500/30 hover:bg-red-500/5 hover:text-red-500 text-[var(--text-muted)]"
 						}`}
+						title={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+						aria-label={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
 					>
 						{isBlockingProfile ? (
-							<Loader2 className="h-4 w-4 animate-spin" />
+							<Loader2 className="h-3 w-3 animate-spin" />
 						) : (
-							<Ban className="h-4 w-4" />
+							<Ban className="h-3 w-3" />
 						)}
-						<span>{isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}</span>
+						<span>{isBlocked ? t("profile_details.unblock", "Unblock") : t("profile_details.block", "Block")}</span>
 					</button>
-				</div>
-			)}
-
-			{/* Plain text technical details at the bottom of the profile */}
-			<div className="mt-4 flex flex-col gap-1 text-[11px] text-[var(--text-muted)] opacity-60 border-t border-[var(--border)]/20 pt-4">
-				<div className="flex items-center gap-1.5">
-					<span className="font-semibold">User ID:</span>
-					<button
-						type="button"
-						onClick={copyUserId}
-						className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
-						title="Click to copy User ID"
-					>
-						{activeProfile.profileId}
-					</button>
-				</div>
-				<p>
-					<span className="font-semibold">Estimated Created:</span>{" "}
-					{estimatedCreatedAt}
-				</p>
+				)}
 			</div>
 
 			{/* Notes pop-up editor modal */}
