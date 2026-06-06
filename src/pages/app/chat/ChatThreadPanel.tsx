@@ -1241,37 +1241,28 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						{/* -------------------------- */}
 
                         {selectedConversation && replyTargetMessage ? (
-							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-								<div className="flex items-stretch">
-									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
-									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
-										<div className="min-w-0">
-											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-												<Reply className="h-3 w-3" />
-												<span>
-													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
-														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-															? t("chat.you")
-															: (selectedConversation?.data.name?.trim() || t("chat.unknown"))
-													}`}
-												</span>
-											</p>
-											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
-												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
-													{getMessagePreviewLabel(replyTargetMessage, t)}
-												</p>
-											</div>
-										</div>
-										<button
-											type="button"
-											onClick={clearReplyTarget}
-											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-											aria-label={t("chat.actions.cancel")}
-											title={t("chat.actions.cancel")}
-										>
-											<X className="h-3.5 w-3.5" />
-										</button>
+							<div className="relative mb-2 overflow-hidden rounded-xl bg-[var(--surface-2)]">
+								<div className="absolute left-0 top-0 h-full w-[3px] bg-[var(--accent)]" />
+								<div className="flex items-center gap-2 py-2.5 pl-[13px] pr-2">
+									<div className="min-w-0 flex-1">
+										<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
+											{userId != null && Number(replyTargetMessage.senderId) === Number(userId)
+												? "Replying to myself"
+												: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
+											}
+										</p>
+										<p className="truncate text-xs text-[var(--text-muted)]">
+											{getMessagePreviewLabel(replyTargetMessage, t)}
+										</p>
 									</div>
+									<button
+										type="button"
+										onClick={clearReplyTarget}
+										className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:text-[var(--text)]"
+										aria-label={t("chat.actions.cancel")}
+									>
+										<X className="h-3.5 w-3.5" />
+									</button>
 								</div>
 							</div>
 						) : null}
