@@ -1498,13 +1498,20 @@ export function GridPage() {
 										onlineOnly: !prev.onlineOnly,
 									}))
 								}
-								className={`inline-flex min-h-8 items-center justify-center rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
+								className={`inline-flex min-h-8 items-center justify-center gap-2 rounded-full px-4 text-xs font-semibold transition border cursor-pointer active:scale-95 ${
 									browseFilters.onlineOnly
 										? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
 										: "bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
 								}`}
+								aria-label={t("browse_filters.options.online")}
+								title={t("browse_filters.options.online")}
 							>
-								{t("browse_filters.options.online")}
+								<span className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+									browseFilters.onlineOnly
+										? "bg-[var(--accent-contrast)]"
+										: "bg-green-500"
+								}`} />
+								<span className="hidden lg:inline">{t("browse_filters.options.online")}</span>
 							</button>
 
 							{/* Favorites Toggle */}
