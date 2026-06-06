@@ -15,6 +15,7 @@ import type { RestFetcher } from "../../types/chat-service";
 import type { VisitingMode } from "../../types/visiting";
 import { isVisitingMode } from "../../types/visiting";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
+import { appLog } from "../../utils/logger";
 
 export type BlockedProfile = {
 	profileId: string;
@@ -61,41 +62,54 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			}
 
 			const targetProfileIds = blockEntries.map(e => Number(e.profileId)).filter(id => !isNaN(id));
+			const detailsMap = new Map<string, { displayName: string | null; profileImageMediaHash: string | null }>();
+
+			// Chunk targetProfileIds into batches of 50 to avoid Grindr API limit (typically 50-100 per request)
+			const CHUNK_SIZE = 50;
+			const chunks: number[][] = [];
+			for (let i = 0; i < targetProfileIds.length; i += CHUNK_SIZE) {
+				chunks.push(targetProfileIds.slice(i, i + CHUNK_SIZE));
+			}
 
 			try {
-				const detailsResponse = await fetchRest("/v3/profiles", {
-					method: "POST",
-					body: { targetProfileIds },
-				});
-				await assertSuccess(detailsResponse, t("profile_details.block_failed"));
-				const detailsPayload = await parseJsonSafe(detailsResponse);
+				appLog.debug(`[getBlockedProfiles] Fetching details for ${targetProfileIds.length} profiles in ${chunks.length} chunks`);
+				await Promise.all(
+					chunks.map(async (chunk, index) => {
+						const detailsResponse = await fetchRest("/v3/profiles", {
+							method: "POST",
+							body: { targetProfileIds: chunk },
+						});
+						await assertSuccess(detailsResponse, t("profile_details.block_failed"));
+						const detailsPayload = await parseJsonSafe(detailsResponse);
 
-				if (detailsPayload && typeof detailsPayload === "object" && Array.isArray((detailsPayload as any).profiles)) {
-					const profilesData = (detailsPayload as { profiles: any[] }).profiles;
-					const detailsMap = new Map<string, { displayName: string | null; profileImageMediaHash: string | null }>();
-					
-					profilesData.forEach((p) => {
-						if (p && typeof p === "object" && p.profileId) {
-							detailsMap.set(String(p.profileId), {
-								displayName: typeof p.displayName === "string" ? p.displayName : null,
-								profileImageMediaHash: typeof p.profileImageMediaHash === "string" ? p.profileImageMediaHash : null,
+						if (detailsPayload && typeof detailsPayload === "object" && Array.isArray((detailsPayload as any).profiles)) {
+							const profilesData = (detailsPayload as { profiles: any[] }).profiles;
+							profilesData.forEach((p) => {
+								if (p && typeof p === "object" && p.profileId) {
+									detailsMap.set(String(p.profileId), {
+										displayName: typeof p.displayName === "string" ? p.displayName : null,
+										profileImageMediaHash: typeof p.profileImageMediaHash === "string" ? p.profileImageMediaHash : null,
+									});
+								}
 							});
+						} else {
+							appLog.warn(`[getBlockedProfiles] Chunk ${index} returned invalid payload:`, detailsPayload);
 						}
-					});
+					})
+				);
 
-					// Map original block entries to include metadata, keeping the server's original ordering
-					return blockEntries.map((entry) => {
-						const meta = detailsMap.get(entry.profileId);
-						return {
-							profileId: entry.profileId,
-							displayName: meta?.displayName ?? null,
-							profileImageMediaHash: meta?.profileImageMediaHash ?? null,
-							timestamp: entry.timestamp,
-						};
-					});
-				}
+				// Map original block entries to include metadata, keeping the server's original ordering
+				return blockEntries.map((entry) => {
+					const meta = detailsMap.get(entry.profileId);
+					return {
+						profileId: entry.profileId,
+						displayName: meta?.displayName ?? null,
+						profileImageMediaHash: meta?.profileImageMediaHash ?? null,
+						timestamp: entry.timestamp,
+					};
+				});
 			} catch (err) {
-				console.error("Failed to fetch blocked profile details:", err);
+				appLog.error("Failed to fetch blocked profile details:", err);
 			}
 
 			// Fallback if details query fails
