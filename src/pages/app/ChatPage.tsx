@@ -293,10 +293,6 @@ export function ChatPage() {
 			if (messageLongPressTimeoutRef.current != null) {
 				window.clearTimeout(messageLongPressTimeoutRef.current);
 			}
-			// Cleanup double tap timeouts
-			for (const id of Object.values(doubleTapTimeoutRef.current)) {
-				window.clearTimeout(id);
-			}
 		};
 	}, []);
 
@@ -2723,23 +2719,7 @@ export function ChatPage() {
 		}
 	};
 
-	const doubleTapTimeoutRef = useRef<Record<string, number>>({});
-	const handleMessageTap = useCallback(
-		(message: UiMessage) => {
-			const messageId = message.messageId;
-			if (doubleTapTimeoutRef.current[messageId]) {
-				window.clearTimeout(doubleTapTimeoutRef.current[messageId]);
-				delete doubleTapTimeoutRef.current[messageId];
-				void handleReact(message);
-			} else {
-				doubleTapTimeoutRef.current[messageId] = window.setTimeout(() => {
-					delete doubleTapTimeoutRef.current[messageId];
-				}, 300);
-			}
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[],
-	);
+
 
 	const handleUnsend = async (message: UiMessage) => {
 		if (isMutatingMessageId) {
@@ -3314,7 +3294,6 @@ export function ChatPage() {
 			threadMessages={threadMessages}
 			threadLastReadTimestamp={threadLastReadTimestamp}
 			messageElementRefs={messageElementRefs}
-			handleMessageTap={handleMessageTap}
 			startMessageLongPress={startMessageLongPress}
 			endMessageLongPress={endMessageLongPress}
 			messageLongPressTriggeredRef={messageLongPressTriggeredRef}

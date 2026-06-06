@@ -297,6 +297,12 @@ export function NavBar() {
 		}
 	};
 
+	const handleTabsTriggerClick = (value: string) => {
+		if (activeTab === value) {
+			window.dispatchEvent(new CustomEvent(`fg:active-tab-clicked:${value}`));
+		}
+	};
+
 	// Determine the grid column class safely based on exactly how many tabs remain
 	const gridColsClass = 
 		navItems.length === 2 ? "grid-cols-2" : 
@@ -322,6 +328,7 @@ export function NavBar() {
 								<TabsTrigger
 									key={item.value}
 									value={item.value}
+									onClick={() => handleTabsTriggerClick(item.value)}
 									className={cn(
 										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
 										item.value === "right-now"

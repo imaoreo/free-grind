@@ -42,7 +42,6 @@ type ChatThreadMessagesProps = {
 	threadMessages: UiMessage[];
 	threadLastReadTimestamp: number | null;
 	messageElementRefs: { current: Map<string, HTMLDivElement> };
-	handleMessageTap: (message: Message) => void | Promise<void>;
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
@@ -129,7 +128,6 @@ export function ChatThreadMessages({
 	threadMessages,
 	threadLastReadTimestamp,
 	messageElementRefs,
-	handleMessageTap,
 	startMessageLongPress,
 	endMessageLongPress,
 	messageLongPressTriggeredRef,
@@ -493,7 +491,7 @@ export function ChatThreadMessages({
 									>
 										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
 											<div
-												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
+												onDoubleClick={isDesktop ? () => void handleReact(message) : undefined}
 												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
 												onTouchStart={(event) => handleMobileTouchStart(event, message)}
 												onTouchEnd={handleMobileTouchEnd}

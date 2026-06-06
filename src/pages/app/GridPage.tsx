@@ -617,6 +617,28 @@ export function GridPage() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [loadBrowseCards, initialLocationChecked, geohash]);
 
+	useEffect(() => {
+		const handleActiveTabClick = () => {
+			if (window.scrollY > 10) {
+				window.scrollTo({ top: 0, behavior: "smooth" });
+			} else {
+				if (isLoadingCards || isLoadingMoreCards) return;
+				void refreshLocation().then((activeGeohash) => {
+					void loadBrowseCards({
+						preferCache: false,
+						showLoadingState: true,
+						overrideGeohash: activeGeohash || undefined,
+					});
+				});
+			}
+		};
+
+		window.addEventListener("fg:active-tab-clicked:browse", handleActiveTabClick);
+		return () => {
+			window.removeEventListener("fg:active-tab-clicked:browse", handleActiveTabClick);
+		};
+	}, [isLoadingCards, isLoadingMoreCards, refreshLocation, loadBrowseCards]);
+
 	// Reset scroll restoration state when cache key (filters/location) changes
 	useEffect(() => {
 		setHasRestoredScroll(false);

@@ -5,7 +5,6 @@ import {
 	Ellipsis,
     Eye,
     EyeOff,
-	Heart,
 	Hourglass,
 	ImagePlus,
 	Infinity,
@@ -24,6 +23,7 @@ import {
 	Share2,
 	SquareCenterlineDashedHorizontal,
 	SquareStack,
+	Star,
 	TimerOff,
 	Trash2,
 	User,
@@ -112,7 +112,6 @@ type ChatThreadPanelProps = {
 	threadMessages: UiMessage[];
 	threadLastReadTimestamp: number | null;
 	messageElementRefs: { current: Map<string, HTMLDivElement> };
-	handleMessageTap: (message: Message) => void | Promise<void>;
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
@@ -250,7 +249,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		threadMessages,
 		threadLastReadTimestamp,
 		messageElementRefs,
-		handleMessageTap,
 		startMessageLongPress,
 		endMessageLongPress,
 		messageLongPressTriggeredRef,
@@ -801,14 +799,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
 											className={`rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60 ${
 												isFavorite
-													? "border-pink-500/40 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20"
+													? "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
 													: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
 											}`}
 										>
 											{isTogglingFavorite ? (
 												<Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
 											) : (
-												<Heart className={`mr-1 inline h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
+												<Star className={`mr-1 inline h-3.5 w-3.5 ${isFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
 											)}
 											{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 										</button>
@@ -972,13 +970,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														}}
 														disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
 														className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition disabled:opacity-60 ${
-															isFavorite ? "text-pink-400 hover:bg-pink-500/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+															isFavorite ? "text-amber-400 hover:bg-amber-500/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
 														}`}
 													>
 														{isTogglingFavorite ? (
 															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 														) : (
-															<Heart className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+															<Star className={`mr-2 h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
 														)}
 														{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 													</button>
@@ -1151,7 +1149,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						threadMessages={threadMessages}
 						threadLastReadTimestamp={threadLastReadTimestamp}
 						messageElementRefs={messageElementRefs}
-						handleMessageTap={handleMessageTap}
 						startMessageLongPress={startMessageLongPress}
 						endMessageLongPress={endMessageLongPress}
 						messageLongPressTriggeredRef={messageLongPressTriggeredRef}
