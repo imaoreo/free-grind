@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiFunctions } from "../useApiFunctions";
 
+import { type BlockedProfile } from "../../services/api/profileMethods";
+
 /**
  * Hook to fetch and manage blocked profile IDs.
  */
@@ -14,8 +16,20 @@ export function useBlockedProfileIds() {
 }
 
 /**
+ * Hook to fetch and manage full blocked profile details.
+ */
+export function useBlockedProfiles() {
+	const api = useApiFunctions();
+	return useQuery({
+		queryKey: ["blocked-profiles"],
+		queryFn: () => api.getBlockedProfiles(),
+		staleTime: 1000 * 60 * 10,
+	});
+}
+
+/**
  * Mutation to block a profile.
- * Automatically updates the "blocked-profile-ids" cache.
+ * Automatically updates the cache.
  */
 export function useBlockProfile() {
 	const api = useApiFunctions();
@@ -30,13 +44,15 @@ export function useBlockProfile() {
 				if (old.includes(profileId)) return old;
 				return [...old, profileId];
 			});
+			// Invalidate the full profiles query so it refetches the list from the server
+			queryClient.invalidateQueries({ queryKey: ["blocked-profiles"] });
 		},
 	});
 }
 
 /**
  * Mutation to unblock a profile.
- * Automatically updates the "blocked-profile-ids" cache.
+ * Automatically updates the cache.
  */
 export function useUnblockProfile() {
 	const api = useApiFunctions();
@@ -49,6 +65,11 @@ export function useUnblockProfile() {
 			queryClient.setQueryData<string[]>(["blocked-profile-ids"], (old) => {
 				if (!old) return [];
 				return old.filter((id) => id !== profileId);
+			});
+			// Manually remove from the blocked profiles list to reflect instantly in the UI
+			queryClient.setQueryData<BlockedProfile[]>(["blocked-profiles"], (old) => {
+				if (!old) return [];
+				return old.filter((p) => p.profileId !== profileId);
 			});
 		},
 	});

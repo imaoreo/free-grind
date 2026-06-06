@@ -16,9 +16,16 @@ import type { VisitingMode } from "../../types/visiting";
 import { isVisitingMode } from "../../types/visiting";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 
+export type BlockedProfile = {
+	profileId: string;
+	displayName: string | null;
+	profileImageMediaHash: string | null;
+	timestamp: number | null;
+};
+
 export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) => string) {
-	return {
-		async getBlockedProfileIds(): Promise<string[]> {
+	const methods = {
+		async getBlockedProfiles(): Promise<BlockedProfile[]> {
 			const response = await fetchRest("/v3.1/me/blocks");
 			await assertSuccess(response, t("profile_details.block_failed"));
 			const payload = await parseJsonSafe(response);
@@ -32,22 +39,77 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			}
 
 			const blocking = (payload as { blocking?: unknown }).blocking;
-			if (!Array.isArray(blocking)) {
+			if (!Array.isArray(blocking) || blocking.length === 0) {
 				return [];
 			}
 
-			return blocking
+			const blockEntries = blocking
 				.map((entry) => {
-					if (typeof entry !== "object" || entry === null) {
-						return null;
-					}
+					if (typeof entry !== "object" || entry === null) return null;
 					const profileId = (entry as { profileId?: unknown }).profileId;
-					if (typeof profileId === "string" || typeof profileId === "number") {
-						return String(profileId);
-					}
-					return null;
+					const blockedTime = (entry as { blockedTime?: unknown }).blockedTime;
+					if (typeof profileId !== "string" && typeof profileId !== "number") return null;
+					return {
+						profileId: String(profileId),
+						timestamp: typeof blockedTime === "number" ? blockedTime : null,
+					};
 				})
-				.filter((profileId): profileId is string => profileId !== null);
+				.filter((entry): entry is { profileId: string; timestamp: number | null } => entry !== null);
+
+			if (blockEntries.length === 0) {
+				return [];
+			}
+
+			const targetProfileIds = blockEntries.map(e => Number(e.profileId)).filter(id => !isNaN(id));
+
+			try {
+				const detailsResponse = await fetchRest("/v3/profiles", {
+					method: "POST",
+					body: { targetProfileIds },
+				});
+				await assertSuccess(detailsResponse, t("profile_details.block_failed"));
+				const detailsPayload = await parseJsonSafe(detailsResponse);
+
+				if (detailsPayload && typeof detailsPayload === "object" && Array.isArray((detailsPayload as any).profiles)) {
+					const profilesData = (detailsPayload as { profiles: any[] }).profiles;
+					const detailsMap = new Map<string, { displayName: string | null; profileImageMediaHash: string | null }>();
+					
+					profilesData.forEach((p) => {
+						if (p && typeof p === "object" && p.profileId) {
+							detailsMap.set(String(p.profileId), {
+								displayName: typeof p.displayName === "string" ? p.displayName : null,
+								profileImageMediaHash: typeof p.profileImageMediaHash === "string" ? p.profileImageMediaHash : null,
+							});
+						}
+					});
+
+					// Map original block entries to include metadata, keeping the server's original ordering
+					return blockEntries.map((entry) => {
+						const meta = detailsMap.get(entry.profileId);
+						return {
+							profileId: entry.profileId,
+							displayName: meta?.displayName ?? null,
+							profileImageMediaHash: meta?.profileImageMediaHash ?? null,
+							timestamp: entry.timestamp,
+						};
+					});
+				}
+			} catch (err) {
+				console.error("Failed to fetch blocked profile details:", err);
+			}
+
+			// Fallback if details query fails
+			return blockEntries.map((entry) => ({
+				profileId: entry.profileId,
+				displayName: null,
+				profileImageMediaHash: null,
+				timestamp: entry.timestamp,
+			}));
+		},
+
+		async getBlockedProfileIds(): Promise<string[]> {
+			const profiles = await methods.getBlockedProfiles();
+			return profiles.map((p) => p.profileId);
 		},
 
 		async blockProfile(profileId: string): Promise<{ ok: true }> {
@@ -329,4 +391,5 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			return payload as ProfileImageUploadResult;
 		},
 	};
+	return methods;
 }

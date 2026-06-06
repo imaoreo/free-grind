@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { UserX } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
-import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useBlockedProfileIds, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
+import { useBlockedProfiles, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { ProfileImage } from "../../components/ui/profile-image";
 
@@ -17,124 +16,40 @@ type BlockedProfileListItem = {
 
 export function SettingsBlockedPage() {
 	const { t } = useTranslation();
-	const apiFunctions = useApiFunctions();
-	const { data: blockedIdsData, isLoading: isLoadingIds, refetch: refetchIds } = useBlockedProfileIds();
+	const { data: blockedProfilesData, isLoading, refetch, error: queryError } = useBlockedProfiles();
 	const { mutateAsync: unblockProfileMutation, isPending: isUnblocking } = useUnblockProfile();
 
-	const [blockedProfiles, setBlockedProfiles] = useState<BlockedProfileListItem[]>([]);
-	const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [mutatingProfileId, setMutatingProfileId] = useState<string | null>(null);
 
-	const extractBlockedProfileMeta = useCallback(
-		(rawProfilePayload: unknown, profileId: string) => {
-			const fallbackName = t("profile_details.profile_fallback", { id: profileId });
-			if (typeof rawProfilePayload !== "object" || rawProfilePayload === null) {
-				return {
-					displayName: fallbackName,
-					avatarUrl: null,
-				};
-			}
+	const blockedProfiles = useMemo(() => {
+		if (!blockedProfilesData) {
+			return [];
+		}
 
-			const profiles = (rawProfilePayload as { profiles?: unknown }).profiles;
-			if (!Array.isArray(profiles) || profiles.length === 0) {
-				return {
-					displayName: fallbackName,
-					avatarUrl: null,
-				};
-			}
+		// Sort by timestamp descending (most recent block at the top)
+		const sorted = [...blockedProfilesData].sort((a, b) => {
+			const tA = a.timestamp ?? 0;
+			const tB = b.timestamp ?? 0;
+			return tB - tA;
+		});
 
-			const first = profiles[0];
-			if (typeof first !== "object" || first === null) {
-				return {
-					displayName: fallbackName,
-					avatarUrl: null,
-				};
-			}
-
-			const displayNameRaw = (first as { displayName?: unknown }).displayName;
-			const displayName =
-				typeof displayNameRaw === "string" && displayNameRaw.trim().length > 0
-					? displayNameRaw.trim()
-					: fallbackName;
-
-			const hashRaw = (first as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+		return sorted.map((profile) => {
+			const fallbackName = t("profile_details.profile_fallback", { id: profile.profileId });
+			const displayName = profile.displayName?.trim() || fallbackName;
 			const avatarUrl =
-				typeof hashRaw === "string" && validateMediaHash(hashRaw)
-					? getThumbImageUrl(hashRaw, "75x75")
+				profile.profileImageMediaHash && validateMediaHash(profile.profileImageMediaHash)
+					? getThumbImageUrl(profile.profileImageMediaHash, "75x75")
 					: null;
 
-			return { displayName, avatarUrl };
-		},
-		[t],
-	);
+			return {
+				profileId: profile.profileId,
+				displayName,
+				avatarUrl,
+			} satisfies BlockedProfileListItem;
+		});
+	}, [blockedProfilesData, t]);
 
-	const loadBlockedProfileDetails = useCallback(
-		async (blockedIds: string[]) => {
-			setIsLoadingDetails(true);
-			setError(null);
-
-			try {
-				if (blockedIds.length === 0) {
-					setBlockedProfiles([]);
-					return;
-				}
-
-				const profileResults = await Promise.allSettled(
-					blockedIds.map(async (profileId) => {
-						const raw = await apiFunctions.getRawProfile(profileId);
-						const { displayName, avatarUrl } = extractBlockedProfileMeta(
-							raw,
-							profileId,
-						);
-						return {
-							profileId,
-							displayName,
-							avatarUrl,
-						} satisfies BlockedProfileListItem;
-					}),
-				);
-
-				const successful = profileResults
-					.filter(
-						(
-							result,
-						): result is PromiseFulfilledResult<BlockedProfileListItem> =>
-							result.status === "fulfilled",
-					)
-					.map((result) => result.value);
-
-				const successfulIds = new Set(successful.map((profile) => profile.profileId));
-				const fallbackItems = blockedIds
-					.filter((profileId) => !successfulIds.has(profileId))
-					.map((profileId) => ({
-						profileId,
-						displayName: t("profile_details.profile_fallback", { id: profileId }),
-						avatarUrl: null,
-					}));
-
-				setBlockedProfiles([...successful, ...fallbackItems]);
-			} catch (loadError) {
-				setBlockedProfiles([]);
-				setError(
-					loadError instanceof Error
-						? loadError.message
-						: t("settings_blocked.error_load"),
-				);
-			} finally {
-				setIsLoadingDetails(false);
-			}
-		},
-		[apiFunctions, extractBlockedProfileMeta, t],
-	);
-
-	useEffect(() => {
-		if (blockedIdsData) {
-			void loadBlockedProfileDetails(blockedIdsData);
-		}
-	}, [blockedIdsData, loadBlockedProfileDetails]);
-
-	const isLoading = isLoadingIds || isLoadingDetails;
+	const error = queryError instanceof Error ? queryError.message : null;
 
 	const blockedCountLabel = useMemo(
 		() =>
@@ -162,7 +77,6 @@ export function SettingsBlockedPage() {
 		setMutatingProfileId(profileId);
 		try {
 			await unblockProfileMutation(profileId);
-			// The blockedProfiles state is updated via the useEffect above when blockedIdsData changes
 			toast.success(t("profile_details.unblock_success"));
 		} catch (unblockError) {
 			toast.error(
@@ -185,7 +99,7 @@ export function SettingsBlockedPage() {
 	return (
 		<PullToRefreshContainer
 			className="app-screen"
-			onRefresh={() => refetchIds()}
+			onRefresh={() => refetch()}
 			isDisabled={isLoading}
 			refreshingLabel={t("settings_blocked.refreshing")}
 		>
