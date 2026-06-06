@@ -386,6 +386,29 @@ export function ChatThreadMessages({
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
+								const replyPreviewRaw = message.replyPreview as { text?: string } | null | undefined;
+								const replyText = typeof replyPreviewRaw?.text === "string" && replyPreviewRaw.text.trim().length > 0
+									? replyPreviewRaw.text.trim()
+									: null;
+								const replyToMsgRef = message.replyToMessage as { messageId?: string; senderId?: number } | null | undefined;
+								const replySenderId = replyToMsgRef?.senderId
+									?? threadMessages.find(m => m.messageId === replyToMsgRef?.messageId)?.senderId
+									?? null;
+								const replyLabel = replyText
+									? replySenderId === userId
+										? mine ? "Reply to myself" : "Reply to you"
+										: `Reply to "${selectedConversation.data.name || ""}"`
+									: null;
+								// Strip the "> quoted\n" prefix that gets embedded in body.text on send
+								let displayText = messageText;
+								if (replyText) {
+									const quotedPrefix = `> ${replyText}\n`;
+									if (displayText.startsWith(quotedPrefix)) {
+										displayText = displayText.slice(quotedPrefix.length);
+									} else if (displayText.startsWith("> ")) {
+										displayText = displayText.replace(/^>.*\n?/, "").trim();
+									}
+								}
 								const isExpiringImage = message.type === "ExpiringImage";
 								const isAlbumMessage =
 									message.type === "Album" ||
@@ -904,9 +927,23 @@ export function ChatThreadMessages({
 													</div>
 												) : null}
 
+												{replyText && !isMediaOnlyBubble ? (
+													<div className={`relative mb-2.5 mt-1 overflow-hidden rounded-[6px] text-xs ${
+														mine ? "bg-black/20" : "bg-black/[0.08]"
+													}`}>
+														<div className={`absolute left-0 top-0 h-full w-[3px] ${
+															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
+														}`} />
+														<div className="py-2.5 pl-[13px] pr-2.5">
+															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText}</p>
+														</div>
+													</div>
+												) : null}
+
 												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
 													<p className="whitespace-pre-wrap break-words">
-														{messageText}
+														{displayText}
 													</p>
 												) : null}
 
