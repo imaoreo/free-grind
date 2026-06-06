@@ -475,6 +475,7 @@ export function ProfileDetailsContent({
 							{onMessageProfile && (
 								<button
 									type="button"
+									onClick={() => onMessageProfile(messageProfileId)}
 									disabled={activeProfile.isBlockable === null || activeProfile.displayName === "3" || activeProfile.displayName === "4"}
 									className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--accent)] hover:border-[var(--accent)]/50 hover:bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface-2))] transition-all duration-300 active:scale-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 									title={t("profile_details.message")}
