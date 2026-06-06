@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban, Lock, Trash2 } from "lucide-react";
+import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban, FileText, Trash2 } from "lucide-react";
 import { type RefObject, type UIEvent, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -529,9 +529,9 @@ export function ProfileDetailsContent({
 								className="inline-flex items-center gap-1 hover:text-[var(--accent)] transition-colors cursor-pointer text-left max-w-[150px] sm:max-w-[200px]"
 								title={activeNote ? t("favorites.edit_note_title", "Click to edit note") : t("favorites.add_note_title", "Click to add note")}
 							>
-								<Lock className="h-3 w-3 text-amber-500/80 shrink-0" />
-								<span className="font-semibold text-[var(--text-muted)] truncate">
-									{activeNote ? `Note: "${activeNote}"` : t("favorites.add_note_link", "Add Note...")}
+								<FileText className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0" />
+								<span className={`font-semibold text-[var(--text-muted)] truncate ${activeNote ? "italic" : ""}`}>
+									{activeNote ? activeNote : t("favorites.add_note_link", "Add Note...")}
 								</span>
 							</button>
 						</>
@@ -971,7 +971,7 @@ export function ProfileDetailsContent({
 			>
 				<div className="p-4 flex flex-col gap-3">
 					<div className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
-						<Lock className="h-4 w-4 text-amber-500/80" />
+						<FileText className="h-4 w-4 text-amber-500 dark:text-amber-400" />
 						<span>{t("favorites.private_note_title", "Private Note")}</span>
 					</div>
 
