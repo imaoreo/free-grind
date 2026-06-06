@@ -374,7 +374,7 @@ export function ProfileDetailsContent({
 						)}
 					</>
 				) : (
-					<div className="relative max-w-sm overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
+					<div className="relative max-w-sm mx-auto w-full overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
 						<ProfileImage
 							alt={t("profile_details.default_profile")}
 						/>
