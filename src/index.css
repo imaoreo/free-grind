@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+@font-face {
+	font-family: "Twemoji Country Flags";
+	src: url("./fonts/TwemojiCountryFlags.woff2") format("woff2");
+	font-display: swap;
+}
+
 @theme {
 	--color-accent: var(--accent);
 
@@ -360,7 +366,7 @@
 		margin: 0;
 		background: var(--bg);
 		color: var(--text);
-		font-family: "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
+		font-family: "Twemoji Country Flags", "IBM Plex Sans Variable", "IBM Plex Sans", sans-serif;
 		font-feature-settings:
 			"rlig" 1,
 			"calt" 1;
