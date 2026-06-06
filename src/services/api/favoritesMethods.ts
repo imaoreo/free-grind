@@ -27,10 +27,9 @@ export function createFavoritesMethods(fetchRest: RestFetcher, t: (key: string) 
 		},
 
 		async saveFavoriteNote(profileId: string, notes: string): Promise<void> {
-			const response = await fetchRest("/v1/favorites/notes", {
+			const response = await fetchRest(`/v1/favorites/notes/${profileId}`, {
 				method: "PUT",
 				body: {
-					counterpartyId: profileId,
 					notes: notes,
 					phoneNumber: "",
 				},
