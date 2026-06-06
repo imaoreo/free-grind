@@ -30,7 +30,6 @@ import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
-import { SettingsBlockDetectorPage } from "./pages/app/SettingsBlockDetectorPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
@@ -117,7 +116,6 @@ export default function App() {
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
 								<Route path="/settings/saved-phrases" element={<SettingsSavedPhrasesPage />} />
-								<Route path="/settings/block-detector" element={<SettingsBlockDetectorPage />} />
 								<Route
 									path="/settings/api-inspector"
 									element={
