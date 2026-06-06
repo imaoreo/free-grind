@@ -24,6 +24,7 @@ import {
 	setCachedPronounOptions,
 	setCachedBlockedProfileIds,
 	setCachedOwnProfilePhotoHash,
+	clearAllGridCaches,
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
@@ -1367,6 +1368,7 @@ export function GridPage() {
 				className="app-screen overflow-x-hidden !px-0"
 				style={{ width: "100%" }}
 				onRefresh={async () => {
+					clearAllGridCaches();
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
 						sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
