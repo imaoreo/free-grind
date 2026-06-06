@@ -511,6 +511,28 @@ export function GridPage() {
 		],
 	);
 
+	const executeGridRefresh = useCallback(
+		async (showSpinner: boolean) => {
+			clearAllGridCaches();
+			let activeGeohash = geohash;
+			if (browseCacheKey) {
+				sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
+			}
+			if (useAutoLocation) {
+				const next = await refreshLocation();
+				if (next) {
+					activeGeohash = next;
+				}
+			}
+			return loadBrowseCards({
+				preferCache: false,
+				showLoadingState: showSpinner,
+				overrideGeohash: activeGeohash || undefined,
+			});
+		},
+		[browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation],
+	);
+
 	useEffect(() => {
 		// Reset tracking if the user logs out or switches accounts
 		if (userId !== lastUserIdRef.current) {
@@ -727,27 +749,7 @@ export function GridPage() {
 		};
 	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
 
-	const executeGridRefresh = useCallback(
-		async (showSpinner: boolean) => {
-			clearAllGridCaches();
-			let activeGeohash = geohash;
-			if (browseCacheKey) {
-				sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
-			}
-			if (useAutoLocation) {
-				const next = await refreshLocation();
-				if (next) {
-					activeGeohash = next;
-				}
-			}
-			return loadBrowseCards({
-				preferCache: false,
-				showLoadingState: showSpinner,
-				overrideGeohash: activeGeohash || undefined,
-			});
-		},
-		[browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation],
-	);
+
 
 	const handleAutoRefresh = useCallback(async () => {
 		appLog.info("[grid] auto-refresh triggered");
