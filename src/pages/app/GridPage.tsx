@@ -190,10 +190,10 @@ export function GridPage() {
 	}, [apiFunctions, isFetchingNotes, hasAttemptedFetchNotes, t]);
 
 	useEffect(() => {
-		if (isSearchOpen && !hasAttemptedFetchNotes) {
+		if (userId && !hasAttemptedFetchNotes) {
 			void handleFetchNotes();
 		}
-	}, [isSearchOpen, hasAttemptedFetchNotes, handleFetchNotes]);
+	}, [userId, hasAttemptedFetchNotes, handleFetchNotes]);
 
 	const {
 		browseFilters,
@@ -1698,14 +1698,14 @@ export function GridPage() {
 				chatContactStatus={selectedProfileChatContact}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
-				activeNote={activeProfileId ? favoriteNotes.find((n) => n.counterpartyId === activeProfileId)?.notes : undefined}
+				activeNote={activeProfileId ? favoriteNotes.find((n) => String(n.counterpartyId) === String(activeProfileId))?.notes : undefined}
 				onSaveNote={async (notes) => {
 					if (activeProfileId) {
 						await apiFunctions.saveFavoriteNote(activeProfileId, notes);
 						setFavoriteNotes((prev) => {
-							const existing = prev.find((n) => n.counterpartyId === activeProfileId);
+							const existing = prev.find((n) => String(n.counterpartyId) === String(activeProfileId));
 							if (existing) {
-								return prev.map((n) => (n.counterpartyId === activeProfileId ? { ...n, notes } : n));
+								return prev.map((n) => (String(n.counterpartyId) === String(activeProfileId) ? { ...n, notes } : n));
 							}
 							return [...prev, { counterpartyId: activeProfileId, notes, phoneNumber: "" }];
 						});
@@ -1714,7 +1714,7 @@ export function GridPage() {
 				onDeleteNote={async () => {
 					if (activeProfileId) {
 						await apiFunctions.deleteFavoriteNote(activeProfileId);
-						setFavoriteNotes((prev) => prev.filter((n) => n.counterpartyId !== activeProfileId));
+						setFavoriteNotes((prev) => prev.filter((n) => String(n.counterpartyId) !== String(activeProfileId)));
 					}
 				}}
 			/>

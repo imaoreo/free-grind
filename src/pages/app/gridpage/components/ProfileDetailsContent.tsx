@@ -530,7 +530,7 @@ export function ProfileDetailsContent({
 								title={activeNote ? t("favorites.edit_note_title", "Click to edit note") : t("favorites.add_note_title", "Click to add note")}
 							>
 								<FileText className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0" />
-								<span className={`font-semibold text-[var(--text-muted)] truncate ${activeNote ? "italic" : ""}`}>
+								<span className="font-semibold text-[var(--text-muted)] truncate">
 									{activeNote ? activeNote : t("favorites.add_note_link", "Add Note...")}
 								</span>
 							</button>

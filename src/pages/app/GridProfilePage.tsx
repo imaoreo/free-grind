@@ -624,14 +624,14 @@ export function GridProfilePage() {
 				chatContactStatus={chatContactStatus}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
-				activeNote={profileId ? favoriteNotes.find((n) => n.counterpartyId === profileId)?.notes : undefined}
+				activeNote={profileId ? favoriteNotes.find((n) => String(n.counterpartyId) === String(profileId))?.notes : undefined}
 				onSaveNote={async (notes) => {
 					if (profileId) {
 						await apiFunctions.saveFavoriteNote(profileId, notes);
 						setFavoriteNotes((prev) => {
-							const existing = prev.find((n) => n.counterpartyId === profileId);
+							const existing = prev.find((n) => String(n.counterpartyId) === String(profileId));
 							if (existing) {
-								return prev.map((n) => (n.counterpartyId === profileId ? { ...n, notes } : n));
+								return prev.map((n) => (String(n.counterpartyId) === String(profileId) ? { ...n, notes } : n));
 							}
 							return [...prev, { counterpartyId: profileId, notes, phoneNumber: "" }];
 						});
@@ -640,7 +640,7 @@ export function GridProfilePage() {
 				onDeleteNote={async () => {
 					if (profileId) {
 						await apiFunctions.deleteFavoriteNote(profileId);
-						setFavoriteNotes((prev) => prev.filter((n) => n.counterpartyId !== profileId));
+						setFavoriteNotes((prev) => prev.filter((n) => String(n.counterpartyId) !== String(profileId)));
 					}
 				}}
 			/>
