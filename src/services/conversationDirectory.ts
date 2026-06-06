@@ -51,3 +51,7 @@ export function getOtherParticipantImageHash(
 		null;
 	return other?.primaryMediaHash ?? null;
 }
+
+export function clearConversationDirectory(): void {
+	directory.clear();
+}

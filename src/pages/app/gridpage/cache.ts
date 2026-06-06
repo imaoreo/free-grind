@@ -156,3 +156,26 @@ export function setCachedOwnProfilePhotoHash(hash: string | null) {
 		expiresAt: Infinity, // Session-based: does not expire until app reload
 	};
 }
+
+export function clearAllGridCaches() {
+	profileCache.clear();
+	browseCache.clear();
+	genderOptionsCache = null;
+	pronounOptionsCache = null;
+	blockedProfileIdsCache = null;
+	ownProfilePhotoHashCache = null;
+
+	if (typeof window !== "undefined") {
+		try {
+			for (let i = 0; i < window.sessionStorage.length; i++) {
+				const key = window.sessionStorage.key(i);
+				if (key && key.startsWith("grid-scroll-")) {
+					window.sessionStorage.removeItem(key);
+					i--; // adjust index because item was removed
+				}
+			}
+		} catch (e) {
+			console.error("Failed to clear sessionStorage grid scrolls", e);
+		}
+	}
+}

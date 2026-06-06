@@ -28,8 +28,11 @@ export function SmoothScroll({
 	const lenisRef = useRef<Lenis | null>(null);
 	const location = useLocation();
 
+	const isMobile = typeof navigator !== "undefined" && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+	const shouldEnable = enabled && !isMobile;
+
 	useEffect(() => {
-		if (!enabled) {
+		if (!shouldEnable) {
 			if (lenisRef.current) {
 				lenisRef.current.destroy();
 				lenisRef.current = null;
@@ -85,11 +88,11 @@ export function SmoothScroll({
 			delete (window as any).lenis;
 			document.documentElement.classList.remove("lenis", "lenis-smooth", "lenis-scrolling");
 		};
-	}, [enabled, smoothTouch, duration, wheelMultiplier, touchMultiplier, lerp]);
+	}, [shouldEnable, smoothTouch, duration, wheelMultiplier, touchMultiplier, lerp]);
 
 	// Global scroll-to-top on route change
 	useEffect(() => {
-		if (lenisRef.current && enabled) {
+		if (lenisRef.current && shouldEnable) {
 			const pagesWithoutTopReset = ["/", "/chat"];
 			if (!pagesWithoutTopReset.includes(location.pathname)) {
 				lenisRef.current.scrollTo(0, { immediate: true });
@@ -101,11 +104,11 @@ export function SmoothScroll({
 			}, 150);
 			return () => clearTimeout(timer);
 		}
-	}, [location.pathname, enabled]);
+	}, [location.pathname, shouldEnable]);
 
 	return (
 		<>
-			{enabled && (
+			{shouldEnable && (
 				<style dangerouslySetInnerHTML={{ __html: `
 					html.lenis, html.lenis body {
 						height: auto;

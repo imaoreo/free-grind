@@ -1714,82 +1714,86 @@ export function GridPage() {
 				</div>
 			</div>
 
-			<ProfileDetailsModal
-				isOpen={Boolean(activeProfileId)}
-				onClose={() => setActiveProfileId(null)}
-				onMessageProfile={handleMessageProfile}
-				onTriangleProfile={handleTriangleProfile}
-				onBlockProfile={handleBlockProfile}
-				onUnblockProfile={handleUnblockProfile}
-				onToggleFavoriteProfile={handleToggleFavoriteProfile}
-				isFavorite={Boolean(activeProfile?.isFavorite)}
-				isTogglingFavorite={Boolean(
-					activeProfileId && mutatingFavoriteProfileId === activeProfileId,
-				)}
-				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
-				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
-				isLocatingProfile={isLocatingProfile}
-				onTapProfile={handleTapProfile}
-				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
-				isTapBlocked={hasSentTapRecently}
-				tapVisualState={resolvedTapVisualState}
-				activeProfile={activeProfile}
-				selectedBrowseCard={selectedBrowseCard}
-				isLoadingActiveProfile={isLoadingActiveProfile}
-				activeProfileError={activeProfileError}
-				activeProfilePhotoHashes={activeProfilePhotoHashes}
-				chatContactStatus={selectedProfileChatContact}
-				genderOptions={genderOptions}
-				pronounOptions={pronounOptions}
-				activeNote={activeProfileId ? favoriteNotes.find((n) => String(n.counterpartyId) === String(activeProfileId))?.notes : undefined}
-				onSaveNote={async (notes) => {
-					if (activeProfileId) {
-						await apiFunctions.saveFavoriteNote(activeProfileId, notes);
-						setFavoriteNotes((prev) => {
-							const existing = prev.find((n) => String(n.counterpartyId) === String(activeProfileId));
-							if (existing) {
-								return prev.map((n) => (String(n.counterpartyId) === String(activeProfileId) ? { ...n, notes } : n));
-							}
-							return [...prev, { counterpartyId: activeProfileId, notes, phoneNumber: "" }];
-						});
-					}
-				}}
-				onDeleteNote={async () => {
-					if (activeProfileId) {
-						await apiFunctions.deleteFavoriteNote(activeProfileId);
-						setFavoriteNotes((prev) => prev.filter((n) => String(n.counterpartyId) !== String(activeProfileId)));
-					}
-				}}
-			/>
+			{Boolean(activeProfileId) && (
+				<ProfileDetailsModal
+					isOpen={true}
+					onClose={() => setActiveProfileId(null)}
+					onMessageProfile={handleMessageProfile}
+					onTriangleProfile={handleTriangleProfile}
+					onBlockProfile={handleBlockProfile}
+					onUnblockProfile={handleUnblockProfile}
+					onToggleFavoriteProfile={handleToggleFavoriteProfile}
+					isFavorite={Boolean(activeProfile?.isFavorite)}
+					isTogglingFavorite={Boolean(
+						activeProfileId && mutatingFavoriteProfileId === activeProfileId,
+					)}
+					isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
+					isBlockingProfile={isBlockingProfile || isUnblockingProfile}
+					isLocatingProfile={isLocatingProfile}
+					onTapProfile={handleTapProfile}
+					isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}
+					isTapBlocked={hasSentTapRecently}
+					tapVisualState={resolvedTapVisualState}
+					activeProfile={activeProfile}
+					selectedBrowseCard={selectedBrowseCard}
+					isLoadingActiveProfile={isLoadingActiveProfile}
+					activeProfileError={activeProfileError}
+					activeProfilePhotoHashes={activeProfilePhotoHashes}
+					chatContactStatus={selectedProfileChatContact}
+					genderOptions={genderOptions}
+					pronounOptions={pronounOptions}
+					activeNote={activeProfileId ? favoriteNotes.find((n) => String(n.counterpartyId) === String(activeProfileId))?.notes : undefined}
+					onSaveNote={async (notes) => {
+						if (activeProfileId) {
+							await apiFunctions.saveFavoriteNote(activeProfileId, notes);
+							setFavoriteNotes((prev) => {
+								const existing = prev.find((n) => String(n.counterpartyId) === String(activeProfileId));
+								if (existing) {
+									return prev.map((n) => (String(n.counterpartyId) === String(activeProfileId) ? { ...n, notes } : n));
+								}
+								return [...prev, { counterpartyId: activeProfileId, notes, phoneNumber: "" }];
+							});
+						}
+					}}
+					onDeleteNote={async () => {
+						if (activeProfileId) {
+							await apiFunctions.deleteFavoriteNote(activeProfileId);
+							setFavoriteNotes((prev) => prev.filter((n) => String(n.counterpartyId) !== String(activeProfileId)));
+						}
+					}}
+				/>
+			)}
 
-			<ConfirmDialog
-				isOpen={pendingProfileConfirm !== null}
-				title={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				message={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock_confirm")
-						: t("profile_details.block_confirm")
-				}
-				confirmLabel={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				cancelLabel={t("chat.actions.cancel")}
-				onConfirm={handleConfirmProfileAction}
-				onCancel={handleCancelProfileConfirm}
-				isProcessing={isBlockingProfile || isUnblockingProfile}
-				confirmTone={
-					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
-				}
-				dontAskAgainLabel={t("profile_details.dont_ask_again")}
-				dontAskAgainChecked={dontAskAgainChecked}
-				onDontAskAgainChange={setDontAskAgainChecked}
-			/>
+			{pendingProfileConfirm !== null && (
+				<ConfirmDialog
+					isOpen={true}
+					title={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock")
+							: t("profile_details.block")
+					}
+					message={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock_confirm")
+							: t("profile_details.block_confirm")
+					}
+					confirmLabel={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock")
+							: t("profile_details.block")
+					}
+					cancelLabel={t("chat.actions.cancel")}
+					onConfirm={handleConfirmProfileAction}
+					onCancel={handleCancelProfileConfirm}
+					isProcessing={isBlockingProfile || isUnblockingProfile}
+					confirmTone={
+						pendingProfileConfirm.action === "unblock" ? "default" : "danger"
+					}
+					dontAskAgainLabel={t("profile_details.dont_ask_again")}
+					dontAskAgainChecked={dontAskAgainChecked}
+					onDontAskAgainChange={setDontAskAgainChecked}
+				/>
+			)}
 		</>
 	);
 }

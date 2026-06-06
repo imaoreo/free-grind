@@ -16,12 +16,16 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
-    Workflow,
+	Workflow,
 	UserX,
+	Trash2,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
+import { clearAllGridCaches } from "./gridpage/cache";
+import { clearConversationDirectory } from "../../services/conversationDirectory";
 import { appLog } from "../../utils/logger";
 import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
@@ -143,6 +147,20 @@ export function SettingsPage() {
 			toast.error(message);
 		}
 	};
+
+	const queryClient = useQueryClient();
+
+	const handleClearCaches = useCallback(() => {
+		try {
+			clearAllGridCaches();
+			clearConversationDirectory();
+			queryClient.clear();
+			toast.success("Caches cleared successfully");
+		} catch (error) {
+			toast.error("Failed to clear caches");
+			appLog.error("Clear caches failed:", error);
+		}
+	}, [queryClient]);
 
 	const handleExport = async () => {
 		setIsExporting(true);
@@ -816,6 +834,25 @@ export function SettingsPage() {
 					</div>
 					</div>
 				) : null}
+
+				<button
+					type="button"
+					onClick={handleClearCaches}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Trash2 className="h-5 w-5 text-red-500/80" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">Clear Caches</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								Clear all profile, search, and message cache in memory.
+							</p>
+						</div>
+					</div>
+					<Trash2 className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
 
                 <div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
 					<div className="flex items-center gap-3">

@@ -6,7 +6,7 @@ export const SMOOTH_SCROLL_CONFIG = {
 	/**
 	 * Whether smooth scrolling is active globally.
 	 */
-	enabled: true,
+	enabled: false,
 
 	/**
 	 * Enable smooth scrolling on touch devices (mobile).

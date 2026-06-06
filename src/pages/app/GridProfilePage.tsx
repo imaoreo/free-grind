@@ -660,34 +660,36 @@ export function GridProfilePage() {
 				}}
 			/>
 
-			<ConfirmDialog
-				isOpen={pendingProfileConfirm !== null}
-				title={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				message={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock_confirm")
-						: t("profile_details.block_confirm")
-				}
-				confirmLabel={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				cancelLabel={t("chat.actions.cancel")}
-				onConfirm={handleConfirmProfileAction}
-				onCancel={handleCancelProfileConfirm}
-				isProcessing={isBlockingProfile || isUnblockingProfile}
-				confirmTone={
-					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
-				}
-				dontAskAgainLabel={t("profile_details.dont_ask_again")}
-				dontAskAgainChecked={dontAskAgainChecked}
-				onDontAskAgainChange={setDontAskAgainChecked}
-			/>
+			{pendingProfileConfirm !== null && (
+				<ConfirmDialog
+					isOpen={true}
+					title={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock")
+							: t("profile_details.block")
+					}
+					message={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock_confirm")
+							: t("profile_details.block_confirm")
+					}
+					confirmLabel={
+						pendingProfileConfirm.action === "unblock"
+							? t("profile_details.unblock")
+							: t("profile_details.block")
+					}
+					cancelLabel={t("chat.actions.cancel")}
+					onConfirm={handleConfirmProfileAction}
+					onCancel={handleCancelProfileConfirm}
+					isProcessing={isBlockingProfile || isUnblockingProfile}
+					confirmTone={
+						pendingProfileConfirm.action === "unblock" ? "default" : "danger"
+					}
+					dontAskAgainLabel={t("profile_details.dont_ask_again")}
+					dontAskAgainChecked={dontAskAgainChecked}
+					onDontAskAgainChange={setDontAskAgainChecked}
+				/>
+			)}
 		</>
 	);
 }
