@@ -40,7 +40,7 @@ export function BrowseCardTile({
 	const isBoosting = card.isBoosting === true;
 	const databaseUnread = chatContactStatus?.unreadCount ?? 0;
 	const apiUnread = card.unreadCount ?? 0;
-	const unreadCount = Math.max(databaseUnread, apiUnread);
+	const unreadCount = chatContactStatus ? databaseUnread : apiUnread;
 	const hasChatted = Boolean(chatContactStatus?.hasChatted) || card.chatted === true || unreadCount > 0;
 	const isFavorite = card.favorite === true;
 

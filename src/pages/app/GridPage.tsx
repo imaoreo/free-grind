@@ -37,6 +37,7 @@ import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
 import {
+	CHAT_CONTACT_INDEX_UPDATED_EVENT,
 	getChatContactIndexForProfiles,
 	indexChatContactRecordsByProfileId,
 	upsertChatContactIndexFromGrid,
@@ -660,21 +661,34 @@ export function GridPage() {
 		}
 
 		let cancelled = false;
-		void getChatContactIndexForProfiles(profileIds)
-			.then((records) => {
-				if (cancelled || !isMountedRef.current) {
-					return;
-				}
-				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
-			})
-			.catch((error) => {
-				appLog.warn("[chat-index] failed to hydrate grid contact index", error);
-			});
+		const refresh = () => {
+			getChatContactIndexForProfiles(profileIds)
+				.then((records) => {
+					if (cancelled || !isMountedRef.current) {
+						return;
+					}
+					setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
+				})
+				.catch((error) => {
+					appLog.warn("[chat-index] failed to refresh grid contact index", error);
+				});
+		};
+
+		refresh();
+
+		const handleUpdate = () => {
+			refresh();
+		};
+
+		window.addEventListener("focus", handleUpdate);
+		window.addEventListener(CHAT_CONTACT_INDEX_UPDATED_EVENT, handleUpdate);
 
 		return () => {
 			cancelled = true;
+			window.removeEventListener("focus", handleUpdate);
+			window.removeEventListener(CHAT_CONTACT_INDEX_UPDATED_EVENT, handleUpdate);
 		};
-	}, [cards]);
+	}, [cards, location.key]);
 
 	useEffect(() => {
 		if (!isLoadingCards || cardsError || isLoadingPreferences) {

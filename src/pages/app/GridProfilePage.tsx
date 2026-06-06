@@ -27,7 +27,10 @@ import {
 	type ManagedOption,
 	type ProfileDetail,
 } from "./GridPage.types";
-import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
+import {
+	CHAT_CONTACT_INDEX_UPDATED_EVENT,
+	getChatContactIndexForProfiles,
+} from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
@@ -112,26 +115,38 @@ export function GridProfilePage() {
 			return;
 		}
 
-		setChatContactStatus(null);
 		let cancelled = false;
-		void getChatContactIndexForProfiles([profileId])
-			.then((records) => {
-				if (cancelled) {
-					return;
-				}
-				setChatContactStatus(records[0] ?? null);
-			})
-			.catch((error) => {
-				if (!cancelled) {
-					setChatContactStatus(null);
-				}
-				appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
-			});
+		const refresh = () => {
+			getChatContactIndexForProfiles([profileId])
+				.then((records) => {
+					if (cancelled) {
+						return;
+					}
+					setChatContactStatus(records[0] ?? null);
+				})
+				.catch((error) => {
+					if (!cancelled) {
+						setChatContactStatus(null);
+					}
+					appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
+				});
+		};
+
+		refresh();
+
+		const handleUpdate = () => {
+			refresh();
+		};
+
+		window.addEventListener("focus", handleUpdate);
+		window.addEventListener(CHAT_CONTACT_INDEX_UPDATED_EVENT, handleUpdate);
 
 		return () => {
 			cancelled = true;
+			window.removeEventListener("focus", handleUpdate);
+			window.removeEventListener(CHAT_CONTACT_INDEX_UPDATED_EVENT, handleUpdate);
 		};
-	}, [profileId]);
+	}, [profileId, location.key]);
 
 	useEffect(() => {
 		let cancelled = false;

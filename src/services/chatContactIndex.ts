@@ -7,6 +7,8 @@ import type {
 import { appLog } from "../utils/logger";
 import { getLocalProfileId } from "../utils/profile";
 
+export const CHAT_CONTACT_INDEX_UPDATED_EVENT = "fg:chat-contact-index-updated";
+
 function getDbName(): string {
 	return `sqlite:chat_contact_index_${getLocalProfileId()}.sqlite3`;
 }
@@ -101,7 +103,7 @@ function isSqliteLockedError(error: unknown): boolean {
 }
 
 async function executeWithLockRetry(
-	db: Database,
+	_db: Database,
 	label: string,
 	run: () => Promise<void>,
 ): Promise<void> {
@@ -179,7 +181,12 @@ export async function upsertChatContactIndexFromInbox(
 					WHEN excluded.last_message_timestamp > chat_contact_index.last_message_timestamp THEN excluded.last_message_timestamp
 					ELSE chat_contact_index.last_message_timestamp
 				END,
-				unread_count = COALESCE(excluded.unread_count, chat_contact_index.unread_count),
+				unread_count = CASE
+					WHEN excluded.last_message_timestamp IS NULL THEN chat_contact_index.unread_count
+					WHEN chat_contact_index.last_message_timestamp IS NULL THEN excluded.unread_count
+					WHEN excluded.last_message_timestamp > chat_contact_index.last_message_timestamp THEN excluded.unread_count
+					ELSE chat_contact_index.unread_count
+				END,
 				has_chatted = 1,
 				updated_at = excluded.updated_at
 			`,
@@ -194,7 +201,9 @@ export async function upsertChatContactIndexFromInbox(
 		}
 	});
 
-	// appLog.debug("[chat-index] upsert from inbox", { count: entries.length });
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(CHAT_CONTACT_INDEX_UPDATED_EVENT));
+	}
 }
 
 export async function upsertChatContactIndexFromGrid(
@@ -227,10 +236,6 @@ export async function upsertChatContactIndexFromGrid(
 				updated_at
 			) VALUES ($1, NULL, NULL, $2, CASE WHEN $2 > 0 THEN 1 ELSE 0 END, $3)
 			ON CONFLICT(profile_id) DO UPDATE SET
-				unread_count = CASE
-					WHEN excluded.unread_count > chat_contact_index.unread_count THEN excluded.unread_count
-					ELSE chat_contact_index.unread_count
-				END,
 				has_chatted = CASE
 					WHEN chat_contact_index.has_chatted = 1 THEN 1
 					WHEN excluded.unread_count > 0 THEN 1
@@ -242,6 +247,10 @@ export async function upsertChatContactIndexFromGrid(
 			);
 		}
 	});
+
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(CHAT_CONTACT_INDEX_UPDATED_EVENT));
+	}
 }
 
 export async function getChatContactIndexForProfiles(
@@ -343,6 +352,10 @@ export async function incrementUnreadCountForProfile(
 			[normalizedProfileId, conversationId, lastMessageTimestamp, now],
 		);
 	});
+
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(CHAT_CONTACT_INDEX_UPDATED_EVENT));
+	}
 }
 
 /**
@@ -362,13 +375,37 @@ export async function clearUnreadCountForProfile(
 	await executeWithLockRetry(db, "clear-unread", async () => {
 		await db.execute(
 			`
-			UPDATE chat_contact_index
-			SET unread_count = 0, updated_at = $2
-			WHERE profile_id = $1
+			INSERT INTO chat_contact_index (
+				profile_id,
+				conversation_id,
+				last_message_timestamp,
+				unread_count,
+				has_chatted,
+				updated_at
+			) VALUES ($1, NULL, NULL, 0, 1, $2)
+			ON CONFLICT(profile_id) DO UPDATE SET
+				unread_count = 0,
+				has_chatted = 1,
+				updated_at = excluded.updated_at
 			`,
 			[normalizedProfileId, now],
 		);
 	});
+
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(new CustomEvent(CHAT_CONTACT_INDEX_UPDATED_EVENT));
+	}
+}
+
+export async function getProfileIdForConversation(
+	conversationId: string,
+): Promise<string | null> {
+	const db = await getDb();
+	const rows = await db.select<{ profile_id: string }[]>(
+		`SELECT profile_id FROM chat_contact_index WHERE conversation_id = $1 LIMIT 1`,
+		[conversationId],
+	);
+	return rows[0]?.profile_id ?? null;
 }
 
 export async function setLocalNicknameForProfile(

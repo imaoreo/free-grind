@@ -76,6 +76,7 @@ import {
 	indexChatContactRecordsByProfileId,
 	setLocalNicknameForProfile,
 	upsertChatContactIndexFromInbox,
+	getProfileIdForConversation,
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen } from "../../services/seenStore";
@@ -597,6 +598,8 @@ export function ChatPage() {
 		setAlbumViewerMediaIndex(null);
 	}, [selectedConversationId]);
 
+
+
 	const isAlbumOpen = albumViewer !== null;
 	useEffect(() => {
 		if (!isAlbumOpen) return;
@@ -638,6 +641,112 @@ export function ChatPage() {
 		},
 		[selectedConversationId],
 	);
+
+	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+	const hasUnreadRef = useRef<boolean>(false);
+
+	// Resolve the active profile ID we are chatting with
+	useEffect(() => {
+		if (targetProfileId) {
+			setActiveProfileId(String(targetProfileId));
+			return;
+		}
+		if (selectedConversationOtherProfileId) {
+			setActiveProfileId(selectedConversationOtherProfileId);
+			return;
+		}
+		if (selectedConversationId) {
+			let cancelled = false;
+			void getProfileIdForConversation(selectedConversationId)
+				.then((pid) => {
+					if (!cancelled && pid) {
+						setActiveProfileId(pid);
+					}
+				})
+				.catch(() => {});
+			return () => {
+				cancelled = true;
+			};
+		}
+		setActiveProfileId(null);
+	}, [targetProfileId, selectedConversationOtherProfileId, selectedConversationId]);
+
+	// Capture unread status and clear local database count immediately upon selecting a conversation
+	useEffect(() => {
+		if (activeProfileId) {
+			const pid = activeProfileId;
+			
+			// Check if there is an unread count in conversations or in database records
+			const conv = conversations.find((c) => c.data.conversationId === selectedConversationId);
+			const dbRecord = chatContactIndexByProfileId[pid];
+			const unreadCount = conv?.data.unreadCount ?? dbRecord?.unreadCount ?? 0;
+			
+			if (unreadCount > 0) {
+				hasUnreadRef.current = true;
+			}
+
+			void clearUnreadCountForProfile(pid).catch(() => {});
+			setChatContactIndexByProfileId((prev) => {
+				const existing = prev[pid];
+				if (!existing) return prev;
+				return {
+					...prev,
+					[pid]: { ...existing, unreadCount: 0 },
+				};
+			});
+			if (selectedConversationId) {
+				syncConversation((conversation) => {
+					return {
+						...conversation,
+						data: { ...conversation.data, unreadCount: 0 },
+					};
+				});
+			}
+		}
+	}, [selectedConversationId, activeProfileId]);
+
+	// Coordinate API markRead when threadMessages are resolved/loaded
+	useEffect(() => {
+		if (!selectedConversationId || !selectedConversation || threadMessages.length === 0) {
+			return;
+		}
+		const conversationId = selectedConversationId;
+		if (hasUnreadRef.current) {
+			const newest = threadMessages[threadMessages.length - 1];
+			if (newest?.messageId) {
+				hasUnreadRef.current = false; // Prevent duplicate execution
+				void service
+					.markRead(conversationId, newest.messageId)
+					.then(() => {
+						if (!isChatGhosted(conversationId)) {
+							const other = getOtherParticipant(selectedConversation, userId);
+							if (other?.profileId) {
+								const pid = String(other.profileId);
+								void clearUnreadCountForProfile(pid).catch(() => {});
+								setChatContactIndexByProfileId((prev) => {
+									const existing = prev[pid];
+									if (!existing) return prev;
+									return {
+										...prev,
+										[pid]: { ...existing, unreadCount: 0 },
+									};
+								});
+							}
+						}
+						syncConversation((conversation) => {
+							return {
+								...conversation,
+								data: { ...conversation.data, unreadCount: 0 },
+							};
+						});
+					})
+					.catch((err) => {
+						appLog.warn("[chat] failed to mark conversation read", err);
+						hasUnreadRef.current = true; // Allow retry on failure
+					});
+			}
+		}
+	}, [selectedConversationId, selectedConversation, threadMessages, service, userId, syncConversation]);
 
 	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
 		setIsLoadingAlbums(true);
@@ -1176,40 +1285,7 @@ export function ChatPage() {
 					}
 				}
 
-				if (!older && selectedConversationUnreadCountRef.current > 0) {
-					const newest = response.messages[response.messages.length - 1];
-					if (newest?.messageId) {
-						void service
-							.markRead(conversationId, newest.messageId)
-							.then(() => {
-								syncConversation((conversation) => {
- 								// --- GHOST CHECK ---
- 								if (isChatGhosted(conversationId)) return conversation; 
- 								// -------------------
- 								const other = getOtherParticipant(conversation, userId);
- 								if (other?.profileId) {
- 									const pid = String(other.profileId);
- 									void clearUnreadCountForProfile(pid).catch(() => {});
- 									setChatContactIndexByProfileId((prev) => {
-											const existing = prev[pid];
-											if (!existing) return prev;
-											return {
-												...prev,
-												[pid]: { ...existing, unreadCount: 0 },
-											};
-										});
-									}
-									return {
-										...conversation,
-										data: { ...conversation.data, unreadCount: 0 },
-									};
-								});
-							})
-							.catch(() => {
-								// Best effort only.
-							});
-					}
-				}
+
 			} catch (error) {
 				const message =
 					error instanceof Error ? error.message : t("chat.errors.load_messages");
