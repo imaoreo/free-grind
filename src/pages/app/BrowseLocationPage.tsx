@@ -53,6 +53,7 @@ export function BrowseLocationPage() {
 	const [newLocationName, setNewLocationName] = useState("");
 	const [isImporting, setIsImporting] = useState(false);
 	const importInputRef = useRef<HTMLInputElement | null>(null);
+	const [isPresetsExpanded, setIsPresetsExpanded] = useState(false);
 	
 	// Modal states
 	const [showSaveModal, setShowSaveModal] = useState(false);
@@ -300,40 +301,55 @@ export function BrowseLocationPage() {
 					</p>
 				) : null}
 
-				{/* Horizontal Saved Locations Preset Row */}
-				<div className="mb-4 flex items-center justify-between gap-3 bg-[var(--surface-2)] p-2.5 rounded-xl border border-[var(--border)]">
-					<div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] min-w-fit">
-						<MapPin className="h-3.5 w-3.5 text-[var(--accent)]" />
-						<span>{t("browse_location.presets_title", { defaultValue: "Presets" })}</span>
+				{/* Saved Locations Card */}
+				<div className="mb-4 bg-[var(--surface-2)] p-4 rounded-xl border border-[var(--border)]">
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							<MapPin className="h-3.5 w-3.5 text-[var(--accent)]" />
+							<span>{t("browse_location.presets_title", { defaultValue: "Saved Locations" })}</span>
+						</div>
+
+						<div className="flex items-center gap-2">
+							{savedLocations.length > 6 && (
+								<button
+									type="button"
+									onClick={() => setIsPresetsExpanded(!isPresetsExpanded)}
+									className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--text-muted)] transition cursor-pointer"
+								>
+									{isPresetsExpanded 
+										? t("common.show_less", { defaultValue: "Show Less" })
+										: t("common.show_more", { defaultValue: "Show More" })}
+								</button>
+							)}
+							<button
+								type="button"
+								onClick={() => setShowManageModal(true)}
+								className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--text-muted)] cursor-pointer"
+								title={t("browse_location.manage_presets", { defaultValue: "Manage Saved Locations" })}
+							>
+								<Settings className="h-3.5 w-3.5" />
+							</button>
+						</div>
 					</div>
 
-					<div className="flex flex-1 items-center gap-2 overflow-x-auto px-1 scrollbar-none">
+					<div className="flex flex-wrap gap-2 mt-3 transition-all duration-300">
 						{savedLocations.length === 0 ? (
-							<span className="text-xs text-[var(--text-muted)] italic">
-								{t("browse_location.no_presets", { defaultValue: "No presets saved" })}
+							<span className="text-xs text-[var(--text-muted)] italic py-1">
+								{t("browse_location.no_presets", { defaultValue: "No saved locations" })}
 							</span>
 						) : (
-							savedLocations.map((loc) => (
+							(isPresetsExpanded ? savedLocations : savedLocations.slice(0, 6)).map((loc) => (
 								<button
 									key={loc.id}
 									type="button"
 									onClick={() => void updateLocationPreference(loc.latitude, loc.longitude, loc.name)}
-									className="whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-3)] cursor-pointer"
+									className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3.5 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:bg-[var(--surface-3)] cursor-pointer"
 								>
 									{loc.name}
 								</button>
 							))
 						)}
 					</div>
-
-					<button
-						type="button"
-						onClick={() => setShowManageModal(true)}
-						className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--text-muted)] cursor-pointer"
-						title={t("browse_location.manage_presets", { defaultValue: "Manage Presets" })}
-					>
-						<Settings className="h-3.5 w-3.5" />
-					</button>
 				</div>
 
 				{/* Unified Settings Panel (Search Input + Results + Always-Visible Map) */}
@@ -415,7 +431,7 @@ export function BrowseLocationPage() {
 								setShowSaveModal(true);
 							}}
 							className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] transition hover:border-[var(--text-muted)] hover:text-[var(--accent)] cursor-pointer"
-							title={t("browse_location.save_selected_title", { defaultValue: "Save Preset" })}
+							title={t("browse_location.save_selected_title", { defaultValue: "Save Location" })}
 						>
 							<Bookmark className="h-5 w-5" />
 						</button>
@@ -423,7 +439,7 @@ export function BrowseLocationPage() {
 				</div>
 			</div>
 
-			{/* Modal: Save Location Preset */}
+			{/* Modal: Save Location */}
 			{showSaveModal && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div 
@@ -433,7 +449,7 @@ export function BrowseLocationPage() {
 					<div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl animate-modal-in">
 						<div className="mb-4 flex items-center justify-between">
 							<h3 className="text-sm font-bold text-[var(--text)]">
-								{t("browse_location.save_selected_title", { defaultValue: "Save Location Preset" })}
+								{t("browse_location.save_selected_title", { defaultValue: "Save Location" })}
 							</h3>
 							<button
 								type="button"
@@ -482,7 +498,7 @@ export function BrowseLocationPage() {
 									disabled={!newLocationName.trim()}
 									className="inline-flex h-9 items-center justify-center rounded-lg bg-[var(--accent)] px-4 text-xs font-semibold text-[var(--accent-contrast)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 								>
-									{t("browse_location.save_btn", { defaultValue: "Save Preset" })}
+									{t("browse_location.save_btn", { defaultValue: "Save Location" })}
 								</button>
 							</div>
 						</div>
@@ -490,7 +506,7 @@ export function BrowseLocationPage() {
 				</div>
 			)}
 
-			{/* Modal: Manage Presets */}
+			{/* Modal: Manage Saved Locations */}
 			{showManageModal && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div 
@@ -501,10 +517,10 @@ export function BrowseLocationPage() {
 						<div className="mb-4 flex items-center justify-between">
 							<div>
 								<h3 className="text-sm font-bold text-[var(--text)]">
-									{t("browse_location.manage_title", { defaultValue: "Manage Presets" })}
+									{t("browse_location.manage_title", { defaultValue: "Manage Saved Locations" })}
 								</h3>
 								<p className="text-[11px] text-[var(--text-muted)]">
-									{t("browse_location.manage_subtitle", { defaultValue: "View, delete, or backup your location presets." })}
+									{t("browse_location.manage_subtitle", { defaultValue: "View, delete, or backup your saved locations." })}
 								</p>
 							</div>
 							<button
