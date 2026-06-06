@@ -1698,6 +1698,25 @@ export function GridPage() {
 				chatContactStatus={selectedProfileChatContact}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
+				activeNote={activeProfileId ? favoriteNotes.find((n) => n.counterpartyId === activeProfileId)?.notes : undefined}
+				onSaveNote={async (notes) => {
+					if (activeProfileId) {
+						await apiFunctions.saveFavoriteNote(activeProfileId, notes);
+						setFavoriteNotes((prev) => {
+							const existing = prev.find((n) => n.counterpartyId === activeProfileId);
+							if (existing) {
+								return prev.map((n) => (n.counterpartyId === activeProfileId ? { ...n, notes } : n));
+							}
+							return [...prev, { counterpartyId: activeProfileId, notes, phoneNumber: "" }];
+						});
+					}
+				}}
+				onDeleteNote={async () => {
+					if (activeProfileId) {
+						await apiFunctions.deleteFavoriteNote(activeProfileId);
+						setFavoriteNotes((prev) => prev.filter((n) => n.counterpartyId !== activeProfileId));
+					}
+				}}
 			/>
 
 			<ConfirmDialog

@@ -80,6 +80,7 @@ export function GridProfilePage() {
 	);
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
+	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
 
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
@@ -131,6 +132,22 @@ export function GridProfilePage() {
 			cancelled = true;
 		};
 	}, [profileId]);
+
+	useEffect(() => {
+		let cancelled = false;
+		apiFunctions.getFavoriteNotes()
+			.then((notes) => {
+				if (!cancelled) {
+					setFavoriteNotes(notes);
+				}
+			})
+			.catch((err) => {
+				appLog.warn("Failed to fetch favorite notes on profile page", err);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [apiFunctions]);
 
 	const {
 		tappingProfileId,
@@ -607,6 +624,25 @@ export function GridProfilePage() {
 				chatContactStatus={chatContactStatus}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
+				activeNote={profileId ? favoriteNotes.find((n) => n.counterpartyId === profileId)?.notes : undefined}
+				onSaveNote={async (notes) => {
+					if (profileId) {
+						await apiFunctions.saveFavoriteNote(profileId, notes);
+						setFavoriteNotes((prev) => {
+							const existing = prev.find((n) => n.counterpartyId === profileId);
+							if (existing) {
+								return prev.map((n) => (n.counterpartyId === profileId ? { ...n, notes } : n));
+							}
+							return [...prev, { counterpartyId: profileId, notes, phoneNumber: "" }];
+						});
+					}
+				}}
+				onDeleteNote={async () => {
+					if (profileId) {
+						await apiFunctions.deleteFavoriteNote(profileId);
+						setFavoriteNotes((prev) => prev.filter((n) => n.counterpartyId !== profileId));
+					}
+				}}
 			/>
 
 			<ConfirmDialog

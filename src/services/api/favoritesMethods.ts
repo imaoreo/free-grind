@@ -1,5 +1,5 @@
 import type { RestFetcher } from "../../types/chat-service";
-import { assertSuccess } from "../apiHelpers";
+import { assertSuccess, parseJsonSafe } from "../apiHelpers";
 
 export function createFavoritesMethods(fetchRest: RestFetcher, t: (key: string) => string) {
 	return {
@@ -22,7 +22,27 @@ export function createFavoritesMethods(fetchRest: RestFetcher, t: (key: string) 
 				method: "GET",
 			});
 			await assertSuccess(response, t("favorites.get_notes_failed"));
-			return response.json();
+			const data = await parseJsonSafe(response);
+			return data as Array<{ notes: string; phoneNumber: string; counterpartyId: string }>;
+		},
+
+		async saveFavoriteNote(profileId: string, notes: string): Promise<void> {
+			const response = await fetchRest("/v1/favorites/notes", {
+				method: "PUT",
+				body: {
+					counterpartyId: profileId,
+					notes: notes,
+					phoneNumber: "",
+				},
+			});
+			await assertSuccess(response, t("favorites.save_note_failed"));
+		},
+
+		async deleteFavoriteNote(profileId: string): Promise<void> {
+			const response = await fetchRest(`/v1/favorites/notes/${profileId}`, {
+				method: "DELETE",
+			});
+			await assertSuccess(response, t("favorites.delete_note_failed"));
 		},
 	};
 }

@@ -74,6 +74,9 @@ type ProfileDetailsModalProps = {
 	variant?: "modal" | "page";
 	onPrevProfile?: () => void;
 	onNextProfile?: () => void;
+	activeNote?: string;
+	onSaveNote?: (notes: string) => void | Promise<void>;
+	onDeleteNote?: () => void | Promise<void>;
 };
 
 function normalizeMediaCreatedAt(value: unknown): number | null {
@@ -118,6 +121,9 @@ export function ProfileDetailsModal({
 	variant = "modal",
 	onPrevProfile,
 	onNextProfile,
+	activeNote,
+	onSaveNote,
+	onDeleteNote,
 }: ProfileDetailsModalProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -505,6 +511,9 @@ export function ProfileDetailsModal({
 								bodyTypeLabels={bodyTypeLabels}
 								ethnicityLabels={ethnicityLabels}
 								relationshipStatusLabels={relationshipStatusLabels}
+								activeNote={activeNote}
+								onSaveNote={onSaveNote}
+								onDeleteNote={onDeleteNote}
 							/>
 						) : null}
 					</div>
@@ -605,6 +614,9 @@ export function ProfileDetailsModal({
 							bodyTypeLabels={bodyTypeLabels}
 							ethnicityLabels={ethnicityLabels}
 							relationshipStatusLabels={relationshipStatusLabels}
+							activeNote={activeNote}
+							onSaveNote={onSaveNote}
+							onDeleteNote={onDeleteNote}
 						/>
 					) : null}
 				</div>

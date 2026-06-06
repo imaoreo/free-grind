@@ -1,5 +1,5 @@
-import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban } from "lucide-react";
-import { type RefObject, type UIEvent, useState } from "react";
+import { Loader2, MessageCircle, MessagesSquare, Compass, Navigation, NavigationOff, Star, Ban, Lock, Trash2 } from "lucide-react";
+import { type RefObject, type UIEvent, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import type { ProfileDetail } from "../../GridPage.types";
@@ -79,6 +79,9 @@ type ProfileDetailsContentProps = {
 	onUnblockProfile?: (profileId: string) => void;
 	isBlocked?: boolean;
 	isBlockingProfile?: boolean;
+	activeNote?: string;
+	onSaveNote?: (notes: string) => void | Promise<void>;
+	onDeleteNote?: () => void | Promise<void>;
 };
 
 export function ProfileDetailsContent({
@@ -132,11 +135,70 @@ export function ProfileDetailsContent({
 	onUnblockProfile,
 	isBlocked = false,
 	isBlockingProfile = false,
+	activeNote,
+	onSaveNote,
+	onDeleteNote,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
+
+	const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+	const [noteText, setNoteText] = useState(activeNote || "");
+	const [isSavingNote, setIsSavingNote] = useState(false);
+	const notesDialogRef = useRef<HTMLDialogElement | null>(null);
+
+	useEffect(() => {
+		if (isNotesModalOpen) {
+			setNoteText(activeNote || "");
+		}
+	}, [isNotesModalOpen, activeNote]);
+
+	useEffect(() => {
+		const dialog = notesDialogRef.current;
+		if (!dialog) return;
+
+		if (isNotesModalOpen) {
+			if (!dialog.open) {
+				try {
+					dialog.showModal();
+				} catch {
+					dialog.show();
+				}
+			}
+		} else if (dialog.open) {
+			dialog.close();
+		}
+	}, [isNotesModalOpen]);
+
+	const handleSaveNote = async () => {
+		if (!onSaveNote) return;
+		setIsSavingNote(true);
+		try {
+			await onSaveNote(noteText.trim());
+			toast.success(t("favorites.note_saved", "Note saved successfully"));
+			setIsNotesModalOpen(false);
+		} catch (err) {
+			toast.error(t("favorites.save_note_failed", "Failed to save note"));
+		} finally {
+			setIsSavingNote(false);
+		}
+	};
+
+	const handleDeleteNote = async () => {
+		if (!onDeleteNote) return;
+		setIsSavingNote(true);
+		try {
+			await onDeleteNote();
+			toast.success(t("favorites.note_deleted", "Note deleted successfully"));
+			setIsNotesModalOpen(false);
+		} catch (err) {
+			toast.error(t("favorites.delete_note_failed", "Failed to delete note"));
+		} finally {
+			setIsSavingNote(false);
+		}
+	};
 
 
 
@@ -454,6 +516,24 @@ export function ProfileDetailsContent({
 								<MessagesSquare className="h-3 w-3 text-blue-400" />
 								<span className="font-semibold text-[var(--text-muted)]">{lastMessageLabel || t("profile_details.chatted_before")}</span>
 							</span>
+						</>
+					)}
+
+					{isFavorite && (
+						<>
+							<span className="opacity-40 select-none">•</span>
+							{/* Private Note */}
+							<button
+								type="button"
+								onClick={() => setIsNotesModalOpen(true)}
+								className="inline-flex items-center gap-1 hover:text-[var(--accent)] transition-colors cursor-pointer text-left max-w-[150px] sm:max-w-[200px]"
+								title={activeNote ? t("favorites.edit_note_title", "Click to edit note") : t("favorites.add_note_title", "Click to add note")}
+							>
+								<Lock className="h-3 w-3 text-amber-500/80 shrink-0" />
+								<span className="font-semibold text-[var(--text-muted)] truncate">
+									{activeNote ? `Note: "${activeNote}"` : t("favorites.add_note_link", "Add Note...")}
+								</span>
+							</button>
 						</>
 					)}
 				</div>
@@ -878,7 +958,68 @@ export function ProfileDetailsContent({
 				</p>
 			</div>
 
+			{/* Notes pop-up editor modal */}
+			<dialog
+				ref={notesDialogRef}
+				className="fixed left-1/2 top-1/2 m-0 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-0 text-[var(--text)] shadow-2xl backdrop:bg-black/45 focus-visible:outline-none"
+				onClick={(event) => {
+					if (event.target === notesDialogRef.current && !isSavingNote) {
+						setIsNotesModalOpen(false);
+					}
+				}}
+				onClose={() => setIsNotesModalOpen(false)}
+			>
+				<div className="p-4 flex flex-col gap-3">
+					<div className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text)]">
+						<Lock className="h-4 w-4 text-amber-500/80" />
+						<span>{t("favorites.private_note_title", "Private Note")}</span>
+					</div>
 
+					<textarea
+						value={noteText}
+						onChange={(e) => setNoteText(e.target.value.slice(0, 500))}
+						placeholder={t("favorites.note_placeholder", "Write a private note about this profile...")}
+						disabled={isSavingNote}
+						className="w-full bg-[var(--surface)] text-[var(--text)] rounded-xl border border-[var(--border)] p-3 text-sm focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] transition-all min-h-[120px] resize-none"
+						autoFocus
+					/>
+
+					<div className="flex justify-between items-center text-[10px] text-[var(--text-muted)]">
+						<span>{noteText.length} / 500</span>
+						{activeNote && (
+							<button
+								type="button"
+								onClick={handleDeleteNote}
+								disabled={isSavingNote}
+								className="text-red-500 hover:text-red-600 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50 font-semibold"
+							>
+								<Trash2 className="h-3.5 w-3.5" />
+								<span>{t("favorites.delete_note", "Delete Note")}</span>
+							</button>
+						)}
+					</div>
+
+					<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+						<button
+							type="button"
+							onClick={() => setIsNotesModalOpen(false)}
+							disabled={isSavingNote}
+							className="inline-flex h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60 cursor-pointer"
+						>
+							{t("common.cancel", "Cancel")}
+						</button>
+						<button
+							type="button"
+							onClick={handleSaveNote}
+							disabled={isSavingNote}
+							className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60 cursor-pointer"
+						>
+							{isSavingNote && <Loader2 className="h-4 w-4 animate-spin" />}
+							<span>{t("common.save", "Save")}</span>
+						</button>
+					</div>
+				</div>
+			</dialog>
 		</div>
 	);
 }
