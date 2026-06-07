@@ -212,6 +212,8 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 		case "AlbumContentReaction":
 			return t("chat.preview.reacted_album_content");
 		case "Video":
+		case "PrivateVideo":
+		case "NonExpiringVideo":
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
@@ -240,6 +242,8 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 		case "AlbumContentReaction":
 			return t("chat.preview.reacted_album_content");
 		case "Video":
+		case "PrivateVideo":
+		case "NonExpiringVideo":
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
@@ -256,7 +260,7 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			return t("chat.thread.image_placeholder");
 		}
-		if (message.type === "Video") {
+		if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
 			return t("chat.thread.video_placeholder");
 		}
 		if (message.type === "Audio") {
@@ -285,7 +289,7 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		return t("chat.thread.shared_image");
 	}
 
-	if (message.type === "Video") {
+	if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
 		return t("chat.thread.shared_video");
 	}
 
@@ -561,7 +565,7 @@ export function getMessageAudioUrl(message: UiMessage): string | null {
 
 export function getMessageVideoUrl(message: UiMessage): string | null {
 	const mediaType = message.chat1Type?.toLowerCase();
-	const isVideoMessage = message.type === "Video" || mediaType === "video";
+	const isVideoMessage = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || mediaType === "video" ||mediaType === "privatevideo" || mediaType === "nonexpiringvideo";
 	if (!isVideoMessage) {
 		return null;
 	}
