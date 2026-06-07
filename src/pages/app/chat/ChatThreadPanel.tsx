@@ -8,6 +8,7 @@ import {
 	Heart,
 	Hourglass,
 	ImagePlus,
+	Images,
 	Infinity,
 	Loader2,
 	MapPin,
@@ -186,6 +187,7 @@ type ChatThreadPanelProps = {
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
 	isAlbumSheetOpen: boolean;
+	onOpenMediaSheet?: () => void;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -304,6 +306,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessage,
 		selectedActionMessageMine,
 		isAlbumSheetOpen,
+		onOpenMediaSheet,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -846,6 +849,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												: t("profile_details.block")}
 										</button>
 									</>
+								)}
+
+								{onOpenMediaSheet && (
+									<button
+										type="button"
+										onClick={onOpenMediaSheet}
+										className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+										aria-label="Received media"
+									>
+										<Images className="h-4 w-4" />
+									</button>
 								)}
 
 								<div

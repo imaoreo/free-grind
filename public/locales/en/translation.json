@@ -852,6 +852,15 @@
             "write_first_message": "Write your first message...",
             "no_messages_yet": "No messages yet",
             "send_first_message_hint": "Send a message below to start the conversation."
+        },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
         }
     },
     "chat_drawer": {

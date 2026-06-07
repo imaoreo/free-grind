@@ -802,6 +802,15 @@
             "write_first_message": "Schreibe deine erste Nachricht...",
             "no_messages_yet": "Noch keine Nachrichten",
             "send_first_message_hint": "Sende eine Nachricht um den Chat zu starten."
+        },
+        "media_sheet": {
+            "title": "Empfangene Medien",
+            "tab_albums": "Alben",
+            "tab_media": "Medien",
+            "albums_empty_title": "Noch keine Alben geteilt",
+            "albums_empty_desc": "Mit dir geteilte Alben erscheinen hier",
+            "media_empty_title": "Noch keine Medien empfangen",
+            "media_empty_desc": "Dir gesendete Fotos erscheinen hier"
         }
     },
     "chat_drawer": {

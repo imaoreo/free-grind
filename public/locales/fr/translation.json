@@ -578,6 +578,15 @@
             "no_messages_yet": "",
             "send_first_message_hint": ""
         },
+        "media_sheet": {
+            "title": "Médias reçus",
+            "tab_albums": "Albums",
+            "tab_media": "Médias",
+            "albums_empty_title": "Aucun album partagé pour l'instant",
+            "albums_empty_desc": "Les albums partagés avec vous apparaîtront ici",
+            "media_empty_title": "Aucun média reçu pour l'instant",
+            "media_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici"
+        },
         "tabs": {
             "inbox": "Messagerie",
             "albums": "Albums"

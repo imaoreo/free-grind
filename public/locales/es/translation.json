@@ -501,6 +501,15 @@
             "no_messages_yet": "Sin mensajes todavía",
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
+        "media_sheet": {
+            "title": "Medios recibidos",
+            "tab_albums": "Álbumes",
+            "tab_media": "Medios",
+            "albums_empty_title": "Aún no se han compartido álbumes",
+            "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
+            "media_empty_title": "Aún no has recibido medios",
+            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
+        },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",
         "loading_inbox": "Cargando buzón...",

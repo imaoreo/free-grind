@@ -400,6 +400,15 @@
             "title": "",
             "subtitle": ""
         },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
+        },
         "loading_inbox": "",
         "refreshing_inbox": "",
         "sending": "",

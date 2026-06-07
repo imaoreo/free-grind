@@ -783,6 +783,15 @@
             "no_messages_yet": "Nenhuma mensagem ainda",
             "send_first_message_hint": "Envie uma mensagem abaixo para iniciar a conversa."
         },
+        "media_sheet": {
+            "title": "Mídia recebida",
+            "tab_albums": "Álbuns",
+            "tab_media": "Mídia",
+            "albums_empty_title": "Nenhum álbum compartilhado ainda",
+            "albums_empty_desc": "Álbuns compartilhados com você aparecerão aqui",
+            "media_empty_title": "Nenhuma mídia recebida ainda",
+            "media_empty_desc": "Fotos enviadas para você aparecerão aqui"
+        },
         "delete_conversation": "Apagar conversa",
         "delete_conversation_in_progress": "Apagando conversa...",
         "delete_conversation_confirm": "Apagar esta conversa? Esta ação não pode ser desfeita.",
