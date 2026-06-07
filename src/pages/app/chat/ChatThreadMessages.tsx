@@ -227,6 +227,7 @@ export function ChatThreadMessages({
 	const latestMessageIdByAlbum = useMemo(() => {
 		const map = new Map<number, string>();
 		for (const m of threadMessages) {
+			if (m.type !== "Album" && m.type !== "ExpiringAlbum" && m.type !== "ExpiringAlbumV2") continue;
 			const aid = getMessageAlbumId(m);
 			if (aid) map.set(aid, m.messageId);
 		}
@@ -482,11 +483,11 @@ export function ChatThreadMessages({
 
 								const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
-								// isViewable is the explicit API field for whether the album can be opened.
-								// ownerProfileId is null when expired/locked, but isViewable is more reliable
-								// (e.g. sender may lock the album while ownerProfileId is still present).
-								// My own sent albums are never locked from my perspective.
-								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
+								// isViewable in the message body can be stale (e.g. album re-shared after
+								// being stopped, but old message still carries isViewable:false).
+								// The server is the source of truth — only block older (non-latest) share
+								// messages. For the latest share, let the API call decide on open.
+								const isLocked = isAlbumMessage && !isLatestShare;
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
@@ -673,11 +674,6 @@ export function ChatThreadMessages({
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
-															if (shouldBlurIncomingMedia) {
-																revealMediaMessage(message.messageId);
-																lastTapRef.current = null;
-																return;
-															}
 															scheduleMobileTap(message, () => {
 																if (albumId && !isLocked) void openAlbumViewerById(albumId);
 															});
@@ -699,7 +695,7 @@ export function ChatThreadMessages({
 																<img
 																	src={albumCover}
 																alt={t("chat.thread.album_cover")}
-																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""} ${mediaBlurClassName}`}
+																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""}`}
 																	onError={(event) => {
 																		event.currentTarget.style.display = "none";
 																	}}
