@@ -1245,9 +1245,23 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							const rtmBody = rtm.body as Record<string, unknown> | null | undefined;
 							const isAudioReply = rtm.type === "Audio" || rtm.chat1Type?.toLowerCase() === "audio";
 							const isImageReply = rtm.type === "Image" || rtm.type === "ExpiringImage" || rtm.chat1Type?.toLowerCase() === "image" || rtm.chat1Type?.toLowerCase() === "expiring_image";
-							const thumbUrl = isImageReply
-								? (getMessageImageUrl(rtm) ?? (typeof rtmBody?.imageHash === "string" ? getThumbImageUrl(rtmBody.imageHash, "320x320") : null))
-								: null;
+							const thumbUrl = (() => {
+								if (isImageReply) {
+									const fromUtil = getMessageImageUrl(rtm);
+									if (fromUtil) return fromUtil;
+									const hash = typeof rtmBody?.imageHash === "string" ? rtmBody.imageHash : null;
+									if (hash) return getThumbImageUrl(hash, "320x320");
+									const imgObj = rtmBody?.image as Record<string, unknown> | null | undefined;
+									const urlCandidate = imgObj?.url ?? imgObj?.imageUrl ?? rtmBody?.url ?? rtmBody?.imageUrl;
+									return typeof urlCandidate === "string" ? urlCandidate : null;
+								}
+								if (rtm.type === "AlbumContentReaction" || rtm.type === "AlbumContentReply") {
+									return typeof rtmBody?.previewUrl === "string" ? rtmBody.previewUrl : null;
+								}
+								const albumCover = getMessageAlbumCoverUrl(rtm);
+								if (albumCover) return albumCover;
+								return null;
+							})();
 							const audioDuration = (() => {
 								if (!isAudioReply) return null;
 								const rawMs = typeof rtmBody?.length === "number" ? rtmBody.length : null;
