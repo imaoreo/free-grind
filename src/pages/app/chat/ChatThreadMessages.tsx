@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Reply } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -410,6 +410,8 @@ export function ChatThreadMessages({
 									?? null;
 								const replyIsImage = replyPreviewRaw?.type === "Image" || replyPreviewRaw?.type === "ExpiringImage"
 									|| replyPreviewRaw?.chat1Type === "image" || replyPreviewRaw?.chat1Type === "expiring_image";
+								const replyIsAudio = replyPreviewRaw?.type === "Audio" || replyPreviewRaw?.chat1Type === "audio"
+									|| replyToMsgRef?.type === "Audio" || replyToMsg?.type === "Audio";
 								const replyImageUrl = replyToMsg ? getMessageImageUrl(replyToMsg) : null;
 								const replyImageHash = typeof replyPreviewRaw?.imageHash === "string" ? replyPreviewRaw.imageHash : null;
 								const replyPreviewUrl = replyIsImage && typeof replyPreviewRaw?.url === "string" && replyPreviewRaw.url.startsWith("http") ? replyPreviewRaw.url : null;
@@ -427,7 +429,20 @@ export function ChatThreadMessages({
 									return null;
 								})();
 								const replyThumbUrl = replyImageUrl ?? (replyImageHash ? getThumbImageUrl(replyImageHash, "320x320") : null) ?? replyPreviewUrl ?? albumContentThumbUrl ?? replyToMsgThumbUrl;
-								const replyLabel = (replyText || replyThumbUrl)
+								const replyAudioDuration = (() => {
+									if (!replyIsAudio) return null;
+									const embedded = message.replyToMessage as Record<string, unknown> | null | undefined;
+									const src = (replyToMsg?.body ?? embedded?.body) as Record<string, unknown> | null | undefined;
+									const rawMs = typeof replyPreviewRaw?.duration === "number"
+										? replyPreviewRaw.duration
+										: typeof src?.length === "number" ? src.length : null;
+									if (rawMs === null) return null;
+									const totalSec = Math.floor(rawMs / 1000);
+									const m = Math.floor(totalSec / 60);
+									const s = totalSec % 60;
+									return `${m}:${s.toString().padStart(2, "0")}`;
+								})();
+								const replyLabel = (replyText || replyThumbUrl || replyIsAudio)
 									? replySenderId === userId
 										? mine ? "Reply to myself" : "Reply to you"
 										: `Reply to "${selectedConversation.data.name || ""}"`
@@ -1026,7 +1041,7 @@ export function ChatThreadMessages({
 												})() : null}
 
 
-												{(replyText || replyThumbUrl) && !isMediaOnlyBubble ? (
+												{(replyText || replyThumbUrl || replyIsAudio) && !isMediaOnlyBubble ? (
 													<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${
 														mine ? "bg-black/20" : "bg-black/[0.08]"
 													}`}>
@@ -1035,15 +1050,20 @@ export function ChatThreadMessages({
 														}`} />
 														<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
 															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : t("chat.thread.shared_image"))}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : t("chat.thread.shared_image"))}</p>
 														</div>
-														{replyThumbUrl && (
+														{replyThumbUrl ? (
 															<img
 																src={replyThumbUrl}
 																alt=""
 																className="h-14 w-14 shrink-0 object-cover"
 															/>
-														)}
+														) : replyIsAudio ? (
+															<div className={`flex w-14 shrink-0 flex-col items-end justify-between py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+																<Mic className="h-4 w-4" />
+																<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+															</div>
+														) : null}
 													</div>
 												) : null}
 
