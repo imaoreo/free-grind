@@ -745,9 +745,12 @@
             "shared_album": "Shared an album",
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
+            "tapped_album_photo_yours": "Tapped your album photo",
+            "tapped_album_photo_theirs": "Tapped their album photo",
             "sent_video": "Sent a video",
             "sent_location": "Sent a location",
-            "sent_message": "Sent a message"
+            "sent_message": "Sent a message",
+            "replied_profile_photo": "Replied to a profile photo"
         },
         "thread": {
             "unsent": "This message was unsent",
@@ -765,7 +768,10 @@
             "shared_alt": "Shared",
             "taken_on_grindr": "Taken on Grindr",
             "album_cover": "Album cover",
-            "album_share": "Album share"
+            "album_share": "Album share",
+            "album_image": "Album image",
+            "replied_to_photo": "Replied to your profile photo",
+            "reacted_to_image": "Reacted to your album image"
         },
         "actions": {
             "title": "Message actions",

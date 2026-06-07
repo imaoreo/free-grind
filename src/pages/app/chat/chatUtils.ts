@@ -301,6 +301,24 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		return t("chat.preview.reacted_album_content");
 	}
 
+	if (message.type === "ProfilePhotoReply") {
+		const body = message.body as Record<string, unknown> | null | undefined;
+		const replyContent = body?.photoContentReply;
+		if (typeof replyContent === "string" && replyContent.trim().length > 0) {
+			return replyContent.trim();
+		}
+		return t("chat.preview.replied_profile_photo");
+	}
+
+	if (message.type === "AlbumContentReply") {
+		const body = message.body as Record<string, unknown> | null | undefined;
+		const replyText = body?.albumContentReply;
+		if (typeof replyText === "string" && replyText.trim().length > 0) {
+			return replyText.trim();
+		}
+		return t("chat.preview.reacted_album_content");
+	}
+
 	return `[${message.type}]`;
 }
 
