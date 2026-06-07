@@ -2,7 +2,6 @@ import {
     ChevronLeft,
 	ChevronRight,
 	Loader2,
-	X,
 } from "lucide-react";
 import {
 	type FormEvent,
@@ -54,6 +53,7 @@ import {
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
+import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
@@ -3386,69 +3386,23 @@ export function ChatPage() {
 			) : null}
 
 			{albumViewer ? (
-				<div
-					className="fixed inset-0 z-40 bg-black/65 p-4"
-					onClick={() => {
-						setAlbumViewerMediaIndex(null);
-						setAlbumViewer(null);
+				<AlbumViewerPanel
+					viewer={{
+						albumId: albumViewer.albumId,
+						albumName: albumViewer.albumName,
+						profileId: selectedConversationOtherProfileId ? Number(selectedConversationOtherProfileId) : 0,
+						profileName: (selectedConversationOtherProfileId ? localNicknamesByProfileId[selectedConversationOtherProfileId] : null) || selectedConversation?.data.name || "",
+						content: albumViewer.content,
 					}}
-				>
-					<div
-						className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="mb-3 flex items-center justify-between">
-							<p className="font-semibold">
-								{albumViewer.albumName || "Album"}
-							</p>
-							<button
-								type="button"
-								onClick={() => {
-									setAlbumViewerMediaIndex(null);
-									setAlbumViewer(null);
-								}}
-								className="rounded-lg border border-[var(--border)] p-2"
-							>
-								<X className="h-4 w-4" />
-							</button>
-						</div>
-						<div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-							{albumViewer.content.map((item, index) => {
-								const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
-								if (!mediaUrl) {
-									return (
-										<div
-											key={item.contentId}
-											className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-2)] text-xs text-[var(--text-muted)]"
-										>
-											Unavailable
-										</div>
-									);
-								}
-
-								return (
-									<button
-										type="button"
-										key={item.contentId}
-										onClick={() => openAlbumMediaViewer(index)}
-										className="relative overflow-hidden rounded-lg"
-									>
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="h-32 w-full object-cover"
-										/>
-										{item.contentType?.startsWith("video/") ? (
-											<span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-												Video
-											</span>
-										) : null}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				</div>
+					viewerIndex={albumViewerMediaIndex ?? 0}
+					fullScreenIndex={albumViewerMediaIndex}
+					selectedViewerItem={albumViewerMediaIndex !== null ? (albumViewer.content[albumViewerMediaIndex] ?? null) : null}
+					closeViewer={() => { setAlbumViewerMediaIndex(null); setAlbumViewer(null); }}
+					openFullScreen={openAlbumMediaViewer}
+					onMessageProfile={() => { setAlbumViewerMediaIndex(null); setAlbumViewer(null); }}
+					onViewProfile={(profileId) => navigate(`/profile/${profileId}`)}
+					hideProfileActions
+				/>
 			) : null}
 
 			<PhotoViewer

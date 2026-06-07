@@ -15,6 +15,7 @@ type AlbumViewerPanelProps = {
 	openFullScreen: (index: number) => void;
 	onMessageProfile: (profileId: number) => void;
 	onViewProfile: (profileId: number) => void;
+	hideProfileActions?: boolean;
 };
 
 export function AlbumViewerPanel({
@@ -26,6 +27,7 @@ export function AlbumViewerPanel({
 	openFullScreen,
 	onMessageProfile,
 	onViewProfile,
+	hideProfileActions = false,
 }: AlbumViewerPanelProps) {
 	const { t } = useTranslation();
 
@@ -38,7 +40,10 @@ export function AlbumViewerPanel({
 				className="mx-auto flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden border border-[var(--border)] bg-[var(--surface)] sm:h-full sm:rounded-2xl"
 				onClick={(event) => event.stopPropagation()}
 			>
-				<div className="border-b border-[var(--border)] px-4 py-3 sm:px-5">
+				<div
+					className="border-b border-[var(--border)] px-4 pb-3 sm:px-5"
+					style={{ paddingTop: "max(12px, env(safe-area-inset-top, 0px))" }}
+				>
 					<div className="flex items-start justify-between gap-3">
 						<div className="min-w-0">
 						<p className="text-xs uppercase tracking-[0.12em] text-[var(--text-muted)]">
@@ -65,28 +70,30 @@ export function AlbumViewerPanel({
 							<X className="h-4 w-4" />
 						</Button>
 					</div>
-					<div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:items-center">
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							onClick={() => onMessageProfile(viewer.profileId)}
-							className="min-w-0 justify-center gap-1.5"
-						>
-							<MessageCircle className="h-4 w-4" />
-							<span className="truncate">{t("profile_details.message")}</span>
-						</Button>
-						<Button
-							type="button"
-							variant="secondary"
-							size="sm"
-							onClick={() => onViewProfile(viewer.profileId)}
-							className="min-w-0 justify-center gap-1.5"
-						>
-							<UserRound className="h-4 w-4" />
-							<span className="truncate">{t("chat.view_profile")}</span>
-						</Button>
-					</div>
+					{!hideProfileActions && (
+						<div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:items-center">
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								onClick={() => onMessageProfile(viewer.profileId)}
+								className="min-w-0 justify-center gap-1.5"
+							>
+								<MessageCircle className="h-4 w-4" />
+								<span className="truncate">{t("profile_details.message")}</span>
+							</Button>
+							<Button
+								type="button"
+								variant="secondary"
+								size="sm"
+								onClick={() => onViewProfile(viewer.profileId)}
+								className="min-w-0 justify-center gap-1.5"
+							>
+								<UserRound className="h-4 w-4" />
+								<span className="truncate">{t("chat.view_profile")}</span>
+							</Button>
+						</div>
+					)}
 				</div>
 
 				{viewer.content.length === 0 ? (
@@ -103,7 +110,10 @@ export function AlbumViewerPanel({
 								{t("shared_albums.all_media")}
 							</p>
 						</div>
-						<div className="grid max-h-full grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4 lg:grid-cols-5">
+						<div
+							className="grid max-h-full grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4 lg:grid-cols-5"
+							style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+						>
 							{viewer.content.map((item, index) => {
 								const mediaUrl = item.thumbUrl || item.url || item.coverUrl;
 								const isActive = index === fullScreenIndex;
