@@ -411,6 +411,9 @@ export function ChatPage() {
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
 	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
+	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
+	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
+	const [isSendingAudio, setIsSendingAudio] = useState(false);
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
 	const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -2691,6 +2694,49 @@ export function ChatPage() {
 		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
 	);
 
+	const onAudioRecorded = useCallback((blob: Blob, durationMs: number) => {
+		setPendingAudioBlob(blob);
+		setPendingAudioDuration(durationMs);
+	}, []);
+
+	const cancelAudio = useCallback(() => {
+		setPendingAudioBlob(null);
+		setPendingAudioDuration(0);
+	}, []);
+
+	const confirmAudio = useCallback(async () => {
+		if (!pendingAudioBlob || !userId) return;
+		const targetIdValue = selectedConversation
+			? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+			: targetProfileId;
+		if (!targetIdValue) return;
+		setIsSendingAudio(true);
+		try {
+			const audioBytes = new Uint8Array(await pendingAudioBlob.arrayBuffer());
+			const uploaded = await service.uploadChatMedia({
+				multipart: { body: audioBytes, contentType: pendingAudioBlob.type || "audio/webm" },
+				options: { looping: false, takenOnGrindr: false },
+			});
+			await service.sendMessage({
+				type: "Audio",
+				target: { type: "Direct", targetId: Number(targetIdValue) },
+				body: {
+					mediaId: uploaded.mediaId,
+					mediaHash: uploaded.mediaHash,
+					url: uploaded.url,
+					contentType: pendingAudioBlob.type || "audio/webm",
+					length: pendingAudioDuration,
+				},
+			});
+			setPendingAudioBlob(null);
+			setPendingAudioDuration(0);
+		} catch (err) {
+			toast.error(err instanceof Error ? err.message : t("chat.errors.send_failed"));
+		} finally {
+			setIsSendingAudio(false);
+		}
+	}, [pendingAudioBlob, pendingAudioDuration, userId, selectedConversation, targetProfileId, service, t]);
+
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
@@ -3445,6 +3491,12 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onAudioRecorded={onAudioRecorded}
+			pendingAudioBlob={pendingAudioBlob}
+			pendingAudioDuration={pendingAudioDuration}
+			isSendingAudio={isSendingAudio}
+			confirmAudio={confirmAudio}
+			cancelAudio={cancelAudio}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
