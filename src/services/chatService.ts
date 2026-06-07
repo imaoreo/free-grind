@@ -492,6 +492,9 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				looping: String(params.options.looping),
 				takenOnGrindr: String(params.options.takenOnGrindr),
 			});
+			if (params.options.durationSeconds != null) {
+				query.set("length", String(params.options.durationSeconds));
+			}
 
 			const response = await fetchRest(
 				`/v5/chat/media/upload?${query.toString()}`,

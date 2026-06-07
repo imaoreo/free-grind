@@ -5,6 +5,7 @@ import {
 	SquareCenterlineDashedHorizontal,
 	Image as ImageIcon,
 	Loader2,
+	Play,
 	RotateCw,
 	Plus,
 	Hourglass,
@@ -12,10 +13,12 @@ import {
 	Send,
 	Share2,
 	Upload,
+	Video,
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AlbumListItem } from "../../../types/chat-page";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
@@ -41,10 +44,10 @@ interface ChatDrawerPanelProps {
 	media: DrawerMedia[];
 	onBack: () => void;
 	onLoadMedia: () => void;
-	onSendMedia: (mediaIds: number[], isExpiring?: boolean) => void | Promise<void>;
+	onSendMedia: (mediaIds: number[], maxViews?: number) => void | Promise<void>;
 	isSending: boolean;
 	isAdding: boolean;
-	onAddMedia: (file: File, takenOnGrindr: boolean) => void | Promise<void>;
+	onAddMedia: (file: File, takenOnGrindr: boolean, looping?: boolean) => void | Promise<void>;
 	deletingMediaId: number | null;
 	onDeleteMedia: (mediaId: number) => void | Promise<void>;
 	isDesktop: boolean;
@@ -86,13 +89,13 @@ export function ChatDrawerPanel({
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const [pendingAddFile, setPendingAddFile] = useState<File | null>(null);
 	const [pendingTakenOnGrindr, setPendingTakenOnGrindr] = useState(false);
+	const [pendingLooping, setPendingLooping] = useState(false);
 	const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 	const [crop, setCrop] = useState<Crop | undefined>(undefined);
     const [isDraggingCrop, setIsDraggingCrop] = useState(false);
 	const [completedCrop, setCompletedCrop] = useState<PixelCrop | undefined>(undefined);
 	const imgRef = useRef<HTMLImageElement | null>(null);
 	const [confirmDeleteMediaId, setConfirmDeleteMediaId] = useState<number | null>(null);
-	const [isExpiring, setIsExpiring] = useState(false);
 	const [selectAfterUpload, setSelectAfterUpload] = useState(false);
 	const [selectedAlbumIds, setSelectedAlbumIds] = useState<Set<number>>(new Set());
 	const EXPIRY_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"];
@@ -101,6 +104,7 @@ export function ChatDrawerPanel({
 	const prevMediaIdsRef = useRef<Set<number>>(new Set());
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
+	const cameraVideoInputRef = useRef<HTMLInputElement | null>(null);
 	useEffect(() => {
 		if (!pendingAddFile) {
 			setPreviewUrl(null);
@@ -150,18 +154,28 @@ export function ChatDrawerPanel({
 		escapeKey: !isSending && !isAdding,
 	});
 
-	const toggleSelection = useCallback((id: number) => {
+	const [mediaMaxViews, setMediaMaxViews] = useState(2147483647);
+
+	const toggleSelection = useCallback((id: number, isVideo: boolean) => {
 		setSelectedAlbumIds(new Set());
 		setSelectedIds((prev) => {
 			const next = new Set(prev);
 			if (next.has(id)) {
 				next.delete(id);
+				if (next.size === 0) setMediaMaxViews(2147483647);
 			} else {
+				// Enforce image/video exclusivity: clear opposite type
+				const hasOppositeType = [...next].some((existingId) => {
+					const item = media.find((m) => m.id === existingId);
+					return item ? item.contentType.startsWith("video") !== isVideo : false;
+				});
+				if (hasOppositeType) return prev;
+				if (prev.size === 0) setMediaMaxViews(isVideo ? 1 : 2147483647);
 				next.add(id);
 			}
 			return next;
 		});
-	}, []);
+	}, [media]);
 
 	const handleSendSelected = useCallback(async () => {
 		if (selectedIds.size === 0) {
@@ -169,24 +183,30 @@ export function ChatDrawerPanel({
 			return;
 		}
 		try {
-			await onSendMedia(Array.from(selectedIds), isExpiring);
+			await onSendMedia(Array.from(selectedIds), mediaMaxViews);
 			setSelectedIds(new Set());
+			setMediaMaxViews(2147483647);
 			onBack();
 		} catch (err) {
 			const message = err instanceof Error ? err.message : t("chat_drawer.error_send_failed");
 			toast.error(message);
 		}
-	}, [selectedIds, onSendMedia, onBack, t, isExpiring]);
-
+	}, [selectedIds, onSendMedia, onBack, t, mediaMaxViews]);
 	const hasSelection = selectedIds.size > 0;
 	const hasAlbumSelection = selectedAlbumIds.size > 0;
+	const hasAnyVideo = hasSelection && [...selectedIds].some(
+		(id) => media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
+	);
+	const hasAnyImage = hasSelection && [...selectedIds].some(
+		(id) => !media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
+	);
 
 	const onPickDrawerPhoto = useCallback(
 		(event: React.ChangeEvent<HTMLInputElement>) => {
 			const file = event.target.files?.[0] ?? null;
 			event.target.value = "";
 			if (!file) return;
-			if (!file.type.startsWith("image/")) {
+			if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
 				toast.error(t("chat_drawer.invalid_file_type"));
 				return;
 			}
@@ -232,12 +252,13 @@ export function ChatDrawerPanel({
 		}
 
 		prevMediaIdsRef.current = new Set(media.map((m) => m.id));
-		await onAddMedia(fileToUpload, pendingTakenOnGrindr);
+		await onAddMedia(fileToUpload, pendingTakenOnGrindr, pendingLooping);
 		setSelectedIds(new Set());
 		setSelectAfterUpload(true);
 		setPendingAddFile(null);
 		setPendingTakenOnGrindr(false);
-	}, [onAddMedia, pendingAddFile, pendingTakenOnGrindr, media, completedCrop]);
+		setPendingLooping(false);
+	}, [onAddMedia, pendingAddFile, pendingTakenOnGrindr, pendingLooping, media, completedCrop]);
 
 	useEffect(() => {
 		if (!selectAfterUpload) return;
@@ -251,6 +272,7 @@ export function ChatDrawerPanel({
 	const cancelAddPhoto = useCallback(() => {
 		setPendingAddFile(null);
 		setPendingTakenOnGrindr(false);
+		setPendingLooping(false);
 	}, []);
 
 	const handleDeleteMedia = useCallback(
@@ -289,7 +311,9 @@ export function ChatDrawerPanel({
 			<div className="mb-4 flex items-center justify-between">
 					<h3 className="text-sm font-semibold text-[var(--text)]">
 						{pendingAddFile
-							? t("chat_drawer.add_photo")
+							? pendingAddFile.type.startsWith("video/")
+								? t("chat_drawer.add_video", { defaultValue: "Add video" })
+								: t("chat_drawer.add_photo")
 							: t("chat_drawer.title", { defaultValue: "Drawer" })}
 					</h3>
 					{pendingAddFile ? (
@@ -303,12 +327,20 @@ export function ChatDrawerPanel({
 					)}
 				</div>
 
-				<input type="file" ref={uploadInputRef} onChange={onPickDrawerPhoto} accept="image/*" className="hidden" />
+				<input type="file" ref={uploadInputRef} onChange={onPickDrawerPhoto} accept="image/*,video/*" className="hidden" />
 				<input type="file" ref={cameraInputRef} onChange={onPickDrawerPhoto} accept="image/*" capture="environment" className="hidden" />
+				<input type="file" ref={cameraVideoInputRef} onChange={onPickDrawerPhoto} accept="video/*" capture="environment" className="hidden" />
 
 				{pendingAddFile ? (
 					<>
-						{previewUrl && (
+						{previewUrl && pendingAddFile.type.startsWith("video/") && (
+							<div className="mb-4 flex justify-center">
+								<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ clipPath: "inset(0 round 0.75rem)" }}>
+									<video src={previewUrl} controls className="block max-h-[50dvh] w-full" style={{ maxWidth: "100%" }} />
+								</div>
+							</div>
+						)}
+						{previewUrl && !pendingAddFile.type.startsWith("video/") && (
 							<>
 							<div className="mb-4 flex justify-center">
 								<style>{`
@@ -405,14 +437,26 @@ export function ChatDrawerPanel({
 							</div>
 							</>
 						)}
-						<div className="mb-4">
-							<ToggleRow
-								checked={pendingTakenOnGrindr}
-								onChange={setPendingTakenOnGrindr}
-								label={t("chat.attachments.taken_on_grindr")}
-                                description={t("chat.attachments.taken_on_grindr_description")}
-							/>
-						</div>
+						{pendingAddFile?.type.startsWith("video/") && (
+							<div className="mb-4">
+								<ToggleRow
+									checked={pendingLooping}
+									onChange={setPendingLooping}
+									label={t("chat.attachments.looping")}
+									description={t("chat.attachments.looping_description")}
+								/>
+							</div>
+						)}
+						{!pendingAddFile?.type.startsWith("video/") && (
+							<div className="mb-4">
+								<ToggleRow
+									checked={pendingTakenOnGrindr}
+									onChange={setPendingTakenOnGrindr}
+									label={t("chat.attachments.taken_on_grindr")}
+									description={t("chat.attachments.taken_on_grindr_description")}
+								/>
+							</div>
+						)}
 						<div className="flex gap-2">
 							<button
 								type="button"
@@ -463,7 +507,7 @@ export function ChatDrawerPanel({
 								</div>
 							) : (
 								<div className={`grid gap-px bg-[var(--border)] ${isDesktop ? "grid-cols-5" : "grid-cols-3"}`}>
-									{/* Camera button */}
+									{/* Camera photo button */}
 									<button
 										type="button"
 										onClick={() => cameraInputRef.current?.click()}
@@ -483,6 +527,24 @@ export function ChatDrawerPanel({
 													</span>}
 												</span>
 											)}
+										</div>
+									</button>
+									{/* Camera video button */}
+									<button
+										type="button"
+										onClick={() => cameraVideoInputRef.current?.click()}
+										disabled={isAdding || hasSelection || hasAlbumSelection || noConversation}
+										className="relative aspect-square bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:brightness-75"
+										aria-label={t("chat_drawer.record_video", { defaultValue: "Record video" })}
+										title={t("chat_drawer.record_video", { defaultValue: "Record video" })}
+									>
+										<div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+											<span className="relative inline-flex">
+												<Video className="h-5 w-5" />
+												{!hasSelection && !hasAlbumSelection && !noConversation && <span className="absolute -bottom-1 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[var(--accent)]">
+													<Plus className="h-2.5 w-2.5 stroke-[3] text-[var(--accent-contrast)]" />
+												</span>}
+											</span>
 										</div>
 									</button>
 									{/* Upload button */}
@@ -522,9 +584,9 @@ export function ChatDrawerPanel({
 													<div className="absolute inset-0 flex items-center justify-center bg-[var(--surface)] text-[var(--text-muted)]"><Album className="h-6 w-6 opacity-50" /></div>
 												)}
 												<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
-													{ownProfilePhotoUrl && (
-														<img src={ownProfilePhotoUrl} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-white/60" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }} />
-													)}
+													<div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-white/60" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}>
+														<ProfileImage src={ownProfilePhotoUrl} />
+													</div>
 													<p className="truncate text-[11px] font-medium text-white leading-tight drop-shadow px-1 max-w-full">{album.albumName || t("chat_drawer.album_fallback", { defaultValue: "My Album" })}</p>
 													{isShared && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span>}
 												</div>
@@ -533,18 +595,28 @@ export function ChatDrawerPanel({
 											</div>
 										);
 									})}
+									{media.length === 0 && (
+										<div className={`col-span-${isDesktop ? "3" : "1"} flex flex-col items-center justify-center gap-2 py-8 text-[var(--text-muted)]`} style={{ gridColumn: "1 / -1" }}>
+											<ImageIcon className="h-8 w-8 opacity-30" />
+											<p className="text-xs">{t("chat_drawer.empty", { defaultValue: "No photos yet" })}</p>
+										</div>
+									)}
 									{media.map((item) => {
 										const isSelected = selectedIds.has(item.id);
 										const isImage = item.contentType.startsWith("image/");
+										const isItemVideo = item.contentType.startsWith("video/");
+										const isDisabledByType = hasSelection && (
+											(isItemVideo && hasAnyImage) || (!isItemVideo && hasAnyVideo)
+										);
 
 										return (
 											<div
 												key={item.id}
 												role="button"
 												tabIndex={0}
-												onClick={() => { if (!hasAlbumSelection && !noConversation) toggleSelection(item.id); }}
-												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && !noConversation && toggleSelection(item.id)}
-												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection || noConversation ? "opacity-30 pointer-events-none" : ""}`}
+												onClick={() => { if (!hasAlbumSelection && !noConversation && !isDisabledByType) toggleSelection(item.id, isItemVideo); }}
+												onKeyDown={(e) => e.key === "Enter" && !hasAlbumSelection && !noConversation && !isDisabledByType && toggleSelection(item.id, isItemVideo)}
+												className={`relative aspect-square overflow-hidden transition cursor-pointer ${hasAlbumSelection || noConversation || isDisabledByType ? "opacity-30 pointer-events-none" : ""}`}
 												style={{
 													outline: isSelected ? "2px solid var(--accent)" : "none",
 													outlineOffset: "-2px",
@@ -557,10 +629,20 @@ export function ChatDrawerPanel({
 														className="h-full w-full object-cover"
 													/>
 												) : (
-													<video
-														src={item.url}
-														className="h-full w-full object-cover"
-													/>
+													<>
+														<video
+									src={item.url}
+									preload="metadata"
+									muted
+									onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+									className="h-full w-full object-cover"
+								/>
+														<div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20">
+															<div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
+																<Play className="h-4 w-4 fill-white text-white" />
+															</div>
+														</div>
+													</>
 												)}
 
 												{item.used && !isSelected ? (
@@ -585,7 +667,7 @@ export function ChatDrawerPanel({
 													/>
 												) : null}
 
-												<button
+																					<button
 													type="button"
 													onClick={(event) => void handleDeleteMedia(event, item.id)}
 													disabled={deletingMediaId === item.id}
@@ -659,28 +741,30 @@ export function ChatDrawerPanel({
 						{hasSelection ? (
 							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">
 								<div className="flex flex-1 gap-2">
-									<button
-										type="button"
-										onClick={() => setIsExpiring((prev) => !prev)}
-										className={`inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border transition ${
-											isExpiring
-												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-										style={{ flexBasis: "16.6%" }}
-										title={
-											isExpiring
-												? t("chat_drawer.is_expiring_title_on")
-												: t("chat_drawer.is_expiring_title_off")
-										}
-									>
-										<Hourglass className="h-4 w-4" />
-										<span className="text-sm font-semibold">
-											{isExpiring
-												? t("chat_drawer.is_expiring_toggle_on")
-												: t("chat_drawer.is_expiring_toggle_off")}
-										</span>
-									</button>
+									{(() => {
+									const cycle = hasAnyVideo ? [2147483647, 1, 2] as const : [2147483647, 1] as const;
+									const idx = cycle.indexOf(mediaMaxViews as typeof cycle[number]);
+									const next = cycle[(idx === -1 ? 0 : idx + 1) % cycle.length];
+									const isLimited = mediaMaxViews !== 2147483647;
+									return (
+										<button
+											type="button"
+											onClick={() => setMediaMaxViews(next)}
+											className={`inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border transition ${
+												isLimited
+													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+													: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+											}`}
+											style={{ flexBasis: "16.6%" }}
+										>
+											<Hourglass className="h-4 w-4" />
+											{isLimited
+												? <span className="text-sm font-semibold">{mediaMaxViews}×</span>
+												: <span className="text-base font-semibold leading-none">∞</span>
+											}
+										</button>
+									);
+								})()}
 									<button
 										type="button"
 										onClick={handleSendSelected}
@@ -695,7 +779,7 @@ export function ChatDrawerPanel({
 										<span className="truncate">
 											{isSending
 												? t("chat_drawer.sending")
-												: isExpiring
+												: mediaMaxViews !== 2147483647
 													? t("chat_drawer.is_expiring_send", { count: selectedIds.size })
 													: t("chat_drawer.send", { count: selectedIds.size })}
 										</span>
