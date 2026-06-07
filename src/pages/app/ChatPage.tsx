@@ -1030,7 +1030,7 @@ export function ChatPage() {
 
 					// Hydrate received video messages that have no URL yet (mediaId may be null).
 					const mediaIdVideoMessages = responseMessages.filter((message) => {
-						const isVideoLike = message.type === "Video" || (message as UiMessage).chat1Type?.toLowerCase() === "video";
+						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "privatevideo" || (message as UiMessage).chat1Type?.toLowerCase() === "nonexpiringvideo";
 						if (!isVideoLike) return false;
 						return !getMessageVideoUrl(message as UiMessage);
 					});
@@ -1334,7 +1334,7 @@ export function ChatPage() {
 
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
-			const isVideoLike = m.type === "Video" || (m as UiMessage).chat1Type?.toLowerCase() === "video";
+			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "nonexpiringvideo";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
 		});
@@ -2559,7 +2559,8 @@ export function ChatPage() {
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
 				const isOnceImage = isImage && options.maxViews === 1;
-				const messageType = isVideo ? "Video" : isOnceImage ? "ExpiringImage" : "Image";
+				const isUnlimitedVideo = isVideo && options.maxViews > 2;
+				const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 				const sentMessage = await service.sendMessage({
 					type: messageType,
 					target: {
@@ -3144,7 +3145,8 @@ export function ChatPage() {
 					const isVideo = media.contentType.startsWith("video");
 					const views = maxViews ?? 2147483647;
 					const isOnceImage = !isVideo && views === 1;
-					const messageType = isOnceImage ? "ExpiringImage" : isVideo ? "Video" : "Image";
+                    const isUnlimitedVideo = isVideo && views > 2;
+				    const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 
 					const sentMessage = await service.sendMessage({
 						type: messageType,

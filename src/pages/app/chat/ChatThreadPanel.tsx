@@ -201,6 +201,21 @@ type ChatThreadPanelProps = {
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
+function AudioPreviewPlayer({ blob }: { blob: Blob }) {
+	const [url, setUrl] = useState<string | null>(null);
+	useEffect(() => {
+		const u = URL.createObjectURL(blob);
+		setUrl(u);
+		return () => URL.revokeObjectURL(u);
+	}, [blob]);
+	if (!url) return null;
+	return (
+		<div className="px-3 pb-3">
+			<AudioMessagePlayer src={url} messageId="preview" mine={false} />
+		</div>
+	);
+}
+
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
     const apiFunctions = useApiFunctions();
@@ -1387,23 +1402,49 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							);
 						})() : null}
 
-						<div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
-							<textarea
-								value={draft}
-								onChange={(event) => setDraft(event.target.value)}
-								rows={1}
-								maxLength={1000}
-								placeholder={selectedConversation ? t("chat.write_message") : t("chat.new_conversation.write_first_message")}
-								className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
-                                style={{ fieldSizing: "content", maxHeight: "115px" }}
-							/>
-							<button
-								type="submit"
-								disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
-								className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] transition hover:opacity-80 disabled:opacity-30"
-							>
-								{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
-							</button>
+						<div className={`flex items-end gap-2 rounded-xl border px-3 py-1.5 mb-2 transition-colors ${isRecording ? "border-red-500 bg-[var(--surface-2)]" : "border-[var(--border)] bg-[var(--surface-2)] focus-within:border-[var(--accent)]"}`}>
+							{isRecording ? (
+								<div className="flex flex-1 items-center gap-2 py-1">
+									<div className="h-2 w-2 shrink-0 rounded-full bg-red-500 animate-pulse" />
+									<span className="text-sm font-semibold tabular-nums text-red-500">
+										{`${Math.floor(Math.floor(recordingMs / 1000) / 60)}:${(Math.floor(recordingMs / 1000) % 60).toString().padStart(2, "0")}`}
+									</span>
+									<span className="flex-1 truncate text-xs text-[var(--text-muted)]">
+										{t("chat.recording", { defaultValue: "Recording… release to preview" })}
+									</span>
+								</div>
+							) : (
+								<textarea
+									value={draft}
+									onChange={(event) => setDraft(event.target.value)}
+									rows={1}
+									maxLength={1000}
+									placeholder={selectedConversation ? t("chat.write_message") : t("chat.new_conversation.write_first_message")}
+									className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
+									style={{ fieldSizing: "content", maxHeight: "115px" } as React.CSSProperties}
+								/>
+							)}
+							{draft.trim().length > 0 || isSending ? (
+								<button
+									type="submit"
+									disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
+									className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] transition hover:opacity-80 disabled:opacity-30"
+								>
+									{isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizontal className="h-4 w-4" />}
+								</button>
+							) : (
+								<button
+									type="button"
+									onPointerDown={(e) => { e.preventDefault(); void startRecording(); }}
+									onPointerUp={stopRecording}
+									onPointerLeave={stopRecording}
+									onPointerCancel={stopRecording}
+									className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg transition select-none ${isRecording ? "text-red-500" : "text-[var(--accent)] hover:opacity-80"}`}
+									aria-label={t("chat.record_audio", { defaultValue: "Record audio" })}
+								>
+									<Mic className={`h-4 w-4 ${isRecording ? "animate-pulse" : ""}`} />
+								</button>
+							)}
 						</div>
 
                         <div className="mb-2 mx-5 flex items-center justify-between gap-2">
@@ -1584,6 +1625,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								/>
 							)}
 							</div>
+						</BottomDrawer>
+					) : null}
+
+					{props.pendingAudioBlob ? (
+						<BottomDrawer
+							title={t("chat.audio_preview_title", { defaultValue: "Audio message" })}
+							onClose={props.cancelAudio}
+							onConfirm={() => void props.confirmAudio()}
+							confirmLabel={t("chat.attachments.send")}
+							isProcessing={props.isSendingAudio}
+							isDesktop={isDesktop}
+						>
+							<AudioPreviewPlayer blob={props.pendingAudioBlob} />
 						</BottomDrawer>
 					) : null}
 
