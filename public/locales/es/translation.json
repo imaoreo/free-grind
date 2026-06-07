@@ -546,9 +546,12 @@
             "shared_album": "Compartió un álbum",
             "sent_audio": "Envió un mensaje de audio",
             "reacted_album_content": "Reaccionó a contenido de álbum",
+            "tapped_album_photo_yours": "Le gustó tu foto de álbum",
+            "tapped_album_photo_theirs": "Te gustó su foto de álbum",
             "sent_video": "Envió un vídeo",
             "sent_message": "Envió un mensaje",
-            "sent_location": "Envió una ubicación"
+            "sent_location": "Envió una ubicación",
+            "replied_profile_photo": "Respondió a una foto de perfil"
         },
         "thread": {
             "unsent": "Este mensaje fue eliminado",
@@ -565,6 +568,9 @@
             "taken_on_grindr": "Tomada en Grindr",
             "album_cover": "Portada de álbum",
             "album_share": "Compartir álbum",
+            "album_image": "Imagen de álbum",
+            "replied_to_photo": "Respondió a tu foto de perfil",
+            "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
             "location_shared": "Ubicación compartida"
         },

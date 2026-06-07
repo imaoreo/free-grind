@@ -697,9 +697,12 @@
             "shared_album": "Hat ein Album geteilt",
             "sent_audio": "Hat eine Sprachnachricht gesendet",
             "reacted_album_content": "Hat auf Albuminhalt reagiert",
+            "tapped_album_photo_yours": "Hat dein Album-Foto geliket",
+            "tapped_album_photo_theirs": "Du hast ihr Album-Foto geliket",
             "sent_video": "Hat ein Video gesendet",
             "sent_location": "Hat einen Standort gesendet",
-            "sent_message": "Hat eine Nachricht gesendet"
+            "sent_message": "Hat eine Nachricht gesendet",
+            "replied_profile_photo": "Hat auf ein Profilbild geantwortet"
         },
         "thread": {
             "unsent": "Diese Nachricht wurde zurückgezogen",
@@ -717,7 +720,10 @@
             "shared_alt": "Geteilt",
             "taken_on_grindr": "In Grindr aufgenommen",
             "album_cover": "Album-Cover",
-            "album_share": "Album-Freigabe"
+            "album_share": "Album-Freigabe",
+            "album_image": "Album-Bild",
+            "replied_to_photo": "Auf dein Profilbild geantwortet",
+            "reacted_to_image": "Auf dein Album-Bild reagiert"
         },
         "actions": {
             "title": "Nachrichten-Aktionen",

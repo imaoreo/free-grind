@@ -24,7 +24,7 @@ export function ChatAlbumSheet({
 	const { t } = useTranslation();
 
 	return (
-		<BottomSheet onClose={onClose} isDesktop={isDesktop} zIndex="z-50" panelClassName="max-h-[82dvh]">
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} panelClassName="max-h-[82dvh]">
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 pb-3">
 				<div className="flex min-w-0 items-center gap-2">
