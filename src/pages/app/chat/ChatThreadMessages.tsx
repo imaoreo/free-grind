@@ -483,11 +483,10 @@ export function ChatThreadMessages({
 
 								const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
-								// isViewable in the message body can be stale (e.g. album re-shared after
-								// being stopped, but old message still carries isViewable:false).
-								// The server is the source of truth — only block older (non-latest) share
-								// messages. For the latest share, let the API call decide on open.
-								const isLocked = isAlbumMessage && !isLatestShare;
+								// isViewable is stale for received albums (server may not propagate updates),
+								// but reliable for own albums (you control sharing). So: lock if not the latest
+								// share, OR if it's own album and server explicitly says not viewable.
+								const isLocked = isAlbumMessage && (!isLatestShare || (mine && msgBody?.isViewable === false));
 
 								return (
 								/* Use Fragment to allow rendering the separator and the message as a single map item */
