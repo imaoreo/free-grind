@@ -94,17 +94,11 @@ export class TauriWebSocket {
 				this.onopen?.(new Event("open"));
 				return;
 			case "message":
-				appLog.debug(
-					"[chat-ws:tauri] event: message",
-					event.data.length,
-					"bytes",
-				);
 				this.onmessage?.(
 					new MessageEvent("message", { data: event.data }),
 				);
 				return;
 			case "binary": {
-				appLog.debug("[chat-ws:tauri] event: binary", event.len, "bytes");
 				const bytes = decodeBase64(event.data_b64);
 				this.onmessage?.(
 					new MessageEvent("message", { data: bytes.buffer }),

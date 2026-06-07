@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Reply } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Play, Reply, VideoOff } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -46,7 +46,7 @@ type ChatThreadMessagesProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video") => void;
 	openAlbumViewerById: (albumId: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -508,8 +508,12 @@ export function ChatThreadMessages({
 									message.type === "ExpiringAlbum" ||
 									message.type === "ExpiringAlbumV2";
 								const isAlbumReactionBubble = message.type === "AlbumContentReaction";
+								const msgBody = message.body as any;
+								const isExpiredVideo = !videoUrl && msgBody?._videoExpired === true;
 								const isImageOnlyBubble =
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
+								const isVideoOnlyBubble =
+									(Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
 								const isAlbumOnlyBubble =
 									isAlbumMessage && messageText === t("chat.preview.shared_album");
 								const isLocationOnlyBubble =
@@ -518,7 +522,7 @@ export function ChatThreadMessages({
 							const isAudioOnlyBubble =
 									Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
 								const isMediaOnlyBubble =
-									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble || isAlbumReactionBubble;
+									isImageOnlyBubble || isVideoOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble || isAlbumReactionBubble;
 								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
@@ -548,7 +552,6 @@ export function ChatThreadMessages({
 									? "absolute -left-3 -top-2"
 									: "absolute -right-3 -top-2";
 
-								const msgBody = message.body as any;
 								const expirationType = msgBody?.expirationType;
 
 								const albumViewableUntil = isAlbumMessage ? msgBody?.viewableUntil : null;
@@ -861,32 +864,108 @@ export function ChatThreadMessages({
 													</button>
 												) : null}
 
-												{videoUrl ? (
-														<div
-															className="group/media relative mb-2 overflow-hidden rounded-xl border border-black/10 bg-black"
-															onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
-															onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
-															onClick={(event) => {
-																event.stopPropagation();
-																if (shouldBlurIncomingMedia && !isDesktop) {
-																	revealMediaMessage(message.messageId);
-																	lastTapRef.current = null;
-																}
-															}}
-														>
-														{localOnly && (
-															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-																{t("chat.thread.from_local_history")}
-															</span>
-														)}
-														<video
-															controls
-															preload="metadata"
-															src={videoUrl}
-																className={`max-h-72 w-full ${mediaBlurClassName} ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`}
-														/>
-													</div>
-												) : null}
+												{isExpiredVideo ? (
+														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full rounded-2xl ${tailCorner}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
+															<div className="flex flex-col items-center gap-1.5 text-white/60">
+																<VideoOff className="h-6 w-6" />
+																<span className="text-xs font-medium">{t("chat.thread.video_expired")}</span>
+															</div>
+															{isVideoOnlyBubble && (
+																<div className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-[10px] text-white">
+																	<span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+																</div>
+															)}
+														</div>
+													) : null}
+													{videoUrl ? (() => {
+														const videoMaxViews = typeof msgBody?.maxViews === "number" ? msgBody.maxViews : 2147483647;
+														const isLimitedVideo = videoMaxViews !== 2147483647;
+														return (
+															<button
+																type="button"
+																className={`group/media relative block overflow-hidden bg-black ${
+																	isVideoOnlyBubble
+																		? `w-full rounded-2xl ${tailCorner}`
+																		: `mb-2 rounded-xl border border-black/10 ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`
+																}`}
+																onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
+																onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
+																onClick={(event) => {
+																	event.stopPropagation();
+																	if (shouldBlurIncomingMedia && !isDesktop) {
+																		revealMediaMessage(message.messageId);
+																		lastTapRef.current = null;
+																		return;
+																	}
+																	openFullScreenImage(videoUrl, undefined, "video");
+																}}
+															>
+																{localOnly && (
+																	<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																		{t("chat.thread.from_local_history")}
+																	</span>
+																)}
+																<video
+																	preload="metadata"
+																	muted
+																	src={videoUrl}
+																	onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+																	className={`w-full object-cover ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
+																/>
+																{isLimitedVideo && (
+																	<div className="absolute right-3 top-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-black/65 px-1 text-xs font-semibold text-white ring-1 ring-white/25">
+																		{videoMaxViews}×
+																	</div>
+																)}
+																{!shouldBlurIncomingMedia && (
+																	<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+																		<div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
+																			<Play className="h-5 w-5 fill-white text-white" />
+																		</div>
+																	</div>
+																)}
+																{isVideoOnlyBubble && (
+																	<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+																		<div className="flex items-center justify-between gap-2 text-[10px]">
+																			<div className="flex items-center gap-2">
+																				{pending ? <span>{t("chat.sending")}</span> : null}
+																				{failed ? <span>{t("chat.thread.failed")}</span> : null}
+																			</div>
+																			<div className="flex items-center gap-2">
+																				<span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+																				{isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							void handleReply(message);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Reply className="h-3.5 w-3.5" />
+																					</button>
+																				) : null}
+																				{isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							setOpenMessageActionId((current) =>
+																								current === message.messageId ? null : message.messageId,
+																							);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Ellipsis className="h-3.5 w-3.5" />
+																					</button>
+																				) : null}
+																			</div>
+																		</div>
+																	</div>
+																)}
+															</button>
+														);
+													})() : null}
 
 												{audioUrl ? (
 													<div onClick={(e) => e.stopPropagation()}>
@@ -905,7 +984,7 @@ export function ChatThreadMessages({
 														<>
 															<button
 																type="button"
-																className={`group/media relative block w-full overflow-hidden rounded-2xl ${tailCorner}`}
+																className={`group/media relative block overflow-hidden rounded-2xl ${tailCorner} ${isDesktop ? "w-full" : "w-36"}`}
 																onClick={(event) => {
 																	event.stopPropagation();
 																	if (!rxAlbumId) return;
@@ -1115,9 +1194,11 @@ export function ChatThreadMessages({
 																className="h-14 w-14 shrink-0 object-cover"
 															/>
 														) : replyIsAudio ? (
-															<div className={`flex w-14 shrink-0 flex-col items-end justify-between py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
-																<Mic className="h-4 w-4" />
-																<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+																<div className="flex flex-col items-center gap-1">
+																	<Mic className="h-4 w-4" />
+																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+																</div>
 															</div>
 														) : null}
 													</div>

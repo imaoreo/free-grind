@@ -101,6 +101,7 @@
         "session_placeholder": "¿Qué estás buscando ahora?",
         "char_limit": "{{count}}/140",
         "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
         "i_am_hosting": "Alojar",
         "show_on_map": "Mostrarme en el mapa",
         "start_now": "Empezar ahora",
@@ -501,6 +502,15 @@
             "no_messages_yet": "Sin mensajes todavía",
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
+        "media_sheet": {
+            "title": "Medios recibidos",
+            "tab_albums": "Álbumes",
+            "tab_media": "Medios",
+            "albums_empty_title": "Aún no se han compartido álbumes",
+            "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
+            "media_empty_title": "Aún no has recibido medios",
+            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
+        },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",
         "loading_inbox": "Cargando buzón...",
@@ -561,6 +571,7 @@
             "unsupported_placeholder": "[mensaje no soportado]",
             "shared_image": "Compartió una imagen",
             "shared_video": "Compartió un vídeo",
+            "video_expired": "Caducado",
             "shared_audio": "Compartió un mensaje de audio",
             "failed": "Hubo un error",
             "from_local_history": "De tu historial local",
@@ -594,8 +605,13 @@
         "attachments": {
             "ready_to_send": "Listo para enviar: {{file}}",
             "looping": "",
+            "looping_description": "El vídeo se reproducirá en bucle",
+            "max_views": "Vistas máx.",
+            "view_once": "Ver una vez",
+            "view_once_description": "La imagen solo se puede ver una vez durante 10 segundos",
             "taken_on_grindr": "TomadoEnGrindr",
-            "send_attachment": "Enviar archivo",
+            "send": "Enviar",
+            "send_expiring": "Enviar expirando",
             "uploading": "Subiendo archivo",
             "too_large": "El archivo es demasiado grande. El límite es 12MB.",
             "only_image_video": "Solo adjuntos de vídeo e imagen son soportados."
@@ -1129,6 +1145,7 @@
         "error_no_selection": "Por favor, selecciona al menos una imagen.",
         "error_send_failed": "Error al enviar contenido.",
         "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
         "delete_media": "Borrar contenido",
         "take_photo": "Tomar foto",
         "upload_photo": "Subir foto",
@@ -1139,7 +1156,7 @@
         "delete_confirm_label": "Borrar",
         "title": "Galería",
         "media_alt": "Contenido de la galería",
-        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_on": "1×",
         "is_expiring_send": "Enviar efímera {{count}}",
         "is_expiring_title_on": "Efímera (10s)",
         "is_expiring_title_off": "Enviar normal"

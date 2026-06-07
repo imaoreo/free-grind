@@ -400,6 +400,15 @@
             "title": "",
             "subtitle": ""
         },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
+        },
         "loading_inbox": "",
         "refreshing_inbox": "",
         "sending": "",
@@ -456,6 +465,7 @@
             "unsupported_placeholder": "",
             "shared_image": "",
             "shared_video": "",
+            "video_expired": "Istekao",
             "shared_audio": "",
             "failed": "",
             "from_local_history": "",
@@ -485,8 +495,13 @@
         "attachments": {
             "ready_to_send": "",
             "looping": "",
+            "looping_description": "",
+            "max_views": "",
+            "view_once": "",
+            "view_once_description": "",
             "taken_on_grindr": "",
-            "send_attachment": "",
+            "send": "",
+            "send_expiring": "",
             "uploading": "",
             "too_large": ""
         },

@@ -571,18 +571,44 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 	}
 
 	const body = message.body as Record<string, unknown>;
+	const videoRecord =
+		typeof body.video === "object" && body.video
+			? (body.video as Record<string, unknown>)
+			: null;
+
+	const normalizeUrl = (candidate: string): string | null => {
+		if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+			return candidate;
+		}
+		if (candidate.startsWith("/")) {
+			return `https://cdns.grindr.com${candidate}`;
+		}
+		if (candidate.startsWith("d2wxe7lth7kp8g.cloudfront.net/")) {
+			return `https://${candidate}`;
+		}
+		return null;
+	};
+
 	const candidates: unknown[] = [
 		body.videoUrl,
 		body.url,
 		body.mediaUrl,
 		body.signedUrl,
-		(body.video as Record<string, unknown> | null)?.url,
+		body.cdnUrl,
+		videoRecord?.url,
+		videoRecord?.videoUrl,
+		videoRecord?.mediaUrl,
+		videoRecord?.signedUrl,
+		videoRecord?.cdnUrl,
 	];
 
 	for (const candidate of candidates) {
 		if (typeof candidate === "string" && candidate.length > 0) {
-			appLog.debug("Found video URL candidate:", { candidate });
-			return candidate;
+			const normalized = normalizeUrl(candidate);
+			if (normalized) {
+				appLog.debug("Found video URL candidate:", { candidate, normalized });
+				return normalized;
+			}
 		}
 	}
 
