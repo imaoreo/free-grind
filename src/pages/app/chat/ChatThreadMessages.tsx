@@ -240,6 +240,22 @@ export function ChatThreadMessages({
 		startY: number;
 		triggered: boolean;
 	} | null>(null);
+	const swipeElRef = useRef(new Map<string, HTMLDivElement>());
+	const swipeIconRef = useRef(new Map<string, HTMLDivElement>());
+
+	const resetSwipeVisual = useCallback((messageId: string) => {
+		const el = swipeElRef.current.get(messageId);
+		const icon = swipeIconRef.current.get(messageId);
+		if (el) {
+			el.style.transition = "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)";
+			el.style.transform = "translateX(0px)";
+		}
+		if (icon) {
+			icon.style.transition = "opacity 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)";
+			icon.style.opacity = "0";
+			icon.style.transform = "translateY(-50%) scale(0.5)";
+		}
+	}, []);
 
 	const lastTapRef = useRef<{ messageId: string; time: number } | null>(null);
 	const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -276,18 +292,47 @@ export function ChatThreadMessages({
 			const touch = event.touches[0];
 			const dx = touch.clientX - state.startX;
 			const dy = Math.abs(touch.clientY - state.startY);
-			if (dx > 72 && dy < 40) {
+			if (dy >= 40) return;
+			if (dx > 0) {
+				const el = swipeElRef.current.get(state.messageId);
+				const icon = swipeIconRef.current.get(state.messageId);
+				if (el) {
+					el.style.transition = "none";
+					el.style.transform = `translateX(${dx}px)`;
+				}
+				if (icon) {
+					const progress = Math.min(dx / 40, 1);
+					icon.style.transition = "none";
+					icon.style.opacity = String(progress);
+					icon.style.transform = `translateY(-50%) scale(${0.5 + progress * 0.5})`;
+				}
+			}
+			if (dx > 55) {
 				state.triggered = true;
-				void handleReply(message);
+				const triggeredId = state.messageId;
+				const icon = swipeIconRef.current.get(triggeredId);
+				if (icon) {
+					icon.style.transition = "transform 0.12s ease-out";
+					icon.style.transform = "translateY(-50%) scale(1.3)";
+					icon.style.opacity = "1";
+				}
+				setTimeout(() => {
+					resetSwipeVisual(triggeredId);
+					void handleReply(message);
+				}, 300);
 			}
 		},
-		[endMessageLongPress, handleReply, isDesktop],
+		[endMessageLongPress, handleReply, isDesktop, resetSwipeVisual],
 	);
 
 	const handleMobileTouchEnd = useCallback(() => {
+		const state = swipeStateRef.current;
+		if (state && !state.triggered) {
+			resetSwipeVisual(state.messageId);
+		}
 		swipeStateRef.current = null;
 		endMessageLongPress();
-	}, [endMessageLongPress]);
+	}, [endMessageLongPress, resetSwipeVisual]);
 
 	const scheduleMobileTap = useCallback(
 		(message: UiMessage, action: (() => void) | null) => {
@@ -390,7 +435,7 @@ export function ChatThreadMessages({
 								const replyPreviewRaw = message.replyPreview as {
 									text?: string; type?: string; chat1Type?: string;
 									url?: string | null; imageHash?: string | null;
-									previewMessageId?: string; senderId?: number;
+									previewMessageId?: string; senderId?: number; duration?: number;
 								} | null | undefined;
 								const replyText = typeof replyPreviewRaw?.text === "string" && replyPreviewRaw.text.trim().length > 0
 									? replyPreviewRaw.text.trim()
@@ -557,16 +602,27 @@ export function ChatThreadMessages({
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
+										className={`relative flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
+									style={{ touchAction: "pan-y" }}
+									onTouchStart={(event) => handleMobileTouchStart(event, message)}
+									onTouchEnd={handleMobileTouchEnd}
+									onTouchCancel={handleMobileTouchEnd}
+									onTouchMove={(event) => handleMobileTouchMove(event, message)}
 									>
-										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
+										<div
+											ref={(el) => { if (el) swipeIconRef.current.set(message.messageId, el); else swipeIconRef.current.delete(message.messageId); }}
+											className="pointer-events-none absolute left-2 top-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-3)]"
+											style={{ opacity: 0, transform: "translateY(-50%) scale(0.5)" }}
+										>
+											<Reply className="h-4 w-4 text-[var(--text-muted)]" />
+										</div>
+										<div
+											ref={(el) => { if (el) swipeElRef.current.set(message.messageId, el); else swipeElRef.current.delete(message.messageId); }}
+											className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}
+										>
 											<div
 												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
 												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
-												onTouchStart={(event) => handleMobileTouchStart(event, message)}
-												onTouchEnd={handleMobileTouchEnd}
-												onTouchCancel={handleMobileTouchEnd}
-												onTouchMove={(event) => handleMobileTouchMove(event, message)}
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble
