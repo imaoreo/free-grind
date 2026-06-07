@@ -1030,7 +1030,7 @@ export function ChatPage() {
 
 					// Hydrate received video messages that have no URL yet (mediaId may be null).
 					const mediaIdVideoMessages = responseMessages.filter((message) => {
-						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "privatevideo" || (message as UiMessage).chat1Type?.toLowerCase() === "nonexpiringvideo";
+						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "private_video" || (message as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 						if (!isVideoLike) return false;
 						return !getMessageVideoUrl(message as UiMessage);
 					});
@@ -1334,7 +1334,7 @@ export function ChatPage() {
 
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
-			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "nonexpiringvideo";
+			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
 		});
