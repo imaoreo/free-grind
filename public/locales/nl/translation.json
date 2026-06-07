@@ -451,6 +451,7 @@
             "unsupported_placeholder": "",
             "shared_image": "",
             "shared_video": "",
+            "video_expired": "Verlopen",
             "shared_audio": "",
             "failed": "",
             "from_local_history": "",
@@ -480,8 +481,13 @@
         "attachments": {
             "ready_to_send": "",
             "looping": "",
+            "looping_description": "",
+            "max_views": "",
+            "view_once": "",
+            "view_once_description": "",
             "taken_on_grindr": "",
-            "send_attachment": "",
+            "send": "",
+            "send_expiring": "",
             "uploading": "",
             "too_large": ""
         },
