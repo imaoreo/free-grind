@@ -1,8 +1,4 @@
-import {
-    ChevronLeft,
-	ChevronRight,
-	Loader2,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
 	type FormEvent,
 	type TouchEvent,
@@ -53,7 +49,7 @@ import {
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
-import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
+import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
@@ -395,6 +391,8 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
+	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const albumViewerCancelledRef = useRef(false);
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
 	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
 		takenOnGrindr: boolean;
@@ -621,25 +619,12 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		albumViewerCancelledRef.current = true;
+		setIsAlbumSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
 	}, [selectedConversationId]);
-
-	const isAlbumOpen = albumViewer !== null;
-	useEffect(() => {
-		if (!isAlbumOpen) return;
-		const prevState = history.state;
-		history.pushState({ albumOpen: true }, "");
-		const onPopState = () => {
-			setAlbumViewer(null);
-			setAlbumViewerMediaIndex(null);
-		};
-		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (history.state?.albumOpen) history.replaceState(prevState, "");
-		};
-	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -2895,24 +2880,30 @@ export function ChatPage() {
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
+			albumViewerCancelledRef.current = false;
+			setIsAlbumSheetOpen(true);
 			setIsAlbumViewerLoading(true);
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
 			try {
 				const details = await service.getAlbum(albumId);
+				if (albumViewerCancelledRef.current) return;
 				setAlbumViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					content: details.content,
 				});
-				setAlbumViewerMediaIndex(null);
 			} catch (error) {
+				if (albumViewerCancelledRef.current) return;
+				setIsAlbumSheetOpen(false);
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
-				setIsAlbumViewerLoading(false);
+				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service],
+		[service, t],
 	);
 
 	const closeAlbumMediaViewer = useCallback(() => {
@@ -3346,8 +3337,7 @@ export function ChatPage() {
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
-			albumViewer={albumViewer}
-			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
+			isAlbumSheetOpen={isAlbumSheetOpen}
 		/>
 	);
 
@@ -3377,31 +3367,20 @@ export function ChatPage() {
 				)}
 			</div>
 
-			{isAlbumViewerLoading ? (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
-					</div>
-				</div>
-			) : null}
-
-			{albumViewer ? (
-				<AlbumViewerPanel
-					viewer={{
-						albumId: albumViewer.albumId,
-						albumName: albumViewer.albumName,
-						profileId: selectedConversationOtherProfileId ? Number(selectedConversationOtherProfileId) : 0,
-						profileName: (selectedConversationOtherProfileId ? localNicknamesByProfileId[selectedConversationOtherProfileId] : null) || selectedConversation?.data.name || "",
-						content: albumViewer.content,
-					}}
-					viewerIndex={albumViewerMediaIndex ?? 0}
+			{isAlbumSheetOpen ? (
+				<ChatAlbumSheet
+					viewer={albumViewer}
+					isLoading={isAlbumViewerLoading}
 					fullScreenIndex={albumViewerMediaIndex}
-					selectedViewerItem={albumViewerMediaIndex !== null ? (albumViewer.content[albumViewerMediaIndex] ?? null) : null}
-					closeViewer={() => { setAlbumViewerMediaIndex(null); setAlbumViewer(null); }}
-					openFullScreen={openAlbumMediaViewer}
-					onMessageProfile={() => { setAlbumViewerMediaIndex(null); setAlbumViewer(null); }}
-					onViewProfile={(profileId) => navigate(`/profile/${profileId}`)}
-					hideProfileActions
+					onClose={() => {
+						albumViewerCancelledRef.current = true;
+						setIsAlbumSheetOpen(false);
+						setAlbumViewer(null);
+						setAlbumViewerMediaIndex(null);
+						setIsAlbumViewerLoading(false);
+					}}
+					onOpenFullScreen={openAlbumMediaViewer}
+					isDesktop={isDesktop}
 				/>
 			) : null}
 
