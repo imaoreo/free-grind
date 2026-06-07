@@ -24,7 +24,7 @@ export function ChatAlbumSheet({
 	const { t } = useTranslation();
 
 	return (
-		<BottomSheet onClose={onClose} isDesktop={isDesktop} zIndex="z-50">
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} zIndex="z-50" panelClassName="max-h-[82dvh]">
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 pb-3">
 				<div className="flex min-w-0 items-center gap-2">
@@ -57,7 +57,7 @@ export function ChatAlbumSheet({
 					/>
 				</div>
 			) : (
-				<div className="overflow-y-auto" style={{ maxHeight: "55dvh" }}>
+				<div className="min-h-0 flex-1 overflow-y-auto">
 					<div className="grid grid-cols-3 gap-1 p-3 sm:grid-cols-4 sm:gap-1.5 sm:p-4">
 						{viewer.content.map((item, index) => {
 							const mediaUrl = item.thumbUrl || item.url || item.coverUrl;
