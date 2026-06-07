@@ -55,6 +55,7 @@ export const sharedAlbumPreviewContentSchema = z.object({
 export const sharedAlbumSchema = z.object({
 	albumId: z.coerce.number().int(),
 	albumName: z.string().nullable().optional(),
+	name: z.string().nullable().optional(),
 	content: sharedAlbumPreviewContentSchema.nullable().optional(),
 	contentCount: z
 		.object({

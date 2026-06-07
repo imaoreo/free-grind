@@ -39,19 +39,15 @@ export function ChatAlbumSheet({
 								</span>
 							)}
 						</div>
-						{viewer?.albumName?.trim() && (
-							<p className="truncate text-xs text-[var(--text-muted)]">
-								{viewer.albumName.trim()}
-							</p>
-						)}
+						<p className="truncate text-xs text-[var(--text-muted)]">
+							{viewer?.albumName?.trim() || `#${viewer?.albumId}`}
+						</p>
 					</div>
 				</div>
-				<SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+				<SheetClose className="inline-flex h-8 w-8 shrink-0 self-start items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>
-
-			<div className="mx-4 border-t border-[var(--border)]" />
 
 			{/* Body */}
 			{isLoading ? (

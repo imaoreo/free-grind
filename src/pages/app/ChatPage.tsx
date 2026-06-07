@@ -50,6 +50,7 @@ import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
+import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
@@ -392,6 +393,7 @@ export function ChatPage() {
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
 	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
 	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
@@ -3338,6 +3340,7 @@ export function ChatPage() {
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
 			isAlbumSheetOpen={isAlbumSheetOpen}
+			onOpenMediaSheet={() => setIsChatMediaSheetOpen(true)}
 		/>
 	);
 
@@ -3366,6 +3369,25 @@ export function ChatPage() {
 					renderInbox
 				)}
 			</div>
+
+			{isChatMediaSheetOpen && selectedConversation ? (() => {
+				const otherP = getOtherParticipant(selectedConversation, userId);
+				const otherPhotoUrl = otherP?.primaryMediaHash && validateMediaHash(otherP.primaryMediaHash)
+					? getThumbImageUrl(otherP.primaryMediaHash, "75x75")
+					: null;
+				return (
+					<ChatMediaSheet
+						conversationId={selectedConversation.data.conversationId}
+						senderProfileId={otherP?.profileId != null ? String(otherP.profileId) : null}
+						userId={userId}
+						isDesktop={isDesktop}
+						onClose={() => setIsChatMediaSheetOpen(false)}
+						openAlbumViewerById={openAlbumViewerById}
+						openFullScreenImage={(url) => openFullScreenImage(url)}
+						senderPhotoUrl={otherPhotoUrl}
+					/>
+				);
+			})() : null}
 
 			{isAlbumSheetOpen ? (
 				<ChatAlbumSheet
