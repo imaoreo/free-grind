@@ -771,7 +771,8 @@
             "album_share": "Album share",
             "album_image": "Album image",
             "replied_to_photo": "Replied to your profile photo",
-            "reacted_to_image": "Reacted to your album image"
+            "reacted_to_image": "Reacted to your album image",
+            "audio_label": "Audio"
         },
         "actions": {
             "title": "Message actions",

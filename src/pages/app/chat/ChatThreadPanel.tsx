@@ -11,6 +11,7 @@ import {
 	Infinity,
 	Loader2,
 	MapPin,
+	Mic,
 	Plus,
 	Settings2,
 	BookMarked,
@@ -60,6 +61,7 @@ import {
 	getMessageAlbumId,
 	getMessageAlbumCoverUrl,
 } from "./chatUtils";
+import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { ChatThreadMessages } from "./ChatThreadMessages";
@@ -1238,32 +1240,56 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						)}
 						{/* -------------------------- */}
 
-                        {selectedConversation && replyTargetMessage ? (
-							<div className="relative mb-2 overflow-hidden rounded-xl bg-[var(--surface-2)]">
-								<div className="absolute left-0 top-0 h-full w-[3px] bg-[var(--accent)]" />
-								<div className="flex items-center gap-2 py-2.5 pl-[13px] pr-2">
-									<div className="min-w-0 flex-1">
-										<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
-											{userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-												? "Replying to myself"
-												: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
-											}
-										</p>
-										<p className="truncate text-xs text-[var(--text-muted)]">
-											{getMessagePreviewLabel(replyTargetMessage, t)}
-										</p>
+                        {selectedConversation && replyTargetMessage ? (() => {
+							const rtm = replyTargetMessage;
+							const rtmBody = rtm.body as Record<string, unknown> | null | undefined;
+							const isAudioReply = rtm.type === "Audio" || rtm.chat1Type?.toLowerCase() === "audio";
+							const isImageReply = rtm.type === "Image" || rtm.type === "ExpiringImage" || rtm.chat1Type?.toLowerCase() === "image" || rtm.chat1Type?.toLowerCase() === "expiring_image";
+							const thumbUrl = isImageReply
+								? (getMessageImageUrl(rtm) ?? (typeof rtmBody?.imageHash === "string" ? getThumbImageUrl(rtmBody.imageHash, "320x320") : null))
+								: null;
+							const audioDuration = (() => {
+								if (!isAudioReply) return null;
+								const rawMs = typeof rtmBody?.length === "number" ? rtmBody.length : null;
+								if (rawMs === null) return null;
+								const totalSec = Math.floor(rawMs / 1000);
+								return `${Math.floor(totalSec / 60)}:${(totalSec % 60).toString().padStart(2, "0")}`;
+							})();
+							return (
+								<div className="relative mb-2 overflow-hidden rounded-xl bg-[var(--surface-2)]">
+									<div className="absolute left-0 top-0 h-full w-[3px] bg-[var(--accent)]" />
+									<div className="flex items-center gap-2 py-2.5 pl-[13px] pr-2">
+										<div className="min-w-0 flex-1">
+											<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
+												{userId != null && Number(rtm.senderId) === Number(userId)
+													? "Replying to myself"
+													: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
+												}
+											</p>
+											<p className="truncate text-xs text-[var(--text-muted)]">
+												{isAudioReply ? t("chat.thread.audio_label") : getMessagePreviewLabel(rtm, t)}
+											</p>
+										</div>
+										{thumbUrl ? (
+											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+										) : isAudioReply ? (
+											<div className="flex w-10 shrink-0 flex-col items-end justify-between py-0.5 text-[var(--text-muted)]">
+												<Mic className="h-4 w-4" />
+												<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+											</div>
+										) : null}
+										<button
+											type="button"
+											onClick={clearReplyTarget}
+											className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:text-[var(--text)]"
+											aria-label={t("chat.actions.cancel")}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
 									</div>
-									<button
-										type="button"
-										onClick={clearReplyTarget}
-										className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:text-[var(--text)]"
-										aria-label={t("chat.actions.cancel")}
-									>
-										<X className="h-3.5 w-3.5" />
-									</button>
 								</div>
-							</div>
-						) : null}
+							);
+						})() : null}
 
 						<div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
 							<textarea
