@@ -462,8 +462,11 @@
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
+            "tapped_album_photo_yours": "",
+            "tapped_album_photo_theirs": "",
             "sent_video": "",
-            "sent_message": ""
+            "sent_message": "",
+            "replied_profile_photo": ""
         },
         "thread": {
             "unsent": "",
@@ -479,7 +482,10 @@
             "shared_alt": "",
             "taken_on_grindr": "",
             "album_share": "",
-            "album_cover": ""
+            "album_image": "",
+            "album_cover": "",
+            "replied_to_photo": "",
+            "reacted_to_image": ""
         },
         "actions": {
             "title": "",

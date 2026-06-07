@@ -1,9 +1,4 @@
-import {
-	ChevronLeft,
-	ChevronRight,
-	Loader2,
-	X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
 	type FormEvent,
 	type TouchEvent,
@@ -54,6 +49,7 @@ import {
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
+import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
@@ -82,6 +78,8 @@ import { markInboxSeen } from "../../services/seenStore";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
+import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -127,6 +125,30 @@ export function ChatPage() {
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
+
+	useEffect(() => {
+		if (!userId) return;
+		const cached = getCachedOwnProfilePhotoHash();
+		if (cached !== undefined) {
+			setOwnProfilePhotoUrl(cached ? getThumbImageUrl(cached, "75x75") : null);
+			return;
+		}
+		void (async () => {
+			try {
+				const parsed = await service.getBrowseProfileMedia(userId);
+				const hash =
+					parsed.medias?.map((m) => m.mediaHash ?? "").find((h) => validateMediaHash(h)) ??
+					(parsed.profileImageMediaHash && validateMediaHash(parsed.profileImageMediaHash)
+						? parsed.profileImageMediaHash
+						: null) ??
+					null;
+				setCachedOwnProfilePhotoHash(hash);
+				setOwnProfilePhotoUrl(hash ? getThumbImageUrl(hash, "75x75") : null);
+			} catch {
+				setOwnProfilePhotoUrl(null);
+			}
+		})();
+	}, [userId, service]);
 
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
@@ -358,6 +380,8 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [albumCoverMap, setAlbumCoverMap] = useState<Map<number, string>>(new Map());
+	const [ownProfilePhotoUrl, setOwnProfilePhotoUrl] = useState<string | null>(null);
 	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
 		albumId: number;
 		albumName: string;
@@ -367,6 +391,8 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
+	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const albumViewerCancelledRef = useRef(false);
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
 	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
 		takenOnGrindr: boolean;
@@ -593,25 +619,12 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		albumViewerCancelledRef.current = true;
+		setIsAlbumSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
 	}, [selectedConversationId]);
-
-	const isAlbumOpen = albumViewer !== null;
-	useEffect(() => {
-		if (!isAlbumOpen) return;
-		const prevState = history.state;
-		history.pushState({ albumOpen: true }, "");
-		const onPopState = () => {
-			setAlbumViewer(null);
-			setAlbumViewerMediaIndex(null);
-		};
-		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (history.state?.albumOpen) history.replaceState(prevState, "");
-		};
-	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -657,6 +670,21 @@ export function ChatPage() {
 				})
 				.filter((item) => Number.isFinite(item.albumId));
 			setShareableAlbums(mapped);
+
+			const coverEntries = await Promise.all(
+				mapped.map(async ({ albumId }) => {
+					try {
+						const detail = await service.getAlbum(albumId);
+						const first = detail.content?.[0];
+						const url = first?.thumbUrl || first?.url || first?.coverUrl;
+						return url ? ([albumId, url] as [number, string]) : null;
+					} catch {
+						return null;
+					}
+				}),
+			);
+			setAlbumCoverMap(new Map(coverEntries.filter((e): e is [number, string] => e !== null)));
+
 			return mapped;
 		} catch (error) {
 			toast.error(
@@ -2852,24 +2880,30 @@ export function ChatPage() {
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
+			albumViewerCancelledRef.current = false;
+			setIsAlbumSheetOpen(true);
 			setIsAlbumViewerLoading(true);
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
 			try {
 				const details = await service.getAlbum(albumId);
+				if (albumViewerCancelledRef.current) return;
 				setAlbumViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					content: details.content,
 				});
-				setAlbumViewerMediaIndex(null);
 			} catch (error) {
+				if (albumViewerCancelledRef.current) return;
+				setIsAlbumSheetOpen(false);
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
-				setIsAlbumViewerLoading(false);
+				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service],
+		[service, t],
 	);
 
 	const closeAlbumMediaViewer = useCallback(() => {
@@ -3274,8 +3308,10 @@ export function ChatPage() {
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}
 			shareableAlbums={shareableAlbums}
+			albumCoverMap={albumCoverMap}
+			ownProfilePhotoUrl={ownProfilePhotoUrl}
 			isSharingAlbum={isSharingAlbum}
-				pendingAlbumShare={pendingAlbumShare}
+			pendingAlbumShare={pendingAlbumShare}
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
 			confirmPendingAlbumShare={confirmPendingAlbumShare}
 			closePendingAlbumShare={closePendingAlbumShare}
@@ -3301,8 +3337,7 @@ export function ChatPage() {
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
-			albumViewer={albumViewer}
-			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
+			isAlbumSheetOpen={isAlbumSheetOpen}
 		/>
 	);
 
@@ -3332,78 +3367,21 @@ export function ChatPage() {
 				)}
 			</div>
 
-			{isAlbumViewerLoading ? (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
-					</div>
-				</div>
-			) : null}
-
-			{albumViewer ? (
-				<div
-					className="fixed inset-0 z-40 bg-black/65 p-4"
-					onClick={() => {
-						setAlbumViewerMediaIndex(null);
+			{isAlbumSheetOpen ? (
+				<ChatAlbumSheet
+					viewer={albumViewer}
+					isLoading={isAlbumViewerLoading}
+					fullScreenIndex={albumViewerMediaIndex}
+					onClose={() => {
+						albumViewerCancelledRef.current = true;
+						setIsAlbumSheetOpen(false);
 						setAlbumViewer(null);
+						setAlbumViewerMediaIndex(null);
+						setIsAlbumViewerLoading(false);
 					}}
-				>
-					<div
-						className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="mb-3 flex items-center justify-between">
-							<p className="font-semibold">
-								{albumViewer.albumName || "Album"}
-							</p>
-							<button
-								type="button"
-								onClick={() => {
-									setAlbumViewerMediaIndex(null);
-									setAlbumViewer(null);
-								}}
-								className="rounded-lg border border-[var(--border)] p-2"
-							>
-								<X className="h-4 w-4" />
-							</button>
-						</div>
-						<div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-							{albumViewer.content.map((item, index) => {
-								const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
-								if (!mediaUrl) {
-									return (
-										<div
-											key={item.contentId}
-											className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-2)] text-xs text-[var(--text-muted)]"
-										>
-											Unavailable
-										</div>
-									);
-								}
-
-								return (
-									<button
-										type="button"
-										key={item.contentId}
-										onClick={() => openAlbumMediaViewer(index)}
-										className="relative overflow-hidden rounded-lg"
-									>
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="h-32 w-full object-cover"
-										/>
-										{item.contentType?.startsWith("video/") ? (
-											<span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-												Video
-											</span>
-										) : null}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				</div>
+					onOpenFullScreen={openAlbumMediaViewer}
+					isDesktop={isDesktop}
+				/>
 			) : null}
 
 			<PhotoViewer
