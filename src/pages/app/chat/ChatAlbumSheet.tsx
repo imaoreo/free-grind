@@ -28,14 +28,23 @@ export function ChatAlbumSheet({
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 pb-3">
 				<div className="flex min-w-0 items-center gap-2">
-					<p className="truncate text-sm font-semibold text-[var(--text)]">
-						{viewer?.albumName?.trim() || (viewer ? `Album #${viewer.albumId}` : "Album")}
-					</p>
-					{viewer && (
-						<span className="shrink-0 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">
-							{viewer.content.length}
-						</span>
-					)}
+					<div className="min-w-0">
+						<div className="flex items-center gap-2">
+							<p className="text-sm font-semibold text-[var(--text)]">
+								{t("shared_albums.album_label")}
+							</p>
+							{viewer && (
+								<span className="shrink-0 rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--text-muted)]">
+									{viewer.content.length}
+								</span>
+							)}
+						</div>
+						{viewer?.albumName?.trim() && (
+							<p className="truncate text-xs text-[var(--text-muted)]">
+								{viewer.albumName.trim()}
+							</p>
+						)}
+					</div>
 				</div>
 				<SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
