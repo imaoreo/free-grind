@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin, Reply } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Reply } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -227,6 +227,7 @@ export function ChatThreadMessages({
 	const latestMessageIdByAlbum = useMemo(() => {
 		const map = new Map<number, string>();
 		for (const m of threadMessages) {
+			if (m.type !== "Album" && m.type !== "ExpiringAlbum" && m.type !== "ExpiringAlbumV2") continue;
 			const aid = getMessageAlbumId(m);
 			if (aid) map.set(aid, m.messageId);
 		}
@@ -239,6 +240,22 @@ export function ChatThreadMessages({
 		startY: number;
 		triggered: boolean;
 	} | null>(null);
+	const swipeElRef = useRef(new Map<string, HTMLDivElement>());
+	const swipeIconRef = useRef(new Map<string, HTMLDivElement>());
+
+	const resetSwipeVisual = useCallback((messageId: string) => {
+		const el = swipeElRef.current.get(messageId);
+		const icon = swipeIconRef.current.get(messageId);
+		if (el) {
+			el.style.transition = "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)";
+			el.style.transform = "translateX(0px)";
+		}
+		if (icon) {
+			icon.style.transition = "opacity 0.2s, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)";
+			icon.style.opacity = "0";
+			icon.style.transform = "translateY(-50%) scale(0.5)";
+		}
+	}, []);
 
 	const lastTapRef = useRef<{ messageId: string; time: number } | null>(null);
 	const pendingTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -275,18 +292,47 @@ export function ChatThreadMessages({
 			const touch = event.touches[0];
 			const dx = touch.clientX - state.startX;
 			const dy = Math.abs(touch.clientY - state.startY);
-			if (dx > 72 && dy < 40) {
+			if (dy >= 40) return;
+			if (dx > 0) {
+				const el = swipeElRef.current.get(state.messageId);
+				const icon = swipeIconRef.current.get(state.messageId);
+				if (el) {
+					el.style.transition = "none";
+					el.style.transform = `translateX(${dx}px)`;
+				}
+				if (icon) {
+					const progress = Math.min(dx / 40, 1);
+					icon.style.transition = "none";
+					icon.style.opacity = String(progress);
+					icon.style.transform = `translateY(-50%) scale(${0.5 + progress * 0.5})`;
+				}
+			}
+			if (dx > 55) {
 				state.triggered = true;
-				void handleReply(message);
+				const triggeredId = state.messageId;
+				const icon = swipeIconRef.current.get(triggeredId);
+				if (icon) {
+					icon.style.transition = "transform 0.12s ease-out";
+					icon.style.transform = "translateY(-50%) scale(1.3)";
+					icon.style.opacity = "1";
+				}
+				setTimeout(() => {
+					resetSwipeVisual(triggeredId);
+					void handleReply(message);
+				}, 300);
 			}
 		},
-		[endMessageLongPress, handleReply, isDesktop],
+		[endMessageLongPress, handleReply, isDesktop, resetSwipeVisual],
 	);
 
 	const handleMobileTouchEnd = useCallback(() => {
+		const state = swipeStateRef.current;
+		if (state && !state.triggered) {
+			resetSwipeVisual(state.messageId);
+		}
 		swipeStateRef.current = null;
 		endMessageLongPress();
-	}, [endMessageLongPress]);
+	}, [endMessageLongPress, resetSwipeVisual]);
 
 	const scheduleMobileTap = useCallback(
 		(message: UiMessage, action: (() => void) | null) => {
@@ -386,11 +432,82 @@ export function ChatThreadMessages({
 								const albumId = getMessageAlbumId(message);
 								const albumCover = getMessageAlbumCoverUrl(message);
 								const messageText = getMessageText(message, t);
+								const replyPreviewRaw = message.replyPreview as {
+									text?: string; type?: string; chat1Type?: string;
+									url?: string | null; imageHash?: string | null;
+									previewMessageId?: string; senderId?: number; duration?: number;
+								} | null | undefined;
+								const replyText = typeof replyPreviewRaw?.text === "string" && replyPreviewRaw.text.trim().length > 0
+									? replyPreviewRaw.text.trim()
+									: null;
+								const replyToMsgRef = message.replyToMessage as { messageId?: string; senderId?: number; type?: string } | null | undefined;
+								const replyToMsgId = replyPreviewRaw?.previewMessageId ?? replyToMsgRef?.messageId;
+								const replyToMsg = replyToMsgId
+									? threadMessages.find(m => m.messageId === replyToMsgId) ?? null
+									: null;
+								const albumOwnerProfileId = message.type === "AlbumContentReply"
+									? ((message.body as Record<string, unknown> | null | undefined)?.ownerProfileId as number | null | undefined) ?? null
+									: null;
+								const replySenderId = replyPreviewRaw?.senderId
+									?? replyToMsgRef?.senderId
+									?? replyToMsg?.senderId
+									?? albumOwnerProfileId
+									?? null;
+								const replyIsImage = replyPreviewRaw?.type === "Image" || replyPreviewRaw?.type === "ExpiringImage"
+									|| replyPreviewRaw?.chat1Type === "image" || replyPreviewRaw?.chat1Type === "expiring_image";
+								const replyIsAudio = replyPreviewRaw?.type === "Audio" || replyPreviewRaw?.chat1Type === "audio"
+									|| replyToMsgRef?.type === "Audio" || replyToMsg?.type === "Audio";
+								const replyImageUrl = replyToMsg ? getMessageImageUrl(replyToMsg) : null;
+								const replyImageHash = typeof replyPreviewRaw?.imageHash === "string" ? replyPreviewRaw.imageHash : null;
+								const replyPreviewUrl = replyIsImage && typeof replyPreviewRaw?.url === "string" && replyPreviewRaw.url.startsWith("http") ? replyPreviewRaw.url : null;
+								const replyMsgBody = message.body as Record<string, unknown> | null | undefined;
+								const albumContentThumbUrl = message.type === "AlbumContentReply" && typeof replyMsgBody?.previewUrl === "string"
+									? replyMsgBody.previewUrl
+									: null;
+								const replyToMsgThumbUrl = (() => {
+									const embedded = message.replyToMessage as Record<string, unknown> | null | undefined;
+									const src = embedded ?? (replyToMsg as Record<string, unknown> | null | undefined);
+									if (!src) return null;
+									const b = src.body as Record<string, unknown> | null | undefined;
+									const t = src.type as string | undefined;
+									if ((t === "AlbumContentReaction" || t === "AlbumContentReply") && typeof b?.previewUrl === "string") return b.previewUrl;
+									return null;
+								})();
+								const replyThumbUrl = replyImageUrl ?? (replyImageHash ? getThumbImageUrl(replyImageHash, "320x320") : null) ?? replyPreviewUrl ?? albumContentThumbUrl ?? replyToMsgThumbUrl;
+								const replyAudioDuration = (() => {
+									if (!replyIsAudio) return null;
+									const embedded = message.replyToMessage as Record<string, unknown> | null | undefined;
+									const src = (replyToMsg?.body ?? embedded?.body) as Record<string, unknown> | null | undefined;
+									const rawMs = typeof replyPreviewRaw?.duration === "number"
+										? replyPreviewRaw.duration
+										: typeof src?.length === "number" ? src.length : null;
+									if (rawMs === null) return null;
+									const totalSec = Math.floor(rawMs / 1000);
+									const m = Math.floor(totalSec / 60);
+									const s = totalSec % 60;
+									return `${m}:${s.toString().padStart(2, "0")}`;
+								})();
+								const replyLabel = (replyText || replyThumbUrl || replyIsAudio)
+									? replySenderId === userId
+										? mine ? "Reply to myself" : "Reply to you"
+										: `Reply to "${selectedConversation.data.name || ""}"`
+									: null;
+								// Strip the "> quoted\n" prefix that gets embedded in body.text on send
+								let displayText = messageText;
+								if (replyText) {
+									const quotedPrefix = `> ${replyText}\n`;
+									if (displayText.startsWith(quotedPrefix)) {
+										displayText = displayText.slice(quotedPrefix.length);
+									} else if (displayText.startsWith("> ")) {
+										displayText = displayText.replace(/^>.*\n?/, "").trim();
+									}
+								}
 								const isExpiringImage = message.type === "ExpiringImage";
 								const isAlbumMessage =
 									message.type === "Album" ||
 									message.type === "ExpiringAlbum" ||
 									message.type === "ExpiringAlbumV2";
+								const isAlbumReactionBubble = message.type === "AlbumContentReaction";
 								const isImageOnlyBubble =
 									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
 								const isAlbumOnlyBubble =
@@ -401,7 +518,7 @@ export function ChatThreadMessages({
 							const isAudioOnlyBubble =
 									Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
 								const isMediaOnlyBubble =
-									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble;
+									isImageOnlyBubble || isAlbumOnlyBubble || isLocationOnlyBubble || isAlbumReactionBubble;
 								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
@@ -459,10 +576,6 @@ export function ChatThreadMessages({
 
 								const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
-								// isViewable is the explicit API field for whether the album can be opened.
-								// ownerProfileId is null when expired/locked, but isViewable is more reliable
-								// (e.g. sender may lock the album while ownerProfileId is still present).
-								// My own sent albums are never locked from my perspective.
 								const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
 
 								return (
@@ -489,16 +602,27 @@ export function ChatThreadMessages({
 												messageElementRefs.current.delete(message.messageId);
 											}
 										}}
-										className={`flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
+										className={`relative flex w-full ${mine ? "justify-end" : "justify-start"} ${isLastMessage && !mine ? "pb-6" : ""}`}
+									style={{ touchAction: "pan-y" }}
+									onTouchStart={(event) => handleMobileTouchStart(event, message)}
+									onTouchEnd={handleMobileTouchEnd}
+									onTouchCancel={handleMobileTouchEnd}
+									onTouchMove={(event) => handleMobileTouchMove(event, message)}
 									>
-										<div className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}>
+										<div
+											ref={(el) => { if (el) swipeIconRef.current.set(message.messageId, el); else swipeIconRef.current.delete(message.messageId); }}
+											className="pointer-events-none absolute left-2 top-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--surface-3)]"
+											style={{ opacity: 0, transform: "translateY(-50%) scale(0.5)" }}
+										>
+											<Reply className="h-4 w-4 text-[var(--text-muted)]" />
+										</div>
+										<div
+											ref={(el) => { if (el) swipeElRef.current.set(message.messageId, el); else swipeElRef.current.delete(message.messageId); }}
+											className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}
+										>
 											<div
 												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
 												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
-												onTouchStart={(event) => handleMobileTouchStart(event, message)}
-												onTouchEnd={handleMobileTouchEnd}
-												onTouchCancel={handleMobileTouchEnd}
-												onTouchMove={(event) => handleMobileTouchMove(event, message)}
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble
@@ -650,11 +774,6 @@ export function ChatThreadMessages({
 																messageLongPressTriggeredRef.current = false;
 																return;
 															}
-															if (shouldBlurIncomingMedia) {
-																revealMediaMessage(message.messageId);
-																lastTapRef.current = null;
-																return;
-															}
 															scheduleMobileTap(message, () => {
 																if (albumId && !isLocked) void openAlbumViewerById(albumId);
 															});
@@ -676,7 +795,7 @@ export function ChatThreadMessages({
 																<img
 																	src={albumCover}
 																alt={t("chat.thread.album_cover")}
-																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""} ${mediaBlurClassName}`}
+																	className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""}`}
 																	onError={(event) => {
 																		event.currentTarget.style.display = "none";
 																	}}
@@ -774,6 +893,57 @@ export function ChatThreadMessages({
 														<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
 													</div>
 												) : null}
+
+												{isAlbumReactionBubble ? (() => {
+													const rxBody = message.body as Record<string, unknown> | null | undefined;
+													const rxPreviewUrl = typeof rxBody?.previewUrl === "string" ? rxBody.previewUrl : null;
+													const rxAlbumId = typeof rxBody?.albumId === "number" ? rxBody.albumId : null;
+													const rxLabel = mine
+														? t("chat.preview.tapped_album_photo_theirs")
+														: t("chat.preview.tapped_album_photo_yours");
+													return (
+														<>
+															<button
+																type="button"
+																className={`group/media relative block w-full overflow-hidden rounded-2xl ${tailCorner}`}
+																onClick={(event) => {
+																	event.stopPropagation();
+																	if (!rxAlbumId) return;
+																	if (isDesktop) { void openAlbumViewerById(rxAlbumId); return; }
+																	if (messageLongPressTriggeredRef.current) { messageLongPressTriggeredRef.current = false; return; }
+																	scheduleMobileTap(message, () => void openAlbumViewerById(rxAlbumId));
+																}}
+															>
+																{rxPreviewUrl ? (
+																	<img src={rxPreviewUrl} alt="" className="aspect-square w-full object-cover" />
+																) : (
+																	<div className="h-48 w-full bg-[var(--surface-2)]" />
+																)}
+																<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+																	<div className="flex items-center justify-between gap-2 text-[10px]">
+																		<div className="flex items-center opacity-90">
+																			<Album className="h-3 w-3 shrink-0" />
+																		</div>
+																		<div className="flex items-center gap-2">
+																			<span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+																			{isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+																				<>
+																					<button type="button" onClick={(e) => { e.stopPropagation(); void handleReply(message); }} className="rounded-md p-1 hover:bg-white/10">
+																						<Reply className="h-3.5 w-3.5" />
+																					</button>
+																					<button type="button" onClick={(e) => { e.stopPropagation(); setOpenMessageActionId(c => c === message.messageId ? null : message.messageId); }} className="rounded-md p-1 hover:bg-white/10">
+																						<Ellipsis className="h-3.5 w-3.5" />
+																					</button>
+																				</>
+																			) : null}
+																		</div>
+																	</div>
+																</div>
+															</button>
+															<p className={`mt-1 text-xs opacity-60 ${mine ? "text-right" : "text-left"}`}>{rxLabel}</p>
+														</>
+													);
+												})() : null}
 
 												{location ? (
 													<button
@@ -904,15 +1074,64 @@ export function ChatThreadMessages({
 													</div>
 												) : null}
 
+												{message.type === "ProfilePhotoReply" ? (() => {
+													const body = message.body as Record<string, unknown> | null | undefined;
+													const hash = typeof body?.imageHash === "string" ? body.imageHash : null;
+													const photoUrl = hash ? getThumbImageUrl(hash, "320x320") : null;
+													return (
+														<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
+															<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
+															<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
+																<p className="mb-0.5 font-semibold opacity-60 truncate">{t("chat.thread.replied_to_photo")}</p>
+																<p className="opacity-60">{t("chat.thread.shared_image")}</p>
+															</div>
+															{photoUrl && (
+																<img
+																	src={photoUrl}
+																	alt=""
+																	className="h-14 w-14 shrink-0 object-cover object-top"
+																/>
+															)}
+														</div>
+													);
+												})() : null}
+
+
+												{(replyText || replyThumbUrl || replyIsAudio) && !isMediaOnlyBubble ? (
+													<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${
+														mine ? "bg-black/20" : "bg-black/[0.08]"
+													}`}>
+														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
+															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
+														}`} />
+														<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
+															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : t("chat.thread.shared_image"))}</p>
+														</div>
+														{replyThumbUrl ? (
+															<img
+																src={replyThumbUrl}
+																alt=""
+																className="h-14 w-14 shrink-0 object-cover"
+															/>
+														) : replyIsAudio ? (
+															<div className={`flex w-14 shrink-0 flex-col items-end justify-between py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+																<Mic className="h-4 w-4" />
+																<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+															</div>
+														) : null}
+													</div>
+												) : null}
+
 												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
 													<p className="whitespace-pre-wrap break-words">
-														{messageText}
+														{displayText}
 													</p>
 												) : null}
 
 														{!isLocalClientMessageId(message.messageId) ? (
 															<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
-																message.reactions.length > 0 ? "opacity-100" : "opacity-0"
+																message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
 															} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
 																🔥
 															</span>

@@ -11,6 +11,7 @@ import {
 	Infinity,
 	Loader2,
 	MapPin,
+	Mic,
 	Plus,
 	Settings2,
 	BookMarked,
@@ -40,7 +41,7 @@ import { appLog } from "../../../utils/logger";
 import {
 	useModalClose,
 } from "../../../hooks/useModalClose";
-import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
+import type { AlbumListItem, UiMessage } from "../../../types/chat-page";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { DrawerMedia } from "./ChatDrawerPanel";
 import { ChatDrawerPanel } from "./ChatDrawerPanel";
@@ -60,6 +61,7 @@ import {
 	getMessageAlbumId,
 	getMessageAlbumCoverUrl,
 } from "./chatUtils";
+import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { ChatThreadMessages } from "./ChatThreadMessages";
@@ -148,6 +150,8 @@ type ChatThreadPanelProps = {
 	isAlbumPickerOpen: boolean;
 	isLoadingAlbums: boolean;
 	shareableAlbums: AlbumListItem[];
+	albumCoverMap?: Map<number, string>;
+	ownProfilePhotoUrl?: string | null;
 	isSharingAlbum: boolean;
 	pendingAlbumShare: {
 		albumId: number;
@@ -181,8 +185,7 @@ type ChatThreadPanelProps = {
 	isSending: boolean;
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
-	albumViewer: AlbumViewerState | null;
-	onCloseAlbumViewer: () => void;
+	isAlbumSheetOpen: boolean;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -285,11 +288,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isAlbumPickerOpen,
 		isLoadingAlbums,
 		shareableAlbums,
+		albumCoverMap: externalAlbumCoverMap,
+		ownProfilePhotoUrl,
 		isSharingAlbum,
-			pendingAlbumShare,
+		pendingAlbumShare,
 		shareAlbumToCurrentConversation,
-			confirmPendingAlbumShare,
-			closePendingAlbumShare,
+        confirmPendingAlbumShare,
+        closePendingAlbumShare,
 		uploadProgress,
 		draft,
 		setDraft,
@@ -298,8 +303,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isSending,
 		selectedActionMessage,
 		selectedActionMessageMine,
-		albumViewer,
-		onCloseAlbumViewer,
+		isAlbumSheetOpen,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -455,8 +459,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			const cover = getMessageAlbumCoverUrl(msg);
 			if (aid && cover) map.set(aid, cover);
 		}
+		if (externalAlbumCoverMap) {
+			for (const [aid, cover] of externalAlbumCoverMap) {
+				map.set(aid, cover);
+			}
+		}
 		return map;
-	}, [threadMessages]);
+	}, [threadMessages, externalAlbumCoverMap]);
 
 	const sharedAlbumIds = useMemo(() => {
 		const ids = new Set<number>();
@@ -700,7 +709,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                 {!isDesktop && (
                                     <button
                                         type="button"
-                                        onClick={() => { if (albumViewer) { onCloseAlbumViewer(); return; } navigate("/chat"); }}
+                                        onClick={() => navigate("/chat")}
                                         className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
                                         aria-label={t("browse_location.back_aria")}
                                     >
@@ -1231,41 +1240,70 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						)}
 						{/* -------------------------- */}
 
-                        {selectedConversation && replyTargetMessage ? (
-							<div className="mb-2 overflow-hidden rounded-2xl border border-[color-mix(in_srgb,var(--accent)_24%,var(--border))] bg-[color-mix(in_srgb,var(--surface-2)_82%,var(--accent)_8%)] shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-								<div className="flex items-stretch">
-									<div className="w-1 shrink-0 bg-[var(--accent)]" aria-hidden="true" />
-									<div className="flex min-w-0 flex-1 items-start justify-between gap-2 px-3 py-2.5">
-										<div className="min-w-0">
-											<p className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--text-muted)]">
-												<Reply className="h-3 w-3" />
-												<span>
-													{`${t("chat.actions.reply", { defaultValue: "Reply" })} · ${
-														userId != null && Number(replyTargetMessage.senderId) === Number(userId)
-															? t("chat.you")
-															: (selectedConversation?.data.name?.trim() || t("chat.unknown"))
-													}`}
-												</span>
+                        {selectedConversation && replyTargetMessage ? (() => {
+							const rtm = replyTargetMessage;
+							const rtmBody = rtm.body as Record<string, unknown> | null | undefined;
+							const isAudioReply = rtm.type === "Audio" || rtm.chat1Type?.toLowerCase() === "audio";
+							const isImageReply = rtm.type === "Image" || rtm.type === "ExpiringImage" || rtm.chat1Type?.toLowerCase() === "image" || rtm.chat1Type?.toLowerCase() === "expiring_image";
+							const thumbUrl = (() => {
+								if (isImageReply) {
+									const fromUtil = getMessageImageUrl(rtm);
+									if (fromUtil) return fromUtil;
+									const hash = typeof rtmBody?.imageHash === "string" ? rtmBody.imageHash : null;
+									if (hash) return getThumbImageUrl(hash, "320x320");
+									const imgObj = rtmBody?.image as Record<string, unknown> | null | undefined;
+									const urlCandidate = imgObj?.url ?? imgObj?.imageUrl ?? rtmBody?.url ?? rtmBody?.imageUrl;
+									return typeof urlCandidate === "string" ? urlCandidate : null;
+								}
+								if (rtm.type === "AlbumContentReaction" || rtm.type === "AlbumContentReply") {
+									return typeof rtmBody?.previewUrl === "string" ? rtmBody.previewUrl : null;
+								}
+								const albumCover = getMessageAlbumCoverUrl(rtm);
+								if (albumCover) return albumCover;
+								return null;
+							})();
+							const audioDuration = (() => {
+								if (!isAudioReply) return null;
+								const rawMs = typeof rtmBody?.length === "number" ? rtmBody.length : null;
+								if (rawMs === null) return null;
+								const totalSec = Math.floor(rawMs / 1000);
+								return `${Math.floor(totalSec / 60)}:${(totalSec % 60).toString().padStart(2, "0")}`;
+							})();
+							return (
+								<div className="relative mb-2 overflow-hidden rounded-xl bg-[var(--surface-2)]">
+									<div className="absolute left-0 top-0 h-full w-[3px] bg-[var(--accent)]" />
+									<div className="flex items-center gap-2 py-2.5 pl-[13px] pr-2">
+										<div className="min-w-0 flex-1">
+											<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
+												{userId != null && Number(rtm.senderId) === Number(userId)
+													? "Replying to myself"
+													: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
+												}
 											</p>
-											<div className="rounded-lg border border-[var(--border)]/80 bg-[var(--surface)]/85 px-2 py-1.5">
-												<p className="max-h-10 overflow-hidden text-xs leading-5 text-[var(--text)]">
-													{getMessagePreviewLabel(replyTargetMessage, t)}
-												</p>
-											</div>
+											<p className="truncate text-xs text-[var(--text-muted)]">
+												{isAudioReply ? t("chat.thread.audio_label") : getMessagePreviewLabel(rtm, t)}
+											</p>
 										</div>
+										{thumbUrl ? (
+											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+										) : isAudioReply ? (
+											<div className="flex w-10 shrink-0 flex-col items-end justify-between py-0.5 text-[var(--text-muted)]">
+												<Mic className="h-4 w-4" />
+												<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+											</div>
+										) : null}
 										<button
 											type="button"
 											onClick={clearReplyTarget}
-											className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:text-[var(--text)]"
 											aria-label={t("chat.actions.cancel")}
-											title={t("chat.actions.cancel")}
 										>
 											<X className="h-3.5 w-3.5" />
 										</button>
 									</div>
 								</div>
-							</div>
-						) : null}
+							);
+						})() : null}
 
 						<div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 mb-2 focus-within:border-[var(--accent)] transition-colors">
 							<textarea
@@ -1456,6 +1494,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							isSharingAlbum={isSharingAlbum}
 							isDesktop={isDesktop}
 							noConversation={!selectedConversation}
+							ownProfilePhotoUrl={ownProfilePhotoUrl}
 						/>
 					) : null}
 
@@ -1550,7 +1589,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								{/* Phrases list */}
 								<div data-lenis-prevent className="overflow-y-auto" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
 									{savedPhrases.length === 0 ? (
-										<div className="flex flex-col items-center gap-2.5 py-8 text-[var(--text-muted)]">
+										<div className="flex flex-col items-center justify-center gap-2.5 text-center text-[var(--text-muted)]" style={{ minHeight: "40dvh" }}>
 											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
 												<BookMarked className="h-5 w-5 opacity-60" />
 											</div>
@@ -1589,7 +1628,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</BottomSheet>
 					) : null}
 
-					{!isDesktop && selectedActionMessage && albumViewer === null ? (
+					{!isDesktop && selectedActionMessage && !isAlbumSheetOpen ? (
 						<div
 							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout"
 							onClick={() => setOpenMessageActionId(null)}

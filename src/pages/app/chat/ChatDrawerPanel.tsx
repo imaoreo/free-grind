@@ -56,6 +56,7 @@ interface ChatDrawerPanelProps {
 	isSharingAlbum?: boolean;
 	onStopAlbumShare?: (albumId: number) => Promise<void>;
 	noConversation?: boolean;
+	ownProfilePhotoUrl?: string | null;
 }
 
 export function ChatDrawerPanel({
@@ -79,6 +80,7 @@ export function ChatDrawerPanel({
 	isSharingAlbum = false,
 	onStopAlbumShare,
 	noConversation = false,
+	ownProfilePhotoUrl,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -99,7 +101,6 @@ export function ChatDrawerPanel({
 	const prevMediaIdsRef = useRef<Set<number>>(new Set());
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
-
 	useEffect(() => {
 		if (!pendingAddFile) {
 			setPreviewUrl(null);
@@ -516,16 +517,19 @@ export function ChatDrawerPanel({
 												onClick={() => { if (hasSelection) return; setSelectedAlbumIds(prev => { const n = new Set(prev); n.has(album.albumId) ? n.delete(album.albumId) : n.add(album.albumId); return n; }); }}
 												onKeyDown={(e) => { if (e.key === "Enter" && !hasSelection) { setSelectedAlbumIds(prev => { const n = new Set(prev); n.has(album.albumId) ? n.delete(album.albumId) : n.add(album.albumId); return n; }); } }}
 												className={`relative aspect-square overflow-hidden cursor-pointer transition ${dimmed ? "opacity-30 pointer-events-none" : ""}`}
-												style={{ outline: isSelected ? "2px solid var(--accent)" : "none", outlineOffset: "-2px" }}
 											>
-												{cover ? <img src={cover} alt={album.albumName ?? ""} className="h-full w-full object-cover" /> : (
+												{cover ? <img src={cover} alt="" className="h-full w-full object-cover scale-110" style={{ filter: "blur(3px)" }} /> : (
 													<div className="absolute inset-0 flex items-center justify-center bg-[var(--surface)] text-[var(--text-muted)]"><Album className="h-6 w-6 opacity-50" /></div>
 												)}
-												<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 py-1">
-													<p className="truncate text-[9px] font-medium text-white leading-tight">{album.albumName || `#${album.albumId}`}</p>
+												<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+													{ownProfilePhotoUrl && (
+														<img src={ownProfilePhotoUrl} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-white/60" style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }} />
+													)}
+													<p className="truncate text-[11px] font-medium text-white leading-tight drop-shadow px-1 max-w-full">{album.albumName || t("chat_drawer.album_fallback", { defaultValue: "My Album" })}</p>
+													{isShared && <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span>}
 												</div>
-												<div className="absolute inset-0 flex items-center justify-center pointer-events-none">{isShared && !isSelected ? <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">{t("chat_drawer.sharing", { defaultValue: "Sharing" })}</span> : null}</div>
 												{isSelected ? <div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--accent) 45%, transparent)" }}><Check className="h-5 w-5 text-white drop-shadow" /></div> : null}
+												{isSelected && <div className="absolute inset-0 pointer-events-none" style={{ border: "2px solid var(--accent)" }} />}
 											</div>
 										);
 									})}
@@ -618,7 +622,7 @@ export function ChatDrawerPanel({
 											className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 text-sm font-semibold text-orange-300 transition hover:bg-orange-500/20 disabled:opacity-60"
 										>
 											{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-											<span>{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}</span>
+											<span>{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })} ({selectedAlbumIds.size})</span>
 										</button>
 									) : (
 										<>
@@ -644,7 +648,7 @@ export function ChatDrawerPanel({
 												className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 											>
 												{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
-												<span>{isSharingAlbum ? t("chat_drawer.sending") : t("chat.share")}</span>
+												<span>{isSharingAlbum ? t("chat_drawer.sending") : `${t("chat.share")} (${selectedAlbumIds.size})`}</span>
 											</button>
 										</>
 									)}

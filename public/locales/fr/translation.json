@@ -482,9 +482,12 @@
             "shared_album": "A partagé un album",
             "sent_audio": "A envoyé un message vocal",
             "reacted_album_content": "A réagi au contenu de l'album",
+            "tapped_album_photo_yours": "A aimé votre photo d'album",
+            "tapped_album_photo_theirs": "Vous avez aimé sa photo d'album",
             "sent_video": "A envoyé une vidéo",
             "sent_message": "A envoyé un message",
-            "sent_location": "A envoyé une position"
+            "sent_location": "A envoyé une position",
+            "replied_profile_photo": "A répondu à une photo de profil"
         },
         "thread": {
             "unsent": "Message retiré",
@@ -501,6 +504,9 @@
             "taken_on_grindr": "Pris sur Grindr",
             "album_cover": "Couverture de l'album",
             "album_share": "Album partagé",
+            "album_image": "Image d'album",
+            "replied_to_photo": "A répondu à votre photo de profil",
+            "reacted_to_image": "A réagi à votre image d'album",
             "location_placeholder": "[Position]",
             "location_shared": "Position partagée"
         },

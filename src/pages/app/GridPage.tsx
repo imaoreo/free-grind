@@ -1151,7 +1151,7 @@ export function GridPage() {
 							</div>
 
 							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-								<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
+								<div className="flex min-w-max items-center gap-2 px-[var(--app-px)] ml-auto">
 									<button
 										type="button"
 										onClick={() =>
