@@ -20,7 +20,7 @@
     - [x] Albums (view, share, manage)
     - [ ] GIF / Gaymoji
   - [x] Location messages
-  - [ ] Saved phrases
+  - [x] Saved phrases
   - [ ] Voice message recording
   - [x] Reactions (send & receive)
   - [x] Unsend messages
@@ -35,8 +35,8 @@
 - [x] Profiles
   - [x] Fetching & viewing
   - [x] Full profile detail modal (stats, health, tribes, tags, photos)
-  - [ ] Favoriting/unfavoriting
-  - [ ] Blocking/unblocking
+  - [x] Favoriting/unfavoriting
+  - [x] Blocking/unblocking
   - [x] Taps
   - [ ] Reports
 - [x] Grid
@@ -60,7 +60,7 @@
   - [x] Fetching
   - [x] Filtering
   - [x] Sorting
-  - [ ] Posting
+  - [x] Posting
 - [x] Account
   - [x] Profile editing (bio, stats, health, tribes, tags, social links)
   - [x] Manage profile photos (upload, reorder, delete)

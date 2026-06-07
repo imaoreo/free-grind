@@ -8,6 +8,7 @@ import {
 	Heart,
 	Hourglass,
 	ImagePlus,
+	Images,
 	Infinity,
 	Loader2,
 	MapPin,
@@ -142,8 +143,10 @@ type ChatThreadPanelProps = {
 	pendingAttachmentFile: File | null;
 	attachmentLooping: boolean;
 	attachmentTakenOnGrindr: boolean;
+	attachmentMaxViews: number;
 	setAttachmentLooping: (value: boolean) => void;
 	setAttachmentTakenOnGrindr: (value: boolean) => void;
+	setAttachmentMaxViews: (value: number) => void;
 	confirmPendingAttachment: () => void;
 	confirmAttachmentFile: (file: File) => void | Promise<void>;
 	cancelPendingAttachment: () => void;
@@ -171,7 +174,7 @@ type ChatThreadPanelProps = {
 	isAddingDrawerMedia: boolean;
 	deletingDrawerMediaId: number | null;
 	onLoadDrawerMedia: () => void | Promise<void>;
-	onSendDrawerMedia: (mediaIds: number[], isExpiring?: boolean) => Promise<void>;
+	onSendDrawerMedia: (mediaIds: number[], maxViews?: number) => Promise<void>;
 	onAddDrawerMedia: (file: File, takenOnGrindr: boolean) => Promise<void>;
 	onDeleteDrawerMedia: (mediaId: number) => Promise<void>;
 	onShareAlbumFromDrawer: (albumId: number, expirationType: string) => Promise<void>;
@@ -186,6 +189,7 @@ type ChatThreadPanelProps = {
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
 	isAlbumSheetOpen: boolean;
+	onOpenMediaSheet?: () => void;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -280,8 +284,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		pendingAttachmentFile,
 		attachmentLooping,
 		attachmentTakenOnGrindr,
+		attachmentMaxViews,
 		setAttachmentLooping,
 		setAttachmentTakenOnGrindr,
+		setAttachmentMaxViews,
 		confirmPendingAttachment: _confirmPendingAttachment,
 		confirmAttachmentFile,
 		cancelPendingAttachment,
@@ -304,6 +310,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessage,
 		selectedActionMessageMine,
 		isAlbumSheetOpen,
+		onOpenMediaSheet,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -848,6 +855,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</>
 								)}
 
+								{onOpenMediaSheet && (
+									<button
+										type="button"
+										onClick={onOpenMediaSheet}
+										className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+										aria-label="Received media"
+									>
+										<Images className="h-4 w-4" />
+									</button>
+								)}
+
 								<div
 									ref={headerActionsMenuRef}
 									className={`relative ${!isDesktop ? "pr-0" : ""}`}
@@ -1287,9 +1305,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										{thumbUrl ? (
 											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
 										) : isAudioReply ? (
-											<div className="flex w-10 shrink-0 flex-col items-end justify-between py-0.5 text-[var(--text-muted)]">
-												<Mic className="h-4 w-4" />
-												<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+											<div className="flex w-10 shrink-0 items-center justify-end py-0.5 text-[var(--text-muted)]">
+												<div className="flex flex-col items-center gap-1">
+													<Mic className="h-4 w-4" />
+													<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+												</div>
 											</div>
 										) : null}
 										<button
@@ -1391,15 +1411,44 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							title={t("chat.attachments.ready_to_send", { file: pendingAttachmentFile.name })}
 							onClose={cancelPendingAttachment}
 							onConfirm={() => void handleConfirmAttachment()}
-							confirmLabel={t("chat.attachments.send_attachment")}
-							cancelLabel={t("chat.actions.cancel")}
+							confirmLabel={
+								attachmentMaxViews !== 2147483647
+									? t("chat.attachments.send_expiring")
+									: t("chat.attachments.send")
+							}
 							isProcessing={isUploadingAttachment}
 							isDesktop={isDesktop}
+							footerLeft={(() => {
+								const isVideo = pendingAttachmentFile.type.startsWith("video/");
+								const cycle = isVideo ? [2147483647, 1, 2] as const : [2147483647, 1] as const;
+								const idx = cycle.indexOf(attachmentMaxViews as typeof cycle[number]);
+								const next = cycle[(idx === -1 ? 0 : idx + 1) % cycle.length];
+								const isLimited = attachmentMaxViews !== 2147483647;
+								return (
+									<button
+										type="button"
+										onClick={() => setAttachmentMaxViews(next)}
+										className={`inline-flex min-w-[64px] items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 transition ${
+											isLimited
+												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+										}`}
+									>
+										<Hourglass className="h-4 w-4" />
+										{attachmentMaxViews === 2147483647
+											? <span className="text-base font-semibold leading-none">∞</span>
+											: <span className="text-sm font-semibold">{attachmentMaxViews}×</span>
+										}
+									</button>
+								);
+							})()}
 						>
 							{attachmentPreviewUrl && (
 								pendingAttachmentFile.type.startsWith("video/") ? (
 									<div className="px-3 pb-3">
-										<video src={attachmentPreviewUrl} controls className="w-full object-contain rounded-xl border border-[var(--border)]" style={{ maxHeight: "40dvh" }} />
+										<div className="border border-[var(--border)]" style={{ borderRadius: "0.75rem", clipPath: "inset(0 round 0.75rem)" }}>
+											<video src={attachmentPreviewUrl} controls className="w-full object-contain" style={{ maxHeight: "40dvh" }} />
+										</div>
 									</div>
 								) : (
 									<div className="px-3 pb-3">
@@ -1457,17 +1506,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								)
 							)}
 							<div className="px-3 pb-3 grid gap-3">
+								{pendingAttachmentFile?.type.startsWith("video/") ? (
 								<ToggleRow
-                                    checked={attachmentLooping}
-                                    onChange={setAttachmentLooping}
-                                    label={t("chat.attachments.looping")}
-                                />
-                                <ToggleRow
-                                    checked={attachmentTakenOnGrindr}
-                                    onChange={setAttachmentTakenOnGrindr}
-                                    label={t("chat.attachments.taken_on_grindr")}
-                                    description={t("chat.attachments.taken_on_grindr_description")}
-                                />
+									checked={attachmentLooping}
+									onChange={setAttachmentLooping}
+									label={t("chat.attachments.looping")}
+									description={t("chat.attachments.looping_description")}
+								/>
+							) : (
+								<ToggleRow
+									checked={attachmentTakenOnGrindr}
+									onChange={setAttachmentTakenOnGrindr}
+									label={t("chat.attachments.taken_on_grindr")}
+									description={t("chat.attachments.taken_on_grindr_description")}
+								/>
+							)}
 							</div>
 						</BottomDrawer>
 					) : null}

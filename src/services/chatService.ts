@@ -416,7 +416,6 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
 			const response = await fetchRest(`/v1/albums/${albumId}`);
 			await assertSuccess(response, t("chat.errors.load_album_details"));
-            
 			return z
 				.object({
 					albumId: z.coerce.number().int(),
@@ -438,6 +437,54 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				.parse(await parseJsonSafe(response));
 		},
 
+		async getSharedAlbums(profileId: number | string): Promise<{
+			albumId: number;
+			albumName: string | null;
+			contentCount: { imageCount: number; videoCount: number };
+			previewContent: { contentId: number; thumbUrl: string | null; blurredUrl: string | null } | null;
+		}[]> {
+			const response = await fetchRest(`/v2/albums/shares/${profileId}`);
+			await assertSuccess(response, t("chat.errors.load_album_details"));
+			const parsed = z
+				.object({
+					albums: z.array(
+						z.object({
+							albumId: z.coerce.number().int(),
+							albumName: z.string().nullable().optional().default(null),
+							contentCount: z.object({
+								imageCount: z.number().int().optional().default(0),
+								videoCount: z.number().int().optional().default(0),
+							}).optional().default({ imageCount: 0, videoCount: 0 }),
+							content: z.object({
+								contentId: z.coerce.number().int(),
+								thumbUrl: z.string().nullable().optional().default(null),
+								blurredUrl: z.string().nullable().optional().default(null),
+							}).nullable().optional().default(null),
+						}),
+					).optional().default([]),
+				})
+				.parse(await parseJsonSafe(response));
+			return parsed.albums.map((a) => ({
+				albumId: a.albumId,
+				albumName: a.albumName ?? null,
+				contentCount: a.contentCount,
+				previewContent: a.content
+					? { contentId: a.content.contentId, thumbUrl: a.content.thumbUrl ?? null, blurredUrl: a.content.blurredUrl ?? null }
+					: null,
+			}));
+		},
+
+		async getAlbumContentPoster(albumId: number | string, contentId: number | string): Promise<{ posterUrl: string | null; blurredPosterUrl: string | null }> {
+			const response = await fetchRest(`/v1/albums/${albumId}/content/${contentId}/poster`);
+			await assertSuccess(response, t("chat.errors.load_album_details"));
+			return z
+				.object({
+					posterUrl: z.string().nullable().optional().default(null),
+					blurredPosterUrl: z.string().nullable().optional().default(null),
+				})
+				.parse(await parseJsonSafe(response));
+		},
+
 		async uploadChatMedia(
 			params: UploadChatMediaParams,
 		): Promise<UploadChatMediaResponse> {
@@ -445,6 +492,9 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				looping: String(params.options.looping),
 				takenOnGrindr: String(params.options.takenOnGrindr),
 			});
+			if (params.options.durationSeconds != null) {
+				query.set("length", String(params.options.durationSeconds));
+			}
 
 			const response = await fetchRest(
 				`/v5/chat/media/upload?${query.toString()}`,
