@@ -66,6 +66,7 @@ import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { ChatThreadMessages } from "./ChatThreadMessages";
+import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
@@ -180,6 +181,12 @@ type ChatThreadPanelProps = {
 	onShareAlbumFromDrawer: (albumId: number, expirationType: string) => Promise<void>;
 	onStopAlbumShareFromDrawer: (albumId: number) => Promise<void>;
 	onSendLocation: (lat: number, lon: number) => void | Promise<void>;
+	onAudioRecorded: (blob: Blob, durationMs: number) => void;
+	pendingAudioBlob: Blob | null;
+	pendingAudioDuration: number;
+	isSendingAudio: boolean;
+	confirmAudio: () => void | Promise<void>;
+	cancelAudio: () => void;
 	uploadProgress: number;
 	draft: string;
 	setDraft: (value: string) => void;
@@ -203,6 +210,61 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
 	const [phrasesExpanded, setPhrasesExpanded] = useState(false);
 	const [newPhraseInput, setNewPhraseInput] = useState("");
+
+	const [isRecording, setIsRecording] = useState(false);
+	const [recordingMs, setRecordingMs] = useState(0);
+	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+	const chunksRef = useRef<Blob[]>([]);
+	const recordingStartRef = useRef(0);
+	const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+			mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+		};
+	}, []);
+
+	const startRecording = useCallback(async () => {
+		if (isRecording) return;
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			const mimeType = ["audio/aac", "audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg"].find(
+				(t) => MediaRecorder.isTypeSupported(t),
+			) ?? "";
+			const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+			chunksRef.current = [];
+			recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+			recorder.start(100);
+			mediaRecorderRef.current = recorder;
+			recordingStartRef.current = Date.now();
+			setIsRecording(true);
+			setRecordingMs(0);
+			recordingTimerRef.current = setInterval(() => setRecordingMs(Date.now() - recordingStartRef.current), 100);
+		} catch {
+			toast.error(t("chat.errors.microphone_access", { defaultValue: "Could not access microphone." }));
+		}
+	}, [isRecording, t]);
+
+	const stopRecording = useCallback(() => {
+		const recorder = mediaRecorderRef.current;
+		if (!recorder || recorder.state === "inactive") return;
+		if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
+		const durationMs = Date.now() - recordingStartRef.current;
+		recorder.onstop = () => {
+			recorder.stream.getTracks().forEach((t) => t.stop());
+			const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+			if (durationMs >= 500) {
+				props.onAudioRecorded(blob, durationMs);
+			} else {
+				toast.error(t("chat.errors.recording_too_short", { defaultValue: "Recording too short." }));
+			}
+			mediaRecorderRef.current = null;
+		};
+		recorder.stop();
+		setIsRecording(false);
+		setRecordingMs(0);
+	}, [props, t]);
 
 	const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
 	const [attachmentCrop, setAttachmentCrop] = useState<Crop | undefined>(undefined);
