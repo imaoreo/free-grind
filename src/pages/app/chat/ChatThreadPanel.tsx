@@ -40,7 +40,7 @@ import { appLog } from "../../../utils/logger";
 import {
 	useModalClose,
 } from "../../../hooks/useModalClose";
-import type { AlbumListItem, AlbumViewerState, UiMessage } from "../../../types/chat-page";
+import type { AlbumListItem, UiMessage } from "../../../types/chat-page";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { DrawerMedia } from "./ChatDrawerPanel";
 import { ChatDrawerPanel } from "./ChatDrawerPanel";
@@ -183,8 +183,7 @@ type ChatThreadPanelProps = {
 	isSending: boolean;
 	selectedActionMessage: UiMessage | null;
 	selectedActionMessageMine: boolean;
-	albumViewer: AlbumViewerState | null;
-	onCloseAlbumViewer: () => void;
+	isAlbumSheetOpen: boolean;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -302,8 +301,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isSending,
 		selectedActionMessage,
 		selectedActionMessageMine,
-		albumViewer,
-		onCloseAlbumViewer,
+		isAlbumSheetOpen,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -709,7 +707,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                 {!isDesktop && (
                                     <button
                                         type="button"
-                                        onClick={() => { if (albumViewer) { onCloseAlbumViewer(); return; } navigate("/chat"); }}
+                                        onClick={() => navigate("/chat")}
                                         className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
                                         aria-label={t("browse_location.back_aria")}
                                     >
@@ -1590,7 +1588,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</BottomSheet>
 					) : null}
 
-					{!isDesktop && selectedActionMessage && albumViewer === null ? (
+					{!isDesktop && selectedActionMessage && !isAlbumSheetOpen ? (
 						<div
 							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout"
 							onClick={() => setOpenMessageActionId(null)}
