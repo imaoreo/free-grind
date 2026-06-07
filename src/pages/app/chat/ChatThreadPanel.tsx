@@ -1287,9 +1287,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										{thumbUrl ? (
 											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
 										) : isAudioReply ? (
-											<div className="flex w-10 shrink-0 flex-col items-end justify-between py-0.5 text-[var(--text-muted)]">
-												<Mic className="h-4 w-4" />
-												<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+											<div className="flex w-10 shrink-0 items-center justify-end py-0.5 text-[var(--text-muted)]">
+												<div className="flex flex-col items-center gap-1">
+													<Mic className="h-4 w-4" />
+													<span className="text-[10px]">{audioDuration ?? "0:00"}</span>
+												</div>
 											</div>
 										) : null}
 										<button

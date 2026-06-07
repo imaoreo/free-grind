@@ -905,7 +905,7 @@ export function ChatThreadMessages({
 														<>
 															<button
 																type="button"
-																className={`group/media relative block w-full overflow-hidden rounded-2xl ${tailCorner}`}
+																className={`group/media relative block overflow-hidden rounded-2xl ${tailCorner} ${isDesktop ? "w-full" : "w-36"}`}
 																onClick={(event) => {
 																	event.stopPropagation();
 																	if (!rxAlbumId) return;
@@ -1115,9 +1115,11 @@ export function ChatThreadMessages({
 																className="h-14 w-14 shrink-0 object-cover"
 															/>
 														) : replyIsAudio ? (
-															<div className={`flex w-14 shrink-0 flex-col items-end justify-between py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
-																<Mic className="h-4 w-4" />
-																<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+																<div className="flex flex-col items-center gap-1">
+																	<Mic className="h-4 w-4" />
+																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+																</div>
 															</div>
 														) : null}
 													</div>
