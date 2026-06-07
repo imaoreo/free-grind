@@ -60,9 +60,11 @@ export function ChatAlbumSheet({
 				<div className="min-h-0 flex-1 overflow-y-auto">
 					<div className="grid grid-cols-3 gap-1 p-3 sm:grid-cols-4 sm:gap-1.5 sm:p-4">
 						{viewer.content.map((item, index) => {
-							const mediaUrl = item.thumbUrl || item.url || item.coverUrl;
-							const isActive = index === fullScreenIndex;
 							const isVideo = item.contentType?.startsWith("video/");
+							const mediaUrl = isVideo
+								? (item.thumbUrl || item.coverUrl || item.url)
+								: (item.thumbUrl || item.url || item.coverUrl);
+							const isActive = index === fullScreenIndex;
 
 							return (
 								<button
@@ -77,16 +79,12 @@ export function ChatAlbumSheet({
 								>
 									{mediaUrl ? (
 										<>
-											{isVideo ? (
-												<video src={mediaUrl} className="h-full w-full object-cover" muted />
-											) : (
-												<img
-													src={mediaUrl}
-													alt={t("shared_albums.content_alt", { index: index + 1 })}
-													loading="lazy"
-													className="h-full w-full object-cover"
-												/>
-											)}
+											<img
+											src={mediaUrl ?? undefined}
+											alt={t("shared_albums.content_alt", { index: index + 1 })}
+											loading="lazy"
+											className="h-full w-full object-cover"
+										/>
 											{isVideo && (
 												<div className="absolute inset-0 flex items-center justify-center bg-black/30">
 													<div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">

@@ -120,9 +120,11 @@ export function AlbumViewerPanel({
 							style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px))" }}
 						>
 							{viewer.content.map((item, index) => {
-								const mediaUrl = item.thumbUrl || item.url || item.coverUrl;
-								const isActive = index === fullScreenIndex;
 								const isVideo = item.contentType?.startsWith("video/");
+								const mediaUrl = isVideo
+									? (item.thumbUrl || item.coverUrl || item.url)
+									: (item.thumbUrl || item.url || item.coverUrl);
+								const isActive = index === fullScreenIndex;
 
 								return (
 									<button
@@ -137,16 +139,12 @@ export function AlbumViewerPanel({
 									>
 										{mediaUrl ? (
 											<>
-												{isVideo ? (
-													<video src={mediaUrl} className="h-full w-full object-cover" muted />
-												) : (
-													<img
-														src={mediaUrl}
-														alt={t("shared_albums.content_alt", { index: index + 1 })}
-														loading="lazy"
-														className="h-full w-full object-cover"
-													/>
-												)}
+												<img
+													src={mediaUrl ?? undefined}
+													alt={t("shared_albums.content_alt", { index: index + 1 })}
+													loading="lazy"
+													className="h-full w-full object-cover"
+												/>
 												{isVideo && (
 													<div className="absolute inset-0 flex items-center justify-center bg-black/30">
 														<div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
