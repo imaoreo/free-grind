@@ -528,7 +528,6 @@ export function ChatThreadMessages({
 								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
-									!mine &&
 									!revealedMediaMessageIds.has(message.messageId) &&
 									(!isDesktop || hoveredMediaMessageId !== message.messageId);
 								const mediaBlurClassName = shouldBlurIncomingMedia
@@ -671,7 +670,7 @@ export function ChatThreadMessages({
 																<img
 																	src={replyThumbUrl}
 																	alt=""
-																	className="absolute inset-0 h-full w-full object-cover"
+																	className={`absolute inset-0 h-full w-full object-cover${blurIncomingMedia ? " blur-xl transition" : ""}`}
 																/>
 															</div>
 														) : replyIsAudio ? (

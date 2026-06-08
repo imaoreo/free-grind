@@ -3,11 +3,6 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePreferences, ACCENT_PRESETS, type ColorScheme } from "../../contexts/PreferencesContext";
 import { BackToSettings } from "../../components/BackToSettings";
-import {
-	readAnalyticsConsentChoice,
-	writeAnalyticsConsentChoice,
-	type AnalyticsConsentChoice,
-} from "../../utils/analyticsConsent";
 import { useTranslation } from "react-i18next";
 import {
 	SUPPORTED_LOCALE_OPTIONS,
@@ -63,22 +58,15 @@ export function CustomizabilityPage() {
 		accentColor,
 		mobileGridColumns,
 		unitsPreset,
-		blurIncomingMedia,
 		revealEffectEnabled,
 		revealEffectStrength,
 		setPreferences,
 	} = usePreferences();
 	const [customHex, setCustomHex] = useState(accentColor);
 	const [hexError, setHexError] = useState<string | null>(null);
-    const [showRightNow, setShowRightNow] = useState(() => window.localStorage.getItem("fg-show-right-now") !== "false");
+	const [showRightNow, setShowRightNow] = useState(() => window.localStorage.getItem("fg-show-right-now") !== "false");
 	const [showInterest, setShowInterest] = useState(() => window.localStorage.getItem("fg-show-interest") !== "false");
-    const [ghostMode, setGhostMode] = useState(() => window.localStorage.getItem("fg-ghost-mode") === "true");
-    const [showGhostButton, setShowGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
-    const [defaultInterestTab, setDefaultInterestTab] = useState(() => window.localStorage.getItem("fg-interest-default-tab") || "taps");
-    
-	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(
-		() => readAnalyticsConsentChoice(),
-	);
+	const [defaultInterestTab, setDefaultInterestTab] = useState(() => window.localStorage.getItem("fg-interest-default-tab") || "taps");
 	const schemeOptions: {
 		value: ColorScheme;
 		label: string;
@@ -163,10 +151,6 @@ export function CustomizabilityPage() {
 		void setPreferences({ unitsPreset: preset });
 	};
 
-	const handleBlurIncomingMediaToggle = () => {
-		void setPreferences({ blurIncomingMedia: !blurIncomingMedia });
-	};
-
 	return (
 		<section className="app-screen">
 			<header className="mb-6">
@@ -212,91 +196,6 @@ export function CustomizabilityPage() {
 						<option value="uk">{t("customizability.units_uk")}</option>
 						<option value="american">{t("customizability.units_american")}</option>
 					</select>
-				</div>
-
-				<div className="surface-card p-4 sm:p-5">
-					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("customizability.blur_incoming_media")}
-					</p>
-					<p className="mb-3 text-sm text-[var(--text-muted)]">
-						{t("customizability.blur_incoming_media_description")}
-					</p>
-					<button
-						type="button"
-						onClick={handleBlurIncomingMediaToggle}
-						className={`inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition ${
-							blurIncomingMedia
-								? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-								: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]"
-						}`}
-					>
-						{blurIncomingMedia ? t("customizability.enabled") : t("customizability.disabled")}
-					</button>
-				</div>
-
-				{/* Analytics & FreeGrind Discovery */}
-				<div className="surface-card p-4 sm:p-5">
-					<p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("customizability.analytics.title")}
-					</p>
-					<p className="text-sm text-[var(--text-muted)]">
-						{t("customizability.analytics.description")}
-					</p>
-					<p className="mt-2 text-xs text-[var(--text-muted)]">
-						{t("customizability.analytics.note")}
-					</p>
-					<div className="mt-4 flex flex-wrap gap-2">
-						<button
-							type="button"
-							onClick={() => {
-								writeAnalyticsConsentChoice("granted");
-								setAnalyticsConsent("granted");
-							}}
-							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
-							style={{
-								borderColor:
-									analyticsConsent === "granted" ? "var(--accent)" : "var(--border)",
-								background:
-									analyticsConsent === "granted"
-										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
-										: "var(--surface-2)",
-								color:
-									analyticsConsent === "granted"
-										? "var(--accent-readable)"
-										: "var(--text)",
-							}}
-						>
-							{t("customizability.analytics.allow")}
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								writeAnalyticsConsentChoice("denied");
-								setAnalyticsConsent("denied");
-							}}
-							className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-semibold transition"
-							style={{
-								borderColor:
-									analyticsConsent === "denied" ? "var(--accent)" : "var(--border)",
-								background:
-									analyticsConsent === "denied"
-										? "color-mix(in srgb, var(--accent) 16%, var(--surface))"
-										: "var(--surface-2)",
-								color:
-									analyticsConsent === "denied"
-										? "var(--accent-readable)"
-										: "var(--text)",
-							}}
-						>
-							{t("customizability.analytics.deny")}
-						</button>
-					</div>
-					<p className="mt-3 text-xs text-[var(--text-muted)]">
-						{t("customizability.analytics.current")}: {" "}
-						{analyticsConsent === null
-							? t("customizability.analytics.not_selected")
-							: analyticsConsent}
-					</p>
 				</div>
 
 				{/* Color Scheme */}
@@ -412,51 +311,7 @@ export function CustomizabilityPage() {
 					{hexError ? <p className="mt-2 text-xs text-red-400">{hexError}</p> : null}
 				</div>
 
-                {/* Privacy Settings */}
-				<div className="surface-card p-4 sm:p-5 border border-[var(--border)]">
-					<p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						Privacy Features
-					</p>
-					<p className="mb-4 text-sm text-[var(--text-muted)]">
-						Ghost Mode prevents Grindr from sending "Read Receipts". When enabled, the other person will not know you read their message until you reply or turn Ghost Mode off.
-					</p>
-					<div className="flex flex-col gap-3">
-						<label className="flex items-start gap-3 text-sm cursor-pointer">
-							<input
-								type="checkbox"
-								checked={ghostMode}
-								onChange={(e) => {
-									const isChecked = e.target.checked;
-									setGhostMode(isChecked);
-									window.localStorage.setItem("fg-ghost-mode", String(isChecked));
-								}}
-								className="mt-1 h-4 w-4 accent-[var(--accent)] shrink-0"
-							/>
-							<span>
-								<span className="font-semibold block">Global Ghost Mode</span>
-								<span className="text-xs text-[var(--text-muted)]">Hide read receipts by default for all chats.</span>
-							</span>
-						</label>
-						<label className="flex items-start gap-3 text-sm cursor-pointer">
-							<input
-								type="checkbox"
-								checked={showGhostButton}
-								onChange={(e) => {
-									const isChecked = e.target.checked;
-									setShowGhostButton(isChecked);
-									window.localStorage.setItem("fg-show-ghost-btn", String(isChecked));
-								}}
-								className="mt-1 h-4 w-4 accent-[var(--accent)] shrink-0"
-							/>
-							<span>
-								<span className="font-semibold block">Per-Chat Overrides (Eye Button)</span>
-								<span className="text-xs text-[var(--text-muted)]">Show a button in the chat header to override the global setting for specific people. Ghosted chats are highlighted in your Inbox.</span>
-							</span>
-						</label>
-					</div>
-				</div>
-
-                {/* Navigation Tabs Customization */}
+				{/* Navigation Tabs Customization */}
 				<div className="surface-card p-4 sm:p-5">
 					<p className="mb-3 text-sm font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						Navigation Tabs

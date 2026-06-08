@@ -8,6 +8,8 @@
         "profile_editor_desc": "Bearbeite Profildetails, Identität und Einstellungen.",
         "customizability": "Personalisierung",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
+        "privacy": "Privatsphäre & Analytics",
+        "privacy_desc": "Ghost-Modus, Medien-Blur und Analytics.",
         "automation": "Automation",
         "automation_desc": "Konfiguriere automatische Blockierregeln und Grid-Aktualisierungen.",
         "report_issue": "Fehler oder Feature melden",
@@ -555,14 +557,16 @@
             "dark": "Dunkel"
         },
         "analytics": {
-            "title": "Analyse & Entdeckung",
-            "description": "Dies steuert anonyme Analysen und die Entdeckung von FreeGrind-Nutzern. Wenn deaktiviert, nutzt die App die API nicht, um andere FreeGrind-Nutzer zu finden.",
+            "title": "Analytics & Entdeckung",
+            "description": "Dies steuert anonyme Analytics und die Entdeckung von FreeGrind-Nutzern. Wenn deaktiviert, nutzt die App die API nicht, um andere FreeGrind-Nutzer zu finden.",
             "note": "Deine Wahl wird auf diesem Gerät gespeichert. Wenn aktiviert, kann die App deine Profil-ID in API-Anfragen senden, die für Präsenz und Entdeckung genutzt werden.",
             "allow": "Zulassen",
             "deny": "Ablehnen",
             "current": "Aktuell",
             "not_selected": "Noch nicht ausgewählt"
-        }
+        },
+        "blur_incoming_media": "Chat-Medien unscharf",
+        "blur_incoming_media_description": "Blendet Bilder und Videos in Chats automatisch unscharf ein. Am Desktop: Hover oder Klick zum Anzeigen. Im Chat wird die Anzeige beim Verlassen wieder zurückgesetzt."
     },
     "issues_form": {
         "title": "Fehler melden oder Feature vorschlagen",

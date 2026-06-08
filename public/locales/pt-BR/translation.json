@@ -554,10 +554,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "Reino Unido (metros + pés/polegadas)",
         "units_american": "Americano (milhas + pés/polegadas)",
-        "blur_incoming_media": "Mídia de entrada desfocada",
-        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos recebidos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar.",
-        "enabled": "Habilitado",
-        "disabled": "Desabilitado"
+        "blur_incoming_media": "Desfocar mídia do chat",
+        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar."
     },
     "issues_form": {
         "title": "Reportar um erro ou sugerir uma funcionalidade",

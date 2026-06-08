@@ -16,6 +16,7 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
+	Shield,
     Workflow,
 	UserX,
 } from "lucide-react";
@@ -356,7 +357,7 @@ export function SettingsPage() {
 					</div>
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
-                
+
 				<button
 					type="button"
 					onClick={() => navigate("/settings/customizability")}
@@ -378,7 +379,25 @@ export function SettingsPage() {
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
 
-{/* --- AUTOMATION MENU BUTTON --- */}
+				<button
+					type="button"
+					onClick={() => navigate("/settings/albums")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Images className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.my_albums")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.my_albums_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
 				<button
 					type="button"
 					onClick={() => navigate("/settings/automation")}
@@ -399,7 +418,88 @@ export function SettingsPage() {
 					</div>
 					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
 				</button>
-				{/* ----------------------------- */}
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/saved-phrases")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Bookmark className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.saved_phrases", { defaultValue: "Saved Phrases" })}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.saved_phrases_desc", {
+									defaultValue: "Manage chat quick replies and import/export .txt",
+								})}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/blocked")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<UserX className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.blocked_accounts_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/privacy")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
+							<Shield className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">
+								{t("settings.privacy")}
+							</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.privacy_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
+
+				<button
+					type="button"
+					onClick={() => navigate("/settings/about")}
+					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
+				>
+					<div className="flex items-center gap-3">
+						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+							<Info className="h-5 w-5" />
+						</div>
+						<div>
+							<p className="text-base font-semibold">{t("settings.about")}</p>
+							<p className="text-sm text-[var(--text-muted)]">
+								{t("settings.about_desc")}
+							</p>
+						</div>
+					</div>
+					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
+				</button>
 
 				<button
 					type="button"
@@ -437,162 +537,6 @@ export function SettingsPage() {
 							</p>
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("settings.report_issue_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-                {/*
-                    <button
-                        type="button"
-                        onClick={() => navigate("/settings/age-verification")}
-                        className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                                <ScanFace className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-base font-semibold">Age Verification</p>
-                                <p className="text-sm text-[var(--text-muted)]">
-                                    Verify your age to unlock all features.
-                                </p>
-                            </div>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-                    </button>
-                */}
-
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/about")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Info className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.about")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.about_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				{developerMode ? (
-					<div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
-						<div className="flex items-center gap-3">
-							<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-								<Bug className="h-5 w-5" />
-							</div>
-							<div>
-								<p className="text-base font-semibold">
-									Show Debug Overlays
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									Displays source (cache/network) info in the grid.
-								</p>
-							</div>
-						</div>
-						<button
-							type="button"
-							onClick={() => void setPreferences({ showDebugInfo: !showDebugInfo })}
-							className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-								showDebugInfo ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"
-							}`}
-						>
-							<span
-								className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-									showDebugInfo ? "translate-x-5" : "translate-x-0"
-								}`}
-							/>
-						</button>
-					</div>
-				) : null}
-
-				{developerMode ? (
-					<button
-						type="button"
-						onClick={() => navigate("/settings/api-inspector")}
-						className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-					>
-						<div className="flex items-center gap-3">
-							<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-								<Radar className="h-5 w-5" />
-							</div>
-							<div>
-								<p className="text-base font-semibold">
-									{t("settings.api_inspector")}
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									{t("settings.api_inspector_desc")}
-								</p>
-							</div>
-						</div>
-						<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-					</button>
-				) : null}
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/albums")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Images className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.my_albums")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.my_albums_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/blocked")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<UserX className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.blocked_accounts_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/saved-phrases")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Bookmark className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.saved_phrases", { defaultValue: "Saved Phrases" })}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.saved_phrases_desc", {
-									defaultValue: "Manage chat quick replies and import/export .txt",
-								})}
 							</p>
 						</div>
 					</div>
