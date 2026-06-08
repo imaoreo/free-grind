@@ -16,12 +16,11 @@
     - [x] Images (send & receive)
     - [x] Videos (send & receive)
     - [x] Audio messages (receive/playback)
-    - [ ] Audio message recording
+    - [x] Audio message recording
     - [x] Albums (view, share, manage)
     - [ ] GIF / Gaymoji
   - [x] Location messages
   - [x] Saved phrases
-  - [ ] Voice message recording
   - [x] Reactions (send & receive)
   - [x] Unsend messages
   - [x] Delete messages (local)

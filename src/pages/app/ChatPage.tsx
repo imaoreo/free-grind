@@ -2769,6 +2769,7 @@ export function ChatPage() {
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
+		scrollThreadToBottom();
 	};
 
 	const handleRetry = (message: UiMessage) => {

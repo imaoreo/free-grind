@@ -531,7 +531,7 @@ export function ChatThreadMessages({
 									!revealedMediaMessageIds.has(message.messageId) &&
 									(!isDesktop || hoveredMediaMessageId !== message.messageId);
 								const mediaBlurClassName = shouldBlurIncomingMedia
-									? "blur-xl transition"
+									? "blur-md transition"
 									: "";
 								const senderParticipant =
 									selectedConversation.data.participants.find(
@@ -666,11 +666,11 @@ export function ChatThreadMessages({
 															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : t("chat.thread.shared_image"))}</p>
 														</div>
 														{replyThumbUrl ? (
-															<div className="relative w-14 shrink-0 self-stretch">
+															<div className="relative w-14 shrink-0 self-stretch overflow-hidden">
 																<img
 																	src={replyThumbUrl}
 																	alt=""
-																	className={`absolute inset-0 h-full w-full object-cover${blurIncomingMedia ? " blur-xl transition" : ""}`}
+																	className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
 																/>
 															</div>
 														) : replyIsAudio ? (
