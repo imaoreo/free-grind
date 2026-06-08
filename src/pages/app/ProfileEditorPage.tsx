@@ -14,7 +14,7 @@ import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
 } from "../../types/visiting";
-import { validateMediaHash } from "../../utils/media";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
 	getBodyTypeLabelMap,
@@ -685,8 +685,18 @@ export function ProfileEditorPage() {
 					<div className="grid gap-6">
 						<div className="surface-card overflow-hidden">
 							<div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
-								<div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:h-20 sm:w-20 sm:text-2xl">
-									{draftInitials}
+								<div className="relative h-16 w-16 shrink-0 sm:h-20 sm:w-20">
+									{profilePhotoHashes[0] ? (
+										<img
+											src={getThumbImageUrl(profilePhotoHashes[0], "320x320")}
+											alt={draftDisplayName}
+											className="h-full w-full rounded-full object-cover shadow-sm"
+										/>
+									) : (
+										<div className="flex h-full w-full items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:text-2xl">
+											{draftInitials}
+										</div>
+									)}
 								</div>
 								<div>
 									<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
