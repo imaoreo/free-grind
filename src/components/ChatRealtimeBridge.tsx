@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { useApi } from "../hooks/useApi";
-import { ChatRealtimeManager } from "../services/chatRealtime";
+import { ChatRealtimeManager, setActiveRealtimeManager } from "../services/chatRealtime";
 import { TauriWebSocket, isTauriRuntime } from "../services/tauriWebSocket";
 import * as chatLog from "../services/chatLog";
 import {
@@ -373,6 +373,7 @@ export function ChatRealtimeBridge() {
 		});
 
 		manager.start();
+		setActiveRealtimeManager(manager, token);
 
 		// Handle Foreground/Background shifts on Android
 		const handleVisibilityChange = () => {
@@ -390,6 +391,7 @@ export function ChatRealtimeBridge() {
 		return () => {
 			// appLog.debug("[chat-ws:bridge] stopping manager");
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			setActiveRealtimeManager(null, null);
 			manager.stop({ suppressStatus: true });
 		};
 	}, [token]);

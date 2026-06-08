@@ -1481,7 +1481,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							return (
 								<div className="relative mb-2 overflow-hidden rounded-xl bg-[var(--surface-2)]">
 									<div className="absolute left-0 top-0 h-full w-[3px] bg-[var(--accent)]" />
-									<div className="flex items-center gap-2 py-2.5 pl-[13px] pr-2">
+									<div className="flex items-center gap-2 py-[13px] pl-[13px] pr-2">
 										<div className="min-w-0 flex-1">
 											<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
 												{userId != null && Number(rtm.senderId) === Number(userId)
