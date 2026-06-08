@@ -5,13 +5,16 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Handler
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -74,6 +77,20 @@ class MainActivity : TauriActivity() {
     fun hasActiveWebView(): Boolean {
       return activityRef?.get()?.webViewRef != null
     }
+
+    fun onFcmTokenRefreshed(token: String) {
+      val activity = activityRef?.get()
+      if (activity != null) {
+        activity.latestFcmToken = token
+        activity.dispatchFcmTokenToWebview(token, 0)
+      } else {
+        // MainActivity not active — store so it gets dispatched on next resume.
+        Log.d("FCM", "MainActivity unavailable, storing refreshed token for next resume")
+        pendingRefreshedFcmToken = token
+      }
+    }
+
+    private var pendingRefreshedFcmToken: String? = null
   }
 
   private var webViewRef: WebView? = null
@@ -96,6 +113,7 @@ class MainActivity : TauriActivity() {
     activityRef = WeakReference(this)
     ensureNotificationChannels()
     requestNotificationPermissionIfNeeded()
+    requestBatteryOptimizationExemptionIfNeeded()
     initFirebase()
     handleNotificationIntent(intent)
   }
@@ -123,9 +141,17 @@ class MainActivity : TauriActivity() {
   override fun onResume() {
     super.onResume()
     inForeground = true
-    latestFcmToken?.let {
-      Log.d("FCM", "onResume: retrying token dispatch to WebView")
-      dispatchFcmTokenToWebview(it, 0)
+    val refreshed = pendingRefreshedFcmToken
+    if (refreshed != null) {
+      pendingRefreshedFcmToken = null
+      latestFcmToken = refreshed
+      Log.d("FCM", "onResume: dispatching pending refreshed FCM token")
+      dispatchFcmTokenToWebview(refreshed, 0)
+    } else {
+      latestFcmToken?.let {
+        Log.d("FCM", "onResume: retrying token dispatch to WebView")
+        dispatchFcmTokenToWebview(it, 0)
+      }
     }
     dispatchPendingPushNotifications()
     handleNotificationIntent(intent)
@@ -188,6 +214,24 @@ class MainActivity : TauriActivity() {
       if (!hasPermission) {
         requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
       }
+    }
+  }
+
+  private fun requestBatteryOptimizationExemptionIfNeeded() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+    if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+      Log.d("FCM", "Requesting battery optimization exemption to prevent push delays")
+      try {
+        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+          data = Uri.parse("package:$packageName")
+        }
+        startActivity(intent)
+      } catch (e: Exception) {
+        Log.w("FCM", "Failed to open battery optimization settings", e)
+      }
+    } else {
+      Log.d("FCM", "Already exempt from battery optimization")
     }
   }
 
