@@ -387,12 +387,14 @@ export function ProfileEditorFormSections({
 				/>
 				<div className="grid gap-4">
 					<div className="grid gap-4 md:grid-cols-2">
-						<ToggleRow
-							checked={draft.showAge}
-							onChange={(checked) => onDraftChange("showAge", checked)}
-							label={t("profile_editor.sections.states.show_age")}
-							description={t("profile_editor.sections.states.show_age_desc")}
-						/>
+						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+							<ToggleRow
+								checked={draft.showAge}
+								onChange={(checked) => onDraftChange("showAge", checked)}
+								label={t("profile_editor.sections.states.show_age")}
+								description={t("profile_editor.sections.states.show_age_desc")}
+							/>
+						</div>
 						<div>
 							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.age")}
@@ -466,12 +468,14 @@ export function ProfileEditorFormSections({
 								))}
 							</select>
 						</div>
-						<ToggleRow
-							checked={draft.showPosition}
-							onChange={(checked) => onDraftChange("showPosition", checked)}
-							label={t("profile_editor.sections.states.show_position")}
-							description={t("profile_editor.sections.states.show_position_desc")}
-						/>
+						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+							<ToggleRow
+								checked={draft.showPosition}
+								onChange={(checked) => onDraftChange("showPosition", checked)}
+								label={t("profile_editor.sections.states.show_position")}
+								description={t("profile_editor.sections.states.show_position_desc")}
+							/>
+						</div>
 						<div>
 							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.position")}
@@ -491,12 +495,14 @@ export function ProfileEditorFormSections({
 								))}
 							</select>
 						</div>
-						<ToggleRow
-							checked={draft.showTribes}
-							onChange={(checked) => onDraftChange("showTribes", checked)}
-							label={t("profile_editor.sections.states.show_tribes")}
-							description={t("profile_editor.sections.states.show_tribes_desc")}
-						/>
+						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+							<ToggleRow
+								checked={draft.showTribes}
+								onChange={(checked) => onDraftChange("showTribes", checked)}
+								label={t("profile_editor.sections.states.show_tribes")}
+								description={t("profile_editor.sections.states.show_tribes_desc")}
+							/>
+						</div>
 						<div>
 							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.relationship_status")}
