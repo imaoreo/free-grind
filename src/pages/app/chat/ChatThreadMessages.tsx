@@ -666,11 +666,13 @@ export function ChatThreadMessages({
 															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : t("chat.thread.shared_image"))}</p>
 														</div>
 														{replyThumbUrl ? (
-															<img
-																src={replyThumbUrl}
-																alt=""
-																className="h-14 w-14 shrink-0 object-cover"
-															/>
+															<div className="relative w-14 shrink-0 self-stretch">
+																<img
+																	src={replyThumbUrl}
+																	alt=""
+																	className="absolute inset-0 h-full w-full object-cover"
+																/>
+															</div>
 														) : replyIsAudio ? (
 															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "opacity-80" : "opacity-60"}`}>
 																<div className="flex flex-col items-center gap-1">
