@@ -525,6 +525,14 @@
             "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
         }
     },
+    "privacy": {
+        "ghost_mode": "Ghost Mode",
+        "global_ghost_mode": "Globaler Ghost Mode",
+        "global_ghost_mode_desc": "Lesebestätigungen für alle Chats ausblenden. Die andere Person weiß nicht, dass du die Nachricht gelesen hast, bis du antwortest oder den Ghost Mode deaktivierst.",
+        "per_chat_overrides": "Chat-Ausnahmen (Auge-Button)",
+        "per_chat_overrides_desc": "Zeigt einen Button im Chat-Header, um die globale Einstellung für einzelne Chats zu überschreiben. Ghostete Chats werden im Posteingang hervorgehoben.",
+        "nsfw_content": "NSFW-Inhalte"
+    },
     "customizability": {
         "subtitle": "Personalisiere das Aussehen der App.",
         "color_scheme": "Farbschema",

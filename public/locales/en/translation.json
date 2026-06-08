@@ -27,6 +27,7 @@
         "export_chat": "Export Chat Data",
         "export_chat_desc": "Download all locally stored messages as a JSON file.",
         "check_updates": "Check for Updates",
+        "check_updates_desc": "Download and install the latest version of Free Grind.",
         "check_now": "Check Now",
         "environment": "Environment",
         "switching": "Switching…",
@@ -540,6 +541,14 @@
             "display_name_length": "Display name must be between 3 and 15 characters.",
             "about_me_length": "About Me must stay under 255 characters."
         }
+    },
+    "privacy": {
+        "ghost_mode": "Ghost Mode",
+        "global_ghost_mode": "Global Ghost Mode",
+        "global_ghost_mode_desc": "Hide read receipts for all chats. The other person won't know you read their message until you reply or turn Ghost Mode off.",
+        "per_chat_overrides": "Per-Chat Overrides (Eye Button)",
+        "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Ghosted chats are highlighted in your Inbox.",
+        "nsfw_content": "NSFW Content"
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
