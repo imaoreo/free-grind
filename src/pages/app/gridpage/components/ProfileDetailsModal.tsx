@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X, Ban, Loader2 } from "lucide-react";
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -421,11 +421,37 @@ export function ProfileDetailsModal({
 
 
 						<div className="pointer-events-auto flex flex-1 items-center justify-end gap-1">
+							{messageProfileId && (onBlockProfile || onUnblockProfile) && (
+								<button
+									type="button"
+									onClick={() => {
+										if (isBlocked) {
+											onUnblockProfile?.(messageProfileId);
+										} else {
+											onBlockProfile?.(messageProfileId);
+										}
+									}}
+									disabled={isBlockingProfile}
+									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md hover:bg-[var(--surface-2)]/50 transition-colors disabled:opacity-50 cursor-pointer ${
+										isBlocked
+											? "bg-red-500/10 text-red-500"
+											: "bg-[var(--surface)]/30 text-[var(--text-muted)] hover:text-red-500"
+									}`}
+									title={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+									aria-label={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+								>
+									{isBlockingProfile ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<Ban className="h-4 w-4" />
+									)}
+								</button>
+							)}
 							<button
 								type="button"
 								onClick={onPrevProfile}
 								disabled={!onPrevProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
 								aria-label={t("profile_details.previous_profile")}
 							>
 								<ChevronLeft className="h-4 w-4" />
@@ -434,7 +460,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onNextProfile}
 								disabled={!onNextProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
 								aria-label={t("profile_details.next_profile")}
 							>
 								<ChevronRight className="h-4 w-4" />
@@ -533,10 +559,36 @@ export function ProfileDetailsModal({
 						<p className="text-base font-semibold">{activeProfileName}</p>
 					</div>
 					<div className="flex items-center gap-1.5">
+						{messageProfileId && (onBlockProfile || onUnblockProfile) && (
+							<button
+								type="button"
+								onClick={() => {
+									if (isBlocked) {
+										onUnblockProfile?.(messageProfileId);
+									} else {
+										onBlockProfile?.(messageProfileId);
+									}
+								}}
+								disabled={isBlockingProfile}
+								className={`rounded-lg border border-[var(--border)] p-2 transition-colors disabled:opacity-50 cursor-pointer ${
+									isBlocked
+										? "bg-red-500/10 text-red-500 hover:bg-red-500/20"
+										: "bg-[var(--surface)] text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-red-500 hover:border-red-500/30"
+								}`}
+								title={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+								aria-label={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+							>
+								{isBlockingProfile ? (
+									<Loader2 className="h-4 w-4 animate-spin" />
+								) : (
+									<Ban className="h-4 w-4" />
+								)}
+							</button>
+						)}
 						<button
 							type="button"
 							onClick={onClose}
-							className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2"
+							className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 hover:bg-[var(--surface-2)] transition-colors cursor-pointer"
 							aria-label={t("profile_details.close_profile_details")}
 						>
 							<X className="h-4 w-4" />

@@ -1,4 +1,4 @@
-import { Loader2, MessageCircle, MessagesSquare, Navigation, Star, Ban, FileText, Trash2, ShieldAlert } from "lucide-react";
+import { Loader2, MessageCircle, MessagesSquare, Navigation, Star, FileText, Trash2, ShieldAlert } from "lucide-react";
 import { type RefObject, type UIEvent, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -936,55 +936,23 @@ export function ProfileDetailsContent({
 				</div>
 			</div>
 
-			{/* Technical Details & Block Button Row */}
-			<div className="mt-6 flex items-center justify-between gap-4 border-t border-[var(--border)]/40 pt-4 px-1 text-[var(--text-muted)]">
-				{/* Left side: Technical details */}
-				<div className="flex flex-col gap-0.5 text-[11px] min-w-0">
-					<div className="flex items-center gap-1.5 min-w-0">
-						<span className="font-semibold shrink-0">User ID:</span>
-						<button
-							type="button"
-							onClick={copyUserId}
-							className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
-							title="Click to copy User ID"
-						>
-							{activeProfile.profileId}
-						</button>
-					</div>
-					<p className="truncate">
-						<span className="font-semibold">Estimated Created:</span>{" "}
-						{estimatedCreatedAt}
-					</p>
-				</div>
-
-				{/* Right side: Low-emphasis Block Button */}
-				{messageProfileId && (onBlockProfile || onUnblockProfile) && (
+			{/* Technical Details Row */}
+			<div className="mt-6 flex flex-col gap-0.5 border-t border-[var(--border)]/40 pt-4 px-1 text-[11px] text-[var(--text-muted)] min-w-0">
+				<div className="flex items-center gap-1.5 min-w-0">
+					<span className="font-semibold shrink-0">User ID:</span>
 					<button
 						type="button"
-						onClick={() => {
-							if (isBlocked) {
-								onUnblockProfile?.(messageProfileId);
-							} else {
-								onBlockProfile?.(messageProfileId);
-							}
-						}}
-						disabled={isBlockingProfile}
-						className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-medium transition-all duration-200 active:scale-95 cursor-pointer disabled:opacity-50 border ${
-							isBlocked
-								? "border-red-500/30 bg-red-500/5 text-red-500 hover:bg-red-500/10"
-								: "border-[var(--border)] hover:border-red-500/30 hover:bg-red-500/5 hover:text-red-500 text-[var(--text-muted)]"
-						}`}
-						title={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
-						aria-label={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
+						onClick={copyUserId}
+						className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
+						title="Click to copy User ID"
 					>
-						{isBlockingProfile ? (
-							<Loader2 className="h-3 w-3 animate-spin" />
-						) : (
-							<Ban className="h-3 w-3" />
-						)}
-						<span>{isBlocked ? t("profile_details.unblock", "Unblock") : t("profile_details.block", "Block")}</span>
+						{activeProfile.profileId}
 					</button>
-				)}
+				</div>
+				<p className="truncate">
+					<span className="font-semibold">Estimated Created:</span>{" "}
+					{estimatedCreatedAt}
+				</p>
 			</div>
 
 			{/* Notes pop-up editor modal */}
