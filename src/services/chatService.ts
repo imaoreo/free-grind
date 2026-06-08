@@ -512,6 +512,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					mediaId: z.coerce.number().int(),
 					mediaHash: z.string().nullable().optional().default(null),
 					url: z.string().nullable().optional().default(null),
+					expiresAt: z.coerce.number().nullable().optional().default(null),
 				})
 				.parse(await parseJsonSafe(response));
 
@@ -519,6 +520,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				mediaId: parsed.mediaId,
 				mediaHash: parsed.mediaHash,
 				url: parsed.url,
+				expiresAt: parsed.expiresAt,
 			};
 		},
 

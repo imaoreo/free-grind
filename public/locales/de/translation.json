@@ -646,6 +646,7 @@
         "open_filters": "Filter öffnen",
         "profile": "Profil",
         "view_profile": "Profil anzeigen",
+        "received_media": "Erhaltene Medien",
         "favorite": "Favorisieren",
         "unfavorite": "Entfavorisieren",
         "no_conversations_match": "Keine Konversationen entsprechen deinen Filtern.",
@@ -677,7 +678,7 @@
             "expired": "Abgelaufen"
         },
         "attach_media": "Medien anhängen",
-        "cancel_recording": "Abbrechen",
+        "cancel_recording": "Nach links wischen zum Abbrechen",
         "stop_recording": "Aufnahme stoppen",
         "manage_albums": "Alben verwalten",
         "loading_albums": "Alben werden geladen...",
