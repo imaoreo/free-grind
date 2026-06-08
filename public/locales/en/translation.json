@@ -844,7 +844,11 @@
             "upload_media_failed": "Failed to upload media",
             "load_drawer_media": "Failed to load drawer media",
             "send_drawer_media": "Failed to send media from drawer",
-            "delete_conversation": "Failed to delete conversation"
+            "delete_conversation": "Failed to delete conversation",
+            "microphone_access": "Could not access microphone.",
+            "microphone_denied": "Microphone access denied.",
+            "microphone_not_found": "No microphone found.",
+            "recording_too_short": "Recording too short."
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",

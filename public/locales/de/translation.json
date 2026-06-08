@@ -794,7 +794,11 @@
             "upload_media_failed": "Medien-Upload fehlgeschlagen",
             "load_drawer_media": "Galerie-Medien konnten nicht geladen werden",
             "send_drawer_media": "Medien aus der Galerie konnten nicht gesendet werden",
-            "delete_conversation": "Konversation konnte nicht gelöscht werden"
+            "delete_conversation": "Konversation konnte nicht gelöscht werden",
+            "microphone_access": "Mikrofon konnte nicht aufgerufen werden.",
+            "microphone_denied": "Mikrofonzugriff verweigert.",
+            "microphone_not_found": "Kein Mikrofon gefunden.",
+            "recording_too_short": "Aufnahme zu kurz."
         },
         "toasts": {
             "cleared_local_history": "Lokaler Verlauf für diesen Chat gelöscht",

@@ -569,7 +569,11 @@
             "upload_media_failed": "Erreur lors du téléversement du média",
             "load_drawer_media": "Erreur lors du chargement des médias du tiroir",
             "send_drawer_media": "Erreur lors de l'envoi du média depuis le tiroir",
-            "delete_conversation": "Erreur lors de la suppression de la conversation"
+            "delete_conversation": "Erreur lors de la suppression de la conversation",
+            "microphone_access": "Impossible d'accéder au microphone.",
+            "microphone_denied": "Accès au microphone refusé.",
+            "microphone_not_found": "Aucun microphone trouvé.",
+            "recording_too_short": "Enregistrement trop court."
         },
         "toasts": {
             "cleared_local_history": "L'historique local a été effacé pour cette conversation",
