@@ -118,7 +118,7 @@ export function ProfileEditorFormSections({
 				<CategoryHeader
 					title={t("profile_editor.sections.pictures.title")}
 					description={t("profile_editor.sections.pictures.description")}
-					icon={ImageOff}
+					icon={Camera}
 				/>
 				<div className="grid gap-4">
 					<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 sm:p-4">
@@ -316,7 +316,7 @@ export function ProfileEditorFormSections({
 				<div
 					role="radiogroup"
 					aria-label={t("profile_editor.sections.visiting_mode.title")}
-					className="grid gap-2 sm:grid-cols-3"
+					className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]"
 				>
 					{visitingModeOptions.map((option) => {
 						const active = option.value === visitingMode;
@@ -331,35 +331,44 @@ export function ProfileEditorFormSections({
 								aria-checked={active}
 								disabled={visitingModeDisabled}
 								onClick={() => onVisitingModeChange(option.value)}
-								className={`flex min-h-32 flex-col items-start gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 ${
+								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 ${
 									active
-										? "border-transparent bg-[var(--accent)] text-[var(--accent-contrast)]"
-										: "border-[var(--border)] bg-[var(--surface-2)] hover:border-[var(--text-muted)]"
+										? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+										: "hover:bg-[var(--surface-2)]"
 								}`}
 							>
 								<span
-									className={`rounded-xl border p-2 ${
+									className={`shrink-0 rounded-2xl p-2.5 ${
 										active
-											? "border-transparent bg-[var(--accent-contrast)] text-[var(--accent)]"
-											: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)]"
+											? "bg-[var(--surface)] text-[var(--accent)]"
+											: "bg-[var(--surface-2)] text-[var(--text-muted)]"
 									}`}
 								>
-									<Icon className="h-4 w-4" strokeWidth={2.1} />
+									<Icon className="h-5 w-5" strokeWidth={2.1} />
 								</span>
-								<span className="text-sm font-semibold">
-									{t(
-										`profile_editor.sections.visiting_mode.options.${modeKey}.label`,
-									)}
+								<span className="min-w-0 flex-1">
+									<span className="block text-sm font-semibold leading-snug">
+										{t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`)}
+									</span>
+									<span
+										className={`mt-0.5 block text-xs leading-relaxed ${
+											active
+												? "text-[var(--accent-contrast)]/75"
+												: "text-[var(--text-muted)]"
+										}`}
+									>
+										{t(`profile_editor.sections.visiting_mode.options.${modeKey}.description`)}
+									</span>
 								</span>
 								<span
-									className={`text-xs leading-relaxed ${
+									className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
 										active
-											? "text-[var(--accent-contrast)]/80"
-											: "text-[var(--text-muted)]"
+											? "border-[var(--accent-contrast)] bg-[var(--accent-contrast)]"
+											: "border-[var(--border)]"
 									}`}
 								>
-									{t(
-										`profile_editor.sections.visiting_mode.options.${modeKey}.description`,
+									{active && (
+										<span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
 									)}
 								</span>
 							</button>
@@ -386,15 +395,30 @@ export function ProfileEditorFormSections({
 					icon={Ruler}
 				/>
 				<div className="grid gap-4">
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
-							<ToggleRow
-								checked={draft.showAge}
-								onChange={(checked) => onDraftChange("showAge", checked)}
-								label={t("profile_editor.sections.states.show_age")}
-								description={t("profile_editor.sections.states.show_age_desc")}
-							/>
-						</div>
+					{/* Visibility toggles */}
+					<div className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]">
+						<ToggleRow
+							checked={draft.showAge}
+							onChange={(checked) => onDraftChange("showAge", checked)}
+							label={t("profile_editor.sections.states.show_age")}
+							description={t("profile_editor.sections.states.show_age_desc")}
+						/>
+						<ToggleRow
+							checked={draft.showPosition}
+							onChange={(checked) => onDraftChange("showPosition", checked)}
+							label={t("profile_editor.sections.states.show_position")}
+							description={t("profile_editor.sections.states.show_position_desc")}
+						/>
+						<ToggleRow
+							checked={draft.showTribes}
+							onChange={(checked) => onDraftChange("showTribes", checked)}
+							label={t("profile_editor.sections.states.show_tribes")}
+							description={t("profile_editor.sections.states.show_tribes_desc")}
+						/>
+					</div>
+
+					{/* Numeric inputs */}
+					<div className="grid grid-cols-3 gap-2 sm:gap-3">
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.age")}
@@ -405,7 +429,7 @@ export function ProfileEditorFormSections({
 								value={draft.age}
 								onChange={(event) => onDraftChange("age", event.target.value)}
 								className="input-field"
-								placeholder={t("profile_editor.sections.states.age")}
+								placeholder="—"
 							/>
 						</div>
 						<div>
@@ -434,6 +458,10 @@ export function ProfileEditorFormSections({
 								placeholder={t("profile_editor.sections.states.weight_placeholder")}
 							/>
 						</div>
+					</div>
+
+					{/* Select fields */}
+					<div className="grid gap-4 sm:grid-cols-2">
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.ethnicity")}
@@ -468,14 +496,6 @@ export function ProfileEditorFormSections({
 								))}
 							</select>
 						</div>
-						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
-							<ToggleRow
-								checked={draft.showPosition}
-								onChange={(checked) => onDraftChange("showPosition", checked)}
-								label={t("profile_editor.sections.states.show_position")}
-								description={t("profile_editor.sections.states.show_position_desc")}
-							/>
-						</div>
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.position")}
@@ -494,14 +514,6 @@ export function ProfileEditorFormSections({
 									</option>
 								))}
 							</select>
-						</div>
-						<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
-							<ToggleRow
-								checked={draft.showTribes}
-								onChange={(checked) => onDraftChange("showTribes", checked)}
-								label={t("profile_editor.sections.states.show_tribes")}
-								description={t("profile_editor.sections.states.show_tribes_desc")}
-							/>
 						</div>
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -524,6 +536,7 @@ export function ProfileEditorFormSections({
 						</div>
 					</div>
 
+					{/* Tribes chips */}
 					<div>
 						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.states.tribes")}
@@ -740,20 +753,18 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Other / Account Info */}
-			<div className="grid gap-4">
-				<div className="surface-card p-4 sm:p-5">
-					<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-						{t("profile_editor.sections.other.title")}
-					</p>
-					<div className="mt-4 grid gap-3">
-						<div className="flex items-center justify-between gap-3">
-							<span className="text-sm text-[var(--text-muted)]">
-								{t("profile_editor.sections.other.user_id")}
-							</span>
-							<span className="text-sm font-semibold">
-								{profileId ?? "Unknown"}
-							</span>
-						</div>
+			<div>
+				<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+					{t("profile_editor.sections.other.title")}
+				</p>
+				<div className="surface-card overflow-hidden">
+					<div className="flex items-center justify-between px-4 py-3.5">
+						<span className="text-sm text-[var(--text-muted)]">
+							{t("profile_editor.sections.other.user_id")}
+						</span>
+						<span className="rounded-lg bg-[var(--surface-2)] px-2.5 py-1 font-mono text-sm font-semibold">
+							{profileId ?? "—"}
+						</span>
 					</div>
 				</div>
 			</div>
