@@ -256,8 +256,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			setIsRecording(true);
 			setRecordingMs(0);
 			recordingTimerRef.current = setInterval(() => setRecordingMs(Date.now() - recordingStartRef.current), 100);
-		} catch {
-			toast.error(t("chat.errors.microphone_access", { defaultValue: "Could not access microphone." }));
+		} catch (err) {
+			const name = err instanceof DOMException ? err.name : "";
+			if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+				toast.error(t("chat.errors.microphone_not_found", { defaultValue: "No microphone found." }));
+			} else if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+				toast.error(t("chat.errors.microphone_denied", { defaultValue: "Microphone access denied." }));
+			} else {
+				toast.error(t("chat.errors.microphone_access", { defaultValue: "Could not access microphone." }));
+			}
 		}
 	}, [isRecording, t]);
 

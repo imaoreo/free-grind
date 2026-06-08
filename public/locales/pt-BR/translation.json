@@ -774,7 +774,11 @@
             "send_drawer_media": "Falha ao enviar mídia da pasta",
             "delete_conversation": "Falha ao excluir a conversa",
             "no_location_set": "Nenhuma localização definida nas configurações",
-            "invalid_location": "Formato de localização inválido"
+            "invalid_location": "Formato de localização inválido",
+            "microphone_access": "Não foi possível acessar o microfone.",
+            "microphone_denied": "Acesso ao microfone negado.",
+            "microphone_not_found": "Nenhum microfone encontrado.",
+            "recording_too_short": "Gravação muito curta."
         },
         "toasts": {
             "cleared_local_history": "Histórico local apagado nesse bate-papo",

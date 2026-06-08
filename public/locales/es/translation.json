@@ -644,7 +644,11 @@
             "send_drawer_media": "Error al enviar contenido de la galería",
             "delete_conversation": "Error al eliminar conversación",
             "no_location_set": "La ubicación no está establecida en los ajustes",
-            "invalid_location": "Formato de ubicación inválido"
+            "invalid_location": "Formato de ubicación inválido",
+            "microphone_access": "No se pudo acceder al micrófono.",
+            "microphone_denied": "Acceso al micrófono denegado.",
+            "microphone_not_found": "No se encontró ningún micrófono.",
+            "recording_too_short": "Grabación demasiado corta."
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",

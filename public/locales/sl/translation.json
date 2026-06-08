@@ -541,7 +541,11 @@
             "delete_failed": "",
             "album_share_missing_recipient": "",
             "album_share_failed": "",
-            "album_open_failed": ""
+            "album_open_failed": "",
+            "microphone_access": "",
+            "microphone_denied": "",
+            "microphone_not_found": "",
+            "recording_too_short": ""
         },
         "toasts": {
             "cleared_local_history": "",
