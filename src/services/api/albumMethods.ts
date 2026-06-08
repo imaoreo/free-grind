@@ -1,12 +1,14 @@
 import {
 	albumDetailSchema,
 	albumLimitsSchema,
+	albumPosterSchema,
 	albumsResponseSchema,
 	sharedAlbumViewSchema,
 	sharedAlbumsResponseSchema,
 	type Album,
 	type AlbumDetail,
 	type AlbumLimits,
+	type AlbumPoster,
 	type SharedAlbumView,
 	type SharedAlbum,
 } from "../../types/albums";
@@ -14,6 +16,7 @@ import type {
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
 	DeleteOwnAlbumInput,
+	GetAlbumPosterInput,
 	GetSharedAlbumsForProfileInput,
 	OpenSharedAlbumInput,
 	OpenSharedAlbumResult,
@@ -139,6 +142,14 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 			);
 			await assertSuccess(response, t("api.errors.delete_content"));
 			return { ok: true };
+		},
+
+		async getAlbumPoster(input: GetAlbumPosterInput): Promise<AlbumPoster> {
+			const response = await fetchRest(
+				`/v1/albums/${input.albumId}/content/${input.contentId}/poster`,
+			);
+			await assertSuccess(response, t("api.errors.load_album_poster", { defaultValue: "Failed to load album poster." }));
+			return albumPosterSchema.parse(await parseJsonSafe(response));
 		},
 
 		async getSharedAlbums(

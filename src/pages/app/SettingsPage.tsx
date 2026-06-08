@@ -358,7 +358,7 @@ export function SettingsPage() {
 					<h1 className="app-title">{t("settings.title")}</h1>
 					{developerMode ? (
 						<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-contrast)]">
-							Dev
+							Developer Mode
 						</span>
 					) : null}
 				</div>

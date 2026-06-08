@@ -77,6 +77,18 @@ export function SettingsAlbumsPage() {
 			setAlbums(ownAlbums);
 			setMaxAlbums(ownStorage.maxAlbums ?? 1);
 			setSubscriptionType(ownStorage.subscriptionType ?? null);
+
+			// Load covers in background without blocking
+			void Promise.all(
+				ownAlbums.map(async (album) => {
+					try {
+						const detail = await apiFunctions.getOwnAlbumDetails(album.albumId);
+						setAlbumDetails((prev) => ({ ...prev, [album.albumId]: detail }));
+					} catch {
+						// silently skip
+					}
+				}),
+			);
 		} catch (loadError) {
 			setError(loadError instanceof Error ? loadError.message : t("settings_albums.error_load_fallback"));
 		} finally {
