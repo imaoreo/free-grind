@@ -425,10 +425,12 @@
 		cursor: pointer;
 	}
 
-	@media (hover: hover) {
-		.group\/bubble:hover .chat-reaction-flame--hoverable {
-			opacity: 0.25;
-		}
+	.chat-reaction-flame--hoverable {
+		opacity: 0;
+	}
+
+	.group\/bubble:hover .chat-reaction-flame--hoverable {
+		opacity: 0.25;
 	}
 
 	.chat-reaction-flame--burst {

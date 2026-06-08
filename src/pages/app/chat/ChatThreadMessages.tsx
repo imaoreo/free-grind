@@ -1234,7 +1234,7 @@ export function ChatThreadMessages({
 																	type="button"
 																	onClick={() => void handleReact(message)}
 																	className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
-																		message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0 chat-reaction-flame--hoverable"
+																		message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "chat-reaction-flame--hoverable"
 																	} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
 																>
 																	🔥

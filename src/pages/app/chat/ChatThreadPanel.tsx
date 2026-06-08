@@ -196,7 +196,7 @@ type ChatThreadPanelProps = {
 	onShareAlbumFromDrawer: (albumId: number, expirationType: string) => Promise<void>;
 	onStopAlbumShareFromDrawer: (albumId: number) => Promise<void>;
 	onSendLocation: (lat: number, lon: number) => void | Promise<void>;
-	onAudioRecorded: (blob: Blob, durationMs: number) => void;
+	onAudioRecorded: (blob: Blob, durationMs: number, autoSend?: boolean) => void;
 	pendingAudioBlob: Blob | null;
 	pendingAudioDuration: number;
 	isSendingAudio: boolean;
@@ -259,7 +259,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [trashBounce, setTrashBounce] = useState(false);
 	const CANCEL_THRESHOLD = window.innerWidth * 0.35;
 	const dragProgress = Math.min(1, Math.abs(Math.min(0, recordDragX)) / CANCEL_THRESHOLD);
-	const stopRecordingRef = useRef<() => void>(() => {});
+	const stopRecordingRef = useRef<(autoSend?: boolean) => void>(() => {});
 
 	const cleanupAnalyser = useCallback(() => {
 		if (waveformRafRef.current) { cancelAnimationFrame(waveformRafRef.current); waveformRafRef.current = null; }
@@ -333,7 +333,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 	}, [isRecording, t]);
 
-	const stopRecording = useCallback(() => {
+	const stopRecording = useCallback((autoSend?: boolean) => {
 		const recorder = mediaRecorderRef.current;
 		if (!recorder || recorder.state === "inactive") return;
 		if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
@@ -353,7 +353,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			void fixWebmDuration(rawBlob, durationMs).then((blob) => {
 				if (durationMs >= 500) {
 					setRecordedWaveform(capturedBars);
-					props.onAudioRecorded(blob, durationMs);
+					props.onAudioRecorded(blob, durationMs, autoSend);
 				} else {
 					toast.error(t("chat.errors.recording_too_short", { defaultValue: "Recording too short." }));
 				}
@@ -1595,7 +1595,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							{isRecording && (isDesktop || !showRecordCircle) ? (
 								<button
 									type="button"
-									onClick={stopRecording}
+									onClick={() => stopRecording()}
 									className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:opacity-80 transition"
 									aria-label={t("chat.stop_recording", { defaultValue: "Stop recording" })}
 								>
@@ -1642,7 +1642,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											}, 280);
 										}
 									} : undefined}
-									onPointerUp={!isDesktop ? () => { isCapturingRef.current = false; setRecordDragX(0); if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; } setShowRecordCircle(false); stopRecording(); } : undefined}
+									onPointerUp={!isDesktop ? () => { isCapturingRef.current = false; setRecordDragX(0); if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; } setShowRecordCircle(false); stopRecording(true); } : undefined}
 									onPointerCancel={!isDesktop ? () => { isCapturingRef.current = false; setRecordDragX(0); if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; } setShowRecordCircle(false); cancelRecording(); } : undefined}
 									className={`relative shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg transition select-none touch-none ${isRecording ? "text-red-500" : "text-[var(--accent)] hover:opacity-80"}`}
 									style={showRecordCircle ? {
