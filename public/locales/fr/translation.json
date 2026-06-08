@@ -465,7 +465,7 @@
         "no_messages_yet": "Aucun message pour le moment.",
         "share_album": "Partager un album",
         "attach_media": "Joindre un média",
-        "cancel_recording": "Annuler",
+        "cancel_recording": "Glisser à gauche pour annuler",
         "stop_recording": "Arrêter l'enregistrement",
         "manage_albums": "Gérer les albums",
         "no_albums_available": "Aucun album disponible. Créez-en un dans les Paramètres d'abord.",
@@ -656,6 +656,7 @@
         },
         "load_older_messages": "Charger les anciens messages",
         "view_profile": "Voir le profil",
+        "received_media": "Médias reçus",
         "favorite": "Favori",
         "share_album_label": "Partager l'album"
     },

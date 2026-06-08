@@ -760,3 +760,13 @@
 		background: #2bd66f;
 	}
 }
+
+@keyframes trash-bounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-6px); }
+  70%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+.animate-trash-bounce {
+  animation: trash-bounce 0.3s ease-out forwards;
+}

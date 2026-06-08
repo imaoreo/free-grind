@@ -696,6 +696,7 @@
         "open_filters": "Open filters",
         "profile": "Profile",
         "view_profile": "View profile",
+        "received_media": "Received media",
         "favorite": "Favorite",
         "unfavorite": "Unfavorite",
         "no_conversations_match": "No conversations match your filters.",
@@ -716,7 +717,7 @@
         "drawer_label": "Drawer",
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
-        "cancel_recording": "Cancel",
+        "cancel_recording": "Slide left to cancel",
         "stop_recording": "Stop recording",
         "expiration": {
             "title": "Access Duration",

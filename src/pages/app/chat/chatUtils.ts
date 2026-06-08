@@ -8,7 +8,6 @@ import {
 	validateMediaHash,
 } from "../../../utils/media";
 import { formatRelativeTime } from "../../../utils/relativeTime";
-import { appLog } from "../../../utils/logger";
 
 export type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -419,7 +418,7 @@ export function getMessageImageUrl(message: UiMessage): string | null {
 		if (typeof candidate === "string" && candidate.length > 0) {
 			const normalized = normalizeUrlCandidate(candidate);
 			if (normalized) {
-				appLog.debug("Found image URL candidate:", { candidate, normalized });
+				// appLog.debug("Found image URL candidate:", { candidate, normalized });
 				return normalized;
 			}
 		}
@@ -610,7 +609,7 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 		if (typeof candidate === "string" && candidate.length > 0) {
 			const normalized = normalizeUrl(candidate);
 			if (normalized) {
-				appLog.debug("Found video URL candidate:", { candidate, normalized });
+				// appLog.debug("Found video URL candidate:", { candidate, normalized });
 				return normalized;
 			}
 		}

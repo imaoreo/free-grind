@@ -3,15 +3,17 @@ package dev.estopia.free_grind
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.util.Log
 import android.webkit.JavascriptInterface
-import android.webkit.PermissionRequest
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,8 +80,6 @@ class MainActivity : TauriActivity() {
   private var pendingFcmToken: String? = null
   private var latestFcmToken: String? = null
   private val mainHandler = Handler(Looper.getMainLooper())
-  private var pendingWebPermissionRequest: PermissionRequest? = null
-
   private val requestNotificationPermission = registerForActivityResult(
     ActivityResultContracts.RequestPermission()
   ) { isGranted ->
@@ -87,18 +87,6 @@ class MainActivity : TauriActivity() {
       Log.d("FCM", "Notification permission granted")
     } else {
       Log.d("FCM", "Notification permission denied")
-    }
-  }
-
-  private val requestAudioPermission = registerForActivityResult(
-    ActivityResultContracts.RequestPermission()
-  ) { isGranted ->
-    val webRequest = pendingWebPermissionRequest
-    pendingWebPermissionRequest = null
-    if (isGranted && webRequest != null) {
-      webRequest.grant(webRequest.resources)
-    } else {
-      webRequest?.deny()
     }
   }
 
@@ -121,37 +109,6 @@ class MainActivity : TauriActivity() {
   override fun onWebViewCreate(webView: WebView) {
     super.onWebViewCreate(webView)
     webViewRef = webView
-
-    // Wrap Tauri's WebChromeClient to forward microphone permission requests
-    val tauriChromeClient = webView.webChromeClient
-    webView.webChromeClient = object : WebChromeClient() {
-      override fun onPermissionRequest(request: PermissionRequest) {
-        runOnUiThread {
-          if (request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-            val granted = ContextCompat.checkSelfPermission(
-              this@MainActivity,
-              Manifest.permission.RECORD_AUDIO
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (granted) {
-              request.grant(request.resources)
-            } else {
-              pendingWebPermissionRequest = request
-              requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
-            }
-          } else {
-            tauriChromeClient?.onPermissionRequest(request) ?: request.deny()
-          }
-        }
-      }
-
-      override fun onShowFileChooser(
-        webView: WebView?,
-        filePathCallback: android.webkit.ValueCallback<Array<android.net.Uri>>?,
-        fileChooserParams: FileChooserParams?
-      ): Boolean {
-        return tauriChromeClient?.onShowFileChooser(webView, filePathCallback, fileChooserParams) ?: false
-      }
-    }
 
     @Suppress("AddJavascriptInterface")
     webView.addJavascriptInterface(JsBridge(), "FreeGrindBridge")
@@ -190,6 +147,27 @@ class MainActivity : TauriActivity() {
     fun setActiveRoute(route: String?) {
       activeRoute = route
       Log.d("FCM", "JsBridge.setActiveRoute=$route foreground=$inForeground")
+    }
+
+    @JavascriptInterface
+    fun vibrate(durationMs: Long) {
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+          vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+          @Suppress("DEPRECATION")
+          val v = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            v.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
+          } else {
+            @Suppress("DEPRECATION")
+            v.vibrate(durationMs)
+          }
+        }
+      } catch (t: Throwable) {
+        Log.w("Bridge", "vibrate failed", t)
+      }
     }
   }
 

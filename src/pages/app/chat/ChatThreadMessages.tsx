@@ -967,11 +967,25 @@ export function ChatThreadMessages({
 														);
 													})() : null}
 
-												{audioUrl ? (
-													<div onClick={(e) => e.stopPropagation()}>
-														<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
-													</div>
-												) : null}
+												{audioUrl ? (() => {
+													const audioBody = message.body as Record<string, unknown> | null | undefined;
+													const audioLengthRaw = typeof audioBody?.length === "number" ? audioBody.length : null;
+													// >600: stored in ms (iOS audio/aac); <=600: stored in seconds (webm upload endpoint)
+													const audioDurationHint = audioLengthRaw != null
+														? (audioLengthRaw > 600 ? audioLengthRaw / 1000 : audioLengthRaw)
+														: undefined;
+													console.log("[audio message]", { messageId: message.messageId, body: audioBody, audioLengthRaw, audioDurationHint });
+													return (
+														<div onClick={(e) => e.stopPropagation()}>
+															<AudioMessagePlayer
+																src={audioUrl}
+																messageId={message.messageId}
+																mine={mine}
+																durationHint={audioDurationHint}
+															/>
+														</div>
+													);
+												})() : null}
 
 												{isAlbumReactionBubble ? (() => {
 													const rxBody = message.body as Record<string, unknown> | null | undefined;

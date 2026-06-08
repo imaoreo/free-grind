@@ -437,6 +437,7 @@
         "attach_media": "",
         "cancel_recording": "",
         "stop_recording": "",
+        "received_media": "",
         "manage_albums": "",
         "no_albums_available": "",
         "share": "",

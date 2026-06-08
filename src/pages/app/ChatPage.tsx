@@ -2716,7 +2716,7 @@ export function ChatPage() {
 			const audioBytes = new Uint8Array(await pendingAudioBlob.arrayBuffer());
 			const uploaded = await service.uploadChatMedia({
 				multipart: { body: audioBytes, contentType: pendingAudioBlob.type || "audio/webm" },
-				options: { looping: false, takenOnGrindr: false },
+				options: { looping: false, takenOnGrindr: false, durationSeconds: pendingAudioDuration },
 			});
 			await service.sendMessage({
 				type: "Audio",
@@ -2727,11 +2727,20 @@ export function ChatPage() {
 					url: uploaded.url,
 					contentType: pendingAudioBlob.type || "audio/webm",
 					length: pendingAudioDuration,
+					expiresAt: uploaded.expiresAt,
 				},
 			});
 			setPendingAudioBlob(null);
 			setPendingAudioDuration(0);
 		} catch (err) {
+			console.error("[confirmAudio] failed", {
+				err,
+				blobType: pendingAudioBlob?.type,
+				blobSize: pendingAudioBlob?.size,
+				durationMs: pendingAudioDuration,
+				conversationId: selectedConversation?.data.conversationId,
+				targetId: targetIdValue,
+			});
 			toast.error(err instanceof Error ? err.message : t("chat.errors.send_failed"));
 		} finally {
 			setIsSendingAudio(false);

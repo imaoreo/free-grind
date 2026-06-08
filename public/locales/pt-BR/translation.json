@@ -665,7 +665,7 @@
             "expired": "expirado"
         },
         "attach_media": "Anexar mídia",
-        "cancel_recording": "Cancelar",
+        "cancel_recording": "Deslize para a esquerda para cancelar",
         "stop_recording": "Parar gravação",
         "manage_albums": "",
         "loading_albums": "Carregando álbuns...",
@@ -818,6 +818,7 @@
         },
         "load_older_messages": "Carregar mensagens antigas",
         "view_profile": "Ver perfil",
+        "received_media": "Mídia recebida",
         "favorite": "Favorito",
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",
