@@ -540,6 +540,8 @@
         "no_messages_yet": "No tienes mensajes todavía.",
         "share_album": "Compartir álbum",
         "attach_media": "Adjuntar contenido",
+        "cancel_recording": "Cancelar",
+        "stop_recording": "Detener grabación",
         "manage_albums": "Gestionar álbumes",
         "no_albums_available": "No hay álbumes disponibles. Crea uno en Configuración primero.",
         "share": "Compartir",

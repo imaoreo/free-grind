@@ -465,6 +465,8 @@
         "no_messages_yet": "Aucun message pour le moment.",
         "share_album": "Partager un album",
         "attach_media": "Joindre un média",
+        "cancel_recording": "Annuler",
+        "stop_recording": "Arrêter l'enregistrement",
         "manage_albums": "Gérer les albums",
         "no_albums_available": "Aucun album disponible. Créez-en un dans les Paramètres d'abord.",
         "share": "Partager",

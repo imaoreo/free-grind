@@ -665,6 +665,8 @@
             "expired": "expirado"
         },
         "attach_media": "Anexar mídia",
+        "cancel_recording": "Cancelar",
+        "stop_recording": "Parar gravação",
         "manage_albums": "",
         "loading_albums": "Carregando álbuns...",
         "no_albums_available": "Nenhum álbum disponível. Crie um primeiro nas Configurações.",

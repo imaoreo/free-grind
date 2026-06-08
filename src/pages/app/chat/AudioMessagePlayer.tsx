@@ -25,9 +25,12 @@ type Props = {
 	src: string;
 	messageId: string;
 	mine: boolean;
+	className?: string;
+	/** Fallback duration in seconds when audio metadata is unavailable (e.g. fresh MediaRecorder blobs). */
+	durationHint?: number;
 };
 
-export function AudioMessagePlayer({ src, messageId, mine }: Props) {
+export function AudioMessagePlayer({ src, messageId, mine, className, durationHint }: Props) {
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 	const trackRef = useRef<HTMLDivElement | null>(null);
 	const isDraggingRef = useRef(false);
@@ -65,7 +68,7 @@ export function AudioMessagePlayer({ src, messageId, mine }: Props) {
 		const onPlay = () => { rafRef.current = requestAnimationFrame(tick); };
 		const onPause = () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
 		const onMeta = () => {
-			const d = isFinite(audio.duration) ? audio.duration : 0;
+			const d = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : (durationHint ?? 0);
 			durationRef.current = d;
 			setDuration(d);
 		};
@@ -134,7 +137,7 @@ export function AudioMessagePlayer({ src, messageId, mine }: Props) {
 	const timeColor = mine ? "text-[var(--accent-contrast)]/60" : "text-[var(--text-muted)]";
 
 	return (
-		<div className="flex w-64 items-center gap-2.5 py-1">
+		<div className={`flex items-center gap-2.5 py-1 ${className ?? "w-64"}`}>
 			<audio ref={audioRef} src={src} preload="metadata" className="absolute w-0 h-0 opacity-0 pointer-events-none overflow-hidden" />
 
 			<button
@@ -157,15 +160,15 @@ export function AudioMessagePlayer({ src, messageId, mine }: Props) {
 				onPointerCancel={onPointerUp}
 			>
 				{/* inactive bars */}
-				<div className="flex h-full w-full items-center gap-[2px]">
+				<div className="flex h-full w-full items-center justify-between">
 					{waveform.map((h, i) => (
-						<div key={i} className={`flex-1 rounded-full opacity-25 ${barColor}`} style={{ height: `${Math.round(h * 100)}%` }} />
+						<div key={i} className={`w-[3px] flex-none rounded-full opacity-25 ${barColor}`} style={{ height: `${Math.round(h * 100)}%` }} />
 					))}
 				</div>
 				{/* active bars — clipped via direct DOM style update */}
-				<div ref={clipRef} className="absolute inset-0 flex items-center gap-[2px]" style={{ clipPath: "inset(0 100% 0 0)" }}>
+				<div ref={clipRef} className="absolute inset-0 flex items-center justify-between" style={{ clipPath: "inset(0 100% 0 0)" }}>
 					{waveform.map((h, i) => (
-						<div key={i} className={`flex-1 rounded-full ${barColor}`} style={{ height: `${Math.round(h * 100)}%` }} />
+						<div key={i} className={`w-[3px] flex-none rounded-full ${barColor}`} style={{ height: `${Math.round(h * 100)}%` }} />
 					))}
 				</div>
 			</div>
