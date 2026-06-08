@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Play, Reply, VideoOff } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, Mic, Play, Reply, VideoOff } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -316,10 +316,11 @@ export function ChatThreadMessages({
 					icon.style.transform = "translateY(-50%) scale(1.3)";
 					icon.style.opacity = "1";
 				}
+				(window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge?.vibrate?.(40) ?? navigator.vibrate?.(40);
 				setTimeout(() => {
 					resetSwipeVisual(triggeredId);
 					void handleReply(message);
-				}, 300);
+				}, 150);
 			}
 		},
 		[endMessageLongPress, handleReply, isDesktop, resetSwipeVisual],
@@ -1103,71 +1104,55 @@ export function ChatThreadMessages({
 															}
 															scheduleMobileTap(message, doOpen);
 														}}
-														className={`${isLocationOnlyBubble && hasReply ? "" : "mb-2"} flex w-full flex-col overflow-hidden ${isLocationOnlyBubble && hasReply ? "rounded-b-xl" : "rounded-xl"} ${isLocationOnlyBubble && hasReply ? "" : "border border-black/10"} text-left transition hover:brightness-110 ${tailCorner} ${
-															mine
-																? "bg-white/10 text-white"
-																: "bg-[var(--surface-2)] text-[var(--text)]"
-														}`}
+														className={`block overflow-hidden ${isLocationOnlyBubble && hasReply ? "" : `rounded-2xl ${tailCorner}`} text-left transition hover:brightness-110`}
 													>
 														<div className="relative">
-									<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
-									{localOnly && (
-										<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-											{t("chat.thread.from_local_history")}
-										</span>
-									)}
-								</div>
-														<div className="flex items-center gap-3 p-3">
-															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]">
-																<MapPin className="h-4 w-4" />
-															</div>
-															<div className="min-w-0 flex-1">
-																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-																	{t("chat.thread.location_shared")}
-																</p>
-																<p className="truncate text-sm font-semibold opacity-90">
-																	{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
-																</p>
-															</div>
-														</div>
-
-														{isLocationOnlyBubble && (
-															<div className="flex items-center justify-end gap-2 px-3 pb-2 text-[10px] opacity-80">
-																{isDesktop &&
-																!pending &&
-																!isLocalClientMessageId(message.messageId) ? (
-																	<>
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				void handleReply(message);
-																			}}
-																			className={`rounded-md p-1 ${mine && !(isLocationOnlyBubble && hasReply) ? "hover:bg-white/10" : "hover:bg-black/10"}`}
-																		>
-																			<Reply className="h-3.5 w-3.5" />
-																		</button>
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				setOpenMessageActionId((current) =>
-																					current === message.messageId
-																						? null
-																						: message.messageId,
-																				);
-																			}}
-																			className={`rounded-md p-1 ${mine && !(isLocationOnlyBubble && hasReply) ? "hover:bg-white/10" : "hover:bg-black/10"}`}
-																		>
-																			<Ellipsis className="h-3.5 w-3.5" />
-																		</button>
-																	</>
-																) : null}
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+															<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-48 w-48 pointer-events-none" />
+															{localOnly && (
+																<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																	{t("chat.thread.from_local_history")}
 																</span>
-															</div>
-														)}
+															)}
+															{isLocationOnlyBubble ? (
+																<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+																	<div className="flex items-center justify-between gap-2 text-[10px]">
+																		<div className="flex items-center gap-2">
+																			{pending ? <span>{t("chat.sending")}</span> : null}
+																			{failed ? <span>{t("chat.thread.failed")}</span> : null}
+																		</div>
+																		<div className="flex items-center gap-2">
+																			<span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+																			{isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+																				<>
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							void handleReply(message);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Reply className="h-3.5 w-3.5" />
+																					</button>
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							setOpenMessageActionId((current) =>
+																								current === message.messageId ? null : message.messageId,
+																							);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Ellipsis className="h-3.5 w-3.5" />
+																					</button>
+																				</>
+																			) : null}
+																		</div>
+																	</div>
+																</div>
+															) : null}
+														</div>
 													</button>
 												) : null}
 
@@ -1244,11 +1229,23 @@ export function ChatThreadMessages({
 												) : null}
 
 														{!isLocalClientMessageId(message.messageId) ? (
-															<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
-																message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
-															} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
-																🔥
-															</span>
+															(isDesktop ? (
+																<button
+																	type="button"
+																	onClick={() => void handleReact(message)}
+																	className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
+																		message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0 chat-reaction-flame--hoverable"
+																	} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
+																>
+																	🔥
+																</button>
+															) : (
+																<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+																	message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
+																} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
+																	🔥
+																</span>
+															))
 														) : null}
 
 												{!isMediaOnlyBubble ? (
