@@ -198,7 +198,7 @@ export function ChatDrawerPanel({
 		(id) => media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
 	);
 	const hasAnyImage = hasSelection && [...selectedIds].some(
-		(id) => !media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
+		(id) => !(media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false),
 	);
 
 	const onPickDrawerPhoto = useCallback(
