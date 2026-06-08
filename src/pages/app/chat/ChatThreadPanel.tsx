@@ -13,6 +13,7 @@ import {
 	Loader2,
 	MapPin,
 	Mic,
+	Square,
 	Plus,
 	Settings2,
 	BookMarked,
@@ -201,7 +202,7 @@ type ChatThreadPanelProps = {
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
-function AudioPreviewPlayer({ blob }: { blob: Blob }) {
+function AudioPreviewPlayer({ blob, durationMs }: { blob: Blob; durationMs: number }) {
 	const [url, setUrl] = useState<string | null>(null);
 	useEffect(() => {
 		const u = URL.createObjectURL(blob);
@@ -209,11 +210,7 @@ function AudioPreviewPlayer({ blob }: { blob: Blob }) {
 		return () => URL.revokeObjectURL(u);
 	}, [blob]);
 	if (!url) return null;
-	return (
-		<div className="px-3 pb-3">
-			<AudioMessagePlayer src={url} messageId="preview" mine={false} />
-		</div>
-	);
+	return <AudioMessagePlayer src={url} messageId="preview" mine={false} className="w-full" durationHint={durationMs / 1000} />;
 }
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
@@ -228,15 +225,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 	const [isRecording, setIsRecording] = useState(false);
 	const [recordingMs, setRecordingMs] = useState(0);
+	const [waveformBars, setWaveformBars] = useState<number[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 	const chunksRef = useRef<Blob[]>([]);
 	const recordingStartRef = useRef(0);
 	const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const analyserRef = useRef<AnalyserNode | null>(null);
+	const audioCtxRef = useRef<AudioContext | null>(null);
+	const waveformRafRef = useRef<number | null>(null);
+	const swipeStartXRef = useRef(0);
+
+	const cleanupAnalyser = useCallback(() => {
+		if (waveformRafRef.current) { cancelAnimationFrame(waveformRafRef.current); waveformRafRef.current = null; }
+		analyserRef.current = null;
+		if (audioCtxRef.current) { void audioCtxRef.current.close(); audioCtxRef.current = null; }
+		setWaveformBars([]);
+	}, []);
 
 	useEffect(() => {
 		return () => {
 			if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+			if (waveformRafRef.current) cancelAnimationFrame(waveformRafRef.current);
 			mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+			void audioCtxRef.current?.close();
 		};
 	}, []);
 
@@ -256,6 +267,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			setIsRecording(true);
 			setRecordingMs(0);
 			recordingTimerRef.current = setInterval(() => setRecordingMs(Date.now() - recordingStartRef.current), 100);
+
+			// waveform via AnalyserNode
+			try {
+				const audioCtx = new AudioContext();
+				const analyser = audioCtx.createAnalyser();
+				analyser.fftSize = 64;
+				analyser.smoothingTimeConstant = 0.7;
+				audioCtx.createMediaStreamSource(stream).connect(analyser);
+				audioCtxRef.current = audioCtx;
+				analyserRef.current = analyser;
+				const data = new Uint8Array(analyser.frequencyBinCount);
+				let lastSample = 0;
+				const tick = (t: number) => {
+					if (t - lastSample >= 80) {
+						lastSample = t;
+						analyser.getByteFrequencyData(data);
+						const amp = data.slice(0, 10).reduce((a, b) => a + b, 0) / 10 / 255;
+						setWaveformBars(prev => [...prev.slice(-50), amp]);
+					}
+					waveformRafRef.current = requestAnimationFrame(tick);
+				};
+				waveformRafRef.current = requestAnimationFrame(tick);
+			} catch { /* analyser failure doesn't break recording */ }
 		} catch (err) {
 			const name = err instanceof DOMException ? err.name : "";
 			if (name === "NotFoundError" || name === "DevicesNotFoundError") {
@@ -273,6 +307,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		if (!recorder || recorder.state === "inactive") return;
 		if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
 		const durationMs = Date.now() - recordingStartRef.current;
+		cleanupAnalyser();
 		recorder.onstop = () => {
 			recorder.stream.getTracks().forEach((t) => t.stop());
 			const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
@@ -286,7 +321,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		recorder.stop();
 		setIsRecording(false);
 		setRecordingMs(0);
-	}, [props, t]);
+	}, [cleanupAnalyser, props, t]);
+
+	const cancelRecording = useCallback(() => {
+		const recorder = mediaRecorderRef.current;
+		if (!recorder || recorder.state === "inactive") return;
+		if (recordingTimerRef.current) { clearInterval(recordingTimerRef.current); recordingTimerRef.current = null; }
+		cleanupAnalyser();
+		recorder.onstop = () => {
+			recorder.stream.getTracks().forEach((t) => t.stop());
+			mediaRecorderRef.current = null;
+		};
+		recorder.stop();
+		setIsRecording(false);
+		setRecordingMs(0);
+	}, [cleanupAnalyser]);
 
 	const [attachmentPreviewUrl, setAttachmentPreviewUrl] = useState<string | null>(null);
 	const [attachmentCrop, setAttachmentCrop] = useState<Crop | undefined>(undefined);
@@ -1409,16 +1458,69 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							);
 						})() : null}
 
-						<div className={`flex items-end gap-2 rounded-xl border px-3 py-1.5 mb-2 transition-colors ${isRecording ? "border-red-500 bg-[var(--surface-2)]" : "border-[var(--border)] bg-[var(--surface-2)] focus-within:border-[var(--accent)]"}`}>
+						{props.pendingAudioBlob ? (
+							<div className="mb-2 rounded-xl border border-[var(--accent)] bg-[var(--surface-2)] px-3 py-1 flex items-center gap-1">
+								<div className="flex-1 min-w-0">
+									<AudioPreviewPlayer blob={props.pendingAudioBlob} durationMs={props.pendingAudioDuration} />
+								</div>
+								<button
+									type="button"
+									onClick={props.cancelAudio}
+									className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									aria-label={t("chat.actions.cancel")}
+								>
+									<X className="h-3.5 w-3.5" />
+								</button>
+								<button
+									type="button"
+									onClick={() => void props.confirmAudio()}
+									disabled={props.isSendingAudio}
+									className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--accent)] transition hover:opacity-80 disabled:opacity-40"
+									aria-label={t("chat.attachments.send")}
+								>
+									{props.isSendingAudio
+										? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+										: <SendHorizontal className="h-3.5 w-3.5" />}
+								</button>
+							</div>
+						) : null}
+						{!props.pendingAudioBlob && <div className={`flex ${isRecording ? "items-center" : "items-end"} gap-2 rounded-xl border px-3 py-1.5 mb-2 transition-colors ${isRecording ? "border-red-500 bg-[var(--surface-2)]" : "border-[var(--border)] bg-[var(--surface-2)] focus-within:border-[var(--accent)]"}`}>
 							{isRecording ? (
-								<div className="flex flex-1 items-center gap-2 py-1">
-									<div className="h-2 w-2 shrink-0 rounded-full bg-red-500 animate-pulse" />
-									<span className="text-sm font-semibold tabular-nums text-red-500">
+								<div className="flex flex-1 items-center gap-2 py-1 min-w-0">
+									{/* waveform bars */}
+									<div className="flex flex-1 items-center gap-px h-8 overflow-hidden min-w-0">
+										{waveformBars.map((amp, i) => (
+											<div
+												key={i}
+												className="flex-none w-[3px] rounded-full bg-red-400"
+												style={{ height: `${Math.max(4, Math.round(amp * 28))}px`, opacity: 0.5 + amp * 0.5 }}
+											/>
+										))}
+										{waveformBars.length === 0 && (
+											<div className="h-1 w-1 rounded-full bg-red-500 animate-pulse" />
+										)}
+									</div>
+									{/* timer */}
+									<span className="text-sm font-semibold tabular-nums text-red-500 shrink-0">
 										{`${Math.floor(Math.floor(recordingMs / 1000) / 60)}:${(Math.floor(recordingMs / 1000) % 60).toString().padStart(2, "0")}`}
 									</span>
-									<span className="flex-1 truncate text-xs text-[var(--text-muted)]">
-										{t("chat.recording", { defaultValue: "Recording… release to preview" })}
-									</span>
+									{/* mobile: swipe-to-cancel hint */}
+									{!isDesktop && (
+										<span className="text-xs text-[var(--text-muted)] shrink-0 select-none">
+											← {t("chat.cancel_recording", { defaultValue: "Cancel" })}
+										</span>
+									)}
+									{/* desktop: cancel button inside bar */}
+									{isDesktop && (
+										<button
+											type="button"
+											onClick={cancelRecording}
+											className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--text-muted)] hover:text-red-500 transition"
+											aria-label={t("chat.cancel_recording", { defaultValue: "Cancel" })}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
+									)}
 								</div>
 							) : (
 								<textarea
@@ -1431,7 +1533,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									style={{ fieldSizing: "content", maxHeight: "115px" } as React.CSSProperties}
 								/>
 							)}
-							{draft.trim().length > 0 || isSending ? (
+							{isRecording && isDesktop ? (
+								<button
+									type="button"
+									onClick={stopRecording}
+									className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:opacity-80 transition"
+									aria-label={t("chat.stop_recording", { defaultValue: "Stop recording" })}
+								>
+									<Square className="h-4 w-4 fill-current" />
+								</button>
+							) : draft.trim().length > 0 || isSending ? (
 								<button
 									type="submit"
 									disabled={isSending || !!pendingLocationShare || draft.trim().length === 0}
@@ -1442,17 +1553,29 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							) : (
 								<button
 									type="button"
-									onPointerDown={(e) => { e.preventDefault(); void startRecording(); }}
-									onPointerUp={stopRecording}
-									onPointerLeave={stopRecording}
-									onPointerCancel={stopRecording}
+									onClick={isDesktop ? () => void startRecording() : undefined}
+									onPointerDown={!isDesktop ? (e) => {
+										e.preventDefault();
+										e.currentTarget.setPointerCapture(e.pointerId);
+										swipeStartXRef.current = e.clientX;
+										void startRecording();
+									} : undefined}
+									onPointerMove={!isDesktop ? (e) => {
+										if (!isRecording) return;
+										if (e.clientX - swipeStartXRef.current < -60) {
+											e.currentTarget.releasePointerCapture(e.pointerId);
+											cancelRecording();
+										}
+									} : undefined}
+									onPointerUp={!isDesktop ? stopRecording : undefined}
+									onPointerCancel={!isDesktop ? cancelRecording : undefined}
 									className={`shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-lg transition select-none ${isRecording ? "text-red-500" : "text-[var(--accent)] hover:opacity-80"}`}
 									aria-label={t("chat.record_audio", { defaultValue: "Record audio" })}
 								>
-									<Mic className={`h-4 w-4 ${isRecording ? "animate-pulse" : ""}`} />
+									<Mic className={`h-4 w-4 ${isRecording && !isDesktop ? "animate-pulse" : ""}`} />
 								</button>
 							)}
-						</div>
+						</div>}
 
                         <div className="mb-2 mx-5 flex items-center justify-between gap-2">
 							<button
@@ -1635,18 +1758,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</BottomDrawer>
 					) : null}
 
-					{props.pendingAudioBlob ? (
-						<BottomDrawer
-							title={t("chat.audio_preview_title", { defaultValue: "Audio message" })}
-							onClose={props.cancelAudio}
-							onConfirm={() => void props.confirmAudio()}
-							confirmLabel={t("chat.attachments.send")}
-							isProcessing={props.isSendingAudio}
-							isDesktop={isDesktop}
-						>
-							<AudioPreviewPlayer blob={props.pendingAudioBlob} />
-						</BottomDrawer>
-					) : null}
 
 					{isDrawerOpen ? (
 						<ChatDrawerPanel

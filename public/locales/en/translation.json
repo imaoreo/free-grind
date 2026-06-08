@@ -716,6 +716,8 @@
         "drawer_label": "Drawer",
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
+        "cancel_recording": "Cancel",
+        "stop_recording": "Stop recording",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",

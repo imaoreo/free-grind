@@ -435,6 +435,8 @@
         "no_conversations": "",
         "share_album": "",
         "attach_media": "",
+        "cancel_recording": "",
+        "stop_recording": "",
         "manage_albums": "",
         "no_albums_available": "",
         "share": "",

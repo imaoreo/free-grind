@@ -677,6 +677,8 @@
             "expired": "Abgelaufen"
         },
         "attach_media": "Medien anhängen",
+        "cancel_recording": "Abbrechen",
+        "stop_recording": "Aufnahme stoppen",
         "manage_albums": "Alben verwalten",
         "loading_albums": "Alben werden geladen...",
         "no_albums_available": "Keine Alben verfügbar. Erstelle zuerst eines in den Einstellungen.",
