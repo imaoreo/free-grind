@@ -67,9 +67,15 @@ export class TauriWebSocket {
 
 	private async bootstrap() {
 		try {
-			this.unlisten = await listen<WsEvent>(WS_EVENT_NAME, (event) => {
+			const unlistenFn = await listen<WsEvent>(WS_EVENT_NAME, (event) => {
 				this.handleEvent(event.payload);
 			});
+
+			if (this.closed) {
+				unlistenFn();
+				return;
+			}
+			this.unlisten = unlistenFn;
 
 			appLog.debug("[chat-ws:tauri] invoking ws_connect");
 			await invoke("ws_connect", { url: this.url });
