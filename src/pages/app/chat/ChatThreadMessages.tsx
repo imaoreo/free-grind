@@ -441,6 +441,7 @@ export function ChatThreadMessages({
 									? replyPreviewRaw.text.trim()
 									: null;
 								const replyToMsgRef = message.replyToMessage as { messageId?: string; senderId?: number; type?: string } | null | undefined;
+								const hasReply = !!(replyToMsgRef?.messageId);
 								const replyToMsgId = replyPreviewRaw?.previewMessageId ?? replyToMsgRef?.messageId;
 								const replyToMsg = replyToMsgId
 									? threadMessages.find(m => m.messageId === replyToMsgId) ?? null
@@ -487,7 +488,7 @@ export function ChatThreadMessages({
 									const s = totalSec % 60;
 									return `${m}:${s.toString().padStart(2, "0")}`;
 								})();
-								const replyLabel = (replyText || replyThumbUrl || replyIsAudio)
+								const replyLabel = (replyText || replyThumbUrl || replyIsAudio || hasReply)
 									? replySenderId === userId
 										? mine ? "Reply to myself" : "Reply to you"
 										: `Reply to "${selectedConversation.data.name || ""}"`
@@ -515,7 +516,7 @@ export function ChatThreadMessages({
 								const isVideoOnlyBubble =
 									(Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
 								const isAlbumOnlyBubble =
-									isAlbumMessage && messageText === t("chat.preview.shared_album");
+									isAlbumMessage && messageText === t("chat.preview.shared_album") && !hasReply;
 								const isLocationOnlyBubble =
 									Boolean(location) && messageText === t("chat.preview.sent_location");
 								const hasVisualMedia = Boolean(imageUrl) || Boolean(videoUrl) || isAlbumOnlyBubble || isLocationOnlyBubble;
@@ -628,13 +629,15 @@ export function ChatThreadMessages({
 												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
-													isMediaOnlyBubble
-														? "bg-transparent p-0"
-														: `px-3 py-2 ${
-															mine
-																? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
-																: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
-														}`
+													isMediaOnlyBubble && hasReply
+														? `overflow-hidden p-0 ${mine ? `bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]` : `bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]`}`
+														: isMediaOnlyBubble
+															? "bg-transparent p-0"
+															: `px-3 py-2 ${
+																mine
+																	? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
+																	: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
+															}`
 												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
 											>
 												{localOnly && !hasVisualMedia ? (
@@ -642,6 +645,37 @@ export function ChatThreadMessages({
 														{t("chat.thread.from_local_history")}
 													</span>
 												) : null}
+
+												{(replyText || replyThumbUrl || replyIsAudio || hasReply) ? (
+													<div className={`relative flex overflow-hidden text-xs ${
+														isMediaOnlyBubble
+															? `mx-3 mt-3 ${isLocationOnlyBubble && hasReply ? "mb-2" : "mb-3"} rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+															: `mt-1 mb-2.5 rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+													}`}>
+														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
+															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
+														}`} />
+														<div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
+															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : t("chat.thread.shared_image"))}</p>
+														</div>
+														{replyThumbUrl ? (
+															<img
+																src={replyThumbUrl}
+																alt=""
+																className="h-14 w-14 shrink-0 object-cover"
+															/>
+														) : replyIsAudio ? (
+															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+																<div className="flex flex-col items-center gap-1">
+																	<Mic className="h-4 w-4" />
+																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+																</div>
+															</div>
+														) : null}
+													</div>
+												) : null}
+
 												{imageUrl ? (
 													<button
 														type="button"
@@ -1059,7 +1093,7 @@ export function ChatThreadMessages({
 															}
 															scheduleMobileTap(message, doOpen);
 														}}
-														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
+														className={`${isLocationOnlyBubble && hasReply ? "" : "mb-2"} flex w-full flex-col overflow-hidden ${isLocationOnlyBubble && hasReply ? "rounded-b-xl" : "rounded-xl"} ${isLocationOnlyBubble && hasReply ? "" : "border border-black/10"} text-left transition hover:brightness-110 ${tailCorner} ${
 															mine
 																? "bg-white/10 text-white"
 																: "bg-[var(--surface-2)] text-[var(--text)]"
@@ -1174,7 +1208,7 @@ export function ChatThreadMessages({
 													return (
 														<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
 															<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
-															<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
+															<div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
 																<p className="mb-0.5 font-semibold opacity-60 truncate">{t("chat.thread.replied_to_photo")}</p>
 																<p className="opacity-60">{t("chat.thread.shared_image")}</p>
 															</div>
@@ -1190,35 +1224,10 @@ export function ChatThreadMessages({
 												})() : null}
 
 
-												{(replyText || replyThumbUrl || replyIsAudio) && !isMediaOnlyBubble ? (
-													<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${
-														mine ? "bg-black/20" : "bg-black/[0.08]"
-													}`}>
-														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
-															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
-														}`} />
-														<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
-															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : t("chat.thread.shared_image"))}</p>
-														</div>
-														{replyThumbUrl ? (
-															<img
-																src={replyThumbUrl}
-																alt=""
-																className="h-14 w-14 shrink-0 object-cover"
-															/>
-														) : replyIsAudio ? (
-															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
-																<div className="flex flex-col items-center gap-1">
-																	<Mic className="h-4 w-4" />
-																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
-																</div>
-															</div>
-														) : null}
-													</div>
-												) : null}
 
-												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
+												{!isMediaOnlyBubble && !isAudioOnlyBubble
+												&& !(imageUrl && messageText === t("chat.thread.shared_image"))
+												&& !((videoUrl || isExpiredVideo) && messageText === t("chat.thread.shared_video")) ? (
 													<p className="whitespace-pre-wrap break-words">
 														{displayText}
 													</p>

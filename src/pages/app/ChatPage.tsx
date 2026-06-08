@@ -2304,8 +2304,6 @@ export function ChatPage() {
 			const replySnippet = selectedReplyMessage
 				? getMessagePreviewLabel(selectedReplyMessage, t).trim()
 				: "";
-			const textWithReplyContext =
-				replySnippet.length > 0 ? `> ${replySnippet}\n${trimmed}` : trimmed;
 
 			setIsSending(true);
 			const localMessageId =
@@ -2324,7 +2322,7 @@ export function ChatPage() {
 						reactions: [],
 						type: "Text",
 						chat1Type: "text",
-						body: { text: textWithReplyContext },
+						body: { text: trimmed },
 						replyToMessage: selectedReplyMessage
 							? { messageId: selectedReplyMessage.messageId }
 							: null,
@@ -2348,7 +2346,8 @@ export function ChatPage() {
 			try {
 				const sentMessage = await service.sendText({
 					targetProfileId: targetProfileIdValue,
-					text: textWithReplyContext,
+					text: trimmed,
+					replyToMessageId: selectedReplyMessage?.messageId ?? null,
 				});
 
 				setThreadMessages((previous) => {
@@ -2449,8 +2448,10 @@ export function ChatPage() {
 						targetId: targetProfileIdValue,
 					},
 					body: { lat, lon },
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
@@ -2463,7 +2464,7 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	const sendMediaAttachment = useCallback(
@@ -2520,7 +2521,7 @@ export function ChatPage() {
 					type: isVideo ? "Video" : "Image",
 					chat1Type: isVideo ? "video" : "image",
 					body: { url: objectUrl },
-					replyToMessage: null,
+					replyToMessage: replyTargetMessageId ? { messageId: replyTargetMessageId } : null,
 					replyPreview: null,
 					dynamic: false,
 					clientState: "pending",
@@ -2576,8 +2577,10 @@ export function ChatPage() {
 						...(imageUrl ? { url: imageUrl } : {}),
 						...(isImage && imageHash ? { imageHash } : {}),
 					},
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
 					const merged = previous
 						.filter((message) => message.messageId !== localMessageId)
@@ -2648,6 +2651,8 @@ export function ChatPage() {
 			targetProfileId,
 			uploadProgress,
 			userId,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -2729,9 +2734,11 @@ export function ChatPage() {
 					length: pendingAudioDuration,
 					expiresAt: uploaded.expiresAt,
 				},
+				replyToMessageId: replyTargetMessageId,
 			});
 			setPendingAudioBlob(null);
 			setPendingAudioDuration(0);
+			setReplyTargetMessageId(null);
 		} catch (err) {
 			console.error("[confirmAudio] failed", {
 				err,
@@ -2745,7 +2752,7 @@ export function ChatPage() {
 		} finally {
 			setIsSendingAudio(false);
 		}
-	}, [pendingAudioBlob, pendingAudioDuration, userId, selectedConversation, targetProfileId, service, t]);
+	}, [pendingAudioBlob, pendingAudioDuration, userId, selectedConversation, targetProfileId, service, t, replyTargetMessageId, setReplyTargetMessageId]);
 
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -3145,6 +3152,7 @@ export function ChatPage() {
 
 			setIsSendingDrawerMedia(true);
 			let finalSentMessage: UiMessage | undefined;
+			let pendingReplyId = replyTargetMessageId;
 			try {
 				// Send each media item as a separate image/video message
 				for (const mediaId of mediaIds) {
@@ -3171,7 +3179,9 @@ export function ChatPage() {
 							...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
 							...(isVideo ? { viewsRemaining: views, maxViews: views } : {}),
 						},
+						replyToMessageId: pendingReplyId,
 					});
+					pendingReplyId = null;
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
@@ -3201,6 +3211,7 @@ export function ChatPage() {
 					}));
 				}
 
+				setReplyTargetMessageId(null);
 				toast.success(t("chat.toasts.media_sent"));
 				setIsDrawerOpen(false);
 
@@ -3222,6 +3233,8 @@ export function ChatPage() {
 			t,
 			syncConversation,
 			loadDrawerMedia,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
