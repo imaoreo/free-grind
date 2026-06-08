@@ -114,7 +114,7 @@ export function ProfileEditorFormSections({
 	return (
 		<div className="grid gap-5">
 			{/* Pictures */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.pictures.title")}
 					description={t("profile_editor.sections.pictures.description")}
@@ -225,7 +225,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Profile / Basic Info */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.profile.title")}
 					description={t("profile_editor.sections.profile.description")}
@@ -307,7 +307,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Visiting Mode */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.visiting_mode.title")}
 					description={t("profile_editor.sections.visiting_mode.description")}
@@ -379,7 +379,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Stats / States */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.states.title")}
 					description={t("profile_editor.sections.states.description")}
@@ -396,7 +396,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.age")}
 							</label>
 							<input
@@ -409,7 +409,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.height")}
 							</label>
 							<input
@@ -422,7 +422,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.weight")}
 							</label>
 							<input
@@ -435,7 +435,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.ethnicity")}
 							</label>
 							<select
@@ -452,7 +452,7 @@ export function ProfileEditorFormSections({
 							</select>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.body_type")}
 							</label>
 							<select
@@ -477,7 +477,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.position")}
 							</label>
 							<select
@@ -504,7 +504,7 @@ export function ProfileEditorFormSections({
 							/>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.relationship_status")}
 							</label>
 							<select
@@ -525,7 +525,7 @@ export function ProfileEditorFormSections({
 					</div>
 
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.states.tribes")}
 						</p>
 						<ChipGroup
@@ -538,7 +538,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Expectations */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.expectations.title")}
 					description={t("profile_editor.sections.expectations.description")}
@@ -546,7 +546,7 @@ export function ProfileEditorFormSections({
 				/>
 				<div className="grid gap-4">
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.expectations.looking_for")}
 						</p>
 						<ChipGroup
@@ -556,7 +556,7 @@ export function ProfileEditorFormSections({
 						/>
 					</div>
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.expectations.meet_at")}
 						</p>
 						<ChipGroup
@@ -566,7 +566,7 @@ export function ProfileEditorFormSections({
 						/>
 					</div>
 					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.expectations.accept_nsfw")}
 						</label>
 						<select
@@ -586,7 +586,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Identity */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.identity.title")}
 					description={t("profile_editor.sections.identity.description")}
@@ -594,7 +594,7 @@ export function ProfileEditorFormSections({
 				/>
 				<div className="grid gap-4">
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.identity.gender")}
 						</p>
 						{genderOptions.length > 0 ? (
@@ -610,7 +610,7 @@ export function ProfileEditorFormSections({
 						)}
 					</div>
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.identity.pronouns")}
 						</p>
 						{pronounOptions.length > 0 ? (
@@ -629,7 +629,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Health */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.health.title")}
 					description={t("profile_editor.sections.health.description")}
@@ -638,7 +638,7 @@ export function ProfileEditorFormSections({
 				<div className="grid gap-4">
 					<div className="grid gap-4 md:grid-cols-2">
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.health.hiv_status")}
 							</label>
 							<select
@@ -655,7 +655,7 @@ export function ProfileEditorFormSections({
 							</select>
 						</div>
 						<div>
-							<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.health.last_tested")}
 							</label>
 							<input
@@ -670,7 +670,7 @@ export function ProfileEditorFormSections({
 					</div>
 
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.health.health_practices")}
 						</p>
 						<ChipGroup
@@ -680,7 +680,7 @@ export function ProfileEditorFormSections({
 						/>
 					</div>
 					<div>
-						<p className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.health.vaccinations")}
 						</p>
 						<ChipGroup
@@ -693,7 +693,7 @@ export function ProfileEditorFormSections({
 			</div>
 
 			{/* Social */}
-			<div className="surface-card rounded-3xl p-4 sm:p-5">
+			<div className="surface-card p-4 sm:p-5">
 				<CategoryHeader
 					title={t("profile_editor.sections.social.title")}
 					description={t("profile_editor.sections.social.description")}
@@ -701,7 +701,7 @@ export function ProfileEditorFormSections({
 				/>
 				<div className="grid gap-4 md:grid-cols-3">
 					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.social.instagram")}
 						</label>
 						<input
@@ -713,7 +713,7 @@ export function ProfileEditorFormSections({
 						/>
 					</div>
 					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.social.twitter")}
 						</label>
 						<input
@@ -725,7 +725,7 @@ export function ProfileEditorFormSections({
 						/>
 					</div>
 					<div>
-						<label className="mb-2 block text-sm font-medium text-[var(--text-muted)]">
+						<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 							{t("profile_editor.sections.social.facebook")}
 						</label>
 						<input
@@ -741,7 +741,7 @@ export function ProfileEditorFormSections({
 
 			{/* Other / Account Info */}
 			<div className="grid gap-4">
-				<div className="surface-card rounded-3xl p-4 sm:p-5">
+				<div className="surface-card p-4 sm:p-5">
 					<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 						{t("profile_editor.sections.other.title")}
 					</p>
