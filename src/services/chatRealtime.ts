@@ -67,6 +67,7 @@ export class ChatRealtimeManager {
 	private stopped = true;
 	private suppressDisconnectStatus = false;
 	private lastActivityAt = 0;
+	private currentToken: string | null = null;
 	private pendingCommands = new Map<
 		string,
 		{ resolve: (result: unknown) => void; reject: (err: Error) => void; timer: number }
@@ -157,6 +158,10 @@ export class ChatRealtimeManager {
 				reject(err instanceof Error ? err : new Error(String(err)));
 			}
 		});
+	}
+
+	getActiveToken(): string | null {
+		return this.currentToken;
 	}
 
 	private setStatus(next: RealtimeStatus) {
@@ -339,6 +344,7 @@ export class ChatRealtimeManager {
 			const token = this.options.getToken
 				? await this.options.getToken()
 				: null;
+			this.currentToken = token;
 
 			const url = this.buildUrlWithToken(this.options.url, token);
 			// appLog.debug("[chat-ws] building socket instance...", { url_len: url.length });
@@ -422,7 +428,15 @@ export class ChatRealtimeManager {
 					this.suppressDisconnectStatus = false;
 					return;
 				}
-				this.reconnectAttempts += 1;
+				// 4401 = server closed because an expired token was used in a command.
+				// Reset backoff so we reconnect immediately with a fresh token instead
+				// of waiting through exponential delay.
+				if (event.code === 4401) {
+					appLog.debug("[chat-ws] token expired (4401); reconnecting immediately");
+					this.reconnectAttempts = 0;
+				} else {
+					this.reconnectAttempts += 1;
+				}
 				this.scheduleReconnect();
 			};
 		} catch (error) {
@@ -434,22 +448,20 @@ export class ChatRealtimeManager {
 }
 
 let _activeManager: ChatRealtimeManager | null = null;
-let _activeToken: string | null = null;
 
 export function setActiveRealtimeManager(
 	manager: ChatRealtimeManager | null,
-	token: string | null,
 ) {
 	_activeManager = manager;
-	_activeToken = token;
 }
 
 export function sendViaRealtime(
 	commandType: string,
 	payload: unknown,
 ): Promise<unknown> {
-	if (!_activeManager || !_activeToken) {
+	const token = _activeManager?.getActiveToken() ?? null;
+	if (!_activeManager || !token) {
 		return Promise.reject(new Error("WebSocket not available"));
 	}
-	return _activeManager.send(commandType, _activeToken, payload);
+	return _activeManager.send(commandType, token, payload);
 }
