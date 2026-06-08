@@ -102,6 +102,7 @@
         "session_placeholder": "Que recherches-tu ?",
         "char_limit": "{{count}}/140",
         "add_photo": "Ajouter une photo",
+        "add_video": "Ajouter une vidéo",
         "i_am_hosting": "Je reçois",
         "start_now": "Commencez",
         "update_now": "Mettre à jour maintenant",
@@ -482,9 +483,12 @@
             "shared_album": "A partagé un album",
             "sent_audio": "A envoyé un message vocal",
             "reacted_album_content": "A réagi au contenu de l'album",
+            "tapped_album_photo_yours": "A aimé votre photo d'album",
+            "tapped_album_photo_theirs": "Vous avez aimé sa photo d'album",
             "sent_video": "A envoyé une vidéo",
             "sent_message": "A envoyé un message",
-            "sent_location": "A envoyé une position"
+            "sent_location": "A envoyé une position",
+            "replied_profile_photo": "A répondu à une photo de profil"
         },
         "thread": {
             "unsent": "Message retiré",
@@ -494,6 +498,7 @@
             "unsupported_placeholder": "[Format non supporté]",
             "shared_image": "A partagé une image",
             "shared_video": "A partagé une vidéo",
+            "video_expired": "Expiré",
             "shared_audio": "A partagé un audio",
             "failed": "Échec de l'envoi",
             "from_local_history": "De votre historique local",
@@ -501,6 +506,9 @@
             "taken_on_grindr": "Pris sur Grindr",
             "album_cover": "Couverture de l'album",
             "album_share": "Album partagé",
+            "album_image": "Image d'album",
+            "replied_to_photo": "A répondu à votre photo de profil",
+            "reacted_to_image": "A réagi à votre image d'album",
             "location_placeholder": "[Position]",
             "location_shared": "Position partagée"
         },
@@ -524,8 +532,13 @@
         "attachments": {
             "ready_to_send": "Prêt à envoyer : {{file}}",
             "looping": "En boucle",
+            "looping_description": "La vidéo sera lue en boucle",
+            "max_views": "Vues max",
+            "view_once": "Voir une fois",
+            "view_once_description": "L'image ne peut être vue qu'une seule fois pendant 10 secondes",
             "taken_on_grindr": "PrisSurGrindr",
-            "send_attachment": "Envoyer la pièce jointe",
+            "send": "Envoyer",
+            "send_expiring": "Envoyer éphémère",
             "uploading": "Téléversement...",
             "too_large": "Le fichier est trop volumineux. La limite est de 12 Mo.",
             "only_image_video": "Seuls les formats image et vidéo sont supportés."
@@ -571,6 +584,15 @@
             "write_first_message": "Écrivez votre premier message...",
             "no_messages_yet": "",
             "send_first_message_hint": ""
+        },
+        "media_sheet": {
+            "title": "Médias reçus",
+            "tab_albums": "Albums",
+            "tab_media": "Médias",
+            "albums_empty_title": "Aucun album partagé pour l'instant",
+            "albums_empty_desc": "Les albums partagés avec vous apparaîtront ici",
+            "media_empty_title": "Aucun média reçu pour l'instant",
+            "media_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici"
         },
         "tabs": {
             "inbox": "Messagerie",
@@ -1073,6 +1095,7 @@
         "error_no_selection": "Veuillez sélectionner au moins une image.",
         "error_send_failed": "Échec de l'envoi du média.",
         "add_photo": "Ajouter une photo",
+        "add_video": "Ajouter une vidéo",
         "delete_media": "Supprimer le média",
         "take_photo": "Prendre une photo",
         "upload_photo": "Importer une photo",

@@ -137,6 +137,7 @@
         "session_placeholder": "What are you looking for?",
         "char_limit": "{{count}}/140",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "i_am_hosting": "Hosting",
         "show_on_map": "Show me on map",
         "start_now": "Start Now",
@@ -745,9 +746,12 @@
             "shared_album": "Shared an album",
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
+            "tapped_album_photo_yours": "Tapped your album photo",
+            "tapped_album_photo_theirs": "Tapped their album photo",
             "sent_video": "Sent a video",
             "sent_location": "Sent a location",
-            "sent_message": "Sent a message"
+            "sent_message": "Sent a message",
+            "replied_profile_photo": "Replied to a profile photo"
         },
         "thread": {
             "unsent": "This message was unsent",
@@ -758,6 +762,7 @@
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
             "shared_video": "Shared a video",
+            "video_expired": "Expired",
             "shared_audio": "Shared an audio message",
             "location_shared": "Location shared",
             "failed": "Failed",
@@ -765,7 +770,11 @@
             "shared_alt": "Shared",
             "taken_on_grindr": "Taken on Grindr",
             "album_cover": "Album cover",
-            "album_share": "Album share"
+            "album_share": "Album share",
+            "album_image": "Album image",
+            "replied_to_photo": "Replied to your profile photo",
+            "reacted_to_image": "Reacted to your album image",
+            "audio_label": "Audio"
         },
         "actions": {
             "title": "Message actions",
@@ -787,10 +796,15 @@
         "attachments": {
             "only_image_video": "Only image and video attachments are supported.",
             "ready_to_send": "Ready to send: {{file}}",
-            "looping": "looping",
+            "looping": "Looping",
+            "looping_description": "The video will play on repeat",
+            "max_views": "Max views",
+            "view_once": "View once",
+            "view_once_description": "The image can only be viewed once for 10 seconds",
             "taken_on_grindr": "Taken on Grindr watermark",
             "taken_on_grindr_description": "Include the timestamp to certify the authenticy and recency of your photo",
-            "send_attachment": "Send attachment",
+            "send": "Send",
+            "send_expiring": "Send expiring",
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."
         },
@@ -845,6 +859,15 @@
             "write_first_message": "Write your first message...",
             "no_messages_yet": "No messages yet",
             "send_first_message_hint": "Send a message below to start the conversation."
+        },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
         }
     },
     "chat_drawer": {
@@ -856,6 +879,7 @@
         "error_no_selection": "Please select at least one image.",
         "error_send_failed": "Failed to send media.",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "delete_media": "Delete media",
         "media_alt": "Drawer media",
         "take_photo": "Take photo",
@@ -865,8 +889,8 @@
         "delete_confirm_title": "Delete from drawer?",
         "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
         "delete_confirm_label": "Delete",
-        "is_expiring_toggle_on": "10s",
-        "is_expiring_toggle_off": "Off",
+        "is_expiring_toggle_on": "1×",
+        "is_expiring_toggle_off": "unlimited",
         "is_expiring_send": "Send expiring ({{count}})",
         "is_expiring_title_on": "Expiring (10s)",
         "is_expiring_title_off": "Send normal"
