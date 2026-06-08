@@ -660,7 +660,7 @@ export function ProfileEditorPage() {
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
-				<header className="mb-7">
+				<header>
 					<BackToSettings />
 					<h1 className="app-title mb-1">{t("profile_editor.title")}</h1>
 					<p className="app-subtitle">{t("profile_editor.subtitle")}</p>
