@@ -914,10 +914,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "RU (metros + pies/pulgadas)",
         "units_american": "Inglés (millas + pies/pulgadas)",
-        "blur_incoming_media": "Desenfocar contenido entrante",
-        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos entrantes en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
-        "enabled": "Habilitado",
-        "disabled": "Deshabilitado"
+        "blur_incoming_media": "Desenfocar contenido del chat",
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves."
     },
     "chat_filters": {
         "title": "Filtros de chat",
