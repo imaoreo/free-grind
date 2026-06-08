@@ -1579,6 +1579,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								<textarea
 									value={draft}
 									onChange={(event) => setDraft(event.target.value)}
+									onKeyDown={(event) => {
+										if (isDesktop && event.key === "Enter" && !event.shiftKey) {
+											event.preventDefault();
+											event.currentTarget.form?.requestSubmit();
+										}
+									}}
 									rows={1}
 									maxLength={1000}
 									placeholder={selectedConversation ? t("chat.write_message") : t("chat.new_conversation.write_first_message")}
