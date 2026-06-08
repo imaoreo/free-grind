@@ -1,57 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Eye, EyeOff, Ghost, ImageOff } from "lucide-react";
+import { BarChart3, Eye, Ghost, ImageOff } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
+import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import {
 	readAnalyticsConsentChoice,
 	writeAnalyticsConsentChoice,
 	type AnalyticsConsentChoice,
 } from "../../utils/analyticsConsent";
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-	return (
-		<span className="relative mt-0.5 inline-flex h-7 w-12 shrink-0 cursor-pointer items-center">
-			<input
-				type="checkbox"
-				checked={checked}
-				onChange={(e) => onChange(e.target.checked)}
-				className="peer sr-only"
-			/>
-			<span className="absolute inset-0 rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors peer-checked:border-transparent peer-checked:bg-[var(--accent)]" />
-			<span className="absolute left-1 h-5 w-5 rounded-full bg-[var(--text)] transition-transform peer-checked:translate-x-5 peer-checked:bg-[var(--accent-contrast)]" />
-		</span>
-	);
-}
-
-function ToggleRow({
-	icon,
-	iconClass,
-	label,
-	description,
-	checked,
-	onChange,
-}: {
-	icon: React.ReactNode;
-	iconClass: string;
-	label: string;
-	description?: string;
-	checked: boolean;
-	onChange: (v: boolean) => void;
-}) {
-	return (
-		<label className="flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--surface-2)]">
-			<div className={`rounded-2xl p-2.5 shrink-0 ${iconClass}`}>{icon}</div>
-			<div className="min-w-0 flex-1">
-				<p className="text-sm font-semibold leading-snug">{label}</p>
-				{description && (
-					<p className="mt-0.5 text-xs leading-relaxed text-[var(--text-muted)]">{description}</p>
-				)}
-			</div>
-			<Toggle checked={checked} onChange={onChange} />
-		</label>
-	);
-}
 
 export function SettingsPrivacyPage() {
 	const { t } = useTranslation();

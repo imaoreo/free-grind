@@ -1829,21 +1829,23 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								)
 							)}
 							<div className="px-3 pb-3 grid gap-3">
-								{pendingAttachmentFile?.type.startsWith("video/") ? (
-								<ToggleRow
-									checked={attachmentLooping}
-									onChange={setAttachmentLooping}
-									label={t("chat.attachments.looping")}
-									description={t("chat.attachments.looping_description")}
-								/>
-							) : (
-								<ToggleRow
-									checked={attachmentTakenOnGrindr}
-									onChange={setAttachmentTakenOnGrindr}
-									label={t("chat.attachments.taken_on_grindr")}
-									description={t("chat.attachments.taken_on_grindr_description")}
-								/>
-							)}
+								<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+									{pendingAttachmentFile?.type.startsWith("video/") ? (
+										<ToggleRow
+											checked={attachmentLooping}
+											onChange={setAttachmentLooping}
+											label={t("chat.attachments.looping")}
+											description={t("chat.attachments.looping_description")}
+										/>
+									) : (
+										<ToggleRow
+											checked={attachmentTakenOnGrindr}
+											onChange={setAttachmentTakenOnGrindr}
+											label={t("chat.attachments.taken_on_grindr")}
+											description={t("chat.attachments.taken_on_grindr_description")}
+										/>
+									)}
+								</div>
 							</div>
 						</BottomDrawer>
 					) : null}
