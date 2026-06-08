@@ -240,6 +240,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [isRecording, setIsRecording] = useState(false);
 	const [recordingMs, setRecordingMs] = useState(0);
 	const [waveformBars, setWaveformBars] = useState<number[]>([]);
+	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const waveformBarsRef = useRef<number[]>([]);
 	const [recordedWaveform, setRecordedWaveform] = useState<number[]>([]);
 	const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -525,6 +526,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		if (!attachmentPreviewUrl) return;
 		setAttachmentCrop({ unit: "%", x: 0, y: 0, width: 100, height: 100 });
 	}, [attachmentPreviewUrl]);
+
+	useEffect(() => {
+		if (replyTargetMessage) {
+			textareaRef.current?.focus();
+		}
+	}, [replyTargetMessage]);
 
 	const applyAttachmentTransform = useCallback(async (type: "flipH" | "rotateCw") => {
 		const img = attachmentImgRef.current;
@@ -1577,6 +1584,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</>
 							) : (
 								<textarea
+									ref={textareaRef}
 									value={draft}
 									onChange={(event) => setDraft(event.target.value)}
 									onKeyDown={(event) => {
