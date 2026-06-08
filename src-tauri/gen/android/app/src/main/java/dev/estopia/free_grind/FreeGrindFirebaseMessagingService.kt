@@ -538,6 +538,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d("FCM", "Refreshed token: $token")
+        Log.d("FCM", "Refreshed token (len=${token.length}), dispatching to webview")
+        MainActivity.onFcmTokenRefreshed(token)
     }
 }
