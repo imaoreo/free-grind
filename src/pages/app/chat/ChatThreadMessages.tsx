@@ -630,7 +630,7 @@ export function ChatThreadMessages({
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble && hasReply
-														? `overflow-hidden p-0 ${mine ? `bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]` : `bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]`}`
+														? `overflow-hidden p-0 ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}`
 														: isMediaOnlyBubble
 															? "bg-transparent p-0"
 															: `px-3 py-2 ${
@@ -647,9 +647,15 @@ export function ChatThreadMessages({
 												) : null}
 
 												{(replyText || replyThumbUrl || replyIsAudio || hasReply) ? (
+													<div className={isMediaOnlyBubble && hasReply
+														? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
+														: "contents"
+													}>
 													<div className={`relative flex overflow-hidden text-xs ${
-														isMediaOnlyBubble
-															? `mx-3 mt-3 ${isLocationOnlyBubble && hasReply ? "mb-2" : "mb-3"} rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+														isMediaOnlyBubble && hasReply
+															? `rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+															: isMediaOnlyBubble
+															? `mx-3 mt-3 mb-3 rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
 															: `mt-1 mb-2.5 rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
 													}`}>
 														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
@@ -666,13 +672,15 @@ export function ChatThreadMessages({
 																className="h-14 w-14 shrink-0 object-cover"
 															/>
 														) : replyIsAudio ? (
-															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
+															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "opacity-80" : "opacity-60"}`}>
 																<div className="flex flex-col items-center gap-1">
 																	<Mic className="h-4 w-4" />
 																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
 																</div>
 															</div>
 														) : null}
+													</div>
+													{isMediaOnlyBubble && hasReply ? <div className="pointer-events-none absolute inset-x-0 top-full h-6 z-10 bg-gradient-to-b from-black/25 to-transparent" /> : null}
 													</div>
 												) : null}
 
@@ -706,7 +714,7 @@ export function ChatThreadMessages({
 																});
 															});
 														}}
-														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
@@ -899,7 +907,7 @@ export function ChatThreadMessages({
 												) : null}
 
 												{isExpiredVideo ? (
-														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full rounded-2xl ${tailCorner}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
+														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
 															<div className="flex flex-col items-center gap-1.5 text-white/60">
 																<VideoOff className="h-6 w-6" />
 																<span className="text-xs font-medium">{t("chat.thread.video_expired")}</span>
@@ -919,7 +927,7 @@ export function ChatThreadMessages({
 																type="button"
 																className={`group/media relative block overflow-hidden bg-black ${
 																	isVideoOnlyBubble
-																		? `w-full rounded-2xl ${tailCorner}`
+																		? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}`
 																		: `mb-2 rounded-xl border border-black/10 ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`
 																}`}
 																onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
@@ -1133,7 +1141,7 @@ export function ChatThreadMessages({
 																				event.stopPropagation();
 																				void handleReply(message);
 																			}}
-																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																			className={`rounded-md p-1 ${mine && !(isLocationOnlyBubble && hasReply) ? "hover:bg-white/10" : "hover:bg-black/10"}`}
 																		>
 																			<Reply className="h-3.5 w-3.5" />
 																		</button>
@@ -1147,7 +1155,7 @@ export function ChatThreadMessages({
 																						: message.messageId,
 																				);
 																			}}
-																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
+																			className={`rounded-md p-1 ${mine && !(isLocationOnlyBubble && hasReply) ? "hover:bg-white/10" : "hover:bg-black/10"}`}
 																		>
 																			<Ellipsis className="h-3.5 w-3.5" />
 																		</button>
