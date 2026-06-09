@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X, Ban, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, X, Ban, Loader2, MapPin } from "lucide-react";
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -6,6 +6,9 @@ import {
 	useModalClose,
 } from "../../../../hooks/useModalClose";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
+import { useApiFunctions } from "../../../../hooks/useApiFunctions";
+import { useAuth } from "../../../../contexts/useAuth";
+import { profileResponseSchema } from "../../profile-editor/profileEditorUtils";
 import type {
 	BrowseCard,
 	ManagedOption,
@@ -29,6 +32,7 @@ import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { formatDateTime24 } from "../../chat/chatUtils";
 import {
 	formatEstimatedAccountCreation,
+	formatDistance,
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
@@ -42,6 +46,9 @@ import { useDesktopBreakpoint } from "../../../../hooks/useDesktopBreakpoint";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
 import { FeedScrollContainer } from "../../../../components/ui/FeedScrollContainer";
+
+type OwnProfileData = { tags: string[] };
+const ownProfileDataCache = new Map<string, OwnProfileData>();
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -127,6 +134,25 @@ export function ProfileDetailsModal({
 }: ProfileDetailsModalProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
+	const { userId } = useAuth();
+	const apiFunctions = useApiFunctions();
+	const [ownTags, setOwnTags] = useState<string[]>(() => (userId ? (ownProfileDataCache.get(userId)?.tags ?? []) : []));
+	useEffect(() => {
+		if (!userId) return;
+		if (ownProfileDataCache.has(userId)) {
+			setOwnTags(ownProfileDataCache.get(userId)!.tags);
+			return;
+		}
+		apiFunctions.getRawProfile(userId).then((raw) => {
+			const parsed = profileResponseSchema.safeParse(raw);
+			if (parsed.success) {
+				const p = parsed.data.profiles[0];
+				const data: OwnProfileData = { tags: p?.profileTags ?? [] };
+				ownProfileDataCache.set(userId, data);
+				setOwnTags(data.tags);
+			}
+		}).catch(() => {});
+	}, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 	const activeProfileName = useMemo(() => {
 		if (!activeProfile) {
 			return t("profile_details.title");
@@ -166,6 +192,10 @@ export function ProfileDetailsModal({
 						count: profileStatusMeta.count,
 					}),
 				});
+	const profileStatusLevel: "online" | "recent" | "offline" =
+		profileStatusMeta.isOnline ? "online"
+		: profileStatusMeta.labelKey === "browse_page.status_minutes_ago" && (profileStatusMeta.count ?? 99) <= 10 ? "recent"
+		: "offline";
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const usesFreegrind = usePresenceCheck(messageProfileId);
@@ -180,8 +210,8 @@ export function ProfileDetailsModal({
 			? "inline-flex h-16 w-16 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] text-4xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative"
 			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
 	const triangleButtonClassName = isTriangleDisabled
-		? "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
-		: "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]";
+		? "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text-muted)] opacity-70"
+		: "inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]";
 
 	const lookingForLabels = useMemo(() => getLookingForLabelMap(t), [t]);
 	const meetAtLabels = useMemo(() => getMeetAtLabelMap(t), [t]);
@@ -297,6 +327,100 @@ export function ProfileDetailsModal({
 	const [mobileCarouselPhotoIndex, setMobileCarouselPhotoIndex] = useState(0);
 	const isDesktopLike = useDesktopBreakpoint();
 	const mobileCarouselRef = useRef<HTMLDivElement | null>(null);
+	const isCarouselRepositioning = useRef(false);
+	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+	const pageWrapRef = useRef<HTMLDivElement | null>(null);
+	const [profileSwipeDelta, setProfileSwipeDelta] = useState(0);
+	const profileSwipeRef = useRef({ startX: 0, startY: 0, decided: false, horizontal: false, dragging: false, lastDelta: 0 });
+	const [headerOpacity, setHeaderOpacity] = useState(0);
+	const [headerFadeDuration, setHeaderFadeDuration] = useState(0);
+	const headerScrolled = headerOpacity > 0.5;
+
+	useEffect(() => {
+		const el = scrollContainerRef.current;
+		if (!el) return;
+		setHeaderOpacity(0);
+		setHeaderFadeDuration(0);
+		let lastScrollTop = 0;
+		const onScroll = () => {
+			const scrollTop = el.scrollTop;
+			const scrollingDown = scrollTop > lastScrollTop;
+			lastScrollTop = scrollTop;
+			setHeaderFadeDuration(scrollingDown ? 0 : 400);
+			setHeaderOpacity(Math.min(scrollTop / 150, 1));
+		};
+		el.addEventListener("scroll", onScroll, { passive: true });
+		return () => el.removeEventListener("scroll", onScroll);
+	}, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
+        const el = pageWrapRef.current;
+
+        if (
+            !el ||
+            !isOpen ||
+            selectedPhotoIndex !== null ||
+            variant !== "page" ||
+            (!onPrevProfile && !onNextProfile)
+        ) {
+            return;
+        }
+
+		const s = profileSwipeRef.current;
+
+		const onStart = (e: TouchEvent) => {
+			s.startX = e.touches[0].clientX;
+			s.startY = e.touches[0].clientY;
+			s.decided = false;
+			s.horizontal = false;
+			s.dragging = false;
+			s.lastDelta = 0;
+		};
+
+		const onMove = (e: TouchEvent) => {
+			const dx = e.touches[0].clientX - s.startX;
+			const dy = e.touches[0].clientY - s.startY;
+			if (!s.decided) {
+				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+				s.decided = true;
+				s.horizontal = Math.abs(dx) >= Math.abs(dy);
+			}
+			if (!s.horizontal) return;
+			e.preventDefault();
+			s.dragging = true;
+			s.lastDelta = dx;
+			setProfileSwipeDelta(dx);
+		};
+
+		const onEnd = () => {
+			if (!s.dragging) return;
+			s.dragging = false;
+			s.horizontal = false;
+			const dx = s.lastDelta;
+			s.lastDelta = 0;
+			setProfileSwipeDelta(0);
+			if (dx < -80) onNextProfile?.();
+			else if (dx > 80) onPrevProfile?.();
+		};
+
+		el.addEventListener("touchstart", onStart, { passive: true });
+		el.addEventListener("touchmove", onMove, { passive: false });
+		el.addEventListener("touchend", onEnd, { passive: true });
+		el.addEventListener("touchcancel", onEnd, { passive: true });
+		return () => {
+			el.removeEventListener("touchstart", onStart);
+			el.removeEventListener("touchmove", onMove);
+			el.removeEventListener("touchend", onEnd);
+			el.removeEventListener("touchcancel", onEnd);
+		};
+	}, [
+        isOpen,
+        selectedPhotoIndex,
+        variant,
+        onNextProfile,
+        onPrevProfile,
+    ]);
+
 	useModalClose({ isOpen, onClose });
 	const handleBackdropClose = useMemo(
 		() => createBackdropCloseHandler(onClose),
@@ -311,6 +435,7 @@ export function ProfileDetailsModal({
 
 	useEffect(() => {
 		setSelectedPhotoIndex(null);
+		setMobileCarouselPhotoIndex(0);
 	}, [activeProfile?.profileId, activeProfilePhotoHashes.length]);
 
 	const handleMobileCarouselScroll = (event: UIEvent<HTMLDivElement>) => {
@@ -405,20 +530,31 @@ export function ProfileDetailsModal({
 	if (variant === "page") {
 		return (
 			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 !pt-0 overflow-x-hidden bg-[var(--bg)]">
+				<div
+					ref={pageWrapRef}
+					className="relative flex h-full flex-col"
+					style={{
+						transform: `translateX(${profileSwipeDelta}px)`,
+						transition: profileSwipeDelta === 0 ? "transform 250ms ease-out" : "none",
+					}}
+				>
 				<header className="pointer-events-none absolute inset-x-0 top-0 z-40 flex shrink-0 flex-col px-[var(--app-px)] pb-3 pt-[calc(env(safe-area-inset-top,0px)+10px)] sm:pb-3.5 sm:pt-[calc(env(safe-area-inset-top,0px)+12px)]">
-					<div className="flex w-full items-center gap-3">
-						<div className="pointer-events-auto flex flex-1 justify-start">
+					<div
+						className={`absolute inset-0 bg-[var(--bg)] backdrop-blur-xl ${headerScrolled ? "border-b border-[var(--border)]" : ""}`}
+						style={{ opacity: headerOpacity, transition: `opacity ${headerFadeDuration}ms ease-out` }}
+						aria-hidden="true"
+					/>
+					<div className="relative flex w-full items-center gap-3">
+						<div className="pointer-events-auto flex shrink-0 items-center gap-3">
 							<button
 								type="button"
 								onClick={onClose}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
+								className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-colors cursor-pointer ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 								aria-label={t("settings.back_to_browse")}
 							>
 								<ArrowLeft className="h-4 w-4" />
 							</button>
 						</div>
-
-
 
 						<div className="pointer-events-auto flex flex-1 items-center justify-end gap-1">
 							{messageProfileId && (onBlockProfile || onUnblockProfile) && (
@@ -432,10 +568,12 @@ export function ProfileDetailsModal({
 										}
 									}}
 									disabled={isBlockingProfile}
-									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md hover:bg-[var(--surface-2)]/50 transition-colors disabled:opacity-50 cursor-pointer ${
+									className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:opacity-50 cursor-pointer ${
 										isBlocked
-											? "bg-red-500/10 text-red-500"
-											: "bg-[var(--surface)]/30 text-[var(--text-muted)] hover:text-red-500"
+											? "border-red-500/30 bg-red-500/10 text-red-500"
+											: headerScrolled
+												? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-red-500"
+												: "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md hover:text-red-300"
 									}`}
 									title={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
 									aria-label={isBlocked ? t("profile_details.unblock", "Unblock Profile") : t("profile_details.block", "Block Profile")}
@@ -451,7 +589,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onPrevProfile}
 								disabled={!onPrevProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
+								className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:opacity-30 cursor-pointer ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 								aria-label={t("profile_details.previous_profile")}
 							>
 								<ChevronLeft className="h-4 w-4" />
@@ -460,7 +598,7 @@ export function ProfileDetailsModal({
 								type="button"
 								onClick={onNextProfile}
 								disabled={!onNextProfile}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md disabled:opacity-30 hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
+								className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:opacity-30 cursor-pointer ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 								aria-label={t("profile_details.next_profile")}
 							>
 								<ChevronRight className="h-4 w-4" />
@@ -469,8 +607,8 @@ export function ProfileDetailsModal({
 					</div>
 				</header>
 
-				<FeedScrollContainer>
-					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)]">
+				<FeedScrollContainer ref={scrollContainerRef}>
+					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pt-0 sm:pb-5">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("profile_details.loading")}
@@ -493,6 +631,8 @@ export function ProfileDetailsModal({
 								activeProfileName={activeProfileName}
 								estimatedCreatedAt={estimatedCreatedAt}
 								profileStatusLabel={profileStatusLabel}
+								profileStatusLevel={profileStatusLevel}
+								ownTags={ownTags}
 								profileDistance={profileDistance}
 								chatContactStatus={chatContactStatus ?? null}
 								messageProfileId={messageProfileId}
@@ -502,6 +642,7 @@ export function ProfileDetailsModal({
 								onBlockProfile={onBlockProfile}
 								onUnblockProfile={onUnblockProfile}
 								onToggleFavoriteProfile={onToggleFavoriteProfile}
+								onPhotoIndexChange={setMobileCarouselPhotoIndex}
 								isFavorite={isFavorite}
 								isTogglingFavorite={isTogglingFavorite}
 								isBlocked={isBlocked}
@@ -541,6 +682,7 @@ export function ProfileDetailsModal({
 					</div>
 				</FeedScrollContainer>
 				{photoViewerOverlay}
+				</div>
 			</div>
 		);
 	}
@@ -554,9 +696,20 @@ export function ProfileDetailsModal({
 				className="surface-card flex max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:max-h-[calc(100dvh-8rem)]"
 				onClick={(event) => event.stopPropagation()}
 			>
-				<div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
-					<div>
-						<p className="text-base font-semibold">{activeProfileName}</p>
+				<div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
+					<div className="min-w-0 flex-1">
+						<div className="flex items-center gap-2">
+							<p className="truncate text-base font-semibold">{activeProfileName}</p>
+							{activeProfile?.age != null && Number.isFinite(activeProfile.age) && (
+								<span className="shrink-0 text-sm text-[var(--text-muted)]">{activeProfile.age}</span>
+							)}
+						</div>
+						{profileDistance != null && (
+							<p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
+								<MapPin className="h-3 w-3 shrink-0" />
+								{formatDistance(profileDistance, t, unitsPreset)}
+							</p>
+						)}
 					</div>
 					<div className="flex items-center gap-1.5">
 						{messageProfileId && (onBlockProfile || onUnblockProfile) && (
@@ -622,6 +775,8 @@ export function ProfileDetailsModal({
 							activeProfileName={activeProfileName}
 							estimatedCreatedAt={estimatedCreatedAt}
 							profileStatusLabel={profileStatusLabel}
+							profileStatusLevel={profileStatusLevel}
+							ownTags={ownTags}
 							profileDistance={profileDistance}
 							chatContactStatus={chatContactStatus ?? null}
 							messageProfileId={messageProfileId}
