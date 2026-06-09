@@ -193,14 +193,14 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					isOutsideAgeLimits(profileAge, "chat");
 
 				if (shouldBlock) {
- 				const profileId = data.participants?.[0]?.profileId;
- 				if (profileId) {
- 					const reason = isOutsideAgeLimits(profileAge, "chat") ? `Age Limit (${profileAge})` : "Keyword match";
- 					notifyAutoBlock(displayName || profileId, reason);
- 					fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
- 				}
- 				continue; // Do NOT show them in the inbox!
- 			}
+                    const profileId = data.participants?.[0]?.profileId;
+                    if (profileId) {
+                        const reason = isOutsideAgeLimits(profileAge, "chat") ? `Age Limit (${profileAge})` : "Keyword match";
+                        notifyAutoBlock(displayName || profileId, reason);
+                        fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
+                    }
+                    continue; // Do NOT show them in the inbox!
+                }
 				
 				safeEntries.push(entry);
 			}

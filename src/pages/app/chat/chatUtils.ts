@@ -202,6 +202,10 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 		case "Image":
 		case "ExpiringImage":
 			return t("chat.preview.sent_image");
+		case "Giphy":
+			return t("chat.preview.sent_gif");
+		case "Gaymoji":
+			return t("chat.preview.sent_gaymoji");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
@@ -232,6 +236,10 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 		case "Image":
 		case "ExpiringImage":
 			return t("chat.preview.sent_image");
+		case "Giphy":
+			return t("chat.preview.sent_gif");
+		case "Gaymoji":
+			return t("chat.preview.sent_gaymoji");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
@@ -288,6 +296,14 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		return t("chat.thread.shared_image");
 	}
 
+	if (message.type === "Giphy") {
+		return t("chat.thread.shared_gif");
+	}
+
+	if (message.type === "Gaymoji") {
+		return "";
+	}
+
 	if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
 		return t("chat.thread.shared_video");
 	}
@@ -330,6 +346,7 @@ export function getMessageImageUrl(message: UiMessage): string | null {
 	const isImageMessage =
 		message.type === "Image" ||
 		message.type === "ExpiringImage" ||
+		message.type === "Giphy" ||
 		imageType === "image" ||
 		imageType === "expiring_image";
 
@@ -756,3 +773,12 @@ export function getParticipantOnlineMeta(
 }
 
 export { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
+
+export function getGaymojiUrl(message: UiMessage): string | null {
+	if (message.type !== "Gaymoji") return null;
+	const body = message.body as Record<string, unknown> | null | undefined;
+	const imageHash = typeof body?.imageHash === "string" ? body.imageHash : null;
+	if (!imageHash) return null;
+	const path = imageHash.startsWith("/") ? imageHash : `/${imageHash}`;
+	return `https://cdns.grindr.com/grindr/chat${path}`;
+}

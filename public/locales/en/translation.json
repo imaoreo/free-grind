@@ -769,6 +769,8 @@
         },
         "preview": {
             "sent_image": "Sent an image",
+            "sent_gif": "Sent a GIF",
+            "sent_gaymoji": "Sent a Gaymoji",
             "shared_album": "Shared an album",
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
@@ -787,6 +789,7 @@
             "location_placeholder": "[location]",
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
+            "shared_gif": "Shared a GIF",
             "shared_video": "Shared a video",
             "video_expired": "Expired",
             "shared_audio": "Shared an audio message",

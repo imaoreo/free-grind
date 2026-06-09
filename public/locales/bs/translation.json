@@ -451,6 +451,8 @@
         },
         "preview": {
             "sent_image": "",
+            "sent_gif": "",
+            "sent_gaymoji": "",
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
@@ -467,6 +469,7 @@
             "audio_placeholder": "",
             "unsupported_placeholder": "",
             "shared_image": "",
+            "shared_gif": "",
             "shared_video": "",
             "video_expired": "Istekao",
             "shared_audio": "",

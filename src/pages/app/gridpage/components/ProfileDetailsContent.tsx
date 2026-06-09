@@ -309,8 +309,8 @@ export function ProfileDetailsContent({
 	const glassOverlay = showGlassQuickActions && messageProfileId ? (
 		<>
 			<div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-52 bg-gradient-to-t from-black/80 to-transparent" />
-			<div className="pointer-events-none absolute inset-x-0 bottom-8 z-20">
-				<div className="pointer-events-auto flex items-center justify-center gap-4 px-3">
+			<div className="pointer-events-none absolute inset-x-0 bottom-8 z-20 flex justify-center">
+				<div className="pointer-events-auto flex items-center gap-4 px-3">
 					<button
 						type="button"
 						onClick={() => onMessageProfile?.(messageProfileId)}

@@ -683,6 +683,8 @@
         },
         "preview": {
             "sent_image": "Enviou uma imagem",
+            "sent_gif": "Enviou um GIF",
+            "sent_gaymoji": "Enviou um Gaymoji",
             "shared_album": "Compartilhou um álbum",
             "sent_audio": "Envie uma mensagem de áudio",
             "reacted_album_content": "Reagi ao conteúdo do álbum",
@@ -701,6 +703,7 @@
             "location_placeholder": "[localização]",
             "unsupported_placeholder": "[mensagem não suportada]",
             "shared_image": "Compartilhou uma imagem",
+            "shared_gif": "Compartilhou um GIF",
             "shared_video": "Compartilhou um vídeo",
             "video_expired": "Expirado",
             "shared_audio": "Compartilhou uma mensagem de áudio",

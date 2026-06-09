@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 export type PhotoViewerMedia = {
@@ -153,7 +154,7 @@ export function PhotoViewer({
 	const type = isString ? "image" : currentMedia.type;
 	const alt = isString ? "" : currentMedia.alt;
 
-	return (
+	return createPortal(
 		<div
 			className="fixed inset-0 z-[80] flex items-center justify-center bg-black/90 p-3 sm:p-6"
 			onClick={onClose}
@@ -244,6 +245,7 @@ export function PhotoViewer({
 					</p>
 				)}
 			</div>
-		</div>
+		</div>,
+		document.body,
 	);
 }
