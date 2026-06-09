@@ -546,7 +546,7 @@
         "default_interest_view": "Standard-Ansicht",
         "interest_show_taps": "Taps zuerst",
         "interest_show_views": "Views zuerst",
-        "browse_grid_mobile": "Browse-Raster (Mobil)",
+        "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "browse_grid_mobile_desc": "Anzahl der Profile pro Reihe auf dem Handy anpassen.",
         "color_scheme": "Farbschema",
         "accent_color": "Akzentfarbe",
@@ -555,7 +555,6 @@
         "picker": "Auswahl",
         "apply_hex": "Hex anwenden",
         "hex_error": "Gib eine gültige Hex-Farbe wie #22c55e oder 22c55e ein",
-        "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "columns_2": "2 Spalten",
         "columns_3": "3 Spalten",
         "reveal_effect": {
@@ -725,6 +724,8 @@
         },
         "preview": {
             "sent_image": "Hat ein Bild gesendet",
+            "sent_gif": "Hat ein GIF gesendet",
+            "sent_gaymoji": "Hat ein Gaymoji gesendet",
             "shared_album": "Hat ein Album geteilt",
             "sent_audio": "Hat eine Sprachnachricht gesendet",
             "reacted_album_content": "Hat auf Albuminhalt reagiert",
@@ -743,6 +744,7 @@
             "location_placeholder": "[Standort]",
             "unsupported_placeholder": "[Nicht unterstützte Nachricht]",
             "shared_image": "Hat ein Bild geteilt",
+            "shared_gif": "Hat ein GIF geteilt",
             "shared_video": "Hat ein Video geteilt",
             "video_expired": "Abgelaufen",
             "shared_audio": "Hat eine Sprachnachricht geteilt",

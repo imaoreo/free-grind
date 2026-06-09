@@ -21,6 +21,7 @@ import {
 	getMessageAlbumId,
 	getMessageAudioUrl,
 	getMessageImageCreatedAt,
+	getGaymojiUrl,
 	getMessageImageUrl,
 	getMessageLocation,
 	getMessageTakenOnGrindr,
@@ -421,6 +422,7 @@ export function ChatThreadMessages({
 								const pending = message.clientState === "pending";
 								const localOnly = message._localOnly === true;
 								const imageUrl = getMessageImageUrl(message);
+								const gaymojiUrl = getGaymojiUrl(message);
 								const messageTakenOnGrindr = getMessageTakenOnGrindr(message);
 								const imageCreatedAt = getMessageImageCreatedAt(message);
 								const imageCreatedAtLabel =
@@ -456,12 +458,19 @@ export function ChatThreadMessages({
 									?? albumOwnerProfileId
 									?? null;
 								const replyIsImage = replyPreviewRaw?.type === "Image" || replyPreviewRaw?.type === "ExpiringImage"
-									|| replyPreviewRaw?.chat1Type === "image" || replyPreviewRaw?.chat1Type === "expiring_image";
+									|| replyPreviewRaw?.type === "Giphy"
+									|| replyPreviewRaw?.chat1Type === "image" || replyPreviewRaw?.chat1Type === "expiring_image"
+									|| replyToMsgRef?.type === "Giphy" || replyToMsg?.type === "Giphy";
 								const replyIsAudio = replyPreviewRaw?.type === "Audio" || replyPreviewRaw?.chat1Type === "audio"
 									|| replyToMsgRef?.type === "Audio" || replyToMsg?.type === "Audio";
 								const replyImageUrl = replyToMsg ? getMessageImageUrl(replyToMsg) : null;
 								const replyImageHash = typeof replyPreviewRaw?.imageHash === "string" ? replyPreviewRaw.imageHash : null;
-								const replyPreviewUrl = replyIsImage && typeof replyPreviewRaw?.url === "string" && replyPreviewRaw.url.startsWith("http") ? replyPreviewRaw.url : null;
+								const _replyRawRecord = replyPreviewRaw as Record<string, unknown> | null | undefined;
+								const replyPreviewUrl = replyIsImage && typeof replyPreviewRaw?.url === "string" && replyPreviewRaw.url.startsWith("http") ? replyPreviewRaw.url
+									: replyIsImage && typeof _replyRawRecord?.stillPath === "string" ? String(_replyRawRecord.stillPath)
+									: replyIsImage && typeof _replyRawRecord?.previewPath === "string" ? String(_replyRawRecord.previewPath)
+									: replyIsImage && typeof _replyRawRecord?.urlPath === "string" ? String(_replyRawRecord.urlPath)
+									: null;
 								const replyMsgBody = message.body as Record<string, unknown> | null | undefined;
 								const albumContentThumbUrl = message.type === "AlbumContentReply" && typeof replyMsgBody?.previewUrl === "string"
 									? replyMsgBody.previewUrl
@@ -513,7 +522,7 @@ export function ChatThreadMessages({
 								const msgBody = message.body as any;
 								const isExpiredVideo = !videoUrl && msgBody?._videoExpired === true;
 								const isImageOnlyBubble =
-									Boolean(imageUrl) && messageText === t("chat.thread.shared_image");
+									Boolean(imageUrl) && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif"));
 								const isVideoOnlyBubble =
 									(Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
 								const isAlbumOnlyBubble =
@@ -528,6 +537,7 @@ export function ChatThreadMessages({
 								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
+									message.type !== "Giphy" &&
 									!revealedMediaMessageIds.has(message.messageId) &&
 									(!isDesktop || hoveredMediaMessageId !== message.messageId);
 								const mediaBlurClassName = shouldBlurIncomingMedia
@@ -622,7 +632,7 @@ export function ChatThreadMessages({
 										</div>
 										<div
 											ref={(el) => { if (el) swipeElRef.current.set(message.messageId, el); else swipeElRef.current.delete(message.messageId); }}
-											className={`flex flex-col ${mine ? "items-end" : "items-start"} max-w-[85%]`}
+											className={`flex flex-col ${mine ? "items-end" : "items-start"} ${message.type === "Giphy" ? "max-w-80" : "max-w-[85%]"}`}
 										>
 											<div
 												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
@@ -663,14 +673,14 @@ export function ChatThreadMessages({
 														}`} />
 														<div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
 															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : t("chat.thread.shared_image"))}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Giphy" ? t("chat.thread.shared_gif") : t("chat.thread.shared_image"))}</p>
 														</div>
 														{replyThumbUrl ? (
 															<div className="relative w-14 shrink-0 self-stretch overflow-hidden">
 																<img
 																	src={replyThumbUrl}
 																	alt=""
-																	className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+																	className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia && (replyToMsg?.type ?? replyToMsgRef?.type) !== "Giphy" ? " blur-md transition" : ""}`}
 																/>
 															</div>
 														) : replyIsAudio ? (
@@ -724,7 +734,7 @@ export function ChatThreadMessages({
 														<img
 															src={imageUrl}
 															alt={t("chat.thread.shared_alt")}
-															className={`${isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
+															className={`${message.type === "Giphy" && hasReply ? "max-h-96 w-full object-cover" : isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
 														/>
 														{localOnly && (
 															<span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
@@ -734,6 +744,10 @@ export function ChatThreadMessages({
 														{isExpiringImage ? (
 															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
 																1
+															</div>
+														) : message.type === "Giphy" ? (
+															<div className="absolute right-3 top-3 inline-flex items-center rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
+																GIF
 															</div>
 														) : null}
 														{!mine && (messageTakenOnGrindr || imageCreatedAtLabel) ? (
@@ -908,7 +922,15 @@ export function ChatThreadMessages({
 													</button>
 												) : null}
 
-												{isExpiredVideo ? (
+												{gaymojiUrl ? (
+														<img
+															src={gaymojiUrl}
+															alt="Gaymoji"
+															className="h-20 w-20 object-contain"
+														/>
+													) : null}
+
+													{isExpiredVideo ? (
 														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
 															<div className="flex flex-col items-center gap-1.5 text-white/60">
 																<VideoOff className="h-6 w-6" />
@@ -1219,8 +1241,8 @@ export function ChatThreadMessages({
 
 
 
-												{!isMediaOnlyBubble && !isAudioOnlyBubble
-												&& !(imageUrl && messageText === t("chat.thread.shared_image"))
+												{!isMediaOnlyBubble && !isAudioOnlyBubble && !gaymojiUrl
+												&& !(imageUrl && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif")))
 												&& !((videoUrl || isExpiredVideo) && messageText === t("chat.thread.shared_video")) ? (
 													<p className="whitespace-pre-wrap break-words">
 														{displayText}

@@ -294,6 +294,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			mediaRecorderRef.current = recorder;
 			recordingStartRef.current = Date.now();
 			setIsRecording(true);
+			(window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge?.vibrate?.(30) ?? navigator.vibrate?.(30);
 			setRecordingMs(0);
 			recordingTimerRef.current = setInterval(() => {
 				const elapsed = Date.now() - recordingStartRef.current;
@@ -353,6 +354,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			}
 			void fixWebmDuration(rawBlob, durationMs).then((blob) => {
 				if (durationMs >= 500) {
+					if (autoSend) {
+						(window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge?.vibrate?.(30) ?? navigator.vibrate?.(30);
+					}
 					setRecordedWaveform(capturedBars);
 					props.onAudioRecorded(blob, durationMs, autoSend);
 				} else {
