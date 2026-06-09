@@ -287,7 +287,7 @@ export function ChatPage() {
 				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
 			})
 			.catch((error) => {
-								appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
+				appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
 			});
 
 		return () => {
@@ -566,7 +566,7 @@ export function ChatPage() {
 				setLocalNicknamesByProfileId(nicknames);
 			})
 			.catch((error) => {
-								appLog.warn("[chat] failed to hydrate local nicknames", error);
+				appLog.warn("[chat] failed to hydrate local nicknames", error);
 			});
 
 		return () => {
@@ -742,7 +742,7 @@ export function ChatPage() {
 						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
 					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
-												appLog.warn("[chat-index] failed to persist inbox metadata", error);
+						appLog.warn("[chat-index] failed to persist inbox metadata", error);
 					});
 				}
 
@@ -1051,6 +1051,10 @@ export function ChatPage() {
 								}
 							}
 							if (updates.length === 0) return;
+                            void chatLog.appendMessages(
+                                conversationId,
+                                updates.filter((u) => !(u.body as any)?._videoExpired),
+                            );
 							if (selectedConversationIdRef.current !== conversationId) return;
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -2253,7 +2257,7 @@ export function ChatPage() {
 						: t("chat.nicknames.cleared"),
 				);
 			} catch (error) {
-								appLog.warn("[chat] failed to save local nickname", error);
+				appLog.warn("[chat] failed to save local nickname", error);
 				const fallbackMessage = t("chat.nicknames.save_failed");
 				const message =
 					error instanceof Error
@@ -2778,6 +2782,11 @@ export function ChatPage() {
 
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			toast.error(t("chat.errors.reupload_image"));
+			return;
+		}
+
+		if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
+			toast.error(t("chat.errors.reupload_video"));
 			return;
 		}
 
