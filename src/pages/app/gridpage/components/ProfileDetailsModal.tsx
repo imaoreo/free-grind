@@ -1,10 +1,11 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, X, Ban, Loader2, MapPin } from "lucide-react";
+import { ArrowLeft, X, Ban, Loader2, MapPin } from "lucide-react";
 import { type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	createBackdropCloseHandler,
 	useModalClose,
 } from "../../../../hooks/useModalClose";
+import { useDesktopBreakpoint } from "../../../../hooks/useDesktopBreakpoint";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import { useApiFunctions } from "../../../../hooks/useApiFunctions";
 import { useAuth } from "../../../../contexts/useAuth";
@@ -42,7 +43,6 @@ import {
 	shouldHideField,
 } from "../utils";
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
-import { useDesktopBreakpoint } from "../../../../hooks/useDesktopBreakpoint";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
 import { FeedScrollContainer } from "../../../../components/ui/FeedScrollContainer";
@@ -331,7 +331,7 @@ export function ProfileDetailsModal({
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 	const pageWrapRef = useRef<HTMLDivElement | null>(null);
 	const [profileSwipeDelta, setProfileSwipeDelta] = useState(0);
-	const profileSwipeRef = useRef({ startX: 0, startY: 0, decided: false, horizontal: false, dragging: false, lastDelta: 0 });
+	const profileSwipeRef = useRef({ startX: 0, startY: 0, decided: false, horizontal: false, dragging: false, lastDelta: 0, active: false });
 	const [headerOpacity, setHeaderOpacity] = useState(0);
 	const [headerFadeDuration, setHeaderFadeDuration] = useState(0);
 	const headerScrolled = headerOpacity > 0.5;
@@ -368,22 +368,28 @@ export function ProfileDetailsModal({
 
 		const s = profileSwipeRef.current;
 
-		const onStart = (e: TouchEvent) => {
-			s.startX = e.touches[0].clientX;
-			s.startY = e.touches[0].clientY;
+		const onStart = (e: PointerEvent) => {
+			const target = e.target as HTMLElement;
+			if (target.closest("button, a, input, textarea, select, [role='button']")) return;
+			s.startX = e.clientX;
+			s.startY = e.clientY;
 			s.decided = false;
 			s.horizontal = false;
 			s.dragging = false;
 			s.lastDelta = 0;
+			s.active = true;
 		};
 
-		const onMove = (e: TouchEvent) => {
-			const dx = e.touches[0].clientX - s.startX;
-			const dy = e.touches[0].clientY - s.startY;
+		const onMove = (e: PointerEvent) => {
+			if (!s.active) return;
+			if (s.decided && !s.horizontal) return;
+			const dx = e.clientX - s.startX;
+			const dy = e.clientY - s.startY;
 			if (!s.decided) {
-				if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+				if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
 				s.decided = true;
-				s.horizontal = Math.abs(dx) >= Math.abs(dy);
+				s.horizontal = Math.abs(dx) > Math.abs(dy) * 1.5;
+				if (s.horizontal) el.setPointerCapture(e.pointerId);
 			}
 			if (!s.horizontal) return;
 			e.preventDefault();
@@ -392,10 +398,13 @@ export function ProfileDetailsModal({
 			setProfileSwipeDelta(dx);
 		};
 
-		const onEnd = () => {
+		const onEnd = (e: PointerEvent) => {
+			if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
+			s.active = false;
 			if (!s.dragging) return;
 			s.dragging = false;
 			s.horizontal = false;
+			s.decided = false;
 			const dx = s.lastDelta;
 			s.lastDelta = 0;
 			setProfileSwipeDelta(0);
@@ -403,15 +412,15 @@ export function ProfileDetailsModal({
 			else if (dx > 80) onPrevProfile?.();
 		};
 
-		el.addEventListener("touchstart", onStart, { passive: true });
-		el.addEventListener("touchmove", onMove, { passive: false });
-		el.addEventListener("touchend", onEnd, { passive: true });
-		el.addEventListener("touchcancel", onEnd, { passive: true });
+		el.addEventListener("pointerdown", onStart);
+		el.addEventListener("pointermove", onMove);
+		el.addEventListener("pointerup", onEnd);
+		el.addEventListener("pointercancel", onEnd);
 		return () => {
-			el.removeEventListener("touchstart", onStart);
-			el.removeEventListener("touchmove", onMove);
-			el.removeEventListener("touchend", onEnd);
-			el.removeEventListener("touchcancel", onEnd);
+			el.removeEventListener("pointerdown", onStart);
+			el.removeEventListener("pointermove", onMove);
+			el.removeEventListener("pointerup", onEnd);
+			el.removeEventListener("pointercancel", onEnd);
 		};
 	}, [
         isOpen,
@@ -529,7 +538,7 @@ export function ProfileDetailsModal({
 
 	if (variant === "page") {
 		return (
-			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 !pt-0 overflow-x-hidden bg-[var(--bg)]">
+			<div className="app-screen relative flex h-dvh flex-col w-full !px-0 !pb-0 !pt-0 overflow-x-hidden bg-[var(--bg)]" style={{ paddingBottom: 0 }}>
 				<div
 					ref={pageWrapRef}
 					className="relative flex h-full flex-col"
@@ -585,30 +594,12 @@ export function ProfileDetailsModal({
 									)}
 								</button>
 							)}
-							<button
-								type="button"
-								onClick={onPrevProfile}
-								disabled={!onPrevProfile}
-								className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:opacity-30 cursor-pointer ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
-								aria-label={t("profile_details.previous_profile")}
-							>
-								<ChevronLeft className="h-4 w-4" />
-							</button>
-							<button
-								type="button"
-								onClick={onNextProfile}
-								disabled={!onNextProfile}
-								className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:opacity-30 cursor-pointer ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
-								aria-label={t("profile_details.next_profile")}
-							>
-								<ChevronRight className="h-4 w-4" />
-							</button>
 						</div>
 					</div>
 				</header>
 
-				<FeedScrollContainer ref={scrollContainerRef}>
-					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pt-0 pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pt-0 sm:pb-5">
+				<div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
+					<div className="mx-auto w-full max-w-4xl px-[var(--app-px)] pb-[calc(env(safe-area-inset-bottom,0px)+7rem)] sm:pb-8">
 						{isLoadingActiveProfile ? (
 							<p className="text-sm text-[var(--text-muted)]">
 								{t("profile_details.loading")}
@@ -680,7 +671,7 @@ export function ProfileDetailsModal({
 							/>
 						) : null}
 					</div>
-				</FeedScrollContainer>
+				</div>
 				{photoViewerOverlay}
 				</div>
 			</div>
@@ -698,18 +689,7 @@ export function ProfileDetailsModal({
 			>
 				<div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
 					<div className="min-w-0 flex-1">
-						<div className="flex items-center gap-2">
-							<p className="truncate text-base font-semibold">{activeProfileName}</p>
-							{activeProfile?.age != null && Number.isFinite(activeProfile.age) && (
-								<span className="shrink-0 text-sm text-[var(--text-muted)]">{activeProfile.age}</span>
-							)}
-						</div>
-						{profileDistance != null && (
-							<p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
-								<MapPin className="h-3 w-3 shrink-0" />
-								{formatDistance(profileDistance, t, unitsPreset)}
-							</p>
-						)}
+						<p className="truncate text-base font-semibold">{activeProfileName}</p>
 					</div>
 					<div className="flex items-center gap-1.5">
 						{messageProfileId && (onBlockProfile || onUnblockProfile) && (
@@ -751,7 +731,7 @@ export function ProfileDetailsModal({
 
 				<div
 					data-lenis-prevent
-					className="min-h-0 flex-1 overflow-y-auto p-4 pb-[calc(env(safe-area-inset-bottom,0px)+8rem)] sm:p-5 sm:pb-6"
+					className="min-h-0 flex-1 overflow-y-auto p-4 pb-0 sm:p-5 sm:pb-0"
 				>
 					{isLoadingActiveProfile ? (
 						<p className="text-sm text-[var(--text-muted)]">

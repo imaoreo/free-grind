@@ -1,9 +1,17 @@
 import {
+	ArrowDown,
+	ArrowLeftRight,
+	ArrowUp,
+	ArrowUpDown,
 	Calendar,
+	ChevronsDown,
+	ChevronsUp,
+	Compass,
 	ExternalLink,
 	FileText,
 	Flame,
 	Globe,
+	Hash,
 	Heart,
 	Loader2,
 	MapPin,
@@ -22,6 +30,7 @@ import {
 	Trash2,
 	User,
 	Zap,
+	type LucideIcon,
 } from "lucide-react";
 import { type RefObject, type UIEvent, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -299,20 +308,23 @@ export function ProfileDetailsContent({
 		if (!el || !showMobileCarousel || isDesktopLike) return;
 
 		let startY = 0, startX = 0;
-		let decided = false, navigating = false;
+		let decided = false, navigating = false, pointerDown = false;
 
-		const onStart = (e: TouchEvent) => {
-			startY = e.touches[0].clientY;
-			startX = e.touches[0].clientX;
+		const onStart = (e: PointerEvent) => {
+			pointerDown = true;
+			startY = e.clientY;
+			startX = e.clientX;
 			decided = false;
 			navigating = false;
 			isDraggingRef.current = false;
 			lastDeltaRef.current = 0;
+			el.setPointerCapture(e.pointerId);
 		};
 
-		const onMove = (e: TouchEvent) => {
-			const dy = e.touches[0].clientY - startY;
-			const dx = e.touches[0].clientX - startX;
+		const onMove = (e: PointerEvent) => {
+			if (!pointerDown) return;
+			const dy = e.clientY - startY;
+			const dx = e.clientX - startX;
 			if (!decided) {
 				if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
 				decided = true;
@@ -332,6 +344,7 @@ export function ProfileDetailsContent({
 		};
 
 		const onEnd = () => {
+			pointerDown = false;
 			isDraggingRef.current = false;
 			if (!navigating) return;
 			navigating = false;
@@ -344,15 +357,29 @@ export function ProfileDetailsContent({
 			setDragDelta(0);
 		};
 
-		el.addEventListener('touchstart', onStart, { passive: true });
-		el.addEventListener('touchmove', onMove, { passive: false });
-		el.addEventListener('touchend', onEnd, { passive: true });
+		el.addEventListener('pointerdown', onStart);
+		el.addEventListener('pointermove', onMove);
+		el.addEventListener('pointerup', onEnd);
+		el.addEventListener('pointercancel', onEnd);
 		return () => {
-			el.removeEventListener('touchstart', onStart);
-			el.removeEventListener('touchmove', onMove);
-			el.removeEventListener('touchend', onEnd);
+			el.removeEventListener('pointerdown', onStart);
+			el.removeEventListener('pointermove', onMove);
+			el.removeEventListener('pointerup', onEnd);
+			el.removeEventListener('pointercancel', onEnd);
 		};
 	}, [activeProfilePhotoHashes.length, showMobileCarousel, isDesktopLike]);
+
+	const positionIconMap: Record<number, LucideIcon> = {
+		1: ArrowUp,
+		2: ArrowDown,
+		3: ArrowUpDown,
+		4: ChevronsDown,
+		5: ChevronsUp,
+		6: ArrowLeftRight,
+	};
+	const PositionIcon = activeProfile?.sexualPosition != null
+		? (positionIconMap[activeProfile.sexualPosition] ?? Compass)
+		: null;
 
 	return (
 		<div className="grid gap-6">
@@ -362,10 +389,10 @@ export function ProfileDetailsContent({
 					<>
 						{showMobileCarousel && !isDesktopLike ? (
 							<>
-								<div className="relative sm:hidden -mx-[var(--app-px)]">
+								<div className="relative -mx-[var(--app-px)]">
 									<div
 										ref={mobileCarouselRef}
-										className="relative h-[min(64dvh,calc(100vw*1.33))] overflow-hidden border-b border-[var(--border)]"
+										className="relative h-[min(64dvh,calc(100vw*1.33))] overflow-hidden border-b border-[var(--border)] touch-none select-none"
 									>
 										{activeProfilePhotoHashes.map((hash, index) => (
 											<div
@@ -392,19 +419,22 @@ export function ProfileDetailsContent({
 										))}
 									</div>
 									{activeProfilePhotoHashes.length > 1 ? (
-										<div className="mt-2 flex items-center justify-center gap-1.5">
-											{activeProfilePhotoHashes.map((hash, index) => (
-												<span
-													key={`${hash}-dot`}
-													className={`h-1.5 w-1.5 rounded-full ${index === mobileCarouselPhotoIndex ? "bg-[var(--text)]" : "bg-[var(--border)]"}`}
-													aria-hidden="true"
-												/>
-											))}
+										<div className="pointer-events-none absolute right-3 inset-y-0 z-20 flex flex-col items-center justify-center">
+											<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
+												{activeProfilePhotoHashes.map((hash, index) => (
+													<span
+														key={`${hash}-dot`}
+														className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"}`}
+														aria-hidden="true"
+													/>
+												))}
+											</div>
 										</div>
 									) : null}
 								</div>
 
-								<div className="hidden grid-cols-3 gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-6">
+								{/* Thumbnail fallback for wider viewports within the mobile modal */}
+								<div className="hidden">
 									{activeProfilePhotoHashes.map((hash, index) => (
 										<button
 											type="button"
@@ -449,9 +479,17 @@ export function ProfileDetailsContent({
 						)}
 					</>
 				) : (
-					<div className="relative max-w-sm mx-auto w-full overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
-						<ProfileImage alt={t("profile_details.default_profile")} />
-					</div>
+					showMobileCarousel && !isDesktopLike ? (
+						<div className="relative -mx-[var(--app-px)]">
+							<div className="relative h-[min(64dvh,calc(100vw*1.33))] overflow-hidden border-b border-[var(--border)] flex items-center justify-center bg-[var(--surface-2)]">
+								<User className="h-24 w-24 text-[var(--text-muted)] opacity-20" />
+							</div>
+						</div>
+					) : (
+						<div className="relative max-w-sm mx-auto w-full overflow-hidden rounded-xl border border-[var(--border)] aspect-square">
+							<ProfileImage alt={t("profile_details.default_profile")} />
+						</div>
+					)
 				)}
 			</div>
 
@@ -482,20 +520,20 @@ export function ProfileDetailsContent({
 				</div>
 			)}
 
-			{/* Profile card — name, action buttons, status/distance/chat/notes */}
-			<div className="rounded-2xl border border-[var(--border)] bg-gradient-to-br from-[var(--surface-2)] to-[var(--surface)] p-4 shadow-sm">
+			{/* Profile info — name, action buttons, status/distance/chat/notes */}
+			<div className="px-3">
 				<div className="flex items-center justify-between gap-3">
 					<div className="flex items-center gap-2 min-w-0">
 						<h2
 							onClick={copyUserId}
-							className="text-lg font-bold sm:text-xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)] flex items-center gap-1.5"
+							className="text-2xl font-bold sm:text-3xl select-none cursor-pointer active:opacity-75 transition-opacity truncate hover:text-[var(--accent)] flex items-center gap-1.5"
 							title="Tap to copy User ID"
 						>
 							<span className="text-[var(--text)]">{activeProfileName}</span>
 							{activeProfile.age && typeof activeProfile.age === "number" && Number.isInteger(activeProfile.age) && activeProfile.age > 0 && activeProfile.showAge !== false ? (
 								<>
-									<span className="text-[var(--text-muted)] opacity-40 text-sm select-none">•</span>
-									<span className="font-bold text-base sm:text-lg text-[var(--accent-readable)] select-none">
+									<span className="text-[var(--text-muted)] opacity-40 select-none leading-none">·</span>
+									<span className="font-normal text-lg sm:text-xl text-[var(--text-muted)] select-none leading-none">
 										{activeProfile.age}
 									</span>
 								</>
@@ -637,33 +675,36 @@ export function ProfileDetailsContent({
 			</div>
 
 			{/* Tags / About / Expectations / Health / Stats / Social */}
-			<div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
-				<div className="grid gap-4">
-					{hasTagsContent && (
-						<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
-							<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-								{t("profile_details.tags")}
-							</p>
-							<div className="mt-2 flex flex-wrap gap-2">
-								{activeProfile.profileTags.map((tag) => {
-									const isMatch = ownTags.some((own) => own.toLowerCase() === tag.toLowerCase());
-									return (
-										<span
-											key={tag}
-											className={`rounded-full border px-2.5 py-1 text-xs ${
-												isMatch
-													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold"
-													: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
-											}`}
-										>
-											{tag}
-										</span>
-									);
-								})}
-							</div>
+			<div className="grid gap-8 px-3">
+				{/* Tags — full width */}
+				{hasTagsContent && (
+					<div>
+						<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							{t("profile_details.tags")}
+						</p>
+						<div className="flex flex-wrap gap-2">
+							{activeProfile.profileTags.map((tag) => {
+								const isMatch = ownTags.some((own) => own.toLowerCase() === tag.toLowerCase());
+								return (
+									<span
+										key={tag}
+										className={`rounded-full border px-3 py-1.5 text-sm ${
+											isMatch
+												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold"
+												: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]"
+										}`}
+									>
+										{tag}
+									</span>
+								);
+							})}
 						</div>
-					)}
+					</div>
+				)}
 
+				{/* About + Stats side by side on wide screens */}
+				{(hasAboutContent || hasStatsFields) && (
+				<div className="grid gap-8 lg:grid-cols-2">
 					{hasAboutContent && (
 						<div>
 							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
@@ -676,7 +717,57 @@ export function ProfileDetailsContent({
 							</div>
 						</div>
 					)}
+					{hasStatsFields && (
+						<div>
+							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+								{t("profile_details.stats")}
+							</p>
+							<div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
+								{PositionIcon != null && !shouldHideField(formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels)) && (
+									<div className="flex items-center gap-2.5">
+										<PositionIcon className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels, t)}</p>
+									</div>
+								)}
+								{!shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) && (
+									<div className="flex items-center gap-2.5">
+										<Ruler className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatHeightCm(activeProfile.height, t, unitsPreset)}</p>
+									</div>
+								)}
+								{!shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) && (
+									<div className="flex items-center gap-2.5">
+										<Scale className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatWeightKg(activeProfile.weight, t, unitsPreset)}</p>
+									</div>
+								)}
+								{!shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t)) && (
+									<div className="flex items-center gap-2.5">
+										<User className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t)}</p>
+									</div>
+								)}
+								{!shouldHideField(formatEnumValue(activeProfile.ethnicity, ethnicityLabels, t)) && (
+									<div className="flex items-center gap-2.5">
+										<Globe className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.ethnicity, ethnicityLabels, t)}</p>
+									</div>
+								)}
+								{!shouldHideField(formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels, t)) && (
+									<div className="flex items-center gap-2.5">
+										<Heart className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels, t)}</p>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+				</div>
+				)}
 
+				{/* Expectations + Health side by side on wide screens */}
+				{(hasExpectationsFields || hasHealthFields) && (
+				<div className="grid gap-8 lg:grid-cols-2">
 					{hasExpectationsFields && (
 						<div>
 							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
@@ -787,59 +878,14 @@ export function ProfileDetailsContent({
 						</div>
 					)}
 				</div>
+				)}
 
-				<div className="grid gap-4">
-					{hasStatsFields && (
-						<div>
-							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-								{t("profile_details.stats")}
-							</p>
-							<div className="space-y-2.5">
-								{!shouldHideField(formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels)) && (
-									<p className="text-sm text-[var(--text-muted)]">
-										<span className="font-semibold text-[var(--text)]">{t("profile_details.position")}:</span>{" "}
-										{formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels, t)}
-									</p>
-								)}
-								{!shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) && (
-									<div className="flex items-center gap-2.5">
-										<Ruler className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm text-[var(--text-muted)]">{formatHeightCm(activeProfile.height, t, unitsPreset)}</p>
-									</div>
-								)}
-								{!shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) && (
-									<div className="flex items-center gap-2.5">
-										<Scale className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm text-[var(--text-muted)]">{formatWeightKg(activeProfile.weight, t, unitsPreset)}</p>
-									</div>
-								)}
-								{!shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t)) && (
-									<div className="flex items-center gap-2.5">
-										<User className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t)}</p>
-									</div>
-								)}
-								{!shouldHideField(formatEnumValue(activeProfile.ethnicity, ethnicityLabels, t)) && (
-									<div className="flex items-center gap-2.5">
-										<Globe className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.ethnicity, ethnicityLabels, t)}</p>
-									</div>
-								)}
-								{!shouldHideField(formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels, t)) && (
-									<div className="flex items-center gap-2.5">
-										<Heart className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels, t)}</p>
-									</div>
-								)}
-							</div>
-						</div>
-					)}
-
-					{hasSocialFields && (
-						<div>
-							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-								{t("profile_details.social")}
-							</p>
+				{/* Social — full width */}
+				{hasSocialFields && (
+				<div>
+					<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+						{t("profile_details.social")}
+					</p>
 							<div className="grid gap-2">
 								{activeProfile.socialNetworks?.instagram?.userId && (
 									<a
@@ -884,32 +930,24 @@ export function ProfileDetailsContent({
 									</a>
 								)}
 							</div>
-						</div>
-					)}
-				</div>
-			</div>
+					</div>
+				)}
 
-			{/* Technical details — User ID + estimated creation at bottom */}
-			<div className="mt-2 flex flex-col gap-0.5 border-t border-[var(--border)]/40 pt-4 px-1 text-[11px] text-[var(--text-muted)] min-w-0">
-				<div className="flex items-center gap-1.5 min-w-0">
-					<span className="font-semibold shrink-0">User ID:</span>
-					<button
-						type="button"
-						onClick={copyUserId}
-						className="font-mono hover:text-[var(--accent)] transition-colors select-all cursor-pointer text-left truncate"
-						title="Click to copy User ID"
-					>
-						{activeProfile.profileId}
-					</button>
-				</div>
-				<p className="truncate">
-					<span className="font-semibold">Estimated Created:</span>{" "}
+			{/* User ID + estimated creation date */}
+			<div className="flex items-center justify-end gap-2 px-3 pb-4 -mt-4 text-xs text-[var(--text-muted)] opacity-50">
+				<button type="button" onClick={copyUserId} className="flex items-center gap-1 hover:text-[var(--accent)] transition-colors cursor-pointer" title="Click to copy User ID">
+					<Hash className="h-3 w-3 shrink-0" />
+					<span className="font-mono">{activeProfile.profileId}</span>
+				</button>
+				<span className="opacity-40 select-none">·</span>
+				<span className="flex items-center gap-1">
+					<Calendar className="h-3 w-3 shrink-0" />
 					{estimatedCreatedAt}
-				</p>
+				</span>
 			</div>
 
 			{/* Notes pop-up editor modal */}
-			<dialog
+			{isNotesModalOpen && <dialog
 				ref={notesDialogRef}
 				className="fixed left-1/2 top-1/2 m-0 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-0 text-[var(--text)] shadow-2xl backdrop:bg-black/45 focus-visible:outline-none"
 				onClick={(event) => {
@@ -966,7 +1004,8 @@ export function ProfileDetailsContent({
 						</button>
 					</div>
 				</div>
-			</dialog>
+			</dialog>}
+		</div>
 		</div>
 	);
 }
