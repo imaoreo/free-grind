@@ -20,6 +20,8 @@ import {
 	Workflow,
 	UserX,
 	Trash2,
+	Database,
+	FlaskConical,
 } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
@@ -32,6 +34,7 @@ import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { exportAllLogs } from "../../services/chatLog";
+import { runDiagnostics, type DiagnosticsSnapshot } from "../../services/diagnostics";
 import {
 	checkForHotswapUpdate,
 	getCurrentHotswapChannel,
@@ -108,6 +111,8 @@ export function SettingsPage() {
 	const visibleChannels = getHotswapChannels({ includeDevChannels: developerMode });
 	const [contributorCodeInput, setContributorCodeInput] = useState("");
 	const [isActivatingContributor, setIsActivatingContributor] = useState(false);
+	const [diagnosticsSnapshot, setDiagnosticsSnapshot] = useState<DiagnosticsSnapshot | null>(null);
+	const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false);
 
 	useEffect(() => {
 		if (!developerMode && updateChannel === "testingwjay") {
@@ -323,6 +328,18 @@ export function SettingsPage() {
 			toast.error("Failed to leave contributor channel.");
 		} finally {
 			setIsSwitchingChannel(false);
+		}
+	};
+
+	const handleRunDiagnostics = async () => {
+		setIsRunningDiagnostics(true);
+		try {
+			const snapshot = await runDiagnostics();
+			setDiagnosticsSnapshot(snapshot);
+		} catch (error) {
+			toast.error("Diagnostics failed: " + (error instanceof Error ? error.message : String(error)));
+		} finally {
+			setIsRunningDiagnostics(false);
 		}
 	};
 
@@ -598,6 +615,82 @@ export function SettingsPage() {
 								t("settings.api_inspector"),
 								t("settings.api_inspector_desc"),
 							)}
+
+							{/* Storage Diagnostics */}
+							<div className="p-4 sm:p-5">
+								<div className="flex items-start gap-3">
+									<div className="rounded-2xl bg-purple-500/15 p-2.5 shrink-0 text-purple-400">
+										<Database className="h-5 w-5" />
+									</div>
+									<div className="min-w-0 flex-1">
+										<div className="flex items-center justify-between gap-3 mb-2">
+											<div>
+												<p className="text-sm font-semibold">Storage Diagnostics</p>
+												<p className="text-xs text-[var(--text-muted)] mt-0.5">
+													Measure on-disk size of all persistent stores to diagnose lag.
+												</p>
+											</div>
+											<button
+												type="button"
+												onClick={() => void handleRunDiagnostics()}
+												disabled={isRunningDiagnostics}
+												className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-semibold text-purple-400 transition hover:bg-purple-500/20 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+											>
+												<FlaskConical className="h-3.5 w-3.5" />
+												{isRunningDiagnostics ? "Measuring…" : "Run"}
+											</button>
+										</div>
+
+										{diagnosticsSnapshot && (
+											<div className="mt-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] overflow-hidden text-xs font-mono">
+												<div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] bg-[var(--surface)]">
+													<span className="font-semibold text-[var(--text)]">Snapshot</span>
+													<span className="text-[var(--text-muted)]">{new Date(diagnosticsSnapshot.takenAtMs).toLocaleTimeString()}</span>
+												</div>
+												<table className="w-full">
+													<tbody>
+														{diagnosticsSnapshot.stores.map((store) => (
+															<tr key={store.label} className="border-b border-[var(--border)]/50">
+																<td className="px-3 py-1.5 text-[var(--text-muted)]">
+																	{store.label}
+																	{store.fileCount !== undefined && (
+																		<span className="ml-1 text-[var(--text-muted)]/60">({store.fileCount} files)</span>
+																	)}
+																</td>
+																<td className={`px-3 py-1.5 text-right font-semibold tabular-nums ${store.bytes > 5 * 1024 * 1024 ? "text-red-400" : store.bytes > 1024 * 1024 ? "text-yellow-400" : "text-[var(--text)]"}`}>
+																	{store.formattedSize}
+																</td>
+															</tr>
+														))}
+														<tr className="border-b border-[var(--border)]/50">
+															<td className="px-3 py-1.5 text-[var(--text-muted)]">IndexedDB views</td>
+															<td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[var(--text)]">
+																{diagnosticsSnapshot.idbViewCount} entries
+															</td>
+														</tr>
+														<tr className="border-b border-[var(--border)]/50">
+															<td className="px-3 py-1.5 text-[var(--text-muted)]">localStorage</td>
+															<td className="px-3 py-1.5 text-right font-semibold tabular-nums text-[var(--text)]">
+																{diagnosticsSnapshot.localStorageFormatted}
+															</td>
+														</tr>
+														<tr className="bg-[var(--surface)]">
+															<td className="px-3 py-2 font-semibold text-[var(--text)]">Total</td>
+															<td className={`px-3 py-2 text-right font-bold tabular-nums ${diagnosticsSnapshot.totalBytes > 10 * 1024 * 1024 ? "text-red-400" : diagnosticsSnapshot.totalBytes > 2 * 1024 * 1024 ? "text-yellow-400" : "text-emerald-400"}`}>
+																{diagnosticsSnapshot.totalFormatted}
+															</td>
+														</tr>
+													</tbody>
+												</table>
+												<div className="px-3 py-2 text-[10px] text-[var(--text-muted)] border-t border-[var(--border)]/50">
+													Red = &gt;5 MB per store (investigate). Yellow = &gt;1 MB (watch). Green = normal.
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							</div>
+
 							<div className="p-4 sm:p-5">
 								<div className="flex items-start gap-3">
 									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
