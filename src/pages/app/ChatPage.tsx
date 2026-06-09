@@ -57,6 +57,8 @@ import {
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
+	getMessageImageCreatedAt,
+	getMessageTakenOnGrindr,
 	getMessageVideoUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
@@ -396,13 +398,10 @@ export function ChatPage() {
 	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
 	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
-	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
-	const [fullScreenMediaType, setFullScreenMediaType] = useState<"image" | "video">("image");
-	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
-		takenOnGrindr: boolean;
-		createdAtLabel: string | null;
-		timestamp: number;
-	} | null>(null);
+	type ThreadMediaItem = PhotoViewerMedia & { meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number } };
+	const [fullScreenMediaList, setFullScreenMediaList] = useState<ThreadMediaItem[]>([]);
+	const [fullScreenMediaIndex, setFullScreenMediaIndex] = useState(0);
+	const fullScreenImageUrl = fullScreenMediaList.length > 0 ? fullScreenMediaList[fullScreenMediaIndex]?.url ?? null : null;
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -3335,23 +3334,49 @@ export function ChatPage() {
 	};
 
 	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
-		setFullScreenImageUrl(imageUrl);
-		setFullScreenImageMeta(meta ?? null);
-		setFullScreenMediaType(mediaType);
-	}, []);
+		const list: ThreadMediaItem[] = [];
+		for (const msg of threadMessages) {
+			const imgUrl = getMessageImageUrl(msg);
+			if (imgUrl) {
+				const createdAt = getMessageImageCreatedAt(msg);
+				list.push({
+					url: imgUrl,
+					type: "image",
+					meta: {
+						takenOnGrindr: getMessageTakenOnGrindr(msg),
+						createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
+						timestamp: msg.timestamp,
+					},
+				});
+				continue;
+			}
+			const vidUrl = getMessageVideoUrl(msg);
+			if (vidUrl) list.push({ url: vidUrl, type: "video" });
+		}
+		const idx = list.findIndex((item) => item.url === imageUrl);
+		if (idx === -1 || list.length === 0) {
+			// Fallback: single item
+			setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
+			setFullScreenMediaIndex(0);
+		} else {
+			setFullScreenMediaList(list);
+			setFullScreenMediaIndex(idx);
+		}
+	}, [threadMessages]);
 
 	const closeFullScreenImage = useCallback(() => {
-		if (!fullScreenImageUrl) {
+		if (fullScreenMediaList.length === 0) {
 			return;
 		}
 
-		setFullScreenImageUrl(null);
+		setFullScreenMediaList([]);
+		setFullScreenMediaIndex(0);
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
-	}, [fullScreenImageUrl]);
+	}, [fullScreenMediaList.length]);
 
 	useEffect(() => {
 		if (!fullScreenImageUrl || imageViewerHistoryPushedRef.current) {
@@ -3369,7 +3394,8 @@ export function ChatPage() {
 			}
 
 			imageViewerHistoryPushedRef.current = false;
-			setFullScreenImageUrl(null);
+			setFullScreenMediaList([]);
+			setFullScreenMediaIndex(0);
 		};
 
 		window.addEventListener("popstate", handlePopState);
@@ -3617,27 +3643,33 @@ export function ChatPage() {
 			/>
 
 			<PhotoViewer
-				isOpen={!!fullScreenImageUrl}
+				isOpen={fullScreenMediaList.length > 0}
 				onClose={closeFullScreenImage}
-				photos={fullScreenImageUrl ? [{ url: fullScreenImageUrl, type: fullScreenMediaType }] : []}
-				renderExtraInfo={fullScreenImageMeta ? () => (
-                    <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
-                        <style>{`
-                            @keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
-                            .logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
-                        `}</style>
-                        {fullScreenImageMeta.takenOnGrindr ? (
-                            <img
-                                src={freegrindLogo}
-                                alt={t("chat.thread.taken_on_grindr")}
-                                className="h-3.5 w-3.5 rounded-full logo-shine"
-                            />
-                        ) : null}
-                        {fullScreenImageMeta.timestamp ? (
-                            <span>{formatDateTime24(fullScreenImageMeta.timestamp)}</span>
-                        ) : null}
-                    </p>
-				) : undefined}
+				photos={fullScreenMediaList}
+				initialIndex={fullScreenMediaIndex}
+				onIndexChange={setFullScreenMediaIndex}
+				renderExtraInfo={(idx) => {
+					const meta = fullScreenMediaList[idx]?.meta;
+					if (!meta) return null;
+					return (
+						<p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+							<style>{`
+								@keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+								.logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
+							`}</style>
+							{meta.takenOnGrindr ? (
+								<img
+									src={freegrindLogo}
+									alt={t("chat.thread.taken_on_grindr")}
+									className="h-3.5 w-3.5 rounded-full logo-shine"
+								/>
+							) : null}
+							{meta.timestamp ? (
+								<span>{formatDateTime24(meta.timestamp)}</span>
+							) : null}
+						</p>
+					);
+				}}
 			/>
 		</section>
 	);
