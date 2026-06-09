@@ -34,12 +34,6 @@ export function PhotoViewer({
 	const { t } = useTranslation();
 	const N = photos.length;
 
-	// centerIdx: which photo is logically current (0..N-1)
-	// trackPos: 0=left slot visible, 1=center slot visible, 2=right slot visible
-	// We always render [prev, center, next] in 3 slots.
-	// On navigate: animate trackPos to 0 or 2, then onTransitionEnd updates centerIdx
-	// and teleports trackPos back to 1. The teleport is always 1 slot and shows the
-	// same photo just promoted to center, so it is always visually invisible.
 	const [centerIdx, setCenterIdx] = useState(initialIndex);
 	const [trackPos, setTrackPos] = useState(1);
 	const [noTransition, setNoTransition] = useState(true);
@@ -47,21 +41,26 @@ export function PhotoViewer({
 	const [zoomScale, setZoomScale] = useState(1);
 	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
 
+	const mediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
+
 	const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
 	const lastDistRef = useRef<number | null>(null);
+	const pinchCenterRef = useRef<{ x: number; y: number } | null>(null);
 	const decidedAxisRef = useRef<"h" | "v" | null>(null);
 	const isDraggingRef = useRef(false);
+	const gestureMovedRef = useRef(false);
 	const onIndexChangeRef = useRef(onIndexChange);
 	onIndexChangeRef.current = onIndexChange;
+
+	const zoomScaleRef = useRef(zoomScale);
+	const zoomOffsetRef = useRef(zoomOffset);
+	useEffect(() => { zoomScaleRef.current = zoomScale; }, [zoomScale]);
+	useEffect(() => { zoomOffsetRef.current = zoomOffset; }, [zoomOffset]);
 
 	const prevIdx = N > 1 ? (centerIdx - 1 + N) % N : centerIdx;
 	const nextIdx = N > 1 ? (centerIdx + 1) % N : centerIdx;
 
-	// Reset position synchronously before paint so opening never animates.
-	// Depends only on isOpen — initialIndex is intentionally excluded because the parent
-	// may update initialIndex via onIndexChange while we are already open (tracking our
-	// current position), and we must not re-initialize the carousel in that case.
 	useLayoutEffect(() => {
 		if (!isOpen) return;
 		setCenterIdx(initialIndex);
@@ -116,20 +115,36 @@ export function PhotoViewer({
 		setZoomOffset({ x: 0, y: 0 });
 	}, [N]);
 
+	const clampOffset = useCallback((offset: { x: number; y: number }, scale: number) => {
+		const el = mediaRef.current;
+		const renderedW = el ? el.clientWidth : window.innerWidth;
+		const renderedH = el ? el.clientHeight : window.innerHeight;
+		const maxX = (renderedW * (scale - 1)) / 2;
+		const maxY = (renderedH * (scale - 1)) / 2;
+		return {
+			x: Math.min(maxX, Math.max(-maxX, offset.x)),
+			y: Math.min(maxY, Math.max(-maxY, offset.y)),
+		};
+	}, []);
+
 	const handleTouchStart = useCallback((e: React.TouchEvent) => {
+		gestureMovedRef.current = false;
 		if (e.touches.length === 1) {
 			const pt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
 			touchStartRef.current = pt;
 			lastTouchRef.current = pt;
 			decidedAxisRef.current = null;
 			isDraggingRef.current = false;
+			lastDistRef.current = null;
+			pinchCenterRef.current = null;
 		} else if (e.touches.length === 2) {
+			const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+			const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
 			lastDistRef.current = Math.hypot(
 				e.touches[0].clientX - e.touches[1].clientX,
 				e.touches[0].clientY - e.touches[1].clientY,
 			);
-			touchStartRef.current = null;
-			lastTouchRef.current = null;
+			pinchCenterRef.current = { x: midX, y: midY };
 			decidedAxisRef.current = null;
 			isDraggingRef.current = false;
 			setDragOffset(0);
@@ -138,65 +153,134 @@ export function PhotoViewer({
 
 	const handleTouchMove = useCallback(
 		(e: React.TouchEvent) => {
+			// ── 2-finger pinch ──────────────────────────────────────────────────
 			if (e.touches.length === 2 && lastDistRef.current !== null) {
+				gestureMovedRef.current = true;
 				const dist = Math.hypot(
 					e.touches[0].clientX - e.touches[1].clientX,
 					e.touches[0].clientY - e.touches[1].clientY,
 				);
-				setZoomScale((prev) => Math.min(Math.max(1, prev * (dist / lastDistRef.current!)), 4));
+				const ratio = lastDistRef.current > 0 ? dist / lastDistRef.current : 1;
 				lastDistRef.current = dist;
+
+				setZoomScale((prev) => {
+					const next = Math.min(Math.max(1, prev * ratio), 4);
+					if (pinchCenterRef.current && next !== prev) {
+						const cx = pinchCenterRef.current.x - window.innerWidth / 2;
+						const cy = pinchCenterRef.current.y - window.innerHeight / 2;
+						setZoomOffset((prevOffset) =>
+							clampOffset(
+								{
+									x: prevOffset.x - cx * (ratio - 1),
+									y: prevOffset.y - cy * (ratio - 1),
+								},
+								next,
+							),
+						);
+					}
+					return next;
+				});
 				return;
 			}
 
-			if (e.touches.length !== 1 || !touchStartRef.current) return;
+			// ── 1-finger pan: skip swipe logic for single photo ──────────────
+			if (N < 2) return;
 
-			const dx = e.touches[0].clientX - touchStartRef.current.x;
-			const dy = e.touches[0].clientY - touchStartRef.current.y;
+			if (e.touches.length !== 1) return;
 
+			const touch = e.touches[0];
+
+			if (!touchStartRef.current) {
+				const pt = { x: touch.clientX, y: touch.clientY };
+				touchStartRef.current = pt;
+				lastTouchRef.current = pt;
+				decidedAxisRef.current = null;
+				isDraggingRef.current = false;
+				return;
+			}
+
+			const dx = touch.clientX - touchStartRef.current.x;
+			const dy = touch.clientY - touchStartRef.current.y;
+			if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+				gestureMovedRef.current = true;
+			}
+
+			// When zoomed: always pan in both axes, ignore axis lock entirely
+			if (zoomScaleRef.current > 1) {
+				const last = lastTouchRef.current ?? { x: touch.clientX, y: touch.clientY };
+				const moveDx = touch.clientX - last.x;
+				const moveDy = touch.clientY - last.y;
+				lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
+				setZoomOffset((prev) =>
+					clampOffset(
+						{ x: prev.x + moveDx, y: prev.y + moveDy },
+						zoomScaleRef.current,
+					),
+				);
+				return;
+			}
+
+			// Not zoomed: lock axis, swipe left/right to navigate
 			if (!decidedAxisRef.current && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
 				decidedAxisRef.current = Math.abs(dx) >= Math.abs(dy) ? "h" : "v";
 			}
 
 			if (decidedAxisRef.current === "h") {
-				if (zoomScale > 1) {
-					if (lastTouchRef.current) {
-						setZoomOffset((prev) => ({
-							x: prev.x + (e.touches[0].clientX - lastTouchRef.current!.x),
-							y: prev.y + (e.touches[0].clientY - lastTouchRef.current!.y),
-						}));
-					}
-				} else {
-					isDraggingRef.current = true;
-					setDragOffset(dx);
-				}
+				isDraggingRef.current = true;
+				setDragOffset(dx);
 			}
 
-			lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+			lastTouchRef.current = { x: touch.clientX, y: touch.clientY };
 		},
-		[zoomScale],
+		[clampOffset, N],
 	);
 
-	const handleTouchEnd = useCallback(() => {
-		if (decidedAxisRef.current === "h" && zoomScale === 1 && isDraggingRef.current) {
-			const threshold = Math.min(70, window.innerWidth * 0.22);
-			if (dragOffset < -threshold) showNext();
-			else if (dragOffset > threshold) showPrev();
-			else setDragOffset(0);
-		} else {
-			setDragOffset(0);
-		}
+	const handleTouchEnd = useCallback(
+		(e: React.TouchEvent) => {
+			if (e.touches.length === 1) {
+				const pt = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+				touchStartRef.current = pt;
+				lastTouchRef.current = pt;
+				decidedAxisRef.current = null;
+				isDraggingRef.current = false;
+				lastDistRef.current = null;
+				pinchCenterRef.current = null;
+				return;
+			}
 
-		touchStartRef.current = null;
-		lastTouchRef.current = null;
-		lastDistRef.current = null;
-		decidedAxisRef.current = null;
-		isDraggingRef.current = false;
+			if (N >= 2 && decidedAxisRef.current === "h" && zoomScaleRef.current === 1 && isDraggingRef.current) {
+				const threshold = Math.min(70, window.innerWidth * 0.22);
+				if (dragOffset < -threshold) showNext();
+				else if (dragOffset > threshold) showPrev();
+				else setDragOffset(0);
+			} else {
+				setDragOffset(0);
+			}
 
-		if (zoomScale <= 1.05) {
-			setZoomScale(1);
-			setZoomOffset({ x: 0, y: 0 });
-		}
-	}, [zoomScale, dragOffset, showNext, showPrev]);
+			touchStartRef.current = null;
+			lastTouchRef.current = null;
+			lastDistRef.current = null;
+			pinchCenterRef.current = null;
+			decidedAxisRef.current = null;
+			isDraggingRef.current = false;
+
+			if (zoomScaleRef.current <= 1.05) {
+				setZoomScale(1);
+				setZoomOffset({ x: 0, y: 0 });
+			}
+		},
+		[dragOffset, showNext, showPrev, N],
+	);
+
+	const handleButtonTouchEnd = useCallback(
+		(e: React.TouchEvent, action: () => void) => {
+			e.stopPropagation();
+			if (!gestureMovedRef.current) {
+				action();
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -211,19 +295,16 @@ export function PhotoViewer({
 
 	if (!isOpen || N === 0) return null;
 
-	// For N>=2: render [prevSlot, centerSlot, nextSlot].
-	// trackPos controls which is visible: transform = -trackPos * 100vw + dragOffset.
-	// For N==1: single slot, no navigation.
 	const slots: Array<{ photoIndex: number; slotIndex: number }> =
 		N <= 1
-			? [{ photoIndex: centerIdx, slotIndex: 1 }]
+			? [{ photoIndex: centerIdx, slotIndex: 0 }]
 			: [
 					{ photoIndex: prevIdx, slotIndex: 0 },
 					{ photoIndex: centerIdx, slotIndex: 1 },
 					{ photoIndex: nextIdx, slotIndex: 2 },
 				];
 
-	const activeSlot = trackPos; // which slotIndex is currently being shown
+	const activeSlot = N <= 1 ? 0 : trackPos;
 	const canAnimate = dragOffset === 0 && !noTransition;
 
 	return createPortal(
@@ -231,6 +312,7 @@ export function PhotoViewer({
 			<button
 				type="button"
 				onClick={(e) => { e.stopPropagation(); onClose(); }}
+				onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
 				className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
 				aria-label={t("profile_details.close_photo_viewer")}
 			>
@@ -242,6 +324,7 @@ export function PhotoViewer({
 					<button
 						type="button"
 						onClick={(e) => { e.stopPropagation(); showPrev(); }}
+						onTouchEnd={(e) => handleButtonTouchEnd(e, showPrev)}
 						className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
 						aria-label={t("profile_details.previous_photo")}
 					>
@@ -250,6 +333,7 @@ export function PhotoViewer({
 					<button
 						type="button"
 						onClick={(e) => { e.stopPropagation(); showNext(); }}
+						onTouchEnd={(e) => handleButtonTouchEnd(e, showNext)}
 						className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
 						aria-label={t("profile_details.next_photo")}
 					>
@@ -288,6 +372,14 @@ export function PhotoViewer({
 						const { url, type, alt } = getMediaInfo(photo);
 						const isCurrent = slotIndex === activeSlot;
 
+						const zoomStyle =
+							isCurrent && (zoomScale !== 1 || zoomOffset.x !== 0 || zoomOffset.y !== 0)
+								? {
+										transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`,
+										touchAction: "none" as const,
+									}
+								: { touchAction: "none" as const };
+
 						return (
 							<div
 								key={slotIndex}
@@ -300,28 +392,22 @@ export function PhotoViewer({
 								>
 									{type === "video" ? (
 										<video
+											ref={isCurrent ? (mediaRef as React.RefObject<HTMLVideoElement>) : undefined}
 											src={url}
 											controls
 											autoPlay={isCurrent}
 											className="max-h-[88vh] w-auto max-w-full object-contain"
-											style={
-												isCurrent && (zoomScale !== 1 || zoomOffset.x !== 0 || zoomOffset.y !== 0)
-													? { transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`, touchAction: "none" }
-													: { touchAction: "none" }
-											}
+											style={zoomStyle}
 										/>
 									) : (
 										<img
+											ref={isCurrent ? (mediaRef as React.RefObject<HTMLImageElement>) : undefined}
 											src={url}
 											alt={alt}
 											loading="eager"
 											draggable={false}
 											className="max-h-[88vh] w-auto max-w-full select-none object-contain"
-											style={
-												isCurrent && (zoomScale !== 1 || zoomOffset.x !== 0 || zoomOffset.y !== 0)
-													? { transform: `translate(${zoomOffset.x}px, ${zoomOffset.y}px) scale(${zoomScale})`, touchAction: "none" }
-													: { touchAction: "none" }
-											}
+											style={zoomStyle}
 										/>
 									)}
 									{isCurrent && renderExtraInfo && (
