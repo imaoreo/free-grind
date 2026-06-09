@@ -117,6 +117,30 @@ function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number;
 	);
 }
 
+function renderTextWithLinks(
+    text: string,
+    mine: boolean,
+    onLinkClick: (url: string) => void,
+) {
+    return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+        /^https?:\/\//.test(part) ? (
+            <a
+                key={i}
+                href="#"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onLinkClick(part);
+                }}
+                className={`underline underline-offset-2 ${mine ? "text-[var(--accent-contrast)]/80 hover:text-[var(--accent-contrast)]" : "text-[var(--accent)] hover:opacity-80"}`}
+            >
+                {part}
+            </a>
+        ) : (
+            <Fragment key={i}>{part}</Fragment>
+        )
+    );
+}
+
 export function ChatThreadMessages({
 	isDesktop,
 	selectedConversation,
@@ -742,9 +766,9 @@ export function ChatThreadMessages({
 															</span>
 														)}
 														{isExpiringImage ? (
-															<div className="absolute right-3 top-3 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/65 text-xs font-semibold text-white ring-1 ring-white/25">
-																1
-															</div>
+															<div className="absolute right-3 top-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-black/65 px-1 text-xs font-semibold text-white ring-1 ring-white/25">
+                                                                {typeof msgBody?.viewsRemaining === "number" ? msgBody.viewsRemaining : 1}
+                                                            </div>
 														) : message.type === "Giphy" ? (
 															<div className="absolute right-3 top-3 inline-flex items-center rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
 																GIF
@@ -980,7 +1004,15 @@ export function ChatThreadMessages({
 																/>
 																{isLimitedVideo && (
 																	<div className="absolute right-3 top-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-black/65 px-1 text-xs font-semibold text-white ring-1 ring-white/25">
-																		{videoMaxViews}×
+																		{typeof msgBody?.viewsRemaining === "number" ? (
+                                                                            <>
+                                                                                <span>{msgBody.viewsRemaining}</span>
+                                                                                <span className="opacity-50">/</span>
+                                                                                <span className="opacity-70">{videoMaxViews}</span>
+                                                                            </>
+                                                                        ) : (
+                                                                            <span>{videoMaxViews}</span>
+                                                                        )}
 																	</div>
 																)}
 																{!shouldBlurIncomingMedia && (
@@ -1239,35 +1271,35 @@ export function ChatThreadMessages({
 													);
 												})() : null}
 
-
-
 												{!isMediaOnlyBubble && !isAudioOnlyBubble && !gaymojiUrl
 												&& !(imageUrl && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif")))
 												&& !((videoUrl || isExpiredVideo) && messageText === t("chat.thread.shared_video")) ? (
 													<p className="whitespace-pre-wrap break-words">
-														{displayText}
+														{renderTextWithLinks(displayText, mine, (url) =>
+                                                            openUrl(url).catch(() => window.open(url, "_blank"))
+                                                        )}
 													</p>
 												) : null}
 
-														{!isLocalClientMessageId(message.messageId) ? (
-															(isDesktop ? (
-																<button
-																	type="button"
-																	onClick={() => void handleReact(message)}
-																	className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
-																		message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "chat-reaction-flame--hoverable"
-																	} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
-																>
-																	🔥
-																</button>
-															) : (
-																<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
-																	message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
-																} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
-																	🔥
-																</span>
-															))
-														) : null}
+                                                {!isLocalClientMessageId(message.messageId) ? (
+                                                    (isDesktop ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleReact(message)}
+                                                            className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
+                                                                message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "chat-reaction-flame--hoverable"
+                                                            } ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
+                                                        >
+                                                            🔥
+                                                        </button>
+                                                    ) : (
+                                                        <span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+                                                            message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
+                                                        } ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
+                                                            🔥
+                                                        </span>
+                                                    ))
+                                                ) : null}
 
 												{!isMediaOnlyBubble ? (
 												<div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-80">
