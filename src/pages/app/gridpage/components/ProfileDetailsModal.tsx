@@ -344,8 +344,18 @@ export function ProfileDetailsModal({
 	}, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
-		const el = pageWrapRef.current;
-		if (!el || !isOpen || variant !== "page" || (!onPrevProfile && !onNextProfile)) return;
+        const el = pageWrapRef.current;
+
+        if (
+            !el ||
+            !isOpen ||
+            selectedPhotoIndex !== null ||
+            variant !== "page" ||
+            (!onPrevProfile && !onNextProfile)
+        ) {
+            return;
+        }
+
 		const s = profileSwipeRef.current;
 
 		const onStart = (e: TouchEvent) => {
@@ -393,7 +403,13 @@ export function ProfileDetailsModal({
 			el.removeEventListener("touchend", onEnd);
 			el.removeEventListener("touchcancel", onEnd);
 		};
-	}, [isOpen, variant, onNextProfile, onPrevProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [
+        isOpen,
+        selectedPhotoIndex,
+        variant,
+        onNextProfile,
+        onPrevProfile,
+    ]);
 
 	useModalClose({ isOpen, onClose });
 	const handleBackdropClose = useMemo(
