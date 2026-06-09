@@ -12,6 +12,7 @@ type TapSelectorProps = {
 	tapId: number;
 	tapButtonClassName: string;
 	onInternalTap?: (profileId: string, tapId: number) => Promise<any>;
+	compact?: boolean;
 };
 
 const emojiColors: Record<number, string> = {
@@ -29,6 +30,7 @@ export function TapSelector({
 	tapId,
 	tapButtonClassName,
 	onInternalTap,
+	compact = false,
 }: TapSelectorProps) {
 	const { t } = useTranslation();
 	const [isIgniting, setIsIgniting] = useState(false);
@@ -104,8 +106,9 @@ export function TapSelector({
 		setIsRippling(true);
 		setPreviewId(id);
 
-		// Vibrate
-		if (navigator.vibrate) navigator.vibrate([10, 20]);
+		// Vibrate (FreeGrindBridge for iOS, navigator.vibrate fallback for Android)
+		const bridge = (window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge;
+		bridge?.vibrate?.(30) ?? navigator.vibrate?.([15, 10, 25]);
 
 		if (onTapProfile) {
 			onTapProfile(profileId, id);
@@ -141,7 +144,8 @@ export function TapSelector({
 
 		longPressTimer.current = setTimeout(() => {
 			setShowTapPicker(true);
-			if (navigator.vibrate) navigator.vibrate(10);
+			const bridge = (window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge;
+			bridge?.vibrate?.(10) ?? navigator.vibrate?.(10);
 		}, 300);
 
 		const btn = e.currentTarget as HTMLButtonElement;
@@ -263,7 +267,7 @@ export function TapSelector({
 			)}
 
 			<div
-				className={`tab-menu select-none touch-none absolute bottom-4 left-32 z-[60] flex -translate-x-1/2 items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${showTapPicker ? "active" : ""}`}
+				className={`tab-menu select-none touch-none absolute z-[60] flex items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${compact ? "bottom-full left-1/2 mb-2 -translate-x-1/2" : "bottom-4 left-32 -translate-x-1/2"} ${showTapPicker ? "active" : ""}`}
 			>
 				{[1, 2, 0].map((id) => (
 					<div
@@ -289,7 +293,7 @@ export function TapSelector({
 				))}
 			</div>
 
-			<div className="flex flex-col items-center gap-6">
+			{compact ? (
 				<button
 					type="button"
 					onPointerDown={handlePointerDown}
@@ -297,45 +301,69 @@ export function TapSelector({
 					onPointerUp={handlePointerUp}
 					onPointerCancel={handlePointerCancel}
 					disabled={isTapDisabled || isTappingInternal}
-					style={{
-						borderColor:
-							isTapActive || isIgniting
-								? "var(--halo-color)"
-								: undefined,
-					}}
-					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex h-16 w-16 items-center justify-center overflow-visible rounded-full border-2 bg-[var(--surface)] transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
+					style={{ borderColor: isTapActive || isIgniting ? "var(--halo-color)" : undefined }}
+					className={`tap-btn-base select-none touch-none relative inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-all duration-200 active:scale-95 ${
+						isTapActive
+							? "bg-[var(--surface)] text-[var(--accent-readable)]"
+							: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
+					} ${showTapPicker ? "scale-105" : ""}`}
 					aria-label={t("profile_details.tap_profile", "Tap profile")}
-					title={
-						isTapBlocked
-							? t("browse_page.toasts.tap_limit")
-							: isTapActive
-								? t("profile_details.tap_active", "Tap active")
-								: t("profile_details.tap_hold_hint", "Hold for more options")
-					}
 				>
-					{(isTapActive || isIgniting) && (
-						<div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
-							<div
-								className={`h-full w-full rounded-full tap-btn-outer-halo ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
-							/>
-						</div>
-					)}
-					{isRippling && (
-						<div className="animate-ripple tap-btn-ripple" />
-					)}
-					<div
-						className={`relative z-10 flex h-7 w-7 items-center justify-center transition-all duration-300 tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : (displayId === 1 && isTapActive ? "animate-living-flame-loop" : "animate-living-loop")}` : "text-[var(--text-muted)]"} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}
-					>
-						<span className="flex items-center justify-center text-2xl">
-							{isTapActive || previewId !== null ? (
-								getTapEmoji(displayId)
-							) : (
-								<Flame className="h-7 w-7" strokeWidth={1.8} />
-							)}
-						</span>
-					</div>
+					{isRippling && <div className="animate-ripple tap-btn-ripple" />}
+					<span className={`tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : ""}` : ""} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}>
+						{isTapActive || previewId !== null ? getTapEmoji(displayId) : <Flame className="h-4 w-4" strokeWidth={1.8} />}
+					</span>
+					<span>Tap</span>
 				</button>
-			</div>
+			) : (
+				<div className="flex flex-col items-center gap-6">
+					<button
+						type="button"
+						onPointerDown={handlePointerDown}
+						onPointerMove={handlePointerMove}
+						onPointerUp={handlePointerUp}
+						onPointerCancel={handlePointerCancel}
+						disabled={isTapDisabled || isTappingInternal}
+						style={{
+							borderColor:
+								isTapActive || isIgniting
+									? "var(--halo-color)"
+									: undefined,
+						}}
+						className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex h-16 w-16 items-center justify-center overflow-visible rounded-full border-2 bg-[var(--surface)] transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
+						aria-label={t("profile_details.tap_profile", "Tap profile")}
+						title={
+							isTapBlocked
+								? t("browse_page.toasts.tap_limit")
+								: isTapActive
+									? t("profile_details.tap_active", "Tap active")
+									: t("profile_details.tap_hold_hint", "Hold for more options")
+						}
+					>
+						{(isTapActive || isIgniting) && (
+							<div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none">
+								<div
+									className={`h-full w-full rounded-full tap-btn-outer-halo ${isIgniting ? "animate-flash" : "animate-halo-loop"}`}
+								/>
+							</div>
+						)}
+						{isRippling && (
+							<div className="animate-ripple tap-btn-ripple" />
+						)}
+						<div
+							className={`relative z-10 flex h-7 w-7 items-center justify-center transition-all duration-300 tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : (displayId === 1 && isTapActive ? "animate-living-flame-loop" : "animate-living-loop")}` : "text-[var(--text-muted)]"} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}
+						>
+							<span className="flex items-center justify-center text-2xl">
+								{isTapActive || previewId !== null ? (
+									getTapEmoji(displayId)
+								) : (
+									<Flame className="h-7 w-7" strokeWidth={1.8} />
+								)}
+							</span>
+						</div>
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }
