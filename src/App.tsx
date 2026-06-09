@@ -28,6 +28,7 @@ import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
+import { OutdatedVersionPrompt } from "./components/OutdatedVersionPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
@@ -71,6 +72,7 @@ export default function App() {
 				<PushNotificationBridge />
 				<ChatRealtimeBridge />
 				<ActiveRouteBridge />
+				<OutdatedVersionPrompt />
 				<AnalyticsConsentPrompt />
 				<Routes>
 					<Route element={<RootLayout />}>
