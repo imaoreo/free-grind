@@ -540,6 +540,8 @@
         "no_messages_yet": "No tienes mensajes todavía.",
         "share_album": "Compartir álbum",
         "attach_media": "Adjuntar contenido",
+        "cancel_recording": "Deslizar a la izquierda para cancelar",
+        "stop_recording": "Detener grabación",
         "manage_albums": "Gestionar álbumes",
         "no_albums_available": "No hay álbumes disponibles. Crea uno en Configuración primero.",
         "share": "Compartir",
@@ -644,7 +646,11 @@
             "send_drawer_media": "Error al enviar contenido de la galería",
             "delete_conversation": "Error al eliminar conversación",
             "no_location_set": "La ubicación no está establecida en los ajustes",
-            "invalid_location": "Formato de ubicación inválido"
+            "invalid_location": "Formato de ubicación inválido",
+            "microphone_access": "No se pudo acceder al micrófono.",
+            "microphone_denied": "Acceso al micrófono denegado.",
+            "microphone_not_found": "No se encontró ningún micrófono.",
+            "recording_too_short": "Grabación demasiado corta."
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
@@ -687,6 +693,7 @@
         },
         "load_older_messages": "Cargar mensajes más antiguos",
         "view_profile": "Ver perfil",
+        "received_media": "Medios recibidos",
         "favorite": "Favorito",
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
@@ -907,10 +914,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "RU (metros + pies/pulgadas)",
         "units_american": "Inglés (millas + pies/pulgadas)",
-        "blur_incoming_media": "Desenfocar contenido entrante",
-        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos entrantes en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
-        "enabled": "Habilitado",
-        "disabled": "Deshabilitado"
+        "blur_incoming_media": "Desenfocar contenido del chat",
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves."
     },
     "chat_filters": {
         "title": "Filtros de chat",

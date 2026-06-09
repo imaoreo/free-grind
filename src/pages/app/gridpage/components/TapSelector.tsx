@@ -303,7 +303,7 @@ export function TapSelector({
 								? "var(--halo-color)"
 								: undefined,
 					}}
-					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex items-center justify-center overflow-visible transition-all duration-300 active:scale-95 ${showTapPicker ? "scale-105" : ""}`}
+					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative flex items-center justify-center overflow-visible transition-all duration-300 active:scale-95 cursor-pointer disabled:cursor-not-allowed ${showTapPicker ? "scale-105" : ""}`}
 					aria-label={t("profile_details.tap_profile", "Tap profile")}
 					title={
 						isTapBlocked

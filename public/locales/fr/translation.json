@@ -424,10 +424,8 @@
         "units_world": "Monde (mètres + cm)",
         "units_uk": "Royaume-Uni (mètres + pieds/pouces)",
         "units_american": "Américain (miles + pieds/pouces)",
-        "blur_incoming_media": "Flouter les médias entrants",
-        "blur_incoming_media_description": "Floute automatiquement les images et vidéos reçues dans les chats. Sur ordinateur, survolez ou cliquez pour révéler. Dans les chats, les médias révélés sont à nouveau floutés lorsque vous quittez et revenez.",
-        "enabled": "Activé",
-        "disabled": "Désactivé"
+        "blur_incoming_media": "Flouter les médias du chat",
+        "blur_incoming_media_description": "Floute automatiquement les images et vidéos dans les chats. Sur ordinateur, survolez ou cliquez pour révéler. Dans les chats, les médias révélés sont à nouveau floutés lorsque vous quittez et revenez."
     },
     "auth": {
         "common": {
@@ -465,6 +463,8 @@
         "no_messages_yet": "Aucun message pour le moment.",
         "share_album": "Partager un album",
         "attach_media": "Joindre un média",
+        "cancel_recording": "Glisser à gauche pour annuler",
+        "stop_recording": "Arrêter l'enregistrement",
         "manage_albums": "Gérer les albums",
         "no_albums_available": "Aucun album disponible. Créez-en un dans les Paramètres d'abord.",
         "share": "Partager",
@@ -569,7 +569,11 @@
             "upload_media_failed": "Erreur lors du téléversement du média",
             "load_drawer_media": "Erreur lors du chargement des médias du tiroir",
             "send_drawer_media": "Erreur lors de l'envoi du média depuis le tiroir",
-            "delete_conversation": "Erreur lors de la suppression de la conversation"
+            "delete_conversation": "Erreur lors de la suppression de la conversation",
+            "microphone_access": "Impossible d'accéder au microphone.",
+            "microphone_denied": "Accès au microphone refusé.",
+            "microphone_not_found": "Aucun microphone trouvé.",
+            "recording_too_short": "Enregistrement trop court."
         },
         "toasts": {
             "cleared_local_history": "L'historique local a été effacé pour cette conversation",
@@ -650,6 +654,7 @@
         },
         "load_older_messages": "Charger les anciens messages",
         "view_profile": "Voir le profil",
+        "received_media": "Médias reçus",
         "favorite": "Favori",
         "share_album_label": "Partager l'album"
     },

@@ -213,6 +213,12 @@
 			transform: translateY(0) scale(1);
 		}
 	}
+	@keyframes fire-flame-idle {
+		0%   { transform: rotate(-2deg) scale(1); }
+		50%  { transform: rotate(2deg) scale(1.06); }
+		100% { transform: rotate(-2deg) scale(1); }
+	}
+
 	@keyframes fire-flame-flicker {
 		0% {
 			transform: rotate(-14deg) scale(0.82);
@@ -427,6 +433,16 @@
 
 	.chat-reaction-flame {
 		transform-origin: 50% 85%;
+		animation: fire-flame-idle 3s ease-in-out infinite;
+		cursor: pointer;
+	}
+
+	.chat-reaction-flame--hoverable {
+		opacity: 0;
+	}
+
+	.group\/bubble:hover .chat-reaction-flame--hoverable {
+		opacity: 0.25;
 	}
 
 	.chat-reaction-flame--burst {
@@ -772,4 +788,14 @@
 		height: 14px;
 		background: #2bd66f;
 	}
+}
+
+@keyframes trash-bounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-6px); }
+  70%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+.animate-trash-bounce {
+  animation: trash-bounce 0.3s ease-out forwards;
 }

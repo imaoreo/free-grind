@@ -39,6 +39,7 @@ import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../utils/a
 import { isChatGhosted } from "../utils/privacy";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "./apiHelpers";
 import { appLog } from "../utils/logger";
+import { sendViaRealtime } from "./chatRealtime";
 
 export { ApiFunctionError as ChatApiError };
 
@@ -253,12 +254,19 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 
 		async sendMessage(payload: SendMessagePayload): Promise<Message> {
 			const safePayload = sendMessagePayloadSchema.parse(payload);
-			const response = await fetchRest("/v4/chat/message/send", {
-				method: "POST",
-				body: safePayload,
-			});
-			await assertSuccess(response, t("chat.errors.send_failed"));
-			return messageSchema.parse(await parseJsonSafe(response));
+			try {
+				const result = await sendViaRealtime("chat.v1.message.send", safePayload);
+				return messageSchema.parse(result);
+			} catch {
+				// replyToMessageId is WS-only — HTTP returns 400 if included
+				const { replyToMessageId: _r, ...httpPayload } = safePayload;
+				const response = await fetchRest("/v4/chat/message/send", {
+					method: "POST",
+					body: httpPayload,
+				});
+				await assertSuccess(response, t("chat.errors.send_failed"));
+				return messageSchema.parse(await parseJsonSafe(response));
+			}
 		},
 
 		async sendText(payload: SendTextPayload): Promise<Message> {
@@ -270,6 +278,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					targetId: safePayload.targetProfileId,
 				},
 				body: { text: safePayload.text },
+				replyToMessageId: safePayload.replyToMessageId,
 			});
 		},
 
@@ -512,6 +521,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					mediaId: z.coerce.number().int(),
 					mediaHash: z.string().nullable().optional().default(null),
 					url: z.string().nullable().optional().default(null),
+					expiresAt: z.coerce.number().nullable().optional().default(null),
 				})
 				.parse(await parseJsonSafe(response));
 
@@ -519,6 +529,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				mediaId: parsed.mediaId,
 				mediaHash: parsed.mediaHash,
 				url: parsed.url,
+				expiresAt: parsed.expiresAt,
 			};
 		},
 

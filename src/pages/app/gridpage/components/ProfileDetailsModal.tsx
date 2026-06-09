@@ -411,7 +411,7 @@ export function ProfileDetailsModal({
 							<button
 								type="button"
 								onClick={onClose}
-								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md hover:bg-[var(--surface-2)]/50 transition-colors"
+								className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--border)]/25 bg-[var(--surface)]/30 text-[var(--text)] shadow-[0_8px_20px_-6px_rgba(0,0,0,0.15)] backdrop-blur-md hover:bg-[var(--surface-2)]/50 transition-colors cursor-pointer"
 								aria-label={t("settings.back_to_browse")}
 							>
 								<ArrowLeft className="h-4 w-4" />

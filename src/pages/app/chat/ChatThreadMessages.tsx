@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MapPin, Mic, Play, Reply, VideoOff } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, Mic, Play, Reply, VideoOff } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -314,10 +314,11 @@ export function ChatThreadMessages({
 					icon.style.transform = "translateY(-50%) scale(1.3)";
 					icon.style.opacity = "1";
 				}
+				(window as unknown as { FreeGrindBridge?: { vibrate?: (ms: number) => void } }).FreeGrindBridge?.vibrate?.(40) ?? navigator.vibrate?.(40);
 				setTimeout(() => {
 					resetSwipeVisual(triggeredId);
 					void handleReply(message);
-				}, 300);
+				}, 150);
 			}
 		},
 		[endMessageLongPress, handleReply, isDesktop, resetSwipeVisual],
@@ -439,6 +440,7 @@ export function ChatThreadMessages({
 									? replyPreviewRaw.text.trim()
 									: null;
 								const replyToMsgRef = message.replyToMessage as { messageId?: string; senderId?: number; type?: string } | null | undefined;
+								const hasReply = !!(replyToMsgRef?.messageId);
 								const replyToMsgId = replyPreviewRaw?.previewMessageId ?? replyToMsgRef?.messageId;
 								const replyToMsg = replyToMsgId
 									? threadMessages.find(m => m.messageId === replyToMsgId) ?? null
@@ -485,7 +487,7 @@ export function ChatThreadMessages({
 									const s = totalSec % 60;
 									return `${m}:${s.toString().padStart(2, "0")}`;
 								})();
-								const replyLabel = (replyText || replyThumbUrl || replyIsAudio)
+								const replyLabel = (replyText || replyThumbUrl || replyIsAudio || hasReply)
 									? replySenderId === userId
 										? mine ? "Reply to myself" : "Reply to you"
 										: `Reply to "${selectedConversation.data.name || ""}"`
@@ -513,7 +515,7 @@ export function ChatThreadMessages({
 								const isVideoOnlyBubble =
 									(Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
 								const isAlbumOnlyBubble =
-									isAlbumMessage && messageText === t("chat.preview.shared_album");
+									isAlbumMessage && messageText === t("chat.preview.shared_album") && !hasReply;
 								const isLocationOnlyBubble =
 									Boolean(location) && messageText === t("chat.preview.sent_location");
 								const hasVisualMedia = Boolean(imageUrl) || Boolean(videoUrl) || isAlbumOnlyBubble || isLocationOnlyBubble;
@@ -524,11 +526,10 @@ export function ChatThreadMessages({
 								const tailCorner = mine ? "rounded-br-[3px]" : "rounded-bl-[3px]";
 								const shouldBlurIncomingMedia =
 									blurIncomingMedia &&
-									!mine &&
 									!revealedMediaMessageIds.has(message.messageId) &&
 									(!isDesktop || hoveredMediaMessageId !== message.messageId);
 								const mediaBlurClassName = shouldBlurIncomingMedia
-									? "blur-xl transition"
+									? "blur-md transition"
 									: "";
 								const senderParticipant =
 									selectedConversation.data.participants.find(
@@ -626,13 +627,15 @@ export function ChatThreadMessages({
 												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
-													isMediaOnlyBubble
-														? "bg-transparent p-0"
-														: `px-3 py-2 ${
-															mine
-																? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
-																: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
-														}`
+													isMediaOnlyBubble && hasReply
+														? `overflow-hidden p-0 ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}`
+														: isMediaOnlyBubble
+															? "bg-transparent p-0"
+															: `px-3 py-2 ${
+																mine
+																	? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
+																	: "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
+															}`
 												} ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
 											>
 												{localOnly && !hasVisualMedia ? (
@@ -640,6 +643,47 @@ export function ChatThreadMessages({
 														{t("chat.thread.from_local_history")}
 													</span>
 												) : null}
+
+												{(replyText || replyThumbUrl || replyIsAudio || hasReply) ? (
+													<div className={isMediaOnlyBubble && hasReply
+														? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
+														: "contents"
+													}>
+													<div className={`relative flex overflow-hidden text-xs ${
+														isMediaOnlyBubble && hasReply
+															? `rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+															: isMediaOnlyBubble
+															? `mx-3 mt-3 mb-3 rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+															: `mt-1 mb-2.5 rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
+													}`}>
+														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
+															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
+														}`} />
+														<div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
+															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
+															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : t("chat.thread.shared_image"))}</p>
+														</div>
+														{replyThumbUrl ? (
+															<div className="relative w-14 shrink-0 self-stretch overflow-hidden">
+																<img
+																	src={replyThumbUrl}
+																	alt=""
+																	className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+																/>
+															</div>
+														) : replyIsAudio ? (
+															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "opacity-80" : "opacity-60"}`}>
+																<div className="flex flex-col items-center gap-1">
+																	<Mic className="h-4 w-4" />
+																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
+																</div>
+															</div>
+														) : null}
+													</div>
+													{isMediaOnlyBubble && hasReply ? <div className="pointer-events-none absolute inset-x-0 top-full h-6 z-10 bg-gradient-to-b from-black/25 to-transparent" /> : null}
+													</div>
+												) : null}
+
 												{imageUrl ? (
 													<button
 														type="button"
@@ -670,7 +714,7 @@ export function ChatThreadMessages({
 																});
 															});
 														}}
-														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden rounded-2xl ${tailCorner}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
+														className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
 														onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
 														onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
 													>
@@ -863,7 +907,7 @@ export function ChatThreadMessages({
 												) : null}
 
 												{isExpiredVideo ? (
-														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full rounded-2xl ${tailCorner}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
+														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
 															<div className="flex flex-col items-center gap-1.5 text-white/60">
 																<VideoOff className="h-6 w-6" />
 																<span className="text-xs font-medium">{t("chat.thread.video_expired")}</span>
@@ -883,7 +927,7 @@ export function ChatThreadMessages({
 																type="button"
 																className={`group/media relative block overflow-hidden bg-black ${
 																	isVideoOnlyBubble
-																		? `w-full rounded-2xl ${tailCorner}`
+																		? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}`
 																		: `mb-2 rounded-xl border border-black/10 ${shouldBlurIncomingMedia ? "cursor-pointer" : ""}`
 																}`}
 																onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
@@ -965,11 +1009,25 @@ export function ChatThreadMessages({
 														);
 													})() : null}
 
-												{audioUrl ? (
-													<div onClick={(e) => e.stopPropagation()}>
-														<AudioMessagePlayer src={audioUrl} messageId={message.messageId} mine={mine} />
-													</div>
-												) : null}
+												{audioUrl ? (() => {
+													const audioBody = message.body as Record<string, unknown> | null | undefined;
+													const audioLengthRaw = typeof audioBody?.length === "number" ? audioBody.length : null;
+													// >600: stored in ms (iOS audio/aac); <=600: stored in seconds (webm upload endpoint)
+													const audioDurationHint = audioLengthRaw != null
+														? (audioLengthRaw > 600 ? audioLengthRaw / 1000 : audioLengthRaw)
+														: undefined;
+													console.log("[audio message]", { messageId: message.messageId, body: audioBody, audioLengthRaw, audioDurationHint });
+													return (
+														<div onClick={(e) => e.stopPropagation()}>
+															<AudioMessagePlayer
+																src={audioUrl}
+																messageId={message.messageId}
+																mine={mine}
+																durationHint={audioDurationHint}
+															/>
+														</div>
+													);
+												})() : null}
 
 												{isAlbumReactionBubble ? (() => {
 													const rxBody = message.body as Record<string, unknown> | null | undefined;
@@ -1043,71 +1101,55 @@ export function ChatThreadMessages({
 															}
 															scheduleMobileTap(message, doOpen);
 														}}
-														className={`mb-2 flex w-full flex-col overflow-hidden rounded-xl border border-black/10 text-left transition hover:brightness-110 ${tailCorner} ${
-															mine
-																? "bg-white/10 text-white"
-																: "bg-[var(--surface-2)] text-[var(--text)]"
-														}`}
+														className={`block overflow-hidden ${isLocationOnlyBubble && hasReply ? "" : `rounded-2xl ${tailCorner}`} text-left transition hover:brightness-110`}
 													>
 														<div className="relative">
-									<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-32 w-full pointer-events-none" />
-									{localOnly && (
-										<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-											{t("chat.thread.from_local_history")}
-										</span>
-									)}
-								</div>
-														<div className="flex items-center gap-3 p-3">
-															<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]">
-																<MapPin className="h-4 w-4" />
-															</div>
-															<div className="min-w-0 flex-1">
-																<p className="text-[10px] font-bold uppercase tracking-wider opacity-70">
-																	{t("chat.thread.location_shared")}
-																</p>
-																<p className="truncate text-sm font-semibold opacity-90">
-																	{location.lat.toFixed(5)}, {location.lon.toFixed(5)}
-																</p>
-															</div>
-														</div>
-
-														{isLocationOnlyBubble && (
-															<div className="flex items-center justify-end gap-2 px-3 pb-2 text-[10px] opacity-80">
-																{isDesktop &&
-																!pending &&
-																!isLocalClientMessageId(message.messageId) ? (
-																	<>
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				void handleReply(message);
-																			}}
-																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
-																		>
-																			<Reply className="h-3.5 w-3.5" />
-																		</button>
-																		<button
-																			type="button"
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				setOpenMessageActionId((current) =>
-																					current === message.messageId
-																						? null
-																						: message.messageId,
-																				);
-																			}}
-																			className={`rounded-md p-1 ${mine ? "hover:bg-white/10" : "hover:bg-black/10"}`}
-																		>
-																			<Ellipsis className="h-3.5 w-3.5" />
-																		</button>
-																	</>
-																) : null}
-																<span>
-																	{formatMessageTime(message.timestamp, nowTimestamp, t)}
+															<LeafletLocationPreview lat={location.lat} lon={location.lon} className="h-48 w-48 pointer-events-none" />
+															{localOnly && (
+																<span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+																	{t("chat.thread.from_local_history")}
 																</span>
-															</div>
-														)}
+															)}
+															{isLocationOnlyBubble ? (
+																<div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+																	<div className="flex items-center justify-between gap-2 text-[10px]">
+																		<div className="flex items-center gap-2">
+																			{pending ? <span>{t("chat.sending")}</span> : null}
+																			{failed ? <span>{t("chat.thread.failed")}</span> : null}
+																		</div>
+																		<div className="flex items-center gap-2">
+																			<span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+																			{isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+																				<>
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							void handleReply(message);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Reply className="h-3.5 w-3.5" />
+																					</button>
+																					<button
+																						type="button"
+																						onClick={(event) => {
+																							event.stopPropagation();
+																							setOpenMessageActionId((current) =>
+																								current === message.messageId ? null : message.messageId,
+																							);
+																						}}
+																						className="rounded-md p-1 hover:bg-white/10"
+																					>
+																						<Ellipsis className="h-3.5 w-3.5" />
+																					</button>
+																				</>
+																			) : null}
+																		</div>
+																	</div>
+																</div>
+															) : null}
+														</div>
 													</button>
 												) : null}
 
@@ -1158,7 +1200,7 @@ export function ChatThreadMessages({
 													return (
 														<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
 															<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
-															<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
+															<div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
 																<p className="mb-0.5 font-semibold opacity-60 truncate">{t("chat.thread.replied_to_photo")}</p>
 																<p className="opacity-60">{t("chat.thread.shared_image")}</p>
 															</div>
@@ -1174,46 +1216,33 @@ export function ChatThreadMessages({
 												})() : null}
 
 
-												{(replyText || replyThumbUrl || replyIsAudio) && !isMediaOnlyBubble ? (
-													<div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${
-														mine ? "bg-black/20" : "bg-black/[0.08]"
-													}`}>
-														<div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${
-															mine ? "bg-white/60" : "bg-[var(--accent)]/50"
-														}`} />
-														<div className="min-w-0 flex-1 py-2.5 pl-[13px] pr-2.5">
-															<p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-															<p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : t("chat.thread.shared_image"))}</p>
-														</div>
-														{replyThumbUrl ? (
-															<img
-																src={replyThumbUrl}
-																alt=""
-																className="h-14 w-14 shrink-0 object-cover"
-															/>
-														) : replyIsAudio ? (
-															<div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "text-white/60" : "text-[var(--text-muted)]"}`}>
-																<div className="flex flex-col items-center gap-1">
-																	<Mic className="h-4 w-4" />
-																	<span className="text-[10px] opacity-80">{replyAudioDuration ?? "0:00"}</span>
-																</div>
-															</div>
-														) : null}
-													</div>
-												) : null}
 
-												{!isMediaOnlyBubble && !isAudioOnlyBubble ? (
+												{!isMediaOnlyBubble && !isAudioOnlyBubble
+												&& !(imageUrl && messageText === t("chat.thread.shared_image"))
+												&& !((videoUrl || isExpiredVideo) && messageText === t("chat.thread.shared_video")) ? (
 													<p className="whitespace-pre-wrap break-words">
 														{displayText}
 													</p>
 												) : null}
 
 														{!isLocalClientMessageId(message.messageId) ? (
-															<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
-																message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
-															} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
-																🔥
-															</span>
+															(isDesktop ? (
+																<button
+																	type="button"
+																	onClick={() => void handleReact(message)}
+																	className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
+																		message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "chat-reaction-flame--hoverable"
+																	} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
+																>
+																	🔥
+																</button>
+															) : (
+																<span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+																	message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
+																} ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
+																	🔥
+																</span>
+															))
 														) : null}
 
 												{!isMediaOnlyBubble ? (

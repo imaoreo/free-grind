@@ -16,6 +16,7 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
+	Shield,
 	Workflow,
 	UserX,
 	Trash2,
@@ -325,554 +326,409 @@ export function SettingsPage() {
 		}
 	};
 
+	const navRow = (
+		onClick: (() => void) | null,
+		icon: React.ReactNode,
+		iconClass: string,
+		label: string,
+		desc: string,
+		right?: React.ReactNode,
+		disabled?: boolean,
+	) => {
+		const inner = (
+			<>
+				<div className={`rounded-2xl p-2.5 shrink-0 ${iconClass}`}>
+					{icon}
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="text-sm font-semibold leading-snug">{label}</p>
+					<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">{desc}</p>
+				</div>
+				{right ?? <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />}
+			</>
+		);
+		const cls = `flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"}`;
+		return onClick ? (
+			<button type="button" onClick={onClick} disabled={disabled} className={cls}>
+				{inner}
+			</button>
+		) : (
+			<div className={cls}>{inner}</div>
+		);
+	};
+
 	return (
 		<section className="app-screen">
-			<header className="mb-6 flex items-center gap-3">
+			<header className="mb-7">
 				<button
 					type="button"
 					onClick={() => navigate("/")}
-					className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)]"
+					className="mb-4 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
 					aria-label={t("settings.back_to_browse")}
 				>
 					<ChevronLeft className="h-4 w-4" />
+					Browse
 				</button>
-				<div>
-					<div className="mb-1 flex items-center gap-2">
-						<h1 className="app-title">{t("settings.title")}</h1>
-						{developerMode ? (
-							<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-contrast)]">
-								Developer Mode
-							</span>
-						) : null}
-					</div>
-					<p className="app-subtitle">{t("settings.subtitle")}</p>
+				<div className="flex items-center gap-2">
+					<h1 className="app-title">{t("settings.title")}</h1>
+					{developerMode ? (
+						<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--accent-contrast)]">
+							Developer Mode
+						</span>
+					) : null}
 				</div>
+				<p className="app-subtitle mt-1">{t("settings.subtitle")}</p>
 			</header>
 
-			<div className="grid gap-4">
+			<div className="grid gap-6">
 
-				<button
-					type="button"
-					onClick={() => navigate("/settings/profile-editor")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<BadgeInfo className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.profile_editor")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.profile_editor_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-                
-				<button
-					type="button"
-					onClick={() => navigate("/settings/customizability")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Palette className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.customizability")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.customizability_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-{/* --- AUTOMATION MENU BUTTON --- */}
-				<button
-					type="button"
-					onClick={() => navigate("/settings/automation")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
-							<Workflow className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.automation")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.automation_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-				{/* ----------------------------- */}
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/issues")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<ClipboardList className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.issue_board")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.issue_board_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/report-issue")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<MessageSquareWarning className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.report_issue")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.report_issue_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-                {/*
-                    <button
-                        type="button"
-                        onClick={() => navigate("/settings/age-verification")}
-                        className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-                                <ScanFace className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-base font-semibold">Age Verification</p>
-                                <p className="text-sm text-[var(--text-muted)]">
-                                    Verify your age to unlock all features.
-                                </p>
-                            </div>
-                        </div>
-                        <ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-                    </button>
-                */}
-
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/about")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Info className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.about")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.about_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				{developerMode ? (
-					<div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
-						<div className="flex items-center gap-3">
-							<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-								<Bug className="h-5 w-5" />
-							</div>
-							<div>
-								<p className="text-base font-semibold">
-									Show Debug Overlays
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									Displays source (cache/network) info in the grid.
-								</p>
-							</div>
-						</div>
-						<button
-							type="button"
-							onClick={() => void setPreferences({ showDebugInfo: !showDebugInfo })}
-							className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-								showDebugInfo ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"
-							}`}
-						>
-							<span
-								className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-									showDebugInfo ? "translate-x-5" : "translate-x-0"
-								}`}
-							/>
-						</button>
-					</div>
-				) : null}
-
-				{developerMode ? (
-					<button
-						type="button"
-						onClick={() => navigate("/settings/api-inspector")}
-						className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-					>
-						<div className="flex items-center gap-3">
-							<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-								<Radar className="h-5 w-5" />
-							</div>
-							<div>
-								<p className="text-base font-semibold">
-									{t("settings.api_inspector")}
-								</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									{t("settings.api_inspector_desc")}
-								</p>
-							</div>
-						</div>
-						<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-					</button>
-				) : null}
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/albums")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Images className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.my_albums")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.my_albums_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => navigate("/settings/blocked")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<UserX className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.blocked_accounts")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.blocked_accounts_desc")}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
- 
-				<button
-					type="button"
-					onClick={() => navigate("/settings/saved-phrases")}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Bookmark className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.saved_phrases", { defaultValue: "Saved Phrases" })}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.saved_phrases_desc", {
-									defaultValue: "Manage chat quick replies and import/export .txt",
-								})}
-							</p>
-						</div>
-					</div>
-					<ChevronRight className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
-
-				<button
-					type="button"
-					onClick={() => void handleExport()}
-					disabled={isExporting}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Download className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.export_chat")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.export_chat_desc")}
-							</p>
-						</div>
-					</div>
-					{isExporting ? (
-						<span className="text-xs text-[var(--text-muted)]">
-							{t("settings.exporting")}
-						</span>
-					) : (
-						<Download className="h-5 w-5 text-[var(--text-muted)]" />
-					)}
-				</button>
-
-				<div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<RefreshCcw className="h-5 w-5" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">
-								{t("settings.check_updates")}
-							</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								{t("settings.environment")}: <strong>{updateChannel}</strong>
-							</p>
-							<div className="mt-2 flex flex-wrap items-center gap-2">
-								{visibleChannels.map((channel) => (
-									<button
-										key={channel}
-										type="button"
-										disabled={isSwitchingChannel || isCheckingUpdates}
-										onClick={() => void handleSwitchUpdateChannel(channel)}
-										className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-											channel === updateChannel
-												? "border-[var(--accent)] bg-[var(--accent)] text-black"
-												: "border-[var(--surface-2)] bg-[var(--surface-1)] text-[var(--text-muted)]"
-										}`}
-									>
-										{channel}
-									</button>
-								))}
-							</div>
-						</div>
-					</div>
-					{isSwitchingChannel ? (
-						<span className="text-xs text-[var(--text-muted)]">
-							{t("settings.switching")}
-						</span>
-					) : isCheckingUpdates ? (
-						<span className="text-xs text-[var(--text-muted)]">
-							{t("settings.checking")}
-						</span>
-					) : (
-						<Button
-							type="button"
-							onClick={() => void handleCheckUpdates()}
-							disabled={isCheckingUpdates || isSwitchingChannel}
-						>
-							{t("settings.check_now")}
-						</Button>
-					)}
-				</div>
-
-				{/* Contributor Channel — input only visible in developer mode; active state always visible */}
-				{(developerMode || isContributorChannel(updateChannel)) ? (
-				<div className="surface-card p-4 sm:p-5">
-					<div className="flex items-start gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
-							<GitBranch className="h-5 w-5" />
-						</div>
-						<div className="grid gap-3 min-w-0 flex-1">
-							<div>
-								<p className="text-base font-semibold">Contributor Channel</p>
-								<p className="text-sm text-[var(--text-muted)]">
-									Enter a contributor code to receive their experimental builds.
-								</p>
-							</div>
-
-							{isContributorChannel(updateChannel) ? (
-								<div className="grid gap-2">
-									<div className="rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
-										<p className="text-xs text-[var(--text-muted)] mb-0.5">Active contributor</p>
-										<p className="font-semibold text-[var(--accent)]">
-											{getContributorHandle(updateChannel)}
-										</p>
-									</div>
-									<p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
-										Contributor channels are community-provided experimental builds. Use at your own risk.
-									</p>
-									<button
-										type="button"
-										disabled={isSwitchingChannel}
-										onClick={() => void handleLeaveContributorChannel()}
-										className="rounded-lg border border-[var(--surface-2)] bg-[var(--surface-1)] px-3 py-1.5 text-sm text-[var(--text-muted)] transition hover:border-red-400 hover:text-red-400 disabled:opacity-50"
-									>
-										{isSwitchingChannel ? "Leaving…" : "Leave contributor channel"}
-									</button>
-								</div>
-							) : developerMode ? (
-								<div className="flex items-center gap-2">
-									<input
-										type="text"
-										value={contributorCodeInput}
-										onChange={(e) => setContributorCodeInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-										onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
-										placeholder="contributor-handle"
-										maxLength={32}
-										className="min-w-0 flex-1 rounded-lg border border-[var(--surface-2)] bg-[var(--surface-1)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
-									/>
-									<button
-										type="button"
-										disabled={isActivatingContributor || !contributorCodeInput}
-										onClick={() => void handleActivateContributorChannel()}
-										className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black transition disabled:opacity-50"
-									>
-										{isActivatingContributor ? "Activating…" : "Activate"}
-									</button>
-								</div>
-							) : null}
-						</div>
+				{/* Profile */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Profile</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/profile-editor"),
+							<BadgeInfo className="h-5 w-5" />,
+							"bg-blue-500/15 text-blue-400",
+							t("settings.profile_editor"),
+							t("settings.profile_editor_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/albums"),
+							<Images className="h-5 w-5" />,
+							"bg-pink-500/15 text-pink-400",
+							t("settings.my_albums"),
+							t("settings.my_albums_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/customizability"),
+							<Palette className="h-5 w-5" />,
+							"bg-violet-500/15 text-violet-400",
+							t("settings.customizability"),
+							t("settings.customizability_desc"),
+						)}
 					</div>
 				</div>
-				) : null}
 
-				{developerMode ? (
-					<div className="surface-card p-4 sm:p-5">
-					<div className="flex items-start gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5 shrink-0">
-							<Bell className="h-5 w-5" />
+
+				{/* Chat */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Chat</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/automation"),
+							<Workflow className="h-5 w-5" />,
+							"bg-amber-500/15 text-amber-400",
+							t("settings.automation"),
+							t("settings.automation_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/saved-phrases"),
+							<Bookmark className="h-5 w-5" />,
+							"bg-emerald-500/15 text-emerald-400",
+							t("settings.saved_phrases", { defaultValue: "Saved Phrases" }),
+							t("settings.saved_phrases_desc", { defaultValue: "Manage chat quick replies and import/export .txt" }),
+						)}
+						{navRow(
+							isExporting ? null : () => void handleExport(),
+							<Download className="h-5 w-5" />,
+							"bg-teal-500/15 text-teal-400",
+							t("settings.export_chat"),
+							t("settings.export_chat_desc"),
+							isExporting ? <span className="text-xs text-[var(--text-muted)]">{t("settings.exporting")}</span> : undefined,
+							isExporting,
+						)}
+					</div>
+				</div>
+
+				{/* Safety */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Safety</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/blocked"),
+							<UserX className="h-5 w-5" />,
+							"bg-red-500/15 text-red-400",
+							t("settings.blocked_accounts"),
+							t("settings.blocked_accounts_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/privacy"),
+							<Shield className="h-5 w-5" />,
+							"bg-sky-500/15 text-sky-400",
+							t("settings.privacy"),
+							t("settings.privacy_desc"),
+						)}
+					</div>
+				</div>
+
+				{/* Updates */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Updates</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+
+						{/* Check for Updates + Channel switcher */}
+						<div className="flex items-start gap-3 px-4 py-3.5">
+							<div className="rounded-2xl bg-green-500/15 p-2.5 shrink-0 text-green-400">
+								<RefreshCcw className="h-5 w-5" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<div className="grid grid-cols-[1fr_auto] gap-x-3">
+									<p className="text-sm font-semibold leading-snug">{t("settings.check_updates")}</p>
+									<div className="row-span-2 flex items-start">
+										{isSwitchingChannel ? (
+											<span className="text-xs text-[var(--text-muted)]">{t("settings.switching")}</span>
+										) : isCheckingUpdates ? (
+											<span className="text-xs text-[var(--text-muted)]">{t("settings.checking")}</span>
+										) : (
+											<Button type="button" onClick={() => void handleCheckUpdates()} disabled={isCheckingUpdates || isSwitchingChannel}>
+												{t("settings.check_now")}
+											</Button>
+										)}
+									</div>
+									<p className="mt-0.5 text-xs text-[var(--text-muted)]">{t("settings.check_updates_desc")}</p>
+								</div>
+								{visibleChannels.length > 0 && (
+									<div className="mt-3 flex flex-wrap gap-1">
+										{visibleChannels.map((channel) => (
+											<button
+												key={channel}
+												type="button"
+												disabled={isSwitchingChannel || isCheckingUpdates}
+												onClick={() => void handleSwitchUpdateChannel(channel)}
+												className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
+													channel === updateChannel
+														? "border-[var(--accent)] bg-[var(--accent)] text-black"
+														: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)]/50"
+												}`}
+											>
+												{channel}
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 						</div>
-						<div className="grid gap-3 min-w-0 flex-1">
-							<p className="text-base font-semibold">Push Token (FCM)</p>
 
-							{/* Current token */}
-							{fcmToken ? (
-								<div className="grid gap-2">
-									<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
-										<p className="text-xs text-[var(--text-muted)] mb-1">Token (tap to select)</p>
-										<p className="break-all font-mono text-xs select-all">{fcmToken}</p>
+						{/* Contributor Channel */}
+						{(developerMode || isContributorChannel(updateChannel)) && (
+							<div className="px-4 py-3.5">
+								<div className="flex items-start gap-3">
+									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
+										<GitBranch className="h-5 w-5" />
 									</div>
-									<div className="flex flex-wrap items-center gap-2">
-										<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
-											fcmSyncedToken === fcmToken
-												? "bg-green-500/20 text-green-400"
-												: "bg-yellow-500/20 text-yellow-400"
-										}`}>
-											{fcmSyncedToken === fcmToken ? "✓ Synced to Grindr" : "⚠ Not yet synced"}
-										</span>
-										<Button type="button" size="sm" disabled={isSyncingFcm} onClick={() => void handleForceSyncFcm()}>
-											{isSyncingFcm ? "Syncing..." : "Force re-sync"}
-										</Button>
+									<div className="grid gap-2 min-w-0 flex-1">
+										<div>
+											<p className="text-sm font-semibold leading-snug">Contributor Channel</p>
+											<p className="text-xs text-[var(--text-muted)] mt-0.5">Receive experimental builds from a community contributor.</p>
+										</div>
+										{isContributorChannel(updateChannel) ? (
+											<>
+												<div className="flex items-center justify-between rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
+													<div>
+														<p className="text-xs text-[var(--text-muted)]">Active</p>
+														<p className="text-sm font-semibold text-[var(--accent)]">{getContributorHandle(updateChannel)}</p>
+													</div>
+													<button
+														type="button"
+														disabled={isSwitchingChannel}
+														onClick={() => void handleLeaveContributorChannel()}
+														className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition hover:border-red-400 hover:text-red-400 disabled:opacity-50"
+													>
+														{isSwitchingChannel ? "Leaving…" : "Leave"}
+													</button>
+												</div>
+												<p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
+													Community build — use at your own risk.
+												</p>
+											</>
+										) : developerMode ? (
+											<div className="flex items-center gap-2">
+												<input
+													type="text"
+													value={contributorCodeInput}
+													onChange={(e) => setContributorCodeInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+													onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
+													placeholder="contributor-handle"
+													maxLength={32}
+													className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+												/>
+												<button
+													type="button"
+													disabled={isActivatingContributor || !contributorCodeInput}
+													onClick={() => void handleActivateContributorChannel()}
+													className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black transition disabled:opacity-50"
+												>
+													{isActivatingContributor ? "Activating…" : "Activate"}
+												</button>
+											</div>
+										) : null}
 									</div>
 								</div>
-							) : (
-								<div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-sm text-yellow-400">
-									<p className="font-medium mb-0.5">No token received yet</p>
-									<p className="text-xs opacity-80">Android delivers the FCM token via the <code>fg:fcm-token</code> event after Firebase initialises on launch. If you see nothing below, Firebase may have failed — check that Google Play Services is working on this device.</p>
-								</div>
-							)}
+							</div>
+						)}
+					</div>
+				</div>
 
-							{/* Live event log */}
-							<div>
-								<p className="text-xs font-medium text-[var(--text-muted)] mb-1">
-									Live event log {fcmEventLog.length > 0 ? `(${fcmEventLog.length} received this session)` : "(waiting…)"}
-								</p>
-								<div
-									ref={fcmLogRef}
-									className="rounded-lg bg-[var(--surface-2)] px-3 py-2 max-h-32 overflow-y-auto"
+				{/* Dev tools */}
+				{developerMode ? (
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Developer</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<div className="flex w-full items-center gap-3 px-4 py-3.5">
+								<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
+									<Bug className="h-5 w-5" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="text-sm font-semibold leading-snug">Show Debug Overlays</p>
+									<p className="text-xs text-[var(--text-muted)] mt-0.5">Displays source (cache/network) info in the grid.</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => void setPreferences({ showDebugInfo: !showDebugInfo })}
+									className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${showDebugInfo ? "bg-[var(--accent)]" : "bg-[var(--surface-2)]"}`}
 								>
-									{fcmEventLog.length === 0 ? (
-										<p className="font-mono text-xs text-[var(--text-muted)] italic">No fg:fcm-token events fired since this page opened</p>
-									) : (
-										fcmEventLog.map((entry, i) => (
-											<p key={i} className="font-mono text-xs break-all">
-												<span className="text-[var(--text-muted)]">[{entry.time}] </span>
-												{entry.token.slice(0, 20)}…{entry.token.slice(-8)}
-											</p>
-										))
-									)}
-								</div>
+									<span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${showDebugInfo ? "translate-x-5" : "translate-x-0"}`} />
+								</button>
 							</div>
-
-							{/* Manual token input */}
-							<div className="grid gap-1.5">
-								<p className="text-xs font-medium text-[var(--text-muted)]">Manual token (paste to force-sync)</p>
-								<div className="flex gap-2">
-									<input
-										type="text"
-										value={manualToken}
-										onChange={(e) => setManualToken(e.target.value)}
-										placeholder="Paste FCM token here…"
-										className="input-field min-w-0 flex-1 font-mono text-xs"
-									/>
-									<Button
-										type="button"
-										size="sm"
-										disabled={isSyncingFcm || !manualToken.trim()}
-										onClick={() => void handleForceSyncFcm(manualToken.trim())}
-									>
-										Sync
-									</Button>
+							{navRow(
+								() => navigate("/settings/api-inspector"),
+								<Radar className="h-5 w-5" />,
+								"bg-[var(--surface-2)] text-[var(--text-muted)]",
+								t("settings.api_inspector"),
+								t("settings.api_inspector_desc"),
+							)}
+							<div className="p-4 sm:p-5">
+								<div className="flex items-start gap-3">
+									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
+										<Bell className="h-5 w-5" />
+									</div>
+									<div className="grid gap-3 min-w-0 flex-1">
+										<div className="flex items-center gap-2 flex-wrap">
+											<p className="text-sm font-semibold">Push Token (FCM)</p>
+											{fcmToken && (
+												<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fcmSyncedToken === fcmToken ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+													{fcmSyncedToken === fcmToken ? "✓ Synced" : "⚠ Not synced"}
+												</span>
+											)}
+										</div>
+										{fcmToken ? (
+											<div className="grid gap-2">
+												<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+													<p className="text-xs text-[var(--text-muted)] mb-1">Token (tap to select)</p>
+													<p className="break-all font-mono text-xs select-all">{fcmToken}</p>
+												</div>
+												<Button type="button" size="sm" disabled={isSyncingFcm} onClick={() => void handleForceSyncFcm()} className="w-full justify-center">
+													{isSyncingFcm ? "Syncing..." : "Force re-sync"}
+												</Button>
+                                            </div>
+										) : (
+											<div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-sm text-yellow-400">
+												<p className="font-medium mb-0.5">No token received yet</p>
+												<p className="text-xs opacity-80">Android delivers the FCM token via the <code>fg:fcm-token</code> event after Firebase initialises on launch.</p>
+											</div>
+										)}
+										<div>
+											<p className="text-xs font-medium text-[var(--text-muted)] mb-1">
+												Live event log {fcmEventLog.length > 0 ? `(${fcmEventLog.length} received this session)` : "(waiting…)"}
+											</p>
+											<div ref={fcmLogRef} className="rounded-lg bg-[var(--surface-2)] px-3 py-2 max-h-32 overflow-y-auto">
+												{fcmEventLog.length === 0 ? (
+													<p className="font-mono text-xs text-[var(--text-muted)] italic">No fg:fcm-token events fired since this page opened</p>
+												) : (
+													fcmEventLog.map((entry, i) => (
+														<p key={i} className="font-mono text-xs break-all">
+															<span className="text-[var(--text-muted)]">[{entry.time}] </span>
+															{entry.token.slice(0, 20)}…{entry.token.slice(-8)}
+														</p>
+													))
+												)}
+											</div>
+										</div>
+										<div className="grid gap-1.5">
+											<p className="text-xs font-medium text-[var(--text-muted)]">Manual token (paste to force-sync)</p>
+											<div className="flex gap-2">
+												<input
+													type="text"
+													value={manualToken}
+													onChange={(e) => setManualToken(e.target.value)}
+													placeholder="Paste FCM token here…"
+													className="input-field min-w-0 flex-1 font-mono text-xs"
+												/>
+												<Button type="button" size="sm" disabled={isSyncingFcm || !manualToken.trim()} onClick={() => void handleForceSyncFcm(manualToken.trim())}>
+													Sync
+												</Button>
+											</div>
+										</div>
+									</div>
 								</div>
 							</div>
 						</div>
-					</div>
 					</div>
 				) : null}
 
-				<button
-					type="button"
-					onClick={handleClearCaches}
-					className="surface-card flex w-full items-center justify-between p-4 text-left transition-transform hover:-translate-y-0.5 sm:p-5"
-				>
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
-							<Trash2 className="h-5 w-5 text-red-500/80" />
-						</div>
-						<div>
-							<p className="text-base font-semibold">Clear Caches</p>
-							<p className="text-sm text-[var(--text-muted)]">
-								Clear all profile, search, and message cache in memory.
-							</p>
-						</div>
+				{/* About */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">About</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/about"),
+							<Info className="h-5 w-5" />,
+							"bg-slate-500/15 text-slate-400",
+							t("settings.about"),
+							t("settings.about_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/issues"),
+							<ClipboardList className="h-5 w-5" />,
+							"bg-orange-500/15 text-orange-400",
+							t("settings.issue_board"),
+							t("settings.issue_board_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/report-issue"),
+							<MessageSquareWarning className="h-5 w-5" />,
+							"bg-rose-500/15 text-rose-400",
+							t("settings.report_issue"),
+							t("settings.report_issue_desc"),
+						)}
 					</div>
-					<Trash2 className="h-5 w-5 text-[var(--text-muted)]" />
-				</button>
+				</div>
 
-                <div className="surface-card flex w-full items-center justify-between p-4 text-left sm:p-5">
-					<div className="flex items-center gap-3">
-						<div className="rounded-xl bg-[var(--surface-2)] p-2.5">
+				{/* Data */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Data</p>
+					<div className="surface-card overflow-hidden">
+						{navRow(
+							handleClearCaches,
+							<Trash2 className="h-5 w-5" />,
+							"bg-red-500/15 text-red-400",
+							"Clear Caches",
+							"Clear all profile, search, and message cache in memory.",
+						)}
+					</div>
+				</div>
+
+				{/* Logout */}
+				<div className="surface-card overflow-hidden">
+					<div className="flex items-center gap-3 px-4 py-3.5">
+						<div className="rounded-2xl bg-red-500/15 p-2.5 shrink-0 text-red-400">
 							<LogOut className="h-5 w-5" />
 						</div>
-						<div>
-							<p className="text-base font-semibold">{t("settings.logout")}</p>
-							<p className="text-sm text-[var(--text-muted)]">
+						<div className="min-w-0 flex-1">
+							<p className="text-sm font-semibold leading-snug">{t("settings.logout")}</p>
+							<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
 								{t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })}
 							</p>
 						</div>
+						<button
+							type="button"
+							onClick={() => void handleLogout()}
+							className="shrink-0 inline-flex items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+						>
+							{t("settings.logout")}
+						</button>
 					</div>
-					<button
-						type="button"
-						onClick={handleLogout}
-						className="inline-flex min-h-9 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
-					>
-						{t("settings.logout")}
-					</button>
 				</div>
 
 			</div>

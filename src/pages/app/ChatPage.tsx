@@ -408,6 +408,9 @@ export function ChatPage() {
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
 	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
+	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
+	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
+	const [isSendingAudio, setIsSendingAudio] = useState(false);
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
 	const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -1145,7 +1148,7 @@ export function ChatPage() {
 
 					// Hydrate received video messages that have no URL yet (mediaId may be null).
 					const mediaIdVideoMessages = responseMessages.filter((message) => {
-						const isVideoLike = message.type === "Video" || (message as UiMessage).chat1Type?.toLowerCase() === "video";
+						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "private_video" || (message as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 						if (!isVideoLike) return false;
 						return !getMessageVideoUrl(message as UiMessage);
 					});
@@ -1416,7 +1419,7 @@ export function ChatPage() {
 
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
-			const isVideoLike = m.type === "Video" || (m as UiMessage).chat1Type?.toLowerCase() === "video";
+			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
 		});
@@ -2386,8 +2389,6 @@ export function ChatPage() {
 			const replySnippet = selectedReplyMessage
 				? getMessagePreviewLabel(selectedReplyMessage, t).trim()
 				: "";
-			const textWithReplyContext =
-				replySnippet.length > 0 ? `> ${replySnippet}\n${trimmed}` : trimmed;
 
 			setIsSending(true);
 			const localMessageId =
@@ -2406,7 +2407,7 @@ export function ChatPage() {
 						reactions: [],
 						type: "Text",
 						chat1Type: "text",
-						body: { text: textWithReplyContext },
+						body: { text: trimmed },
 						replyToMessage: selectedReplyMessage
 							? { messageId: selectedReplyMessage.messageId }
 							: null,
@@ -2430,7 +2431,8 @@ export function ChatPage() {
 			try {
 				const sentMessage = await service.sendText({
 					targetProfileId: targetProfileIdValue,
-					text: textWithReplyContext,
+					text: trimmed,
+					replyToMessageId: selectedReplyMessage?.messageId ?? null,
 				});
 
 				setThreadMessages((previous) => {
@@ -2531,8 +2533,10 @@ export function ChatPage() {
 						targetId: targetProfileIdValue,
 					},
 					body: { lat, lon },
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
@@ -2545,7 +2549,7 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	const sendMediaAttachment = useCallback(
@@ -2602,7 +2606,7 @@ export function ChatPage() {
 					type: isVideo ? "Video" : "Image",
 					chat1Type: isVideo ? "video" : "image",
 					body: { url: objectUrl },
-					replyToMessage: null,
+					replyToMessage: replyTargetMessageId ? { messageId: replyTargetMessageId } : null,
 					replyPreview: null,
 					dynamic: false,
 					clientState: "pending",
@@ -2641,7 +2645,8 @@ export function ChatPage() {
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
 				const isOnceImage = isImage && options.maxViews === 1;
-				const messageType = isVideo ? "Video" : isOnceImage ? "ExpiringImage" : "Image";
+				const isUnlimitedVideo = isVideo && options.maxViews > 2;
+				const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 				const sentMessage = await service.sendMessage({
 					type: messageType,
 					target: {
@@ -2657,8 +2662,10 @@ export function ChatPage() {
 						...(imageUrl ? { url: imageUrl } : {}),
 						...(isImage && imageHash ? { imageHash } : {}),
 					},
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
 					const merged = previous
 						.filter((message) => message.messageId !== localMessageId)
@@ -2729,6 +2736,8 @@ export function ChatPage() {
 			targetProfileId,
 			uploadProgress,
 			userId,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -2776,9 +2785,76 @@ export function ChatPage() {
 		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
 	);
 
+	const sendAudioBlob = useCallback(async (blob: Blob, durationMs: number) => {
+		if (!userId) return;
+		const targetIdValue = selectedConversation
+			? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+			: targetProfileId;
+		if (!targetIdValue) return;
+		setIsSendingAudio(true);
+		try {
+			const audioBytes = new Uint8Array(await blob.arrayBuffer());
+			const uploaded = await service.uploadChatMedia({
+				multipart: { body: audioBytes, contentType: blob.type || "audio/webm" },
+				options: { looping: false, takenOnGrindr: false, durationSeconds: durationMs },
+			});
+			await service.sendMessage({
+				type: "Audio",
+				target: { type: "Direct", targetId: Number(targetIdValue) },
+				body: {
+					mediaId: uploaded.mediaId,
+					mediaHash: uploaded.mediaHash,
+					url: uploaded.url,
+					contentType: blob.type || "audio/webm",
+					length: durationMs,
+					expiresAt: uploaded.expiresAt,
+				},
+				replyToMessageId: replyTargetMessageId,
+			});
+			setPendingAudioBlob(null);
+			setPendingAudioDuration(0);
+			setReplyTargetMessageId(null);
+		} catch (err) {
+			console.error("[sendAudioBlob] failed", {
+				err,
+				blobType: blob?.type,
+				blobSize: blob?.size,
+				durationMs,
+				conversationId: selectedConversation?.data.conversationId,
+				targetId: targetIdValue,
+			});
+			toast.error(err instanceof Error ? err.message : t("chat.errors.send_failed"));
+		} finally {
+			setIsSendingAudio(false);
+		}
+	}, [userId, selectedConversation, targetProfileId, service, t, replyTargetMessageId, setReplyTargetMessageId]);
+
+	const sendAudioBlobRef = useRef(sendAudioBlob);
+	useEffect(() => { sendAudioBlobRef.current = sendAudioBlob; }, [sendAudioBlob]);
+
+	const onAudioRecorded = useCallback((blob: Blob, durationMs: number, autoSend?: boolean) => {
+		if (autoSend) {
+			void sendAudioBlobRef.current(blob, durationMs);
+		} else {
+			setPendingAudioBlob(blob);
+			setPendingAudioDuration(durationMs);
+		}
+	}, []);
+
+	const cancelAudio = useCallback(() => {
+		setPendingAudioBlob(null);
+		setPendingAudioDuration(0);
+	}, []);
+
+	const confirmAudio = useCallback(async () => {
+		if (!pendingAudioBlob) return;
+		await sendAudioBlob(pendingAudioBlob, pendingAudioDuration);
+	}, [pendingAudioBlob, pendingAudioDuration, sendAudioBlob]);
+
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
+		scrollThreadToBottom();
 	};
 
 	const handleRetry = (message: UiMessage) => {
@@ -3158,6 +3234,7 @@ export function ChatPage() {
 
 			setIsSendingDrawerMedia(true);
 			let finalSentMessage: UiMessage | undefined;
+			let pendingReplyId = replyTargetMessageId;
 			try {
 				// Send each media item as a separate image/video message
 				for (const mediaId of mediaIds) {
@@ -3167,7 +3244,8 @@ export function ChatPage() {
 					const isVideo = media.contentType.startsWith("video");
 					const views = maxViews ?? 2147483647;
 					const isOnceImage = !isVideo && views === 1;
-					const messageType = isOnceImage ? "ExpiringImage" : isVideo ? "Video" : "Image";
+                    const isUnlimitedVideo = isVideo && views > 2;
+				    const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 
 					const sentMessage = await service.sendMessage({
 						type: messageType,
@@ -3183,7 +3261,9 @@ export function ChatPage() {
 							...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
 							...(isVideo ? { viewsRemaining: views, maxViews: views } : {}),
 						},
+						replyToMessageId: pendingReplyId,
 					});
+					pendingReplyId = null;
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
@@ -3213,6 +3293,7 @@ export function ChatPage() {
 					}));
 				}
 
+				setReplyTargetMessageId(null);
 				toast.success(t("chat.toasts.media_sent"));
 				setIsDrawerOpen(false);
 
@@ -3234,6 +3315,8 @@ export function ChatPage() {
 			t,
 			syncConversation,
 			loadDrawerMedia,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -3513,6 +3596,12 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onAudioRecorded={onAudioRecorded}
+			pendingAudioBlob={pendingAudioBlob}
+			pendingAudioDuration={pendingAudioDuration}
+			isSendingAudio={isSendingAudio}
+			confirmAudio={confirmAudio}
+			cancelAudio={cancelAudio}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}

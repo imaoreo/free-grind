@@ -73,3 +73,4 @@ apple-native-keyring-store = { version = "0.2.3", features = ["protected", "keyc
 
 [target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = "0.2.1"
+webkit2gtk = "2"
