@@ -44,18 +44,41 @@ function buildDismissStorageKey(appVersion: string): string {
     return `outdated-version-dismissed-${normalizeVersion(appVersion)}`;
 }
 
-function readDismissedFlag(key: string): boolean {
+function processDismissCountdown(key: string): boolean {
     if (typeof window === "undefined") {
         return false;
     }
 
-    return window.localStorage.getItem(key) === "1";
+    const storedValue = window.localStorage.getItem(key);
+    
+    if (!storedValue) {
+        return false; 
+    }
+
+    let reopensRemaining = parseInt(storedValue, 10);
+    if (isNaN(reopensRemaining)) {
+        return false;
+    }
+
+    reopensRemaining -= 1;
+
+    if (reopensRemaining <= 0) {
+        // Countdown finished! Remove the flag so the prompt shows again.
+        window.localStorage.removeItem(key);
+        return false; 
+    } else {
+        // Save the new countdown number
+        window.localStorage.setItem(key, reopensRemaining.toString());
+    }
+
+    // If we have reopens remaining, it is still considered "dismissed"
+    return reopensRemaining > 0;
 }
 
-function writeDismissedFlag(key: string): void {
+function writeDismissedFlag(key: string, reopens: number = 5): void {
     try {
         if (typeof window !== "undefined") {
-            window.localStorage.setItem(key, "1");
+            window.localStorage.setItem(key, reopens.toString());
         }
     } catch (error) {
         console.warn("Failed to write to localStorage:", error);
@@ -106,7 +129,7 @@ export function OutdatedVersionPrompt() {
     );
     
     const [isDismissed, setIsDismissed] = useState(() =>
-        readDismissedFlag(dismissStorageKey),
+        processDismissCountdown(dismissStorageKey)
     );
     
     const [releaseInfo, setReleaseInfo] = useState<ReleaseInfo | null>(null);
@@ -169,7 +192,7 @@ export function OutdatedVersionPrompt() {
 					<button
 						type="button"
 						onClick={() => {
-							writeDismissedFlag(dismissStorageKey);
+							writeDismissedFlag(dismissStorageKey, 5);
 							setIsDismissed(true);
 						}}
 						className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
