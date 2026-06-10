@@ -100,7 +100,13 @@ export function ChatDrawerPanel({
 	const [selectedAlbumIds, setSelectedAlbumIds] = useState<Set<number>>(new Set());
 	const EXPIRY_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"];
 	const [albumExpirationType, setAlbumExpirationType] = useState("INDEFINITE");
-	const EXPIRY_LABELS: Record<string, string> = { INDEFINITE: "\u221e", ONCE: "1\u00d7", TEN_MINUTES: "10m", ONE_HOUR: "1h", ONE_DAY: "1d" };
+	const EXPIRY_LABELS: Record<string, string> = {
+		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
+		ONCE: t("chat_drawer.expiry.once", { defaultValue: "Once" }),
+		TEN_MINUTES: t("chat_drawer.expiry.ten_minutes", { defaultValue: "10 minutes" }),
+		ONE_HOUR: t("chat_drawer.expiry.one_hour", { defaultValue: "1 hour" }),
+		ONE_DAY: t("chat_drawer.expiry.one_day", { defaultValue: "1 day" }),
+	};
 	const prevMediaIdsRef = useRef<Set<number>>(new Set());
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
 	const cameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -708,18 +714,21 @@ export function ChatDrawerPanel({
 										</button>
 									) : (
 										<>
-											<button
-												type="button"
-												onClick={() => {
-													const idx = EXPIRY_OPTIONS.indexOf(albumExpirationType);
-													setAlbumExpirationType(EXPIRY_OPTIONS[(idx + 1) % EXPIRY_OPTIONS.length]);
-												}}
-												className="inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-												style={{ flexBasis: "22%" }}
+											<div
+												className="relative inline-flex h-11 items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+												style={{ flex: "0 0 50%" }}
 											>
-												<Hourglass className="h-4 w-4" />
-												<span className="text-sm font-semibold">{EXPIRY_LABELS[albumExpirationType]}</span>
-											</button>
+												<Hourglass className="pointer-events-none absolute left-3 h-4 w-4 shrink-0" />
+												<select
+													value={albumExpirationType}
+													onChange={(e) => setAlbumExpirationType(e.target.value)}
+													className="h-full w-full appearance-none rounded-xl bg-transparent pl-9 pr-3 text-sm font-semibold text-[var(--text)] focus:outline-none cursor-pointer text-center"
+												>
+													{EXPIRY_OPTIONS.map((opt) => (
+														<option key={opt} value={opt}>{EXPIRY_LABELS[opt]}</option>
+													))}
+												</select>
+											</div>
 											<button
 												type="button"
 												onClick={() => {
@@ -727,7 +736,8 @@ export function ChatDrawerPanel({
 													void Promise.all([...selectedAlbumIds].map(id => onShareAlbum!(id, albumExpirationType))).then(() => { setSelectedAlbumIds(new Set()); onBack(); });
 												}}
 												disabled={isSharingAlbum}
-												className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+												className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+												style={{ flex: "0 0 50%" }}
 											>
 												{isSharingAlbum ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
 												<span>{isSharingAlbum ? t("chat_drawer.sending") : `${t("chat.share")} (${selectedAlbumIds.size})`}</span>
@@ -740,51 +750,50 @@ export function ChatDrawerPanel({
 						{/* Footer - Send button */}
 						{hasSelection ? (
 							<div className="mt-3 -mx-4 border-t border-[var(--border)] pt-3 px-4 flex gap-2">
-								<div className="flex flex-1 gap-2">
-									{(() => {
-									const cycle = hasAnyVideo ? [2147483647, 1, 2] as const : [2147483647, 1] as const;
-									const idx = cycle.indexOf(mediaMaxViews as typeof cycle[number]);
-									const next = cycle[(idx === -1 ? 0 : idx + 1) % cycle.length];
-									const isLimited = mediaMaxViews !== 2147483647;
-									return (
-										<button
-											type="button"
-											onClick={() => setMediaMaxViews(next)}
-											className={`inline-flex h-11 min-w-[64px] items-center justify-center gap-1.5 rounded-xl border transition ${
-												isLimited
-													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-													: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-											}`}
-											style={{ flexBasis: "16.6%" }}
-										>
-											<Hourglass className="h-4 w-4" />
-											{isLimited
-												? <span className="text-sm font-semibold">{mediaMaxViews}×</span>
-												: <span className="text-base font-semibold leading-none">∞</span>
-											}
-										</button>
-									);
-								})()}
-									<button
-										type="button"
-										onClick={handleSendSelected}
-										disabled={isSending}
-										className="flex-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+								<div
+									className="relative inline-flex h-11 items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									style={{ flex: "0 0 50%" }}
+								>
+									<Hourglass className="pointer-events-none absolute left-3 h-4 w-4 shrink-0" />
+									<select
+										value={mediaMaxViews}
+										onChange={(e) => setMediaMaxViews(Number(e.target.value))}
+										className="h-full w-full appearance-none rounded-xl bg-transparent pl-9 pr-3 text-sm font-semibold text-[var(--text)] focus:outline-none cursor-pointer text-center"
 									>
-										{isSending ? (
-											<Loader2 className="h-4 w-4 animate-spin" />
+										{hasAnyVideo ? (
+											<>
+												<option value={2147483647}>{t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" })}</option>
+												<option value={1}>{t("chat_drawer.expiry.once", { defaultValue: "Once" })}</option>
+												<option value={2}>{t("chat_drawer.expiry.repeat", { defaultValue: "Repeat" })}</option>
+											</>
 										) : (
-											<Send className="h-4 w-4" />
+											<>
+												<option value={2147483647}>{t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" })}</option>
+												<option value={10}>{t("chat_drawer.expiry.ten_seconds", { defaultValue: "10s" })}</option>
+											</>
 										)}
-										<span className="truncate">
-											{isSending
-												? t("chat_drawer.sending")
-												: mediaMaxViews !== 2147483647
-													? t("chat_drawer.is_expiring_send", { count: selectedIds.size })
-													: t("chat_drawer.send", { count: selectedIds.size })}
-										</span>
-									</button>
+									</select>
 								</div>
+								<button
+									type="button"
+									onClick={handleSendSelected}
+									disabled={isSending}
+									className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+									style={{ flex: "0 0 50%" }}
+								>
+									{isSending ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<Send className="h-4 w-4" />
+									)}
+									<span className="truncate">
+										{isSending
+											? t("chat_drawer.sending")
+											: mediaMaxViews !== 2147483647
+												? t("chat_drawer.is_expiring_send", { count: selectedIds.size })
+												: t("chat_drawer.send", { count: selectedIds.size })}
+									</span>
+								</button>
 							</div>
 						) : null}
 					</>
