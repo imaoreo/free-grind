@@ -57,6 +57,8 @@ import {
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
+	getMessageImageCreatedAt,
+	getMessageTakenOnGrindr,
 	getMessageVideoUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
@@ -285,7 +287,7 @@ export function ChatPage() {
 				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
 			})
 			.catch((error) => {
-								appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
+				appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
 			});
 
 		return () => {
@@ -396,13 +398,10 @@ export function ChatPage() {
 	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
 	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
-	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
-	const [fullScreenMediaType, setFullScreenMediaType] = useState<"image" | "video">("image");
-	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
-		takenOnGrindr: boolean;
-		createdAtLabel: string | null;
-		timestamp: number;
-	} | null>(null);
+	type ThreadMediaItem = PhotoViewerMedia & { meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number } };
+	const [fullScreenMediaList, setFullScreenMediaList] = useState<ThreadMediaItem[]>([]);
+	const [fullScreenMediaIndex, setFullScreenMediaIndex] = useState(0);
+	const fullScreenImageUrl = fullScreenMediaList.length > 0 ? fullScreenMediaList[fullScreenMediaIndex]?.url ?? null : null;
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -411,6 +410,9 @@ export function ChatPage() {
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
 	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
+	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
+	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
+	const [isSendingAudio, setIsSendingAudio] = useState(false);
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
 	const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -564,7 +566,7 @@ export function ChatPage() {
 				setLocalNicknamesByProfileId(nicknames);
 			})
 			.catch((error) => {
-								appLog.warn("[chat] failed to hydrate local nicknames", error);
+				appLog.warn("[chat] failed to hydrate local nicknames", error);
 			});
 
 		return () => {
@@ -740,7 +742,7 @@ export function ChatPage() {
 						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
 					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
-												appLog.warn("[chat-index] failed to persist inbox metadata", error);
+						appLog.warn("[chat-index] failed to persist inbox metadata", error);
 					});
 				}
 
@@ -1027,7 +1029,7 @@ export function ChatPage() {
 
 					// Hydrate received video messages that have no URL yet (mediaId may be null).
 					const mediaIdVideoMessages = responseMessages.filter((message) => {
-						const isVideoLike = message.type === "Video" || (message as UiMessage).chat1Type?.toLowerCase() === "video";
+						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "private_video" || (message as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 						if (!isVideoLike) return false;
 						return !getMessageVideoUrl(message as UiMessage);
 					});
@@ -1049,6 +1051,10 @@ export function ChatPage() {
 								}
 							}
 							if (updates.length === 0) return;
+                            void chatLog.appendMessages(
+                                conversationId,
+                                updates.filter((u) => !(u.body as any)?._videoExpired),
+                            );
 							if (selectedConversationIdRef.current !== conversationId) return;
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -1331,7 +1337,7 @@ export function ChatPage() {
 
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
-			const isVideoLike = m.type === "Video" || (m as UiMessage).chat1Type?.toLowerCase() === "video";
+			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
 		});
@@ -2251,7 +2257,7 @@ export function ChatPage() {
 						: t("chat.nicknames.cleared"),
 				);
 			} catch (error) {
-								appLog.warn("[chat] failed to save local nickname", error);
+				appLog.warn("[chat] failed to save local nickname", error);
 				const fallbackMessage = t("chat.nicknames.save_failed");
 				const message =
 					error instanceof Error
@@ -2301,8 +2307,6 @@ export function ChatPage() {
 			const replySnippet = selectedReplyMessage
 				? getMessagePreviewLabel(selectedReplyMessage, t).trim()
 				: "";
-			const textWithReplyContext =
-				replySnippet.length > 0 ? `> ${replySnippet}\n${trimmed}` : trimmed;
 
 			setIsSending(true);
 			const localMessageId =
@@ -2321,7 +2325,7 @@ export function ChatPage() {
 						reactions: [],
 						type: "Text",
 						chat1Type: "text",
-						body: { text: textWithReplyContext },
+						body: { text: trimmed },
 						replyToMessage: selectedReplyMessage
 							? { messageId: selectedReplyMessage.messageId }
 							: null,
@@ -2345,7 +2349,8 @@ export function ChatPage() {
 			try {
 				const sentMessage = await service.sendText({
 					targetProfileId: targetProfileIdValue,
-					text: textWithReplyContext,
+					text: trimmed,
+					replyToMessageId: selectedReplyMessage?.messageId ?? null,
 				});
 
 				setThreadMessages((previous) => {
@@ -2446,8 +2451,10 @@ export function ChatPage() {
 						targetId: targetProfileIdValue,
 					},
 					body: { lat, lon },
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
@@ -2460,7 +2467,7 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	const sendMediaAttachment = useCallback(
@@ -2517,7 +2524,7 @@ export function ChatPage() {
 					type: isVideo ? "Video" : "Image",
 					chat1Type: isVideo ? "video" : "image",
 					body: { url: objectUrl },
-					replyToMessage: null,
+					replyToMessage: replyTargetMessageId ? { messageId: replyTargetMessageId } : null,
 					replyPreview: null,
 					dynamic: false,
 					clientState: "pending",
@@ -2556,7 +2563,8 @@ export function ChatPage() {
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
 				const isOnceImage = isImage && options.maxViews === 1;
-				const messageType = isVideo ? "Video" : isOnceImage ? "ExpiringImage" : "Image";
+				const isUnlimitedVideo = isVideo && options.maxViews > 2;
+				const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 				const sentMessage = await service.sendMessage({
 					type: messageType,
 					target: {
@@ -2572,8 +2580,10 @@ export function ChatPage() {
 						...(imageUrl ? { url: imageUrl } : {}),
 						...(isImage && imageHash ? { imageHash } : {}),
 					},
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
 					const merged = previous
 						.filter((message) => message.messageId !== localMessageId)
@@ -2644,6 +2654,8 @@ export function ChatPage() {
 			targetProfileId,
 			uploadProgress,
 			userId,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -2691,9 +2703,76 @@ export function ChatPage() {
 		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
 	);
 
+	const sendAudioBlob = useCallback(async (blob: Blob, durationMs: number) => {
+		if (!userId) return;
+		const targetIdValue = selectedConversation
+			? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+			: targetProfileId;
+		if (!targetIdValue) return;
+		setIsSendingAudio(true);
+		try {
+			const audioBytes = new Uint8Array(await blob.arrayBuffer());
+			const uploaded = await service.uploadChatMedia({
+				multipart: { body: audioBytes, contentType: blob.type || "audio/webm" },
+				options: { looping: false, takenOnGrindr: false, durationSeconds: durationMs },
+			});
+			await service.sendMessage({
+				type: "Audio",
+				target: { type: "Direct", targetId: Number(targetIdValue) },
+				body: {
+					mediaId: uploaded.mediaId,
+					mediaHash: uploaded.mediaHash,
+					url: uploaded.url,
+					contentType: blob.type || "audio/webm",
+					length: durationMs,
+					expiresAt: uploaded.expiresAt,
+				},
+				replyToMessageId: replyTargetMessageId,
+			});
+			setPendingAudioBlob(null);
+			setPendingAudioDuration(0);
+			setReplyTargetMessageId(null);
+		} catch (err) {
+			console.error("[sendAudioBlob] failed", {
+				err,
+				blobType: blob?.type,
+				blobSize: blob?.size,
+				durationMs,
+				conversationId: selectedConversation?.data.conversationId,
+				targetId: targetIdValue,
+			});
+			toast.error(err instanceof Error ? err.message : t("chat.errors.send_failed"));
+		} finally {
+			setIsSendingAudio(false);
+		}
+	}, [userId, selectedConversation, targetProfileId, service, t, replyTargetMessageId, setReplyTargetMessageId]);
+
+	const sendAudioBlobRef = useRef(sendAudioBlob);
+	useEffect(() => { sendAudioBlobRef.current = sendAudioBlob; }, [sendAudioBlob]);
+
+	const onAudioRecorded = useCallback((blob: Blob, durationMs: number, autoSend?: boolean) => {
+		if (autoSend) {
+			void sendAudioBlobRef.current(blob, durationMs);
+		} else {
+			setPendingAudioBlob(blob);
+			setPendingAudioDuration(durationMs);
+		}
+	}, []);
+
+	const cancelAudio = useCallback(() => {
+		setPendingAudioBlob(null);
+		setPendingAudioDuration(0);
+	}, []);
+
+	const confirmAudio = useCallback(async () => {
+		if (!pendingAudioBlob) return;
+		await sendAudioBlob(pendingAudioBlob, pendingAudioDuration);
+	}, [pendingAudioBlob, pendingAudioDuration, sendAudioBlob]);
+
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
+		scrollThreadToBottom();
 	};
 
 	const handleRetry = (message: UiMessage) => {
@@ -2703,6 +2782,11 @@ export function ChatPage() {
 
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			toast.error(t("chat.errors.reupload_image"));
+			return;
+		}
+
+		if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
+			toast.error(t("chat.errors.reupload_video"));
 			return;
 		}
 
@@ -3089,6 +3173,7 @@ export function ChatPage() {
 
 			setIsSendingDrawerMedia(true);
 			let finalSentMessage: UiMessage | undefined;
+			let pendingReplyId = replyTargetMessageId;
 			try {
 				// Send each media item as a separate image/video message
 				for (const mediaId of mediaIds) {
@@ -3098,7 +3183,8 @@ export function ChatPage() {
 					const isVideo = media.contentType.startsWith("video");
 					const views = maxViews ?? 2147483647;
 					const isOnceImage = !isVideo && views === 1;
-					const messageType = isOnceImage ? "ExpiringImage" : isVideo ? "Video" : "Image";
+                    const isUnlimitedVideo = isVideo && views > 2;
+				    const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 
 					const sentMessage = await service.sendMessage({
 						type: messageType,
@@ -3114,7 +3200,9 @@ export function ChatPage() {
 							...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
 							...(isVideo ? { viewsRemaining: views, maxViews: views } : {}),
 						},
+						replyToMessageId: pendingReplyId,
 					});
+					pendingReplyId = null;
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
@@ -3144,6 +3232,7 @@ export function ChatPage() {
 					}));
 				}
 
+				setReplyTargetMessageId(null);
 				toast.success(t("chat.toasts.media_sent"));
 				setIsDrawerOpen(false);
 
@@ -3165,6 +3254,8 @@ export function ChatPage() {
 			t,
 			syncConversation,
 			loadDrawerMedia,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -3252,23 +3343,49 @@ export function ChatPage() {
 	};
 
 	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
-		setFullScreenImageUrl(imageUrl);
-		setFullScreenImageMeta(meta ?? null);
-		setFullScreenMediaType(mediaType);
-	}, []);
+		const list: ThreadMediaItem[] = [];
+		for (const msg of threadMessages) {
+			const imgUrl = getMessageImageUrl(msg);
+			if (imgUrl) {
+				const createdAt = getMessageImageCreatedAt(msg);
+				list.push({
+					url: imgUrl,
+					type: "image",
+					meta: {
+						takenOnGrindr: getMessageTakenOnGrindr(msg),
+						createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
+						timestamp: msg.timestamp,
+					},
+				});
+				continue;
+			}
+			const vidUrl = getMessageVideoUrl(msg);
+			if (vidUrl) list.push({ url: vidUrl, type: "video" });
+		}
+		const idx = list.findIndex((item) => item.url === imageUrl);
+		if (idx === -1 || list.length === 0) {
+			// Fallback: single item
+			setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
+			setFullScreenMediaIndex(0);
+		} else {
+			setFullScreenMediaList(list);
+			setFullScreenMediaIndex(idx);
+		}
+	}, [threadMessages]);
 
 	const closeFullScreenImage = useCallback(() => {
-		if (!fullScreenImageUrl) {
+		if (fullScreenMediaList.length === 0) {
 			return;
 		}
 
-		setFullScreenImageUrl(null);
+		setFullScreenMediaList([]);
+		setFullScreenMediaIndex(0);
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
-	}, [fullScreenImageUrl]);
+	}, [fullScreenMediaList.length]);
 
 	useEffect(() => {
 		if (!fullScreenImageUrl || imageViewerHistoryPushedRef.current) {
@@ -3286,7 +3403,8 @@ export function ChatPage() {
 			}
 
 			imageViewerHistoryPushedRef.current = false;
-			setFullScreenImageUrl(null);
+			setFullScreenMediaList([]);
+			setFullScreenMediaIndex(0);
 		};
 
 		window.addEventListener("popstate", handlePopState);
@@ -3445,6 +3563,12 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onAudioRecorded={onAudioRecorded}
+			pendingAudioBlob={pendingAudioBlob}
+			pendingAudioDuration={pendingAudioDuration}
+			isSendingAudio={isSendingAudio}
+			confirmAudio={confirmAudio}
+			cancelAudio={cancelAudio}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
@@ -3528,27 +3652,33 @@ export function ChatPage() {
 			/>
 
 			<PhotoViewer
-				isOpen={!!fullScreenImageUrl}
+				isOpen={fullScreenMediaList.length > 0}
 				onClose={closeFullScreenImage}
-				photos={fullScreenImageUrl ? [{ url: fullScreenImageUrl, type: fullScreenMediaType }] : []}
-				renderExtraInfo={fullScreenImageMeta ? () => (
-                    <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
-                        <style>{`
-                            @keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
-                            .logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
-                        `}</style>
-                        {fullScreenImageMeta.takenOnGrindr ? (
-                            <img
-                                src={freegrindLogo}
-                                alt={t("chat.thread.taken_on_grindr")}
-                                className="h-3.5 w-3.5 rounded-full logo-shine"
-                            />
-                        ) : null}
-                        {fullScreenImageMeta.timestamp ? (
-                            <span>{formatDateTime24(fullScreenImageMeta.timestamp)}</span>
-                        ) : null}
-                    </p>
-				) : undefined}
+				photos={fullScreenMediaList}
+				initialIndex={fullScreenMediaIndex}
+				onIndexChange={setFullScreenMediaIndex}
+				renderExtraInfo={(idx) => {
+					const meta = fullScreenMediaList[idx]?.meta;
+					if (!meta) return null;
+					return (
+						<p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+							<style>{`
+								@keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+								.logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
+							`}</style>
+							{meta.takenOnGrindr ? (
+								<img
+									src={freegrindLogo}
+									alt={t("chat.thread.taken_on_grindr")}
+									className="h-3.5 w-3.5 rounded-full logo-shine"
+								/>
+							) : null}
+							{meta.timestamp ? (
+								<span>{formatDateTime24(meta.timestamp)}</span>
+							) : null}
+						</p>
+					);
+				}}
 			/>
 		</section>
 	);

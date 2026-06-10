@@ -46,6 +46,13 @@ export const albumDetailSchema = z.object({
 	content: z.array(albumMediaSchema).optional().default([]),
 });
 
+export const albumPosterSchema = z.object({
+	posterUrl: z.string().nullable().optional(),
+	blurredPosterUrl: z.string().nullable().optional(),
+});
+
+export type AlbumPoster = z.infer<typeof albumPosterSchema>;
+
 export const sharedAlbumPreviewContentSchema = z.object({
 	thumbUrl: z.string().nullable().optional(),
 	url: z.string().nullable().optional(),

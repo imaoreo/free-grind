@@ -455,6 +455,9 @@
         "no_messages_yet": "",
         "share_album": "",
         "attach_media": "",
+        "cancel_recording": "",
+        "stop_recording": "",
+        "received_media": "",
         "manage_albums": "",
         "no_albums_available": "",
         "share": "",
@@ -468,6 +471,8 @@
         },
         "preview": {
             "sent_image": "",
+            "sent_gif": "",
+            "sent_gaymoji": "",
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
@@ -484,6 +489,7 @@
             "audio_placeholder": "",
             "unsupported_placeholder": "",
             "shared_image": "",
+            "shared_gif": "",
             "shared_video": "",
             "video_expired": "Poteklo",
             "shared_audio": "",
@@ -541,7 +547,11 @@
             "delete_failed": "",
             "album_share_missing_recipient": "",
             "album_share_failed": "",
-            "album_open_failed": ""
+            "album_open_failed": "",
+            "microphone_access": "",
+            "microphone_denied": "",
+            "microphone_not_found": "",
+            "recording_too_short": ""
         },
         "toasts": {
             "cleared_local_history": "",
