@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, Mic, Play, Reply, VideoOff } from "lucide-react";
+import { Album, Ellipsis, Hourglass, Lock, Mic, Play, Reply, VideoOff, ImageOff } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -545,10 +545,11 @@ export function ChatThreadMessages({
 								const isAlbumReactionBubble = message.type === "AlbumContentReaction";
 								const msgBody = message.body as any;
 								const isExpiredVideo = !videoUrl && msgBody?._videoExpired === true;
-								const isImageOnlyBubble =
-									Boolean(imageUrl) && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif"));
-								const isVideoOnlyBubble =
-									(Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
+								const isExpiredImage = !imageUrl && msgBody?._imageExpired === true;
+                                const isImageOnlyBubble =
+                                    (Boolean(imageUrl) || isExpiredImage) && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif"));
+                                const isVideoOnlyBubble =
+                                    (Boolean(videoUrl) || isExpiredVideo) && messageText === t("chat.thread.shared_video");
 								const isAlbumOnlyBubble =
 									isAlbumMessage && messageText === t("chat.preview.shared_album") && !hasReply;
 								const isLocationOnlyBubble =
@@ -660,7 +661,13 @@ export function ChatThreadMessages({
 										>
 											<div
 												onDoubleClick={isDesktop ? () => void handleMessageTap(message) : undefined}
-												onClick={!isDesktop ? () => scheduleMobileTap(message, null) : undefined}
+												onClick={!isDesktop ? (e) => {
+													// If the tap originated from a child media button or video element,
+													// that element already called scheduleMobileTap with its own open
+													// action — don't overwrite the pending tap with a no-op here.
+													if ((e.target as HTMLElement).closest("button,video")) return;
+													scheduleMobileTap(message, null);
+												} : undefined}
 												onContextMenu={(event) => event.preventDefault()}
 												className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
 													isMediaOnlyBubble && hasReply
@@ -946,13 +953,27 @@ export function ChatThreadMessages({
 													</button>
 												) : null}
 
-												{gaymojiUrl ? (
+												    {gaymojiUrl ? (
 														<img
 															src={gaymojiUrl}
 															alt="Gaymoji"
 															className="h-20 w-20 object-contain"
 														/>
 													) : null}
+
+                                                    {isExpiredImage ? (
+                                                        <div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isImageOnlyBubble ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "12rem" }}>
+                                                            <div className="flex flex-col items-center gap-1.5 text-white/60">
+                                                                <ImageOff className="h-6 w-6" />
+                                                                <span className="text-xs font-medium">{t("chat.thread.image_expired")}</span>
+                                                            </div>
+                                                            {isImageOnlyBubble && (
+                                                                <div className="absolute inset-x-0 bottom-0 flex items-center justify-end gap-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-[10px] text-white">
+                                                                    <span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : null}
 
 													{isExpiredVideo ? (
 														<div className={`relative flex items-center justify-center overflow-hidden bg-black/80 ${isVideoOnlyBubble ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 rounded-xl border border-black/10"}`} style={{ minHeight: "12rem", minWidth: "16rem" }}>
@@ -967,6 +988,7 @@ export function ChatThreadMessages({
 															)}
 														</div>
 													) : null}
+                                                    
 													{videoUrl ? (() => {
 														const videoMaxViews = typeof msgBody?.maxViews === "number" ? msgBody.maxViews : 2147483647;
 														const isLimitedVideo = videoMaxViews !== 2147483647;
@@ -987,7 +1009,17 @@ export function ChatThreadMessages({
 																		lastTapRef.current = null;
 																		return;
 																	}
-																	openFullScreenImage(videoUrl, undefined, "video");
+																	if (isDesktop) {
+																		openFullScreenImage(videoUrl, undefined, "video");
+																		return;
+																	}
+																	if (messageLongPressTriggeredRef.current) {
+																		messageLongPressTriggeredRef.current = false;
+																		return;
+																	}
+																	scheduleMobileTap(message, () => {
+																		openFullScreenImage(videoUrl, undefined, "video");
+																	});
 																}}
 															>
 																{localOnly && (
