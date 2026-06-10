@@ -43,6 +43,11 @@ async function getDb(): Promise<Database> {
 				await db.execute("PRAGMA journal_mode = WAL");
 				await db.execute("PRAGMA synchronous = NORMAL");
 				await db.execute(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+				// Checkpoint every 200 pages (~800 KB) instead of the default 1000 pages (~4 MB).
+				// This keeps the WAL small so reads don't have to scan a huge log file.
+				await db.execute("PRAGMA wal_autocheckpoint = 200");
+				// Run an immediate passive checkpoint to flush any existing WAL backlog.
+				await db.execute("PRAGMA wal_checkpoint(PASSIVE)");
 			} catch (error) {
 				appLog.warn("[chat-index] failed to set pragmas", error);
 			}
@@ -76,6 +81,18 @@ async function getDb(): Promise<Database> {
 					"CREATE INDEX IF NOT EXISTS idx_chat_local_profile_meta_updated_at ON chat_local_profile_meta(updated_at DESC)",
 				);
 			});
+
+			// Periodic checkpoint every 2 minutes to keep the WAL from growing
+			// between the autocheckpoint page-count triggers.
+			const checkpointInterval = setInterval(async () => {
+				try {
+					await db.execute("PRAGMA wal_checkpoint(PASSIVE)");
+				} catch {
+					// Non-fatal — will retry next interval
+				}
+			}, 2 * 60 * 1000);
+			// Don't prevent process exit
+			if (typeof checkpointInterval === "object") (checkpointInterval as any).unref?.();
 
 			return db;
 		})();
