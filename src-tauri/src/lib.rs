@@ -47,6 +47,22 @@ pub fn run() {
             .plugin(tauri_plugin_opener::init())
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
+            .setup(|app| {
+                #[cfg(target_os = "linux")]
+                {
+                    use tauri::Manager;
+                    use webkit2gtk::{PermissionRequestExt, WebViewExt};
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.with_webview(|webview| {
+                            webview.inner().connect_permission_request(|_view, request| {
+                                request.allow();
+                                true
+                            });
+                        });
+                    }
+                }
+                Ok(())
+            })
             .invoke_handler(tauri::generate_handler![
                 api::auth::login,
                 api::auth::login_with_jwt,

@@ -554,10 +554,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "Reino Unido (metros + pés/polegadas)",
         "units_american": "Americano (milhas + pés/polegadas)",
-        "blur_incoming_media": "Mídia de entrada desfocada",
-        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos recebidos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar.",
-        "enabled": "Habilitado",
-        "disabled": "Desabilitado"
+        "blur_incoming_media": "Desfocar mídia do chat",
+        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar."
     },
     "issues_form": {
         "title": "Reportar um erro ou sugerir uma funcionalidade",
@@ -665,6 +663,8 @@
             "expired": "expirado"
         },
         "attach_media": "Anexar mídia",
+        "cancel_recording": "Deslize para a esquerda para cancelar",
+        "stop_recording": "Parar gravação",
         "manage_albums": "",
         "loading_albums": "Carregando álbuns...",
         "no_albums_available": "Nenhum álbum disponível. Crie um primeiro nas Configurações.",
@@ -683,6 +683,8 @@
         },
         "preview": {
             "sent_image": "Enviou uma imagem",
+            "sent_gif": "Enviou um GIF",
+            "sent_gaymoji": "Enviou um Gaymoji",
             "shared_album": "Compartilhou um álbum",
             "sent_audio": "Envie uma mensagem de áudio",
             "reacted_album_content": "Reagi ao conteúdo do álbum",
@@ -701,6 +703,7 @@
             "location_placeholder": "[localização]",
             "unsupported_placeholder": "[mensagem não suportada]",
             "shared_image": "Compartilhou uma imagem",
+            "shared_gif": "Compartilhou um GIF",
             "shared_video": "Compartilhou um vídeo",
             "video_expired": "Expirado",
             "shared_audio": "Compartilhou uma mensagem de áudio",
@@ -774,7 +777,11 @@
             "send_drawer_media": "Falha ao enviar mídia da pasta",
             "delete_conversation": "Falha ao excluir a conversa",
             "no_location_set": "Nenhuma localização definida nas configurações",
-            "invalid_location": "Formato de localização inválido"
+            "invalid_location": "Formato de localização inválido",
+            "microphone_access": "Não foi possível acessar o microfone.",
+            "microphone_denied": "Acesso ao microfone negado.",
+            "microphone_not_found": "Nenhum microfone encontrado.",
+            "recording_too_short": "Gravação muito curta."
         },
         "toasts": {
             "cleared_local_history": "Histórico local apagado nesse bate-papo",
@@ -812,6 +819,7 @@
         },
         "load_older_messages": "Carregar mensagens antigas",
         "view_profile": "Ver perfil",
+        "received_media": "Mídia recebida",
         "favorite": "Favorito",
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",

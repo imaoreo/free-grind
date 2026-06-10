@@ -81,6 +81,7 @@ export interface UploadChatMediaResponse {
 	mediaId: number;
 	mediaHash: string | null;
 	url: string | null;
+	expiresAt: number | null;
 }
 
 export interface UploadAlbumContentParams {

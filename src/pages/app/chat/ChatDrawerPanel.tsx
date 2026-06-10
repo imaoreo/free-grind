@@ -198,7 +198,7 @@ export function ChatDrawerPanel({
 		(id) => media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
 	);
 	const hasAnyImage = hasSelection && [...selectedIds].some(
-		(id) => !media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false,
+		(id) => !(media.find((m) => m.id === id)?.contentType.startsWith("video") ?? false),
 	);
 
 	const onPickDrawerPhoto = useCallback(
@@ -438,7 +438,7 @@ export function ChatDrawerPanel({
 							</>
 						)}
 						{pendingAddFile?.type.startsWith("video/") && (
-							<div className="mb-4">
+							<div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
 								<ToggleRow
 									checked={pendingLooping}
 									onChange={setPendingLooping}
@@ -448,7 +448,7 @@ export function ChatDrawerPanel({
 							</div>
 						)}
 						{!pendingAddFile?.type.startsWith("video/") && (
-							<div className="mb-4">
+							<div className="mb-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
 								<ToggleRow
 									checked={pendingTakenOnGrindr}
 									onChange={setPendingTakenOnGrindr}

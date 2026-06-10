@@ -8,6 +8,8 @@
         "profile_editor_desc": "Bearbeite Profildetails, Identität und Einstellungen.",
         "customizability": "Personalisierung",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
+        "privacy": "Privatsphäre & Analytics",
+        "privacy_desc": "Ghost-Modus, Medien-Blur und Analytics.",
         "automation": "Automation",
         "automation_desc": "Konfiguriere automatische Blockierregeln und Grid-Aktualisierungen.",
         "report_issue": "Fehler oder Feature melden",
@@ -523,8 +525,29 @@
             "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
         }
     },
+    "privacy": {
+        "ghost_mode": "Ghost Mode",
+        "global_ghost_mode": "Globaler Ghost Mode",
+        "global_ghost_mode_desc": "Lesebestätigungen für alle Chats ausblenden. Die andere Person weiß nicht, dass du die Nachricht gelesen hast, bis du antwortest oder den Ghost Mode deaktivierst.",
+        "per_chat_overrides": "Chat-Ausnahmen (Auge-Button)",
+        "per_chat_overrides_desc": "Zeigt einen Button im Chat-Header, um die globale Einstellung für einzelne Chats zu überschreiben. Ghostete Chats werden im Posteingang hervorgehoben.",
+        "nsfw_content": "NSFW-Inhalte"
+    },
     "customizability": {
         "subtitle": "Personalisiere das Aussehen der App.",
+        "appearance": "Erscheinungsbild",
+        "layout": "Layout",
+        "regional": "Region",
+        "navigation_tabs": "Navigation",
+        "show_right_now": "Right-Now-Tab",
+        "show_right_now_desc": "Right-Now-Tab in der unteren Navigation anzeigen.",
+        "show_interest": "Interest-Tab",
+        "show_interest_desc": "Interest-Tab in der unteren Navigation anzeigen.",
+        "default_interest_view": "Standard-Ansicht",
+        "interest_show_taps": "Taps zuerst",
+        "interest_show_views": "Views zuerst",
+        "browse_grid_mobile": "Übersichts-Raster (Mobil)",
+        "browse_grid_mobile_desc": "Anzahl der Profile pro Reihe auf dem Handy anpassen.",
         "color_scheme": "Farbschema",
         "accent_color": "Akzentfarbe",
         "selected": "Ausgewählt",
@@ -532,7 +555,6 @@
         "picker": "Auswahl",
         "apply_hex": "Hex anwenden",
         "hex_error": "Gib eine gültige Hex-Farbe wie #22c55e oder 22c55e ein",
-        "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "columns_2": "2 Spalten",
         "columns_3": "3 Spalten",
         "reveal_effect": {
@@ -549,20 +571,24 @@
         "preview_primary": "Primär-Button",
         "preview_outlined": "Umrandet",
         "preview_subtle": "Dezent",
+        "preview_input": "Free Grind",
+        "preview_badge": "NEU",
         "schemes": {
             "system": "System",
             "light": "Hell",
             "dark": "Dunkel"
         },
         "analytics": {
-            "title": "Analyse & Entdeckung",
-            "description": "Dies steuert anonyme Analysen und die Entdeckung von FreeGrind-Nutzern. Wenn deaktiviert, nutzt die App die API nicht, um andere FreeGrind-Nutzer zu finden.",
+            "title": "Analytics & Entdeckung",
+            "description": "Dies steuert anonyme Analytics und die Entdeckung von FreeGrind-Nutzern. Wenn deaktiviert, nutzt die App die API nicht, um andere FreeGrind-Nutzer zu finden.",
             "note": "Deine Wahl wird auf diesem Gerät gespeichert. Wenn aktiviert, kann die App deine Profil-ID in API-Anfragen senden, die für Präsenz und Entdeckung genutzt werden.",
             "allow": "Zulassen",
             "deny": "Ablehnen",
             "current": "Aktuell",
             "not_selected": "Noch nicht ausgewählt"
-        }
+        },
+        "blur_incoming_media": "Chat-Medien unscharf",
+        "blur_incoming_media_description": "Blendet Bilder und Videos in Chats automatisch unscharf ein. Am Desktop: Hover oder Klick zum Anzeigen. Im Chat wird die Anzeige beim Verlassen wieder zurückgesetzt."
     },
     "issues_form": {
         "title": "Fehler melden oder Feature vorschlagen",
@@ -646,6 +672,7 @@
         "open_filters": "Filter öffnen",
         "profile": "Profil",
         "view_profile": "Profil anzeigen",
+        "received_media": "Erhaltene Medien",
         "favorite": "Favorisieren",
         "unfavorite": "Entfavorisieren",
         "no_conversations_match": "Keine Konversationen entsprechen deinen Filtern.",
@@ -677,6 +704,8 @@
             "expired": "Abgelaufen"
         },
         "attach_media": "Medien anhängen",
+        "cancel_recording": "Nach links wischen zum Abbrechen",
+        "stop_recording": "Aufnahme stoppen",
         "manage_albums": "Alben verwalten",
         "loading_albums": "Alben werden geladen...",
         "no_albums_available": "Keine Alben verfügbar. Erstelle zuerst eines in den Einstellungen.",
@@ -695,6 +724,8 @@
         },
         "preview": {
             "sent_image": "Hat ein Bild gesendet",
+            "sent_gif": "Hat ein GIF gesendet",
+            "sent_gaymoji": "Hat ein Gaymoji gesendet",
             "shared_album": "Hat ein Album geteilt",
             "sent_audio": "Hat eine Sprachnachricht gesendet",
             "reacted_album_content": "Hat auf Albuminhalt reagiert",
@@ -713,6 +744,7 @@
             "location_placeholder": "[Standort]",
             "unsupported_placeholder": "[Nicht unterstützte Nachricht]",
             "shared_image": "Hat ein Bild geteilt",
+            "shared_gif": "Hat ein GIF geteilt",
             "shared_video": "Hat ein Video geteilt",
             "video_expired": "Abgelaufen",
             "shared_audio": "Hat eine Sprachnachricht geteilt",
@@ -794,7 +826,11 @@
             "upload_media_failed": "Medien-Upload fehlgeschlagen",
             "load_drawer_media": "Galerie-Medien konnten nicht geladen werden",
             "send_drawer_media": "Medien aus der Galerie konnten nicht gesendet werden",
-            "delete_conversation": "Konversation konnte nicht gelöscht werden"
+            "delete_conversation": "Konversation konnte nicht gelöscht werden",
+            "microphone_access": "Mikrofon konnte nicht aufgerufen werden.",
+            "microphone_denied": "Mikrofonzugriff verweigert.",
+            "microphone_not_found": "Kein Mikrofon gefunden.",
+            "recording_too_short": "Aufnahme zu kurz."
         },
         "toasts": {
             "cleared_local_history": "Lokaler Verlauf für diesen Chat gelöscht",

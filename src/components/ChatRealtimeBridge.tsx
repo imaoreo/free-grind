@@ -14,11 +14,11 @@
  *   when the message was sent by the current user.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { useApi } from "../hooks/useApi";
-import { ChatRealtimeManager } from "../services/chatRealtime";
+import { ChatRealtimeManager, setActiveRealtimeManager } from "../services/chatRealtime";
 import { TauriWebSocket, isTauriRuntime } from "../services/tauriWebSocket";
 import * as chatLog from "../services/chatLog";
 import {
@@ -165,7 +165,10 @@ export function ChatRealtimeBridge() {
     const apiFunctions = useApiFunctions();
 	const location = useLocation();
 
-	const [token, setToken] = useState<string | null>(null);
+	const callMethodRef = useRef(callMethod);
+	useEffect(() => {
+		callMethodRef.current = callMethod;
+	}, [callMethod]);
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
@@ -177,52 +180,16 @@ export function ChatRealtimeBridge() {
 		userIdRef.current = userId;
 	}, [userId]);
 
-	// Fetch the WS token whenever the authenticated user changes.
+	// Boot the realtime manager whenever the user is authenticated.
+	// getToken is called fresh on every (re)connect so an expired token
+	// never blocks reconnection.
 	useEffect(() => {
 		if (!userId) {
-			setToken(null);
 			if (lastKnownStatus !== "idle") {
 				dispatchStatus("idle");
 			}
-			// appLog.debug("[chat-ws:bridge] no user; skipping token fetch");
 			return;
 		}
-
-		let active = true;
-		void callMethod("websocket_token")
-			.then((tok) => {
-				if (!active) return;
-				// Ensure we handle both raw string and potential object wrappers
-				const value = typeof tok === "string" ? tok : null;
-
-				/*
-				appLog.debug("[chat-ws:bridge] token received", {
-					success: !!value,
-					type: typeof tok,
-					length: value?.length ?? 0
-				});
-				*/
-
-				setToken(value);
-				if (!value) {
-					dispatchStatus("polling");
-				}
-			})
-			.catch(() => {
-				if (!active) return;
-				setToken(null);
-				dispatchStatus("polling");
-				appLog.warn("[chat-ws:bridge] token fetch failed");
-			});
-
-		return () => {
-			active = false;
-		};
-	}, [callMethod, userId]);
-
-	// Boot the realtime manager once we have a token.
-	useEffect(() => {
-		if (!token) return;
 
 		/*
 		appLog.debug("[chat-ws:bridge] starting manager", {
@@ -232,7 +199,15 @@ export function ChatRealtimeBridge() {
 
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => token,
+			getToken: async () => {
+				try {
+					const tok = await callMethodRef.current("websocket_token");
+					return typeof tok === "string" ? tok : null;
+				} catch {
+					appLog.warn("[chat-ws:bridge] token fetch failed");
+					return null;
+				}
+			},
 			onStatusChange: (status) => {
 				dispatchStatus(status);
 			},
@@ -373,6 +348,7 @@ export function ChatRealtimeBridge() {
 		});
 
 		manager.start();
+		setActiveRealtimeManager(manager);
 
 		// Handle Foreground/Background shifts on Android
 		const handleVisibilityChange = () => {
@@ -390,9 +366,10 @@ export function ChatRealtimeBridge() {
 		return () => {
 			// appLog.debug("[chat-ws:bridge] stopping manager");
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			setActiveRealtimeManager(null);
 			manager.stop({ suppressStatus: true });
 		};
-	}, [token]);
+	}, [userId]);
 
 	return null;
 }
