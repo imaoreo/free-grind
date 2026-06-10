@@ -383,6 +383,15 @@
             "no_messages_yet": "",
             "send_first_message_hint": ""
         },
+        "media_sheet": {
+            "title": "Ontvangen media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "Nog geen albums gedeeld",
+            "albums_empty_desc": "Albums die met jou zijn gedeeld verschijnen hier",
+            "media_empty_title": "Nog geen media ontvangen",
+            "media_empty_desc": "Foto's die naar jou zijn gestuurd verschijnen hier"
+        },
         "loading_albums": "",
         "loading_inbox": "",
         "refreshing_inbox": "",
@@ -428,8 +437,11 @@
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
+            "tapped_album_photo_yours": "",
+            "tapped_album_photo_theirs": "",
             "sent_video": "",
-            "sent_message": ""
+            "sent_message": "",
+            "replied_profile_photo": ""
         },
         "thread": {
             "unsent": "",
@@ -439,12 +451,16 @@
             "unsupported_placeholder": "",
             "shared_image": "",
             "shared_video": "",
+            "video_expired": "Verlopen",
             "shared_audio": "",
             "failed": "",
             "from_local_history": "",
             "taken_on_grindr": "",
             "album_cover": "",
             "album_share": "",
+            "album_image": "",
+            "replied_to_photo": "",
+            "reacted_to_image": "",
             "shared_alt": ""
         },
         "actions": {
@@ -465,8 +481,13 @@
         "attachments": {
             "ready_to_send": "",
             "looping": "",
+            "looping_description": "",
+            "max_views": "",
+            "view_once": "",
+            "view_once_description": "",
             "taken_on_grindr": "",
-            "send_attachment": "",
+            "send": "",
+            "send_expiring": "",
             "uploading": "",
             "too_large": ""
         },

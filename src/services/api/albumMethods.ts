@@ -160,9 +160,7 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 				return [];
 			}
 			await assertSuccess(response, t("api.errors.load_shared_albums_profile"));
-			const payload = sharedAlbumsResponseSchema.parse(
-				await parseJsonSafe(response),
-			);
+			const payload = sharedAlbumsResponseSchema.parse(await parseJsonSafe(response));
 			return payload.albums;
 		},
 
