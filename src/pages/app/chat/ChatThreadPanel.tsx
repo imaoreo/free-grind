@@ -1756,29 +1756,34 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							isDesktop={isDesktop}
 							footerLeft={(() => {
 								const isVideo = pendingAttachmentFile.type.startsWith("video/");
-								const cycle = isVideo ? [2147483647, 1, 2] as const : [2147483647, 1] as const;
-								const idx = cycle.indexOf(attachmentMaxViews as typeof cycle[number]);
-								const next = cycle[(idx === -1 ? 0 : idx + 1) % cycle.length];
-								const isLimited = attachmentMaxViews !== 2147483647;
 								return (
-									<button
-										type="button"
-										onClick={() => setAttachmentMaxViews(next)}
-										className={`inline-flex min-w-[64px] items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 transition ${
-											isLimited
-												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Hourglass className="h-4 w-4" />
-										{attachmentMaxViews === 2147483647
-											? <span className="text-base font-semibold leading-none">∞</span>
-											: <span className="text-sm font-semibold">{attachmentMaxViews}×</span>
-										}
-									</button>
+									<div className="relative inline-flex h-11 items-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] min-w-[120px]">
+										<Hourglass className="pointer-events-none absolute left-3 h-4 w-4 shrink-0" />
+										<select
+											value={attachmentMaxViews}
+											onChange={(e) => setAttachmentMaxViews(Number(e.target.value))}
+											className="h-full w-full appearance-none rounded-xl bg-transparent pl-9 pr-3 text-sm font-semibold text-[var(--text)] focus:outline-none cursor-pointer text-center"
+										>
+											{isVideo ? (
+												<>
+													<option value={2147483647}>{t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" })}</option>
+													<option value={1}>{t("chat_drawer.expiry.once", { defaultValue: "Once" })}</option>
+													<option value={2}>{t("chat_drawer.expiry.repeat", { defaultValue: "Repeat" })}</option>
+												</>
+											) : (
+												<>
+													<option value={2147483647}>{t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" })}</option>
+													<option value={10}>{t("chat_drawer.expiry.ten_seconds", { defaultValue: "10s" })}</option>
+												</>
+											)}
+										</select>
+									</div>
 								);
 							})()}
 						>
+							<div className="flex min-h-0 flex-1 flex-col">
+							{/* Scrollable preview area */}
+							<div className="min-h-0 flex-1 overflow-y-auto">
 							{attachmentPreviewUrl && (
 								pendingAttachmentFile.type.startsWith("video/") ? (
 									<div className="px-3 pb-3">
@@ -1841,7 +1846,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</div>
 								)
 							)}
-							<div className="px-3 pb-3 grid gap-3">
+							</div>
+							{/* Sticky toggle row — always pinned to bottom of sheet */}
+							<div className="shrink-0 px-3 pb-3 pt-2">
 								<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
 									{pendingAttachmentFile?.type.startsWith("video/") ? (
 										<ToggleRow
@@ -1860,6 +1867,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									)}
 								</div>
 							</div>
+						</div>
 						</BottomDrawer>
 					) : null}
 
@@ -2170,7 +2178,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			{t("chat.select_conversation")}
 		</div>
 	);
-
 
 	return renderThread;
 }
