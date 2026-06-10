@@ -85,6 +85,21 @@ import freegrindLogo from "../../images/freegrind-logo.webp";
 import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
+/**
+ * Checks whether a CloudFront signed URL has expired by reading the
+ * `Expires` query parameter (Unix epoch seconds).  No network request needed.
+ * Returns false if the URL cannot be parsed or has no Expires param.
+ */
+function isSignedUrlExpired(url: string): boolean {
+	try {
+		const expires = new URL(url).searchParams.get("Expires");
+		if (!expires) return false;
+		return Date.now() > Number(expires) * 1000;
+	} catch {
+		return false;
+	}
+}
+
 export function ChatPage() {
 	const { t } = useTranslation();
 	const location = useLocation();
@@ -882,13 +897,22 @@ export function ChatPage() {
 							? (message.body as Record<string, unknown>)
 							: null;
 
-					if (!localBody?.url || currentBody?.url) {
+					// If the API already returned a fresh URL, use it as-is.
+					if (currentBody?.url) {
+						return message;
+					}
+
+					// Restore the cached URL only when it hasn't expired yet.
+					// Expired → return message without URL so the hydration pass below
+					// calls getMessage() and fetches a new signed URL from the API.
+					const cachedUrl = typeof localBody?.url === "string" ? localBody.url : null;
+					if (!cachedUrl || isSignedUrlExpired(cachedUrl)) {
 						return message;
 					}
 
 					return {
 						...message,
-						body: { ...(currentBody ?? {}), url: localBody.url },
+						body: { ...(currentBody ?? {}), url: cachedUrl },
 					};
 				});
 
@@ -918,6 +942,8 @@ export function ChatPage() {
 						return getMessageMediaId(message as UiMessage) !== null;
 					});
 
+                    // Images that have no URL (including those whose cached URL was expired
+                    // and stripped above) need a fresh signed URL from the API.
 					if (mediaIdImageMessages.length > 0) {
 						const unresolvedMessageIds = new Set(
 							mediaIdImageMessages.map((message) => message.messageId),
@@ -987,39 +1013,68 @@ export function ChatPage() {
 									if (item.url) sharedImageMap.set(item.mediaId, item.url);
 								}
 
-								const hydratedMessages: UiMessage[] = [];
+								const resolvedMessages: UiMessage[] = [];
+								const expiredMessages: UiMessage[] = [];
+
 								for (const message of fallbackMessages) {
 									const mediaId = getMessageMediaId(message as UiMessage);
 									if (mediaId == null) continue;
 									const url = sharedImageMap.get(mediaId);
-									if (!url || !message.body || typeof message.body !== "object")
-										continue;
-									const hydrated = {
-										...message,
-										body: { ...(message.body as Record<string, unknown>), url },
-									} as UiMessage;
-									if (getMessageImageUrl(hydrated))
-										hydratedMessages.push(hydrated);
-								}
-
-								if (!hydratedMessages.length) return;
-
-								// Persist resolved image URLs so they survive CloudFront expiry.
-								void chatLog.appendMessages(conversationId, hydratedMessages);
-
-								setThreadMessages((previous) => {
-									const map = new Map<string, UiMessage>();
-									for (const message of previous) {
-										if (message.conversationId === conversationId) {
-											map.set(message.messageId, message);
+									if (url && message.body && typeof message.body === "object") {
+										const hydrated = {
+											...message,
+											body: { ...(message.body as Record<string, unknown>), url },
+										} as UiMessage;
+										if (getMessageImageUrl(hydrated)) {
+											resolvedMessages.push(hydrated);
+											continue;
 										}
 									}
-									for (const message of hydratedMessages)
-										map.set(message.messageId, message);
-									return [...map.values()].sort(
-										(a, b) => a.timestamp - b.timestamp,
-									);
-								});
+									// Exhausted all options — mark as expired so the UI can
+									// render a "no longer available" state (same as _videoExpired).
+									expiredMessages.push({
+										...(message as UiMessage),
+										body: {
+											...((message.body as Record<string, unknown>) ?? {}),
+											_imageExpired: true,
+										},
+									});
+								}
+
+								if (resolvedMessages.length > 0) {
+									void chatLog.appendMessages(conversationId, resolvedMessages);
+
+									if (selectedConversationIdRef.current !== conversationId) return;
+									setThreadMessages((previous) => {
+										const map = new Map<string, UiMessage>();
+										for (const message of previous) {
+											if (message.conversationId === conversationId) {
+												map.set(message.messageId, message);
+											}
+										}
+										for (const message of resolvedMessages)
+											map.set(message.messageId, message);
+										return [...map.values()].sort(
+											(a, b) => a.timestamp - b.timestamp,
+										);
+									});
+								}
+
+								if (expiredMessages.length > 0 && selectedConversationIdRef.current === conversationId) {
+									setThreadMessages((previous) => {
+										const map = new Map<string, UiMessage>();
+										for (const message of previous) {
+											if (message.conversationId === conversationId) {
+												map.set(message.messageId, message);
+											}
+										}
+										for (const message of expiredMessages)
+											map.set(message.messageId, message);
+										return [...map.values()].sort(
+											(a, b) => a.timestamp - b.timestamp,
+										);
+									});
+								}
 							})
 							.catch(() => {
 								// Best effort only.
