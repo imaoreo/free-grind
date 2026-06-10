@@ -791,6 +791,7 @@
             "shared_image": "Shared an image",
             "shared_gif": "Shared a GIF",
             "shared_video": "Shared a video",
+            "image_expired": "Expired",
             "video_expired": "Expired",
             "shared_audio": "Shared an audio message",
             "location_shared": "Location shared",
