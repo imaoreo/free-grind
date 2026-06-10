@@ -1,9 +1,4 @@
-import {
-	ChevronLeft,
-	ChevronRight,
-	Loader2,
-	X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
 	type FormEvent,
 	type TouchEvent,
@@ -54,12 +49,15 @@ import {
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
+import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
+import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
+	getMessageVideoUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
 	getOtherParticipant,
@@ -82,6 +80,8 @@ import { markInboxSeen } from "../../services/seenStore";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
+import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -127,6 +127,30 @@ export function ChatPage() {
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
+
+	useEffect(() => {
+		if (!userId) return;
+		const cached = getCachedOwnProfilePhotoHash();
+		if (cached !== undefined) {
+			setOwnProfilePhotoUrl(cached ? getThumbImageUrl(cached, "75x75") : null);
+			return;
+		}
+		void (async () => {
+			try {
+				const parsed = await service.getBrowseProfileMedia(userId);
+				const hash =
+					parsed.medias?.map((m) => m.mediaHash ?? "").find((h) => validateMediaHash(h)) ??
+					(parsed.profileImageMediaHash && validateMediaHash(parsed.profileImageMediaHash)
+						? parsed.profileImageMediaHash
+						: null) ??
+					null;
+				setCachedOwnProfilePhotoHash(hash);
+				setOwnProfilePhotoUrl(hash ? getThumbImageUrl(hash, "75x75") : null);
+			} catch {
+				setOwnProfilePhotoUrl(null);
+			}
+		})();
+	}, [userId, service]);
 
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
@@ -358,6 +382,8 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [albumCoverMap, setAlbumCoverMap] = useState<Map<number, string>>(new Map());
+	const [ownProfilePhotoUrl, setOwnProfilePhotoUrl] = useState<string | null>(null);
 	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
 		albumId: number;
 		albumName: string;
@@ -367,7 +393,11 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
+	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
+	const albumViewerCancelledRef = useRef(false);
 	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
+	const [fullScreenMediaType, setFullScreenMediaType] = useState<"image" | "video">("image");
 	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
 		takenOnGrindr: boolean;
 		createdAtLabel: string | null;
@@ -380,6 +410,7 @@ export function ChatPage() {
 		useState<File | null>(null);
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
+	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
 	const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -593,25 +624,12 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		albumViewerCancelledRef.current = true;
+		setIsAlbumSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
 	}, [selectedConversationId]);
-
-	const isAlbumOpen = albumViewer !== null;
-	useEffect(() => {
-		if (!isAlbumOpen) return;
-		const prevState = history.state;
-		history.pushState({ albumOpen: true }, "");
-		const onPopState = () => {
-			setAlbumViewer(null);
-			setAlbumViewerMediaIndex(null);
-		};
-		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (history.state?.albumOpen) history.replaceState(prevState, "");
-		};
-	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -657,6 +675,21 @@ export function ChatPage() {
 				})
 				.filter((item) => Number.isFinite(item.albumId));
 			setShareableAlbums(mapped);
+
+			const coverEntries = await Promise.all(
+				mapped.map(async ({ albumId }) => {
+					try {
+						const detail = await service.getAlbum(albumId);
+						const first = detail.content?.[0];
+						const url = first?.thumbUrl || first?.url || first?.coverUrl;
+						return url ? ([albumId, url] as [number, string]) : null;
+					} catch {
+						return null;
+					}
+				}),
+			);
+			setAlbumCoverMap(new Map(coverEntries.filter((e): e is [number, string] => e !== null)));
+
 			return mapped;
 		} catch (error) {
 			toast.error(
@@ -991,6 +1024,42 @@ export function ChatPage() {
 							});
 						});
 					}
+
+					// Hydrate received video messages that have no URL yet (mediaId may be null).
+					const mediaIdVideoMessages = responseMessages.filter((message) => {
+						const isVideoLike = message.type === "Video" || (message as UiMessage).chat1Type?.toLowerCase() === "video";
+						if (!isVideoLike) return false;
+						return !getMessageVideoUrl(message as UiMessage);
+					});
+
+					if (mediaIdVideoMessages.length > 0) {
+						void Promise.allSettled(
+							mediaIdVideoMessages.map((message) =>
+								service.getMessage({ conversationId, messageId: message.messageId }),
+							),
+						).then((results) => {
+							const updates: UiMessage[] = [];
+							for (let i = 0; i < results.length; i++) {
+								const result = results[i];
+								const original = mediaIdVideoMessages[i] as UiMessage;
+								if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
+									updates.push(result.value as UiMessage);
+								} else {
+									updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
+								}
+							}
+							if (updates.length === 0) return;
+							if (selectedConversationIdRef.current !== conversationId) return;
+							setThreadMessages((previous) => {
+								const map = new Map<string, UiMessage>();
+								for (const message of previous) {
+									if (message.conversationId === conversationId) map.set(message.messageId, message);
+								}
+								for (const message of updates) map.set(message.messageId, message);
+								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+							});
+						});
+					}
 				}
 
 // --- AUTO BLOCK CHECK (HISTORICAL CHAT SCANNER) ---
@@ -1259,6 +1328,38 @@ export function ChatPage() {
 
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
+
+		// Hydrate real-time video messages that arrive without a URL.
+		const incomingVideosWithoutUrl = messages.filter((m) => {
+			const isVideoLike = m.type === "Video" || (m as UiMessage).chat1Type?.toLowerCase() === "video";
+			if (!isVideoLike) return false;
+			return !getMessageVideoUrl(m as UiMessage);
+		});
+		if (incomingVideosWithoutUrl.length > 0) {
+			void Promise.allSettled(
+				incomingVideosWithoutUrl.map((m) =>
+					service.getMessage({ conversationId: m.conversationId, messageId: m.messageId }),
+				),
+			).then((results) => {
+				const updates: UiMessage[] = [];
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i];
+					const original = incomingVideosWithoutUrl[i] as UiMessage;
+					if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
+						updates.push(result.value as UiMessage);
+					} else {
+						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
+					}
+				}
+				if (!updates.length) return;
+				setThreadMessages((prev) => {
+					const map = new Map<string, UiMessage>();
+					for (const m of prev) map.set(m.messageId, m);
+					for (const m of updates) map.set(m.messageId, m);
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+			});
+		}
 
 		const byConversation = new Map<string, Message>();
 		let hasUnknownConversation = false;
@@ -2365,7 +2466,11 @@ export function ChatPage() {
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
-			options: { looping: boolean; takenOnGrindr: boolean },
+			options: {
+				looping: boolean;
+				takenOnGrindr: boolean;
+				maxViews: number;
+			},
 		) => {
 			if (!userId) {
 				return;
@@ -2425,11 +2530,23 @@ export function ChatPage() {
 
 			try {
 				const binaryUpload = await buildBinaryUpload(file);
+				let durationSeconds: number | undefined;
+				if (isVideo) {
+					durationSeconds = await new Promise<number>((resolve) => {
+						const vid = document.createElement("video");
+						vid.preload = "metadata";
+						const objUrl = URL.createObjectURL(file);
+						vid.onloadedmetadata = () => { URL.revokeObjectURL(objUrl); resolve(Math.ceil(vid.duration)); };
+						vid.onerror = () => { URL.revokeObjectURL(objUrl); resolve(0); };
+						vid.src = objUrl;
+					});
+				}
 				const uploaded = await service.uploadChatMedia({
 					multipart: binaryUpload,
 					options: {
 						looping: options.looping,
 						takenOnGrindr: options.takenOnGrindr,
+						durationSeconds,
 					},
 				});
 				setUploadProgress(96);
@@ -2438,7 +2555,8 @@ export function ChatPage() {
 				const imageHash = imageUrl
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
-				const messageType = isVideo ? "Video" : "Image";
+				const isOnceImage = isImage && options.maxViews === 1;
+				const messageType = isVideo ? "Video" : isOnceImage ? "ExpiringImage" : "Image";
 				const sentMessage = await service.sendMessage({
 					type: messageType,
 					target: {
@@ -2449,6 +2567,8 @@ export function ChatPage() {
 						mediaId: uploaded.mediaId,
 						width: null,
 						height: null,
+						...(isVideo ? { viewsRemaining: options.maxViews, maxViews: options.maxViews } : {}),
+						...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
 						...(imageUrl ? { url: imageUrl } : {}),
 						...(isImage && imageHash ? { imageHash } : {}),
 					},
@@ -2531,6 +2651,7 @@ export function ChatPage() {
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(2147483647);
 	}, []);
 
 	const confirmPendingAttachment = useCallback(() => {
@@ -2541,12 +2662,15 @@ export function ChatPage() {
 		void sendMediaAttachment(pendingAttachmentFile, {
 			looping: attachmentLooping,
 			takenOnGrindr: attachmentTakenOnGrindr,
+			maxViews: attachmentMaxViews,
 		});
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(2147483647);
 	}, [
 		attachmentLooping,
+		attachmentMaxViews,
 		attachmentTakenOnGrindr,
 		pendingAttachmentFile,
 		sendMediaAttachment,
@@ -2557,12 +2681,14 @@ export function ChatPage() {
 			void sendMediaAttachment(file, {
 				looping: attachmentLooping,
 				takenOnGrindr: attachmentTakenOnGrindr,
+				maxViews: attachmentMaxViews,
 			});
 			setPendingAttachmentFile(null);
 			setAttachmentLooping(false);
 			setAttachmentTakenOnGrindr(false);
+			setAttachmentMaxViews(2147483647);
 		},
-		[attachmentLooping, attachmentTakenOnGrindr, sendMediaAttachment],
+		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
 	);
 
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
@@ -2852,24 +2978,30 @@ export function ChatPage() {
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
+			albumViewerCancelledRef.current = false;
+			setIsAlbumSheetOpen(true);
 			setIsAlbumViewerLoading(true);
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
 			try {
 				const details = await service.getAlbum(albumId);
+				if (albumViewerCancelledRef.current) return;
 				setAlbumViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					content: details.content,
 				});
-				setAlbumViewerMediaIndex(null);
 			} catch (error) {
+				if (albumViewerCancelledRef.current) return;
+				setIsAlbumSheetOpen(false);
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
-				setIsAlbumViewerLoading(false);
+				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service],
+		[service, t],
 	);
 
 	const closeAlbumMediaViewer = useCallback(() => {
@@ -2943,7 +3075,7 @@ export function ChatPage() {
 	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia, shareableAlbums.length, loadAlbums]);
 
 	const sendDrawerMedia = useCallback(
-		async (mediaIds: number[], isExpiring?: boolean) => {
+		async (mediaIds: number[], maxViews?: number) => {
 			if (!selectedConversation || !userId || mediaIds.length === 0) {
 				return;
 			}
@@ -2964,8 +3096,9 @@ export function ChatPage() {
 					if (!media) continue;
 
 					const isVideo = media.contentType.startsWith("video");
-					const useExpiring = isExpiring && !isVideo;
-					const messageType = useExpiring ? "ExpiringImage" : isVideo ? "Video" : "Image";
+					const views = maxViews ?? 2147483647;
+					const isOnceImage = !isVideo && views === 1;
+					const messageType = isOnceImage ? "ExpiringImage" : isVideo ? "Video" : "Image";
 
 					const sentMessage = await service.sendMessage({
 						type: messageType,
@@ -2978,7 +3111,8 @@ export function ChatPage() {
 							width: null,
 							height: null,
 							url: media.url,
-							...(useExpiring ? { viewsRemaining: 1 } : {}),
+							...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
+							...(isVideo ? { viewsRemaining: views, maxViews: views } : {}),
 						},
 					});
 
@@ -3035,25 +3169,37 @@ export function ChatPage() {
 	);
 
 	const addDrawerMedia = useCallback(
-		async (file: File, takenOnGrindr: boolean) => {
-			if (!file.type.startsWith("image/")) {
-				toast.error("Only photos are supported in the drawer.");
-				return;
-			}
+		async (file: File, takenOnGrindr: boolean, looping?: boolean) => {
+			const isVideo = file.type.startsWith("video/");
 
-			if (file.size > 12 * 1024 * 1024) {
+			if (file.size > 100 * 1024 * 1024) {
 				toast.error(t("chat.attachments.too_large"));
 				return;
 			}
 
 			setIsAddingDrawerMedia(true);
 			try {
+				let durationSeconds: number | undefined;
+				if (isVideo) {
+					durationSeconds = await new Promise<number>((resolve) => {
+						const vid = document.createElement("video");
+						vid.preload = "metadata";
+						vid.onloadedmetadata = () => {
+							resolve(isFinite(vid.duration) ? Math.round(vid.duration) : 0);
+							URL.revokeObjectURL(vid.src);
+						};
+						vid.onerror = () => { resolve(0); URL.revokeObjectURL(vid.src); };
+						vid.src = URL.createObjectURL(file);
+					});
+				}
+
 				const binaryUpload = await buildBinaryUpload(file);
 				const uploaded = await service.uploadChatMedia({
 					multipart: binaryUpload,
 					options: {
-						looping: false,
-						takenOnGrindr,
+						looping: isVideo ? (looping ?? false) : false,
+						takenOnGrindr: isVideo ? false : takenOnGrindr,
+						...(durationSeconds != null ? { durationSeconds } : {}),
 					},
 				});
 				await service.addMediaToDrawer(uploaded.mediaId);
@@ -3102,11 +3248,13 @@ export function ChatPage() {
 		setPendingAttachmentFile(file);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => {
+	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
 		setFullScreenImageUrl(imageUrl);
 		setFullScreenImageMeta(meta ?? null);
+		setFullScreenMediaType(mediaType);
 	}, []);
 
 	const closeFullScreenImage = useCallback(() => {
@@ -3266,16 +3414,20 @@ export function ChatPage() {
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}
 			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			attachmentMaxViews={attachmentMaxViews}
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			setAttachmentMaxViews={setAttachmentMaxViews}
 			confirmPendingAttachment={confirmPendingAttachment}
 			confirmAttachmentFile={confirmAttachmentFile}
 			cancelPendingAttachment={cancelPendingAttachment}
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}
 			shareableAlbums={shareableAlbums}
+			albumCoverMap={albumCoverMap}
+			ownProfilePhotoUrl={ownProfilePhotoUrl}
 			isSharingAlbum={isSharingAlbum}
-				pendingAlbumShare={pendingAlbumShare}
+			pendingAlbumShare={pendingAlbumShare}
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
 			confirmPendingAlbumShare={confirmPendingAlbumShare}
 			closePendingAlbumShare={closePendingAlbumShare}
@@ -3301,8 +3453,8 @@ export function ChatPage() {
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
-			albumViewer={albumViewer}
-			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
+			isAlbumSheetOpen={isAlbumSheetOpen}
+			onOpenMediaSheet={() => setIsChatMediaSheetOpen(true)}
 		/>
 	);
 
@@ -3332,78 +3484,40 @@ export function ChatPage() {
 				)}
 			</div>
 
-			{isAlbumViewerLoading ? (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
-					</div>
-				</div>
-			) : null}
+			{isChatMediaSheetOpen && selectedConversation ? (() => {
+				const otherP = getOtherParticipant(selectedConversation, userId);
+				const otherPhotoUrl = otherP?.primaryMediaHash && validateMediaHash(otherP.primaryMediaHash)
+					? getThumbImageUrl(otherP.primaryMediaHash, "75x75")
+					: null;
+				return (
+					<ChatMediaSheet
+						conversationId={selectedConversation.data.conversationId}
+						senderProfileId={otherP?.profileId != null ? String(otherP.profileId) : null}
+						userId={userId}
+						isDesktop={isDesktop}
+						onClose={() => setIsChatMediaSheetOpen(false)}
+						openAlbumViewerById={openAlbumViewerById}
+						openFullScreenImage={(url) => openFullScreenImage(url)}
+						senderPhotoUrl={otherPhotoUrl}
+					/>
+				);
+			})() : null}
 
-			{albumViewer ? (
-				<div
-					className="fixed inset-0 z-40 bg-black/65 p-4"
-					onClick={() => {
-						setAlbumViewerMediaIndex(null);
+			{isAlbumSheetOpen ? (
+				<ChatAlbumSheet
+					viewer={albumViewer}
+					isLoading={isAlbumViewerLoading}
+					fullScreenIndex={albumViewerMediaIndex}
+					onClose={() => {
+						albumViewerCancelledRef.current = true;
+						setIsAlbumSheetOpen(false);
 						setAlbumViewer(null);
+						setAlbumViewerMediaIndex(null);
+						setIsAlbumViewerLoading(false);
 					}}
-				>
-					<div
-						className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="mb-3 flex items-center justify-between">
-							<p className="font-semibold">
-								{albumViewer.albumName || "Album"}
-							</p>
-							<button
-								type="button"
-								onClick={() => {
-									setAlbumViewerMediaIndex(null);
-									setAlbumViewer(null);
-								}}
-								className="rounded-lg border border-[var(--border)] p-2"
-							>
-								<X className="h-4 w-4" />
-							</button>
-						</div>
-						<div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-							{albumViewer.content.map((item, index) => {
-								const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
-								if (!mediaUrl) {
-									return (
-										<div
-											key={item.contentId}
-											className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-2)] text-xs text-[var(--text-muted)]"
-										>
-											Unavailable
-										</div>
-									);
-								}
-
-								return (
-									<button
-										type="button"
-										key={item.contentId}
-										onClick={() => openAlbumMediaViewer(index)}
-										className="relative overflow-hidden rounded-lg"
-									>
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="h-32 w-full object-cover"
-										/>
-										{item.contentType?.startsWith("video/") ? (
-											<span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-												Video
-											</span>
-										) : null}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				</div>
+					onOpenFullScreen={openAlbumMediaViewer}
+					isDesktop={isDesktop}
+				/>
 			) : null}
 
 			<PhotoViewer
@@ -3416,7 +3530,7 @@ export function ChatPage() {
 			<PhotoViewer
 				isOpen={!!fullScreenImageUrl}
 				onClose={closeFullScreenImage}
-				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
+				photos={fullScreenImageUrl ? [{ url: fullScreenImageUrl, type: fullScreenMediaType }] : []}
 				renderExtraInfo={fullScreenImageMeta ? () => (
                     <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
                         <style>{`

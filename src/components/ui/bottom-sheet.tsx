@@ -52,7 +52,8 @@ export function BottomSheet({
 	const dragStartY = useRef<number | null>(null);
 	const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const closingRef = useRef(false);
-	const closedByBackRef = useRef(false);
+	const backAlreadyDoneRef = useRef(false);
+	const didPushHistoryRef = useRef(false);
 	const animateCloseRef = useRef<() => void>(() => {});
 
 	// useEffect fires after browser has painted — double RAF ensures initial
@@ -72,6 +73,10 @@ export function BottomSheet({
 	const animateClose = useCallback(() => {
 		if (isProcessing || closingRef.current) return;
 		closingRef.current = true;
+		if (!backAlreadyDoneRef.current && didPushHistoryRef.current) {
+			didPushHistoryRef.current = false;
+			history.back();
+		}
 		setIsClosing(true);
 		closeTimerRef.current = setTimeout(onClose, 320);
 	}, [isProcessing, onClose]);
@@ -79,17 +84,18 @@ export function BottomSheet({
 	useEffect(() => { animateCloseRef.current = animateClose; }, [animateClose]);
 
 	useEffect(() => {
-		const prevState = history.state;
-		history.pushState({ bottomSheet: true }, "");
+		if (!didPushHistoryRef.current) {
+			didPushHistoryRef.current = true;
+			history.pushState({ bottomSheet: true }, "");
+		}
 		const onPopState = () => {
-			closedByBackRef.current = true;
+			if (history.state?.bottomSheet) return;
+			if (closingRef.current) return;
+			backAlreadyDoneRef.current = true;
 			animateCloseRef.current();
 		};
 		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (!closedByBackRef.current) history.replaceState(prevState, "");
-		};
+		return () => window.removeEventListener("popstate", onPopState);
 	}, []);
 
 	useEffect(() => {
@@ -140,6 +146,9 @@ export function BottomSheet({
 					transition: isVisible ? "opacity 0.3s ease" : "none",
 				}}
 				onClick={isProcessing ? undefined : animateClose}
+                onTouchStart={(e) => { if (e.target === e.currentTarget) onTouchStart(e); }}
+                onTouchMove={(e) => { if (dragStartY.current !== null) onTouchMove(e); }}
+                onTouchEnd={() => { if (dragStartY.current !== null) onTouchEnd(); }}
 			>
 				<div
 					className={`flex flex-col rounded-t-2xl border-x border-t border-[var(--border)] ${bg} shadow-2xl overflow-hidden ${isDesktop ? "w-full max-w-[800px] mx-auto" : "mx-3"} ${panelClassName}`}
