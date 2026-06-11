@@ -321,6 +321,11 @@ export function NavBar() {
 								<TabsTrigger
 									key={item.value}
 									value={item.value}
+									onClick={() => {
+										if (item.value === "browse" && activeTab === "browse") {
+											window.scrollTo({ top: 0, behavior: "smooth" });
+										}
+									}}
 									className={cn(
 										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
 										item.value === "right-now"

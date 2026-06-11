@@ -1,4 +1,4 @@
-import { Loader2, Search } from "lucide-react";
+import { ChevronLeft, Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -222,20 +222,21 @@ export function ChatSearchPage() {
 		<section className="app-screen" style={{ paddingLeft: 0, paddingRight: 0 }}>
 			<div className="w-full">
 				<div className="flex h-full flex-col overflow-hidden p-3 sm:p-4">
-					<div className="mb-3 flex items-center justify-between gap-3">
+					<div className="mb-3 flex items-center gap-3">
+						<button
+							type="button"
+							onClick={() => navigate("/chat")}
+							className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+							aria-label={t("chat_search.back_to_inbox")}
+						>
+							<ChevronLeft className="h-4 w-4" />
+						</button>
 						<div>
 							<h1 className="app-title">{t("chat_search.title")}</h1>
 							<p className="app-subtitle mt-1">
 								{t("chat_search.subtitle")}
 							</p>
 						</div>
-						<button
-							type="button"
-							onClick={() => navigate("/chat")}
-							className="rounded-xl border border-[var(--border)] px-3 py-2 text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-						>
-							{t("chat_search.back_to_inbox")}
-						</button>
 					</div>
 
 					<div className="mb-3">
