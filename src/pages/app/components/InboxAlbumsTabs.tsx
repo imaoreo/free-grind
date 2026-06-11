@@ -6,6 +6,7 @@ type InboxAlbumsTabsProps = {
 	onInboxClick: () => void;
 	onAlbumsClick: () => void;
 	trailing?: ReactNode;
+	inboxDotColor?: string;
 };
 
 export function InboxAlbumsTabs({
@@ -13,18 +14,19 @@ export function InboxAlbumsTabs({
 	onInboxClick,
 	onAlbumsClick,
 	trailing,
+	inboxDotColor,
 }: InboxAlbumsTabsProps) {
 	const { t } = useTranslation();
 
 	return (
-		<div className="flex min-h-10 items-end gap-3">
+		<div className="flex items-center gap-3">
 			<button
 				type="button"
 				onClick={onInboxClick}
 				className={
 					activeTab === "inbox"
-						? "inline-flex items-end text-left"
-						: "inline-flex items-end text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
+						? "relative inline-flex items-end text-left"
+						: "relative inline-flex items-end text-left text-[var(--text-muted)] transition hover:text-[var(--text)]"
 				}
 				aria-current={activeTab === "inbox" ? "page" : undefined}
 			>
@@ -37,6 +39,12 @@ export function InboxAlbumsTabs({
 				>
 					{t("chat.tabs.inbox")}
 				</span>
+				{inboxDotColor && (
+					<span
+						className="absolute -top-0.5 -right-2 h-2 w-2 rounded-full transition-colors duration-500"
+						style={{ backgroundColor: inboxDotColor }}
+					/>
+				)}
 			</button>
 			<button
 				type="button"

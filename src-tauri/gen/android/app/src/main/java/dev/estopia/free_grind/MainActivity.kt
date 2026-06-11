@@ -273,20 +273,28 @@ class MainActivity : TauriActivity() {
   private fun ensureNotificationChannels() {
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
+    // Note: We use the "_v2" suffix to ensure custom sound and high importance
+    // settings are applied correctly even on devices that already had previous versions.
     val chatChannel = NotificationChannel(
-      "free_grind_chat_notifications",
+      "free_grind_chat_notifications_v2",
       "Chat Messages",
       NotificationManager.IMPORTANCE_HIGH
     ).apply {
       description = "Notifications for new chat messages"
+      enableLights(true)
+      enableVibration(true)
+      setShowBadge(true)
     }
 
     val tapsChannel = NotificationChannel(
-      "free_grind_taps_notifications",
+      "free_grind_taps_notifications_v2",
       "Taps",
       NotificationManager.IMPORTANCE_HIGH
     ).apply {
       description = "Notifications for incoming taps"
+      enableLights(true)
+      enableVibration(true)
+      setShowBadge(true)
     }
 
     notificationManager.createNotificationChannel(chatChannel)
