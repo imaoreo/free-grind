@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "privacy": "Privacy & Analytics",
+        "privacy_desc": "Ghost mode, media blur, and analytics.",
         "automation": "Automation",
         "automation_desc": "Configure automated blocking rules and automatic grid refresh.",
         "issue_board": "Issues & Feature Requests",
@@ -25,6 +27,7 @@
         "export_chat": "Export Chat Data",
         "export_chat_desc": "Download all locally stored messages as a JSON file.",
         "check_updates": "Check for Updates",
+        "check_updates_desc": "Download and install the latest version of Free Grind.",
         "check_now": "Check Now",
         "environment": "Environment",
         "switching": "Switching…",
@@ -137,6 +140,7 @@
         "session_placeholder": "What are you looking for?",
         "char_limit": "{{count}}/140",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "i_am_hosting": "Hosting",
         "show_on_map": "Show me on map",
         "start_now": "Start Now",
@@ -538,17 +542,34 @@
             "about_me_length": "About Me must stay under 255 characters."
         }
     },
+    "privacy": {
+        "ghost_mode": "Ghost Mode",
+        "global_ghost_mode": "Global Ghost Mode",
+        "global_ghost_mode_desc": "Hide read receipts for all chats. The other person won't know you read their message until you reply or turn Ghost Mode off.",
+        "per_chat_overrides": "Per-Chat Overrides (Eye Button)",
+        "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Ghosted chats are highlighted in your Inbox.",
+        "nsfw_content": "NSFW Content"
+    },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
+        "appearance": "Appearance",
+        "layout": "Layout",
+        "regional": "Regional",
+        "navigation_tabs": "Navigation Tabs",
+        "show_right_now": "Right Now Tab",
+        "show_right_now_desc": "Show the Right Now tab in the bottom navigation.",
+        "show_interest": "Interest Tab",
+        "show_interest_desc": "Show the Interest tab in the bottom navigation.",
+        "default_interest_view": "Default Interest View",
+        "interest_show_taps": "Taps First",
+        "interest_show_views": "Views First",
         "units": "Units",
         "units_description": "Choose how distance and height are displayed.",
         "units_world": "World (meters + cm)",
         "units_uk": "UK (meters + feet/inches)",
         "units_american": "American (miles + feet/inches)",
-        "blur_incoming_media": "Blur Incoming Media",
-        "blur_incoming_media_description": "Automatically blur incoming images and videos in chats. On desktop, hover or click to reveal. In chats, revealed media resets when you leave and return.",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
+        "blur_incoming_media": "Blur Chat Media",
+        "blur_incoming_media_description": "Automatically blur images and videos in chats. On desktop, hover or click to reveal. In chats, revealed media resets when you leave and return.",
         "color_scheme": "Color Scheme",
         "accent_color": "Accent Color",
         "selected": "Selected",
@@ -557,12 +578,25 @@
         "apply_hex": "Apply Hex",
         "hex_error": "Enter a valid hex color like #22c55e or 22c55e",
         "browse_grid_mobile": "Browse Grid (Mobile)",
+        "browse_grid_mobile_desc": "Adjust how many profiles appear per row on mobile.",
         "columns_2": "2 Columns",
         "columns_3": "3 Columns",
+        "reveal_effect": {
+            "title": "Reveal Effect",
+            "description": "The reveal effect animates items as you scroll down. You can disable it or change its intensity.",
+            "enable": "Enable Reveal Effect",
+            "enable_desc": "Show items with a subtle animation when they enter the viewport.",
+            "strengths": {
+                "subtle": "Subtle",
+                "pronounced": "Pronounced"
+            }
+        },
         "preview": "Preview",
         "preview_primary": "Primary Button",
         "preview_outlined": "Outlined",
         "preview_subtle": "Subtle",
+        "preview_input": "Free Grind",
+        "preview_badge": "NEW",
         "schemes": {
             "system": "System",
             "light": "Light",
@@ -685,6 +719,7 @@
         "open_filters": "Open filters",
         "profile": "Profile",
         "view_profile": "View profile",
+        "received_media": "Received media",
         "favorite": "Favorite",
         "unfavorite": "Unfavorite",
         "no_conversations_match": "No conversations match your filters.",
@@ -705,6 +740,8 @@
         "drawer_label": "Drawer",
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
+        "cancel_recording": "Slide left to cancel",
+        "stop_recording": "Stop recording",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",
@@ -732,12 +769,17 @@
         },
         "preview": {
             "sent_image": "Sent an image",
+            "sent_gif": "Sent a GIF",
+            "sent_gaymoji": "Sent a Gaymoji",
             "shared_album": "Shared an album",
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
+            "tapped_album_photo_yours": "Tapped your album photo",
+            "tapped_album_photo_theirs": "Tapped their album photo",
             "sent_video": "Sent a video",
             "sent_location": "Sent a location",
-            "sent_message": "Sent a message"
+            "sent_message": "Sent a message",
+            "replied_profile_photo": "Replied to a profile photo"
         },
         "thread": {
             "unsent": "This message was unsent",
@@ -747,7 +789,10 @@
             "location_placeholder": "[location]",
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
+            "shared_gif": "Shared a GIF",
             "shared_video": "Shared a video",
+            "image_expired": "Expired",
+            "video_expired": "Expired",
             "shared_audio": "Shared an audio message",
             "location_shared": "Location shared",
             "failed": "Failed",
@@ -755,7 +800,11 @@
             "shared_alt": "Shared",
             "taken_on_grindr": "Taken on Grindr",
             "album_cover": "Album cover",
-            "album_share": "Album share"
+            "album_share": "Album share",
+            "album_image": "Album image",
+            "replied_to_photo": "Replied to your profile photo",
+            "reacted_to_image": "Reacted to your album image",
+            "audio_label": "Audio"
         },
         "actions": {
             "title": "Message actions",
@@ -777,9 +826,15 @@
         "attachments": {
             "only_image_video": "Only image and video attachments are supported.",
             "ready_to_send": "Ready to send: {{file}}",
-            "looping": "looping",
-            "taken_on_grindr": "takenOnGrindr",
-            "send_attachment": "Send attachment",
+            "looping": "Looping",
+            "looping_description": "The video will play on repeat",
+            "max_views": "Max views",
+            "view_once": "View once",
+            "view_once_description": "The image can only be viewed once for 10 seconds",
+            "taken_on_grindr": "Taken on Grindr watermark",
+            "taken_on_grindr_description": "Include the timestamp to certify the authenticy and recency of your photo",
+            "send": "Send",
+            "send_expiring": "Send expiring",
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."
         },
@@ -819,7 +874,11 @@
             "upload_media_failed": "Failed to upload media",
             "load_drawer_media": "Failed to load drawer media",
             "send_drawer_media": "Failed to send media from drawer",
-            "delete_conversation": "Failed to delete conversation"
+            "delete_conversation": "Failed to delete conversation",
+            "microphone_access": "Could not access microphone.",
+            "microphone_denied": "Microphone access denied.",
+            "microphone_not_found": "No microphone found.",
+            "recording_too_short": "Recording too short."
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
@@ -834,6 +893,15 @@
             "write_first_message": "Write your first message...",
             "no_messages_yet": "No messages yet",
             "send_first_message_hint": "Send a message below to start the conversation."
+        },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
         }
     },
     "chat_drawer": {
@@ -845,6 +913,7 @@
         "error_no_selection": "Please select at least one image.",
         "error_send_failed": "Failed to send media.",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "delete_media": "Delete media",
         "media_alt": "Drawer media",
         "take_photo": "Take photo",
@@ -854,8 +923,8 @@
         "delete_confirm_title": "Delete from drawer?",
         "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
         "delete_confirm_label": "Delete",
-        "is_expiring_toggle_on": "10s",
-        "is_expiring_toggle_off": "Off",
+        "is_expiring_toggle_on": "1×",
+        "is_expiring_toggle_off": "unlimited",
         "is_expiring_send": "Send expiring ({{count}})",
         "is_expiring_title_on": "Expiring (10s)",
         "is_expiring_title_off": "Send normal"
@@ -1049,7 +1118,8 @@
             "views": "Views",
             "taps": "Taps"
         },
-        "total_viewed_count": "Total viewed count",
+        "total_viewed_count": "Total",
+        "total_taps_count": "Total",
         "refreshing": "Refreshing {{tab}}...",
         "loading": "Loading {{tab}}...",
         "error_load": "Could not load {{tab}}",
@@ -1067,7 +1137,7 @@
             "limitation_desc": "Grindr normally only shows the very last visitor in full. Others are typically hidden behind a paywall or shown as anonymous previews.",
             "recovery_title": "Smart Recovery",
             "recovery_desc": "Free Grind automatically matches anonymous visitors with your local history. If we find a match, the profile will be revealed to you.",
-            "button": "Got it!"
+            "button": "Got it"
         },
         "unknown_profile": "Unknown Profile",
         "unknown_time": "Unknown time",

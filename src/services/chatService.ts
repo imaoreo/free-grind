@@ -39,6 +39,7 @@ import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../utils/a
 import { isChatGhosted } from "../utils/privacy";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "./apiHelpers";
 import { appLog } from "../utils/logger";
+import { sendViaRealtime } from "./chatRealtime";
 
 export { ApiFunctionError as ChatApiError };
 
@@ -192,14 +193,14 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					isOutsideAgeLimits(profileAge, "chat");
 
 				if (shouldBlock) {
- 				const profileId = data.participants?.[0]?.profileId;
- 				if (profileId) {
- 					const reason = isOutsideAgeLimits(profileAge, "chat") ? `Age Limit (${profileAge})` : "Keyword match";
- 					notifyAutoBlock(displayName || profileId, reason);
- 					fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
- 				}
- 				continue; // Do NOT show them in the inbox!
- 			}
+                    const profileId = data.participants?.[0]?.profileId;
+                    if (profileId) {
+                        const reason = isOutsideAgeLimits(profileAge, "chat") ? `Age Limit (${profileAge})` : "Keyword match";
+                        notifyAutoBlock(displayName || profileId, reason);
+                        fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }).catch(() => {});
+                    }
+                    continue; // Do NOT show them in the inbox!
+                }
 				
 				safeEntries.push(entry);
 			}
@@ -253,12 +254,19 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 
 		async sendMessage(payload: SendMessagePayload): Promise<Message> {
 			const safePayload = sendMessagePayloadSchema.parse(payload);
-			const response = await fetchRest("/v4/chat/message/send", {
-				method: "POST",
-				body: safePayload,
-			});
-			await assertSuccess(response, t("chat.errors.send_failed"));
-			return messageSchema.parse(await parseJsonSafe(response));
+			try {
+				const result = await sendViaRealtime("chat.v1.message.send", safePayload);
+				return messageSchema.parse(result);
+			} catch {
+				// replyToMessageId is WS-only — HTTP returns 400 if included
+				const { replyToMessageId: _r, ...httpPayload } = safePayload;
+				const response = await fetchRest("/v4/chat/message/send", {
+					method: "POST",
+					body: httpPayload,
+				});
+				await assertSuccess(response, t("chat.errors.send_failed"));
+				return messageSchema.parse(await parseJsonSafe(response));
+			}
 		},
 
 		async sendText(payload: SendTextPayload): Promise<Message> {
@@ -270,6 +278,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					targetId: safePayload.targetProfileId,
 				},
 				body: { text: safePayload.text },
+				replyToMessageId: safePayload.replyToMessageId,
 			});
 		},
 
@@ -416,7 +425,6 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
 			const response = await fetchRest(`/v1/albums/${albumId}`);
 			await assertSuccess(response, t("chat.errors.load_album_details"));
-            
 			return z
 				.object({
 					albumId: z.coerce.number().int(),
@@ -438,6 +446,54 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				.parse(await parseJsonSafe(response));
 		},
 
+		async getSharedAlbums(profileId: number | string): Promise<{
+			albumId: number;
+			albumName: string | null;
+			contentCount: { imageCount: number; videoCount: number };
+			previewContent: { contentId: number; thumbUrl: string | null; blurredUrl: string | null } | null;
+		}[]> {
+			const response = await fetchRest(`/v2/albums/shares/${profileId}`);
+			await assertSuccess(response, t("chat.errors.load_album_details"));
+			const parsed = z
+				.object({
+					albums: z.array(
+						z.object({
+							albumId: z.coerce.number().int(),
+							albumName: z.string().nullable().optional().default(null),
+							contentCount: z.object({
+								imageCount: z.number().int().optional().default(0),
+								videoCount: z.number().int().optional().default(0),
+							}).optional().default({ imageCount: 0, videoCount: 0 }),
+							content: z.object({
+								contentId: z.coerce.number().int(),
+								thumbUrl: z.string().nullable().optional().default(null),
+								blurredUrl: z.string().nullable().optional().default(null),
+							}).nullable().optional().default(null),
+						}),
+					).optional().default([]),
+				})
+				.parse(await parseJsonSafe(response));
+			return parsed.albums.map((a) => ({
+				albumId: a.albumId,
+				albumName: a.albumName ?? null,
+				contentCount: a.contentCount,
+				previewContent: a.content
+					? { contentId: a.content.contentId, thumbUrl: a.content.thumbUrl ?? null, blurredUrl: a.content.blurredUrl ?? null }
+					: null,
+			}));
+		},
+
+		async getAlbumContentPoster(albumId: number | string, contentId: number | string): Promise<{ posterUrl: string | null; blurredPosterUrl: string | null }> {
+			const response = await fetchRest(`/v1/albums/${albumId}/content/${contentId}/poster`);
+			await assertSuccess(response, t("chat.errors.load_album_details"));
+			return z
+				.object({
+					posterUrl: z.string().nullable().optional().default(null),
+					blurredPosterUrl: z.string().nullable().optional().default(null),
+				})
+				.parse(await parseJsonSafe(response));
+		},
+
 		async uploadChatMedia(
 			params: UploadChatMediaParams,
 		): Promise<UploadChatMediaResponse> {
@@ -445,6 +501,9 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				looping: String(params.options.looping),
 				takenOnGrindr: String(params.options.takenOnGrindr),
 			});
+			if (params.options.durationSeconds != null) {
+				query.set("length", String(params.options.durationSeconds));
+			}
 
 			const response = await fetchRest(
 				`/v5/chat/media/upload?${query.toString()}`,
@@ -462,6 +521,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 					mediaId: z.coerce.number().int(),
 					mediaHash: z.string().nullable().optional().default(null),
 					url: z.string().nullable().optional().default(null),
+					expiresAt: z.coerce.number().nullable().optional().default(null),
 				})
 				.parse(await parseJsonSafe(response));
 
@@ -469,6 +529,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				mediaId: parsed.mediaId,
 				mediaHash: parsed.mediaHash,
 				url: parsed.url,
+				expiresAt: parsed.expiresAt,
 			};
 		},
 
@@ -495,6 +556,17 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 				{
 					method: "POST",
 					body: { profiles: safePayload.profiles },
+				},
+			);
+			await assertSuccess(response, t("chat.errors.album_share_failed"));
+		},
+
+		async stopAlbumShare(albumId: number, recipientProfileId: number) {
+			const response = await fetchRest(
+				`/v1/albums/${albumId}/unshares`,
+				{
+					method: "PUT",
+					body: { profiles: [{ profileId: recipientProfileId, shareId: 0 }] },
 				},
 			);
 			await assertSuccess(response, t("chat.errors.album_share_failed"));

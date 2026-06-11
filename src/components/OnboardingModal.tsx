@@ -1,5 +1,5 @@
 import { X, type LucideIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { Button } from "./ui/button";
 
 interface OnboardingModalProps {
@@ -20,10 +20,37 @@ export function OnboardingModal({
 	buttonLabel,
 }: OnboardingModalProps) {
 	const [isClosing, setIsClosing] = useState(false);
+	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Prevent background scrolling while the modal is open
+	useEffect(() => {
+		const originalStyle = window.getComputedStyle(document.body).overflow;
+		document.body.style.overflow = "hidden";
+
+		// For iOS/Touchscreen consistency
+		const handleTouchMove = (e: TouchEvent) => {
+			if ((e.target as HTMLElement).closest('[role="dialog"]')) return;
+			e.preventDefault();
+		};
+		document.addEventListener("touchmove", handleTouchMove, { passive: false });
+
+		return () => {
+			if (closeTimeoutRef.current) {
+				clearTimeout(closeTimeoutRef.current);
+				closeTimeoutRef.current = null;
+			}
+			document.body.style.overflow = originalStyle;
+			document.removeEventListener("touchmove", handleTouchMove);
+		};
+	}, []);
 
 	const handleClose = () => {
 		setIsClosing(true);
-		setTimeout(() => {
+		if (closeTimeoutRef.current) {
+			clearTimeout(closeTimeoutRef.current);
+		}
+		closeTimeoutRef.current = setTimeout(() => {
+			closeTimeoutRef.current = null;
 			onClose();
 		}, 300); // Match transition duration
 	};
@@ -31,7 +58,11 @@ export function OnboardingModal({
 	const handleConfirm = () => {
 		if (onConfirm) {
 			setIsClosing(true);
-			setTimeout(() => {
+			if (closeTimeoutRef.current) {
+				clearTimeout(closeTimeoutRef.current);
+			}
+			closeTimeoutRef.current = setTimeout(() => {
+				closeTimeoutRef.current = null;
 				onConfirm();
 			}, 300);
 		} else {
@@ -40,7 +71,11 @@ export function OnboardingModal({
 	};
 
 	return (
-		<div className="fixed inset-0 z-[100] flex items-end justify-center p-4 pb-12 sm:items-center sm:pb-4 no-touch-callout isolate">
+		<div
+			className={`fixed inset-0 z-[100] flex items-center justify-center p-4 no-touch-callout isolate ${
+				isClosing ? "pointer-events-none" : ""
+			}`}
+		>
 			{/* Backdrop - Separate to prevent blur flicker during modal animation */}
 			<div
 				className={`absolute inset-0 bg-black/45 backdrop-blur-sm ${
@@ -59,7 +94,7 @@ export function OnboardingModal({
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Decorative Header */}
-				<div className="bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] p-8 text-center relative text-[var(--accent-contrast)]">
+				<div className="bg-gradient-to-br from-[var(--accent)] to-[color-mix(in_srgb,var(--accent)_80%,black)] p-8 text-center relative text-white">
 					<div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)] shadow-xl">
 						<HeaderIcon className="h-8 w-8" />
 					</div>
@@ -82,7 +117,7 @@ export function OnboardingModal({
 					<div className="pt-2">
 						<Button
 							variant="primary"
-							className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-[var(--accent)]/20"
+							className="w-full py-4 text-base font-bold rounded-2xl shadow-lg shadow-[var(--accent)]/20 !text-white"
 							onClick={handleConfirm}
 						>
 							{buttonLabel}

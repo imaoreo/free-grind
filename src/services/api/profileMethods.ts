@@ -68,6 +68,12 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			return { ok: true };
 		},
 
+		async unblockAllProfiles(): Promise<{ ok: true }> {
+			const response = await fetchRest("/v3/me/blocks", { method: "DELETE" });
+			await assertSuccess(response, t("settings_blocked.unblock_all_failed", { defaultValue: "Failed to unblock all profiles." }));
+			return { ok: true };
+		},
+
 		async getManagedGenders(): Promise<ManagedGender[]> {
 			const response = await fetchRest("/public/v2/genders");
 			await assertSuccess(response, t("api.errors.load_genders"));

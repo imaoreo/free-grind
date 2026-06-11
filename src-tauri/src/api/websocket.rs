@@ -74,9 +74,9 @@ impl WsState {
 }
 
 fn emit(app: &AppHandle, event: WsEvent) {
-    if let Err(error) = app.emit(WS_EVENT, &event) {
+    if let Err(_error) = app.emit(WS_EVENT, &event) {
         #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] failed to emit event: {error}");
+    eprintln!("[HTTP-WS] failed to emit event: {_error}");
     }
 }
 
@@ -172,7 +172,7 @@ pub async fn ws_connect(
         .body(())
         .map_err(|e| AppError::Http(format!("ws request build: {e}")))?;
 
-    let (ws_stream, response) = match connect_async(request).await {
+    let (ws_stream, _response) = match connect_async(request).await {
         Ok(pair) => pair,
         Err(error) => {
             #[cfg(debug_assertions)]
@@ -190,8 +190,8 @@ pub async fn ws_connect(
     #[cfg(debug_assertions)]
     eprintln!(
         "[HTTP-WS] handshake ok, status={} headers={}",
-        response.status(),
-        response.headers().len()
+        _response.status(),
+        _response.headers().len()
     );
 
     emit(&app, WsEvent::Open);
@@ -213,15 +213,15 @@ pub async fn ws_connect(
                         let _ = writer.close().await;
                         break;
                     };
-                    let kind_label = describe(&msg);
+                    let _kind_label = describe(&msg);
                     if let Err(error) = writer.send(msg).await {
                         #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] write error ({kind_label}): {error}");
+    eprintln!("[HTTP-WS] write error ({_kind_label}): {error}");
                         emit(&app_for_pump, WsEvent::Error { message: error.to_string() });
                         break;
                     }
                     #[cfg(debug_assertions)]
-    eprintln!("[HTTP-WS] -> sent {kind_label}");
+    eprintln!("[HTTP-WS] -> sent {_kind_label}");
                 }
                 incoming = reader.next() => {
                     match incoming {
@@ -250,14 +250,14 @@ pub async fn ws_connect(
                             let data_b64 = base64_encode(&bytes);
                             emit(&app_for_pump, WsEvent::Binary { len, data_b64 });
                         }
-                        Some(Ok(Message::Ping(payload))) => {
+                        Some(Ok(Message::Ping(_payload))) => {
                             #[cfg(debug_assertions)]
-                            eprintln!("[HTTP-WS] <- ping {} bytes (auto-pong)", payload.len());
+                            eprintln!("[HTTP-WS] <- ping {} bytes (auto-pong)", _payload.len());
                             emit(&app_for_pump, WsEvent::Ping);
                         }
-                        Some(Ok(Message::Pong(payload))) => {
+                        Some(Ok(Message::Pong(_payload))) => {
                             #[cfg(debug_assertions)]
-                            eprintln!("[HTTP-WS] <- pong {} bytes", payload.len());
+                            eprintln!("[HTTP-WS] <- pong {} bytes", _payload.len());
                             emit(&app_for_pump, WsEvent::Pong);
                         }
                         Some(Ok(Message::Close(frame))) => {
@@ -296,12 +296,12 @@ pub async fn ws_send(
     ws_state: tauri::State<'_, Arc<WsState>>,
     payload: String,
 ) -> Result<(), AppError> {
-    let preview_len = payload.len().min(120);
+    let _preview_len = payload.len().min(120);
     #[cfg(debug_assertions)]
     eprintln!(
         "[HTTP-WS] ws_send {} bytes preview={:?}",
         payload.len(),
-        &payload[..preview_len]
+        &payload[.._preview_len]
     );
 
     let guard = ws_state.inner.lock().await;

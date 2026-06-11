@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +12,7 @@ const appVersion = packageJson.version ?? "0.0.0";
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-	plugins: [react()],
+	plugins: [react(), tailwindcss()],
 	define: {
 		"import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
 	},
@@ -69,7 +70,7 @@ export default defineConfig(async () => ({
 			? {
 					protocol: "ws",
 					host,
-					port: 1421,
+					port: 1420,
 				}
 			: undefined,
 		watch: {

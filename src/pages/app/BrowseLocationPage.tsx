@@ -13,12 +13,9 @@ import {
 } from "./GridPage.types";
 import { LocationSettingsPanel } from "./gridpage/components/LocationSettingsPanel";
 
-import { useApi } from "../../hooks/useApi";
-
 export function BrowseLocationPage() {
 	const navigate = useNavigate();
 	const { t } = useTranslation();
-	const { fetchRest } = useApi();
 	const { setPreferences, geohash, locationName } = usePreferences();
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
@@ -111,7 +108,8 @@ export function BrowseLocationPage() {
 				t("browse_location.current_location_label"),
 				true,
 			);
-		} catch {
+		} catch (e) {
+			appLog.error("Geolocation failed", e);
 			setLocationError(t("browse_location.error_access"));
 		} finally {
 			setIsDetectingLocation(false);
@@ -128,23 +126,29 @@ export function BrowseLocationPage() {
 		setIsSearchingLocation(true);
 
 		try {
-			const response = await fetchRest(
+			const response = await fetch(
 				`https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(
 					query,
 				)}`,
 				{
-					method: "GET",
-					abortController: controller,
+					signal,
+					headers: {
+						"User-Agent":
+							"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
+					},
 				},
 			);
+
+			if (!response.ok) {
+				throw new Error("Failed to search location");
+			}
 
 			const parsed = z.array(geocodeResultSchema).parse(await response.json());
 			setLocationResults(parsed);
 			setLocationError(null);
-		} catch (error) {
-			if (error instanceof Error && error.name === "AbortError") {
-				return;
-			}
+		} catch (e) {
+			if (e instanceof Error && e.name === "AbortError") return;
+			appLog.error("Location search failed", e);
 			setLocationError(t("browse_location.error_search_failed"));
 		} finally {
 			setIsSearchingLocation(false);

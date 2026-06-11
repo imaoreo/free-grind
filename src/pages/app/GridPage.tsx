@@ -1150,8 +1150,8 @@ export function GridPage() {
 								</button>
 							</div>
 
-							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-								<div className="flex min-w-max items-center gap-3 px-[var(--app-px)] ml-auto">
+							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+								<div className="flex min-w-max items-center gap-2 px-[var(--app-px)] ml-auto">
 									<button
 										type="button"
 										onClick={() =>
@@ -1178,7 +1178,7 @@ export function GridPage() {
 												},
 											})
 										}
-										className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+										className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
 									>
 										<span className="flex items-center gap-2">
 											<SlidersHorizontal className="h-4 w-4" />
@@ -1190,12 +1190,12 @@ export function GridPage() {
 										</span>
 									</button>
 
-									<div className="relative inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
+									<div className="relative inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
 										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 										<select
 											value={sortBy}
 											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 py-3"
+											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 pl-2"
 										>
 											<option value="default">{t("browse_filters.sort.default")}</option>
 											<option value="distance">{t("browse_filters.sort.distance")}</option>
@@ -1214,7 +1214,7 @@ export function GridPage() {
 												onlineOnly: !prev.onlineOnly,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 									>
 										{t("browse_filters.options.online")}
 									</button>
@@ -1227,7 +1227,7 @@ export function GridPage() {
 												favorites: !prev.favorites,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 										aria-label={t("browse_filters.options.favorites")}
 										title={t("browse_filters.options.favorites")}
 									>
@@ -1244,7 +1244,7 @@ export function GridPage() {
 												rightNow: !prev.rightNow,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 										aria-label={t("browse_filters.options.right_now")}
 										title={t("browse_filters.options.right_now")}
 									>
@@ -1261,7 +1261,7 @@ export function GridPage() {
 												isVisiting: !prev.isVisiting,
 											}))
 										}
-										className={`inline-flex min-h-12 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
 										aria-label={t("profile_details.visiting")}
 										title={t("profile_details.visiting")}
 									>
@@ -1274,7 +1274,7 @@ export function GridPage() {
 										<button
 											type="button"
 											onClick={clearBrowseFilters}
-											className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+											className="inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
 										>
 											{t("browse_filters.clear_all")}
 										</button>

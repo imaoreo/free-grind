@@ -8,8 +8,6 @@ import {
 	validateMediaHash,
 } from "../../../utils/media";
 import { formatRelativeTime } from "../../../utils/relativeTime";
-import blankProfileImage from "../../../images/blank-profile.png";
-import { appLog } from "../../../utils/logger";
 
 export type ChatFiltersDraft = {
 	unreadOnly: boolean;
@@ -204,6 +202,10 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 		case "Image":
 		case "ExpiringImage":
 			return t("chat.preview.sent_image");
+		case "Giphy":
+			return t("chat.preview.sent_gif");
+		case "Gaymoji":
+			return t("chat.preview.sent_gaymoji");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
@@ -213,6 +215,8 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 		case "AlbumContentReaction":
 			return t("chat.preview.reacted_album_content");
 		case "Video":
+		case "PrivateVideo":
+		case "NonExpiringVideo":
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
@@ -232,6 +236,10 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 		case "Image":
 		case "ExpiringImage":
 			return t("chat.preview.sent_image");
+		case "Giphy":
+			return t("chat.preview.sent_gif");
+		case "Gaymoji":
+			return t("chat.preview.sent_gaymoji");
 		case "Album":
 		case "ExpiringAlbum":
 		case "ExpiringAlbumV2":
@@ -241,6 +249,8 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 		case "AlbumContentReaction":
 			return t("chat.preview.reacted_album_content");
 		case "Video":
+		case "PrivateVideo":
+		case "NonExpiringVideo":
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
@@ -257,7 +267,7 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			return t("chat.thread.image_placeholder");
 		}
-		if (message.type === "Video") {
+		if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
 			return t("chat.thread.video_placeholder");
 		}
 		if (message.type === "Audio") {
@@ -286,7 +296,15 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		return t("chat.thread.shared_image");
 	}
 
-	if (message.type === "Video") {
+	if (message.type === "Giphy") {
+		return t("chat.thread.shared_gif");
+	}
+
+	if (message.type === "Gaymoji") {
+		return "";
+	}
+
+	if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
 		return t("chat.thread.shared_video");
 	}
 
@@ -302,6 +320,24 @@ export function getMessageText(message: UiMessage, t: TranslateFn): string {
 		return t("chat.preview.reacted_album_content");
 	}
 
+	if (message.type === "ProfilePhotoReply") {
+		const body = message.body as Record<string, unknown> | null | undefined;
+		const replyContent = body?.photoContentReply;
+		if (typeof replyContent === "string" && replyContent.trim().length > 0) {
+			return replyContent.trim();
+		}
+		return t("chat.preview.replied_profile_photo");
+	}
+
+	if (message.type === "AlbumContentReply") {
+		const body = message.body as Record<string, unknown> | null | undefined;
+		const replyText = body?.albumContentReply;
+		if (typeof replyText === "string" && replyText.trim().length > 0) {
+			return replyText.trim();
+		}
+		return t("chat.preview.reacted_album_content");
+	}
+
 	return `[${message.type}]`;
 }
 
@@ -310,6 +346,7 @@ export function getMessageImageUrl(message: UiMessage): string | null {
 	const isImageMessage =
 		message.type === "Image" ||
 		message.type === "ExpiringImage" ||
+		message.type === "Giphy" ||
 		imageType === "image" ||
 		imageType === "expiring_image";
 
@@ -398,7 +435,7 @@ export function getMessageImageUrl(message: UiMessage): string | null {
 		if (typeof candidate === "string" && candidate.length > 0) {
 			const normalized = normalizeUrlCandidate(candidate);
 			if (normalized) {
-				appLog.debug("Found image URL candidate:", { candidate, normalized });
+				// appLog.debug("Found image URL candidate:", { candidate, normalized });
 				return normalized;
 			}
 		}
@@ -544,7 +581,7 @@ export function getMessageAudioUrl(message: UiMessage): string | null {
 
 export function getMessageVideoUrl(message: UiMessage): string | null {
 	const mediaType = message.chat1Type?.toLowerCase();
-	const isVideoMessage = message.type === "Video" || mediaType === "video";
+	const isVideoMessage = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || mediaType === "video" ||mediaType === "privatevideo" || mediaType === "nonexpiringvideo";
 	if (!isVideoMessage) {
 		return null;
 	}
@@ -554,18 +591,44 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 	}
 
 	const body = message.body as Record<string, unknown>;
+	const videoRecord =
+		typeof body.video === "object" && body.video
+			? (body.video as Record<string, unknown>)
+			: null;
+
+	const normalizeUrl = (candidate: string): string | null => {
+		if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+			return candidate;
+		}
+		if (candidate.startsWith("/")) {
+			return `https://cdns.grindr.com${candidate}`;
+		}
+		if (candidate.startsWith("d2wxe7lth7kp8g.cloudfront.net/")) {
+			return `https://${candidate}`;
+		}
+		return null;
+	};
+
 	const candidates: unknown[] = [
 		body.videoUrl,
 		body.url,
 		body.mediaUrl,
 		body.signedUrl,
-		(body.video as Record<string, unknown> | null)?.url,
+		body.cdnUrl,
+		videoRecord?.url,
+		videoRecord?.videoUrl,
+		videoRecord?.mediaUrl,
+		videoRecord?.signedUrl,
+		videoRecord?.cdnUrl,
 	];
 
 	for (const candidate of candidates) {
 		if (typeof candidate === "string" && candidate.length > 0) {
-			appLog.debug("Found video URL candidate:", { candidate });
-			return candidate;
+			const normalized = normalizeUrl(candidate);
+			if (normalized) {
+				// appLog.debug("Found video URL candidate:", { candidate, normalized });
+				return normalized;
+			}
 		}
 	}
 
@@ -596,9 +659,9 @@ export function getMessageLocation(
 	return null;
 }
 
-export function getParticipantAvatarUrl(hash: string | null | undefined): string {
+export function getParticipantAvatarUrl(hash: string | null | undefined): string | null {
 	if (!hash || !validateMediaHash(hash)) {
-		return blankProfileImage;
+		return null;
 	}
 
 	return getProfileImageUrl(hash);
@@ -710,3 +773,12 @@ export function getParticipantOnlineMeta(
 }
 
 export { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
+
+export function getGaymojiUrl(message: UiMessage): string | null {
+	if (message.type !== "Gaymoji") return null;
+	const body = message.body as Record<string, unknown> | null | undefined;
+	const imageHash = typeof body?.imageHash === "string" ? body.imageHash : null;
+	if (!imageHash) return null;
+	const path = imageHash.startsWith("/") ? imageHash : `/${imageHash}`;
+	return `https://cdns.grindr.com/grindr/chat${path}`;
+}

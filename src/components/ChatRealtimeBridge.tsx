@@ -14,11 +14,11 @@
  *   when the message was sent by the current user.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { useApi } from "../hooks/useApi";
-import { ChatRealtimeManager } from "../services/chatRealtime";
+import { ChatRealtimeManager, setActiveRealtimeManager } from "../services/chatRealtime";
 import { TauriWebSocket, isTauriRuntime } from "../services/tauriWebSocket";
 import * as chatLog from "../services/chatLog";
 import {
@@ -37,6 +37,7 @@ import { isChatGhosted } from "../utils/privacy";
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
 export const TAP_RECEIVED_EVENT = "fg:tap-received";
+export const VIEW_RECEIVED_EVENT = "fg:view-received";
 
 // Global cache to allow late-mounting components (like ChatPage) to see the
 // current connection status immediately.
@@ -106,6 +107,27 @@ function parseTapPayload(payload: unknown): TapReceivedDetail | null {
 	};
 }
 
+export type ViewReceivedDetail = {
+	profileId: string;
+	imageHash: string | null;
+	timestamp: number;
+	viewedCount: number;
+};
+
+function parseViewPayload(payload: unknown): ViewReceivedDetail | null {
+	if (!payload || typeof payload !== "object") return null;
+	const r = payload as Record<string, unknown>;
+	const mostRecent = r.mostRecent as Record<string, unknown> | undefined;
+	if (!mostRecent) return null;
+
+	return {
+		profileId: String(mostRecent.profileId),
+		imageHash: (mostRecent.photoHash as string) || null,
+		timestamp: Number(mostRecent.timestamp) || Date.now(),
+		viewedCount: Number(r.viewedCount) || 0,
+	};
+}
+
 function extractMessages(envelope: RealtimeEnvelope): Message[] {
 	const candidates: Message[] = [];
 
@@ -143,7 +165,10 @@ export function ChatRealtimeBridge() {
     const apiFunctions = useApiFunctions();
 	const location = useLocation();
 
-	const [token, setToken] = useState<string | null>(null);
+	const callMethodRef = useRef(callMethod);
+	useEffect(() => {
+		callMethodRef.current = callMethod;
+	}, [callMethod]);
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
@@ -155,52 +180,16 @@ export function ChatRealtimeBridge() {
 		userIdRef.current = userId;
 	}, [userId]);
 
-	// Fetch the WS token whenever the authenticated user changes.
+	// Boot the realtime manager whenever the user is authenticated.
+	// getToken is called fresh on every (re)connect so an expired token
+	// never blocks reconnection.
 	useEffect(() => {
 		if (!userId) {
-			setToken(null);
 			if (lastKnownStatus !== "idle") {
 				dispatchStatus("idle");
 			}
-			// appLog.debug("[chat-ws:bridge] no user; skipping token fetch");
 			return;
 		}
-
-		let active = true;
-		void callMethod("websocket_token")
-			.then((tok) => {
-				if (!active) return;
-				// Ensure we handle both raw string and potential object wrappers
-				const value = typeof tok === "string" ? tok : null;
-
-				/*
-				appLog.debug("[chat-ws:bridge] token received", {
-					success: !!value,
-					type: typeof tok,
-					length: value?.length ?? 0
-				});
-				*/
-
-				setToken(value);
-				if (!value) {
-					dispatchStatus("polling");
-				}
-			})
-			.catch(() => {
-				if (!active) return;
-				setToken(null);
-				dispatchStatus("polling");
-				appLog.warn("[chat-ws:bridge] token fetch failed");
-			});
-
-		return () => {
-			active = false;
-		};
-	}, [callMethod, userId]);
-
-	// Boot the realtime manager once we have a token.
-	useEffect(() => {
-		if (!token) return;
 
 		/*
 		appLog.debug("[chat-ws:bridge] starting manager", {
@@ -210,7 +199,15 @@ export function ChatRealtimeBridge() {
 
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => token,
+			getToken: async () => {
+				try {
+					const tok = await callMethodRef.current("websocket_token");
+					return typeof tok === "string" ? tok : null;
+				} catch {
+					appLog.warn("[chat-ws:bridge] token fetch failed");
+					return null;
+				}
+			},
 			onStatusChange: (status) => {
 				dispatchStatus(status);
 			},
@@ -230,12 +227,24 @@ export function ChatRealtimeBridge() {
 						currentUserId != null &&
 						Number(tap.profileId) !== Number(currentUserId)
 					) {
+						appLog.debug(`[chat-ws:bridge] Incoming tap received from profileId: ${tap.profileId}`);
 						window.dispatchEvent(
 							new CustomEvent<TapReceivedDetail>(TAP_RECEIVED_EVENT, {
 								detail: tap,
 							}),
 						);
-						// appLog.debug("[chat-ws:bridge] tap", { from: tap.displayName });
+					}
+				}
+
+				if (envelope.type === "viewed_me.v1.new_view_received") {
+					const view = parseViewPayload(envelope.payload);
+					if (view) {
+						appLog.debug(`[chat-ws:bridge] Incoming view received. Total views: ${view.viewedCount}`);
+						window.dispatchEvent(
+							new CustomEvent<ViewReceivedDetail>(VIEW_RECEIVED_EVENT, {
+								detail: view,
+							}),
+						);
 					}
 				}
 
@@ -284,7 +293,7 @@ export function ChatRealtimeBridge() {
 						const matchedWord = getMatchedForbiddenWord(messageText, "chat");
 
 						if (isIncoming && matchedWord) {
-							notifyAutoBlock(`Spam Intercepted`, `Keyword: "${matchedWord}"\nMessage: "${messageText}"`);
+							notifyAutoBlock("Spam Intercepted", `Keyword: "${matchedWord}"`);
 							
 							if (m.senderId) {
 								apiFunctions.blockProfile(String(m.senderId)).catch(() => {});
@@ -339,6 +348,7 @@ export function ChatRealtimeBridge() {
 		});
 
 		manager.start();
+		setActiveRealtimeManager(manager);
 
 		// Handle Foreground/Background shifts on Android
 		const handleVisibilityChange = () => {
@@ -356,9 +366,10 @@ export function ChatRealtimeBridge() {
 		return () => {
 			// appLog.debug("[chat-ws:bridge] stopping manager");
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			setActiveRealtimeManager(null);
 			manager.stop({ suppressStatus: true });
 		};
-	}, [token]);
+	}, [userId]);
 
 	return null;
 }

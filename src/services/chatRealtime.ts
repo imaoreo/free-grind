@@ -67,6 +67,13 @@ export class ChatRealtimeManager {
 	private stopped = true;
 	private suppressDisconnectStatus = false;
 	private lastActivityAt = 0;
+	private currentToken: string | null = null;
+	private pendingCommands = new Map<
+		string,
+		{ resolve: (result: unknown) => void; reject: (err: Error) => void; timer: number }
+	>();
+	// FIFO queue of refs for chat.v1.message.send — server responds with chat.v1.message_sent but ref is always null
+	private pendingSendRefs: string[] = [];
 	private readonly handleOnline = () => {
 		if (this.stopped) {
 			return;
@@ -126,8 +133,82 @@ export class ChatRealtimeManager {
 		}
 	}
 
+	send(commandType: string, token: string, payload: unknown): Promise<unknown> {
+		return new Promise((resolve, reject) => {
+			if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+				reject(new Error("WebSocket not connected"));
+				return;
+			}
+			const ref = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+			const timer = window.setTimeout(() => {
+				this.pendingCommands.delete(ref);
+				reject(new Error("WebSocket command timed out"));
+			}, 10_000);
+			this.pendingCommands.set(ref, { resolve, reject, timer });
+			if (commandType === "chat.v1.message.send") {
+				this.pendingSendRefs.push(ref);
+			}
+			try {
+				const msg = { type: commandType, ref, token, payload };
+				appLog.debug("[chat-ws:send] outgoing", JSON.stringify(msg));
+				this.socket.send(JSON.stringify(msg));
+			} catch (err) {
+				window.clearTimeout(timer);
+				this.pendingCommands.delete(ref);
+				reject(err instanceof Error ? err : new Error(String(err)));
+			}
+		});
+	}
+
+	getActiveToken(): string | null {
+		return this.currentToken;
+	}
+
 	private setStatus(next: RealtimeStatus) {
 		this.options.onStatusChange?.(next);
+	}
+
+	private clearPendingCommands(err: Error) {
+		for (const pending of this.pendingCommands.values()) {
+			window.clearTimeout(pending.timer);
+			pending.reject(err);
+		}
+		this.pendingCommands.clear();
+		this.pendingSendRefs = [];
+	}
+
+	private dispatchEvent(envelope: RealtimeEnvelope) {
+		appLog.debug("[chat-ws:recv] incoming", JSON.stringify(envelope));
+		const eventType = (envelope as Record<string, unknown>).type as string | undefined;
+		// Server responds to chat.v1.message.send with chat.v1.message_sent but always ref=null,
+		// so match against the FIFO queue of pending sends instead.
+		if (eventType === "chat.v1.message_sent" && this.pendingSendRefs.length > 0) {
+			const pendingRef = this.pendingSendRefs.shift()!;
+			const pending = this.pendingCommands.get(pendingRef);
+			if (pending) {
+				window.clearTimeout(pending.timer);
+				this.pendingCommands.delete(pendingRef);
+				pending.resolve(envelope.payload);
+				// Fall through to onEvent so ChatRealtimeBridge still persists the message
+			}
+		}
+		// Ref-based matching for other command types
+		const ref = (envelope as Record<string, unknown>).ref as string | undefined;
+		if (ref) {
+			const pending = this.pendingCommands.get(ref);
+			if (pending) {
+				window.clearTimeout(pending.timer);
+				this.pendingCommands.delete(ref);
+				const status = (envelope as Record<string, unknown>).status as number | undefined;
+				if (status !== undefined && status >= 400) {
+					pending.reject(new Error(`WS command failed with status ${status}`));
+				} else {
+					pending.resolve(envelope.payload);
+				}
+				return;
+			}
+		}
+		this.options.onEvent(envelope);
 	}
 
 	private clearReconnect() {
@@ -263,6 +344,7 @@ export class ChatRealtimeManager {
 			const token = this.options.getToken
 				? await this.options.getToken()
 				: null;
+			this.currentToken = token;
 
 			const url = this.buildUrlWithToken(this.options.url, token);
 			// appLog.debug("[chat-ws] building socket instance...", { url_len: url.length });
@@ -300,7 +382,7 @@ export class ChatRealtimeManager {
 					if (normalized.text) {
 						try {
 							const parsed = JSON.parse(normalized.text) as RealtimeEnvelope;
-							this.options.onEvent(parsed);
+							this.dispatchEvent(parsed);
 							return;
 						} catch {
 							// Continue to msgpack fallback.
@@ -311,7 +393,7 @@ export class ChatRealtimeManager {
 						try {
 							const decoded = decode(normalized.bytes);
 							if (decoded && typeof decoded === "object") {
-								this.options.onEvent(decoded as RealtimeEnvelope);
+								this.dispatchEvent(decoded as RealtimeEnvelope);
 								return;
 							}
 						} catch {
@@ -334,9 +416,10 @@ export class ChatRealtimeManager {
 					// appLog.debug("[chat-ws] ignoring onclose for stale socket");
 					return;
 				}
-				// appLog.debug("[chat-ws] onclose triggered", { code: event.code, reason: event.reason });
+				appLog.debug("[chat-ws] onclose triggered", { code: event.code, reason: event.reason });
 				this.clearHeartbeat();
 				this.clearLiveness();
+				this.clearPendingCommands(new Error("WebSocket closed"));
 				this.socket = null;
 				if (this.stopped) {
 					if (!this.suppressDisconnectStatus) {
@@ -345,7 +428,15 @@ export class ChatRealtimeManager {
 					this.suppressDisconnectStatus = false;
 					return;
 				}
-				this.reconnectAttempts += 1;
+				// 4401 = server closed because an expired token was used in a command.
+				// Reset backoff so we reconnect immediately with a fresh token instead
+				// of waiting through exponential delay.
+				if (event.code === 4401) {
+					appLog.debug("[chat-ws] token expired (4401); reconnecting immediately");
+					this.reconnectAttempts = 0;
+				} else {
+					this.reconnectAttempts += 1;
+				}
 				this.scheduleReconnect();
 			};
 		} catch (error) {
@@ -354,4 +445,23 @@ export class ChatRealtimeManager {
 			this.scheduleReconnect();
 		}
 	}
+}
+
+let _activeManager: ChatRealtimeManager | null = null;
+
+export function setActiveRealtimeManager(
+	manager: ChatRealtimeManager | null,
+) {
+	_activeManager = manager;
+}
+
+export function sendViaRealtime(
+	commandType: string,
+	payload: unknown,
+): Promise<unknown> {
+	const token = _activeManager?.getActiveToken() ?? null;
+	if (!_activeManager || !token) {
+		return Promise.reject(new Error("WebSocket not available"));
+	}
+	return _activeManager.send(commandType, token, payload);
 }
