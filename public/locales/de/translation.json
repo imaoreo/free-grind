@@ -950,6 +950,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Profildetails schließen",
+        "message_placeholder": "Nachricht senden…",
         "default_profile": "Standardprofil",
         "open_photo": "Foto {{index}} öffnen",
         "tags": "Tags",
@@ -1187,5 +1188,8 @@
         "pull": "Zum Aktualisieren ziehen",
         "release": "Zum Aktualisieren loslassen",
         "refreshing": "Aktualisiere..."
+    },
+    "common": {
+        "cancel": "Abbrechen"
     }
 }

@@ -528,7 +528,7 @@
 		opacity: 0;
 		pointer-events: none;
 		transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		padding: 2.5rem 3rem; /* Increased padding for larger shadows */
+		padding: 2.5rem 3rem;
 	}
 
 	.tab-menu.active {
@@ -536,6 +536,20 @@
 		transform: rotate(-10deg) translateY(0) translateX(-50%);
 		pointer-events: auto;
 	}
+
+	.tab-menu-slide {
+		opacity: 0;
+		pointer-events: none;
+		transform: translateX(12px) translateY(-50%);
+		transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	.tab-menu-slide.active {
+		opacity: 1;
+		pointer-events: auto;
+		transform: translateX(0) translateY(-50%);
+	}
+
 
 	.tab-menu-emoji {
 		transition:
@@ -782,6 +796,47 @@
 		height: 14px;
 		background: #2bd66f;
 	}
+}
+
+@keyframes tap-fly-center {
+  0%   { opacity: 1; transform: translate(calc(-50% + 50vw - 110px), calc(-50% + 50vh - 80px)) scale(0.9); }
+  55%  { opacity: 1;    transform: translate(-50%, -50%) scale(3.5); }
+  70%  { opacity: 0.5; }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(14); }
+}
+.animate-tap-fly-center {
+  animation: tap-fly-center 1.3s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  pointer-events: none;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+@keyframes particle-rise {
+  0%   { opacity: 1;   transform: translate(0px, 0px) scale(1); }
+  25%  { opacity: 0.6; transform: translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.4); }
+  55%  { opacity: 1;   transform: translate(calc(var(--dx)*0.65), calc(var(--dy)*0.65)) scale(0.8); }
+  80%  { opacity: 0.3; transform: translate(calc(var(--dx)*0.88), calc(var(--dy)*0.88)) scale(0.4); }
+  92%  { opacity: 0;   transform: translate(calc(var(--dx)*0.97), calc(var(--dy)*0.97)) scale(0.15); }
+  100% { opacity: 0;   transform: translate(var(--dx), var(--dy)) scale(0.1); }
+}
+.animate-particle-rise {
+  animation: particle-rise var(--dur, 0.65s) cubic-bezier(0.4, 0, 0.8, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@keyframes emoji-particle-rise {
+  0%   { opacity: 0; transform: translate(0px, 0px) scale(0.5); }
+  15%  { opacity: 1; transform: translate(calc(var(--dx)*0.1), calc(var(--dy)*0.1)) scale(1.1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.7); }
+}
+.animate-emoji-particle-rise {
+  animation: emoji-particle-rise var(--dur, 0.8s) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  position: fixed;
+  pointer-events: none;
 }
 
 @keyframes trash-bounce {
