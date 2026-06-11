@@ -588,7 +588,8 @@
             "replied_to_photo": "Respondió a tu foto de perfil",
             "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
-            "location_shared": "Ubicación compartida"
+            "location_shared": "Ubicación compartida",
+            "audio_label": "Audio"
         },
         "actions": {
             "title": "Acciones de mensaje",
@@ -614,7 +615,7 @@
             "max_views": "Vistas máx.",
             "view_once": "Ver una vez",
             "view_once_description": "La imagen solo se puede ver una vez durante 10 segundos",
-            "taken_on_grindr": "TomadoEnGrindr",
+            "taken_on_grindr": "Tomado con marca de agua de Grindr",
             "send": "Enviar",
             "send_expiring": "Enviar expirando",
             "uploading": "Subiendo archivo",
