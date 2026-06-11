@@ -1381,7 +1381,7 @@ dependencies = [
 
 [[package]]
 name = "free-grind"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "android-native-keyring-store",
  "apple-native-keyring-store",
@@ -1412,6 +1412,7 @@ dependencies = [
  "tokio-tungstenite",
  "url",
  "uuid",
+ "webkit2gtk",
  "windows-native-keyring-store",
 ]
 

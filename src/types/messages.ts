@@ -125,11 +125,13 @@ export const sendMessagePayloadSchema = z.object({
 		targetId: z.coerce.number().int(),
 	}),
 	body: z.record(z.string(), z.unknown()).nullable(),
+	replyToMessageId: z.string().nullable().optional(),
 });
 
 export const sendTextPayloadSchema = z.object({
 	targetProfileId: z.coerce.number().int(),
 	text: z.string().trim().min(1).max(1000),
+	replyToMessageId: z.string().nullable().optional(),
 });
 
 export const chatMessageMutationSchema = z.object({

@@ -415,6 +415,15 @@
             "title": "",
             "subtitle": ""
         },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
+        },
         "loading_albums": "",
         "loading": "",
         "loading_inbox": "",
@@ -446,6 +455,9 @@
         "no_messages_yet": "",
         "share_album": "",
         "attach_media": "",
+        "cancel_recording": "",
+        "stop_recording": "",
+        "received_media": "",
         "manage_albums": "",
         "no_albums_available": "",
         "share": "",
@@ -459,11 +471,16 @@
         },
         "preview": {
             "sent_image": "",
+            "sent_gif": "",
+            "sent_gaymoji": "",
             "shared_album": "",
             "sent_audio": "",
             "reacted_album_content": "",
+            "tapped_album_photo_yours": "",
+            "tapped_album_photo_theirs": "",
             "sent_video": "",
-            "sent_message": ""
+            "sent_message": "",
+            "replied_profile_photo": ""
         },
         "thread": {
             "unsent": "",
@@ -472,14 +489,19 @@
             "audio_placeholder": "",
             "unsupported_placeholder": "",
             "shared_image": "",
+            "shared_gif": "",
             "shared_video": "",
+            "video_expired": "Poteklo",
             "shared_audio": "",
             "failed": "",
             "from_local_history": "",
             "shared_alt": "",
             "taken_on_grindr": "",
             "album_share": "",
-            "album_cover": ""
+            "album_image": "",
+            "album_cover": "",
+            "replied_to_photo": "",
+            "reacted_to_image": ""
         },
         "actions": {
             "title": "",
@@ -499,8 +521,13 @@
         "attachments": {
             "ready_to_send": "",
             "looping": "",
+            "looping_description": "",
+            "max_views": "",
+            "view_once": "",
+            "view_once_description": "",
             "taken_on_grindr": "",
-            "send_attachment": "",
+            "send": "",
+            "send_expiring": "",
             "uploading": "",
             "too_large": ""
         },
@@ -520,7 +547,11 @@
             "delete_failed": "",
             "album_share_missing_recipient": "",
             "album_share_failed": "",
-            "album_open_failed": ""
+            "album_open_failed": "",
+            "microphone_access": "",
+            "microphone_denied": "",
+            "microphone_not_found": "",
+            "recording_too_short": ""
         },
         "toasts": {
             "cleared_local_history": "",

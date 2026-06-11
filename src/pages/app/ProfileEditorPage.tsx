@@ -14,7 +14,7 @@ import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
 } from "../../types/visiting";
-import { validateMediaHash } from "../../utils/media";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
 	getBodyTypeLabelMap,
@@ -40,6 +40,7 @@ import {
 	parseDateInput,
 	parseNullableInteger,
 	parseNullableNumber,
+	parseNullableWeight,
 	normalizeTagList,
 	profileResponseSchema,
 	profileSchema,
@@ -144,7 +145,7 @@ export function ProfileEditorPage() {
 		[t],
 	);
 
-	const loadProfile = useCallback(async () => {
+	const loadProfile = useCallback(async (options?: { silent?: boolean }) => {
 		if (!userId) {
 			setProfile(null);
 			setIsLoadingProfile(false);
@@ -152,7 +153,9 @@ export function ProfileEditorPage() {
 		}
 
 		try {
-			setIsLoadingProfile(true);
+			if (!options?.silent) {
+				setIsLoadingProfile(true);
+			}
 			setProfileError(null);
 			const parsed = profileResponseSchema.parse(
 				await apiFunctions.getRawProfile(userId),
@@ -168,7 +171,7 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
-	const loadVisitingMode = useCallback(async () => {
+	const loadVisitingMode = useCallback(async (options?: { silent?: boolean }) => {
 		if (!userId) {
 			setSavedVisitingMode("AUTO");
 			setDraftVisitingMode("AUTO");
@@ -178,7 +181,9 @@ export function ProfileEditorPage() {
 		}
 
 		try {
-			setIsLoadingVisitingMode(true);
+			if (!options?.silent) {
+				setIsLoadingVisitingMode(true);
+			}
 			setVisitingModeError(null);
 			setSavedVisitingMode(await apiFunctions.getVisitingMode());
 		} catch (error) {
@@ -381,36 +386,74 @@ export function ProfileEditorPage() {
 
 		try {
 			if (hasProfileChanges) {
-				await apiFunctions.updateMyProfile({
-					displayName: draft.displayName.trim() || null,
-					aboutMe: draft.aboutMe.trim() || null,
-					profileTags: tagList,
-					showAge: draft.showAge,
-					age: parseNullableInteger(draft.age),
-					height: parseNullableNumber(draft.height),
-					weight: parseNullableNumber(draft.weight),
-					ethnicity: parseNullableInteger(draft.ethnicity),
-					bodyType: parseNullableInteger(draft.bodyType),
-					showPosition: draft.showPosition,
-					sexualPosition: parseNullableInteger(draft.sexualPosition),
-					showTribes: draft.showTribes,
-					grindrTribes: draft.grindrTribes,
-					relationshipStatus: parseNullableInteger(draft.relationshipStatus),
-					lookingFor: draft.lookingFor,
-					meetAt: draft.meetAt,
-					nsfw: parseNullableInteger(draft.nsfw),
-					genders: draft.genders,
-					pronouns: draft.pronouns,
-					hivStatus: parseNullableInteger(draft.hivStatus),
-					lastTestedDate: parseDateInput(draft.lastTestedDate),
-					sexualHealth: draft.sexualHealth,
-					vaccines: draft.vaccines,
-					socialNetworks: {
-						instagram: { userId: draft.instagram.trim() || null },
-						twitter: { userId: draft.twitter.trim() || null },
-						facebook: { userId: draft.facebook.trim() || null },
-					},
-				});
+				const payload: Record<string, any> = {};
+
+				// Helper to compare and add simple values
+				const addIfChanged = (key: keyof ProfileDraft, payloadKey: string, transform: (v: any) => any = (v) => v) => {
+					const draftValue = transform(draft[key]);
+					const savedValue = transform(savedDraft[key]);
+					if (JSON.stringify(draftValue) !== JSON.stringify(savedValue)) {
+						payload[payloadKey] = draftValue;
+					}
+				};
+
+				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
+				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
+				addIfChanged("showAge", "showAge");
+				addIfChanged("age", "age", parseNullableInteger);
+				addIfChanged("height", "height", parseNullableNumber);
+				addIfChanged("weight", "weight", parseNullableWeight);
+				addIfChanged("ethnicity", "ethnicity", parseNullableInteger);
+				addIfChanged("bodyType", "bodyType", parseNullableInteger);
+				addIfChanged("showPosition", "showPosition");
+				addIfChanged("sexualPosition", "sexualPosition", parseNullableInteger);
+				addIfChanged("showTribes", "showTribes");
+				addIfChanged("grindrTribes", "grindrTribes");
+				addIfChanged("relationshipStatus", "relationshipStatus", parseNullableInteger);
+				addIfChanged("lookingFor", "lookingFor");
+				addIfChanged("meetAt", "meetAt");
+				addIfChanged("nsfw", "nsfw", parseNullableInteger);
+				addIfChanged("genders", "genders");
+				addIfChanged("pronouns", "pronouns");
+				addIfChanged("hivStatus", "hivStatus", parseNullableInteger);
+				addIfChanged("lastTestedDate", "lastTestedDate", parseDateInput);
+				addIfChanged("sexualHealth", "sexualHealth");
+				addIfChanged("vaccines", "vaccines");
+
+				// Handle tags separately due to different structure
+				const savedTags = profile?.profileTags ?? [];
+				if (JSON.stringify(tagList) !== JSON.stringify(savedTags)) {
+					payload.profileTags = tagList;
+				}
+
+				// Handle social networks selectively
+				const social: Record<string, any> = {};
+				if (draft.instagram.trim() !== (profile?.socialNetworks?.instagram?.userId ?? "")) {
+					social.instagram = { userId: draft.instagram.trim() || null };
+				}
+				if (draft.twitter.trim() !== (profile?.socialNetworks?.twitter?.userId ?? "")) {
+					social.twitter = { userId: draft.twitter.trim() || null };
+				}
+				if (draft.facebook.trim() !== (profile?.socialNetworks?.facebook?.userId ?? "")) {
+					social.facebook = { userId: draft.facebook.trim() || null };
+				}
+
+				if (Object.keys(social).length > 0) {
+					payload.socialNetworks = social;
+				}
+
+				if (Object.keys(payload).length > 0) {
+					await apiFunctions.updateMyProfile(payload);
+
+					// Update local profile state immediately
+					setProfile((current) => {
+						if (!current) return null;
+						return {
+							...current,
+							...payload,
+						};
+					});
+				}
 			}
 
 			if (hasVisitingModeChanges) {
@@ -419,9 +462,6 @@ export function ProfileEditorPage() {
 			}
 
 			toast.success(t("profile_editor.toasts.updated"));
-			if (hasProfileChanges) {
-				await loadProfile();
-			}
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -620,24 +660,20 @@ export function ProfileEditorPage() {
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
-				<header className="space-y-3">
-					<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-						{t("profile_editor.management")}
-					</p>
-					<h1 className="app-title">{t("profile_editor.title")}</h1>
-					<p className="max-w-[65ch] text-sm leading-relaxed text-[var(--text-muted)] sm:text-base">
-						{t("profile_editor.subtitle")}
-					</p>
+				<header>
+					<BackToSettings />
+					<h1 className="app-title mb-1">{t("profile_editor.title")}</h1>
+					<p className="app-subtitle">{t("profile_editor.subtitle")}</p>
 				</header>
 
-				{isLoadingProfile ? (
-					<div className="surface-card rounded-3xl p-5 sm:p-6">
+				{isLoadingProfile && !profile ? (
+					<div className="surface-card p-5 sm:p-6">
 						<p className="text-sm font-medium text-[var(--text-muted)]">
 							{t("profile_editor.loading")}
 						</p>
 					</div>
-				) : profileError ? (
-					<div className="surface-card rounded-3xl p-5 sm:p-6">
+				) : profileError && !profile ? (
+					<div className="surface-card p-5 sm:p-6">
 						<p className="text-sm font-semibold">
 							{t("profile_editor.error_load")}
 						</p>
@@ -647,59 +683,64 @@ export function ProfileEditorPage() {
 					</div>
 				) : (
 					<div className="grid gap-6">
-						<div className="surface-card rounded-[28px] p-5 sm:p-6">
-							<div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-								<div className="flex items-center gap-4 sm:gap-5">
-									<div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:h-20 sm:w-20 sm:text-2xl">
-										{draftInitials}
-									</div>
-									<div>
-										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-											{t("profile_editor.summary")}
-										</p>
-										<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
-											{draftDisplayName}
-										</h2>
-										<div className="mt-3 flex flex-wrap gap-2">
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedRelationshipLabel}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedBodyTypeLabel}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{tagList.length > 0
-													? t("profile_editor.tags_count", {
-															count: tagList.length,
-														})
-													: t("profile_editor.no_tags")}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedVisitingModeLabel}
-											</span>
+						<div className="surface-card overflow-hidden">
+							<div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
+								<div className="relative h-16 w-16 shrink-0 sm:h-20 sm:w-20">
+									{profilePhotoHashes[0] ? (
+										<img
+											src={getThumbImageUrl(profilePhotoHashes[0], "320x320")}
+											alt={draftDisplayName}
+											className="h-full w-full rounded-full object-cover shadow-sm"
+										/>
+									) : (
+										<div className="flex h-full w-full items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:text-2xl">
+											{draftInitials}
 										</div>
+									)}
+								</div>
+								<div>
+									<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+										{t("profile_editor.summary")}
+									</p>
+									<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
+										{draftDisplayName}
+									</h2>
+									<div className="mt-3 flex flex-wrap gap-2">
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedRelationshipLabel}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedBodyTypeLabel}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{tagList.length > 0
+												? t("profile_editor.tags_count", {
+														count: tagList.length,
+													})
+												: t("profile_editor.no_tags")}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedVisitingModeLabel}
+										</span>
 									</div>
 								</div>
+							</div>
 
-								<div className="flex w-full flex-col items-start gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 lg:w-auto lg:min-w-[260px]">
-									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-										{t("profile_editor.completion_title")}
-									</p>
-									<p className="text-3xl font-semibold leading-none">
-										{completionPercent}%
-									</p>
-									<div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface)]">
-										<div
-											className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
-											style={{ width: `${completionPercent}%` }}
-										/>
-									</div>
+							<div className="border-t border-[var(--border)] px-4 py-3 sm:px-5">
+								<div className="mb-1.5 flex items-center justify-between gap-3">
 									<p className="text-xs text-[var(--text-muted)]">
 										{t("profile_editor.completion_signals", {
 											count: completionCount,
 											total: completionChecklist.length,
 										})}
 									</p>
+									<p className="text-xs font-bold">{completionPercent}%</p>
+								</div>
+								<div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+									<div
+										className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+										style={{ width: `${completionPercent}%` }}
+									/>
 								</div>
 							</div>
 						</div>
@@ -739,17 +780,17 @@ export function ProfileEditorPage() {
 								vaccineOptions={vaccineOptions}
 							/>
 
-							<aside className="grid gap-4 lg:sticky lg:top-4">
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							<aside className="grid gap-3 lg:sticky lg:top-4">
+								<div className="surface-card p-4">
+									<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 										{t("profile_editor.actions.title")}
 									</p>
-									<div className="mt-3 grid gap-2.5">
+									<div className="grid gap-2">
 										<button
 											type="button"
 											onClick={handleSaveProfile}
 											disabled={!canSave}
-											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed"
+											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<Save className="h-4 w-4" />
 											{isSaving
@@ -760,30 +801,22 @@ export function ProfileEditorPage() {
 											type="button"
 											onClick={handleResetDraft}
 											disabled={!hasChanges || isSaving}
-											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
 										>
 											<RefreshCw className="h-4 w-4" />
 											{t("profile_editor.actions.reset")}
 										</button>
 									</div>
-									<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-										{t("profile_editor.actions.footer")}
-									</p>
-								</div>{" "}
+									{hasChanges && (
+										<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
+											{t("profile_editor.actions.footer")}
+										</p>
+									)}
+								</div>
 							</aside>
 						</div>
 					</div>
 				)}
-
-				<div className="mt-1 flex flex-wrap items-center gap-3">
-					<BackToSettings />
-					<button
-						onClick={handleLogout}
-						className="btn-accent min-h-11 px-4 py-2.5 font-semibold"
-					>
-						{t("settings.logout")}
-					</button>
-				</div>
 			</div>
 		</section>
 	);

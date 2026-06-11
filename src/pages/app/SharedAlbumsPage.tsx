@@ -18,7 +18,7 @@ import { EmptyState, ErrorState, LoadingState } from "../../components/ui/states
 import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import blankProfileImage from "../../images/blank-profile.png";
+import { ProfileImage } from "../../components/ui/profile-image";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -484,7 +484,7 @@ export function SharedAlbumsPage() {
 								null;
 							const avatarUrl = item.profileMediaHash
 								? getThumbImageUrl(item.profileMediaHash, "320x320")
-								: blankProfileImage;
+								: null;
 
 							return (
 								<button
@@ -512,12 +512,12 @@ export function SharedAlbumsPage() {
 										)}
 
 										<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
-											<Avatar
-												src={avatarUrl}
-												alt={item.profileName}
-												fallback={item.profileName}
-												className="h-20 w-20 border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm"
-											/>
+											<div className="h-20 w-20 overflow-hidden rounded-full border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
+												<ProfileImage
+													src={avatarUrl}
+													alt={item.profileName}
+												/>
+											</div>
 											<div className="max-w-full">
 												<p className="truncate text-base font-semibold leading-tight text-white drop-shadow">
 													{item.profileName}

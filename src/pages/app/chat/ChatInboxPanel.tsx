@@ -2,6 +2,7 @@ import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal }
 import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../../contexts/PreferencesContext";
+import { ProfileImage } from "../../../components/ui/profile-image";
 import type { ConversationEntry, InboxFilters } from "../../../types/messages";
 import type { ChatContactIndexRecord } from "../../../types/chat-contact-index";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
@@ -263,6 +264,7 @@ export function ChatInboxPanel({
 				<div
 					ref={inboxListRef}
 					onScroll={markUserScroll}
+					data-lenis-prevent
 					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}
 				>
 					{filteredConversations.map((conversation) => {
@@ -322,10 +324,9 @@ export function ChatInboxPanel({
 															: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
 													}`}
 												>
-													<img
+													<ProfileImage
 														src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
 														alt={displayName}
-														className="h-full w-full object-cover"
 													/>
 													{conversation.data.pinned ? (
 														<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">

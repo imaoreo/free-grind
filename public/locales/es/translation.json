@@ -36,7 +36,9 @@
         "blocked_accounts": "Cuentas bloqueadas",
         "blocked_accounts_desc": "Mira a quién has bloqueado y desbloquéalos en cualquier momento.",
         "issue_board": "Problemas y solicitudes de sugerencias",
-        "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias."
+        "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias.",
+        "automation": "Automatización",
+        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -86,15 +88,51 @@
         "filters": "Filtros",
         "filter_summary": "Posición: {{position}} · Edad: {{age}}",
         "try_again": "Inténtalo de nuevo",
-        "empty": "Nadie está en Right Now.",
-        "error_load": "Error al cargar Right Now",
+        "empty": "Nadie cerca está en Right Now.",
+        "error_load": "Error al cargar la página de Right Now",
         "message_aria": "Escribir a {{name}}",
         "any_position": "Sin establecer",
         "just_now": "Ahora mismo",
         "minutes_short": "{{count}}m",
         "hours_short": "{{count}}h",
         "days_short": "{{count}}d",
-        "seconds_short": "{{count}}s"
+        "seconds_short": "{{count}}s",
+        "edit_session_title": "Editar sesión",
+        "session_placeholder": "¿Qué estás buscando ahora?",
+        "char_limit": "{{count}}/140",
+        "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
+        "i_am_hosting": "Alojar",
+        "show_on_map": "Mostrarme en el mapa",
+        "start_now": "Empezar ahora",
+        "update_now": "Actualizar ahora",
+        "remaining": "restante",
+        "visibility": "Visibilidad",
+        "status_hidden": "Actualmente oculto",
+        "status_visible": "Visible públicamente",
+        "weekly_limit": "Sesiones semanales",
+        "remaining_count": "disponible(s)",
+        "next_refresh": "Siguiente disponible",
+        "refresh_time": "Viernes, 17:00",
+        "limit_reached_title": "Límite alcanzado",
+        "limit_reached_desc": "Ya has usado todas tus sesiones esta semana.",
+        "uploading": "Subiendo...",
+        "updating": "Actualizando...",
+        "starting_session": "Comenzando sesión...",
+        "ending_session": "Finalizando...",
+        "end_session": "Finalizar sesión",
+        "session_updated": "¡Sesión actualizada!",
+        "session_created": "¡Sesión iniciada!",
+        "session_ended": "Sesión finalizada",
+        "session_expired": "Sesión caducada",
+        "error_fetch_session": "No se pudo cargar los datos de la sesión",
+        "error_upload": "Error con la subida",
+        "error_session_failed": "Error al iniciar sesión",
+        "error_session_update_failed": "Error al actualizar sesión",
+        "error_end_failed": "Error al terminar sesión",
+        "upload_preview_alt": "Previsualización de la subida",
+        "close_aria": "Cerrar",
+        "create_session_title": "Right Now"
     },
     "right_now_filters": {
         "title": "Filtros Right Now",
@@ -136,6 +174,11 @@
             "youngest": "Más joven",
             "default": "Por defecto",
             "distance": "Distancia"
+        },
+        "local_filters": {
+            "title": "Filtros locales",
+            "description": "Estos filtros se aplican instantáneamente a los perfiles ya cargados.",
+            "is_visiting": "Visitando"
         }
     },
     "about_page": {
@@ -456,8 +499,17 @@
             "write_first_message": "Escribe tu primer mensaje...",
             "title": "Nueva conversación",
             "subtitle": "Perfil #{{profileId}}",
-            "no_messages_yet": "",
+            "no_messages_yet": "Sin mensajes todavía",
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
+        },
+        "media_sheet": {
+            "title": "Medios recibidos",
+            "tab_albums": "Álbumes",
+            "tab_media": "Medios",
+            "albums_empty_title": "Aún no se han compartido álbumes",
+            "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
+            "media_empty_title": "Aún no has recibido medios",
+            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
         },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",
@@ -488,6 +540,8 @@
         "no_messages_yet": "No tienes mensajes todavía.",
         "share_album": "Compartir álbum",
         "attach_media": "Adjuntar contenido",
+        "cancel_recording": "Deslizar a la izquierda para cancelar",
+        "stop_recording": "Detener grabación",
         "manage_albums": "Gestionar álbumes",
         "no_albums_available": "No hay álbumes disponibles. Crea uno en Configuración primero.",
         "share": "Compartir",
@@ -501,12 +555,17 @@
         },
         "preview": {
             "sent_image": "Envió una imagen",
+            "sent_gif": "Envió un GIF",
+            "sent_gaymoji": "Envió un Gaymoji",
             "shared_album": "Compartió un álbum",
             "sent_audio": "Envió un mensaje de audio",
             "reacted_album_content": "Reaccionó a contenido de álbum",
+            "tapped_album_photo_yours": "Le gustó tu foto de álbum",
+            "tapped_album_photo_theirs": "Te gustó su foto de álbum",
             "sent_video": "Envió un vídeo",
             "sent_message": "Envió un mensaje",
-            "sent_location": "Envió una ubicación"
+            "sent_location": "Envió una ubicación",
+            "replied_profile_photo": "Respondió a una foto de perfil"
         },
         "thread": {
             "unsent": "Este mensaje fue eliminado",
@@ -515,7 +574,9 @@
             "audio_placeholder": "[audio]",
             "unsupported_placeholder": "[mensaje no soportado]",
             "shared_image": "Compartió una imagen",
+            "shared_gif": "Compartió un GIF",
             "shared_video": "Compartió un vídeo",
+            "video_expired": "Caducado",
             "shared_audio": "Compartió un mensaje de audio",
             "failed": "Hubo un error",
             "from_local_history": "De tu historial local",
@@ -523,6 +584,9 @@
             "taken_on_grindr": "Tomada en Grindr",
             "album_cover": "Portada de álbum",
             "album_share": "Compartir álbum",
+            "album_image": "Imagen de álbum",
+            "replied_to_photo": "Respondió a tu foto de perfil",
+            "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
             "location_shared": "Ubicación compartida"
         },
@@ -546,8 +610,13 @@
         "attachments": {
             "ready_to_send": "Listo para enviar: {{file}}",
             "looping": "",
+            "looping_description": "El vídeo se reproducirá en bucle",
+            "max_views": "Vistas máx.",
+            "view_once": "Ver una vez",
+            "view_once_description": "La imagen solo se puede ver una vez durante 10 segundos",
             "taken_on_grindr": "TomadoEnGrindr",
-            "send_attachment": "Enviar archivo",
+            "send": "Enviar",
+            "send_expiring": "Enviar expirando",
             "uploading": "Subiendo archivo",
             "too_large": "El archivo es demasiado grande. El límite es 12MB.",
             "only_image_video": "Solo adjuntos de vídeo e imagen son soportados."
@@ -578,7 +647,13 @@
             "upload_media_failed": "Error al subir el contenido",
             "load_drawer_media": "Error al cargar contenido de la galería",
             "send_drawer_media": "Error al enviar contenido de la galería",
-            "delete_conversation": "Error al eliminar conversación"
+            "delete_conversation": "Error al eliminar conversación",
+            "no_location_set": "La ubicación no está establecida en los ajustes",
+            "invalid_location": "Formato de ubicación inválido",
+            "microphone_access": "No se pudo acceder al micrófono.",
+            "microphone_denied": "Acceso al micrófono denegado.",
+            "microphone_not_found": "No se encontró ningún micrófono.",
+            "recording_too_short": "Grabación demasiado corta."
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
@@ -621,11 +696,14 @@
         },
         "load_older_messages": "Cargar mensajes más antiguos",
         "view_profile": "Ver perfil",
+        "received_media": "Medios recibidos",
         "favorite": "Favorito",
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
         "drawer_label": "Galería",
-        "drawer_unavailable": ""
+        "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
+        "share_location_label": "Compartir ubicación",
+        "share_location_confirm": "¿Compartir esta ubicación?"
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",
@@ -794,7 +872,9 @@
         "block_failed": "Error al bloquear perfil",
         "unblock_failed": "Error al desbloquear perfil",
         "unfavorite": "Quitar de favoritos",
-        "dont_ask_again": "No preguntar de nuevo"
+        "dont_ask_again": "No preguntar de nuevo",
+        "visiting": "Visitando",
+        "location_finder_location_copied": "Ubicación copiada al portapapeles"
     },
     "nav": {
         "browse": "Navegar",
@@ -837,10 +917,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "RU (metros + pies/pulgadas)",
         "units_american": "Inglés (millas + pies/pulgadas)",
-        "blur_incoming_media": "Desenfocar contenido entrante",
-        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos entrantes en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
-        "enabled": "Habilitado",
-        "disabled": "Deshabilitado"
+        "blur_incoming_media": "Desenfocar contenido del chat",
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves."
     },
     "chat_filters": {
         "title": "Filtros de chat",
@@ -879,7 +957,17 @@
             "hot": "Popular",
             "looking": "Buscando",
             "default": "Tap"
-        }
+        },
+        "recovered_tooltip": "Identificado del historial local",
+        "onboarding": {
+            "title": "Visitantes de perfil",
+            "limitation_title": "Cómo funciona",
+            "limitation_desc": "Grindr normalmente solo muestra el último visitante al completo. Los demás por lo general están ocultos tras un muro de pago o se muestra como previsualizaciones anónimas.",
+            "recovery_desc": "Free Grindr relaciona automáticamente los visitantes anónimos con tu historial local. Si encontramos una coincidencia, el perfil se te revelará.",
+            "button": "¡Entendido!",
+            "recovery_title": "Recuperación inteligente"
+        },
+        "unknown_profile": "Perfil desconocido"
     },
     "browse_location": {
         "title": "Buscar ubicación",
@@ -979,7 +1067,8 @@
             "liveness_failed": "Error en la verificación de Liveness3d",
             "enrollment_failed": "Error en la verificación de inscripción",
             "document_failed": "Error en la verificación de documentación",
-            "load_right_now": "Error al cargar la página de Right Now"
+            "load_right_now": "Error al cargar la página de Right Now",
+            "session_right_now": "Error al iniciar sesión"
         }
     },
     "errors": {
@@ -1064,6 +1153,7 @@
         "error_no_selection": "Por favor, selecciona al menos una imagen.",
         "error_send_failed": "Error al enviar contenido.",
         "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
         "delete_media": "Borrar contenido",
         "take_photo": "Tomar foto",
         "upload_photo": "Subir foto",
@@ -1073,12 +1163,51 @@
         "delete_confirm_message": "¿Estás seguro de que quieres borrar este contenido de la galería?",
         "delete_confirm_label": "Borrar",
         "title": "Galería",
-        "media_alt": "Contenido de la galería"
+        "media_alt": "Contenido de la galería",
+        "is_expiring_toggle_on": "1×",
+        "is_expiring_send": "Enviar efímera {{count}}",
+        "is_expiring_title_on": "Efímera (10s)",
+        "is_expiring_title_off": "Enviar normal"
     },
     "favorites": {
         "added": "Añadido a favoritos",
         "removed": "Eliminado de favoritos",
         "add_failed": "Error al añadir a favoritos",
-        "remove_failed": "Error al eliminar de favoritos"
+        "remove_failed": "Error al eliminar de favoritos",
+        "get_notes_failed": "Error al cargar las notas",
+        "loading_notes": "Cargando las notas...",
+        "notes_loaded_one": "{{count}} nota de favorito cargado",
+        "notes_loaded_many": "{{count}} notas de favoritos cargados",
+        "notes_loaded_other": "{{count}} notas de favoritos cargados",
+        "search_placeholder": "Buscando notas..."
+    },
+    "settings_automation": {
+        "auto_block_title": "Auto-Bloquear Mensaje",
+        "apply_to_inbox": "Aplicar al buzón",
+        "apply_to_inbox_desc": "Bloquea instantáneamente nuevos chats que coincidan con tu criterio.",
+        "forbidden_keywords_title": "Palabras prohibidas",
+        "forbidden_keywords_desc": "Bloquea perfiles o mensajes que contengan estas palabras. Separa con comas (ej: snapchat, crypto, bot).",
+        "keywords_placeholder": "Escribe palabras clave aquí...",
+        "export_txt": "Exportar (.txt)",
+        "import_txt": "Importar (.txt)",
+        "keywords_imported": "¡Palabras claves importadas! Toca Guardar para aplicar.",
+        "keywords_exported": "¡Palabras claves exportadas!",
+        "age_limits_title": "Límites de edad",
+        "age_limits_desc": "Bloquea a cualquiera que esté fuera de este rango de edad.",
+        "update_block_rules": "Actualizar reglas de bloqueo",
+        "block_rules_updated": "¡Reglas de bloqueo automático actualizadas!",
+        "auto_refresh_title": "Recargar del Navegar automático",
+        "auto_refresh_desc": "Mantén tu sesión activa y tu ubicación actualizada recargando de forma automática la cuadrícula. Debes permanecer en Navegar para que la recarga haga efecto.",
+        "enable_refresh": "Habilita la recarga",
+        "enable_refresh_desc": "Se activa automáticamente una recarga en el intervalo que se muestra abajo.",
+        "refresh_interval": "Intervalo de recarga",
+        "refresh_interval_unit": "{{count}} min.",
+        "refresh_technical_note": "Nota técnica: En el móvil, esto solo funciona mientras la app está activa o en primer plano y consumirá batería.",
+        "update_refresh_settings": "Actualizar configuración de recarga",
+        "refresh_settings_updated": "¡Intervalo de recarga actualizada!",
+        "chat_block_enabled": "Auto-bloqueo en el buzón habilitado",
+        "chat_block_disabled": "Auto-bloqueo en el buzón deshabilitado",
+        "auto_refresh_enabled": "Auto recarga habilitada",
+        "auto_refresh_disabled": "Auto recarga deshabilitado"
     }
 }

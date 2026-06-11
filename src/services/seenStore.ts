@@ -8,10 +8,14 @@
  */
 
 const INTEREST_KEY = "fg-interest-last-seen";
+const INTEREST_VIEWS_KEY = "fg-interest-views-last-seen";
+const INTEREST_TAPS_KEY = "fg-interest-taps-last-seen";
 const INBOX_KEY = "fg-inbox-last-seen";
+const RIGHTNOW_KEY = "fg-rightnow-last-seen";
 
 export const INTEREST_SEEN_EVENT = "fg:interest-seen";
 export const INBOX_SEEN_EVENT = "fg:inbox-seen";
+export const RIGHTNOW_SEEN_EVENT = "fg:rightnow-seen";
 
 export function getInterestLastSeen(): number {
 	if (typeof window === "undefined") return 0;
@@ -26,6 +30,20 @@ export function markInterestSeen(at: number = Date.now()): void {
 	window.dispatchEvent(new CustomEvent(INTEREST_SEEN_EVENT, { detail: at }));
 }
 
+export function getInterestTabLastSeen(tab: "views" | "taps"): number {
+	if (typeof window === "undefined") return 0;
+	const key = tab === "views" ? INTEREST_VIEWS_KEY : INTEREST_TAPS_KEY;
+	const raw = window.localStorage.getItem(key);
+	const value = raw ? Number(raw) : 0;
+	return Number.isFinite(value) ? value : 0;
+}
+
+export function markInterestTabSeen(tab: "views" | "taps", at: number = Date.now()): void {
+	if (typeof window === "undefined") return;
+	const key = tab === "views" ? INTEREST_VIEWS_KEY : INTEREST_TAPS_KEY;
+	window.localStorage.setItem(key, String(at));
+}
+
 export function getInboxLastSeen(): number {
 	if (typeof window === "undefined") return 0;
 	const raw = window.localStorage.getItem(INBOX_KEY);
@@ -37,4 +55,17 @@ export function markInboxSeen(at: number = Date.now()): void {
 	if (typeof window === "undefined") return;
 	window.localStorage.setItem(INBOX_KEY, String(at));
 	window.dispatchEvent(new CustomEvent(INBOX_SEEN_EVENT, { detail: at }));
+}
+
+export function getRightNowLastSeen(): number {
+	if (typeof window === "undefined") return 0;
+	const raw = window.localStorage.getItem(RIGHTNOW_KEY);
+	const value = raw ? Number(raw) : 0;
+	return Number.isFinite(value) ? value : 0;
+}
+
+export function markRightNowSeen(at: number = Date.now()): void {
+	if (typeof window === "undefined") return;
+	window.localStorage.setItem(RIGHTNOW_KEY, String(at));
+	window.dispatchEvent(new CustomEvent(RIGHTNOW_SEEN_EVENT, { detail: at }));
 }

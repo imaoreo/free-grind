@@ -11,6 +11,16 @@ type LeafletLocationPickerProps = {
 	initialCenter?: [number, number];
 };
 
+function createPinIcon(L: any) {
+	const accentColor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#ffcc01";
+	return L.divIcon({
+		className: "",
+		html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="${accentColor}" stroke="${accentColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white" stroke="white"/></svg>`,
+		iconSize: [28, 28],
+		iconAnchor: [14, 28],
+	});
+}
+
 export function LeafletLocationPicker({
 	selectedLocation,
 	onPick,
@@ -60,14 +70,9 @@ export function LeafletLocationPicker({
 				mapRef.current = map;
 
 				if (selectedLocation) {
-					markerRef.current = L.circleMarker(
+					markerRef.current = L.marker(
 						[selectedLocation.lat, selectedLocation.lon],
-						{
-							radius: 9,
-							color: "#131821",
-							fillColor: "#ffcc01",
-							fillOpacity: 0.95,
-						},
+						{ icon: createPinIcon(L) },
 					).addTo(map);
 				}
 			} catch {
@@ -99,14 +104,9 @@ export function LeafletLocationPicker({
 		if (markerRef.current) {
 			markerRef.current.setLatLng([selectedLocation.lat, selectedLocation.lon]);
 		} else {
-			markerRef.current = L.circleMarker(
+			markerRef.current = L.marker(
 				[selectedLocation.lat, selectedLocation.lon],
-				{
-					radius: 9,
-					color: "#131821",
-					fillColor: "#ffcc01",
-					fillOpacity: 0.95,
-				},
+				{ icon: createPinIcon(L) },
 			).addTo(map);
 		}
 

@@ -3,8 +3,6 @@ import { appLog } from "../utils/logger";
 export const SAVED_PHRASES_STORAGE_KEY = "fg-saved-phrases";
 export const SAVED_PHRASES_UPDATED_EVENT = "fg:saved-phrases-updated";
 
-const DEFAULT_SAVED_PHRASES = ["Hey, how are you?", "Looking for?", "I can host!"];
-
 export function normalizeSavedPhrases(input: string[]): string[] {
 	const unique = new Set<string>();
 	for (const phrase of input) {
@@ -18,25 +16,25 @@ export function normalizeSavedPhrases(input: string[]): string[] {
 
 export function loadSavedPhrases(): string[] {
 	if (typeof window === "undefined") {
-		return DEFAULT_SAVED_PHRASES;
+		return [];
 	}
 
 	try {
 		const stored = window.localStorage.getItem(SAVED_PHRASES_STORAGE_KEY);
 		if (!stored) {
-			return DEFAULT_SAVED_PHRASES;
+			return [];
 		}
 		const parsed = JSON.parse(stored);
 		if (!Array.isArray(parsed)) {
-			return DEFAULT_SAVED_PHRASES;
+			return [];
 		}
 		const normalized = normalizeSavedPhrases(
 			parsed.filter((value): value is string => typeof value === "string"),
 		);
-		return normalized.length > 0 ? normalized : DEFAULT_SAVED_PHRASES;
+		return normalized;
 	} catch (error) {
 		appLog.error("[savedPhrases] loadSavedPhrases failed", error);
-		return DEFAULT_SAVED_PHRASES;
+		return [];
 	}
 }
 

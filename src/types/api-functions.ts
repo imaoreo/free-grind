@@ -2,6 +2,7 @@ import type {
 	Album,
 	AlbumDetail,
 	AlbumLimits,
+	AlbumPoster,
 	SharedAlbum,
 	SharedAlbumView,
 } from "./albums";
@@ -16,6 +17,8 @@ export type ApiFunctionName =
 	| "getOwnAlbums"
 	| "getOwnAlbumDetails"
 	| "getOwnAlbumStorage"
+	| "getAlbumPoster"
+	| "unblockAllProfiles"
 	| "createOwnAlbum"
 	| "renameOwnAlbum"
 	| "deleteOwnAlbum"
@@ -58,6 +61,11 @@ export interface DeleteOwnAlbumContentInput {
 	contentId: string;
 }
 
+export interface GetAlbumPosterInput {
+	albumId: string;
+	contentId: string;
+}
+
 export interface GetSharedAlbumsForProfileInput {
 	profileId: number;
 }
@@ -84,6 +92,8 @@ export interface ApiFunctionResultMap {
 	getOwnAlbums: Album[];
 	getOwnAlbumDetails: AlbumDetail;
 	getOwnAlbumStorage: AlbumLimits;
+	getAlbumPoster: AlbumPoster;
+	unblockAllProfiles: ApiFunctionVoidResult;
 	createOwnAlbum: { albumId: number };
 	renameOwnAlbum: ApiFunctionVoidResult;
 	deleteOwnAlbum: ApiFunctionVoidResult;

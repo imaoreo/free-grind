@@ -75,7 +75,7 @@ export async function submitIssueReport(
 	};
 
 	const response = fetchRest
-		? await fetchRest(url, { ...options, body: data })
+		? await fetchRest(url, { method: "POST", body: data })
 		: await fetch(url, options);
 
 	let payload: { id?: string; error?: string } | null = null;

@@ -23,6 +23,7 @@ interface SliderProps {
 	label: string;
 	displayValue: string;
 	activeColor?: string;
+	hideHeader?: boolean;
 	onChange: (value: number) => void;
 }
 
@@ -253,6 +254,7 @@ export function Slider({
 	label,
 	displayValue,
 	activeColor,
+	hideHeader = false,
 	onChange,
 }: SliderProps) {
 	const [value, setValue] = useState(defaultValue);
@@ -270,23 +272,25 @@ export function Slider({
 
 	return (
 		<div className="flex flex-col gap-0.5 py-1" style={style}>
-			<div className="flex justify-between items-center mb-1">
-				<div className="flex items-center gap-2">
-					<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-						{label}
+			{!hideHeader && (
+				<div className="flex justify-between items-center mb-1">
+					<div className="flex items-center gap-2">
+						<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+							{label}
+						</span>
+					</div>
+					<span className={cn(
+						"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
+						!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
+					)}
+					style={activeColor ? {
+						backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
+						color: "var(--text)"
+					} : {}}>
+						{displayValue}
 					</span>
 				</div>
-				<span className={cn(
-					"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
-					!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
-				)}
-				style={activeColor ? {
-					backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
-					color: "var(--text)"
-				} : {}}>
-					{displayValue}
-				</span>
-			</div>
+			)}
 
 			<div className="relative h-10 flex items-center">
 				<input
