@@ -1081,6 +1081,8 @@
         "subtitle": "Encuentra conversaciones, mensajes y perfiles",
         "back_to_inbox": "Volver al buzón",
         "placeholder": "Busca conversaciones, mensajes y perfiles",
+        "mode_label": "Modo de búsqueda",
+        "quick_start_label": "Inicio rápido",
         "quick_start_placeholder": "Inicio rápido con ID de perfil",
         "view": "Ver",
         "message": "Mensaje",
