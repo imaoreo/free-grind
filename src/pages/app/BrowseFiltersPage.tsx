@@ -241,7 +241,7 @@ export function BrowseFiltersPage() {
 	};
 
 	const addTag = () => {
-		const normalized = tagDraft.trim();
+		const normalized = tagDraft.trim().toLowerCase();
 		if (!normalized) {
 			return;
 		}
