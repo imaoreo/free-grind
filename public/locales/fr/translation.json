@@ -1044,6 +1044,8 @@
         "subtitle": "Trouvez des conversations, des messages et des profils",
         "back_to_inbox": "Retour à la messagerie",
         "placeholder": "Recherchez conversations, messages et profils",
+        "mode_label": "Mode de recherche",
+        "quick_start_label": "Démarrage rapide",
         "quick_start_placeholder": "Recherche rapide avec l'ID du profil",
         "view": "Voir",
         "message": "Message",

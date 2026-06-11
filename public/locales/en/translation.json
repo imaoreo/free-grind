@@ -1203,6 +1203,8 @@
         "subtitle": "Find conversations, messages, and profiles",
         "back_to_inbox": "Back to Inbox",
         "placeholder": "Search conversations, messages, profiles",
+        "mode_label": "Search mode",
+        "quick_start_label": "Quick start",
         "quick_start_placeholder": "Quick start by profile ID",
         "view": "View",
         "message": "Message",
