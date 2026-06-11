@@ -1,4 +1,4 @@
-import { Heart, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal } from "lucide-react";
+import { Ghost, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal, Star } from "lucide-react";
 import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../../contexts/PreferencesContext";
@@ -18,6 +18,7 @@ import {
 	getPreviewText,
 } from "../chat/chatUtils";
 import { isChatGhosted } from "../../../utils/privacy";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 
 type RealtimeStatusMeta = {
 	className: string;
@@ -58,6 +59,145 @@ type ChatInboxPanelProps = {
 	onOpenAlbums: () => void;
 };
 
+type ChatConversationRowProps = {
+	conversation: ConversationEntry;
+	userId: number | null;
+	localNicknamesByProfileId: Record<string, string>;
+	chatContactIndexByProfileId: Record<string, ChatContactIndexRecord>;
+	nowTimestamp: number;
+	presenceResults: Record<string, boolean>;
+	isSelected: boolean;
+	onSelectConversation: (c: ConversationEntry) => void;
+	onViewProfile: (profileId: number) => void;
+};
+
+function ChatConversationRow({
+	conversation,
+	userId,
+	localNicknamesByProfileId,
+	chatContactIndexByProfileId,
+	nowTimestamp,
+	presenceResults,
+	isSelected,
+	onSelectConversation,
+	onViewProfile,
+}: ChatConversationRowProps) {
+	const { t } = useTranslation();
+	const { showDebugInfo } = usePreferences();
+	const { ref, revealClass } = useRevealOnScroll();
+
+	const otherParticipant = getOtherParticipant(conversation, userId);
+	const otherProfileId = otherParticipant?.profileId ? String(otherParticipant.profileId) : null;
+	const localNickname = otherProfileId ? localNicknamesByProfileId[otherProfileId] : null;
+	const displayName = localNickname || conversation.data.name || t("chat.unknown");
+	const otherParticipantOnlineMeta = getParticipantOnlineMeta(
+		otherParticipant?.lastOnline,
+		otherParticipant?.onlineUntil,
+		nowTimestamp,
+		t,
+	);
+	const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
+	const databaseUnread = otherProfileId ? chatContactIndexByProfileId[otherProfileId]?.unreadCount ?? 0 : 0;
+	const apiUnread = conversation.data.unreadCount;
+	const isGhosted = isChatGhosted(conversation.data.conversationId);
+
+	return (
+		<div
+			ref={ref}
+			onClick={() => onSelectConversation(conversation)}
+			className={`flex cursor-pointer items-center gap-4 border-b border-[var(--surface-2)] px-4 py-3 text-left transition ${revealClass} ${
+				isSelected ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : ""
+			}`}
+		>
+			<button
+				type="button"
+				title={displayName}
+				aria-label={displayName}
+				onClick={(e) => {
+					e.stopPropagation();
+					if (otherParticipant?.profileId) onViewProfile(otherParticipant.profileId);
+				}}
+				className="relative shrink-0"
+			>
+				<div className="h-14 w-14 squircle bg-[var(--surface-2)] drop-shadow-sm">
+					<ProfileImage
+						src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+						alt={displayName}
+					/>
+				</div>
+				{isOtherParticipantOnline && (
+					<span className="absolute -bottom-0.5 -right-0.5 z-10 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm" />
+				)}
+				{conversation.data.pinned ? (
+					<div className="absolute -top-1 -right-1 rounded-full bg-black/40 p-0.5 text-white backdrop-blur-sm">
+						<Pin className="h-2.5 w-2.5 fill-current" />
+					</div>
+				) : null}
+			</button>
+
+			<div className="min-w-0 flex-1">
+				<div className="flex items-center justify-between gap-2">
+					<div className="flex min-w-0 items-center gap-1.5">
+						<p className={`truncate text-sm font-semibold ${isSelected ? "" : "text-[var(--text)]"}`}>
+							{displayName}
+						</p>
+						{isGhosted && (
+							<Ghost className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+						)}
+						{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
+							<img
+								src={freegrindLogo}
+								alt="Free Grind user"
+								title={t("profile_details.uses_free_grind")}
+								className={`h-3.5 w-3.5 shrink-0 rounded-full border ${
+									isSelected ? "border-[var(--accent-contrast)]/20" : "border-[var(--border)]"
+								}`}
+							/>
+						) : null}
+					</div>
+					<span className={`shrink-0 text-xs ${isSelected ? "opacity-70" : "text-[var(--text-muted)]"}`}>
+						{formatConversationTime(conversation.data.lastActivityTimestamp)}
+					</span>
+				</div>
+
+				<div className="mt-0.5 flex items-center justify-between gap-2">
+					<p className={`truncate text-sm ${
+						conversation.data.unreadCount > 0
+							? isSelected ? "font-semibold" : "font-semibold text-[var(--text)]"
+							: isSelected ? "opacity-70" : "text-[var(--text-muted)]"
+					}`}>
+						{getPreviewText(conversation, t)}
+					</p>
+					{conversation.data.unreadCount > 0 ? (
+						<span className={`flex min-w-[20px] shrink-0 flex-col items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold shadow-sm ${
+							isSelected
+								? "bg-[var(--accent-contrast)] text-[var(--accent)]"
+								: "bg-[var(--accent)] text-[var(--accent-contrast)]"
+						} ${showDebugInfo ? "min-h-[28px]" : ""}`}>
+							<span>{conversation.data.unreadCount}</span>
+							{showDebugInfo && (
+								<span className="text-[7px] leading-tight opacity-80">
+									db:{databaseUnread} a:{apiUnread}
+								</span>
+							)}
+						</span>
+					) : null}
+				</div>
+
+				{conversation.data.muted ? (
+					<span className={`mt-1 inline-block rounded-md px-1.5 py-0.5 text-[10px] ${
+						isSelected
+							? "bg-[var(--accent-contrast)]/10 text-[var(--accent-contrast)]"
+							: "bg-[var(--surface-2)] text-[var(--text-muted)]"
+					}`}>
+						{t("chat.muted")}
+					</span>
+				) : null}
+			</div>
+		</div>
+	);
+}
+
 export function ChatInboxPanel({
 	isDesktop,
 	isLoadingInbox,
@@ -89,8 +229,7 @@ export function ChatInboxPanel({
 	onOpenInbox,
 	onOpenAlbums,
 }: ChatInboxPanelProps) {
-	const { t, i18n } = useTranslation();
-	const { showDebugInfo } = usePreferences();
+	const { t } = useTranslation();
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const lastScrollAtRef = useRef(0);
 	const lastRequestedPageRef = useRef<number | null>(null);
@@ -197,7 +336,7 @@ export function ChatInboxPanel({
 							aria-label={t("browse_filters.options.favorites")}
 							title={t("browse_filters.options.favorites")}
 						>
-							<Heart className="h-4 w-4" />
+							<Star className="h-4 w-4" />
 						</button>
 						<button
 							type="button"
@@ -265,156 +404,22 @@ export function ChatInboxPanel({
 					ref={inboxListRef}
 					onScroll={markUserScroll}
 					data-lenis-prevent
-					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : "gap-0"}`}
+					className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${!isDesktop ? "pb-4" : ""}`}
 				>
-					{filteredConversations.map((conversation) => {
-						const otherParticipant = getOtherParticipant(conversation, userId);
-						const otherProfileId = otherParticipant?.profileId
-							? String(otherParticipant.profileId)
-							: null;
-						const localNickname = otherProfileId
-							? localNicknamesByProfileId[otherProfileId]
-							: null;
-						const displayName =
-							localNickname || conversation.data.name || t("chat.unknown");
-						const otherParticipantOnlineMeta = getParticipantOnlineMeta(
-							otherParticipant?.lastOnline,
-							otherParticipant?.onlineUntil,
-							nowTimestamp,
-							t,
-						);
-						const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
-						const isSelected =
-							conversation.data.conversationId === selectedConversationId;
-
-										const databaseUnread = otherProfileId ? chatContactIndexByProfileId[otherProfileId]?.unreadCount ?? 0 : 0;
-										const apiUnread = conversation.data.unreadCount;
-
-										return (
-											<div
-												key={conversation.data.conversationId}
-												onClick={() => onSelectConversation(conversation)}
-												className={`flex h-24 w-full shrink-0 cursor-pointer items-stretch overflow-hidden text-left transition ${
-													isSelected
-														? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md"
-														: isChatGhosted(conversation.data.conversationId)
-															? "bg-[color-mix(in_srgb,var(--surface-2)_40%,transparent)] shadow-[inset_4px_0_0_0_rgba(168,85,247,0.5)]" 
-															: "bg-[var(--surface)]"
-												} border-b border-[var(--border)] ${
-													isSelected && isDesktop ? "border-b-[var(--accent-contrast)]/20" : ""
-												}`}
-											>
-												<button
-													type="button"
-													title={displayName}
-													aria-label={displayName}
-													onClick={(event) => {
-														event.stopPropagation();
-														if (otherParticipant?.profileId) {
-															onViewProfile(otherParticipant.profileId);
-														}
-													}}
-													className={`relative w-24 shrink-0 transition-all ${
-														isSelected
-															? "bg-[color-mix(in_srgb,var(--accent-contrast)_10%,transparent)]"
-															: "bg-[var(--surface-2)]"
-													} ${
-														isOtherParticipantOnline
-															? "border-r-4 border-emerald-500"
-															: `border-r ${isSelected ? "border-[var(--accent-contrast)]/10" : "border-[var(--border)]"}`
-													}`}
-												>
-													<ProfileImage
-														src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
-														alt={displayName}
-													/>
-													{conversation.data.pinned ? (
-														<div className="absolute right-0.5 top-1 rounded-full bg-black/40 p-1 text-white backdrop-blur-sm">
-															<Pin className="h-3 w-3 fill-current" />
-														</div>
-													) : null}
-												</button>
-												<div className="min-w-0 flex-1 p-3">
-													<div className="flex items-center justify-between gap-2">
-														<div className="flex min-w-0 items-center gap-1">
-															<p className="truncate font-semibold">{displayName}</p>
-															{otherParticipant?.profileId &&
-															presenceResults[otherParticipant.profileId] ? (
-																<img
-																	src={freegrindLogo}
-																	alt="Free Grind user"
-																	title={t("profile_details.uses_free_grind")}
-																	className={`h-4 w-4 shrink-0 rounded-full border ${
-																		isSelected
-																			? "border-[var(--accent-contrast)]/20"
-																			: "border-[var(--border)]"
-																	}`}
-																/>
-															) : null}
-														</div>
-														<span
-															className={`text-xs ${
-																isSelected
-																	? "text-[var(--accent-contrast)]/70"
-																	: "text-[var(--text-muted)]"
-															}`}
-														>
-															{formatConversationTime(
-																conversation.data.lastActivityTimestamp,
-																i18n.language,
-															)}
-														</span>
-													</div>
-													<div className="flex items-center justify-between gap-2">
-														<p
-															className={`mt-0.5 truncate ${
-																conversation.data.unreadCount > 0
-																	? isSelected
-																		? "font-bold text-[var(--accent-contrast)]"
-																		: "font-bold text-[var(--text)]"
-																	: isSelected
-																		? "text-[var(--accent-contrast)]/80"
-																		: "text-[var(--text-muted)]"
-															}`}
-														>
-															{getPreviewText(conversation, t)}
-														</p>
-														{conversation.data.unreadCount > 0 ? (
-															<span
-																className={`flex min-w-[20px] flex-col items-center justify-center rounded-full px-1 py-0.5 font-bold shadow-sm ${
-																	isSelected
-																		? "bg-[var(--accent-contrast)] text-[var(--accent)]"
-																		: "bg-[var(--accent)] text-[var(--accent-contrast)]"
-																} ${showDebugInfo ? "min-h-[28px]" : "h-5"}`}
-															>
-																<span className={showDebugInfo ? "text-[12px] leading-tight" : "text-[12px]"}>
-																	{conversation.data.unreadCount}
-																</span>
-																{showDebugInfo && (
-																	<span className="text-[7px] leading-tight opacity-80">
-																		db:{databaseUnread} a:{apiUnread}
-																	</span>
-																)}
-															</span>
-														) : null}
-													</div>
-									<div className="mt-2 flex items-center gap-2">
-										{conversation.data.muted ? (
-											<span
-												className={`rounded-lg px-2 py-1 text-xs ${
-													isSelected
-														? "bg-[var(--accent-contrast)]/10 text-[var(--accent-contrast)]"
-														: "bg-[var(--surface-2)] text-[var(--text-muted)]"
-												}`}
-											>
-												{t("chat.muted")}
-											</span>
-										) : null}
-									</div>
-								</div>
-											</div>
-						);
-					})}
+					{filteredConversations.map((conversation) => (
+						<ChatConversationRow
+							key={conversation.data.conversationId}
+							conversation={conversation}
+							userId={userId}
+							localNicknamesByProfileId={localNicknamesByProfileId}
+							chatContactIndexByProfileId={chatContactIndexByProfileId}
+							nowTimestamp={nowTimestamp}
+							presenceResults={presenceResults}
+							isSelected={conversation.data.conversationId === selectedConversationId}
+							onSelectConversation={onSelectConversation}
+							onViewProfile={onViewProfile}
+						/>
+					))}
 
 					{nextPage ? (
 						<div className="px-3 py-2">
