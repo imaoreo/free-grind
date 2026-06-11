@@ -23,6 +23,7 @@ import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { InboxAlbumsTabs } from "./components/InboxAlbumsTabs";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
 
@@ -391,7 +392,8 @@ export function SharedAlbumsPage() {
 			onTouchEnd={handlePageTouchEnd}
 		>
 			<div className="mx-auto grid w-full max-w-6xl gap-5">
-				<header className="mb-3">
+				<header className="relative mb-3">
+					<PageHeaderBackground color="var(--accent)" />
 					<div>
 						<InboxAlbumsTabs
 							activeTab="albums"
