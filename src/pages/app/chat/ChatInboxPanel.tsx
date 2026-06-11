@@ -1,5 +1,6 @@
 import { Ghost, Loader2, MessageCircle, Pin, PinOff, Search, SlidersHorizontal, Star } from "lucide-react";
-import { useEffect, useRef, type RefObject, type TouchEventHandler } from "react";
+import { useEffect, useRef, useState, type RefObject, type TouchEventHandler } from "react";
+import { ChatSearchPanel } from "./ChatSearchPanel";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -225,11 +226,11 @@ export function ChatInboxPanel({
 	onToggleHidePinned,
 	onToggleFavoritesOnly,
 	onOpenFilters,
-	onOpenSearch,
 	onOpenInbox,
 	onOpenAlbums,
 }: ChatInboxPanelProps) {
 	const { t } = useTranslation();
+	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const lastScrollAtRef = useRef(0);
 	const lastRequestedPageRef = useRef<number | null>(null);
@@ -305,7 +306,7 @@ export function ChatInboxPanel({
 					: undefined
 			}
 			onRefresh={onRefreshInbox}
-			isDisabled={isLoadingInbox || isLoadingMoreInbox}
+			isDisabled={isLoadingInbox || isLoadingMoreInbox || isSearchOpen}
 			isAtTop={() => (inboxListRef.current?.scrollTop ?? 0) <= 0}
 			refreshingLabel={t("chat.refreshing_inbox")}
 			onTouchStartExtra={onInboxTouchStart}
@@ -365,7 +366,7 @@ export function ChatInboxPanel({
 						</button>
 						<button
 							type="button"
-							onClick={onOpenSearch}
+							onClick={() => setIsSearchOpen(true)}
 							className="rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							aria-label={t("chat.open_search")}
 						>
@@ -375,7 +376,13 @@ export function ChatInboxPanel({
 				</div>
 			</div>
 
-			{isLoadingInbox ? (
+			{isSearchOpen ? (
+				<ChatSearchPanel
+					isDesktop={isDesktop}
+					onClose={() => setIsSearchOpen(false)}
+					onViewProfile={onViewProfile}
+				/>
+			) : isLoadingInbox ? (
 				<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
 					<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat.loading_inbox")}
 				</div>
