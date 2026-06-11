@@ -1,4 +1,4 @@
-import { ChevronLeft, Loader2, Search } from "lucide-react";
+import { ArrowRight, ChevronLeft, Loader2, MessageCircle, Search, User } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -218,282 +218,245 @@ export function ChatSearchPage() {
 		[openConversationById],
 	);
 
-	return (
-		<section className="app-screen" style={{ paddingLeft: 0, paddingRight: 0 }}>
-			<div className="w-full">
-				<div className="flex h-full flex-col overflow-hidden p-3 sm:p-4">
-					<div className="mb-3 flex items-center gap-3">
-						<button
-							type="button"
-							onClick={() => navigate("/chat")}
-							className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
-							aria-label={t("chat_search.back_to_inbox")}
-						>
-							<ChevronLeft className="h-4 w-4" />
-						</button>
-						<div>
-							<h1 className="app-title">{t("chat_search.title")}</h1>
-							<p className="app-subtitle mt-1">
-								{t("chat_search.subtitle")}
-							</p>
-						</div>
-					</div>
+	const highlight = (text: string, query: string) =>
+		highlightMatch(text, query).map((part, i) =>
+			part.match ? (
+				<mark key={i} className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]">
+					{part.text}
+				</mark>
+			) : (
+				<span key={i}>{part.text}</span>
+			),
+		);
 
-					<div className="mb-3">
-						<div className="relative">
-							<Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-[var(--text-muted)]" />
-							<input
-								value={searchQuery}
-								onChange={(event) => setSearchQuery(event.target.value)}
-								placeholder={t("chat_search.placeholder")}
-								className="input-field pl-9"
-							/>
-						</div>
-						<form
-							onSubmit={(event) => {
-								event.preventDefault();
-								startChatByProfileId(startChatProfileIdDraft);
-							}}
-							className="mt-2 flex items-center gap-2"
+	const modes = ["messages", "conversations", "profiles"] as const;
+
+	return (
+		<section className="app-screen flex flex-col" style={{ paddingLeft: 0, paddingRight: 0 }}>
+			{/* ── Header ── */}
+			<div className="shrink-0 px-3 pb-3 pt-3 sm:px-4 sm:pt-4">
+				<header className="mb-4 flex items-center gap-2">
+					<button
+						type="button"
+						onClick={() => navigate("/chat")}
+						className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+						aria-label={t("chat_search.back_to_inbox")}
+					>
+						<ChevronLeft className="h-4 w-4" />
+					</button>
+					<div>
+						<h1 className="app-title">{t("chat_search.title")}</h1>
+						<p className="app-subtitle">{t("chat_search.subtitle")}</p>
+					</div>
+				</header>
+
+				{/* Search input */}
+				<div className="relative">
+					<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+					<input
+						autoFocus
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						placeholder={t("chat_search.placeholder")}
+						className="input-field h-11 pl-9 text-base"
+					/>
+				</div>
+
+				{/* Mode segmented control */}
+				<div className="mt-2.5 flex gap-1 rounded-xl bg-[var(--surface-2)] p-1">
+					{modes.map((mode) => (
+						<button
+							key={mode}
+							type="button"
+							onClick={() => setSearchMode(mode)}
+							className={`flex-1 rounded-lg py-1.5 text-xs font-medium transition-all ${
+								searchMode === mode
+									? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
+									: "text-[var(--text-muted)] hover:text-[var(--text)]"
+							}`}
 						>
-							<input
-								type="text"
-								inputMode="numeric"
-								value={startChatProfileIdDraft}
-								onChange={(event) =>
-									setStartChatProfileIdDraft(event.target.value)
-								}
-								placeholder={t("chat_search.quick_start_placeholder")}
-								className="input-field h-9 text-sm"
-							/>
+							{t(`chat_search.modes.${mode}`)}
+						</button>
+					))}
+				</div>
+
+				{/* Quick-start by profile ID */}
+				<form
+					onSubmit={(e) => { e.preventDefault(); startChatByProfileId(startChatProfileIdDraft); }}
+					className="mt-2.5 flex items-center gap-2"
+				>
+					<input
+						type="text"
+						inputMode="numeric"
+						value={startChatProfileIdDraft}
+						onChange={(e) => setStartChatProfileIdDraft(e.target.value)}
+						placeholder={t("chat_search.quick_start_placeholder")}
+						className="input-field h-9 min-w-0 flex-1 text-sm"
+					/>
+					<button
+						type="button"
+						onClick={() => viewProfileById(startChatProfileIdDraft)}
+						className="shrink-0 inline-flex h-9 items-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+					>
+						{t("chat_search.view")}
+					</button>
+					<button
+						type="submit"
+						className="shrink-0 inline-flex h-9 items-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+					>
+						{t("chat_search.message")}
+					</button>
+				</form>
+			</div>
+
+			{/* ── Results ── */}
+			{isLoadingInbox ? (
+				<div className="flex flex-1 items-center justify-center gap-2 text-sm text-[var(--text-muted)]">
+					<Loader2 className="h-4 w-4 animate-spin" />
+					{t("chat_search.loading")}
+				</div>
+			) : inboxError ? (
+				<div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[var(--text-muted)]">
+					{inboxError}
+				</div>
+			) : searchQuery.trim().length < 2 ? (
+				<div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--text-muted)]">
+					<Search className="h-8 w-8 opacity-30" />
+					<p className="text-sm">{t("chat_search.min_chars")}</p>
+				</div>
+			) : (
+				<div data-lenis-prevent className="flex-1 overflow-y-auto px-3 pb-4 sm:px-4">
+					<div className="flex flex-col gap-1.5">
+
+						{/* Conversations */}
+						{searchMode === "conversations" && conversationSearchResults.map((result) => (
+							<button
+								key={result.conversationId}
+								type="button"
+								onClick={() => openConversationById(result.conversationId)}
+								className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]"
+							>
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-sm font-semibold uppercase text-[var(--text-muted)]">
+									{result.name?.[0] ?? <MessageCircle className="h-4 w-4" />}
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-sm font-semibold">{highlight(result.name, searchQuery)}</p>
+									<p className="truncate text-xs text-[var(--text-muted)]">{result.preview || t("chat_search.no_preview")}</p>
+								</div>
+							</button>
+						))}
+						{searchMode === "conversations" && conversationSearchResults.length === 0 && (
+							<div className="flex flex-col items-center gap-2 py-10 text-[var(--text-muted)]">
+								<MessageCircle className="h-7 w-7 opacity-30" />
+								<p className="text-sm">{t("chat_search.no_conversations_found")}</p>
+							</div>
+						)}
+
+						{/* Messages */}
+						{searchMode === "messages" && messageSearchResults.map((result) => (
+							<button
+								key={result.messageId}
+								type="button"
+								onClick={() => openMessageSearchResult(result)}
+								className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]"
+							>
+								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)]">
+									<MessageCircle className="h-4 w-4" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-xs text-[var(--text-muted)]">{result.conversationId}</p>
+									<p className="mt-0.5 line-clamp-2 text-sm">{highlight(result.text, searchQuery)}</p>
+								</div>
+							</button>
+						))}
+						{searchMode === "messages" && messageSearchResults.length === 0 && (
+							<div className="flex flex-col items-center gap-2 py-10 text-[var(--text-muted)]">
+								<MessageCircle className="h-7 w-7 opacity-30" />
+								<p className="text-sm">{t("chat_search.no_messages_found")}</p>
+							</div>
+						)}
+
+						{/* Profiles — quick start by ID */}
+						{searchMode === "profiles" && searchedProfileId ? (
 							<button
 								type="button"
-								onClick={() => viewProfileById(startChatProfileIdDraft)}
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								onClick={() => startChatByProfileId(String(searchedProfileId))}
+								className="flex w-full items-center justify-between rounded-xl border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface))] px-3 py-2.5 text-left"
 							>
-								{t("chat_search.view")}
+								<div>
+									<p className="text-sm font-semibold">{t("chat_search.start_chat_with", { profileId: searchedProfileId })}</p>
+									<p className="text-xs text-[var(--text-muted)]">{t("chat_search.use_searched_id")}</p>
+								</div>
+								<ArrowRight className="h-4 w-4 shrink-0 text-[var(--accent-readable)]" />
 							</button>
-							<button
-								type="submit"
-								className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-							>
-								{t("chat_search.message")}
-							</button>
-						</form>
-						<div className="mt-2 flex flex-wrap gap-2">
-							{(["messages", "conversations", "profiles"] as const).map(
-								(mode) => (
-									<button
-										key={mode}
-										type="button"
-										onClick={() => setSearchMode(mode)}
-										className={`rounded-lg border px-2 py-1 text-xs capitalize transition ${
-											searchMode === mode
-												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)]"
-										}`}
-									>
-										{t(`chat_search.modes.${mode}`)}
-									</button>
-								),
-							)}
-						</div>
-					</div>
+						) : null}
 
-					{isLoadingInbox ? (
-						<div className="flex flex-1 items-center justify-center text-[var(--text-muted)]">
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("chat_search.loading")}
-						</div>
-					) : inboxError ? (
-						<div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
-							{inboxError}
-						</div>
-					) : searchQuery.trim().length < 2 ? (
-						<div className="flex flex-1 items-center justify-center text-sm text-[var(--text-muted)]">
-							{t("chat_search.min_chars")}
-						</div>
-					) : (
-						<div
-							data-lenis-prevent
-							className="flex flex-1 flex-col gap-2 overflow-y-auto pr-1"
-						>
-							{searchMode === "conversations"
-								? conversationSearchResults.map((result) => (
-										<button
-											key={result.conversationId}
-											type="button"
-											onClick={() => openConversationById(result.conversationId)}
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
-										>
-											<p className="truncate text-sm font-semibold">
-												{highlightMatch(result.name, searchQuery).map((part, index) =>
-													part.match ? (
-														<mark
-															key={`${result.conversationId}-name-${index}`}
-															className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
-														>
-															{part.text}
-														</mark>
-													) : (
-														<span key={`${result.conversationId}-name-${index}`}>
-															{part.text}
-														</span>
-													),
-												)}
-											</p>
-											<p className="mt-1 truncate text-xs text-[var(--text-muted)]">
-												{result.preview || t("chat_search.no_preview")}
-											</p>
-										</button>
-									))
-								: null}
-
-							{searchMode === "messages"
-								? messageSearchResults.map((result) => (
-										<button
-											key={result.messageId}
-											type="button"
-											onClick={() => openMessageSearchResult(result)}
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
-										>
-											<p className="truncate text-xs text-[var(--text-muted)]">
-												{result.conversationId}
-											</p>
-											<p className="mt-1 text-sm">
-												{highlightMatch(result.text, searchQuery).map((part, index) =>
-													part.match ? (
-														<mark
-															key={`${result.messageId}-${index}`}
-															className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
-														>
-															{part.text}
-														</mark>
-													) : (
-														<span key={`${result.messageId}-${index}`}>
-															{part.text}
-														</span>
-													),
-												)}
-											</p>
-										</button>
-									))
-								: null}
-
-							{searchMode === "profiles" && searchedProfileId ? (
+						{/* Profiles — results */}
+						{searchMode === "profiles" && profileResults.map((profile) => {
+							const returnTo = "/chat";
+							return (
 								<button
+									key={profile.profileId}
 									type="button"
-									onClick={() => startChatByProfileId(String(searchedProfileId))}
-									className="flex w-full items-center justify-between rounded-xl border border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,var(--surface))] p-3 text-left transition hover:border-[var(--accent)]"
+									onClick={() => navigate(`/profile/${profile.profileId}?returnTo=${encodeURIComponent(returnTo)}`, { state: { returnTo } })}
+									className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]"
 								>
-									<div>
-										<p className="text-sm font-semibold">
-											{t("chat_search.start_chat_with", { profileId: searchedProfileId })}
+									<div className="h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[var(--border)]">
+										<ProfileImage
+											src={getSearchProfileImage(profile.profileImageMediaHash)}
+											alt={profile.displayName || t("chat_search.profile_alt")}
+										/>
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="truncate text-sm font-semibold">
+											{highlight(profile.displayName, searchQuery)}
 										</p>
 										<p className="text-xs text-[var(--text-muted)]">
-											{t("chat_search.use_searched_id")}
+											{profile.distance != null
+												? formatDistance(profile.distance * 1000, t, unitsPreset)
+												: t("chat_search.distance_unavailable")}
 										</p>
 									</div>
-									<span className="text-xs font-semibold text-[var(--accent-readable)]">
-										{t("chat_search.start")}
-									</span>
 								</button>
-							) : null}
+							);
+						})}
 
-							{searchMode === "profiles"
-								? profileResults.map((profile) => {
-										const returnTo = "/chat";
-										return (
-											<button
-												key={profile.profileId}
-												type="button"
-												onClick={() =>
-													navigate(
-														`/profile/${profile.profileId}?returnTo=${encodeURIComponent(returnTo)}`,
-														{ state: { returnTo } },
-													)
-												}
-												className="flex w-full items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 text-left transition hover:border-[var(--accent)]"
-											>
-												<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-[var(--border)]">
-													<ProfileImage
-														src={getSearchProfileImage(profile.profileImageMediaHash)}
-														alt={profile.displayName || t("chat_search.profile_alt")}
-													/>
-												</div>
-												<div className="min-w-0 flex-1">
-													<p className="truncate text-sm font-semibold">
-														{highlightMatch(profile.displayName, searchQuery).map(
-															(part, index) =>
-																part.match ? (
-																	<mark
-																		key={`${profile.profileId}-${index}`}
-																		className="rounded bg-[var(--accent)] px-0.5 text-[var(--accent-contrast)]"
-																	>
-																		{part.text}
-																	</mark>
-																) : (
-																	<span key={`${profile.profileId}-${index}`}>
-																		{part.text}
-																	</span>
-																),
-														)}
-													</p>
-													<p className="text-xs text-[var(--text-muted)]">
-														{profile.distance != null
-															? formatDistance(profile.distance * 1000, t, unitsPreset)
-															: t("chat_search.distance_unavailable")}
-													</p>
-												</div>
-											</button>
-										);
-								  })
-								: null}
-
-							{searchMode === "profiles" ? (
-								<div className="mt-2 flex items-center gap-2">
+						{/* Profiles — load more / refresh */}
+						{searchMode === "profiles" && (
+							<div className="mt-1 flex items-center gap-2">
+								<button
+									type="button"
+									disabled={isSearchingProfiles}
+									onClick={() => void runProfileSearch({ loadMore: false })}
+									className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-50"
+								>
+									{isSearchingProfiles ? (
+										<span className="flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" />{t("chat_search.searching")}</span>
+									) : t("chat_search.refresh")}
+								</button>
+								{profileSearchAfterDistance && profileSearchAfterProfileId && (
 									<button
 										type="button"
 										disabled={isSearchingProfiles}
-										onClick={() => void runProfileSearch({ loadMore: false })}
-										className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
+										onClick={() => void runProfileSearch({ loadMore: true })}
+										className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] disabled:opacity-50"
 									>
-										{isSearchingProfiles ? t("chat_search.searching") : t("chat_search.refresh")}
+										{t("chat_search.load_more")}
 									</button>
-									{profileSearchAfterDistance && profileSearchAfterProfileId ? (
-										<button
-											type="button"
-											disabled={isSearchingProfiles}
-											onClick={() => void runProfileSearch({ loadMore: true })}
-											className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs text-[var(--text-muted)]"
-										>
-											{t("chat_search.load_more")}
-										</button>
-									) : null}
-								</div>
-							) : null}
+								)}
+							</div>
+						)}
 
-							{searchMode === "conversations" &&
-							conversationSearchResults.length === 0 ? (
-								<p className="text-xs text-[var(--text-muted)]">
-									{t("chat_search.no_conversations_found")}
-								</p>
-							) : null}
-							{searchMode === "messages" && messageSearchResults.length === 0 ? (
-								<p className="text-xs text-[var(--text-muted)]">
-									{t("chat_search.no_messages_found")}
-								</p>
-							) : null}
-							{searchMode === "profiles" &&
-							!isSearchingProfiles &&
-							profileResults.length === 0 ? (
-								<p className="text-xs text-[var(--text-muted)]">
-									{t("chat_search.no_profiles_found")}
-								</p>
-							) : null}
-						</div>
-					)}
+						{searchMode === "profiles" && !isSearchingProfiles && profileResults.length === 0 && !searchedProfileId && (
+							<div className="flex flex-col items-center gap-2 py-10 text-[var(--text-muted)]">
+								<User className="h-7 w-7 opacity-30" />
+								<p className="text-sm">{t("chat_search.no_profiles_found")}</p>
+							</div>
+						)}
+
+					</div>
 				</div>
-			</div>
+			)}
 		</section>
 	);
 }
