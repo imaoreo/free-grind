@@ -13,6 +13,7 @@ type TapSelectorProps = {
 	tapButtonClassName: string;
 	onInternalTap?: (profileId: string, tapId: number) => Promise<any>;
 	compact?: boolean;
+	showLabel?: boolean;
 };
 
 const emojiColors: Record<number, string> = {
@@ -31,6 +32,7 @@ export function TapSelector({
 	tapButtonClassName,
 	onInternalTap,
 	compact = false,
+	showLabel = true,
 }: TapSelectorProps) {
 	const { t } = useTranslation();
 	const [isIgniting, setIsIgniting] = useState(false);
@@ -236,6 +238,20 @@ export function TapSelector({
 		};
 	}, []);
 
+	const closePicker = useCallback(() => {
+		setShowTapPicker(false);
+		setHoveredId(null);
+		setPreviewId(null);
+		lastSwitchedId.current = null;
+	}, []);
+
+	useEffect(() => {
+		if (!showTapPicker) return;
+		const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closePicker(); };
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	}, [showTapPicker, closePicker]);
+
 	const getTapEmoji = (id: number) => {
 		switch (id) {
 			case 0: return "👋";
@@ -259,39 +275,47 @@ export function TapSelector({
 					className="fixed inset-0 z-[55] bg-transparent"
 					onPointerDown={() => {
 						setShowTapPicker(false);
-						setHoveredId(null);
-						setPreviewId(null);
-						lastSwitchedId.current = null;
+						closePicker();
 					}}
 				/>
 			)}
 
-			<div
-				className={`tab-menu select-none touch-none absolute z-[60] flex items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl ${compact ? "bottom-full left-1/2 mb-2 -translate-x-1/2" : "bottom-4 left-32 -translate-x-1/2"} ${showTapPicker ? "active" : ""}`}
-			>
-				{[1, 2, 0].map((id) => (
-					<div
-						key={id}
-						data-id={id}
-						onPointerEnter={() => {
-							if (showTapPicker) {
-								setHoveredId(id);
-								switchEmoji(id);
-							}
-						}}
-						onPointerLeave={() => {
-							if (showTapPicker) {
-								setHoveredId(null);
-								switchEmoji(null);
-							}
-						}}
-						onClick={() => selectTap(id)}
-						className={`tab-menu-emoji cursor-pointer text-4xl ${hoveredId === id ? "highlight" : ""}`}
-					>
-						{getTapEmoji(id)}
-					</div>
-				))}
-			</div>
+			{compact ? (
+				<div
+					className={`tab-menu-slide select-none touch-none absolute z-[60] flex items-center gap-0.5 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-1.5 py-1.5 shadow-xl ${showTapPicker ? "active" : ""}`}
+					style={{ right: "calc(100% + 0.5rem)", top: "50%" }}
+				>
+					{[1, 2, 0].map((id) => (
+						<div
+							key={id}
+							data-id={id}
+							onPointerEnter={() => { if (showTapPicker) { setHoveredId(id); switchEmoji(id); } }}
+							onPointerLeave={() => { if (showTapPicker) { setHoveredId(null); switchEmoji(null); } }}
+							onClick={() => selectTap(id)}
+							className={`tab-menu-emoji cursor-pointer rounded-xl px-3 py-1.5 leading-none transition-all ${hoveredId === id ? "highlight text-4xl" : "text-3xl opacity-70"}`}
+						>
+							{getTapEmoji(id)}
+						</div>
+					))}
+				</div>
+			) : (
+				<div
+					className={`tab-menu select-none touch-none absolute z-[60] flex items-center gap-8 rounded-full border border-white/10 px-10 py-6 shadow-xl bottom-4 left-32 -translate-x-1/2 ${showTapPicker ? "active" : ""}`}
+				>
+					{[1, 2, 0].map((id) => (
+						<div
+							key={id}
+							data-id={id}
+							onPointerEnter={() => { if (showTapPicker) { setHoveredId(id); switchEmoji(id); } }}
+							onPointerLeave={() => { if (showTapPicker) { setHoveredId(null); switchEmoji(null); } }}
+							onClick={() => selectTap(id)}
+							className={`tab-menu-emoji cursor-pointer text-4xl ${hoveredId === id ? "highlight" : ""}`}
+						>
+							{getTapEmoji(id)}
+						</div>
+					))}
+				</div>
+			)}
 
 			{compact ? (
 				<button
@@ -302,18 +326,14 @@ export function TapSelector({
 					onPointerCancel={handlePointerCancel}
 					disabled={isTapDisabled || isTappingInternal}
 					style={{ borderColor: isTapActive || isIgniting ? "var(--halo-color)" : undefined }}
-					className={`tap-btn-base select-none touch-none relative inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-all duration-200 active:scale-95 ${
-						isTapActive
-							? "bg-[var(--surface)] text-[var(--accent-readable)]"
-							: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
-					} ${showTapPicker ? "scale-105" : ""}`}
+					className={`${tapButtonClassName} tap-btn-base select-none touch-none relative inline-flex items-center justify-center gap-1.5 rounded-xl border text-sm font-semibold transition-all duration-200 active:scale-95 ${showLabel ? "px-3" : ""} ${showTapPicker ? "scale-105" : ""}`}
 					aria-label={t("profile_details.tap_profile", "Tap profile")}
 				>
 					{isRippling && <div className="animate-ripple tap-btn-ripple" />}
-					<span className={`tap-btn-emoji-container ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : ""}` : ""} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}>
-						{isTapActive || previewId !== null ? getTapEmoji(displayId) : <Flame className="h-4 w-4" strokeWidth={1.8} />}
+					<span className={`tap-btn-emoji-container ${!showLabel ? "text-2xl leading-none" : ""} ${isTapActive || previewId !== null ? `tap-btn-emoji-active ${isIgniting ? "animate-ignite" : ""}` : ""} ${isEmojiHidden ? "tap-btn-emoji-hidden" : ""}`}>
+						{isTapActive || previewId !== null ? getTapEmoji(displayId) : <Flame className="h-6 w-6" strokeWidth={1.8} />}
 					</span>
-					<span>Tap</span>
+					{showLabel && <span>Tap</span>}
 				</button>
 			) : (
 				<div className="flex flex-col items-center gap-6">

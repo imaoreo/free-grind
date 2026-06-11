@@ -547,6 +547,7 @@
         "x": "",
         "facebook": "",
         "close_profile_details": "",
+        "message_placeholder": "Stuur een bericht…",
         "default_profile": "",
         "open_photo": "",
         "close_photo_viewer": "",
@@ -631,5 +632,8 @@
         "empty_views_desc": "Profiles that view you will appear here.",
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
+    },
+    "common": {
+        "cancel": "Annuleren"
     }
 }

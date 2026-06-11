@@ -998,6 +998,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Close profile details",
+        "message_placeholder": "Send a message…",
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}",
         "tags": "Tags",
@@ -1235,5 +1236,8 @@
         "pull": "Pull to refresh",
         "release": "Release to refresh",
         "refreshing": "Refreshing..."
+    },
+    "common": {
+        "cancel": "Cancel"
     }
 }

@@ -728,6 +728,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Cerrar detalles de perfil",
+        "message_placeholder": "Enviar un mensaje…",
         "default_profile": "Perfil por defecto",
         "open_photo": "Abrir foto {{index}}",
         "user_id": "ID de usuario",
@@ -1211,5 +1212,8 @@
         "chat_block_disabled": "Auto-bloqueo en el buzón deshabilitado",
         "auto_refresh_enabled": "Auto recarga habilitada",
         "auto_refresh_disabled": "Auto recarga deshabilitado"
+    },
+    "common": {
+        "cancel": "Cancelar"
     }
 }

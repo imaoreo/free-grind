@@ -8,13 +8,10 @@ import {
 	ChevronsUp,
 	Compass,
 	ExternalLink,
-	FileText,
 	Flame,
 	Globe,
 	Hash,
 	Heart,
-	Loader2,
-	Star,
 	MapPin,
 	MessageCircle,
 	MessageSquare,
@@ -25,12 +22,10 @@ import {
 	Shield,
 	ShieldCheck,
 	Syringe,
-	Tag,
-	Triangle,
 	User,
 	Zap,
 } from "lucide-react";
-import { type RefObject, type UIEvent, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
@@ -38,7 +33,6 @@ import {
 	formatEnumArray,
 	formatEnumValue,
 	formatHeightCm,
-	formatOptionalNumber,
 	formatTimeAgo,
 	formatWeightKg,
 	shouldHideField,
@@ -48,7 +42,6 @@ import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
-import { formatDateTime24 } from "../../chat/chatUtils";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 
@@ -62,9 +55,7 @@ type ProfileDetailsContentProps = {
 	mobileCarouselRef: RefObject<HTMLDivElement | null>;
 	mobileCarouselPhotoIndex: number;
 	onPhotoIndexChange?: (index: number) => void;
-	handleMobileCarouselScroll: (event: UIEvent<HTMLDivElement>) => void;
 	openPhotoViewer: (index: number) => void;
-	photoCreatedAtByHash: Record<string, { createdAt: number | null; takenOnGrindr: boolean | null }>;
 	activeProfileName: string;
 	estimatedCreatedAt: string;
 	profileStatusLabel: string;
@@ -76,25 +67,11 @@ type ProfileDetailsContentProps = {
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
-	onBlockProfile?: (profileId: string) => void;
-	onUnblockProfile?: (profileId: string) => void;
-	onToggleFavoriteProfile?: (
-		profileId: string,
-		currentlyFavorite: boolean,
-	) => void | Promise<void>;
-	isFavorite: boolean;
-	isTogglingFavorite: boolean;
-	isBlocked: boolean;
-	isBlockingProfile: boolean;
 	isTapDisabled: boolean;
 	isTapBlocked: boolean;
 	isTapActive: boolean;
 	tapId: number;
 	tapButtonClassName: string;
-	onTriangleProfile?: (profileId: string) => void;
-	isTriangleDisabled: boolean;
-	triangleButtonClassName: string;
-	isLocatingProfile: boolean;
 	hasTagsContent: boolean;
 	hasAboutContent: boolean;
 	hasExpectationsFields: boolean;
@@ -123,9 +100,7 @@ export function ProfileDetailsContent({
 	mobileCarouselRef,
 	mobileCarouselPhotoIndex,
 	onPhotoIndexChange,
-	handleMobileCarouselScroll,
 	openPhotoViewer,
-	photoCreatedAtByHash,
 	activeProfileName,
 	estimatedCreatedAt,
 	profileStatusLabel,
@@ -137,22 +112,11 @@ export function ProfileDetailsContent({
 	usesFreegrind,
 	onMessageProfile,
 	onTapProfile,
-	onBlockProfile,
-	onUnblockProfile,
-	onToggleFavoriteProfile,
-	isFavorite,
-	isTogglingFavorite,
-	isBlocked,
-	isBlockingProfile,
 	isTapDisabled,
 	isTapBlocked,
 	isTapActive,
 	tapId,
 	tapButtonClassName,
-	onTriangleProfile,
-	isTriangleDisabled,
-	triangleButtonClassName,
-	isLocatingProfile,
 	hasTagsContent,
 	hasAboutContent,
 	hasExpectationsFields,
@@ -178,27 +142,6 @@ export function ProfileDetailsContent({
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
 
 	const renderPhotoCreatedBadge = (_hash: string) => null;
-
-	const handleBlockAction = () => {
-		if (!messageProfileId || isBlockingProfile) {
-			return;
-		}
-
-		if (isBlocked) {
-			onUnblockProfile?.(messageProfileId);
-			return;
-		}
-
-		onBlockProfile?.(messageProfileId);
-	};
-
-	const handleFavoriteAction = () => {
-		if (!messageProfileId || !onToggleFavoriteProfile || isTogglingFavorite) {
-			return;
-		}
-
-		void onToggleFavoriteProfile(messageProfileId, isFavorite);
-	};
 
 	const [dragDelta, setDragDelta] = useState(0);
 	const [tapBurst, setTapBurst] = useState<{ key: number; emoji: string } | null>(null);
@@ -299,54 +242,6 @@ export function ProfileDetailsContent({
 		? (positionIconMap[activeProfile.sexualPosition] ?? Compass)
 		: null;
 
-	const showGlassQuickActions =
-		showMobileCarousel &&
-		!isDesktopLike &&
-		Boolean(messageProfileId && onMessageProfile);
-	const glassActionButtonClassName =
-		"inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)]/85 text-[var(--text)] shadow-lg backdrop-blur-md transition hover:bg-[var(--surface-2)] disabled:opacity-50";
-
-	const glassOverlay = showGlassQuickActions && messageProfileId ? (
-		<>
-			<div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-52 bg-gradient-to-t from-black/80 to-transparent" />
-			<div className="pointer-events-none absolute inset-x-0 bottom-8 z-20 flex justify-center">
-				<div className="pointer-events-auto flex items-center gap-4 px-3">
-					<button
-						type="button"
-						onClick={() => onMessageProfile?.(messageProfileId)}
-						className={glassActionButtonClassName}
-						aria-label={t("profile_details.message")}
-					>
-						<MessageCircle className="h-5 w-5" />
-					</button>
-					<TapSelector
-						profileId={messageProfileId}
-						onTapProfile={handleTapWithBurst}
-						isTapDisabled={isTapDisabled}
-						isTapBlocked={isTapBlocked}
-						isTapActive={isTapActive}
-						tapId={tapId}
-						tapButtonClassName={tapButtonClassName}
-					/>
-					{onToggleFavoriteProfile ? (
-						<button
-							type="button"
-							onClick={handleFavoriteAction}
-							disabled={isTogglingFavorite}
-							className={glassActionButtonClassName}
-							aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
-						>
-							{isTogglingFavorite ? (
-								<Loader2 className="h-5 w-5 animate-spin" />
-							) : (
-								<Star className={`h-5 w-5 ${isFavorite ? "fill-[var(--accent)] text-[var(--accent)]" : ""}`} />
-							)}
-						</button>
-					) : null}
-				</div>
-			</div>
-		</>
-	) : null;
 
 	return (
 		<div className="grid gap-8">
@@ -357,6 +252,7 @@ export function ProfileDetailsContent({
 					</span>
 				</div>
 			)}
+			{(activeProfilePhotoHashes.length > 0 || !isDesktopLike) && (
 			<div>
 				{activeProfilePhotoHashes.length > 0 ? (
 					<>
@@ -365,7 +261,7 @@ export function ProfileDetailsContent({
 								<div className="relative sm:hidden -mx-[var(--app-px)]">
 									<div
 										ref={mobileCarouselRef}
-										className="relative h-[min(65dvh,calc(100vw*1.35))] overflow-hidden"
+										className="relative h-[min(78dvh,calc(100vw*1.55))] overflow-hidden"
 									>
 										{activeProfilePhotoHashes.map((hash, index) => (
 											<div
@@ -390,8 +286,9 @@ export function ProfileDetailsContent({
 												{renderPhotoCreatedBadge(hash)}
 											</div>
 										))}
+										<div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/65 to-transparent" />
 									</div>
-									{activeProfilePhotoHashes.length > 1 && showGlassQuickActions ? (
+									{activeProfilePhotoHashes.length > 1 && (
 										<div className="pointer-events-none absolute right-3 inset-y-0 z-20 flex flex-col items-center justify-center">
 											<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
 												{activeProfilePhotoHashes.map((hash, index) => (
@@ -403,19 +300,7 @@ export function ProfileDetailsContent({
 												))}
 											</div>
 										</div>
-									) : null}
-									{glassOverlay}
-									{activeProfilePhotoHashes.length > 1 && !showGlassQuickActions ? (
-										<div className="mt-2 flex items-center justify-center gap-1.5">
-											{activeProfilePhotoHashes.map((hash, index) => (
-												<span
-													key={`${hash}-dot`}
-													className={`h-1.5 rounded-full transition-all ${index === mobileCarouselPhotoIndex ? "w-3 bg-[var(--text)]" : "w-1.5 bg-[var(--border)]"}`}
-													aria-hidden="true"
-												/>
-											))}
-										</div>
-									) : null}
+									)}
 								</div>
 
 								<div className="hidden grid-cols-3 gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-6">
@@ -466,24 +351,26 @@ export function ProfileDetailsContent({
 					<>
 						{showMobileCarousel && !isDesktopLike ? (
 							<div className="relative sm:hidden -mx-[var(--app-px)]">
-								<div className="relative h-[min(65dvh,calc(100vw*1.35))] overflow-hidden">
+								<div className="relative h-[min(78dvh,calc(100vw*1.55))] overflow-hidden">
 									<ProfileImage
 										alt={t("profile_details.default_profile")}
 										className="h-full w-full object-cover"
 									/>
 								</div>
-								{glassOverlay}
-							</div>
-						) : null}
-						<div className={`${showMobileCarousel && !isDesktopLike ? "hidden sm:block" : ""} overflow-hidden rounded-xl border border-[var(--border)]`}>
-							<ProfileImage
-								alt={t("profile_details.default_profile")}
-								className="aspect-square w-full object-cover"
-							/>
 						</div>
+						) : null}
+						{!isDesktopLike && (
+							<div className={`${showMobileCarousel ? "hidden sm:block" : ""} overflow-hidden rounded-xl border border-[var(--border)]`}>
+								<ProfileImage
+									alt={t("profile_details.default_profile")}
+									className="aspect-square w-full object-cover"
+								/>
+							</div>
+						)}
 					</>
 				)}
 			</div>
+			)}
 
 			<div className="px-3">
 				<div className="flex items-start justify-between gap-3">
@@ -573,142 +460,32 @@ export function ProfileDetailsContent({
 						</span>
 					)}
 				</div>
-				{messageProfileId && onMessageProfile ? (
-					<div className="mt-3 grid gap-2">
-						{showGlassQuickActions ? (
-							<div className={`grid gap-2 ${(onBlockProfile || onUnblockProfile) ? "grid-cols-2" : ""}`}>
-								<button
-									type="button"
-									onClick={() => {
-										if (messageProfileId && onTriangleProfile) {
-											onTriangleProfile(messageProfileId);
-										}
-									}}
-									disabled={isTriangleDisabled}
-									className={triangleButtonClassName}
-									aria-label="Run location finder"
-									title={isLocatingProfile ? "Location finder running" : "Location finder"}
-								>
-									<Triangle className="h-4 w-4" />
-									{isLocatingProfile ? "Locating..." : "Locate"}
-								</button>
-								{(onBlockProfile || onUnblockProfile) ? (
-									<button
-										type="button"
-										onClick={handleBlockAction}
-										onPointerUp={(event) => {
-											if (event.pointerType === "mouse") return;
-											event.preventDefault();
-											handleBlockAction();
-										}}
-										disabled={isBlockingProfile}
-										className={`relative z-20 inline-flex h-10 items-center justify-center rounded-xl border px-3 text-sm font-semibold transition disabled:opacity-70 ${
-											isBlocked
-												? "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:border-[var(--accent)]"
-												: "border-red-500/45 bg-red-500/10 text-red-300 hover:border-red-400 hover:bg-red-500/15"
-										}`}
-									>
-										{isBlockingProfile
-											? isBlocked
-												? t("profile_details.unblock_in_progress")
-												: t("profile_details.block_in_progress")
-											: isBlocked
-												? t("profile_details.unblock")
-												: t("profile_details.block")}
-									</button>
-								) : null}
-							</div>
-						) : (
-							<>
-								{/* Circular action row — mirrors mobile glass style */}
-								<div className="flex items-center justify-center gap-4 py-1">
-									<button
-										type="button"
-										onClick={() => onMessageProfile(messageProfileId)}
-										className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] shadow transition hover:bg-[var(--surface)]"
-										aria-label={t("profile_details.message")}
-									>
-										<MessageCircle className="h-5 w-5" />
-									</button>
-									<TapSelector
-										profileId={messageProfileId}
-										onTapProfile={handleTapWithBurst}
-										isTapDisabled={isTapDisabled}
-										isTapBlocked={isTapBlocked}
-										isTapActive={isTapActive}
-										tapId={tapId}
-										tapButtonClassName={tapButtonClassName}
-									/>
-									{onToggleFavoriteProfile ? (
-										<button
-											type="button"
-											onClick={handleFavoriteAction}
-											disabled={isTogglingFavorite}
-											className={`inline-flex h-12 w-12 items-center justify-center rounded-full border shadow transition disabled:opacity-70 ${
-												isFavorite
-													? "border-[var(--accent)] bg-[var(--surface-2)] text-[var(--accent)]"
-													: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface)]"
-											}`}
-											aria-label={isFavorite ? t("profile_details.unfavorite") : t("browse_filters.options.favorites")}
-										>
-											{isTogglingFavorite ? (
-												<Loader2 className="h-5 w-5 animate-spin" />
-											) : (
-												<Star className={`h-5 w-5 ${isFavorite ? "fill-[var(--accent)]" : ""}`} />
-											)}
-										</button>
-									) : null}
-									<button
-										type="button"
-										onClick={() => {
-											if (messageProfileId && onTriangleProfile) {
-												onTriangleProfile(messageProfileId);
-											}
-										}}
-										disabled={isTriangleDisabled}
-										className={`inline-flex h-12 w-12 items-center justify-center rounded-full border shadow transition ${
-											isTriangleDisabled
-												? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] opacity-50"
-												: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface)]"
-										}`}
-										aria-label="Run location finder"
-										title={isLocatingProfile ? "Location finder running" : "Locate"}
-									>
-										<Triangle className="h-5 w-5" />
-									</button>
-								</div>
-								{(onBlockProfile || onUnblockProfile) ? (
-									<button
-										type="button"
-										onClick={handleBlockAction}
-										onPointerUp={(event) => {
-											if (event.pointerType === "mouse") return;
-											event.preventDefault();
-											handleBlockAction();
-										}}
-										disabled={isBlockingProfile}
-										className={`relative z-20 inline-flex h-8 w-full items-center justify-center rounded-lg border px-3 text-xs font-medium transition disabled:opacity-70 ${
-											isBlocked
-												? "border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-												: "border-red-500/25 bg-transparent text-red-400/70 hover:border-red-400/50 hover:text-red-400"
-										}`}
-									>
-										{isBlockingProfile
-											? isBlocked
-												? t("profile_details.unblock_in_progress")
-												: t("profile_details.block_in_progress")
-											: isBlocked
-												? t("profile_details.unblock")
-												: t("profile_details.block")}
-									</button>
-								) : null}
-							</>
-						)}
+				{isDesktopLike && messageProfileId && onMessageProfile ? (
+					<div className="mt-3 flex items-center justify-center gap-4 py-1">
+						<button
+							type="button"
+							onClick={() => onMessageProfile(messageProfileId)}
+							className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] shadow transition hover:bg-[var(--surface)]"
+							aria-label={t("profile_details.message")}
+						>
+							<MessageCircle className="h-5 w-5" />
+						</button>
+						<TapSelector
+							profileId={messageProfileId}
+							onTapProfile={handleTapWithBurst}
+							isTapDisabled={isTapDisabled}
+							isTapBlocked={isTapBlocked}
+							isTapActive={isTapActive}
+							tapId={tapId}
+							tapButtonClassName={tapButtonClassName}
+						/>
 					</div>
 				) : null}
 			</div>
 
+			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
+				{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
 					{hasTagsContent && (
 						<div>
@@ -860,7 +637,9 @@ export function ProfileDetailsContent({
 						</div>
 					)}
 				</div>
+				)}
 
+				{(hasStatsFields || hasSocialFields) && (
 				<div className="grid gap-8">
 					{hasStatsFields && (
 						<div>
@@ -960,7 +739,9 @@ export function ProfileDetailsContent({
 						</div>
 					)}
 				</div>
+				)}
 			</div>
+			)}
 		</div>
 	);
 }
