@@ -8,6 +8,7 @@ import type { ChatContactIndexRecord } from "../../../types/chat-contact-index";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { InboxAlbumsTabs } from "../components/InboxAlbumsTabs";
 import { PullToRefreshContainer } from "../components/PullToRefreshContainer";
+import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
 import {
 	buildChatFiltersDraft,
 	formatConversationTime,
@@ -172,24 +173,23 @@ export function ChatInboxPanel({
 			onTouchEndExtra={onInboxTouchEnd}
 		>
 			<div
-				className={`flex shrink-0 flex-col gap-3 ${isDesktop ? "p-4 border-b border-[var(--border)]" : "px-[var(--app-px)] pb-3"}`}
+				className={`relative flex shrink-0 flex-col ${isDesktop ? "p-4 border-b border-[var(--border)]" : "px-[var(--app-px)] pb-3"}`}
 			>
-				<div className="flex items-end justify-between gap-2">
+				{!isDesktop && <PageHeaderBackground color="var(--accent)" />}
+				<div className="flex items-center justify-between gap-2">
 					<InboxAlbumsTabs
 						activeTab="inbox"
 						onInboxClick={onOpenInbox}
 						onAlbumsClick={onOpenAlbums}
+						inboxDotColor={
+							realtimeStatusMeta.symbol === "✓"
+								? "oklch(0.72 0.18 142)"
+								: realtimeStatusMeta.className.includes("red")
+									? "oklch(0.65 0.22 25)"
+									: "oklch(0.75 0.17 75)"
+						}
 					/>
-				</div>
-
-				<div className="flex items-center justify-between gap-2">
-					<span
-						className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${realtimeStatusMeta.className}`}
-					>
-						<span className="leading-none">{realtimeStatusMeta.symbol}</span>
-						<span>{realtimeStatusMeta.label}</span>
-					</span>
-					<div className="flex shrink-0 items-center gap-1.5">
+					<div className="flex shrink-0 items-center gap-1">
 						<button
 							type="button"
 							onClick={onToggleFavoritesOnly}
