@@ -882,6 +882,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Fechar detalhes do perfil",
+        "message_placeholder": "Enviar uma mensagem…",
         "default_profile": "Perfil padrão",
         "open_photo": "Abrir foto {{index}}",
         "tags": "Etiquetas",
@@ -1093,6 +1094,8 @@
         "subtitle": "Encontre conversas, mensagens e perfis",
         "back_to_inbox": "Voltar à caixa de entrada",
         "placeholder": "Pesquisar conversas, mensagens, perfis",
+        "mode_label": "Modo de busca",
+        "quick_start_label": "Início rápido",
         "quick_start_placeholder": "Início rápido por ID de perfil",
         "view": "Visualizar",
         "message": "Mensagem",
@@ -1209,5 +1212,8 @@
         "chat_block_disabled": "Bloqueio automático da caixa de entrada desativado",
         "auto_refresh_enabled": "Atualização automática ativada",
         "auto_refresh_disabled": "Atualização automática desativada"
+    },
+    "common": {
+        "cancel": "Cancelar"
     }
 }

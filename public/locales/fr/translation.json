@@ -682,6 +682,7 @@
         "x": "X (Twitter)",
         "facebook": "Facebook",
         "close_profile_details": "Fermer les détails du profil",
+        "message_placeholder": "Envoyer un message…",
         "default_profile": "Profil par défaut",
         "open_photo": "Ouvrir la photo {{index}}",
         "uses_free_grind": "Utilise Free Grind",
@@ -1044,6 +1045,8 @@
         "subtitle": "Trouvez des conversations, des messages et des profils",
         "back_to_inbox": "Retour à la messagerie",
         "placeholder": "Recherchez conversations, messages et profils",
+        "mode_label": "Mode de recherche",
+        "quick_start_label": "Démarrage rapide",
         "quick_start_placeholder": "Recherche rapide avec l'ID du profil",
         "view": "Voir",
         "message": "Message",
@@ -1147,5 +1150,8 @@
         "chat_block_disabled": "Blocage automatique de la boîte de réception désactivé",
         "auto_refresh_enabled": "Actualisation automatique activée",
         "auto_refresh_disabled": "Actualisation automatique désactivée"
+    },
+    "common": {
+        "cancel": "Annuler"
     }
 }

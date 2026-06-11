@@ -998,6 +998,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Close profile details",
+        "message_placeholder": "Send a message…",
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}",
         "tags": "Tags",
@@ -1203,6 +1204,8 @@
         "subtitle": "Find conversations, messages, and profiles",
         "back_to_inbox": "Back to Inbox",
         "placeholder": "Search conversations, messages, profiles",
+        "mode_label": "Search mode",
+        "quick_start_label": "Quick start",
         "quick_start_placeholder": "Quick start by profile ID",
         "view": "View",
         "message": "Message",
@@ -1233,5 +1236,8 @@
         "pull": "Pull to refresh",
         "release": "Release to refresh",
         "refreshing": "Refreshing..."
+    },
+    "common": {
+        "cancel": "Cancel"
     }
 }

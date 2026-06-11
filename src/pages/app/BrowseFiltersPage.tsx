@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -241,7 +241,7 @@ export function BrowseFiltersPage() {
 	};
 
 	const addTag = () => {
-		const normalized = tagDraft.trim();
+		const normalized = tagDraft.trim().toLowerCase();
 		if (!normalized) {
 			return;
 		}
@@ -359,10 +359,10 @@ export function BrowseFiltersPage() {
 						<button
 							type="button"
 							onClick={() => navigate(-1)}
-							className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
 							aria-label="Back"
 						>
-							<ArrowLeft className="h-4 w-4" />
+							<ChevronLeft className="h-4 w-4" />
 						</button>
 						<div>
 							<h1 className="app-title">{t("browse_filters.title")}</h1>

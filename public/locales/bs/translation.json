@@ -561,6 +561,7 @@
         "x": "",
         "facebook": "",
         "close_profile_details": "",
+        "message_placeholder": "Pošalji poruku…",
         "default_profile": "",
         "open_photo": "",
         "status": "",
@@ -632,5 +633,8 @@
         "empty_views_desc": "Profiles that view you will appear here.",
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
+    },
+    "common": {
+        "cancel": "Otkaži"
     }
 }
