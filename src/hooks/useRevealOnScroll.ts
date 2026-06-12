@@ -1,16 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { usePreferences } from "../contexts/PreferencesContext";
 
-// Standard delay between items in a wave
+// Delay between items during normal (slow) scrolling
 const STAGGER_MS = 30;
+// Delay between items when scrolling fast or queue has built up
+const FAST_STAGGER_MS = 5;
+// Items in queue before switching to fast stagger
+const FAST_FLUSH_THRESHOLD = 4;
+// Scroll velocity (px/ms) above which we use fast stagger
+const FAST_SCROLL_VELOCITY = 1.5;
 
 // Internal queue of elements waiting to be shown
 let pendingReveals: { offsetTop: number; resolve: () => void }[] = [];
 let revealTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Scroll direction tracking
+// Scroll direction + velocity tracking
 let lastScrollY = typeof window !== "undefined" ? window.scrollY : 0;
 let scrollDirection: "up" | "down" = "down";
+let scrollVelocity = 0;
+let lastScrollTime = typeof performance !== "undefined" ? performance.now() : 0;
+let velocityDecayTimer: ReturnType<typeof setTimeout> | null = null;
 
 if (typeof window !== "undefined") {
 	window.addEventListener(
@@ -23,6 +32,19 @@ if (typeof window !== "undefined") {
 					: target instanceof Element
 						? target.scrollTop
 						: lastScrollY;
+
+			const now = performance.now();
+			const dt = now - lastScrollTime;
+			if (dt > 0) {
+				scrollVelocity = Math.abs(currentScrollY - lastScrollY) / dt;
+			}
+			lastScrollTime = now;
+
+			// Decay velocity after 150ms without scroll events
+			if (velocityDecayTimer) clearTimeout(velocityDecayTimer);
+			velocityDecayTimer = setTimeout(() => {
+				scrollVelocity = 0;
+			}, 150);
 
 			if (currentScrollY > lastScrollY) {
 				scrollDirection = "down";
@@ -59,7 +81,9 @@ function processNext() {
 		next.resolve();
 	}
 
-	revealTimer = setTimeout(processNext, STAGGER_MS);
+	// Use faster stagger when scrolling quickly or there's a backlog — animation still plays
+	const isFast = scrollVelocity > FAST_SCROLL_VELOCITY || pendingReveals.length > FAST_FLUSH_THRESHOLD;
+	revealTimer = setTimeout(processNext, isFast ? FAST_STAGGER_MS : STAGGER_MS);
 }
 
 /**

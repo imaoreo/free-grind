@@ -220,6 +220,7 @@ export function GridPage() {
 		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
+		nicknameFilter,
 		applyDraft,
 	} = useBrowseFilters(persistedBrowseFilters);
 
@@ -826,6 +827,13 @@ export function GridPage() {
 			results = results.filter((card) => card.isVisiting === true);
 		}
 
+		if (nicknameFilter) {
+			const lower = nicknameFilter.toLowerCase();
+			results = results.filter((card) =>
+				card.displayName?.toLowerCase().includes(lower),
+			);
+		}
+
 		if (searchTerm) {
 			const lower = searchTerm.toLowerCase();
 			results = results.filter((card) => {
@@ -846,7 +854,7 @@ export function GridPage() {
 		}
 
 		return results;
-	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, searchTerm, favoriteNotes]);
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -1186,7 +1194,7 @@ export function GridPage() {
 									<button
 										type="button"
 										onClick={() => setIsFiltersOpen(true)}
-										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--text)] active:scale-95"
+										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] active:scale-95"
 										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 									>
 										<SlidersHorizontal className="h-3.5 w-3.5" />
@@ -1198,10 +1206,10 @@ export function GridPage() {
 										) : null}
 									</button>
 
-									<div className="glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold text-[var(--text)]"
+									<div className="glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold text-[var(--accent)]"
 										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 									>
-										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<ListFilter className="mr-1.5 h-4 w-4 shrink-0" />
 										<select
 											value={sortBy}
 											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
@@ -1228,7 +1236,7 @@ export function GridPage() {
 											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
 											browseFilters.onlineOnly
 												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-												: "glass-pill text-[var(--text)]"
+												: "glass-pill text-[var(--accent)]"
 										)}
 										style={!browseFilters.onlineOnly ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 									>
@@ -1244,17 +1252,17 @@ export function GridPage() {
 											}))
 										}
 										className={cn(
-											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
 											browseFilters.favorites
 												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-												: "glass-pill text-[var(--text)]"
+												: "glass-pill text-[var(--accent)]"
 										)}
 										style={!browseFilters.favorites ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.favorites")}
 										title={t("browse_filters.options.favorites")}
 									>
 										<Star
-											className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`}
+											className={`h-4 w-4 ${browseFilters.favorites ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1267,17 +1275,17 @@ export function GridPage() {
 											}))
 										}
 										className={cn(
-											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
 											browseFilters.rightNow
 												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-												: "glass-pill text-[var(--text)]"
+												: "glass-pill text-[var(--accent)]"
 										)}
 										style={!browseFilters.rightNow ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.right_now")}
 										title={t("browse_filters.options.right_now")}
 									>
 										<Droplet
-											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
+											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1290,17 +1298,17 @@ export function GridPage() {
 											}))
 										}
 										className={cn(
-											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
 											browseFilters.isVisiting
 												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-												: "glass-pill text-[var(--text)]"
+												: "glass-pill text-[var(--accent)]"
 										)}
 										style={!browseFilters.isVisiting ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("profile_details.visiting")}
 										title={t("profile_details.visiting")}
 									>
 										<Plane
-											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1308,7 +1316,7 @@ export function GridPage() {
 										<button
 											type="button"
 											onClick={clearBrowseFilters}
-											className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--text-muted)] transition-all active:scale-95"
+											className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] transition-all active:scale-95"
 											style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 										>
 											{t("browse_filters.clear_all")}
@@ -1643,6 +1651,7 @@ export function GridPage() {
 						meetAt,
 						nsfwPics,
 						tags,
+						nicknameFilter,
 					} satisfies BrowseFiltersDraft}
 					onClose={() => setIsFiltersOpen(false)}
 					onApply={(draft) => {

@@ -216,7 +216,8 @@
         "local_filters": {
             "title": "Local Filters",
             "description": "These filters apply instantly to the profiles already loaded.",
-            "is_visiting": "Visiting"
+            "is_visiting": "Visiting",
+            "nickname_placeholder": "Name…"
         }
     },
     "browse_location": {

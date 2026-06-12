@@ -1,4 +1,4 @@
-import { SlidersHorizontal, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RangeSlider } from "../../components/ui/range-slider";
@@ -9,7 +9,7 @@ import { type ManagedOption } from "./GridPage.types";
 import {
 	type BrowseFilters,
 	type BrowseFiltersDraft,
-	defaultBrowseFilters,
+	getDefaultBrowseFiltersDraft,
 	normalizeBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import {
@@ -67,6 +67,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 	const [nsfwPics, setNsfwPics] = useState<number[]>(normalized.nsfwPics);
 	const [tags, setTags] = useState<string[]>(normalized.tags);
 	const [tagDraft, setTagDraft] = useState("");
+	const [nicknameFilter, setNicknameFilter] = useState(normalized.nicknameFilter);
 
 	const handleClose = () => {
 		if (isClosingRef.current) return;
@@ -143,13 +144,9 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 	};
 
 	const clearAll = () => {
-		setBrowseFilters(defaultBrowseFilters);
-		setAgeMin(""); setAgeMax("");
-		setHeightCmMin(""); setHeightCmMax("");
-		setWeightGramsMin(""); setWeightGramsMax("");
-		setTribes([]); setLookingFor([]); setRelationshipStatuses([]);
-		setBodyTypes([]); setSexualPositions([]); setMeetAt([]);
-		setNsfwPics([]); setTags([]); setTagDraft("");
+		const cleared = { ...getDefaultBrowseFiltersDraft(), sortBy: normalized.sortBy };
+		onApply(cleared);
+		handleClose();
 	};
 
 	const handleApply = () => {
@@ -162,6 +159,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 			tribes, lookingFor, relationshipStatuses,
 			bodyTypes, sexualPositions, meetAt,
 			nsfwPics, tags,
+			nicknameFilter,
 		});
 		handleClose();
 	};
@@ -431,7 +429,56 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							)}
 						</section>
 
-						{renderToggleSection(t("browse_filters.local_filters.title"), localFilterOptions)}
+						<section
+							className="rounded-2xl p-4"
+							style={{
+								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
+								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+							}}
+						>
+							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+								{t("browse_filters.local_filters.title")}
+							</p>
+							<div className="flex flex-wrap gap-2">
+								{localFilterOptions.map((filter) => {
+									const active = browseFilters[filter.key];
+									return (
+										<button
+											key={filter.key}
+											type="button"
+											onClick={() => toggleBrowseFilter(filter.key)}
+											className={cn(
+												"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
+												active
+													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+													: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+											)}
+										>
+											{filter.label}
+										</button>
+									);
+								})}
+							</div>
+							<div className="relative mt-2">
+								<Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
+								<input
+									type="text"
+									value={nicknameFilter}
+									onChange={(e) => setNicknameFilter(e.target.value)}
+									placeholder={t("browse_filters.local_filters.nickname_placeholder")}
+									className="h-9 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] pl-8 pr-8 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+								/>
+								{nicknameFilter && (
+									<button
+										type="button"
+										onClick={() => setNicknameFilter("")}
+										className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									>
+										<X className="h-3.5 w-3.5" />
+									</button>
+								)}
+							</div>
+						</section>
 					</div>
 				</div>
 

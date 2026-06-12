@@ -181,7 +181,8 @@
         "local_filters": {
             "title": "Filtres locaux",
             "description": "Ces filtres s'appliquent instantanément aux profils déjà chargés.",
-            "is_visiting": "En visite"
+            "is_visiting": "En visite",
+            "nickname_placeholder": "Name…"
         }
     },
     "about_page": {
