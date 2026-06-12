@@ -1,7 +1,11 @@
-import { Images, MessageCircle, Play, UserRound, X } from "lucide-react";
+import { useState } from "react";
+import { Download, Images, MessageCircle, Play, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import { Button } from "../../../components/ui/button";
 import { EmptyState } from "../../../components/ui/states";
+import { saveMediaBatch } from "../../../services/saveMedia";
+import { appLog } from "../../../utils/logger";
 import type { AlbumViewer } from "../../../types/shared-albums";
 
 type AlbumContent = AlbumViewer["content"][number];
@@ -30,6 +34,51 @@ export function AlbumViewerPanel({
 	hideProfileActions = false,
 }: AlbumViewerPanelProps) {
 	const { t } = useTranslation();
+	const [isSavingAll, setIsSavingAll] = useState(false);
+
+	const handleSaveAll = async () => {
+		const items = viewer.content
+			.map((item) => ({
+				url: item.url || item.coverUrl,
+				type: (item.contentType?.startsWith("video/") ? "video" : "image") as "image" | "video",
+			}))
+			.filter((item): item is { url: string; type: "image" | "video" } => !!item.url);
+
+		if (items.length === 0) {
+			toast.error(t("profile_details.save_all_empty"));
+			return;
+		}
+
+		setIsSavingAll(true);
+		const toastId = toast.loading(
+			t("profile_details.save_all_progress", { done: 0, total: items.length }),
+		);
+		try {
+			const result = await saveMediaBatch(items, (done, total) => {
+				toast.loading(t("profile_details.save_all_progress", { done, total }), { id: toastId });
+			});
+
+			if (result.failed === 0) {
+				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
+					id: toastId,
+				});
+			} else {
+				toast.error(
+					t("profile_details.save_all_partial", {
+						succeeded: result.succeeded,
+						total: result.total,
+						failed: result.failed,
+					}),
+					{ id: toastId },
+				);
+			}
+		} catch (error) {
+			appLog.error("[AlbumViewerPanel] Save all failed", error);
+			toast.error(t("profile_details.save_all_error"), { id: toastId });
+		} finally {
+			setIsSavingAll(false);
+		}
+	};
 
 	return (
 		<div
@@ -54,6 +103,20 @@ export function AlbumViewerPanel({
 					>
 						<X className="h-4 w-4" />
 					</button>
+
+					{viewer.content.length > 0 && (
+						<button
+							type="button"
+							onClick={() => void handleSaveAll()}
+							disabled={isSavingAll}
+							aria-label={t("profile_details.save_all")}
+							className="absolute right-14 inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--border)] hover:text-[var(--text)] disabled:opacity-50"
+							style={{ top: "max(16px, env(safe-area-inset-top, 0px))" }}
+						>
+							<Download className="h-3.5 w-3.5" />
+							{t("profile_details.save_all")}
+						</button>
+					)}
 
 					<div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-2.5 py-1">
 						<Images className="h-3 w-3 text-[var(--accent)]" />
