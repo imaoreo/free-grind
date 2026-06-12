@@ -15,7 +15,7 @@ function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; 
 	const count = isDesktop ? 30 : mobileColumns === "2" ? 16 : 24;
 	return (
 		<div
-			className={cn("w-full grid", isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-0")}
+			className={cn("w-full grid", isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px")}
 			style={{
 				gridTemplateColumns: isDesktop
 					? "repeat(6, minmax(0, 1fr))"
@@ -160,7 +160,7 @@ export function BrowseGrid({
 			<div
 				className={cn(
 					"w-full grid",
-					isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-0",
+					isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px",
 				)}
 				style={{
 					gridTemplateColumns: isDesktop

@@ -407,7 +407,7 @@ export function SharedAlbumsPage() {
 
 					{isLoading ? (
 						<div
-							className="grid gap-1"
+							className="grid gap-4"
 							style={{
 								gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
 							}}
@@ -436,7 +436,7 @@ export function SharedAlbumsPage() {
 						/>
 					) : (
 						<div
-							className="grid gap-1"
+							className="grid gap-4"
 							style={{
 								gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
 							}}
