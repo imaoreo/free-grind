@@ -37,9 +37,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 			try {
 				const decoded = decodeGeohash(geohash);
 				return [(decoded.lat[0] + decoded.lat[1]) / 2, (decoded.lon[0] + decoded.lon[1]) / 2];
-			} catch {
-				return undefined;
-			}
+			} catch { return undefined; }
 		}
 		return undefined;
 	})();
@@ -53,7 +51,6 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 				setSelectedLocation({ lat, lon, label: locationName ?? t("browse_location.current_location_label") });
 			} catch { /* ignore */ }
 		}
-		// focus search on mount
 		setTimeout(() => searchInputRef.current?.focus(), 120);
 	}, []);
 
@@ -72,9 +69,9 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 
 	useEffect(() => {
 		if (window.history.state?.modal !== "location-overlay") window.history.pushState({ modal: "location-overlay" }, "");
-		const handlePopState = (e: PopStateEvent) => { if (e.state?.modal !== "location-overlay") handleClose(); };
-		window.addEventListener("popstate", handlePopState);
-		return () => window.removeEventListener("popstate", handlePopState);
+		const onPop = (e: PopStateEvent) => { if (e.state?.modal !== "location-overlay") handleClose(); };
+		window.addEventListener("popstate", onPop);
+		return () => window.removeEventListener("popstate", onPop);
 	}, [handleClose]);
 
 	const saveAndClose = async (lat: number, lon: number, label: string, isAuto = false) => {
@@ -95,15 +92,17 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 		try {
 			const tauriGeo = await import("@tauri-apps/plugin-geolocation").catch(() => null);
 			if (tauriGeo) {
-				let permissions = await tauriGeo.checkPermissions();
-				if (permissions.location !== "granted" && permissions.location !== "denied") permissions = await tauriGeo.requestPermissions(["location"]);
-				if (permissions.location !== "granted") { setLocationError(t("browse_location.error_access")); return; }
+				let perms = await tauriGeo.checkPermissions();
+				if (perms.location !== "granted" && perms.location !== "denied") perms = await tauriGeo.requestPermissions(["location"]);
+				if (perms.location !== "granted") { setLocationError(t("browse_location.error_access")); return; }
 				const pos = await tauriGeo.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 20000 });
 				await saveAndClose(pos.coords.latitude, pos.coords.longitude, t("browse_location.current_location_label"), true);
 				return;
 			}
 			if (!("geolocation" in navigator)) { setLocationError(t("browse_location.error_geolocation")); return; }
-			const pos = await new Promise<GeolocationPosition>((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 20000 }));
+			const pos = await new Promise<GeolocationPosition>((res, rej) =>
+				navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 20000 })
+			);
 			await saveAndClose(pos.coords.latitude, pos.coords.longitude, t("browse_location.current_location_label"), true);
 		} catch (e) {
 			appLog.error("Geolocation failed", e);
@@ -118,12 +117,12 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 		setLastSearchedQuery(query);
 		setIsSearchingLocation(true);
 		try {
-			const response = await fetch(
+			const res = await fetch(
 				`https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(query)}`,
 				{ signal, headers: { "User-Agent": "Mozilla/5.0 (compatible)" } },
 			);
-			if (!response.ok) throw new Error("search failed");
-			setLocationResults(z.array(geocodeResultSchema).parse(await response.json()));
+			if (!res.ok) throw new Error("search failed");
+			setLocationResults(z.array(geocodeResultSchema).parse(await res.json()));
 			setLocationError(null);
 		} catch (e) {
 			if (e instanceof Error && e.name === "AbortError") return;
@@ -137,13 +136,12 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 	useEffect(() => {
 		const query = locationQuery.trim();
 		if (query.length < 2) { setLocationResults([]); setIsSearchingLocation(false); setLastSearchedQuery(""); return; }
-		const controller = new AbortController();
-		const timer = setTimeout(() => void performSearch(query, controller.signal), 500);
-		return () => { clearTimeout(timer); controller.abort(); };
+		const ctrl = new AbortController();
+		const timer = setTimeout(() => void performSearch(query, ctrl.signal), 500);
+		return () => { clearTimeout(timer); ctrl.abort(); };
 	}, [locationQuery]);
 
 	const clearSearch = () => { setLocationQuery(""); setLocationResults([]); setLastSearchedQuery(""); searchInputRef.current?.focus(); };
-
 	const isSearching = locationQuery.trim().length > 0;
 
 	return (
@@ -159,16 +157,27 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}
-				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-4 pt-[calc(env(safe-area-inset-top,0px)+0.875rem)]">
+				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
 					<PageHeaderBackground color="var(--accent)" />
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
-							<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--text)]">
-								<MapPin className="h-4.5 w-4.5" />
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
+								<MapPin className="h-5 w-5" />
 							</div>
-							<h2 className="text-lg font-bold tracking-tight text-[var(--text)]">
-								{t("browse_location.title")}
-							</h2>
+							<div>
+								<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">
+									{t("browse_location.title")}
+								</h2>
+								{locationName && (
+									<p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
+										{useAutoLocation
+											? <Navigation className="h-3 w-3 shrink-0 text-[var(--accent)]" />
+											: <MapPin className="h-3 w-3 shrink-0 text-[var(--accent)]" />
+										}
+										<span className="truncate max-w-[200px]">{locationName}</span>
+									</p>
+								)}
+							</div>
 						</div>
 						<button
 							type="button"
@@ -182,7 +191,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 				</header>
 
 				{/* Pinned search bar */}
-				<div className="shrink-0 border-y border-[var(--border)] bg-[var(--bg)] px-[var(--app-px)] py-2.5">
+				<div className="shrink-0 border-b border-[var(--border)] bg-[var(--bg)] px-[var(--app-px)] py-3">
 					<div className="relative">
 						<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
 						<input
@@ -191,161 +200,169 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 							value={locationQuery}
 							onChange={(e) => setLocationQuery(e.target.value)}
 							placeholder={t("browse_location.search_placeholder")}
-							className="h-11 w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] pl-10 pr-10 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:bg-[var(--surface)]"
+							className="h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] pl-10 pr-10 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:bg-[var(--surface)]"
 						/>
 						{isSearchingLocation ? (
 							<Loader2 className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
 						) : locationQuery ? (
-							<button type="button" onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--text-muted)] transition hover:text-[var(--text)]">
+							<button
+								type="button"
+								onClick={clearSearch}
+								className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+							>
 								<X className="h-3.5 w-3.5" />
 							</button>
 						) : null}
 					</div>
 				</div>
 
-				{/* Scrollable list */}
-				<div className="relative z-10 flex-1 overflow-y-auto">
+				{/* Scrollable content */}
+				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
+					<div className="space-y-3 py-4">
 
-					{/* Error */}
-					{locationError && (
-						<div className="mx-[var(--app-px)] mt-3 flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-							<X className="h-4 w-4 shrink-0" />
-							{locationError}
-						</div>
-					)}
-
-					{/* GPS row — always shown */}
-					<button
-						type="button"
-						onClick={() => void handleUseCurrentLocation()}
-						disabled={isDetectingLocation || isSaving}
-						className="flex w-full items-center gap-3.5 px-[var(--app-px)] py-3.5 transition hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:opacity-60"
-					>
-						<div className="relative shrink-0">
-							<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/40">
-								{isDetectingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+						{/* Error */}
+						{locationError && (
+							<div className="flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+								<X className="h-4 w-4 shrink-0" />
+								{locationError}
 							</div>
-							{useAutoLocation && !isDetectingLocation && (
-								<span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-									<span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--accent)] opacity-75" />
-									<span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[var(--accent)]" />
-								</span>
-							)}
-						</div>
-						<div className="min-w-0 flex-1 text-left">
-							<p className="text-sm font-semibold text-[var(--text)]">
-								{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
-							</p>
-							{useAutoLocation && !isDetectingLocation && (
-								<p className="mt-0.5 truncate text-xs text-[var(--accent)]">
-									{locationName ?? t("browse_location.current_location_label")}
-								</p>
-							)}
-						</div>
-						{useAutoLocation && !isDetectingLocation && (
-							<span className="shrink-0 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-white">{t("browse_location.badge_active")}</span>
 						)}
-					</button>
 
-					{/* Divider */}
-					<div className="mx-[var(--app-px)] border-t border-[var(--border)]" />
-
-					{/* Search results OR current manual location */}
-					{isSearching ? (
-						locationResults.length > 0 ? (
-							locationResults.map((result) => (
-								<button
-									key={`${result.lat}:${result.lon}`}
-									type="button"
-									onClick={() => void saveAndClose(Number(result.lat), Number(result.lon), result.display_name)}
-									disabled={isSaving}
-									className="flex w-full items-center gap-3.5 px-[var(--app-px)] py-3.5 transition hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:opacity-60"
-								>
-									<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--text-muted)]">
-										<MapPin className="h-4 w-4" />
-									</div>
-									<span className="text-sm text-[var(--text)] line-clamp-2 text-left">{result.display_name}</span>
-								</button>
-							))
-						) : !isSearchingLocation ? (
-							<p className="px-[var(--app-px)] py-4 text-sm text-[var(--text-muted)]">{t("browse_location.error_search_failed_general")}</p>
-						) : null
-					) : !useAutoLocation && locationName ? (
-						/* Current manual location row */
-						<div className="flex items-center gap-3.5 px-[var(--app-px)] py-3.5">
-							<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
-								<MapPin className="h-4 w-4" />
-							</div>
-							<div className="min-w-0 flex-1">
-								<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">{t("browse_location.current_location_heading")}</p>
-								<p className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{locationName}</p>
-							</div>
-							<span className="shrink-0 rounded-full border border-[var(--accent)]/40 px-2 py-0.5 text-[10px] font-bold text-[var(--accent)]">{t("browse_location.badge_active")}</span>
-						</div>
-					) : null}
-
-					{/* Divider before map */}
-					{!isSearching && (
-						<>
-							<div className="mx-[var(--app-px)] border-t border-[var(--border)]" />
-
-							{/* Map picker row */}
-							<button
-								type="button"
-								onClick={() => { setMapPickerError(null); setIsMapOpen((v) => !v); }}
-								className="flex w-full items-center gap-3.5 px-[var(--app-px)] py-3.5 transition hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
-							>
-								<div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors ${isMapOpen ? "bg-[var(--accent)] text-white" : "bg-[var(--surface-2)] text-[var(--text-muted)]"}`}>
-									<Map className="h-4 w-4" />
+						{/* GPS card */}
+						<button
+							type="button"
+							onClick={() => void handleUseCurrentLocation()}
+							disabled={isDetectingLocation || isSaving}
+							className="group w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 text-left transition hover:border-[var(--accent)]/40 active:scale-[0.99] disabled:opacity-60"
+						>
+							<div className="flex items-center gap-4">
+								<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/30">
+									{isDetectingLocation ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
 								</div>
-								<p className="flex-1 text-left text-sm font-semibold text-[var(--text)]">
-									{t("browse_location.map_picker_title")}
-								</p>
-								<span className="shrink-0 text-xs text-[var(--text-muted)]">
-									{isMapOpen ? t("browse_location.map_picker_hide") : t("browse_location.map_picker_open")}
-								</span>
-							</button>
+								<div className="min-w-0 flex-1">
+									<div className="flex items-center gap-2">
+										<p className="font-semibold text-[var(--text)]">
+											{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
+										</p>
+										{useAutoLocation && !isDetectingLocation && (
+											<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-white">
+												{t("browse_location.badge_active")}
+											</span>
+										)}
+									</div>
+									<p className="mt-0.5 text-xs text-[var(--text-muted)]">
+										{useAutoLocation && locationName
+											? locationName
+											: t("browse_location.panel_subtitle")}
+									</p>
+								</div>
+							</div>
+						</button>
 
-							{isMapOpen && (
-								<div className="border-t border-[var(--border)]">
-									{mapPickerError ? (
-										<p className="px-[var(--app-px)] py-3 text-sm text-[var(--text-muted)]">{mapPickerError}</p>
-									) : (
-										<LeafletLocationPicker
-											selectedLocation={selectedLocation}
-											onPick={(lat, lon) => setSelectedLocation({ lat, lon, label: t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) }) })}
-											onError={setMapPickerError}
-											defaultZoom={11}
-											initialCenter={initialCenter}
-										/>
-									)}
-									{selectedLocation && (
-										<div className="flex items-center justify-between gap-3 border-t border-[var(--border)] px-[var(--app-px)] py-3">
-											<div className="flex min-w-0 items-center gap-2">
-												<MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-												<p className="truncate text-xs text-[var(--text-muted)]">{selectedLocation.label}</p>
+						{/* Search results */}
+						{isSearching ? (
+							locationResults.length > 0 ? (
+								<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+									{locationResults.map((result, i) => (
+										<button
+											key={`${result.lat}:${result.lon}`}
+											type="button"
+											onClick={() => void saveAndClose(Number(result.lat), Number(result.lon), result.display_name)}
+											disabled={isSaving}
+											className={`flex w-full items-center gap-3.5 bg-[var(--surface-2)] px-4 py-3.5 text-left transition hover:bg-[var(--surface-3,var(--surface))] active:bg-[var(--surface)] disabled:opacity-60 ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
+										>
+											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--text-muted)]">
+												<MapPin className="h-3.5 w-3.5" />
 											</div>
-											<button
-												type="button"
-												disabled={isSaving}
-												onClick={() => void handleUseMapSelection()}
-												className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-											>
-												{isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("browse_location.use_selected_location")}
-											</button>
+											<span className="text-sm text-[var(--text)] line-clamp-2">{result.display_name}</span>
+										</button>
+									))}
+								</div>
+							) : !isSearchingLocation ? (
+								<p className="py-2 text-sm text-[var(--text-muted)]">{t("browse_location.error_search_failed_general")}</p>
+							) : null
+						) : (
+							<>
+								{/* Current manual location card */}
+								{!useAutoLocation && locationName && (
+									<div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+										<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface)] text-[var(--accent)] shadow-sm">
+											<MapPin className="h-5 w-5" />
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+												{t("browse_location.current_location_heading")}
+											</p>
+											<p className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{locationName}</p>
+										</div>
+										<span className="shrink-0 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-white">
+											{t("browse_location.badge_active")}
+										</span>
+									</div>
+								)}
+
+								{/* Map picker card */}
+								<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+									<button
+										type="button"
+										onClick={() => { setMapPickerError(null); setIsMapOpen((v) => !v); }}
+										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))]"
+									>
+										<div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-colors ${isMapOpen ? "bg-[var(--accent)] text-white shadow-[var(--accent)]/30" : "bg-[var(--surface)] text-[var(--text-muted)]"}`}>
+											<Map className="h-5 w-5" />
+										</div>
+										<div className="flex-1">
+											<p className="font-semibold text-[var(--text)]">{t("browse_location.map_picker_title")}</p>
+											<p className="mt-0.5 text-xs text-[var(--text-muted)]">
+												{isMapOpen ? t("browse_location.map_picker_tap_hint") : t("browse_location.map_picker_instructions")}
+											</p>
+										</div>
+										<span className="shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
+											{isMapOpen ? t("browse_location.map_picker_hide") : t("browse_location.map_picker_open")}
+										</span>
+									</button>
+
+									{isMapOpen && (
+										<div className="border-t border-[var(--border)]">
+											{mapPickerError ? (
+												<p className="px-4 py-3 text-sm text-[var(--text-muted)]">{mapPickerError}</p>
+											) : (
+												<LeafletLocationPicker
+													selectedLocation={selectedLocation}
+													onPick={(lat, lon) => setSelectedLocation({
+														lat,
+														lon,
+														label: t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) }),
+													})}
+													onError={setMapPickerError}
+													defaultZoom={11}
+													initialCenter={initialCenter}
+												/>
+											)}
+											{selectedLocation && (
+												<div className="flex items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+													<div className="flex min-w-0 items-center gap-2">
+														<MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+														<p className="truncate text-xs text-[var(--text-muted)]">{selectedLocation.label}</p>
+													</div>
+													<button
+														type="button"
+														disabled={isSaving}
+														onClick={() => void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)}
+														className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-bold text-white shadow-md shadow-[var(--accent)]/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+													>
+														{isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("browse_location.use_selected_location")}
+													</button>
+												</div>
+											)}
 										</div>
 									)}
 								</div>
-							)}
-						</>
-					)}
+							</>
+						)}
+					</div>
 				</div>
 			</div>
 		</div>
 	);
-
-	async function handleUseMapSelection() {
-		if (!selectedLocation) return;
-		await saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label);
-	}
 }

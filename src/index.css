@@ -850,6 +850,17 @@
 }
 
 /* ── Leaflet dark mode ── */
+
+/* Invert only the map tiles — pin marker and controls are unaffected */
+:root[data-scheme="dark"] .leaflet-tile-pane {
+  filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) .leaflet-tile-pane {
+    filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
+  }
+}
+
 :root[data-scheme="dark"] .leaflet-bar a,
 :root[data-scheme="dark"] .leaflet-bar a:hover {
   background-color: var(--surface-2);

@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -1182,12 +1182,19 @@ export function GridPage() {
 								<button
 									type="button"
 									onClick={() => setIsLocationOpen(true)}
-									className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
+									className="inline-flex min-h-12 w-full items-center gap-2.5 rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] pl-2 pr-4 text-left transition active:scale-[0.99] overflow-hidden"
 								>
-									<MapPin className="h-4 w-4 shrink-0" />
-									<span className="truncate">
-										{locationName || t("browse_page.current_location")}
-									</span>
+									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
+										{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className={`truncate text-sm font-semibold leading-tight ${locationName ? "text-[var(--text)]" : "text-[var(--text-muted)]"}`}>
+											{locationName || t("browse_page.current_location")}
+										</p>
+										<p className="text-[10px] font-medium text-[var(--text-muted)]">
+											{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+										</p>
+									</div>
 								</button>
 							</div>
 
@@ -1351,9 +1358,12 @@ export function GridPage() {
 									<button
 										type="button"
 										onClick={() => setIsLocationOpen(true)}
-										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
+										className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
 									>
-										<MapPin className="h-3.5 w-3.5 shrink-0" />
+										{useAutoLocation
+											? <Navigation className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+											: <MapPin className={`h-3.5 w-3.5 shrink-0 ${locationName ? "text-[var(--accent)]" : ""}`} />
+										}
 										<span className="hidden lg:inline truncate">
 											{locationName || t("browse_page.location")}
 										</span>
