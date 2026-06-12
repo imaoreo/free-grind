@@ -254,6 +254,25 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			return parseJsonSafe(response);
 		},
 
+		/**
+		 * Batch-fetch profile cards for many ids in one request via the cascade
+		 * endpoint (POST /v3/profiles). Unlike GET /v7/profiles/{id}, this returns
+		 * displayName + media for profiles you've blocked, where the single-profile
+		 * endpoint comes back restricted/empty. Returns the raw `{ profiles: [...] }`
+		 * payload.
+		 */
+		async getProfilesByIds(profileIds: (number | string)[]): Promise<unknown> {
+			const targetProfileIds = profileIds
+				.map((id) => Number(id))
+				.filter((id) => !Number.isNaN(id));
+			const response = await fetchRest("/v3/profiles", {
+				method: "POST",
+				body: { targetProfileIds },
+			});
+			await assertSuccess(response, t("api.errors.load_profile"));
+			return parseJsonSafe(response);
+		},
+
 		async getVisitingMode(): Promise<VisitingMode> {
 			const response = await fetchRest("/v1/visiting/settings");
 			await assertSuccess(response, t("api.errors.load_visiting_mode"));

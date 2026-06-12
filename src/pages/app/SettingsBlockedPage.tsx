@@ -30,40 +30,6 @@ export function SettingsBlockedPage() {
 	const [isUnblockingAll, setIsUnblockingAll] = useState(false);
 	const [confirmUnblockAll, setConfirmUnblockAll] = useState(false);
 
-	const extractBlockedProfileMeta = useCallback(
-		(rawProfilePayload: unknown, profileId: string) => {
-			const fallbackName = t("profile_details.profile_fallback", { id: profileId });
-			if (typeof rawProfilePayload !== "object" || rawProfilePayload === null) {
-				return { displayName: fallbackName, avatarUrl: null };
-			}
-
-			const profiles = (rawProfilePayload as { profiles?: unknown }).profiles;
-			if (!Array.isArray(profiles) || profiles.length === 0) {
-				return { displayName: fallbackName, avatarUrl: null };
-			}
-
-			const first = profiles[0];
-			if (typeof first !== "object" || first === null) {
-				return { displayName: fallbackName, avatarUrl: null };
-			}
-
-			const displayNameRaw = (first as { displayName?: unknown }).displayName;
-			const displayName =
-				typeof displayNameRaw === "string" && displayNameRaw.trim().length > 0
-					? displayNameRaw.trim()
-					: fallbackName;
-
-			const hashRaw = (first as { profileImageMediaHash?: unknown }).profileImageMediaHash;
-			const avatarUrl =
-				typeof hashRaw === "string" && validateMediaHash(hashRaw)
-					? getThumbImageUrl(hashRaw, "75x75")
-					: null;
-
-			return { displayName, avatarUrl };
-		},
-		[t],
-	);
-
 	const loadBlockedProfileDetails = useCallback(
 		async (blockedIds: string[]) => {
 			setIsLoadingDetails(true);
@@ -75,28 +41,58 @@ export function SettingsBlockedPage() {
 					return;
 				}
 
-				const profileResults = await Promise.allSettled(
-					blockedIds.map(async (profileId) => {
-						const raw = await apiFunctions.getRawProfile(profileId);
-						const { displayName, avatarUrl } = extractBlockedProfileMeta(raw, profileId);
-						return { profileId, displayName, avatarUrl } satisfies BlockedProfileListItem;
+				// Batch-fetch details via the cascade endpoint in chunks of 50,
+				// rather than one GET /v7/profiles per id. The single-profile
+				// endpoint returns restricted data for blocked users (so names and
+				// avatars come back empty); POST /v3/profiles returns them.
+				const CHUNK_SIZE = 50;
+				const chunks: string[][] = [];
+				for (let i = 0; i < blockedIds.length; i += CHUNK_SIZE) {
+					chunks.push(blockedIds.slice(i, i + CHUNK_SIZE));
+				}
+
+				const detailsById = new Map<string, { displayName: string; avatarUrl: string | null }>();
+				await Promise.all(
+					chunks.map(async (chunk) => {
+						try {
+							const raw = await apiFunctions.getProfilesByIds(chunk);
+							const profiles =
+								raw && typeof raw === "object" && Array.isArray((raw as { profiles?: unknown }).profiles)
+									? (raw as { profiles: unknown[] }).profiles
+									: [];
+							for (const p of profiles) {
+								if (!p || typeof p !== "object") continue;
+								const idRaw = (p as { profileId?: unknown }).profileId;
+								if (idRaw == null) continue;
+								const profileId = String(idRaw);
+								const nameRaw = (p as { displayName?: unknown }).displayName;
+								const displayName =
+									typeof nameRaw === "string" && nameRaw.trim().length > 0
+										? nameRaw.trim()
+										: t("profile_details.profile_fallback", { id: profileId });
+								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+								const avatarUrl =
+									typeof hashRaw === "string" && validateMediaHash(hashRaw)
+										? getThumbImageUrl(hashRaw, "75x75")
+										: null;
+								detailsById.set(profileId, { displayName, avatarUrl });
+							}
+						} catch {
+							// Chunk failed — its ids fall back to id-only below.
+						}
 					}),
 				);
 
-				const successful = profileResults
-					.filter((r): r is PromiseFulfilledResult<BlockedProfileListItem> => r.status === "fulfilled")
-					.map((r) => r.value);
-
-				const successfulIds = new Set(successful.map((p) => p.profileId));
-				const fallbackItems = blockedIds
-					.filter((profileId) => !successfulIds.has(profileId))
-					.map((profileId) => ({
-						profileId,
-						displayName: t("profile_details.profile_fallback", { id: profileId }),
-						avatarUrl: null,
-					}));
-
-				setBlockedProfiles([...successful, ...fallbackItems]);
+				setBlockedProfiles(
+					blockedIds.map((profileId) => {
+						const meta = detailsById.get(profileId);
+						return {
+							profileId,
+							displayName: meta?.displayName ?? t("profile_details.profile_fallback", { id: profileId }),
+							avatarUrl: meta?.avatarUrl ?? null,
+						} satisfies BlockedProfileListItem;
+					}),
+				);
 			} catch (loadError) {
 				setBlockedProfiles([]);
 				setError(loadError instanceof Error ? loadError.message : t("settings_blocked.error_load"));
@@ -104,7 +100,7 @@ export function SettingsBlockedPage() {
 				setIsLoadingDetails(false);
 			}
 		},
-		[apiFunctions, extractBlockedProfileMeta, t],
+		[apiFunctions, t],
 	);
 
 	useEffect(() => {
