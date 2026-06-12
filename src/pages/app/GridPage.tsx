@@ -10,6 +10,7 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
 	getCachedBrowseCards,
@@ -32,6 +33,7 @@ import {
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
@@ -1106,8 +1108,10 @@ export function GridPage() {
 			)}
 			{/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */}
 			<PullToRefreshContainer
-				className="app-screen overflow-x-hidden !px-0"
-				style={{ width: "100%" }}
+				className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
+				contentClassName="flex flex-1 flex-col min-h-0"
+				style={{ overflow: "visible", overflowX: "hidden" }}
+				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 				onRefresh={async () => {
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
@@ -1128,7 +1132,9 @@ export function GridPage() {
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
-				<header className="mb-2 px-[var(--app-px)] sm:px-4">
+				<header className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
+					<PageHeaderBackground color="var(--accent)" />
+					<div className="pointer-events-auto px-[var(--app-px)] sm:px-4">
 					<div className="sm:hidden">
 						<div>
 							<div className="mb-1 flex items-center gap-2">
@@ -1425,34 +1431,37 @@ export function GridPage() {
 						</div>
 						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
 					</div>
+					</div>
 				</header>
 
-				<div
-					className={cn(
-						"transition-opacity duration-0",
-						hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
-							? "opacity-0"
-							: "opacity-100",
-					)}
-				>
-					<BrowseGrid
-						isLoadingCards={isLoadingCards}
-						cardsError={cardsError}
-						cards={sortedCards}
-						chatContactIndexByProfileId={
-							(SHOW_DEMO_DATA && showDebugInfo)
-								? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
-								: chatContactIndexByProfileId
-						}
-						onSelectProfile={handleSelectProfile}
-						onMessageProfile={handleMessageProfile}
-						hasMore={nextPage !== null}
-						isLoadingMore={isLoadingMoreCards}
-						onLoadMore={() => {
-							void handleLoadMoreCards();
-						}}
-					/>
-				</div>
+				<FeedScrollContainer ref={feedContainerRef}>
+					<div
+						className={cn(
+							"transition-opacity duration-0",
+							hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
+								? "opacity-0"
+								: "opacity-100",
+						)}
+					>
+						<BrowseGrid
+							isLoadingCards={isLoadingCards}
+							cardsError={cardsError}
+							cards={sortedCards}
+							chatContactIndexByProfileId={
+								(SHOW_DEMO_DATA && showDebugInfo)
+									? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
+									: chatContactIndexByProfileId
+							}
+							onSelectProfile={handleSelectProfile}
+							onMessageProfile={handleMessageProfile}
+							hasMore={nextPage !== null}
+							isLoadingMore={isLoadingMoreCards}
+							onLoadMore={() => {
+								void handleLoadMoreCards();
+							}}
+						/>
+					</div>
+				</FeedScrollContainer>
 			</PullToRefreshContainer>
 
 			<div
