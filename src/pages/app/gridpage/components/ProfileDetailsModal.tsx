@@ -673,7 +673,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							<button
 								type="button"
 								onClick={onClose}
-								className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
+								className={`shrink-0 rounded-xl border p-2 transition-colors ${headerScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 								aria-label={t("settings.back_to_browse")}
 							>
 								<ChevronLeft className="h-4 w-4" />

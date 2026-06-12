@@ -906,7 +906,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                                     <button
                                         type="button"
                                         onClick={() => navigate("/chat")}
-                                        className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+                                        className="shrink-0 rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
                                         aria-label={t("browse_location.back_aria")}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
@@ -1323,7 +1323,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						<button
 							type="button"
 							onClick={() => navigate("/")}
-							className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface-2)]"
+							className="shrink-0 rounded-xl border border-[var(--border)] p-2 text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 							aria-label={t("browse_location.back_aria")}
 						>
 							<ChevronLeft className="h-4 w-4" />
