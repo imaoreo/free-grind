@@ -733,8 +733,9 @@ export function ChatThreadMessages({
                                     ) : null}
 
                                     {imageUrl ? (
-                                        <button
-                                            type="button"
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 if (isDesktop) {
@@ -762,6 +763,7 @@ export function ChatThreadMessages({
                                                     });
                                                 });
                                             }}
+                                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                             className={`group/media ${isImageOnlyBubble ? `block w-full overflow-hidden ${hasReply ? "" : `rounded-2xl ${tailCorner}`}` : "mb-2 block overflow-hidden rounded-xl border border-black/10"}`}
                                             onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
                                             onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
@@ -856,12 +858,13 @@ export function ChatThreadMessages({
                                                     </div>
                                                 ) : null}
                                             </div>
-                                        </button>
+                                        </div>
                                     ) : null}
 
                                     {isAlbumOnlyBubble ? (
-                                        <button
-                                            type="button"
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={(event) => {
                                                 event.stopPropagation();
                                                 if (isDesktop) {
@@ -876,6 +879,7 @@ export function ChatThreadMessages({
                                                     if (albumId && !isLocked) void openAlbumViewerById(albumId);
                                                 });
                                             }}
+                                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                             className={`group/media block w-full overflow-hidden rounded-2xl ${tailCorner}`}
                                             onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
                                             onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
@@ -956,7 +960,7 @@ export function ChatThreadMessages({
                                                     </div>
                                                 </div>
                                             </div>
-                                        </button>
+                                        </div>
                                     ) : null}
 
                                         {gaymojiUrl ? (
@@ -999,8 +1003,9 @@ export function ChatThreadMessages({
                                             const videoMaxViews = typeof msgBody?.maxViews === "number" ? msgBody.maxViews : 2147483647;
                                             const isLimitedVideo = videoMaxViews !== 2147483647;
                                             return (
-                                                <button
-                                                    type="button"
+                                                <div
+                                                    role="button"
+                                                    tabIndex={0}
                                                     className={`group/media relative block overflow-hidden bg-black ${
                                                         isVideoOnlyBubble
                                                             ? `w-full ${hasReply ? "" : `rounded-2xl ${tailCorner}`}`
@@ -1027,6 +1032,7 @@ export function ChatThreadMessages({
                                                             openFullScreenImage(videoUrl, undefined, "video");
                                                         });
                                                     }}
+                                                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                                 >
                                                     {localOnly && (
                                                         <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
@@ -1099,7 +1105,7 @@ export function ChatThreadMessages({
                                                             </div>
                                                         </div>
                                                     )}
-                                                </button>
+                                                </div>
                                             );
                                         })() : null}
 
