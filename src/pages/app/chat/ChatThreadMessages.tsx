@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Hourglass, Lock, MessageCircleQuestion, Mic, Play, Reply, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ellipsis, Eye, Hourglass, Lock, MessageCircleQuestion, Mic, Play, Repeat2, Reply, VideoOff, ImageOff } from "lucide-react";
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -778,8 +778,9 @@ export function ChatThreadMessages({
                                                 </span>
                                             )}
                                             {isExpiringImage ? (
-                                                <div className="absolute right-3 top-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-black/65 px-1 text-xs font-semibold text-white ring-1 ring-white/25">
-                                                    {typeof msgBody?.viewsRemaining === "number" ? msgBody.viewsRemaining : 1}
+                                                <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                    <Eye className="h-3 w-3" />
+                                                    <span>{t("chat.attachments.view_once")}</span>
                                                 </div>
                                             ) : message.type === "Giphy" ? (
                                                 <div className="absolute right-3 top-3 inline-flex items-center rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
@@ -1040,17 +1041,17 @@ export function ChatThreadMessages({
                                                         className={`w-full object-cover ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
                                                     />
                                                     {isLimitedVideo && (
-                                                        <div className="absolute right-3 top-3 inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full bg-black/65 px-1 text-xs font-semibold text-white ring-1 ring-white/25">
-                                                            {typeof msgBody?.viewsRemaining === "number" ? (
-                                                                <>
-                                                                    <span>{msgBody.viewsRemaining}</span>
-                                                                    <span className="opacity-50">/</span>
-                                                                    <span className="opacity-70">{videoMaxViews}</span>
-                                                                </>
-                                                            ) : (
-                                                                <span>{videoMaxViews}</span>
-                                                            )}
-                                                        </div>
+                                                        videoMaxViews === 1 ? (
+                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                                <Eye className="h-3 w-3" />
+                                                                <span>{t("chat.attachments.view_once")}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                                <Repeat2 className="h-3 w-3" />
+                                                                <span>Replay</span>
+                                                            </div>
+                                                        )
                                                     )}
                                                     {!shouldBlurIncomingMedia && (
                                                         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -1109,7 +1110,7 @@ export function ChatThreadMessages({
                                         const audioDurationHint = audioLengthRaw != null
                                             ? (audioLengthRaw > 600 ? audioLengthRaw / 1000 : audioLengthRaw)
                                             : undefined;
-                                        console.log("[audio message]", { messageId: message.messageId, body: audioBody, audioLengthRaw, audioDurationHint });
+                                        //console.log("[audio message]", { messageId: message.messageId, body: audioBody, audioLengthRaw, audioDurationHint });
                                         return (
                                             <div onClick={(e) => e.stopPropagation()}>
                                                 <AudioMessagePlayer
