@@ -109,6 +109,7 @@ export default function App() {
 								<Route path="/chat" element={<ChatPage />} />
 								<Route path="/chat/filters" element={<ChatFiltersPage />} />
 								<Route path="/chat/search" element={<ChatSearchPage />} />
+								<Route path="/chat/albums" element={<SharedAlbumsPage />} />
 								<Route path="/chat/:conversationId" element={<ChatPage />} />
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
 								<Route path="/settings" element={<SettingsPage />} />
