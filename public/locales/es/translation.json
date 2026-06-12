@@ -38,7 +38,10 @@
         "issue_board": "Problemas y solicitudes de sugerencias",
         "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias.",
         "automation": "Automatización",
-        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar."
+        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar.",
+        "privacy": "Privacidad y análisis",
+        "privacy_desc": "Modo fantasma, desenfoque multimedia, y análisis.",
+        "check_updates_desc": "Descarga e instala la última versión de Free Grind."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -138,7 +141,7 @@
         "title": "Filtros Right Now",
         "subtitle": "Afina la página de Right Now",
         "apply": "Aplicar",
-        "position": "Posición",
+        "position": "Rol",
         "age_range": "Rango de edad",
         "back_aria": "Volver"
     },
@@ -347,9 +350,9 @@
                 "weight_placeholder": "Peso en kg",
                 "ethnicity": "Etnicidad",
                 "body_type": "Complexión física",
-                "show_position": "Mostrar posición",
-                "show_position_desc": "Permite a los demás ver tu posición en el perfil.",
-                "position": "Posición",
+                "show_position": "Mostrar rol",
+                "show_position_desc": "Permite a los demás ver tu rol en el perfil.",
+                "position": "Rol",
                 "show_tribes": "Mostrar tribus",
                 "show_tribes_desc": "Elige si tus tribus son visibles o no de forma pública.",
                 "relationship_status": "Situación amorosa",
@@ -589,7 +592,8 @@
             "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
             "location_shared": "Ubicación compartida",
-            "audio_label": "Audio"
+            "audio_label": "Audio",
+            "image_expired": "Caducado"
         },
         "actions": {
             "title": "Acciones de mensaje",
@@ -610,7 +614,7 @@
         },
         "attachments": {
             "ready_to_send": "Listo para enviar: {{file}}",
-            "looping": "",
+            "looping": "En bucle",
             "looping_description": "El vídeo se reproducirá en bucle",
             "max_views": "Vistas máx.",
             "view_once": "Ver una vez",
@@ -762,7 +766,7 @@
         "hiv_status": "Estado VIH",
         "last_tested": "Último análisis",
         "vaccines": "Vacunas",
-        "position": "Posición",
+        "position": "Rol",
         "height": "Altura",
         "weight": "Peso",
         "body_type": "Complexión física",
@@ -921,7 +925,31 @@
         "units_uk": "RU (metros + pies/pulgadas)",
         "units_american": "Inglés (millas + pies/pulgadas)",
         "blur_incoming_media": "Desenfocar contenido del chat",
-        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves."
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
+        "appearance": "Apariencia",
+        "layout": "Disposición",
+        "regional": "Regional",
+        "navigation_tabs": "Pestañas de navegación",
+        "show_right_now": "Pestaña Right Now",
+        "show_right_now_desc": "Muestra la pestaña Right Now en la parte inferior de navegación.",
+        "show_interest": "Pestaña interés",
+        "show_interest_desc": "Muestra la pestaña interés en la parte inferior de navegación.",
+        "default_interest_view": "Muestra la pestaña interés en la parte inferior de navegación",
+        "interest_show_taps": "Taps primero",
+        "interest_show_views": "Visitas primero",
+        "browse_grid_mobile_desc": "Ajusta cuántos perfiles aparecen por fila en el móvil.",
+        "preview_input": "Free Grind",
+        "preview_badge": "NUEVO",
+        "reveal_effect": {
+            "title": "Efecto de revelación",
+            "description": "El efecto de revelación anima los elementos según te desplazas hacia abajo. Puedes deshabilitarlo o cambiar su intensidad.",
+            "enable": "Habilitar efecto de revelación",
+            "enable_desc": "Muestra los elementos con una animación sutil cuando entren a la vista.",
+            "strengths": {
+                "subtle": "Sutil",
+                "pronounced": "Pronunciado"
+            }
+        }
     },
     "chat_filters": {
         "title": "Filtros de chat",
@@ -1219,5 +1247,13 @@
     },
     "common": {
         "cancel": "Cancelar"
+    },
+    "privacy": {
+        "ghost_mode": "Modo fantasma",
+        "global_ghost_mode": "Modo fantasma Global",
+        "global_ghost_mode_desc": "Oculta las confirmaciones de lectura en todos los chats. La otra persona no sabrá que has leído su mensaje hasta que respondas o desactives el modo fantasma.",
+        "per_chat_overrides": "Sobrescribir por chat (Botón de Ojo)",
+        "per_chat_overrides_desc": "Muestra un botón en la cabecera del chat para sobrescribir la configuración global para los chats especificados. Los chats que tengan el modo fantasma se resaltan en el buzón.",
+        "nsfw_content": "Contenido No Apto Para el Trabajo"
     }
 }
