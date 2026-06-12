@@ -15,6 +15,7 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
+import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -39,6 +40,53 @@ function getCounterparty(
 		profileId: otherParticipant.profileId,
 		mediaHash: otherParticipant.primaryMediaHash ?? null,
 	};
+}
+
+function AlbumCard({ item, onClick, t }: { item: SharedAlbumItem; onClick: () => void; t: (key: string) => string }) {
+	const { ref, revealClass } = useRevealOnScroll();
+	const previewUrl =
+		item.album.content?.thumbUrl ||
+		item.album.content?.url ||
+		item.album.content?.coverUrl ||
+		null;
+	const avatarUrl = item.profileMediaHash
+		? getThumbImageUrl(item.profileMediaHash, "320x320")
+		: null;
+
+	return (
+		<div ref={ref} className={revealClass}>
+			<button
+				type="button"
+				onClick={onClick}
+				className="surface-card relative w-full overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-0.5"
+			>
+				<div className="relative aspect-[4/6] w-full bg-[var(--surface-2)]">
+					{previewUrl ? (
+						<>
+							<img
+								src={previewUrl}
+								alt={item.album.albumName ?? t("shared_albums.preview_alt")}
+								className="h-full w-full scale-110 object-cover blur-xl"
+							/>
+							<div className="absolute inset-0 bg-black/25" />
+						</>
+					) : (
+						<div className="flex h-full w-full items-center justify-center text-[var(--text-muted)]">
+							<Album className="h-8 w-8" />
+						</div>
+					)}
+					<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
+						<div className="h-20 w-20 overflow-hidden rounded-full border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
+							<ProfileImage src={avatarUrl} alt={item.profileName} />
+						</div>
+						<p className="truncate text-base font-semibold leading-tight text-white drop-shadow">
+							{item.profileName}
+						</p>
+					</div>
+				</div>
+			</button>
+		</div>
+	);
 }
 
 export function SharedAlbumsPage() {
@@ -368,18 +416,14 @@ export function SharedAlbumsPage() {
 							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
 						>
 							<Album className="h-3.5 w-3.5" />
-							{isLoading
-								? <span className="h-3 w-5 animate-pulse rounded-full bg-[var(--accent)]/30" />
-								: items.length}
+							{isLoading ? 0 : items.length}
 						</div>
 						<div
 							className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)]"
 							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
 						>
 							<Users className="h-3.5 w-3.5" />
-							{isLoading
-								? <span className="h-3 w-4 animate-pulse rounded-full bg-[var(--accent)]/30" />
-								: profileCount}
+							{isLoading ? 0 : profileCount}
 						</div>
 						<button
 							type="button"
@@ -389,7 +433,7 @@ export function SharedAlbumsPage() {
 							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
 							aria-label={t("shared_albums.refresh")}
 						>
-							<RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+							<RefreshCw className={`h-3.5 w-3.5 ${isRefreshing || isLoading ? "animate-spin" : ""}`} />
 						</button>
 					</div>
 				</div>
@@ -441,50 +485,14 @@ export function SharedAlbumsPage() {
 								gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
 							}}
 						>
-							{items.map((item) => {
-								const previewUrl =
-									item.album.content?.thumbUrl ||
-									item.album.content?.url ||
-									item.album.content?.coverUrl ||
-									null;
-								const avatarUrl = item.profileMediaHash
-									? getThumbImageUrl(item.profileMediaHash, "320x320")
-									: null;
-
-								return (
-									<button
-										key={`${item.profileId}:${item.album.albumId}`}
-										type="button"
-										onClick={() => void openViewer(item)}
-										className="surface-card relative overflow-hidden rounded-2xl text-left transition-transform hover:-translate-y-0.5"
-									>
-										<div className="relative aspect-[4/6] w-full bg-[var(--surface-2)]">
-											{previewUrl ? (
-												<>
-													<img
-														src={previewUrl}
-														alt={item.album.albumName ?? t("shared_albums.preview_alt")}
-														className="h-full w-full scale-110 object-cover blur-xl"
-													/>
-													<div className="absolute inset-0 bg-black/25" />
-												</>
-											) : (
-												<div className="flex h-full w-full items-center justify-center text-[var(--text-muted)]">
-													<Album className="h-8 w-8" />
-												</div>
-											)}
-											<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
-												<div className="h-20 w-20 overflow-hidden rounded-full border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
-													<ProfileImage src={avatarUrl} alt={item.profileName} />
-												</div>
-												<p className="truncate text-base font-semibold leading-tight text-white drop-shadow">
-													{item.profileName}
-												</p>
-											</div>
-										</div>
-									</button>
-								);
-							})}
+							{items.map((item) => (
+								<AlbumCard
+									key={`${item.profileId}:${item.album.albumId}`}
+									item={item}
+									onClick={() => void openViewer(item)}
+									t={t}
+								/>
+							))}
 						</div>
 					)}
 				</div>
