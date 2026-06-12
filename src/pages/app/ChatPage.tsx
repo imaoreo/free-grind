@@ -948,8 +948,7 @@ export function ChatPage() {
 							imageType === "expiring_image";
 
 						if (!isImageLike) return false;
-						if (getMessageImageUrl(message as UiMessage)) return false;
-						return getMessageMediaId(message as UiMessage) !== null;
+						return !getMessageImageUrl(message as UiMessage);
 					});
 
                     // Images that have no URL (including those whose cached URL was expired
