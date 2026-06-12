@@ -107,25 +107,7 @@ function isSignedUrlExpired(url: string): boolean {
 	}
 }
 
-function logUrlExpiry(tag: string, url: string | null | undefined, extra?: Record<string, unknown>): void {
-	if (!url) {
-		appLog.warn(`[url-expiry] ${tag}: no url`, extra ?? {});
-		return;
-	}
-	try {
-		const expires = new URL(url).searchParams.get("Expires");
-		if (!expires) {
-			appLog.warn(`[url-expiry] ${tag}: no Expires param`, { url: url.slice(0, 120), ...extra });
-			return;
-		}
-		const expiresMs = Number(expires) * 1000;
-		const expired = Date.now() > expiresMs;
-		const diffSec = Math.round((expiresMs - Date.now()) / 1000);
-		appLog.warn(`[url-expiry] ${tag}: expired=${expired} expiresAt=${new Date(expiresMs).toISOString()} diffSec=${diffSec}`, { url: url.slice(0, 120), ...extra });
-	} catch {
-		appLog.warn(`[url-expiry] ${tag}: unparseable url`, { url: url.slice(0, 120), ...extra });
-	}
-}
+
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -922,7 +904,6 @@ export function ChatPage() {
 
 					// If the API already returned a fresh URL, use it as-is.
 					if (currentBody?.url) {
-						logUrlExpiry("api-fresh", currentBody.url as string, { messageId: message.messageId, type: message.type });
 						return message;
 					}
 
@@ -935,18 +916,6 @@ export function ChatPage() {
 							?? getMessageImageUrl(localMessage)
 							?? getMessageVideoUrl(localMessage))
 						: null;
-					if (localMessage && (message.type === "ExpiringImage" || message.type === "Image" || message.type === "Video" || message.type === "NonExpiringVideo")) {
-						appLog.warn(`[url-expiry] cache-restore local body keys`, {
-							messageId: message.messageId,
-							type: message.type,
-							hasCached: !!localMessage,
-							bodyKeys: localBody ? Object.keys(localBody) : null,
-							url: typeof localBody?.url === "string" ? localBody.url.slice(0, 120) : localBody?.url,
-							imageUrl: typeof localBody?.imageUrl === "string" ? localBody.imageUrl.slice(0, 120) : localBody?.imageUrl,
-							mediaUrl: typeof localBody?.mediaUrl === "string" ? localBody.mediaUrl.slice(0, 120) : localBody?.mediaUrl,
-						});
-					}
-					logUrlExpiry("cache-restore", cachedUrl, { messageId: message.messageId, type: message.type, hasCached: !!localMessage });
 					if (!cachedUrl || isSignedUrlExpired(cachedUrl)) {
 						return message;
 					}
@@ -1007,21 +976,8 @@ export function ChatPage() {
 								}
 
 								const hydrated = result.value as UiMessage;
-								const hydratedBody = hydrated.body as Record<string, unknown> | null | undefined;
-								appLog.warn(`[url-expiry] hydrate-image-getMessage raw body keys`, {
-									messageId: hydrated.messageId,
-									type: hydrated.type,
-									chat1Type: hydrated.chat1Type,
-									bodyKeys: hydratedBody ? Object.keys(hydratedBody) : null,
-									url: typeof hydratedBody?.url === "string" ? hydratedBody.url.slice(0, 120) : hydratedBody?.url,
-									imageUrl: typeof hydratedBody?.imageUrl === "string" ? hydratedBody.imageUrl.slice(0, 120) : hydratedBody?.imageUrl,
-									mediaUrl: typeof hydratedBody?.mediaUrl === "string" ? hydratedBody.mediaUrl.slice(0, 120) : hydratedBody?.mediaUrl,
-									signedUrl: typeof hydratedBody?.signedUrl === "string" ? hydratedBody.signedUrl.slice(0, 120) : hydratedBody?.signedUrl,
-								});
 								const resolvedUrl = getMessageImageUrl(hydrated);
-								logUrlExpiry("hydrate-image-getMessage", resolvedUrl, { messageId: hydrated.messageId, type: hydrated.type });
 								if (!resolvedUrl) {
-									appLog.warn(`[url-expiry] hydrate-image-getMessage: no url resolved → will fall through to fallback`, { messageId: hydrated.messageId, type: hydrated.type });
 									continue;
 								}
 
@@ -1030,7 +986,6 @@ export function ChatPage() {
 								const normalizedHydrated = (hydrated.body as any)?.url
 									? hydrated
 									: { ...hydrated, body: { ...(hydrated.body as Record<string, unknown> ?? {}), url: resolvedUrl } };
-								appLog.warn(`[url-expiry] hydrate-image-getMessage: saving to chatLog`, { messageId: hydrated.messageId, hadUrl: !!(hydrated.body as any)?.url });
 								hydratedMessages.push(normalizedHydrated);
 								unresolvedMessageIds.delete(hydrated.messageId);
 							}
@@ -1087,14 +1042,10 @@ export function ChatPage() {
 											body: { ...(message.body as Record<string, unknown>), url },
 										} as UiMessage;
 										if (getMessageImageUrl(hydrated)) {
-											logUrlExpiry("hydrate-image-sharedConversation", url, { messageId: message.messageId, type: message.type });
 											resolvedMessages.push(hydrated);
 											continue;
 										}
 									}
-									// Exhausted all options — mark as expired so the UI can
-									// render a "no longer available" state (same as _videoExpired).
-									appLog.warn(`[url-expiry] mark-image-expired: no url from getMessage or sharedConversationImages`, { messageId: message.messageId, type: message.type, mediaId });
 									expiredMessages.push({
 										...(message as UiMessage),
 										body: {
@@ -1165,14 +1116,12 @@ export function ChatPage() {
 								if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
 									const videoMsg = result.value as UiMessage;
 									const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
-									logUrlExpiry("hydrate-video-getMessage", resolvedVideoUrl, { messageId: videoMsg.messageId, type: videoMsg.type });
 									// Normalize to body.url for reliable cache restore.
 									const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
 										? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
 										: videoMsg;
 									updates.push(normalizedVideo);
 								} else {
-									appLog.warn(`[url-expiry] mark-video-expired: getMessage returned no url`, { messageId: original.messageId, type: original.type, fulfilled: result.status === "fulfilled" });
 									updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
 								}
 							}
