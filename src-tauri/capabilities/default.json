@@ -76,9 +76,16 @@
 				}
 			]
 		},
+		"fs:allow-appcache-write-recursive",
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
+		{
+			"identifier": "http:default",
+			"allow": [
+				{ "url": "https://*.cloudfront.net/*" }
+			]
+		},
 		"sql:default",
 		"sql:allow-load",
 		"sql:allow-execute",

@@ -7,6 +7,7 @@ import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "rea
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
+import { isIos, saveMediaToGallery } from "../../../services/saveMedia";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -1433,16 +1434,39 @@ export function ChatThreadMessages({
 																		<button
 																			type="button"
 																			onClick={() => {
-																				const url = imageUrl || videoUrl || audioUrl;
-																				if (!url) return;
-																				const a = document.createElement("a");
-																				a.href = url;
-																				a.download = `media-${Date.now()}`;
-																				a.target = "_blank";
-																				document.body.appendChild(a);
-																				a.click();
-																				document.body.removeChild(a);
 																				setOpenMessageActionId(null);
+																				const mediaUrl = imageUrl || videoUrl;
+
+																				if (mediaUrl && isIos()) {
+																					void (async () => {
+																						try {
+																							const saved = await saveMediaToGallery(
+																								mediaUrl,
+																								videoUrl ? "video" : "image",
+																							);
+																							if (saved) {
+																								toast.success(t("profile_details.save_to_gallery_success"));
+																							} else {
+																								toast.error(t("profile_details.save_to_gallery_unsupported"));
+																							}
+																						} catch (e) {
+																							appLog.error("Failed to save media to gallery", e);
+																							toast.error(t("profile_details.save_to_gallery_error"));
+																						}
+																					})();
+																					return;
+																				}
+
+																				const url = mediaUrl || audioUrl;
+																				if (url) {
+																					const a = document.createElement("a");
+																					a.href = url;
+																					a.download = `media-${Date.now()}`;
+																					a.target = "_blank";
+																					document.body.appendChild(a);
+																					a.click();
+																					document.body.removeChild(a);
+																				}
 																			}}
 																			className="rounded-md border border-black/20 px-2 py-1 transition hover:bg-black/10"
 																		>
