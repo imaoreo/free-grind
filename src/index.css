@@ -848,3 +848,68 @@
 .animate-trash-bounce {
   animation: trash-bounce 0.3s ease-out forwards;
 }
+
+/* ── Leaflet dark mode ── */
+:root[data-scheme="dark"] .leaflet-bar a,
+:root[data-scheme="dark"] .leaflet-bar a:hover {
+  background-color: var(--surface-2);
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+:root[data-scheme="dark"] .leaflet-bar a:hover {
+  background-color: var(--surface-3, var(--surface-2));
+}
+:root[data-scheme="dark"] .leaflet-bar a.leaflet-disabled {
+  background-color: var(--surface);
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-bar {
+  border-color: var(--border);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+}
+:root[data-scheme="dark"] .leaflet-control-attribution {
+  background-color: color-mix(in srgb, var(--bg) 80%, transparent);
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-control-attribution a {
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-popup-content-wrapper,
+:root[data-scheme="dark"] .leaflet-popup-tip {
+  background-color: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) .leaflet-bar a,
+  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
+    background-color: var(--surface-2);
+    color: var(--text);
+    border-bottom-color: var(--border);
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
+    background-color: var(--surface-3, var(--surface-2));
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar a.leaflet-disabled {
+    background-color: var(--surface);
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar {
+    border-color: var(--border);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  }
+  :root:not([data-scheme="light"]) .leaflet-control-attribution {
+    background-color: color-mix(in srgb, var(--bg) 80%, transparent);
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-control-attribution a {
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-popup-content-wrapper,
+  :root:not([data-scheme="light"]) .leaflet-popup-tip {
+    background-color: var(--surface-2);
+    color: var(--text);
+    box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+  }
+}

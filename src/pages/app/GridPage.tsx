@@ -49,6 +49,7 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
+import { LocationOverlay } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -225,6 +226,7 @@ export function GridPage() {
 	} = useBrowseFilters(persistedBrowseFilters);
 
 	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+	const [isLocationOpen, setIsLocationOpen] = useState(false);
 
 	const {
 		tappingProfileId,
@@ -1179,7 +1181,7 @@ export function GridPage() {
 
 								<button
 									type="button"
-									onClick={() => navigate("/browse/location")}
+									onClick={() => setIsLocationOpen(true)}
 									className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
 								>
 									<MapPin className="h-4 w-4 shrink-0" />
@@ -1348,7 +1350,7 @@ export function GridPage() {
 									</div>
 									<button
 										type="button"
-										onClick={() => navigate("/browse/location")}
+										onClick={() => setIsLocationOpen(true)}
 										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
 									>
 										<MapPin className="h-3.5 w-3.5 shrink-0" />
@@ -1631,6 +1633,10 @@ export function GridPage() {
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}
 			/>
+
+			{isLocationOpen && (
+				<LocationOverlay onClose={() => setIsLocationOpen(false)} />
+			)}
 
 			{isFiltersOpen && (
 				<BrowseFiltersOverlay

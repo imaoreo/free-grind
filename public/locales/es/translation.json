@@ -1025,7 +1025,11 @@
         "map_picker_instructions": "Abre el mapa para marcar un punto y guardar esa ubicación.",
         "map_picker_tap_hint": "Toca el mapa para marcarlo.",
         "use_selected_location": "Usa esta ubicación",
-        "back_aria": "Volver a Navegar"
+        "back_aria": "Volver a Navegar",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manual",
+        "badge_active": "Activo",
+        "current_location_heading": "Ubicación actual"
     },
     "issues_form": {
         "title": "Informar de error o sugerencia",
