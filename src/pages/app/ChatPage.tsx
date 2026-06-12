@@ -107,6 +107,26 @@ function isSignedUrlExpired(url: string): boolean {
 	}
 }
 
+function logUrlExpiry(tag: string, url: string | null | undefined, extra?: Record<string, unknown>): void {
+	if (!url) {
+		appLog.warn(`[url-expiry] ${tag}: no url`, extra ?? {});
+		return;
+	}
+	try {
+		const expires = new URL(url).searchParams.get("Expires");
+		if (!expires) {
+			appLog.warn(`[url-expiry] ${tag}: no Expires param`, { url: url.slice(0, 120), ...extra });
+			return;
+		}
+		const expiresMs = Number(expires) * 1000;
+		const expired = Date.now() > expiresMs;
+		const diffSec = Math.round((expiresMs - Date.now()) / 1000);
+		appLog.warn(`[url-expiry] ${tag}: expired=${expired} expiresAt=${new Date(expiresMs).toISOString()} diffSec=${diffSec}`, { url: url.slice(0, 120), ...extra });
+	} catch {
+		appLog.warn(`[url-expiry] ${tag}: unparseable url`, { url: url.slice(0, 120), ...extra });
+	}
+}
+
 export function ChatPage() {
 	const { t } = useTranslation();
 	const location = useLocation();
@@ -902,13 +922,31 @@ export function ChatPage() {
 
 					// If the API already returned a fresh URL, use it as-is.
 					if (currentBody?.url) {
+						logUrlExpiry("api-fresh", currentBody.url as string, { messageId: message.messageId, type: message.type });
 						return message;
 					}
 
 					// Restore the cached URL only when it hasn't expired yet.
 					// Expired → return message without URL so the hydration pass below
 					// calls getMessage() and fetches a new signed URL from the API.
-					const cachedUrl = typeof localBody?.url === "string" ? localBody.url : null;
+					// Check body.url first (normalized form), then fall back to any URL field.
+					const cachedUrl = localMessage
+						? ((typeof localBody?.url === "string" ? localBody.url : null)
+							?? getMessageImageUrl(localMessage)
+							?? getMessageVideoUrl(localMessage))
+						: null;
+					if (localMessage && (message.type === "ExpiringImage" || message.type === "Image" || message.type === "Video" || message.type === "NonExpiringVideo")) {
+						appLog.warn(`[url-expiry] cache-restore local body keys`, {
+							messageId: message.messageId,
+							type: message.type,
+							hasCached: !!localMessage,
+							bodyKeys: localBody ? Object.keys(localBody) : null,
+							url: typeof localBody?.url === "string" ? localBody.url.slice(0, 120) : localBody?.url,
+							imageUrl: typeof localBody?.imageUrl === "string" ? localBody.imageUrl.slice(0, 120) : localBody?.imageUrl,
+							mediaUrl: typeof localBody?.mediaUrl === "string" ? localBody.mediaUrl.slice(0, 120) : localBody?.mediaUrl,
+						});
+					}
+					logUrlExpiry("cache-restore", cachedUrl, { messageId: message.messageId, type: message.type, hasCached: !!localMessage });
 					if (!cachedUrl || isSignedUrlExpired(cachedUrl)) {
 						return message;
 					}
@@ -969,11 +1007,31 @@ export function ChatPage() {
 								}
 
 								const hydrated = result.value as UiMessage;
-								if (!getMessageImageUrl(hydrated)) {
+								const hydratedBody = hydrated.body as Record<string, unknown> | null | undefined;
+								appLog.warn(`[url-expiry] hydrate-image-getMessage raw body keys`, {
+									messageId: hydrated.messageId,
+									type: hydrated.type,
+									chat1Type: hydrated.chat1Type,
+									bodyKeys: hydratedBody ? Object.keys(hydratedBody) : null,
+									url: typeof hydratedBody?.url === "string" ? hydratedBody.url.slice(0, 120) : hydratedBody?.url,
+									imageUrl: typeof hydratedBody?.imageUrl === "string" ? hydratedBody.imageUrl.slice(0, 120) : hydratedBody?.imageUrl,
+									mediaUrl: typeof hydratedBody?.mediaUrl === "string" ? hydratedBody.mediaUrl.slice(0, 120) : hydratedBody?.mediaUrl,
+									signedUrl: typeof hydratedBody?.signedUrl === "string" ? hydratedBody.signedUrl.slice(0, 120) : hydratedBody?.signedUrl,
+								});
+								const resolvedUrl = getMessageImageUrl(hydrated);
+								logUrlExpiry("hydrate-image-getMessage", resolvedUrl, { messageId: hydrated.messageId, type: hydrated.type });
+								if (!resolvedUrl) {
+									appLog.warn(`[url-expiry] hydrate-image-getMessage: no url resolved → will fall through to fallback`, { messageId: hydrated.messageId, type: hydrated.type });
 									continue;
 								}
 
-								hydratedMessages.push(hydrated);
+								// Normalize the URL to body.url so the cache restore logic
+								// can reliably find it regardless of which field the API used.
+								const normalizedHydrated = (hydrated.body as any)?.url
+									? hydrated
+									: { ...hydrated, body: { ...(hydrated.body as Record<string, unknown> ?? {}), url: resolvedUrl } };
+								appLog.warn(`[url-expiry] hydrate-image-getMessage: saving to chatLog`, { messageId: hydrated.messageId, hadUrl: !!(hydrated.body as any)?.url });
+								hydratedMessages.push(normalizedHydrated);
 								unresolvedMessageIds.delete(hydrated.messageId);
 							}
 
@@ -1029,12 +1087,14 @@ export function ChatPage() {
 											body: { ...(message.body as Record<string, unknown>), url },
 										} as UiMessage;
 										if (getMessageImageUrl(hydrated)) {
+											logUrlExpiry("hydrate-image-sharedConversation", url, { messageId: message.messageId, type: message.type });
 											resolvedMessages.push(hydrated);
 											continue;
 										}
 									}
 									// Exhausted all options — mark as expired so the UI can
 									// render a "no longer available" state (same as _videoExpired).
+									appLog.warn(`[url-expiry] mark-image-expired: no url from getMessage or sharedConversationImages`, { messageId: message.messageId, type: message.type, mediaId });
 									expiredMessages.push({
 										...(message as UiMessage),
 										body: {
@@ -1103,8 +1163,16 @@ export function ChatPage() {
 								const result = results[i];
 								const original = mediaIdVideoMessages[i] as UiMessage;
 								if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
-									updates.push(result.value as UiMessage);
+									const videoMsg = result.value as UiMessage;
+									const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+									logUrlExpiry("hydrate-video-getMessage", resolvedVideoUrl, { messageId: videoMsg.messageId, type: videoMsg.type });
+									// Normalize to body.url for reliable cache restore.
+									const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+										? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+										: videoMsg;
+									updates.push(normalizedVideo);
 								} else {
+									appLog.warn(`[url-expiry] mark-video-expired: getMessage returned no url`, { messageId: original.messageId, type: original.type, fulfilled: result.status === "fulfilled" });
 									updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
 								}
 							}
@@ -1393,6 +1461,48 @@ export function ChatPage() {
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
+		// Hydrate real-time image messages that arrive without a URL.
+		const incomingImagesWithoutUrl = messages.filter((m) => {
+			const imageType = (m as UiMessage).chat1Type?.toLowerCase();
+			const isImageLike = m.type === "Image" || m.type === "ExpiringImage" || imageType === "image" || imageType === "expiring_image";
+			if (!isImageLike) return false;
+			return !getMessageImageUrl(m as UiMessage);
+		});
+		if (incomingImagesWithoutUrl.length > 0) {
+			void Promise.allSettled(
+				incomingImagesWithoutUrl.map((m) =>
+					service.getMessage({ conversationId: m.conversationId, messageId: m.messageId }),
+				),
+			).then((results) => {
+				const updates: UiMessage[] = [];
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i];
+					const original = incomingImagesWithoutUrl[i] as UiMessage;
+					if (result.status === "fulfilled" && getMessageImageUrl(result.value as UiMessage)) {
+						const imageMsg = result.value as UiMessage;
+						const resolvedImageUrl = getMessageImageUrl(imageMsg);
+						const normalizedImage = resolvedImageUrl && !(imageMsg.body as any)?.url
+							? { ...imageMsg, body: { ...(imageMsg.body as Record<string, unknown> ?? {}), url: resolvedImageUrl } }
+							: imageMsg;
+						updates.push(normalizedImage);
+					} else {
+						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _imageExpired: true } });
+					}
+				}
+				if (!updates.length) return;
+				void chatLog.appendMessages(
+					incomingImagesWithoutUrl[0].conversationId,
+					updates.filter((u) => !(u.body as any)?._imageExpired),
+				);
+				setThreadMessages((prev) => {
+					const map = new Map<string, UiMessage>();
+					for (const m of prev) map.set(m.messageId, m);
+					for (const m of updates) map.set(m.messageId, m);
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+			});
+		}
+
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
 			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
@@ -1410,12 +1520,21 @@ export function ChatPage() {
 					const result = results[i];
 					const original = incomingVideosWithoutUrl[i] as UiMessage;
 					if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
-						updates.push(result.value as UiMessage);
+						const videoMsg = result.value as UiMessage;
+						const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+						const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+							? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+							: videoMsg;
+						updates.push(normalizedVideo);
 					} else {
 						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
 					}
 				}
 				if (!updates.length) return;
+				const nonExpiredVideoUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
+				if (nonExpiredVideoUpdates.length > 0) {
+					void chatLog.appendMessages(incomingVideosWithoutUrl[0].conversationId, nonExpiredVideoUpdates);
+				}
 				setThreadMessages((prev) => {
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
