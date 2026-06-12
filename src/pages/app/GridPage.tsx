@@ -131,6 +131,7 @@ export function GridPage() {
 	});
 	const isMountedRef = useRef(true);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
+	const headerRef = useRef<HTMLElement | null>(null);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
@@ -545,39 +546,55 @@ export function GridPage() {
 		setHasRestoredScroll(false);
 	}, [browseCacheKey]);
 
-	// Periodically save scroll position for the current grid view
-	useEffect(() => {
-		const container = feedContainerRef.current;
-		if (!container) return;
-		const handleScroll = () => {
-			if (browseCacheKey && container.scrollTop > 0) {
-				sessionStorage.setItem(`grid-scroll-${browseCacheKey}`, container.scrollTop.toString());
-			}
-		};
-
-		container.addEventListener("scroll", handleScroll, { passive: true });
-		return () => container.removeEventListener("scroll", handleScroll);
-	}, [browseCacheKey, cards.length]);
-
-	// Restore scroll position when cards are loaded and we haven't restored yet
 	useLayoutEffect(() => {
-		if (
-			cards.length > 0 &&
-			!hasRestoredScroll &&
-			!isLoadingCards &&
-			browseCacheKey &&
-			feedContainerRef.current
-		) {
-			const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
-			if (saved) {
-				const scrollY = parseInt(saved, 10);
-				if (scrollY > 0) {
-					feedContainerRef.current.scrollTop = scrollY;
+		if (cards.length > 0 && !hasRestoredScroll && !isLoadingCards) {
+			const container = feedContainerRef.current;
+			if (browseCacheKey && container) {
+				const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
+				if (saved) {
+					const scrollY = parseInt(saved, 10);
+					if (scrollY > 0) {
+						container.scrollTop = scrollY;
+						// Snap so the topmost partially-visible tile aligns with the header bottom
+						const header = headerRef.current;
+						if (header) {
+							const headerBottom = header.getBoundingClientRect().bottom;
+							const tiles = container.querySelectorAll<HTMLElement>(".surface-card-grid");
+							for (const tile of tiles) {
+								const rect = tile.getBoundingClientRect();
+								if (rect.top < headerBottom && rect.bottom > headerBottom) {
+									container.scrollTop -= headerBottom - rect.top;
+									break;
+								}
+								if (rect.top >= headerBottom) break;
+							}
+						}
+					}
 				}
 			}
 			setHasRestoredScroll(true);
 		}
 	}, [cards.length, hasRestoredScroll, isLoadingCards, browseCacheKey]);
+
+	useEffect(() => {
+		if (!browseCacheKey) return;
+		const container = feedContainerRef.current;
+		if (!container) return;
+		const key = `grid-scroll-${browseCacheKey}`;
+		const handleScroll = () => {
+			sessionStorage.setItem(key, container.scrollTop.toString());
+		};
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	}, [browseCacheKey]);
+
+	useEffect(() => {
+		const handleScrollTop = () => {
+			feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+		};
+		window.addEventListener("browse-scroll-top", handleScrollTop);
+		return () => window.removeEventListener("browse-scroll-top", handleScrollTop);
+	}, []);
 
 	useEffect(() => {
 		const profileIds = cards.map((card) => card.profileId);
@@ -1132,7 +1149,7 @@ export function GridPage() {
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
-				<header className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
+				<header ref={headerRef} className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
 					<PageHeaderBackground color="var(--accent)" />
 					<div className="pointer-events-auto px-[var(--app-px)] sm:px-4">
 					<div className="sm:hidden">
