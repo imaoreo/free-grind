@@ -28,7 +28,7 @@ function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; 
 				<div
 					key={i}
 					className={cn(
-						"animate-pulse bg-[var(--surface-2)] relative aspect-[5/5] overflow-hidden",
+						"animate-pulse bg-[var(--surface-2)] relative w-full h-0 pb-[100%] overflow-hidden",
 						!isDesktop && "rounded-[4px]",
 						isDesktop && "rounded-xl",
 					)}
