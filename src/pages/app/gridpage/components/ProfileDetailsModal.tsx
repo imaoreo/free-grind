@@ -841,7 +841,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						style={{
 							paddingTop: "5rem",
 							paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)",
-							background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.55) 45%, transparent 100%)",
+							background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)",
 						}}
 					>
 						<div
