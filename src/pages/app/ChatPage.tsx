@@ -4,6 +4,7 @@ import {
 	type TouchEvent,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -48,12 +49,15 @@ import {
 } from "./chat/cache";
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
+import { ChatInboxHeader } from "./chat/ChatInboxHeader";
+import { ChatFiltersOverlay } from "./chat/ChatFiltersOverlay";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
 import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
+	buildChatFiltersDraft,
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
@@ -65,8 +69,10 @@ import {
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
-    formatDateTime24
+    formatDateTime24,
+	type ChatFiltersDraft,
 } from "./chat/chatUtils";
+import type { SearchMode } from "../../types/chat-page";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
 import {
@@ -78,7 +84,8 @@ import {
 	upsertChatContactIndexFromInbox,
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
-import { markInboxSeen } from "../../services/seenStore";
+import { markInboxSeen, getInboxLastSeen } from "../../services/seenStore";
+import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
@@ -99,6 +106,8 @@ function isSignedUrlExpired(url: string): boolean {
 		return false;
 	}
 }
+
+
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -140,6 +149,13 @@ export function ChatPage() {
 	const [hidePinned, setHidePinned] = useState(() => {
 		return localStorage.getItem("chat_hide_pinned") === "true";
 	});
+
+	// Header state (shared between ChatInboxHeader on desktop and ChatInboxPanel on mobile)
+	const [chatIsSearchOpen, setChatIsSearchOpen] = useState(false);
+	const [chatSearchQuery, setChatSearchQuery] = useState("");
+	const [chatSearchMode, setChatSearchMode] = useState<SearchMode>("messages");
+	const [chatIsFiltersOpen, setChatIsFiltersOpen] = useState(false);
+	const [chatFiltersDraft, setChatFiltersDraft] = useState<ChatFiltersDraft>(() => buildChatFiltersDraft({}));
 
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
@@ -209,6 +225,16 @@ export function ChatPage() {
 		Boolean(inboxFilters.onlineNowOnly) ||
 		(inboxFilters.positions?.length ?? 0) > 0 ||
 		inboxFilters.distanceMeters != null;
+
+	const chatActiveFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
 
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
 	activeInboxFiltersRef.current = activeInboxFilters;
@@ -438,7 +464,7 @@ export function ChatPage() {
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
-	const inboxTouchStartXRef = useRef<number | null>(null);
+
 	const inboxListRef = useRef<HTMLDivElement | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
@@ -465,6 +491,10 @@ export function ChatPage() {
 	useEffect(() => {
 		markInboxSeen(Math.max(Date.now(), maxActivityTimestamp));
 	}, [location.pathname, maxActivityTimestamp]);
+
+	// Scroll memory state (effects are placed after filteredConversations declaration)
+	const [hasRestoredInboxScroll, setHasRestoredInboxScroll] = useState(false);
+	const initialLastSeenInbox = useRef(getInboxLastSeen());
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");
@@ -589,31 +619,6 @@ export function ChatPage() {
 		};
 	}, [conversations, userId]);
 
-	const handleInboxTouchStart = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			inboxTouchStartXRef.current = event.touches[0]?.clientX ?? null;
-		},
-		[],
-	);
-
-	const handleInboxTouchEnd = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			const startX = inboxTouchStartXRef.current;
-			if (startX == null) {
-				return;
-			}
-
-			const endX = event.changedTouches[0]?.clientX ?? startX;
-			const deltaX = startX - endX;
-
-			if (deltaX > 70) {
-				navigate("/settings/shared-albums");
-			}
-
-			inboxTouchStartXRef.current = null;
-		},
-		[navigate],
-	);
 
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
@@ -905,7 +910,12 @@ export function ChatPage() {
 					// Restore the cached URL only when it hasn't expired yet.
 					// Expired → return message without URL so the hydration pass below
 					// calls getMessage() and fetches a new signed URL from the API.
-					const cachedUrl = typeof localBody?.url === "string" ? localBody.url : null;
+					// Check body.url first (normalized form), then fall back to any URL field.
+					const cachedUrl = localMessage
+						? ((typeof localBody?.url === "string" ? localBody.url : null)
+							?? getMessageImageUrl(localMessage)
+							?? getMessageVideoUrl(localMessage))
+						: null;
 					if (!cachedUrl || isSignedUrlExpired(cachedUrl)) {
 						return message;
 					}
@@ -938,8 +948,7 @@ export function ChatPage() {
 							imageType === "expiring_image";
 
 						if (!isImageLike) return false;
-						if (getMessageImageUrl(message as UiMessage)) return false;
-						return getMessageMediaId(message as UiMessage) !== null;
+						return !getMessageImageUrl(message as UiMessage);
 					});
 
                     // Images that have no URL (including those whose cached URL was expired
@@ -966,11 +975,17 @@ export function ChatPage() {
 								}
 
 								const hydrated = result.value as UiMessage;
-								if (!getMessageImageUrl(hydrated)) {
+								const resolvedUrl = getMessageImageUrl(hydrated);
+								if (!resolvedUrl) {
 									continue;
 								}
 
-								hydratedMessages.push(hydrated);
+								// Normalize the URL to body.url so the cache restore logic
+								// can reliably find it regardless of which field the API used.
+								const normalizedHydrated = (hydrated.body as any)?.url
+									? hydrated
+									: { ...hydrated, body: { ...(hydrated.body as Record<string, unknown> ?? {}), url: resolvedUrl } };
+								hydratedMessages.push(normalizedHydrated);
 								unresolvedMessageIds.delete(hydrated.messageId);
 							}
 
@@ -1030,8 +1045,6 @@ export function ChatPage() {
 											continue;
 										}
 									}
-									// Exhausted all options — mark as expired so the UI can
-									// render a "no longer available" state (same as _videoExpired).
 									expiredMessages.push({
 										...(message as UiMessage),
 										body: {
@@ -1100,7 +1113,13 @@ export function ChatPage() {
 								const result = results[i];
 								const original = mediaIdVideoMessages[i] as UiMessage;
 								if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
-									updates.push(result.value as UiMessage);
+									const videoMsg = result.value as UiMessage;
+									const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+									// Normalize to body.url for reliable cache restore.
+									const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+										? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+										: videoMsg;
+									updates.push(normalizedVideo);
 								} else {
 									updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
 								}
@@ -1390,6 +1409,48 @@ export function ChatPage() {
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
+		// Hydrate real-time image messages that arrive without a URL.
+		const incomingImagesWithoutUrl = messages.filter((m) => {
+			const imageType = (m as UiMessage).chat1Type?.toLowerCase();
+			const isImageLike = m.type === "Image" || m.type === "ExpiringImage" || imageType === "image" || imageType === "expiring_image";
+			if (!isImageLike) return false;
+			return !getMessageImageUrl(m as UiMessage);
+		});
+		if (incomingImagesWithoutUrl.length > 0) {
+			void Promise.allSettled(
+				incomingImagesWithoutUrl.map((m) =>
+					service.getMessage({ conversationId: m.conversationId, messageId: m.messageId }),
+				),
+			).then((results) => {
+				const updates: UiMessage[] = [];
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i];
+					const original = incomingImagesWithoutUrl[i] as UiMessage;
+					if (result.status === "fulfilled" && getMessageImageUrl(result.value as UiMessage)) {
+						const imageMsg = result.value as UiMessage;
+						const resolvedImageUrl = getMessageImageUrl(imageMsg);
+						const normalizedImage = resolvedImageUrl && !(imageMsg.body as any)?.url
+							? { ...imageMsg, body: { ...(imageMsg.body as Record<string, unknown> ?? {}), url: resolvedImageUrl } }
+							: imageMsg;
+						updates.push(normalizedImage);
+					} else {
+						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _imageExpired: true } });
+					}
+				}
+				if (!updates.length) return;
+				void chatLog.appendMessages(
+					incomingImagesWithoutUrl[0].conversationId,
+					updates.filter((u) => !(u.body as any)?._imageExpired),
+				);
+				setThreadMessages((prev) => {
+					const map = new Map<string, UiMessage>();
+					for (const m of prev) map.set(m.messageId, m);
+					for (const m of updates) map.set(m.messageId, m);
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+			});
+		}
+
 		// Hydrate real-time video messages that arrive without a URL.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
 			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
@@ -1407,12 +1468,21 @@ export function ChatPage() {
 					const result = results[i];
 					const original = incomingVideosWithoutUrl[i] as UiMessage;
 					if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
-						updates.push(result.value as UiMessage);
+						const videoMsg = result.value as UiMessage;
+						const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+						const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+							? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+							: videoMsg;
+						updates.push(normalizedVideo);
 					} else {
 						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
 					}
 				}
 				if (!updates.length) return;
+				const nonExpiredVideoUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
+				if (nonExpiredVideoUpdates.length > 0) {
+					void chatLog.appendMessages(incomingVideosWithoutUrl[0].conversationId, nonExpiredVideoUpdates);
+				}
 				setThreadMessages((prev) => {
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
@@ -1937,6 +2007,52 @@ export function ChatPage() {
 		}
 		return conversations;
 	}, [conversations, hidePinned]);
+
+	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
+	useEffect(() => {
+		const container = inboxListRef.current;
+		if (!container) return;
+		const handleScroll = () => {
+			sessionStorage.setItem("chat-inbox-scroll", JSON.stringify({
+				top: container.scrollTop,
+				timestamp: Date.now(),
+			}));
+		};
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [filteredConversations.length]);
+
+	// Scroll memory: restore position once on first load
+	useLayoutEffect(() => {
+		if (filteredConversations.length === 0 || isLoadingInbox || hasRestoredInboxScroll || !inboxListRef.current) return;
+		const storageKey = "chat-inbox-scroll";
+		if (maxActivityTimestamp > initialLastSeenInbox.current) {
+			sessionStorage.removeItem(storageKey);
+			inboxListRef.current.scrollTop = 0;
+			setHasRestoredInboxScroll(true);
+			return;
+		}
+		const saved = sessionStorage.getItem(storageKey);
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				if (parsed && typeof parsed === "object" && "top" in parsed) {
+					const { top, timestamp } = parsed as { top: number; timestamp: number };
+					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+						inboxListRef.current.scrollTop = top;
+					} else {
+						sessionStorage.removeItem(storageKey);
+					}
+				} else {
+					sessionStorage.removeItem(storageKey);
+				}
+			} catch {
+				sessionStorage.removeItem(storageKey);
+			}
+		}
+		setHasRestoredInboxScroll(true);
+	}, [filteredConversations.length, isLoadingInbox, hasRestoredInboxScroll, maxActivityTimestamp]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -3469,18 +3585,34 @@ export function ChatPage() {
 		};
 	}, [fullScreenImageUrl]);
 
+	const sharedInboxHeaderProps = {
+		realtimeStatusMeta,
+		inboxFilters,
+		hidePinned,
+		hasActiveInboxFilters,
+		activeFilterCount: chatActiveFilterCount,
+		isSearchOpen: chatIsSearchOpen,
+		searchQuery: chatSearchQuery,
+		searchMode: chatSearchMode,
+		onSetIsSearchOpen: setChatIsSearchOpen,
+		onSetSearchQuery: setChatSearchQuery,
+		onSetSearchMode: setChatSearchMode,
+		onSetIsFiltersOpen: setChatIsFiltersOpen,
+		onSetFiltersDraft: setChatFiltersDraft,
+		onToggleFavoritesOnly: toggleInboxFavoritesOnly,
+		onToggleHidePinned: () => setHidePinned((prev) => !prev),
+	} as const;
+
 	const renderInbox = (
 		<ChatInboxPanel
+			{...sharedInboxHeaderProps}
 			isDesktop={isDesktop}
+			showHeader={!isDesktop}
 			isLoadingInbox={isLoadingInbox}
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
-			inboxFilters={inboxFilters}
-			hidePinned={hidePinned}
-			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
-			realtimeStatusMeta={realtimeStatusMeta}
 			selectedConversationId={selectedConversationId}
 			userId={userId}
 			localNicknamesByProfileId={localNicknamesByProfileId}
@@ -3488,10 +3620,8 @@ export function ChatPage() {
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}
-			onRefreshInbox={() => void loadInbox({ page: 1, replace: true })}
+			onRefreshInbox={() => loadInbox({ page: 1, replace: true })}
 			onLoadMoreInbox={handleLoadMoreInbox}
-			onInboxTouchStart={handleInboxTouchStart}
-			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onViewProfile={(profileId) => {
 				const returnTo = getProfileReturnToChatPath(profileId);
@@ -3500,19 +3630,6 @@ export function ChatPage() {
 				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
 			}}
 			onClearInboxFilters={clearInboxFilters}
-			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
-			onToggleFavoritesOnly={toggleInboxFavoritesOnly}
-			onOpenFilters={(inboxFiltersDraft) =>
-				navigate("/chat/filters", {
-					state: {
-						inboxFiltersDraft,
-						returnTo: `${location.pathname}${location.search}`,
-					},
-				})
-			}
-			onOpenSearch={() => navigate("/chat/search")}
-			onOpenInbox={() => navigate("/chat")}
-			onOpenAlbums={() => navigate("/settings/shared-albums")}
 		/>
 	);
 
@@ -3637,31 +3754,40 @@ export function ChatPage() {
 		/>
 	);
 
-	return (
-		<section
-			className={`app-screen ${isDesktop ? "overflow-hidden" : "!p-0 !max-w-none !w-full"}`}
-		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
-
-        				{isSearchRoute ? (
-        					renderSearch
-        				) : isDesktop ? (
-        					<div
-        						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
-        						style={{
-        							height:
-        								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
-						}}
-					>
-						{renderInbox}
-						{renderThread}
-					</div>
-				) : selectedConversation ?? targetProfileId ? (
-					renderThread
+		return (
+			<section
+				className={`app-screen ${isDesktop ? "w-full !h-dvh !px-0 !pb-0 overflow-x-hidden flex flex-col" : "!p-0 !max-w-none !w-full"}`}
+			>
+				{isDesktop ? (
+					isSearchRoute ? (
+						<div className="mx-auto w-full max-w-6xl px-[var(--app-px)]">{renderSearch}</div>
+					) : (
+						<>
+							<ChatInboxHeader
+								{...sharedInboxHeaderProps}
+								isDesktop={true}
+							/>
+							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-3 grid grid-cols-[360px_minmax(0,1fr)] gap-3">
+								{renderInbox}
+								{renderThread}
+							</div>
+						</>
+					)
 				) : (
-					renderInbox
+					<div className="w-full">
+						{isSearchRoute ? renderSearch : selectedConversation ?? targetProfileId ? renderThread : renderInbox}
+					</div>
 				)}
-			</div>
+
+			{chatIsFiltersOpen && (
+				<ChatFiltersOverlay
+					isDesktop={isDesktop}
+					draft={chatFiltersDraft}
+					onChangeDraft={setChatFiltersDraft}
+					onClose={() => setChatIsFiltersOpen(false)}
+					onApply={setInboxFilters}
+				/>
+			)}
 
 			{isChatMediaSheetOpen && selectedConversation ? (() => {
 				const otherP = getOtherParticipant(selectedConversation, userId);

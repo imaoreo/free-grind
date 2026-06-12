@@ -51,6 +51,7 @@ export type BrowseFiltersDraft = {
 	meetAt: number[];
 	nsfwPics: number[];
 	tags: string[];
+	nicknameFilter: string;
 };
 
 type BrowseFiltersDraftInput = {
@@ -70,6 +71,7 @@ type BrowseFiltersDraftInput = {
 	meetAt?: number[];
 	nsfwPics?: number[];
 	tags?: string[];
+	nicknameFilter?: string;
 };
 
 const STORAGE_KEY = "open-grind:browse-filters";
@@ -100,6 +102,7 @@ export function getDefaultBrowseFiltersDraft(): BrowseFiltersDraft {
 		meetAt: [],
 		nsfwPics: [],
 		tags: [],
+		nicknameFilter: "",
 	};
 }
 
@@ -155,6 +158,7 @@ export function normalizeBrowseFiltersDraft(
 		meetAt: isNumberArray(draft.meetAt) ? draft.meetAt : defaults.meetAt,
 		nsfwPics: isNumberArray(draft.nsfwPics) ? draft.nsfwPics : defaults.nsfwPics,
 		tags: isStringArray(draft.tags) ? draft.tags : defaults.tags,
+		nicknameFilter: typeof draft.nicknameFilter === "string" ? draft.nicknameFilter : defaults.nicknameFilter,
 	};
 }
 

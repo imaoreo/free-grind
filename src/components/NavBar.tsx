@@ -323,7 +323,7 @@ export function NavBar() {
 									value={item.value}
 									onClick={() => {
 										if (item.value === "browse" && activeTab === "browse") {
-											window.scrollTo({ top: 0, behavior: "smooth" });
+											window.dispatchEvent(new CustomEvent("browse-scroll-top"));
 										}
 									}}
 									className={cn(

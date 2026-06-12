@@ -40,6 +40,28 @@ export function buildChatFiltersDraft(filters: InboxFilters): ChatFiltersDraft {
 	};
 }
 
+export function draftToFilters(draft: ChatFiltersDraft): InboxFilters {
+	const distanceMeters =
+		typeof draft.distanceMeters === "string" && draft.distanceMeters.trim() !== ""
+			? Number(draft.distanceMeters)
+			: undefined;
+	return {
+		unreadOnly: draft.unreadOnly || undefined,
+		chemistryOnly: draft.chemistryOnly || undefined,
+		favoritesOnly: draft.favoritesOnly || undefined,
+		rightNowOnly: draft.rightNowOnly || undefined,
+		onlineNowOnly: draft.onlineNowOnly || undefined,
+		positions:
+			isNumberArray(draft.positions) && draft.positions.length > 0
+				? draft.positions
+				: undefined,
+		distanceMeters:
+			typeof distanceMeters === "number" && Number.isFinite(distanceMeters)
+				? distanceMeters
+				: undefined,
+	};
+}
+
 export function parseChatFiltersFromLocationState(state: unknown): InboxFilters | null {
 	const safe =
 		typeof state === "object" && state !== null
