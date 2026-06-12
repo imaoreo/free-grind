@@ -40,6 +40,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
+import { isIos } from "../../../services/saveMedia";
 import {
 	useModalClose,
 } from "../../../hooks/useModalClose";
@@ -135,7 +136,7 @@ type ChatThreadPanelProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video") => void;
 	openAlbumViewerById: (albumId: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -2080,27 +2081,49 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
     );
 })()}
 
-                                    {/* --- DOWNLOAD BUTTON (MOBILE) --- */}
+                                    {/* --- DOWNLOAD / OPEN MEDIA BUTTON (MOBILE) --- */}
 									{(() => {
 										const imageUrl = getMessageImageUrl(selectedActionMessage);
 										const videoUrl = getMessageVideoUrl(selectedActionMessage);
 										const audioUrl = getMessageAudioUrl(selectedActionMessage);
-										const mediaUrl = imageUrl || videoUrl || audioUrl;
-										
-										if (!mediaUrl) return null;
+										const mediaUrl = imageUrl || videoUrl;
+
+										if (!mediaUrl && !audioUrl) return null;
+
+										if (mediaUrl && isIos()) {
+											return (
+												<button
+													type="button"
+													onClick={(event) => {
+														event.preventDefault();
+														event.stopPropagation();
+														setOpenMessageActionId(null);
+														openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image");
+													}}
+													className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
+												>
+													Open Media
+												</button>
+											);
+										}
 
 										return (
 											<button
 												type="button"
-												onClick={() => {
-													const a = document.createElement("a");
-													a.href = mediaUrl;
-													a.download = `media-${Date.now()}`;
-													a.target = "_blank";
-													document.body.appendChild(a);
-													a.click();
-													document.body.removeChild(a);
+												onClick={(event) => {
+													event.preventDefault();
+													event.stopPropagation();
 													setOpenMessageActionId(null);
+													const url = mediaUrl || audioUrl;
+													if (url) {
+														const a = document.createElement("a");
+														a.href = url;
+														a.download = `media-${Date.now()}`;
+														a.target = "_blank";
+														document.body.appendChild(a);
+														a.click();
+														document.body.removeChild(a);
+													}
 												}}
 												className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
 											>

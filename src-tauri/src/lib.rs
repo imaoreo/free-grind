@@ -91,14 +91,20 @@ pub fn run() {
             }
         };
 
-        tauri::Builder::default()
+        let builder = tauri::Builder::default()
             .plugin(hotswap)
             .plugin(tauri_plugin_notification::init())
             .plugin(tauri_plugin_os::init())
             .plugin(tauri_plugin_geolocation::init())
             .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_http::init())
             .plugin(tauri_plugin_sql::Builder::default().build())
-            .plugin(tauri_plugin_opener::init())
+            .plugin(tauri_plugin_opener::init());
+
+        #[cfg(target_os = "ios")]
+        let builder = builder.plugin(tauri_plugin_ios_photos::init());
+
+        builder
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
             .invoke_handler(tauri::generate_handler![
