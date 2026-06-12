@@ -191,7 +191,8 @@
         "local_filters": {
             "title": "Filtros locais",
             "description": "Estes filtros são aplicados instantaneamente aos perfis já carregados.",
-            "is_visiting": "Visitando"
+            "is_visiting": "Visitando",
+            "nickname_placeholder": "Name…"
         }
     },
     "browse_location": {

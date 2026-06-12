@@ -199,7 +199,8 @@
         "local_filters": {
             "title": "Lokale Filter",
             "description": "Diese Filter werden sofort auf die bereits geladenen Profile angewendet.",
-            "is_visiting": "Auf Besuch"
+            "is_visiting": "Auf Besuch",
+            "nickname_placeholder": "Name…"
         }
     },
     "browse_location": {

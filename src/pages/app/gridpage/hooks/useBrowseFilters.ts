@@ -34,6 +34,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 	const [meetAt, setMeetAt] = useState<number[]>(persistedBrowseFilters.meetAt);
 	const [nsfwPics, setNsfwPics] = useState<number[]>(persistedBrowseFilters.nsfwPics);
 	const [tags, setTags] = useState<string[]>(persistedBrowseFilters.tags);
+	const [nicknameFilter, setNicknameFilter] = useState(persistedBrowseFilters.nicknameFilter);
 	const [sortBy, setSortBy] = useState<BrowseSortOption>(persistedBrowseFilters.sortBy);
 
 	// Apply incoming filter state from navigation and then clear it
@@ -64,6 +65,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setMeetAt(normalized.meetAt);
 		setNsfwPics(normalized.nsfwPics);
 		setTags(normalized.tags);
+		setNicknameFilter(normalized.nicknameFilter);
 
 		// Clear the state from the history entry so it doesn't re-apply when returning to this page
 		navigate(location.pathname + location.search, {
@@ -91,6 +93,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 			meetAt,
 			nsfwPics,
 			tags,
+			nicknameFilter,
 		});
 	}, [
 		browseFilters,
@@ -108,6 +111,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		meetAt,
 		nsfwPics,
 		tags,
+		nicknameFilter,
 		sortBy,
 	]);
 
@@ -226,11 +230,10 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 
 	const activeFilterCount = useMemo(() => {
 		let count = Object.keys(browseRequestFilters).length;
-		if (browseFilters.isVisiting) {
-			count += 1;
-		}
+		if (browseFilters.isVisiting) count += 1;
+		if (nicknameFilter) count += 1;
 		return count;
-	}, [browseRequestFilters, browseFilters.isVisiting]);
+	}, [browseRequestFilters, browseFilters.isVisiting, nicknameFilter]);
 
 	const hasActiveBrowseFilters = activeFilterCount > 0;
 
@@ -250,6 +253,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setMeetAt([]);
 		setNsfwPics([]);
 		setTags([]);
+		setNicknameFilter("");
 	};
 
 	const applyDraft = (draft: BrowseFiltersDraft) => {
@@ -270,6 +274,7 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setMeetAt(normalized.meetAt);
 		setNsfwPics(normalized.nsfwPics);
 		setTags(normalized.tags);
+		setNicknameFilter(normalized.nicknameFilter);
 	};
 
 	return {
@@ -303,6 +308,8 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setNsfwPics,
 		tags,
 		setTags,
+		nicknameFilter,
+		setNicknameFilter,
 		sortBy,
 		setSortBy,
 		browseRequestFilters,

@@ -77,6 +77,11 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 		handleClose();
 	};
 
+	const clearAndReturn = () => {
+		onApply({ ageMin: 18, ageMax: 99, positionFilter: "" });
+		handleClose();
+	};
+
 	return (
 		<div
 			className={`fixed inset-0 z-[55] flex flex-col no-touch-callout isolate ${
@@ -192,6 +197,13 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 					className="relative z-10 shrink-0 border-t border-[var(--border)] px-[var(--app-px)] pt-3 flex gap-2"
 					style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
 				>
+					<button
+						type="button"
+						onClick={clearAndReturn}
+						className="flex-1 rounded-2xl border border-[var(--border)] py-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--right-now)] hover:text-[var(--text)]"
+					>
+						{t("browse_filters.clear_all")}
+					</button>
 					<button
 						type="button"
 						onClick={applyAndReturn}
