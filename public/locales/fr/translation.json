@@ -38,7 +38,10 @@
         "issue_board": "Bugs & Suggestions",
         "issue_board_desc": "Parcourez et recherchez les bugs signalés et les suggestions de fonctionnalités.",
         "automation": "Automatisation",
-        "automation_desc": "Configurer les règles de blocage automatisées et l'actualisation automatique de la grille."
+        "automation_desc": "Configurer les règles de blocage automatisées et l'actualisation automatique de la grille.",
+        "privacy": "Confidentialité et Statistiques",
+        "privacy_desc": "Mode fantôme, flou des médias et statistiques.",
+        "check_updates_desc": "Télécharger et installer la dernière version de Free Grindr."
     },
     "shared_albums": {
         "subtitle": "Explorez tous les albums partagés par les autres dans vos chats.",
@@ -108,7 +111,31 @@
         "update_now": "Mettre à jour maintenant",
         "remaining": "restantes",
         "visibility": "Visibilité",
-        "remaining_count": "disponible(s)"
+        "remaining_count": "disponible(s)",
+        "show_on_map": "Montrez-moi sur la carte",
+        "status_hidden": "Actuellement caché",
+        "status_visible": "Visible publiquement",
+        "weekly_limit": "Sessions hebdomadaires",
+        "next_refresh": "Prochaine actualisation",
+        "refresh_time": "Vendredi, 17h00",
+        "limit_reached_title": "Limite atteinte",
+        "limit_reached_desc": "Tu as utilisé toutes tes sessions disponibles cette semaine.",
+        "uploading": "Téléchargement en cours...",
+        "updating": "Mise à jour en cours...",
+        "starting_session": "Démarrage de la session...",
+        "ending_session": "Fermeture de la session...",
+        "end_session": "Session terminée",
+        "session_updated": "Session mise à jour !",
+        "session_created": "Session démarrée !",
+        "session_ended": "Session terminée",
+        "session_expired": "Session expirée",
+        "error_fetch_session": "Impossible de charger les données de la session",
+        "error_upload": "Échec du téléchargement",
+        "error_session_failed": "Échec du démarrage de la session",
+        "error_session_update_failed": "Échec de la mise à jour de la session",
+        "error_end_failed": "Impossible de terminer la session",
+        "upload_preview_alt": "Aperçu du chargement",
+        "close_aria": "Fermer"
     },
     "right_now_filters": {
         "title": "Filtres Right Now",
@@ -150,6 +177,11 @@
             "oldest": "Le plus âgé",
             "popular": "Populaire",
             "name_az": "Nom (A-Z)"
+        },
+        "local_filters": {
+            "title": "Filtres locaux",
+            "description": "Ces filtres s'appliquent instantanément aux profils déjà chargés.",
+            "is_visiting": "En visite"
         }
     },
     "about_page": {
@@ -287,22 +319,22 @@
                 "no_tags_added": "Aucun tag ajouté pour le moment."
             },
             "visiting_mode": {
-                "title": "",
-                "description": "",
-                "loading": "",
-                "error": "",
+                "title": "Mode",
+                "description": "Désactivé, en visite ou automatique",
+                "loading": "Chargement du mode…",
+                "error": "Impossible de charger le mode.",
                 "options": {
                     "auto": {
-                        "label": "",
-                        "description": ""
+                        "label": "Automatique",
+                        "description": "Laisser Grindr choisir le mode selon la localisation."
                     },
                     "home": {
-                        "label": "",
-                        "description": ""
+                        "label": "Désactivé",
+                        "description": "Affiche le profil en mode normal."
                     },
                     "visiting": {
-                        "label": "",
-                        "description": ""
+                        "label": "En visite",
+                        "description": "Affiche le profil en mode visiteur."
                     }
                 }
             },
@@ -425,7 +457,31 @@
         "units_uk": "Royaume-Uni (mètres + pieds/pouces)",
         "units_american": "Américain (miles + pieds/pouces)",
         "blur_incoming_media": "Flouter les médias du chat",
-        "blur_incoming_media_description": "Floute automatiquement les images et vidéos dans les chats. Sur ordinateur, survolez ou cliquez pour révéler. Dans les chats, les médias révélés sont à nouveau floutés lorsque vous quittez et revenez."
+        "blur_incoming_media_description": "Floute automatiquement les images et vidéos dans les chats. Sur ordinateur, survolez ou cliquez pour révéler. Dans les chats, les médias révélés sont à nouveau floutés lorsque vous quittez et revenez.",
+        "appearance": "Apparence",
+        "layout": "Mise en page",
+        "regional": "Régional",
+        "navigation_tabs": "Onglets de navigation",
+        "show_right_now": "Onglet Right Now",
+        "show_right_now_desc": "Afficher l'onglet Right Now dans la barre de navigation.",
+        "show_interest": "Onglet Interest",
+        "show_interest_desc": "Afficher l'onglet Interest dans la barre de navigation.",
+        "default_interest_view": "Vue par défaut dans l'onglet Interest",
+        "interest_show_taps": "Taps",
+        "interest_show_views": "Vues",
+        "browse_grid_mobile_desc": "Ajuster le nombre de profils affichés par ligne sur mobile.",
+        "reveal_effect": {
+            "title": "Effet de révélation",
+            "description": "L'effet de révélation anime les éléments lorsque vous faites défiler vers le bas. Vous pouvez le désactiver ou modifier son intensité.",
+            "enable": "Activer l'effet de révélation",
+            "enable_desc": "Afficher les éléments avec une animation subtile lorsqu'ils entrent dans la fenêtre d'affichage.",
+            "strengths": {
+                "subtle": "Subtile",
+                "pronounced": "Prononcé"
+            }
+        },
+        "preview_input": "Free Grind",
+        "preview_badge": "NOUVEAU"
     },
     "auth": {
         "common": {
@@ -659,7 +715,9 @@
         "view_profile": "Voir le profil",
         "received_media": "Médias reçus",
         "favorite": "Favori",
-        "share_album_label": "Partager l'album"
+        "share_album_label": "Partager l'album",
+        "share_location_label": "Partager la localisation",
+        "share_location_confirm": "Partager cette localisation ?"
     },
     "profile_details": {
         "title": "Détails du profil",
@@ -1153,5 +1211,12 @@
     },
     "common": {
         "cancel": "Annuler"
+    },
+    "privacy": {
+        "ghost_mode": "Mode fantôme",
+        "global_ghost_mode": "Mode fantôme global",
+        "global_ghost_mode_desc": "Masquer les accusés de lecture pour toutes les conversations. L'autre personne ne saura pas que vous avez lu son message tant que vous n'aurez pas répondu ou désactivé le mode fantôme.",
+        "per_chat_overrides_desc": "Afficher un bouton dans l'en-tête de la conversation pour remplacer le paramètre global pour des conversations spécifiques. Les conversations fantômes sont mises en évidence dans votre boîte de réception.",
+        "nsfw_content": "Contenu NSFW"
     }
 }
