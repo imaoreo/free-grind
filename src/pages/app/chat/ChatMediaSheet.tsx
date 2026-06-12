@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Images, LayoutGrid, Loader2, X } from "lucide-react";
+import { Download, Images, LayoutGrid, Loader2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { PhotoViewer } from "../../../components/PhotoViewer";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
+import { saveMediaBatch } from "../../../services/saveMedia";
+import { appLog } from "../../../utils/logger";
 import type { SharedConversationImage } from "../../../types/chat-service";
 
 type Tab = "albums" | "media";
@@ -48,6 +51,50 @@ export function ChatMediaSheet({
 	const [failedCovers, setFailedCovers] = useState<Set<number>>(new Set());
 	const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
 	const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+	const [isSavingAll, setIsSavingAll] = useState(false);
+
+	const handleSaveAll = async () => {
+		const urls = images.filter((i) => i.url).map((i) => i.url!);
+		if (urls.length === 0) {
+			toast.error(t("profile_details.save_all_empty"));
+			return;
+		}
+
+		setIsSavingAll(true);
+		const toastId = toast.loading(
+			t("profile_details.save_all_progress", { done: 0, total: urls.length }),
+		);
+		try {
+			const result = await saveMediaBatch(
+				urls.map((url) => ({ url, type: "image" as const })),
+				(done, total) => {
+					toast.loading(t("profile_details.save_all_progress", { done, total }), {
+						id: toastId,
+					});
+				},
+			);
+
+			if (result.failed === 0) {
+				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
+					id: toastId,
+				});
+			} else {
+				toast.error(
+					t("profile_details.save_all_partial", {
+						succeeded: result.succeeded,
+						total: result.total,
+						failed: result.failed,
+					}),
+					{ id: toastId },
+				);
+			}
+		} catch (error) {
+			appLog.error("[ChatMediaSheet] Save all failed", error);
+			toast.error(t("profile_details.save_all_error"), { id: toastId });
+		} finally {
+			setIsSavingAll(false);
+		}
+	};
 
 	// Load shared albums from API
 	useEffect(() => {
@@ -99,9 +146,22 @@ export function ChatMediaSheet({
 				{/* Header */}
 				<div className="flex items-center justify-between px-4 pb-3">
 					<p className="text-sm font-semibold text-[var(--text)]">{t("chat.media_sheet.title")}</p>
-					<SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
-						<X className="h-4 w-4" />
-					</SheetClose>
+					<div className="flex items-center gap-2">
+						{tab === "media" && images.length > 0 && (
+							<button
+								type="button"
+								onClick={() => void handleSaveAll()}
+								disabled={isSavingAll}
+								className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] disabled:opacity-50"
+							>
+								<Download className="h-3.5 w-3.5" />
+								{t("profile_details.save_all")}
+							</button>
+						)}
+						<SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+							<X className="h-4 w-4" />
+						</SheetClose>
+					</div>
 				</div>
 
 				{/* Tab bar */}
