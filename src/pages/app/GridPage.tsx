@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -10,6 +10,7 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
 	getCachedBrowseCards,
@@ -32,6 +33,7 @@ import {
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
@@ -44,9 +46,11 @@ import {
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
+import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
+import { LocationOverlay } from "./LocationOverlay";
+import type { BrowseFiltersDraft } from "./browse-filters-storage";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -127,6 +131,8 @@ export function GridPage() {
 		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
 	});
 	const isMountedRef = useRef(true);
+	const feedContainerRef = useRef<HTMLDivElement | null>(null);
+	const headerRef = useRef<HTMLElement | null>(null);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
@@ -215,7 +221,12 @@ export function GridPage() {
 		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
+		nicknameFilter,
+		applyDraft,
 	} = useBrowseFilters(persistedBrowseFilters);
+
+	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+	const [isLocationOpen, setIsLocationOpen] = useState(false);
 
 	const {
 		tappingProfileId,
@@ -538,36 +549,55 @@ export function GridPage() {
 		setHasRestoredScroll(false);
 	}, [browseCacheKey]);
 
-	// Periodically save scroll position for the current grid view
-	useEffect(() => {
-		const handleScroll = () => {
-			if (browseCacheKey && window.scrollY > 0) {
-				sessionStorage.setItem(`grid-scroll-${browseCacheKey}`, window.scrollY.toString());
-			}
-		};
-
-		window.addEventListener("scroll", handleScroll, { passive: true });
-		return () => window.removeEventListener("scroll", handleScroll);
-	}, [browseCacheKey]);
-
-	// Restore scroll position when cards are loaded and we haven't restored yet
 	useLayoutEffect(() => {
-		if (
-			cards.length > 0 &&
-			!hasRestoredScroll &&
-			!isLoadingCards &&
-			browseCacheKey
-		) {
-			const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
-			if (saved) {
-				const scrollY = parseInt(saved, 10);
-				if (scrollY > 0) {
-					window.scrollTo({ top: scrollY, behavior: "instant" });
+		if (cards.length > 0 && !hasRestoredScroll && !isLoadingCards) {
+			const container = feedContainerRef.current;
+			if (browseCacheKey && container) {
+				const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
+				if (saved) {
+					const scrollY = parseInt(saved, 10);
+					if (scrollY > 0) {
+						container.scrollTop = scrollY;
+						// Snap so the topmost partially-visible tile aligns with the header bottom
+						const header = headerRef.current;
+						if (header) {
+							const headerBottom = header.getBoundingClientRect().bottom;
+							const tiles = container.querySelectorAll<HTMLElement>(".surface-card-grid");
+							for (const tile of tiles) {
+								const rect = tile.getBoundingClientRect();
+								if (rect.top < headerBottom && rect.bottom > headerBottom) {
+									container.scrollTop -= headerBottom - rect.top;
+									break;
+								}
+								if (rect.top >= headerBottom) break;
+							}
+						}
+					}
 				}
 			}
 			setHasRestoredScroll(true);
 		}
 	}, [cards.length, hasRestoredScroll, isLoadingCards, browseCacheKey]);
+
+	useEffect(() => {
+		if (!browseCacheKey) return;
+		const container = feedContainerRef.current;
+		if (!container) return;
+		const key = `grid-scroll-${browseCacheKey}`;
+		const handleScroll = () => {
+			sessionStorage.setItem(key, container.scrollTop.toString());
+		};
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	}, [browseCacheKey]);
+
+	useEffect(() => {
+		const handleScrollTop = () => {
+			feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+		};
+		window.addEventListener("browse-scroll-top", handleScrollTop);
+		return () => window.removeEventListener("browse-scroll-top", handleScrollTop);
+	}, []);
 
 	useEffect(() => {
 		const profileIds = cards.map((card) => card.profileId);
@@ -799,6 +829,13 @@ export function GridPage() {
 			results = results.filter((card) => card.isVisiting === true);
 		}
 
+		if (nicknameFilter) {
+			const lower = nicknameFilter.toLowerCase();
+			results = results.filter((card) =>
+				card.displayName?.toLowerCase().includes(lower),
+			);
+		}
+
 		if (searchTerm) {
 			const lower = searchTerm.toLowerCase();
 			results = results.filter((card) => {
@@ -819,7 +856,7 @@ export function GridPage() {
 		}
 
 		return results;
-	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, searchTerm, favoriteNotes]);
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -1098,8 +1135,10 @@ export function GridPage() {
 			)}
 			{/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */}
 			<PullToRefreshContainer
-				className="app-screen overflow-x-hidden !px-0"
-				style={{ width: "100%" }}
+				className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
+				contentClassName="flex flex-1 flex-col min-h-0"
+				style={{ overflow: "visible", overflowX: "hidden" }}
+				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 5}
 				onRefresh={async () => {
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
@@ -1120,7 +1159,9 @@ export function GridPage() {
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
-				<header className="mb-2 px-[var(--app-px)] sm:px-4">
+				<header ref={headerRef} className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
+					<PageHeaderBackground color="var(--accent)" />
+					<div className="pointer-events-auto px-[var(--app-px)] sm:px-4">
 					<div className="sm:hidden">
 						<div>
 							<div className="mb-1 flex items-center gap-2">
@@ -1140,13 +1181,20 @@ export function GridPage() {
 
 								<button
 									type="button"
-									onClick={() => navigate("/browse/location")}
-									className="inline-flex min-h-12 w-full items-center justify-start gap-2 rounded-2xl bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] px-4 text-left text-base font-medium text-[var(--text-muted)] transition active:scale-[0.99] overflow-hidden"
+									onClick={() => setIsLocationOpen(true)}
+									className="inline-flex min-h-12 w-full items-center gap-2.5 rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] pl-2 pr-4 text-left transition active:scale-[0.99] overflow-hidden"
 								>
-									<MapPin className="h-4 w-4 shrink-0" />
-									<span className="truncate">
-										{locationName || t("browse_page.current_location")}
-									</span>
+									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
+										{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className={`truncate text-sm font-semibold leading-tight ${locationName ? "text-[var(--text)]" : "text-[var(--text-muted)]"}`}>
+											{locationName || t("browse_page.current_location")}
+										</p>
+										<p className="text-[10px] font-medium text-[var(--text-muted)]">
+											{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+										</p>
+									</div>
 								</button>
 							</div>
 
@@ -1154,44 +1202,23 @@ export function GridPage() {
 								<div className="flex min-w-max items-center gap-2 px-[var(--app-px)] ml-auto">
 									<button
 										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
-										className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+										onClick={() => setIsFiltersOpen(true)}
+										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] active:scale-95"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 									>
-										<span className="flex items-center gap-2">
-											<SlidersHorizontal className="h-4 w-4" />
-											{hasActiveBrowseFilters ? (
-												<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-													{activeFilterCount}
-												</span>
-											) : null}
-										</span>
+										<SlidersHorizontal className="h-3.5 w-3.5" />
+										{t("right_now.filters")}
+										{hasActiveBrowseFilters ? (
+											<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)]">
+												{activeFilterCount}
+											</span>
+										) : null}
 									</button>
 
-									<div className="relative inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
-										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+									<div className="glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold text-[var(--accent)]"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									>
+										<ListFilter className="mr-1.5 h-4 w-4 shrink-0" />
 										<select
 											value={sortBy}
 											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
@@ -1214,7 +1241,13 @@ export function GridPage() {
 												onlineOnly: !prev.onlineOnly,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											browseFilters.onlineOnly
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--accent)]"
+										)}
+										style={!browseFilters.onlineOnly ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 									>
 										{t("browse_filters.options.online")}
 									</button>
@@ -1227,7 +1260,13 @@ export function GridPage() {
 												favorites: !prev.favorites,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
+											browseFilters.favorites
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--accent)]"
+										)}
+										style={!browseFilters.favorites ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.favorites")}
 										title={t("browse_filters.options.favorites")}
 									>
@@ -1244,7 +1283,13 @@ export function GridPage() {
 												rightNow: !prev.rightNow,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
+											browseFilters.rightNow
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--accent)]"
+										)}
+										style={!browseFilters.rightNow ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.right_now")}
 										title={t("browse_filters.options.right_now")}
 									>
@@ -1261,7 +1306,13 @@ export function GridPage() {
 												isVisiting: !prev.isVisiting,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex size-9 shrink-0 items-center justify-center text-sm font-bold transition-all active:scale-95",
+											browseFilters.isVisiting
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--accent)]"
+										)}
+										style={!browseFilters.isVisiting ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("profile_details.visiting")}
 										title={t("profile_details.visiting")}
 									>
@@ -1274,7 +1325,8 @@ export function GridPage() {
 										<button
 											type="button"
 											onClick={clearBrowseFilters}
-											className="inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+											className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] transition-all active:scale-95"
+											style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 										>
 											{t("browse_filters.clear_all")}
 										</button>
@@ -1305,40 +1357,20 @@ export function GridPage() {
 									</div>
 									<button
 										type="button"
-										onClick={() => navigate("/browse/location")}
-										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
+										onClick={() => setIsLocationOpen(true)}
+										className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
 									>
-										<MapPin className="h-3.5 w-3.5 shrink-0" />
+										{useAutoLocation
+											? <Navigation className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+											: <MapPin className={`h-3.5 w-3.5 shrink-0 ${locationName ? "text-[var(--accent)]" : ""}`} />
+										}
 										<span className="hidden lg:inline truncate">
 											{locationName || t("browse_page.location")}
 										</span>
 									</button>
 									<button
 										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
+										onClick={() => setIsFiltersOpen(true)}
 										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 									>
 										<SlidersHorizontal className="h-3.5 w-3.5" />
@@ -1463,34 +1495,37 @@ export function GridPage() {
 						</div>
 						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
 					</div>
+					</div>
 				</header>
 
-				<div
-					className={cn(
-						"transition-opacity duration-0",
-						hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
-							? "opacity-0"
-							: "opacity-100",
-					)}
-				>
-					<BrowseGrid
-						isLoadingCards={isLoadingCards}
-						cardsError={cardsError}
-						cards={sortedCards}
-						chatContactIndexByProfileId={
-							(SHOW_DEMO_DATA && showDebugInfo)
-								? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
-								: chatContactIndexByProfileId
-						}
-						onSelectProfile={handleSelectProfile}
-						onMessageProfile={handleMessageProfile}
-						hasMore={nextPage !== null}
-						isLoadingMore={isLoadingMoreCards}
-						onLoadMore={() => {
-							void handleLoadMoreCards();
-						}}
-					/>
-				</div>
+				<FeedScrollContainer ref={feedContainerRef}>
+					<div
+						className={cn(
+							"transition-opacity duration-0",
+							hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
+								? "opacity-0"
+								: "opacity-100",
+						)}
+					>
+						<BrowseGrid
+							isLoadingCards={isLoadingCards}
+							cardsError={cardsError}
+							cards={sortedCards}
+							chatContactIndexByProfileId={
+								(SHOW_DEMO_DATA && showDebugInfo)
+									? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
+									: chatContactIndexByProfileId
+							}
+							onSelectProfile={handleSelectProfile}
+							onMessageProfile={handleMessageProfile}
+							hasMore={nextPage !== null}
+							isLoadingMore={isLoadingMoreCards}
+							onLoadMore={() => {
+								void handleLoadMoreCards();
+							}}
+						/>
+					</div>
+				</FeedScrollContainer>
 			</PullToRefreshContainer>
 
 			<div
@@ -1608,6 +1643,39 @@ export function GridPage() {
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}
 			/>
+
+			{isLocationOpen && (
+				<LocationOverlay onClose={() => setIsLocationOpen(false)} />
+			)}
+
+			{isFiltersOpen && (
+				<BrowseFiltersOverlay
+					initialDraft={{
+						sortBy,
+						browseFilters,
+						ageMin,
+						ageMax,
+						heightCmMin,
+						heightCmMax,
+						weightGramsMin,
+						weightGramsMax,
+						tribes,
+						lookingFor,
+						relationshipStatuses,
+						bodyTypes,
+						sexualPositions,
+						meetAt,
+						nsfwPics,
+						tags,
+						nicknameFilter,
+					} satisfies BrowseFiltersDraft}
+					onClose={() => setIsFiltersOpen(false)}
+					onApply={(draft) => {
+						applyDraft(draft);
+						setIsFiltersOpen(false);
+					}}
+				/>
+			)}
 		</>
 	);
 }

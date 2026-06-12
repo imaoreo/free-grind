@@ -181,7 +181,8 @@
         "local_filters": {
             "title": "Filtres locaux",
             "description": "Ces filtres s'appliquent instantanément aux profils déjà chargés.",
-            "is_visiting": "En visite"
+            "is_visiting": "En visite",
+            "nickname_placeholder": "Name…"
         }
     },
     "about_page": {
@@ -1018,7 +1019,11 @@
         "map_picker_open": "Ouvrir",
         "map_picker_instructions": "Ouvrez la carte pour placer un repère et sauvegarder cette position.",
         "map_picker_tap_hint": "Touchez la carte pour placer un repère.",
-        "use_selected_location": "Utiliser cet emplacement"
+        "use_selected_location": "Utiliser cet emplacement",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manuel",
+        "badge_active": "Actif",
+        "current_location_heading": "Emplacement actuel"
     },
     "issues_form": {
         "title": "Signaler un bug ou faire une suggestion",

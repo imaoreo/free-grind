@@ -769,7 +769,7 @@ export function ChatDrawerPanel({
 										) : (
 											<>
 												<option value={2147483647}>{t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" })}</option>
-												<option value={10}>{t("chat_drawer.expiry.ten_seconds", { defaultValue: "10s" })}</option>
+												<option value={1}>{t("chat_drawer.expiry.ten_seconds", { defaultValue: "10s" })}</option>
 											</>
 										)}
 									</select>
