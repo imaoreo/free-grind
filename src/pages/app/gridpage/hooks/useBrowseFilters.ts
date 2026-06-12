@@ -252,6 +252,26 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setTags([]);
 	};
 
+	const applyDraft = (draft: BrowseFiltersDraft) => {
+		const normalized = normalizeBrowseFiltersDraft(draft);
+		setSortBy(normalized.sortBy);
+		setBrowseFilters(normalized.browseFilters);
+		setAgeMin(normalized.ageMin);
+		setAgeMax(normalized.ageMax);
+		setHeightCmMin(normalized.heightCmMin);
+		setHeightCmMax(normalized.heightCmMax);
+		setWeightGramsMin(normalized.weightGramsMin);
+		setWeightGramsMax(normalized.weightGramsMax);
+		setTribes(normalized.tribes);
+		setLookingFor(normalized.lookingFor);
+		setRelationshipStatuses(normalized.relationshipStatuses);
+		setBodyTypes(normalized.bodyTypes);
+		setSexualPositions(normalized.sexualPositions);
+		setMeetAt(normalized.meetAt);
+		setNsfwPics(normalized.nsfwPics);
+		setTags(normalized.tags);
+	};
+
 	return {
 		browseFilters,
 		setBrowseFilters,
@@ -289,5 +309,6 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
+		applyDraft,
 	};
 }

@@ -3,7 +3,7 @@ import { MapPin, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } f
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -32,6 +32,8 @@ import {
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
+import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
+import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
@@ -44,9 +46,10 @@ import {
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { LoadingState } from "../../components/ui/states";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
+import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
+import type { BrowseFiltersDraft } from "./browse-filters-storage";
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
@@ -127,6 +130,7 @@ export function GridPage() {
 		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
 	});
 	const isMountedRef = useRef(true);
+	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
@@ -215,7 +219,10 @@ export function GridPage() {
 		activeFilterCount,
 		hasActiveBrowseFilters,
 		clearBrowseFilters,
+		applyDraft,
 	} = useBrowseFilters(persistedBrowseFilters);
+
+	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
 	const {
 		tappingProfileId,
@@ -540,15 +547,17 @@ export function GridPage() {
 
 	// Periodically save scroll position for the current grid view
 	useEffect(() => {
+		const container = feedContainerRef.current;
+		if (!container) return;
 		const handleScroll = () => {
-			if (browseCacheKey && window.scrollY > 0) {
-				sessionStorage.setItem(`grid-scroll-${browseCacheKey}`, window.scrollY.toString());
+			if (browseCacheKey && container.scrollTop > 0) {
+				sessionStorage.setItem(`grid-scroll-${browseCacheKey}`, container.scrollTop.toString());
 			}
 		};
 
-		window.addEventListener("scroll", handleScroll, { passive: true });
-		return () => window.removeEventListener("scroll", handleScroll);
-	}, [browseCacheKey]);
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	}, [browseCacheKey, cards.length]);
 
 	// Restore scroll position when cards are loaded and we haven't restored yet
 	useLayoutEffect(() => {
@@ -556,13 +565,14 @@ export function GridPage() {
 			cards.length > 0 &&
 			!hasRestoredScroll &&
 			!isLoadingCards &&
-			browseCacheKey
+			browseCacheKey &&
+			feedContainerRef.current
 		) {
 			const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
 			if (saved) {
 				const scrollY = parseInt(saved, 10);
 				if (scrollY > 0) {
-					window.scrollTo({ top: scrollY, behavior: "instant" });
+					feedContainerRef.current.scrollTop = scrollY;
 				}
 			}
 			setHasRestoredScroll(true);
@@ -1098,8 +1108,10 @@ export function GridPage() {
 			)}
 			{/* !px-0 removes the default app-screen padding to allow the BrowseGrid to span edge-to-edge */}
 			<PullToRefreshContainer
-				className="app-screen overflow-x-hidden !px-0"
-				style={{ width: "100%" }}
+				className="app-screen flex h-dvh flex-col overflow-x-hidden !px-0 !pb-0"
+				contentClassName="flex flex-1 flex-col min-h-0"
+				style={{ width: "100%", overflow: "visible", overflowX: "hidden" }}
+				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
 				onRefresh={async () => {
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
@@ -1120,8 +1132,10 @@ export function GridPage() {
 				isDisabled={isLoadingCards || isLoadingMoreCards}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
-				<header className="mb-2 px-[var(--app-px)] sm:px-4">
-					<div className="sm:hidden">
+				<header className="relative z-20 grid gap-3 pointer-events-none">
+					<PageHeaderBackground color="var(--accent)" />
+					<div className="pointer-events-auto relative z-10 flex flex-col gap-2 mx-auto w-full max-w-6xl px-[var(--app-px)]">
+					<div className="sm:hidden min-w-0">
 						<div>
 							<div className="mb-1 flex items-center gap-2">
 								<button
@@ -1151,135 +1165,121 @@ export function GridPage() {
 							</div>
 
 							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-								<div className="flex min-w-max items-center gap-2 px-[var(--app-px)] ml-auto">
-									<button
-										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
-										className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
-									>
-										<span className="flex items-center gap-2">
-											<SlidersHorizontal className="h-4 w-4" />
-											{hasActiveBrowseFilters ? (
-												<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-													{activeFilterCount}
-												</span>
-											) : null}
+							<div className="flex min-w-max items-center gap-2 px-[var(--app-px)] ml-auto">
+								<button
+									type="button"
+									onClick={() => setIsFiltersOpen(true)}
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold active:scale-95",
+										hasActiveBrowseFilters
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!hasActiveBrowseFilters ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<SlidersHorizontal className="h-3.5 w-3.5" />
+									{t("right_now.filters")}
+									{hasActiveBrowseFilters && activeFilterCount > 0 && (
+										<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white/25 px-1 text-[9px] font-bold">
+											{activeFilterCount}
 										</span>
-									</button>
+									)}
+								</button>
 
-									<div className="relative inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
-										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<select
-											value={sortBy}
-											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 pl-2"
-										>
-											<option value="default">{t("browse_filters.sort.default")}</option>
-											<option value="distance">{t("browse_filters.sort.distance")}</option>
-											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-											<option value="popular">{t("browse_filters.sort.popular")}</option>
-											<option value="name">{t("browse_filters.sort.name_az")}</option>
-										</select>
-									</div>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												onlineOnly: !prev.onlineOnly,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+								<div
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 pl-3 pr-1 py-2 text-sm font-bold",
+										sortBy !== "default"
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)]",
+									)}
+									style={sortBy === "default" ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<ListFilter className="h-3.5 w-3.5 shrink-0" />
+									<select
+										value={sortBy}
+										onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
+										className="appearance-none bg-transparent cursor-pointer outline-none text-sm font-bold pr-1"
 									>
-										{t("browse_filters.options.online")}
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												favorites: !prev.favorites,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("browse_filters.options.favorites")}
-										title={t("browse_filters.options.favorites")}
-									>
-										<Star
-											className={`h-4 w-4 ${browseFilters.favorites ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												rightNow: !prev.rightNow,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("browse_filters.options.right_now")}
-										title={t("browse_filters.options.right_now")}
-									>
-										<Droplet
-											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												isVisiting: !prev.isVisiting,
-											}))
-										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
-										aria-label={t("profile_details.visiting")}
-										title={t("profile_details.visiting")}
-									>
-										<Plane
-											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
-										/>
-									</button>
-
-									{hasActiveBrowseFilters ? (
-										<button
-											type="button"
-											onClick={clearBrowseFilters}
-											className="inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
-										>
-											{t("browse_filters.clear_all")}
-										</button>
-									) : null}
+										<option value="default">{t("browse_filters.sort.default")}</option>
+										<option value="distance">{t("browse_filters.sort.distance")}</option>
+										<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
+										<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
+										<option value="popular">{t("browse_filters.sort.popular")}</option>
+										<option value="name">{t("browse_filters.sort.name_az")}</option>
+									</select>
 								</div>
+
+								<button
+									type="button"
+									onClick={() => setBrowseFilters((prev: typeof browseFilters) => ({ ...prev, onlineOnly: !prev.onlineOnly }))}
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold active:scale-95",
+										browseFilters.onlineOnly
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!browseFilters.onlineOnly ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									{t("browse_filters.options.online")}
+								</button>
+
+								<button
+									type="button"
+									onClick={() => setBrowseFilters((prev: typeof browseFilters) => ({ ...prev, favorites: !prev.favorites }))}
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold active:scale-95",
+										browseFilters.favorites
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!browseFilters.favorites ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<Star className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`} />
+									{t("browse_filters.options.favorites")}
+								</button>
+
+								<button
+									type="button"
+									onClick={() => setBrowseFilters((prev: typeof browseFilters) => ({ ...prev, rightNow: !prev.rightNow }))}
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold active:scale-95",
+										browseFilters.rightNow
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!browseFilters.rightNow ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<Droplet className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`} />
+									{t("browse_filters.options.right_now")}
+								</button>
+
+								<button
+									type="button"
+									onClick={() => setBrowseFilters((prev: typeof browseFilters) => ({ ...prev, isVisiting: !prev.isVisiting }))}
+									className={cn(
+										"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold active:scale-95",
+										browseFilters.isVisiting
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!browseFilters.isVisiting ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<Plane className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`} />
+									{t("profile_details.visiting")}
+								</button>
+
+								{hasActiveBrowseFilters && (
+									<button
+										type="button"
+										onClick={clearBrowseFilters}
+										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--text-muted)] active:scale-95"
+										style={{ "--pill-color": "var(--text-muted)" } as CSSProperties}
+									>
+										{t("browse_filters.clear_all")}
+									</button>
+								)}
+							</div>
 							</div>
 						</div>
 					</div>
@@ -1315,30 +1315,7 @@ export function GridPage() {
 									</button>
 									<button
 										type="button"
-										onClick={() =>
-											navigate("/browse/filters", {
-												state: {
-													browseFiltersDraft: {
-														sortBy,
-														browseFilters,
-														ageMin,
-														ageMax,
-														heightCmMin,
-														heightCmMax,
-														weightGramsMin,
-														weightGramsMax,
-														tribes,
-														lookingFor,
-														relationshipStatuses,
-														bodyTypes,
-														sexualPositions,
-														meetAt,
-														nsfwPics,
-														tags,
-													},
-												},
-											})
-										}
+										onClick={() => setIsFiltersOpen(true)}
 										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 									>
 										<SlidersHorizontal className="h-3.5 w-3.5" />
@@ -1463,34 +1440,37 @@ export function GridPage() {
 						</div>
 						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
 					</div>
+					</div>
 				</header>
 
-				<div
-					className={cn(
-						"transition-opacity duration-0",
-						hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
-							? "opacity-0"
-							: "opacity-100",
-					)}
-				>
-					<BrowseGrid
-						isLoadingCards={isLoadingCards}
-						cardsError={cardsError}
-						cards={sortedCards}
-						chatContactIndexByProfileId={
-							(SHOW_DEMO_DATA && showDebugInfo)
-								? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
-								: chatContactIndexByProfileId
-						}
-						onSelectProfile={handleSelectProfile}
-						onMessageProfile={handleMessageProfile}
-						hasMore={nextPage !== null}
-						isLoadingMore={isLoadingMoreCards}
-						onLoadMore={() => {
-							void handleLoadMoreCards();
-						}}
-					/>
-				</div>
+				<FeedScrollContainer ref={feedContainerRef}>
+					<div
+						className={cn(
+							"transition-opacity duration-0 pb-[calc(env(safe-area-inset-bottom,0px)+160px)]",
+							hasSavedScroll && !hasRestoredScroll && cards.length > 0 && !isLoadingCards
+								? "opacity-0"
+								: "opacity-100",
+						)}
+					>
+						<BrowseGrid
+							isLoadingCards={isLoadingCards}
+							cardsError={cardsError}
+							cards={sortedCards}
+							chatContactIndexByProfileId={
+								(SHOW_DEMO_DATA && showDebugInfo)
+									? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
+									: chatContactIndexByProfileId
+							}
+							onSelectProfile={handleSelectProfile}
+							onMessageProfile={handleMessageProfile}
+							hasMore={nextPage !== null}
+							isLoadingMore={isLoadingMoreCards}
+							onLoadMore={() => {
+								void handleLoadMoreCards();
+							}}
+						/>
+					</div>
+				</FeedScrollContainer>
 			</PullToRefreshContainer>
 
 			<div
@@ -1608,6 +1588,34 @@ export function GridPage() {
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}
 			/>
+
+			{isFiltersOpen && (
+				<BrowseFiltersOverlay
+					initialDraft={{
+						sortBy,
+						browseFilters,
+						ageMin,
+						ageMax,
+						heightCmMin,
+						heightCmMax,
+						weightGramsMin,
+						weightGramsMax,
+						tribes,
+						lookingFor,
+						relationshipStatuses,
+						bodyTypes,
+						sexualPositions,
+						meetAt,
+						nsfwPics,
+						tags,
+					} satisfies BrowseFiltersDraft}
+					onClose={() => setIsFiltersOpen(false)}
+					onApply={(draft) => {
+						applyDraft(draft);
+						setIsFiltersOpen(false);
+					}}
+				/>
+			)}
 		</>
 	);
 }

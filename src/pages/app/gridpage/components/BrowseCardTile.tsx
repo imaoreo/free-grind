@@ -12,6 +12,7 @@ import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+import { useRevealOnScroll } from "../../../../hooks/useRevealOnScroll";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
@@ -30,6 +31,7 @@ export function BrowseCardTile({
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
 	const { unitsPreset, showDebugInfo } = usePreferences();
+	const { ref, revealClass } = useRevealOnScroll();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
@@ -47,7 +49,7 @@ export function BrowseCardTile({
 
 
 	return (
-		<div className={cn(!isDesktop && "bg-black flex")}>
+		<div ref={ref} className={cn(!isDesktop && "bg-black flex rounded-[4px] overflow-hidden", revealClass)}>
 			<button
 				type="button"
 				key={card.profileId}
