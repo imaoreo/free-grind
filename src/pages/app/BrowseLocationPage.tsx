@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { checkPermissions, requestPermissions, getCurrentPosition } from "@tauri-apps/plugin-geolocation";
 import { appLog } from "../../utils/logger";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
@@ -84,23 +85,23 @@ export function BrowseLocationPage() {
 	};
 
 	const handleUseCurrentLocation = async () => {
-		if (!("geolocation" in navigator)) {
-			setLocationError(t("browse_location.error_geolocation"));
-			return;
-		}
-
 		setIsDetectingLocation(true);
 
 		try {
-			const position = await new Promise<GeolocationPosition>(
-				(resolve, reject) => {
-					navigator.geolocation.getCurrentPosition(resolve, reject, {
-						enableHighAccuracy: true,
-						timeout: 12000,
-						maximumAge: 20000,
-					});
-				},
-			);
+			let permissions = await checkPermissions();
+			if (permissions.location !== "granted" && permissions.location !== "denied") {
+				permissions = await requestPermissions(["location"]);
+			}
+			if (permissions.location !== "granted") {
+				setLocationError(t("browse_location.error_access"));
+				return;
+			}
+
+			const position = await getCurrentPosition({
+				enableHighAccuracy: true,
+				timeout: 12000,
+				maximumAge: 20000,
+			});
 
 			await updateLocationPreference(
 				position.coords.latitude,
