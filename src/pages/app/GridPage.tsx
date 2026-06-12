@@ -1111,7 +1111,7 @@ export function GridPage() {
 				className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
 				contentClassName="flex flex-1 flex-col min-h-0"
 				style={{ overflow: "visible", overflowX: "hidden" }}
-				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
+				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 5}
 				onRefresh={async () => {
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
@@ -1169,19 +1169,21 @@ export function GridPage() {
 									<button
 										type="button"
 										onClick={() => setIsFiltersOpen(true)}
-										className="inline-flex min-h-8 items-center justify-center gap-2 rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text)]"
+										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--text)] active:scale-95"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 									>
-										<span className="flex items-center gap-2">
-											<SlidersHorizontal className="h-4 w-4" />
-											{hasActiveBrowseFilters ? (
-												<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-													{activeFilterCount}
-												</span>
-											) : null}
-										</span>
+										<SlidersHorizontal className="h-3.5 w-3.5" />
+										{t("right_now.filters")}
+										{hasActiveBrowseFilters ? (
+											<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)]">
+												{activeFilterCount}
+											</span>
+										) : null}
 									</button>
 
-									<div className="relative inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] pl-4 pr-2 text-sm font-semibold text-[var(--text)]">
+									<div className="glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold text-[var(--text)]"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									>
 										<ListFilter className="mr-1.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 										<select
 											value={sortBy}
@@ -1205,7 +1207,13 @@ export function GridPage() {
 												onlineOnly: !prev.onlineOnly,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 text-sm font-semibold transition ${browseFilters.onlineOnly ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											browseFilters.onlineOnly
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--text)]"
+										)}
+										style={!browseFilters.onlineOnly ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 									>
 										{t("browse_filters.options.online")}
 									</button>
@@ -1218,12 +1226,18 @@ export function GridPage() {
 												favorites: !prev.favorites,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.favorites ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											browseFilters.favorites
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--text)]"
+										)}
+										style={!browseFilters.favorites ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.favorites")}
 										title={t("browse_filters.options.favorites")}
 									>
 										<Star
-											className={`h-4 w-4 ${browseFilters.favorites ? "fill-current" : ""}`}
+											className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1235,12 +1249,18 @@ export function GridPage() {
 												rightNow: !prev.rightNow,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.rightNow ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											browseFilters.rightNow
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--text)]"
+										)}
+										style={!browseFilters.rightNow ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("browse_filters.options.right_now")}
 										title={t("browse_filters.options.right_now")}
 									>
 										<Droplet
-											className={`h-4 w-4 ${browseFilters.rightNow ? "fill-current" : ""}`}
+											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1252,12 +1272,18 @@ export function GridPage() {
 												isVisiting: !prev.isVisiting,
 											}))
 										}
-										className={`inline-flex min-h-8 items-center justify-center rounded-full px-5 transition ${browseFilters.isVisiting ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}
+										className={cn(
+											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+											browseFilters.isVisiting
+												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: "glass-pill text-[var(--text)]"
+										)}
+										style={!browseFilters.isVisiting ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
 										aria-label={t("profile_details.visiting")}
 										title={t("profile_details.visiting")}
 									>
 										<Plane
-											className={`h-4 w-4 ${browseFilters.isVisiting ? "fill-current" : ""}`}
+											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
 										/>
 									</button>
 
@@ -1265,7 +1291,8 @@ export function GridPage() {
 										<button
 											type="button"
 											onClick={clearBrowseFilters}
-											className="inline-flex min-h-8 items-center justify-center rounded-full bg-[var(--surface-2)] px-5 text-sm font-semibold text-[var(--text-muted)]"
+											className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--text-muted)] transition-all active:scale-95"
+											style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 										>
 											{t("browse_filters.clear_all")}
 										</button>

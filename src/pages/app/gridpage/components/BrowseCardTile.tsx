@@ -59,7 +59,7 @@ export function BrowseCardTile({
 					!isDemoCard && "active:scale-95",
 					isDesktop
 						? "rounded-xl shadow-sm"
-						: "rounded-[4px] border-[0.5px] border-black",
+						: "rounded-[4px]",
 					isBoosting ? "p-[2.5px] z-20" : "p-0",
 					isDemoCard && "cursor-default"
 				)}

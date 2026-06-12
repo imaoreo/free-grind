@@ -29,7 +29,7 @@ function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; 
 					key={i}
 					className={cn(
 						"animate-pulse bg-[var(--surface-2)] relative aspect-[5/5] overflow-hidden",
-						!isDesktop && "border-[0.5px] border-black rounded-[4px]",
+						!isDesktop && "rounded-[4px]",
 						isDesktop && "rounded-xl",
 					)}
 				>
