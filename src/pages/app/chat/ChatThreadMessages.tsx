@@ -675,7 +675,7 @@ export function ChatThreadMessages({
                                     onContextMenu={(event) => event.preventDefault()}
                                     className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
                                         isMediaOnlyBubble && hasReply
-                                            ? `overflow-hidden p-0 ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}`
+                                            ? `p-0 ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}`
                                             : isMediaOnlyBubble
                                                 ? "bg-transparent p-0"
                                                 : `px-3 py-2 ${
@@ -685,6 +685,7 @@ export function ChatThreadMessages({
                                                 }`
                                     } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
                                 >
+                                    <div className={isMediaOnlyBubble && hasReply ? `overflow-hidden rounded-2xl ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}` : "contents"}>
                                     {localOnly && !hasVisualMedia ? (
                                         <span className="mb-1.5 block w-fit rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-semibold">
                                             {t("chat.thread.from_local_history")}
@@ -1334,6 +1335,7 @@ export function ChatThreadMessages({
                                             </p>
                                         )
                                     ) : null}
+                                    </div>
 
                                     {!isLocalClientMessageId(message.messageId) ? (
                                         (isDesktop ? (
