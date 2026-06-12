@@ -49,12 +49,15 @@ import {
 } from "./chat/cache";
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
+import { ChatInboxHeader } from "./chat/ChatInboxHeader";
+import { ChatFiltersOverlay } from "./chat/ChatFiltersOverlay";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
 import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
+	buildChatFiltersDraft,
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
@@ -66,8 +69,10 @@ import {
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
-    formatDateTime24
+    formatDateTime24,
+	type ChatFiltersDraft,
 } from "./chat/chatUtils";
+import type { SearchMode } from "../../types/chat-page";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
 import {
@@ -143,6 +148,13 @@ export function ChatPage() {
 		return localStorage.getItem("chat_hide_pinned") === "true";
 	});
 
+	// Header state (shared between ChatInboxHeader on desktop and ChatInboxPanel on mobile)
+	const [chatIsSearchOpen, setChatIsSearchOpen] = useState(false);
+	const [chatSearchQuery, setChatSearchQuery] = useState("");
+	const [chatSearchMode, setChatSearchMode] = useState<SearchMode>("messages");
+	const [chatIsFiltersOpen, setChatIsFiltersOpen] = useState(false);
+	const [chatFiltersDraft, setChatFiltersDraft] = useState<ChatFiltersDraft>(() => buildChatFiltersDraft({}));
+
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
@@ -211,6 +223,16 @@ export function ChatPage() {
 		Boolean(inboxFilters.onlineNowOnly) ||
 		(inboxFilters.positions?.length ?? 0) > 0 ||
 		inboxFilters.distanceMeters != null;
+
+	const chatActiveFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
 
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
 	activeInboxFiltersRef.current = activeInboxFilters;
@@ -440,7 +462,7 @@ export function ChatPage() {
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
-	const inboxTouchStartXRef = useRef<number | null>(null);
+
 	const inboxListRef = useRef<HTMLDivElement | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
@@ -595,31 +617,6 @@ export function ChatPage() {
 		};
 	}, [conversations, userId]);
 
-	const handleInboxTouchStart = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			inboxTouchStartXRef.current = event.touches[0]?.clientX ?? null;
-		},
-		[],
-	);
-
-	const handleInboxTouchEnd = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			const startX = inboxTouchStartXRef.current;
-			if (startX == null) {
-				return;
-			}
-
-			const endX = event.changedTouches[0]?.clientX ?? startX;
-			const deltaX = startX - endX;
-
-			if (deltaX > 70) {
-				navigate("/settings/shared-albums");
-			}
-
-			inboxTouchStartXRef.current = null;
-		},
-		[navigate],
-	);
 
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
@@ -3521,18 +3518,34 @@ export function ChatPage() {
 		};
 	}, [fullScreenImageUrl]);
 
+	const sharedInboxHeaderProps = {
+		realtimeStatusMeta,
+		inboxFilters,
+		hidePinned,
+		hasActiveInboxFilters,
+		activeFilterCount: chatActiveFilterCount,
+		isSearchOpen: chatIsSearchOpen,
+		searchQuery: chatSearchQuery,
+		searchMode: chatSearchMode,
+		onSetIsSearchOpen: setChatIsSearchOpen,
+		onSetSearchQuery: setChatSearchQuery,
+		onSetSearchMode: setChatSearchMode,
+		onSetIsFiltersOpen: setChatIsFiltersOpen,
+		onSetFiltersDraft: setChatFiltersDraft,
+		onToggleFavoritesOnly: toggleInboxFavoritesOnly,
+		onToggleHidePinned: () => setHidePinned((prev) => !prev),
+	} as const;
+
 	const renderInbox = (
 		<ChatInboxPanel
+			{...sharedInboxHeaderProps}
 			isDesktop={isDesktop}
+			showHeader={!isDesktop}
 			isLoadingInbox={isLoadingInbox}
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
-			inboxFilters={inboxFilters}
-			hidePinned={hidePinned}
-			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
-			realtimeStatusMeta={realtimeStatusMeta}
 			selectedConversationId={selectedConversationId}
 			userId={userId}
 			localNicknamesByProfileId={localNicknamesByProfileId}
@@ -3540,10 +3553,8 @@ export function ChatPage() {
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}
-			onRefreshInbox={() => void loadInbox({ page: 1, replace: true })}
+			onRefreshInbox={() => loadInbox({ page: 1, replace: true })}
 			onLoadMoreInbox={handleLoadMoreInbox}
-			onInboxTouchStart={handleInboxTouchStart}
-			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onViewProfile={(profileId) => {
 				const returnTo = getProfileReturnToChatPath(profileId);
@@ -3552,19 +3563,6 @@ export function ChatPage() {
 				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
 			}}
 			onClearInboxFilters={clearInboxFilters}
-			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
-			onToggleFavoritesOnly={toggleInboxFavoritesOnly}
-			onOpenFilters={(inboxFiltersDraft) =>
-				navigate("/chat/filters", {
-					state: {
-						inboxFiltersDraft,
-						returnTo: `${location.pathname}${location.search}`,
-					},
-				})
-			}
-			onOpenSearch={() => navigate("/chat/search")}
-			onOpenInbox={() => navigate("/chat")}
-			onOpenAlbums={() => navigate("/settings/shared-albums")}
 		/>
 	);
 
@@ -3689,31 +3687,40 @@ export function ChatPage() {
 		/>
 	);
 
-	return (
-		<section
-			className={`app-screen ${isDesktop ? "overflow-hidden" : "!p-0 !max-w-none !w-full"}`}
-		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
-
-        				{isSearchRoute ? (
-        					renderSearch
-        				) : isDesktop ? (
-        					<div
-        						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
-        						style={{
-        							height:
-        								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
-						}}
-					>
-						{renderInbox}
-						{renderThread}
-					</div>
-				) : selectedConversation ?? targetProfileId ? (
-					renderThread
+		return (
+			<section
+				className={`app-screen ${isDesktop ? "w-full !h-dvh !px-0 !pb-0 overflow-x-hidden flex flex-col" : "!p-0 !max-w-none !w-full"}`}
+			>
+				{isDesktop ? (
+					isSearchRoute ? (
+						<div className="mx-auto w-full max-w-6xl px-[var(--app-px)]">{renderSearch}</div>
+					) : (
+						<>
+							<ChatInboxHeader
+								{...sharedInboxHeaderProps}
+								isDesktop={true}
+							/>
+							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-3 grid grid-cols-[360px_minmax(0,1fr)] gap-3">
+								{renderInbox}
+								{renderThread}
+							</div>
+						</>
+					)
 				) : (
-					renderInbox
+					<div className="w-full">
+						{isSearchRoute ? renderSearch : selectedConversation ?? targetProfileId ? renderThread : renderInbox}
+					</div>
 				)}
-			</div>
+
+			{chatIsFiltersOpen && (
+				<ChatFiltersOverlay
+					isDesktop={isDesktop}
+					draft={chatFiltersDraft}
+					onChangeDraft={setChatFiltersDraft}
+					onClose={() => setChatIsFiltersOpen(false)}
+					onApply={setInboxFilters}
+				/>
+			)}
 
 			{isChatMediaSheetOpen && selectedConversation ? (() => {
 				const otherP = getOtherParticipant(selectedConversation, userId);
