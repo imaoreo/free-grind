@@ -12,7 +12,11 @@ import { isTauri } from "@tauri-apps/api/core";
 import { appLog } from "./utils/logger";
 import { CheckCircle2, AlertCircle, Loader2, Info } from "lucide-react";
 import { DEFAULT_GC_TIME_MS } from "./config/ui-constants";
+import { CrashBoundary } from "./components/CrashBoundary";
+import { installGlobalCrashHandlers } from "./utils/crashOverlay";
 import "./index.css";
+
+installGlobalCrashHandlers();
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -38,6 +42,7 @@ if (isTauri()) {
 
 ReactDOM.createRoot(document.getElementById("app")!).render(
 	<React.StrictMode>
+		<CrashBoundary>
 		<QueryClientProvider client={queryClient}>
 			<BrowserRouter>
 				<App />
@@ -75,5 +80,6 @@ ReactDOM.createRoot(document.getElementById("app")!).render(
 				/>
 			</BrowserRouter>
 		</QueryClientProvider>
+		</CrashBoundary>
 	</React.StrictMode>,
 );
