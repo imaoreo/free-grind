@@ -218,7 +218,11 @@
         "map_picker_open": "Abrir",
         "map_picker_instructions": "Abra o mapa para marcar um ponto e depois salve essa localização.",
         "map_picker_tap_hint": "Toque no mapa para colocar um marcador.",
-        "use_selected_location": "Use este local"
+        "use_selected_location": "Use este local",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manual",
+        "badge_active": "Ativo",
+        "current_location_heading": "Localização atual"
     },
     "nav": {
         "browse": "Navegar",

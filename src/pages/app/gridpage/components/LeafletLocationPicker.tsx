@@ -21,6 +21,25 @@ function createPinIcon(L: any) {
 	});
 }
 
+function resolveIsDark(): boolean {
+	const scheme = document.documentElement.getAttribute("data-scheme");
+	if (scheme === "dark") return true;
+	if (scheme === "light") return false;
+	return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function getTileLayer(dark: boolean) {
+	return dark
+		? {
+				url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+		  }
+		: {
+				url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+				attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+		  };
+}
+
 export function LeafletLocationPicker({
 	selectedLocation,
 	onPick,
@@ -34,6 +53,7 @@ export function LeafletLocationPicker({
 	const mapRef = useRef<any>(null);
 	const markerRef = useRef<any>(null);
 	const leafletRef = useRef<any>(null);
+	const tileLayerRef = useRef<any>(null);
 
 	useEffect(() => {
 		let mounted = true;
@@ -43,38 +63,39 @@ export function LeafletLocationPicker({
 				const L = await import("leaflet");
 				await import("leaflet/dist/leaflet.css");
 
-				if (!mounted || !mapContainerRef.current || mapRef.current) {
-					return;
-				}
+				if (!mounted || !mapContainerRef.current || mapRef.current) return;
 
 				leafletRef.current = L;
 
-				const map = L.map(mapContainerRef.current, {
-					zoomControl: true,
-				}).setView(
-					selectedLocation
-						? [selectedLocation.lat, selectedLocation.lon]
-						: initialCenter,
+				const map = L.map(mapContainerRef.current, { zoomControl: true }).setView(
+					selectedLocation ? [selectedLocation.lat, selectedLocation.lon] : initialCenter,
 					selectedLocation ? defaultZoom : 2,
 				);
 
-				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-					attribution:
-						'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-				}).addTo(map);
+				const tile = getTileLayer(resolveIsDark());
+				tileLayerRef.current = L.tileLayer(tile.url, { attribution: tile.attribution }).addTo(map);
 
-				map.on("click", (event: any) => {
-					onPick(event.latlng.lat, event.latlng.lng);
-				});
+				map.on("click", (event: any) => { onPick(event.latlng.lat, event.latlng.lng); });
 
 				mapRef.current = map;
 
 				if (selectedLocation) {
-					markerRef.current = L.marker(
-						[selectedLocation.lat, selectedLocation.lon],
-						{ icon: createPinIcon(L) },
-					).addTo(map);
+					markerRef.current = L.marker([selectedLocation.lat, selectedLocation.lon], { icon: createPinIcon(L) }).addTo(map);
 				}
+
+				// swap tile layer when the app theme changes
+				const observer = new MutationObserver(() => {
+					const L2 = leafletRef.current;
+					const map2 = mapRef.current;
+					if (!L2 || !map2) return;
+					if (tileLayerRef.current) { tileLayerRef.current.remove(); }
+					const next = getTileLayer(resolveIsDark());
+					tileLayerRef.current = L2.tileLayer(next.url, { attribution: next.attribution }).addTo(map2);
+				});
+				observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-scheme"] });
+
+				// clean up observer on map destroy — store it so we can disconnect
+				(map as any)._themeObserver = observer;
 			} catch {
 				onError(t("browse_location.map_picker_error_load"));
 			}
@@ -85,10 +106,13 @@ export function LeafletLocationPicker({
 		return () => {
 			mounted = false;
 			if (mapRef.current) {
+				const observer = (mapRef.current as any)._themeObserver;
+				if (observer) observer.disconnect();
 				mapRef.current.off();
 				mapRef.current.remove();
 				mapRef.current = null;
 				markerRef.current = null;
+				tileLayerRef.current = null;
 			}
 		};
 	}, [defaultZoom, onError, onPick, selectedLocation, t]);
@@ -97,24 +121,15 @@ export function LeafletLocationPicker({
 		const map = mapRef.current;
 		const L = leafletRef.current;
 
-		if (!map || !L || !selectedLocation) {
-			return;
-		}
+		if (!map || !L || !selectedLocation) return;
 
 		if (markerRef.current) {
 			markerRef.current.setLatLng([selectedLocation.lat, selectedLocation.lon]);
 		} else {
-			markerRef.current = L.marker(
-				[selectedLocation.lat, selectedLocation.lon],
-				{ icon: createPinIcon(L) },
-			).addTo(map);
+			markerRef.current = L.marker([selectedLocation.lat, selectedLocation.lon], { icon: createPinIcon(L) }).addTo(map);
 		}
 
-		map.setView(
-			[selectedLocation.lat, selectedLocation.lon],
-			Math.max(defaultZoom, map.getZoom()),
-		);
-
+		map.setView([selectedLocation.lat, selectedLocation.lon], Math.max(defaultZoom, map.getZoom()));
 		map.invalidateSize();
 	}, [defaultZoom, selectedLocation]);
 

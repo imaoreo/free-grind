@@ -226,7 +226,11 @@
         "map_picker_open": "Öffnen",
         "map_picker_instructions": "Öffne die Karte, um eine Stecknadel zu setzen und diesen Standort zu speichern.",
         "map_picker_tap_hint": "Tippe auf die Karte, um eine Stecknadel zu setzen.",
-        "use_selected_location": "Diesen Standort verwenden"
+        "use_selected_location": "Diesen Standort verwenden",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manuell",
+        "badge_active": "Aktiv",
+        "current_location_heading": "Aktueller Standort"
     },
     "nav": {
         "browse": "Durchsuchen",
