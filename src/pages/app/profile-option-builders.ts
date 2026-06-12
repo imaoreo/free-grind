@@ -33,9 +33,9 @@ const TRIBE_DEFS: readonly OptionDef[] = [
 	{ value: 8, key: "profile_details.labels.tribes.otter" },
 	{ value: 9, key: "profile_details.labels.tribes.poz" },
 	{ value: 10, key: "profile_details.labels.tribes.rugged" },
-	{ value: 11, key: "profile_details.labels.tribes.sober" },
-	{ value: 12, key: "profile_details.labels.tribes.trans" },
-	{ value: 13, key: "profile_details.labels.tribes.twink" },
+	{ value: 11, key: "profile_details.labels.tribes.twink" },
+	{ value: 12, key: "profile_details.labels.tribes.sober" },
+	{ value: 13, key: "profile_details.labels.tribes.trans" },
 ];
 
 const LOOKING_FOR_DEFS: readonly OptionDef[] = [
