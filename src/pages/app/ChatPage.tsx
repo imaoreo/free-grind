@@ -3624,7 +3624,7 @@ export function ChatPage() {
 			onLoadMoreInbox={handleLoadMoreInbox}
 			onSelectConversation={handleSelectConversation}
 			onViewProfile={(profileId) => {
-				const returnTo = getProfileReturnToChatPath(profileId);
+				const returnTo = "/chat";
 				const nextParams = new URLSearchParams();
 				nextParams.set("returnTo", returnTo);
 				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });

@@ -83,7 +83,8 @@
 		{
 			"identifier": "http:default",
 			"allow": [
-				{ "url": "https://*.cloudfront.net/*" }
+				{ "url": "https://*.cloudfront.net/*" },
+				{ "url": "https://cdns.grindr.com/*" }
 			]
 		},
 		"sql:default",
