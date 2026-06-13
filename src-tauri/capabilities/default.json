@@ -80,7 +80,6 @@
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",
-		"ios-photos:default",
 		{
 			"identifier": "http:default",
 			"allow": [
