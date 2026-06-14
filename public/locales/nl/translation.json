@@ -296,8 +296,11 @@
                 "position": "",
                 "show_tribes": "",
                 "show_tribes_desc": "",
+                "show_distance": "",
+                "show_distance_desc": "",
                 "relationship_status": "",
                 "tribes": "",
+                "tribes_im_into": "",
                 "not_set": "",
                 "relationship_not_set": "",
                 "body_type_not_set": ""
@@ -553,7 +556,8 @@
         "close_photo_viewer": "",
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before"
+        "chatted_before": "Chatted before",
+        "accept_nsfw": ""
     },
     "auth": {
         "sign_in": {

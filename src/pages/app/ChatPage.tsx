@@ -1627,7 +1627,7 @@ export function ChatPage() {
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			// appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
+			appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
 
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
 			if (
@@ -3767,7 +3767,7 @@ export function ChatPage() {
 								{...sharedInboxHeaderProps}
 								isDesktop={true}
 							/>
-							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-3 grid grid-cols-[360px_minmax(0,1fr)] gap-3">
+							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom,0px)+104px)] grid grid-cols-[360px_minmax(0,1fr)] gap-3">
 								{renderInbox}
 								{renderThread}
 							</div>

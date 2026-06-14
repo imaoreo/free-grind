@@ -363,6 +363,7 @@ export function ProfileEditorPage() {
 			| "lookingFor"
 			| "meetAt"
 			| "grindrTribes"
+			| "tribesImInto"
 			| "genders"
 			| "pronouns"
 			| "sexualHealth"
@@ -400,6 +401,7 @@ export function ProfileEditorPage() {
 				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
 				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
 				addIfChanged("showAge", "showAge");
+				addIfChanged("showDistance", "showDistance");
 				addIfChanged("age", "age", parseNullableInteger);
 				addIfChanged("height", "height", parseNullableNumber);
 				addIfChanged("weight", "weight", parseNullableWeight);
@@ -409,6 +411,7 @@ export function ProfileEditorPage() {
 				addIfChanged("sexualPosition", "sexualPosition", parseNullableInteger);
 				addIfChanged("showTribes", "showTribes");
 				addIfChanged("grindrTribes", "grindrTribes");
+				addIfChanged("tribesImInto", "tribesImInto");
 				addIfChanged("relationshipStatus", "relationshipStatus", parseNullableInteger);
 				addIfChanged("lookingFor", "lookingFor");
 				addIfChanged("meetAt", "meetAt");

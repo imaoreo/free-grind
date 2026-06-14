@@ -212,7 +212,7 @@ export function ChatRealtimeBridge() {
 				dispatchStatus(status);
 			},
 			onEvent: async (envelope) => {
-				// appLog.debug(`[chat-ws:bridge] onEvent type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
+				appLog.debug(`[chat-ws:bridge] onEvent type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
 
 				// Dispatch event AFTER potential DB updates if we want consistency,
 				// or BEFORE if we want speed. Let's do DB updates first for critical stuff.

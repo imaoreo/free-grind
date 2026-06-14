@@ -20,6 +20,7 @@ import {
 	getHivStatusLabelMap,
 	getLookingForLabelMap,
 	getMeetAtLabelMap,
+	getNsfwLabelMap,
 	getRelationshipStatusLabelMap,
 	getSexualHealthLabelMap,
 	getSexualPositionLabelMap,
@@ -199,6 +200,7 @@ export function ProfileDetailsModal({
 			: "inline-flex h-16 w-16 items-center justify-center rounded-full border border-[var(--text-muted)] bg-transparent text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]";
 	const lookingForLabels = useMemo(() => getLookingForLabelMap(t), [t]);
 	const meetAtLabels = useMemo(() => getMeetAtLabelMap(t), [t]);
+	const nsfwLabels = useMemo(() => getNsfwLabelMap(t), [t]);
 	const tribeLabels = useMemo(() => getTribeLabelMap(t), [t]);
 	const hivStatusLabels = useMemo(() => getHivStatusLabelMap(t), [t]);
 	const sexualHealthLabels = useMemo(() => getSexualHealthLabelMap(t), [t]);
@@ -822,6 +824,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								formattedActivePronouns={formattedActivePronouns}
 								lookingForLabels={lookingForLabels}
 								meetAtLabels={meetAtLabels}
+								nsfwLabels={nsfwLabels}
 								tribeLabels={tribeLabels}
 								hivStatusLabels={hivStatusLabels}
 								sexualHealthLabels={sexualHealthLabels}
@@ -1143,6 +1146,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							formattedActivePronouns={formattedActivePronouns}
 							lookingForLabels={lookingForLabels}
 							meetAtLabels={meetAtLabels}
+							nsfwLabels={nsfwLabels}
 							tribeLabels={tribeLabels}
 							hivStatusLabels={hivStatusLabels}
 							sexualHealthLabels={sexualHealthLabels}
