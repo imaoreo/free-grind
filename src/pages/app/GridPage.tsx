@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -83,6 +83,8 @@ export function GridPage() {
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
+	const [isProfileSearchOpen, setIsProfileSearchOpen] = useState(false);
+	const [profileSearchInput, setProfileSearchInput] = useState("");
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
@@ -1331,6 +1333,15 @@ export function GridPage() {
 											{t("browse_filters.clear_all")}
 										</button>
 									) : null}
+
+									<button
+										type="button"
+										onClick={() => { setProfileSearchInput(""); setIsProfileSearchOpen(true); }}
+										className="glass-pill inline-flex size-9 shrink-0 items-center justify-center text-[var(--accent)] transition-all active:scale-95"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									>
+										<Search className="h-3.5 w-3.5" />
+									</button>
 								</div>
 							</div>
 						</div>
@@ -1675,6 +1686,81 @@ export function GridPage() {
 						setIsFiltersOpen(false);
 					}}
 				/>
+			)}
+
+			{isProfileSearchOpen && (
+				<div className="fixed inset-0 z-[55] flex flex-col isolate">
+					<div
+						className="absolute inset-0 bg-black/45 backdrop-blur-sm animate-backdrop-in"
+						onClick={() => setIsProfileSearchOpen(false)}
+					/>
+					<div
+						role="dialog"
+						aria-modal="true"
+						className="relative mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-[var(--bg)] shadow-2xl animate-modal-top-in md:border-x md:border-[var(--border)]"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+							<PageHeaderBackground color="var(--accent)" />
+							<div className="flex items-center justify-between gap-3">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
+										<Search className="h-5 w-5" />
+									</div>
+									<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">Profile ID</h2>
+								</div>
+								<button
+									type="button"
+									onClick={() => setIsProfileSearchOpen(false)}
+									className="shrink-0 rounded-full bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
+									aria-label="Close"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+						</header>
+						<div className="shrink-0 border-b border-[var(--border)]" />
+						<div className="flex-1 overflow-y-auto px-[var(--app-px)] py-4">
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									const id = profileSearchInput.trim();
+									if (!id) return;
+									setIsProfileSearchOpen(false);
+									setActiveProfileId(id);
+								}}
+								className="space-y-3"
+							>
+								<section
+									className="rounded-2xl p-4"
+									style={{
+										backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
+										border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+									}}
+								>
+									<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Profile ID</p>
+									<input
+										autoFocus
+										type="number"
+										inputMode="numeric"
+										value={profileSearchInput}
+										onChange={(e) => setProfileSearchInput(e.target.value)}
+										placeholder="123456789"
+										className="input-field w-full"
+									/>
+								</section>
+								<button
+									type="submit"
+									disabled={!profileSearchInput.trim()}
+									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/30 transition active:scale-95 disabled:opacity-40"
+								>
+									<Search className="h-4 w-4" />
+									Open Profile
+								</button>
+							</form>
+						</div>
+					</div>
+				</div>
 			)}
 		</>
 	);
