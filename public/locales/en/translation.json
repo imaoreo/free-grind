@@ -711,6 +711,7 @@
         "conversation": "Conversation",
         "unknown": "Unknown",
         "you": "You",
+        "typing": "typing…",
         "read": "read",
         "unread": "unread",
         "today": "Today",

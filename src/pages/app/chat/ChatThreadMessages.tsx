@@ -63,6 +63,7 @@ type ChatThreadMessagesProps = {
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
+	isPartnerTyping?: boolean;
 };
 
 function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number; isOnce?: boolean; t: any }) {
@@ -174,6 +175,7 @@ export function ChatThreadMessages({
 	handleReply,
 	handleStopAlbumShare,
 	threadBottomRef,
+	isPartnerTyping = false,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	const { blurIncomingMedia } = usePreferences();
@@ -1565,6 +1567,15 @@ export function ChatThreadMessages({
                 });
             })()}
             </div>
+            {isPartnerTyping && (
+                <div className="flex items-end gap-2 px-4 py-1">
+                    <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-[var(--surface-2)] px-3 py-2.5">
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "0ms" }} />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "160ms" }} />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "320ms" }} />
+                    </div>
+                </div>
+            )}
             <div ref={threadBottomRef} className="h-24 shrink-0" />
 		</div>
 	);
