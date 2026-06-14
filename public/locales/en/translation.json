@@ -481,8 +481,11 @@
                 "position": "Role",
                 "show_tribes": "Show Tribes",
                 "show_tribes_desc": "Choose whether your tribes are visible publicly.",
+                "show_distance": "Share Distance",
+                "show_distance_desc": "Control whether your distance is visible to others.",
                 "relationship_status": "Relationship Status",
                 "tribes": "Tribes",
+                "tribes_im_into": "Tribes I'm Into",
                 "not_set": "Not set",
                 "relationship_not_set": "Relationship not set",
                 "body_type_not_set": "Body type not set"
@@ -492,7 +495,7 @@
                 "description": "What you're open to and how",
                 "looking_for": "Looking For",
                 "meet_at": "Meet At",
-                "accept_nsfw": "Accept NSFW Pics"
+                "accept_nsfw": "NSFW pics?"
             },
             "identity": {
                 "title": "Identity",
@@ -1020,6 +1023,7 @@
         "expectations": "Expectations",
         "looking_for": "Looking for",
         "meet_at": "Meet at",
+        "accept_nsfw": "NSFW pics?",
         "tribes": "Tribes",
         "pronouns": "Pronouns",
         "right_now": "Right now",
