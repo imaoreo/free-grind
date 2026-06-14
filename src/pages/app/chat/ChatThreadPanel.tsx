@@ -213,6 +213,7 @@ type ChatThreadPanelProps = {
 	selectedActionMessageMine: boolean;
 	isAlbumSheetOpen: boolean;
 	onOpenMediaSheet?: () => void;
+	isPartnerTyping?: boolean;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -494,6 +495,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessageMine,
 		isAlbumSheetOpen,
 		onOpenMediaSheet,
+		isPartnerTyping = false,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -1401,6 +1403,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
 						threadBottomRef={threadBottomRef}
+						isPartnerTyping={isPartnerTyping}
 				/>
 				)
 			) : (

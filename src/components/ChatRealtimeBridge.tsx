@@ -38,6 +38,13 @@ export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
 export const TAP_RECEIVED_EVENT = "fg:tap-received";
 export const VIEW_RECEIVED_EVENT = "fg:view-received";
+export const TYPING_STATUS_EVENT = "fg:typing-status";
+
+export type TypingStatusDetail = {
+	conversationId: string;
+	profileId: string;
+	status: "Typing" | "Cleared" | "Sent";
+};
 
 // Global cache to allow late-mounting components (like ChatPage) to see the
 // current connection status immediately.
@@ -245,6 +252,22 @@ export function ChatRealtimeBridge() {
 								detail: view,
 							}),
 						);
+					}
+				}
+
+				if (envelope.type === "chat.v1.typing_status") {
+					const record = envelope.payload as Record<string, unknown> | undefined;
+					if (record) {
+						const conversationId = record.conversationId as string | undefined;
+						const profileId = record.profileId as string | undefined;
+						const status = record.status as string | undefined;
+						if (conversationId && profileId && status) {
+							window.dispatchEvent(
+								new CustomEvent<TypingStatusDetail>(TYPING_STATUS_EVENT, {
+									detail: { conversationId, profileId, status: status as TypingStatusDetail["status"] },
+								}),
+							);
+						}
 					}
 				}
 
