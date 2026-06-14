@@ -1649,29 +1649,20 @@ export function ChatPage() {
 				return;
 			}
 
-			if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
-				// appLog.debug(`[ChatPage] read event detected type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
-				const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
-				for (const payload of payloads) {
-					if (!payload || typeof payload !== "object") continue;
-					const record = payload as Record<string, unknown>;
-					const cid = (record.conversationId || record.cid) as string | undefined;
-					const rawTs = Number(record.timestamp || record.ts);
-					const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
-					const senderId = Number(record.profileId || record.senderId);
-
-					// appLog.debug(`[ChatPage] parsed read event candidate cid=${cid} ts=${ts} senderId=${senderId} currentUserId=${userId} activeCid=${selectedConversationIdRef.current}`);
+			if (envelope.type === "chat.v1.conversation_read") {
+				const record = envelope.payload as Record<string, unknown> | undefined;
+				if (record) {
+					const cid = record.conversationId as string | undefined;
+					const ts = Number(record.timestamp); // already milliseconds per API spec
+					const senderId = Number(record.profileId);
 
 					if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
-						// If the other person read our messages
 						if (userId != null && senderId !== userId) {
 							if (cid === selectedConversationIdRef.current) {
-								// appLog.debug("[ChatPage] updating threadLastReadTimestamp", { ts });
 								setThreadLastReadTimestamp(ts);
 							}
 							void chatLog.appendMessages(cid, [], ts);
 						}
-						return; // Found it
 					}
 				}
 				return;
