@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react";
+import { Check, Loader2, Search, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
@@ -21,6 +21,7 @@ interface GiphyPickerSheetProps {
 	onClose: () => void;
 	onSelect: (gif: GiphyItem) => void;
 	isDesktop: boolean;
+	isSending?: boolean;
 }
 
 function imgUrl(images: Record<string, unknown>, key: string): string | null {
@@ -88,12 +89,13 @@ async function fetchGiphy(path: string): Promise<unknown> {
 	return res.json();
 }
 
-export function GiphyPickerSheet({ onClose, onSelect, isDesktop }: GiphyPickerSheetProps) {
+export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = false }: GiphyPickerSheetProps) {
 	const { t } = useTranslation();
 	const [query, setQuery] = useState("");
 	const [gifs, setGifs] = useState<GiphyItem[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [selectedGif, setSelectedGif] = useState<GiphyItem | null>(null);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
@@ -144,11 +146,6 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop }: GiphyPickerSh
 			if (debounceRef.current) clearTimeout(debounceRef.current);
 		};
 	}, []);
-
-	const handleSelect = (gif: GiphyItem) => {
-		onSelect(gif);
-		onClose();
-	};
 
 	const col1: GiphyItem[] = [];
 	const col2: GiphyItem[] = [];
@@ -217,32 +214,62 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop }: GiphyPickerSh
 					<div className="flex gap-2">
 						{[col1, col2].map((col, ci) => (
 							<div key={ci} className="flex flex-1 flex-col gap-2">
-								{col.map((gif, i) => (
-									<button
-										key={`${ci}-${i}`}
-										type="button"
-										onClick={() => handleSelect(gif)}
-										className="group relative w-full overflow-hidden rounded-lg bg-[var(--surface-2)]"
-										style={{
-											aspectRatio: gif.width > 0 && gif.height > 0
-												? `${gif.width} / ${gif.height}`
-												: "1 / 1",
-										}}
-									>
-										<img
-											src={gif.previewWebpUrl ?? gif.previewUrl}
-											alt=""
-											loading="lazy"
-											className="h-full w-full object-cover transition group-hover:scale-105"
-										/>
-									</button>
-								))}
+								{col.map((gif, i) => {
+									const isSelected = selectedGif?.id === gif.id;
+									return (
+										<button
+											key={`${ci}-${i}`}
+											type="button"
+											onClick={() => setSelectedGif(isSelected ? null : gif)}
+											className="group relative w-full overflow-hidden rounded-lg bg-[var(--surface-2)]"
+											style={{
+												aspectRatio: gif.width > 0 && gif.height > 0
+													? `${gif.width} / ${gif.height}`
+													: "1 / 1",
+												outline: isSelected ? "2px solid var(--accent)" : "none",
+												outlineOffset: "-2px",
+											}}
+										>
+											<img
+												src={gif.previewWebpUrl ?? gif.previewUrl}
+												alt=""
+												loading="lazy"
+												className="h-full w-full object-cover transition group-hover:scale-105"
+											/>
+											{isSelected && (
+												<div className="absolute inset-0 flex items-center justify-center" style={{ background: "color-mix(in srgb, var(--accent) 45%, transparent)" }}>
+													<Check className="h-5 w-5 text-white drop-shadow" />
+												</div>
+											)}
+										</button>
+									);
+								})}
 							</div>
 						))}
 					</div>
 				)}
 			</div>
 
+			{selectedGif && (
+				<div className="border-t border-[var(--border)] px-3 pt-3">
+					<button
+						type="button"
+						onClick={() => {
+							onSelect(selectedGif);
+							onClose();
+						}}
+						disabled={isSending}
+						className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+					>
+						{isSending ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : (
+							<Send className="h-4 w-4" />
+						)}
+						<span>{isSending ? t("chat_drawer.sending", { defaultValue: "Sending…" }) : t("chat.send", { defaultValue: "Send" })}</span>
+					</button>
+				</div>
+			)}
 		</BottomSheet>
 	);
 }

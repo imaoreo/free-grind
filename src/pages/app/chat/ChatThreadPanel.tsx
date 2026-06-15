@@ -1952,6 +1952,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								void onSendGiphy(gif);
 							}}
 							isDesktop={isDesktop}
+							isSending={isSending}
 						/>
 					) : null}
 
