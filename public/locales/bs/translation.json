@@ -541,7 +541,21 @@
             "cleared_local_history": "",
             "album_shared": ""
         },
-        "no_messages_yet": ""
+        "no_messages_yet": "",
+        "giphy": {
+            "title": "GIF-ovi",
+            "button_label": "Pošalji GIF",
+            "tab_trending": "U trendu",
+            "tab_recent": "Nedavni",
+            "search_placeholder": "Pretraži GIF-ove…",
+            "error_load": "Nije moguće učitati GIF-ove.",
+            "error_search": "Pretraga nije uspjela.",
+            "retry": "Pokušaj ponovo",
+            "no_results": "Nema GIF-ova.",
+            "recent_empty": "Nema nedavno poslanih GIF-ova.",
+            "recent_empty_hint": "GIF-ovi koje pošalješ će se prikazati ovdje.",
+            "send_confirm": "Pošalji GIF?"
+        }
     },
     "profile_details": {
         "loading": "",

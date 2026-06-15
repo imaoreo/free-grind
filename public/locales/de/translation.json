@@ -700,6 +700,20 @@
         "share_location_label": "Standort teilen",
         "share_location_confirm": "Diesen Standort teilen?",
         "drawer_label": "Galerie",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "GIF senden",
+            "tab_trending": "Angesagt",
+            "tab_recent": "Zuletzt",
+            "search_placeholder": "GIFs suchen…",
+            "error_load": "GIFs konnten nicht geladen werden.",
+            "error_search": "Suche fehlgeschlagen.",
+            "retry": "Erneut versuchen",
+            "no_results": "Keine GIFs gefunden.",
+            "recent_empty": "Keine zuletzt gesendeten GIFs.",
+            "recent_empty_hint": "Gesendete GIFs erscheinen hier.",
+            "send_confirm": "GIF senden?"
+        },
         "drawer_unavailable": "Sende eine Nachricht um die Galerie zu öffnen.",
         "share_album": "Album teilen",
         "expiration": {

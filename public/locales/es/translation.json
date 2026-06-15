@@ -712,6 +712,20 @@
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
         "drawer_label": "Galería",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "Enviar GIF",
+            "tab_trending": "Tendencias",
+            "tab_recent": "Recientes",
+            "search_placeholder": "Buscar GIFs…",
+            "error_load": "No se pudieron cargar los GIFs.",
+            "error_search": "Error en la búsqueda.",
+            "retry": "Reintentar",
+            "no_results": "No se encontraron GIFs.",
+            "recent_empty": "No hay GIFs enviados recientemente.",
+            "recent_empty_hint": "Los GIFs que envíes aparecerán aquí.",
+            "send_confirm": "¿Enviar GIF?"
+        },
         "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
         "share_location_label": "Compartir ubicación",
         "share_location_confirm": "¿Compartir esta ubicación?"

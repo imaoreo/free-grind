@@ -833,6 +833,20 @@
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",
         "drawer_label": "Pasta",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "Enviar GIF",
+            "tab_trending": "Em alta",
+            "tab_recent": "Recentes",
+            "search_placeholder": "Buscar GIFs…",
+            "error_load": "Não foi possível carregar os GIFs.",
+            "error_search": "Falha na busca.",
+            "retry": "Tentar novamente",
+            "no_results": "Nenhum GIF encontrado.",
+            "recent_empty": "Nenhum GIF enviado recentemente.",
+            "recent_empty_hint": "Os GIFs que você enviar aparecerão aqui.",
+            "send_confirm": "Enviar GIF?"
+        },
         "drawer_unavailable": "Envie uma mensagem primeiro para usar o menu",
         "share_location_label": "Compartilhar localização",
         "share_location_confirm": "Compartilhar este local?"

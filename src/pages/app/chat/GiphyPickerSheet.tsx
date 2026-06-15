@@ -1,4 +1,4 @@
-import { Check, Clock, Loader2, Search, Send, TrendingUp, X } from "lucide-react";
+import { Check, Clock, Loader2, Search, Send, Sticker, TrendingUp, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
@@ -160,7 +160,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 			const raw = await fetchGiphy("/trending?limit=30");
 			setGifs(parseGiphyResponse(raw));
 		} catch {
-			setError(t("chat.giphy.error_load", { defaultValue: "Could not load GIFs." }));
+			setError(t("chat.giphy.error_load"));
 		} finally {
 			setIsLoading(false);
 		}
@@ -173,7 +173,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 			const raw = await fetchGiphy(`/search?q=${encodeURIComponent(q)}&limit=30`);
 			setGifs(parseGiphyResponse(raw));
 		} catch {
-			setError(t("chat.giphy.error_search", { defaultValue: "Search failed." }));
+			setError(t("chat.giphy.error_search"));
 		} finally {
 			setIsLoading(false);
 		}
@@ -211,8 +211,8 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 	};
 
 	const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-		{ id: "trending", label: t("chat.giphy.tab_trending", { defaultValue: "Trending" }), icon: <TrendingUp className="h-3.5 w-3.5" /> },
-		{ id: "recent", label: t("chat.giphy.tab_recent", { defaultValue: "Recent" }), icon: <Clock className="h-3.5 w-3.5" /> },
+		{ id: "trending", label: t("chat.giphy.tab_trending"), icon: <TrendingUp className="h-3.5 w-3.5" /> },
+		{ id: "recent", label: t("chat.giphy.tab_recent"), icon: <Clock className="h-3.5 w-3.5" /> },
 	];
 
 	return (
@@ -220,7 +220,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
-					{t("chat.giphy.title", { defaultValue: "GIFs" })}
+					{t("chat.giphy.title")}
 				</p>
 				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
@@ -255,7 +255,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 							type="text"
 							value={query}
 							onChange={(e) => handleQueryChange(e.target.value)}
-							placeholder={t("chat.giphy.search_placeholder", { defaultValue: "Search GIFs..." })}
+							placeholder={t("chat.giphy.search_placeholder")}
 							className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 pl-9 pr-4 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
 						/>
 						{query.length > 0 && (
@@ -286,22 +286,28 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 								onClick={() => (query.trim() ? void searchGifs(query.trim()) : void loadTrending())}
 								className="text-sm text-[var(--accent)] hover:underline"
 							>
-								{t("chat.giphy.retry", { defaultValue: "Retry" })}
+								{t("chat.giphy.retry")}
 							</button>
 						</div>
 					) : gifs.length === 0 ? (
 						<div className="flex items-center justify-center py-12">
 							<p className="text-sm text-[var(--text-muted)]">
-								{t("chat.giphy.no_results", { defaultValue: "No GIFs found." })}
+								{t("chat.giphy.no_results")}
 							</p>
 						</div>
 					) : (
 						<GifGrid gifs={gifs} selectedId={selectedGif?.id ?? null} onToggle={handleToggle} />
 					)
 				) : recentGifs.length === 0 ? (
-					<div className="flex items-center justify-center py-12">
-						<p className="text-sm text-[var(--text-muted)]">
-							{t("chat.giphy.recent_empty", { defaultValue: "No recently sent GIFs." })}
+					<div className="flex flex-col items-center justify-center gap-2.5 text-center text-[var(--text-muted)]" style={{ minHeight: "40dvh" }}>
+						<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
+							<Sticker className="h-5 w-5 opacity-60" />
+						</div>
+						<p className="text-sm font-medium">
+							{t("chat.giphy.recent_empty")}
+						</p>
+						<p className="text-xs opacity-60">
+							{t("chat.giphy.recent_empty_hint")}
 						</p>
 					</div>
 				) : (
@@ -327,7 +333,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 						) : (
 							<Send className="h-4 w-4" />
 						)}
-						<span>{isSending ? t("chat_drawer.sending", { defaultValue: "Sending…" }) : t("chat.send", { defaultValue: "Send" })}</span>
+						<span>{isSending ? t("chat_drawer.sending") : t("chat.send")}</span>
 					</button>
 				</div>
 			)}
