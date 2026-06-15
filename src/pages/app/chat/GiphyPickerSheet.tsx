@@ -2,11 +2,7 @@ import { Check, Clock, Loader2, Search, Send, Sticker, TrendingUp, X } from "luc
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
-
-const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY as string | undefined;
-const GIPHY_BASE = "https://api.giphy.com/v1/gifs";
-const RECENT_GIFS_KEY = "fg-recent-gifs";
-const RECENT_GIFS_MAX = 20;
+import { GIPHY_API_KEY, GIPHY_BASE, GIPHY_RECENT_GIFS_KEY as RECENT_GIFS_KEY, GIPHY_RECENT_GIFS_MAX as RECENT_GIFS_MAX } from "../../../config/giphy-config";
 
 interface GiphyItem {
 	id: string;
