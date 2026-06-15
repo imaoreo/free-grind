@@ -155,7 +155,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop }: GiphyPickerSh
 	gifs.forEach((g, i) => (i % 2 === 0 ? col1 : col2).push(g));
 
 	return (
-		<BottomSheet onClose={onClose} isDesktop={isDesktop} bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]">
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]" panelClassName="max-h-[60dvh]">
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
@@ -243,12 +243,6 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop }: GiphyPickerSh
 				)}
 			</div>
 
-			{/* Giphy attribution */}
-			<div className="flex justify-end px-4 pb-2 pt-1">
-				<span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)] opacity-60">
-					Powered by GIPHY
-				</span>
-			</div>
 		</BottomSheet>
 	);
 }
