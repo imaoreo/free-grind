@@ -8,6 +8,7 @@ export const profileSchema = z.object({
 	aboutMe: z.string().nullable().optional(),
 	age: z.number().nullable().optional(),
 	showAge: z.boolean().optional(),
+	showDistance: z.boolean().optional(),
 	height: z.number().nullable().optional(),
 	weight: z.number().nullable().optional(),
 	ethnicity: z.number().nullable().optional(),
@@ -16,6 +17,7 @@ export const profileSchema = z.object({
 	sexualPosition: z.number().nullable().optional(),
 	showTribes: z.boolean().optional(),
 	grindrTribes: z.array(z.number()).optional().default([]),
+	tribesImInto: z.array(z.number()).optional().default([]),
 	relationshipStatus: z.number().nullable().optional(),
 	lookingFor: z.array(z.number()).optional().default([]),
 	meetAt: z.array(z.number()).optional().default([]),
@@ -60,6 +62,7 @@ export interface ProfileDraft {
 	aboutMe: string;
 	profileTagsText: string;
 	showAge: boolean;
+	showDistance: boolean;
 	age: string;
 	height: string;
 	weight: string;
@@ -69,6 +72,7 @@ export interface ProfileDraft {
 	sexualPosition: string;
 	showTribes: boolean;
 	grindrTribes: number[];
+	tribesImInto: number[];
 	relationshipStatus: string;
 	lookingFor: number[];
 	meetAt: number[];
@@ -89,6 +93,7 @@ export const emptyDraft: ProfileDraft = {
 	aboutMe: "",
 	profileTagsText: "",
 	showAge: true,
+	showDistance: true,
 	age: "",
 	height: "",
 	weight: "",
@@ -98,6 +103,7 @@ export const emptyDraft: ProfileDraft = {
 	sexualPosition: "",
 	showTribes: false,
 	grindrTribes: [],
+	tribesImInto: [],
 	relationshipStatus: "",
 	lookingFor: [],
 	meetAt: [],
@@ -164,6 +170,7 @@ export function profileToDraft(
 		aboutMe: profile.aboutMe ?? "",
 		profileTagsText: (profile.profileTags ?? []).join(", "),
 		showAge: profile.showAge ?? true,
+		showDistance: profile.showDistance ?? true,
 		age: profile.age?.toString() ?? "",
 		height: profile.height?.toString() ?? "",
 		weight: profile.weight
@@ -177,6 +184,7 @@ export function profileToDraft(
 		sexualPosition: profile.sexualPosition?.toString() ?? "",
 		showTribes: profile.showTribes ?? false,
 		grindrTribes: profile.grindrTribes ?? [],
+		tribesImInto: profile.tribesImInto ?? [],
 		relationshipStatus: profile.relationshipStatus?.toString() ?? "",
 		lookingFor: profile.lookingFor ?? [],
 		meetAt: profile.meetAt ?? [],

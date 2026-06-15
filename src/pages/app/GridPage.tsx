@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, X, Eye, EyeOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -83,6 +83,8 @@ export function GridPage() {
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
+	const [isProfileSearchOpen, setIsProfileSearchOpen] = useState(false);
+	const [profileSearchInput, setProfileSearchInput] = useState("");
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
@@ -141,6 +143,8 @@ export function GridPage() {
 	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
 	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
 	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
+	const [showDistance, setShowDistance] = useState<boolean>(true);
+	const [isTogglingDistance, setIsTogglingDistance] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
@@ -289,10 +293,40 @@ export function GridPage() {
 
 		void loadProfilePhoto();
 
+		const loadShowDistance = async () => {
+			try {
+				const raw = await apiFunctions.getRawProfile(userId) as Record<string, unknown>;
+				const profiles = Array.isArray(raw?.profiles) ? raw.profiles : [];
+				const profile = profiles[0] as Record<string, unknown> | undefined;
+				const value = profile?.showDistance;
+				if (!cancelled) {
+					setShowDistance(typeof value === "boolean" ? value : true);
+				}
+			} catch {
+				// non-critical
+			}
+		};
+		void loadShowDistance();
+
 		return () => {
 			cancelled = true;
 		};
 	}, [apiFunctions, userId]);
+
+	const handleToggleDistance = useCallback(async () => {
+		if (isTogglingDistance) return;
+		const next = !showDistance;
+		setShowDistance(next);
+		setIsTogglingDistance(true);
+		try {
+			await apiFunctions.updateMyProfile({ showDistance: next });
+		} catch {
+			setShowDistance(!next);
+			toast.error(t("browse_page.errors.toggle_distance_failed", { defaultValue: "Could not update distance setting." }));
+		} finally {
+			setIsTogglingDistance(false);
+		}
+	}, [apiFunctions, isTogglingDistance, showDistance, t]);
 
 	const browseCacheKey = useMemo(() => {
 		if (!geohash) {
@@ -1179,23 +1213,40 @@ export function GridPage() {
 									/>
 								</button>
 
-								<button
-									type="button"
-									onClick={() => setIsLocationOpen(true)}
-									className="inline-flex min-h-12 w-full items-center gap-2.5 rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] pl-2 pr-4 text-left transition active:scale-[0.99] overflow-hidden"
+								<div
+									className="glass-pill inline-flex min-h-12 w-full items-center overflow-hidden"
+									style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 								>
-									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
-										{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
-									</div>
-									<div className="min-w-0 flex-1">
-										<p className={`truncate text-sm font-semibold leading-tight ${locationName ? "text-[var(--text)]" : "text-[var(--text-muted)]"}`}>
-											{locationName || t("browse_page.current_location")}
-										</p>
-										<p className="text-[10px] font-medium text-[var(--text-muted)]">
-											{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
-										</p>
-									</div>
-								</button>
+									<button
+										type="button"
+										onClick={() => setIsLocationOpen(true)}
+										className="flex min-w-0 flex-1 items-center gap-2.5 pl-2 pr-3 text-left active:scale-[0.99]"
+									>
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
+											{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-semibold leading-tight text-[var(--text)]">
+												{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+											</p>
+											<p className="truncate text-[10px] font-medium leading-tight text-[var(--text-muted)]">
+												{locationName || t("browse_page.current_location")}
+											</p>
+										</div>
+									</button>
+									<button
+										type="button"
+										onClick={(e) => { e.stopPropagation(); void handleToggleDistance(); }}
+										disabled={isTogglingDistance}
+										title={showDistance ? t("browse_page.distance_visible", { defaultValue: "Distance visible to others" }) : t("browse_page.distance_hidden", { defaultValue: "Distance hidden from others" })}
+										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-50 mr-1"
+									>
+										{showDistance
+											? <Eye className="h-4 w-4 text-[var(--accent)]" />
+											: <EyeOff className="h-4 w-4 text-[var(--text-muted)]" />
+										}
+									</button>
+								</div>
 							</div>
 
 							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -1331,6 +1382,15 @@ export function GridPage() {
 											{t("browse_filters.clear_all")}
 										</button>
 									) : null}
+
+									<button
+										type="button"
+										onClick={() => { setProfileSearchInput(""); setIsProfileSearchOpen(true); }}
+										className="glass-pill inline-flex size-9 shrink-0 items-center justify-center text-[var(--accent)] transition-all active:scale-95"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									>
+										<Search className="h-3.5 w-3.5" />
+									</button>
 								</div>
 							</div>
 						</div>
@@ -1675,6 +1735,81 @@ export function GridPage() {
 						setIsFiltersOpen(false);
 					}}
 				/>
+			)}
+
+			{isProfileSearchOpen && (
+				<div className="fixed inset-0 z-[55] flex flex-col isolate">
+					<div
+						className="absolute inset-0 bg-black/45 backdrop-blur-sm animate-backdrop-in"
+						onClick={() => setIsProfileSearchOpen(false)}
+					/>
+					<div
+						role="dialog"
+						aria-modal="true"
+						className="relative mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-[var(--bg)] shadow-2xl animate-modal-top-in md:border-x md:border-[var(--border)]"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+							<PageHeaderBackground color="var(--accent)" />
+							<div className="flex items-center justify-between gap-3">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
+										<Search className="h-5 w-5" />
+									</div>
+									<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">Profile ID</h2>
+								</div>
+								<button
+									type="button"
+									onClick={() => setIsProfileSearchOpen(false)}
+									className="shrink-0 rounded-full bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
+									aria-label="Close"
+								>
+									<X className="h-5 w-5" />
+								</button>
+							</div>
+						</header>
+						<div className="shrink-0 border-b border-[var(--border)]" />
+						<div className="flex-1 overflow-y-auto px-[var(--app-px)] py-4">
+							<form
+								onSubmit={(e) => {
+									e.preventDefault();
+									const id = profileSearchInput.trim();
+									if (!id) return;
+									setIsProfileSearchOpen(false);
+									setActiveProfileId(id);
+								}}
+								className="space-y-3"
+							>
+								<section
+									className="rounded-2xl p-4"
+									style={{
+										backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
+										border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+									}}
+								>
+									<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Profile ID</p>
+									<input
+										autoFocus
+										type="number"
+										inputMode="numeric"
+										value={profileSearchInput}
+										onChange={(e) => setProfileSearchInput(e.target.value)}
+										placeholder="123456789"
+										className="input-field w-full"
+									/>
+								</section>
+								<button
+									type="submit"
+									disabled={!profileSearchInput.trim()}
+									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/30 transition active:scale-95 disabled:opacity-40"
+								>
+									<Search className="h-4 w-4" />
+									Open Profile
+								</button>
+							</form>
+						</div>
+					</div>
+				</div>
 			)}
 		</>
 	);

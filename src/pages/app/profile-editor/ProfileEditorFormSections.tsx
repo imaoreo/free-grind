@@ -28,6 +28,7 @@ type ToggleMultiValueKey =
 	| "lookingFor"
 	| "meetAt"
 	| "grindrTribes"
+	| "tribesImInto"
 	| "genders"
 	| "pronouns"
 	| "sexualHealth"
@@ -395,31 +396,25 @@ export function ProfileEditorFormSections({
 					icon={Ruler}
 				/>
 				<div className="grid gap-4">
-					{/* Visibility toggles */}
-					<div className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]">
+					{/* Distance — standalone toggle */}
+					<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+						<ToggleRow
+							checked={draft.showDistance}
+							onChange={(checked) => onDraftChange("showDistance", checked)}
+							label={t("profile_editor.sections.states.show_distance")}
+							description={t("profile_editor.sections.states.show_distance_desc")}
+						/>
+					</div>
+
+					{/* Age — input + toggle */}
+					<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
 						<ToggleRow
 							checked={draft.showAge}
 							onChange={(checked) => onDraftChange("showAge", checked)}
 							label={t("profile_editor.sections.states.show_age")}
 							description={t("profile_editor.sections.states.show_age_desc")}
 						/>
-						<ToggleRow
-							checked={draft.showPosition}
-							onChange={(checked) => onDraftChange("showPosition", checked)}
-							label={t("profile_editor.sections.states.show_position")}
-							description={t("profile_editor.sections.states.show_position_desc")}
-						/>
-						<ToggleRow
-							checked={draft.showTribes}
-							onChange={(checked) => onDraftChange("showTribes", checked)}
-							label={t("profile_editor.sections.states.show_tribes")}
-							description={t("profile_editor.sections.states.show_tribes_desc")}
-						/>
-					</div>
-
-					{/* Numeric inputs */}
-					<div className="grid grid-cols-3 gap-2 sm:gap-3">
-						<div>
+						<div className="border-t border-[var(--border)] px-4 py-3">
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.age")}
 							</label>
@@ -432,6 +427,10 @@ export function ProfileEditorFormSections({
 								placeholder="—"
 							/>
 						</div>
+					</div>
+
+					{/* Height + Weight */}
+					<div className="grid grid-cols-2 gap-2 sm:gap-3">
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.height")}
@@ -460,7 +459,7 @@ export function ProfileEditorFormSections({
 						</div>
 					</div>
 
-					{/* Select fields */}
+					{/* Ethnicity + Body Type */}
 					<div className="grid gap-4 sm:grid-cols-2">
 						<div>
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
@@ -496,15 +495,23 @@ export function ProfileEditorFormSections({
 								))}
 							</select>
 						</div>
-						<div>
+					</div>
+
+					{/* Position — select + toggle */}
+					<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+						<ToggleRow
+							checked={draft.showPosition}
+							onChange={(checked) => onDraftChange("showPosition", checked)}
+							label={t("profile_editor.sections.states.show_position")}
+							description={t("profile_editor.sections.states.show_position_desc")}
+						/>
+						<div className="border-t border-[var(--border)] px-4 py-3">
 							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
 								{t("profile_editor.sections.states.position")}
 							</label>
 							<select
 								value={draft.sexualPosition}
-								onChange={(event) =>
-									onDraftChange("sexualPosition", event.target.value)
-								}
+								onChange={(event) => onDraftChange("sexualPosition", event.target.value)}
 								className="input-field"
 							>
 								<option value="">{t("profile_editor.sections.states.not_set")}</option>
@@ -515,37 +522,55 @@ export function ProfileEditorFormSections({
 								))}
 							</select>
 						</div>
-						<div>
-							<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-								{t("profile_editor.sections.states.relationship_status")}
-							</label>
-							<select
-								value={draft.relationshipStatus}
-								onChange={(event) =>
-									onDraftChange("relationshipStatus", event.target.value)
-								}
-								className="input-field"
-							>
-								<option value="">{t("profile_editor.sections.states.not_set")}</option>
-								{relationshipStatusOptions.map((option) => (
-									<option key={option.value} value={option.value}>
-										{option.label}
-									</option>
-								))}
-							</select>
-						</div>
 					</div>
 
-					{/* Tribes chips */}
+					{/* Relationship Status */}
 					<div>
-						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-							{t("profile_editor.sections.states.tribes")}
-						</p>
-						<ChipGroup
-							options={tribeOptions}
-							selected={draft.grindrTribes}
-							onToggle={(value) => onToggleMultiValue("grindrTribes", value)}
+						<label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+							{t("profile_editor.sections.states.relationship_status")}
+						</label>
+						<select
+							value={draft.relationshipStatus}
+							onChange={(event) => onDraftChange("relationshipStatus", event.target.value)}
+							className="input-field"
+						>
+							<option value="">{t("profile_editor.sections.states.not_set")}</option>
+							{relationshipStatusOptions.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</select>
+					</div>
+
+					{/* Tribes — chips + toggle */}
+					<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+						<ToggleRow
+							checked={draft.showTribes}
+							onChange={(checked) => onDraftChange("showTribes", checked)}
+							label={t("profile_editor.sections.states.show_tribes")}
+							description={t("profile_editor.sections.states.show_tribes_desc")}
 						/>
+						<div className="border-t border-[var(--border)] px-4 py-3">
+							<p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+								{t("profile_editor.sections.states.tribes")}
+							</p>
+							<ChipGroup
+								options={tribeOptions}
+								selected={draft.grindrTribes}
+								onToggle={(value) => onToggleMultiValue("grindrTribes", value)}
+							/>
+						</div>
+						<div className="border-t border-[var(--border)] px-4 py-3">
+							<p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+								{t("profile_editor.sections.states.tribes_im_into")}
+							</p>
+							<ChipGroup
+								options={tribeOptions}
+								selected={draft.tribesImInto}
+								onToggle={(value) => onToggleMultiValue("tribesImInto", value)}
+							/>
+						</div>
 					</div>
 				</div>
 			</div>

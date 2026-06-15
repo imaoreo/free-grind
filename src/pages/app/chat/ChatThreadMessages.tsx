@@ -2,7 +2,7 @@ import { Album, Ellipsis, Eye, Hourglass, Lock, MessageCircleQuestion, Mic, Play
 import { LeafletLocationPreview } from "../gridpage/components/LeafletLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
 
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
@@ -63,6 +63,16 @@ type ChatThreadMessagesProps = {
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
+	isPartnerTyping?: boolean;
+};
+
+const getReactionEmoji = (type: number): string => {
+    switch (type) {
+        case 0: return "👋";
+        case 1: return "🔥";
+        case 2: return "😈";
+        default: return "🔥";
+    }
 };
 
 function AlbumExpirationCountdown({ expiresAt, isOnce, t }: { expiresAt: number; isOnce?: boolean; t: any }) {
@@ -174,6 +184,7 @@ export function ChatThreadMessages({
 	handleReply,
 	handleStopAlbumShare,
 	threadBottomRef,
+	isPartnerTyping = false,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	const { blurIncomingMedia } = usePreferences();
@@ -181,6 +192,58 @@ export function ChatThreadMessages({
 		() => new Set(),
 	);
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
+
+	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
+	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
+	const particleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const [reactionParticles, setReactionParticles] = useState<{
+		key: number; x: number; y: number;
+		items: Array<{emoji?: string; dx: number; dy: number; size: number; dur: number; delay: number}>;
+	} | null>(null);
+
+	const triggerReactionParticles = useCallback((x: number, y: number) => {
+		if (particleTimeoutRef.current) clearTimeout(particleTimeoutRef.current);
+		const flames = Array.from({length: 5}, () => {
+			const angle = Math.random() * Math.PI * 2;
+			const dist = Math.random() * 40 + 20;
+			return { emoji: "🔥", dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, size: Math.random() * 7 + 10, dur: Math.random() * 0.25 + 0.45, delay: Math.random() * 0.1 };
+		});
+		const dots = Array.from({length: 10}, (_, i) => {
+			const angle = (i / 10) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+			const dist = Math.random() * 50 + 15;
+			return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, size: Math.random() * 4 + 2, dur: Math.random() * 0.2 + 0.3, delay: Math.random() * 0.06 };
+		});
+		setReactionParticles({key: Date.now(), x, y, items: [...flames, ...dots]});
+		particleTimeoutRef.current = setTimeout(() => setReactionParticles(null), 1200);
+	}, []);
+
+	useEffect(() => {
+		if (!reactionBurstMessageId) return;
+		const el = reactionButtonRefs.current.get(reactionBurstMessageId);
+		if (!el) return;
+		const rect = el.getBoundingClientRect();
+		triggerReactionParticles(rect.left + rect.width / 2, rect.top + rect.height / 2);
+	}, [reactionBurstMessageId, triggerReactionParticles]);
+
+	useEffect(() => {
+		for (const msg of threadMessages) {
+			const prev = prevReactionCountsRef.current.get(msg.messageId) ?? -1;
+			const curr = msg.reactions.length;
+			if (prev >= 0 && curr > prev) {
+				const el = reactionButtonRefs.current.get(msg.messageId);
+				if (el) {
+					const rect = el.getBoundingClientRect();
+					triggerReactionParticles(rect.left + rect.width / 2, rect.top + rect.height / 2);
+				}
+			}
+			prevReactionCountsRef.current.set(msg.messageId, curr);
+		}
+	}, [threadMessages, triggerReactionParticles]);
+
+	useEffect(() => {
+		prevReactionCountsRef.current.clear();
+		reactionButtonRefs.current.clear();
+	}, [selectedConversation.data.conversationId]);
 
 	const handleCopy = useCallback(async (message: UiMessage) => {
 		const location = getMessageLocation(message);
@@ -589,8 +652,21 @@ export function ChatThreadMessages({
                         selectedThreadMessageMatches[activeThreadSearchIndex]
                             ?.messageId === message.messageId;
                     const fireButtonClass = mine
-                        ? "absolute -left-3 -top-2"
-                        : "absolute -right-3 -top-2";
+                        ? "absolute -left-2 -top-2"
+                        : "absolute -right-2 -top-2";
+                    const reactionEmoji = getReactionEmoji(message.reactions[0]?.reactionType ?? 1);
+                    const flameOutline = "drop-shadow(1px 0 0 var(--surface)) drop-shadow(-1px 0 0 var(--surface)) drop-shadow(0 1px 0 var(--surface)) drop-shadow(0 -1px 0 var(--surface))";
+                    const multiReaction = message.reactions.length >= 2;
+                    const hasOtherReaction = !multiReaction && message.reactions.length === 1 && !message.reactions.some(r => r.profileId === userId);
+                    const backFlameTransform = mine ? "translate(-0.3em, -0.3em)" : "translate(0.3em, -0.3em)";
+                    const reactionContent = multiReaction ? (
+                        <>
+                            <span style={{position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", transform: backFlameTransform, filter: flameOutline}}>
+                                {reactionEmoji}
+                            </span>
+                            <span style={{position: "relative", zIndex: 1, filter: flameOutline}}>{reactionEmoji}</span>
+                        </>
+                    ) : <span style={{filter: flameOutline}}>{reactionEmoji}</span>;
 
                     const expirationType = msgBody?.expirationType;
 
@@ -780,7 +856,7 @@ export function ChatThreadMessages({
                                                 </span>
                                             )}
                                             {isExpiringImage ? (
-                                                <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                     <Eye className="h-3 w-3" />
                                                     <span>{t("chat.attachments.view_once")}</span>
                                                 </div>
@@ -1048,12 +1124,12 @@ export function ChatThreadMessages({
                                                     />
                                                     {isLimitedVideo && (
                                                         videoMaxViews === 1 ? (
-                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                            <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                                 <Eye className="h-3 w-3" />
                                                                 <span>{t("chat.attachments.view_once")}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                            <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                                 <Repeat2 className="h-3 w-3" />
                                                                 <span>Replay</span>
                                                             </div>
@@ -1348,18 +1424,28 @@ export function ChatThreadMessages({
                                         (isDesktop ? (
                                             <button
                                                 type="button"
+                                                ref={(el) => { if (el) reactionButtonRefs.current.set(message.messageId, el); else reactionButtonRefs.current.delete(message.messageId); }}
                                                 onClick={() => void handleReact(message)}
-                                                className={`chat-reaction-flame text-2xl inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
-                                                    message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "chat-reaction-flame--hoverable"
-                                                } ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}
+                                                className={`${hasOtherReaction ? "group/rxn " : ""}text-lg inline-flex ${fireButtonClass} absolute z-10 transition-opacity ${
+                                                    message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0 hover:opacity-25"
+                                                }`}
                                             >
-                                                🔥
+                                                {hasOtherReaction ? (
+                                                    <>
+                                                        <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/rxn:opacity-100 transition-opacity" style={{transform: backFlameTransform, filter: flameOutline}}>
+                                                            {reactionEmoji}
+                                                        </span>
+                                                        <span style={{position: "relative", zIndex: 1, filter: flameOutline}}>{reactionEmoji}</span>
+                                                    </>
+                                                ) : reactionContent}
                                             </button>
                                         ) : (
-                                            <span className={`chat-reaction-flame text-2xl inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
+                                            <span
+                                                ref={(el) => { if (el) reactionButtonRefs.current.set(message.messageId, el); else reactionButtonRefs.current.delete(message.messageId); }}
+                                                className={`text-lg inline-flex pointer-events-none ${fireButtonClass} absolute z-10 transition-opacity ${
                                                 message.reactions.length > 0 || isAlbumReactionBubble ? "opacity-100" : "opacity-0"
-                                            } ${reactionBurstMessageId === message.messageId ? "chat-reaction-flame--burst" : ""}`}>
-                                                🔥
+                                            }`}>
+                                                {reactionContent}
                                             </span>
                                         ))
                                     ) : null}
@@ -1565,7 +1651,29 @@ export function ChatThreadMessages({
                 });
             })()}
             </div>
+            {isPartnerTyping && (
+                <div className="flex items-end gap-2 px-4 py-1">
+                    <div className="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-[var(--surface-2)] px-3 py-2.5">
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "0ms" }} />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "160ms" }} />
+                        <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-muted)]" style={{ animationDelay: "320ms" }} />
+                    </div>
+                </div>
+            )}
             <div ref={threadBottomRef} className="h-24 shrink-0" />
+			{reactionParticles && reactionParticles.items.map((p, i) => p.emoji ? (
+				<span
+					key={`rp-${reactionParticles.key}-${i}`}
+					className="animate-emoji-particle-rise"
+					style={{left: reactionParticles.x, top: reactionParticles.y, opacity: 0, fontSize: p.size, lineHeight: 1, zIndex: 9999, "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--dur": `${p.dur}s`, "--delay": `${p.delay}s`} as React.CSSProperties}
+				>{p.emoji}</span>
+			) : (
+				<div
+					key={`rp-${reactionParticles.key}-${i}`}
+					className="animate-particle-rise"
+					style={{left: reactionParticles.x, top: reactionParticles.y, opacity: 0, width: p.size, height: p.size, background: "rgba(249,115,22,0.9)", boxShadow: `0 0 ${p.size * 3}px ${p.size}px rgba(249,115,22,0.6)`, zIndex: 9999, "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--dur": `${p.dur}s`, "--delay": `${p.delay}s`} as React.CSSProperties}
+				/>
+			))}
 		</div>
 	);
 }
