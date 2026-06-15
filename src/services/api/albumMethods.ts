@@ -91,7 +91,12 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 		async uploadOwnAlbumContent(
 			input: UploadOwnAlbumContentInput,
 		): Promise<{ contentId: number }> {
-			const response = await fetchRest(`/v1/albums/${input.albumId}/content`, {
+			const query = new URLSearchParams();
+			if (input.width != null) query.set("width", String(input.width));
+			if (input.height != null) query.set("height", String(input.height));
+			const qs = query.toString();
+			const url = `/v1/albums/${input.albumId}/content${qs ? `?${qs}` : ""}`;
+			const response = await fetchRest(url, {
 				method: "POST",
 				rawBody: input.multipart.body,
 				contentType: input.multipart.contentType,

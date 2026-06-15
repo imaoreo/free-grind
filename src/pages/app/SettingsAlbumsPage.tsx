@@ -39,6 +39,7 @@ import {
 import {
 	buildMultipartBody,
 	countAlbumMedia,
+	getVideodimensions,
 } from "./settings-albums/settingsAlbumsUtils";
 
 export function SettingsAlbumsPage() {
@@ -204,7 +205,9 @@ export function SettingsAlbumsPage() {
 		try {
 			for (const file of files) {
 				const multipart = await buildMultipartBody(file);
-				await apiFunctions.uploadOwnAlbumContent({ albumId, multipart });
+				const isVideo = file.type.startsWith("video/");
+				const dims = isVideo ? await getVideodimensions(file) : undefined;
+				await apiFunctions.uploadOwnAlbumContent({ albumId, multipart, ...dims });
 			}
 			toast.success(t("settings_albums.toast_picture_added", { count: files.length }));
 			await loadAlbumDetails(albumId, true);
@@ -451,7 +454,7 @@ export function SettingsAlbumsPage() {
 														<input
 															id={uploadInputId}
 															type="file"
-															accept="image/*"
+															accept="image/*,video/*"
 															multiple
 															onChange={(e) => void handleUploadInputChange(album.albumId, e)}
 															className="hidden"

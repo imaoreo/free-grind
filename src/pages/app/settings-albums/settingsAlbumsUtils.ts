@@ -30,16 +30,31 @@ export function concatUint8Arrays(chunks: Uint8Array[]): Uint8Array {
 	return output;
 }
 
+
+export function getVideodimensions(file: File): Promise<{ width: number; height: number } | undefined> {
+	return new Promise((resolve) => {
+		const vid = document.createElement("video");
+		vid.preload = "metadata";
+		const objUrl = URL.createObjectURL(file);
+		vid.onloadedmetadata = () => {
+			URL.revokeObjectURL(objUrl);
+			const { videoWidth, videoHeight } = vid;
+			resolve(videoWidth > 0 && videoHeight > 0 ? { width: videoWidth, height: videoHeight } : undefined);
+		};
+		vid.onerror = () => { URL.revokeObjectURL(objUrl); resolve(undefined); };
+		vid.src = objUrl;
+	});
+}
+
 export async function buildMultipartBody(file: File): Promise<{
 	body: Uint8Array;
 	contentType: string;
 }> {
 	const encoder = new TextEncoder();
 	const boundary = `----opengrind-${crypto.randomUUID?.() ?? Date.now().toString(16)}`;
-	const safeFilename = file.name.replace(/"/g, "_");
 	const header =
 		`--${boundary}\r\n` +
-		`Content-Disposition: form-data; name="content"; filename="${safeFilename}"\r\n` +
+		`Content-Disposition: form-data; name="content"; filename=""\r\n` +
 		`Content-Type: ${file.type || "application/octet-stream"}\r\n\r\n`;
 	const footer = `\r\n--${boundary}--\r\n`;
 
