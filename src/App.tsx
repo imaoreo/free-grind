@@ -10,7 +10,6 @@ import { SignInPage } from "./pages/auth/SignInPage";
 import { SignUpPage } from "./pages/auth/SignUpPage";
 import { PasswordResetPage } from "./pages/auth/PasswordResetPage";
 import { GridPage } from "./pages/app/GridPage.tsx";
-import { BrowseFiltersPage } from "./pages/app/BrowseFiltersPage.tsx";
 import { BrowseLocationPage } from "./pages/app/BrowseLocationPage";
 import { RightNowPage } from "./pages/app/RightNowPage";
 import { InterestPage } from "./pages/app/InterestPage";
@@ -30,8 +29,10 @@ import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
+import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
 import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
+import { OutdatedVersionPrompt } from "./components/OutdatedVersionPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
@@ -136,6 +137,7 @@ export default function App() {
 					<ChatRealtimeBridge />
 					<ActiveRouteBridge />
 					<EntitlementsBridge />
+					<OutdatedVersionPrompt />
 					<AnalyticsConsentPrompt />
 					<Routes>
 						<Route element={<RootLayout />}>
@@ -158,17 +160,18 @@ export default function App() {
 								}
 							>
 								<Route path="/" element={<GridPage />} />
-								<Route path="/browse/filters" element={<BrowseFiltersPage />} />
 								<Route path="/browse/location" element={<BrowseLocationPage />} />
 								<Route path="/right-now" element={<RightNowPage />} />
 								<Route path="/interest" element={<InterestPage />} />
 								<Route path="/chat" element={<ChatPage />} />
 								<Route path="/chat/filters" element={<ChatFiltersPage />} />
 								<Route path="/chat/search" element={<ChatSearchPage />} />
+								<Route path="/chat/albums" element={<SharedAlbumsPage />} />
 								<Route path="/chat/:conversationId" element={<ChatPage />} />
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
 								<Route path="/settings" element={<SettingsPage />} />
 								<Route path="/settings/automation" element={<SettingsAutomationPage />} />
+								<Route path="/settings/privacy" element={<SettingsPrivacyPage />} />
 								<Route path="/settings/about" element={<AboutPage />} />
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />

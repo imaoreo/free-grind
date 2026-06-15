@@ -4,6 +4,7 @@
 	--color-accent: var(--accent);
 
 	/* Tap animations */
+	--animate-tap-burst: tap-burst 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 	--animate-ignite: ignite-vertical 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 	--animate-flash: flash-burst 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 	--animate-ripple: ripple-out 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
@@ -207,6 +208,12 @@
 			transform: translateY(0) scale(1);
 		}
 	}
+	@keyframes fire-flame-idle {
+		0%   { transform: rotate(-2deg) scale(1); }
+		50%  { transform: rotate(2deg) scale(1.06); }
+		100% { transform: rotate(-2deg) scale(1); }
+	}
+
 	@keyframes fire-flame-flicker {
 		0% {
 			transform: rotate(-14deg) scale(0.82);
@@ -233,6 +240,12 @@
 			transform: scale(1.45);
 			opacity: 0;
 		}
+	}
+
+	@keyframes tap-burst {
+		0%   { transform: translate(-50%, -50%) scale(0.2) rotate(-10deg); opacity: 1; }
+		35%  { transform: translate(-50%, -65%) scale(1.5) rotate(6deg);  opacity: 1; }
+		100% { transform: translate(-50%, -115%) scale(0.9) rotate(12deg); opacity: 0; }
 	}
 
 }
@@ -415,6 +428,16 @@
 
 	.chat-reaction-flame {
 		transform-origin: 50% 85%;
+		animation: fire-flame-idle 3s ease-in-out infinite;
+		cursor: pointer;
+	}
+
+	.chat-reaction-flame--hoverable {
+		opacity: 0;
+	}
+
+	.group\/bubble:hover .chat-reaction-flame--hoverable {
+		opacity: 0.25;
 	}
 
 	.chat-reaction-flame--burst {
@@ -505,7 +528,7 @@
 		opacity: 0;
 		pointer-events: none;
 		transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-		padding: 2.5rem 3rem; /* Increased padding for larger shadows */
+		padding: 2.5rem 3rem;
 	}
 
 	.tab-menu.active {
@@ -513,6 +536,20 @@
 		transform: rotate(-10deg) translateY(0) translateX(-50%);
 		pointer-events: auto;
 	}
+
+	.tab-menu-slide {
+		opacity: 0;
+		pointer-events: none;
+		transform: translateX(12px) translateY(-50%);
+		transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	}
+
+	.tab-menu-slide.active {
+		opacity: 1;
+		pointer-events: auto;
+		transform: translateX(0) translateY(-50%);
+	}
+
 
 	.tab-menu-emoji {
 		transition:
@@ -759,4 +796,131 @@
 		height: 14px;
 		background: #2bd66f;
 	}
+}
+
+@keyframes tap-fly-center {
+  0%   { opacity: 1; transform: translate(calc(-50% + 50vw - 110px), calc(-50% + 50vh - 80px)) scale(0.9); }
+  55%  { opacity: 1;    transform: translate(-50%, -50%) scale(3.5); }
+  70%  { opacity: 0.5; }
+  100% { opacity: 0;    transform: translate(-50%, -50%) scale(14); }
+}
+.animate-tap-fly-center {
+  animation: tap-fly-center 1.3s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  pointer-events: none;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+@keyframes particle-rise {
+  0%   { opacity: 1;   transform: translate(0px, 0px) scale(1); }
+  25%  { opacity: 0.6; transform: translate(calc(var(--dx)*0.3), calc(var(--dy)*0.3)) scale(1.4); }
+  55%  { opacity: 1;   transform: translate(calc(var(--dx)*0.65), calc(var(--dy)*0.65)) scale(0.8); }
+  80%  { opacity: 0.3; transform: translate(calc(var(--dx)*0.88), calc(var(--dy)*0.88)) scale(0.4); }
+  92%  { opacity: 0;   transform: translate(calc(var(--dx)*0.97), calc(var(--dy)*0.97)) scale(0.15); }
+  100% { opacity: 0;   transform: translate(var(--dx), var(--dy)) scale(0.1); }
+}
+.animate-particle-rise {
+  animation: particle-rise var(--dur, 0.65s) cubic-bezier(0.4, 0, 0.8, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+@keyframes emoji-particle-rise {
+  0%   { opacity: 0; transform: translate(0px, 0px) scale(0.5); }
+  15%  { opacity: 1; transform: translate(calc(var(--dx)*0.1), calc(var(--dy)*0.1)) scale(1.1); }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.7); }
+}
+.animate-emoji-particle-rise {
+  animation: emoji-particle-rise var(--dur, 0.8s) cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation-delay: var(--delay, 0s);
+  position: fixed;
+  pointer-events: none;
+}
+
+@keyframes trash-bounce {
+  0%   { transform: translateY(0); }
+  40%  { transform: translateY(-6px); }
+  70%  { transform: translateY(2px); }
+  100% { transform: translateY(0); }
+}
+.animate-trash-bounce {
+  animation: trash-bounce 0.3s ease-out forwards;
+}
+
+/* ── Leaflet dark mode ── */
+
+/* Invert only the map tiles — pin marker and controls are unaffected */
+:root[data-scheme="dark"] .leaflet-tile-pane {
+  filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) .leaflet-tile-pane {
+    filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
+  }
+}
+
+:root[data-scheme="dark"] .leaflet-bar a,
+:root[data-scheme="dark"] .leaflet-bar a:hover {
+  background-color: var(--surface-2);
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+:root[data-scheme="dark"] .leaflet-bar a:hover {
+  background-color: var(--surface-3, var(--surface-2));
+}
+:root[data-scheme="dark"] .leaflet-bar a.leaflet-disabled {
+  background-color: var(--surface);
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-bar {
+  border-color: var(--border);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+}
+:root[data-scheme="dark"] .leaflet-control-attribution {
+  background-color: color-mix(in srgb, var(--bg) 80%, transparent);
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-control-attribution a {
+  color: var(--text-muted);
+}
+:root[data-scheme="dark"] .leaflet-popup-content-wrapper,
+:root[data-scheme="dark"] .leaflet-popup-tip {
+  background-color: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-scheme="light"]) .leaflet-bar a,
+  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
+    background-color: var(--surface-2);
+    color: var(--text);
+    border-bottom-color: var(--border);
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
+    background-color: var(--surface-3, var(--surface-2));
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar a.leaflet-disabled {
+    background-color: var(--surface);
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-bar {
+    border-color: var(--border);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  }
+  :root:not([data-scheme="light"]) .leaflet-control-attribution {
+    background-color: color-mix(in srgb, var(--bg) 80%, transparent);
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-control-attribution a {
+    color: var(--text-muted);
+  }
+  :root:not([data-scheme="light"]) .leaflet-popup-content-wrapper,
+  :root:not([data-scheme="light"]) .leaflet-popup-tip {
+    background-color: var(--surface-2);
+    color: var(--text);
+    box-shadow: 0 3px 14px rgba(0,0,0,0.5);
+  }
 }

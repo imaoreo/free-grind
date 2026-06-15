@@ -76,6 +76,22 @@ pub fn run() {
             .plugin(tauri_plugin_opener::init())
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
+            .setup(|app| {
+                #[cfg(target_os = "linux")]
+                {
+                    use tauri::Manager;
+                    use webkit2gtk::{PermissionRequestExt, WebViewExt};
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.with_webview(|webview| {
+                            webview.inner().connect_permission_request(|_view, request| {
+                                request.allow();
+                                true
+                            });
+                        });
+                    }
+                }
+                Ok(())
+            })
             .invoke_handler(tauri::generate_handler![
                 api::runtime::runtime_context,
                 api::runtime::create_child_instance,
@@ -110,14 +126,20 @@ pub fn run() {
             }
         };
 
-        tauri::Builder::default()
+        let builder = tauri::Builder::default()
             .plugin(hotswap)
             .plugin(tauri_plugin_notification::init())
             .plugin(tauri_plugin_os::init())
             .plugin(tauri_plugin_geolocation::init())
             .plugin(tauri_plugin_fs::init())
+            .plugin(tauri_plugin_http::init())
             .plugin(tauri_plugin_sql::Builder::default().build())
-            .plugin(tauri_plugin_opener::init())
+            .plugin(tauri_plugin_opener::init());
+
+        #[cfg(target_os = "ios")]
+        let builder = builder.plugin(tauri_plugin_ios_photos::init());
+
+        builder
             .manage(AppState { client })
             .manage(Arc::new(WsState::new()))
             .invoke_handler(tauri::generate_handler![

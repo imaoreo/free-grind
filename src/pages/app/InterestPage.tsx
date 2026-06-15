@@ -43,20 +43,17 @@ let globalHasShownCount = false;
 
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
-		<div className="relative flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
-			<div className="h-15 w-15 shrink-0 squircle bg-[var(--surface-2)]" />
-			<div className="min-w-0 flex-1">
-				<div className="h-3.5 w-32 rounded bg-[var(--surface-2)]" />
-				<div className="mt-1 h-3 w-20 rounded bg-[var(--surface-2)]" />
+		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-5 pr-6">
+			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+			<div className="flex flex-1 flex-col gap-2">
+				<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
+				<div className="h-2.5 w-16 animate-pulse rounded-full bg-[var(--border)]" />
 			</div>
-			<div className="shrink-0 flex items-center justify-center h-12 w-12">
-				{mode === "taps" ? (
-					<div className="h-12 w-12 rounded-full bg-[var(--surface-2)]" />
-				) : (
-					<div className="h-8 w-14 rounded-full bg-[var(--surface-2)]" />
-				)}
-			</div>
-			<div className="absolute bottom-0 right-0 left-0 h-px bg-[var(--surface-2)]" />
+			{mode === "taps" ? (
+				<div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[var(--surface-2)]" />
+			) : (
+				<div className="h-8 w-14 shrink-0 animate-pulse rounded-full bg-[var(--surface-2)]" />
+			)}
 		</div>
 	);
 }
@@ -481,7 +478,7 @@ export function InterestPage() {
 		}
 		setHasRestoredScroll(true);
 		feedContainerRef.current?.scrollTo(0, 0);
-		void refetch();
+		return refetch();
 	}, [activeTab, refetch, ITEMS_PER_PAGE]);
 
 	const handleSetActiveTab = useCallback(

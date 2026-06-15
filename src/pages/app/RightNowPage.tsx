@@ -325,19 +325,16 @@ function RightNowRow({
 
 function RightNowSkeleton() {
 	return (
-		<div className="flex items-center gap-4 pl-5 pr-6 py-4 animate-pulse">
-			<div className="h-15 w-15 shrink-0 squircle bg-[var(--surface-2)]" />
-			<div className="flex-1 space-y-3 pt-1">
-				<div className="space-y-2">
-					<div className="h-4 w-[85%] rounded bg-[var(--surface-2)]" />
-					<div className="h-4 w-[60%] rounded bg-[var(--surface-2)]" />
+		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-5 pr-6">
+			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+			<div className="flex flex-1 flex-col gap-2">
+				<div className="flex items-center justify-between gap-3">
+					<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
+					<div className="h-2.5 w-10 animate-pulse rounded-full bg-[var(--border)]" />
 				</div>
-				<div className="flex items-center gap-3">
-					<div className="h-3 w-16 rounded bg-[var(--surface-2)]" />
-					<div className="h-3 w-12 rounded bg-[var(--surface-2)]" />
-				</div>
+				<div className="h-2.5 w-40 animate-pulse rounded-full bg-[var(--border)]" />
 			</div>
-			<div className="h-10 w-10 shrink-0 rounded-full bg-[var(--surface-2)]" />
+			<div className="h-10 w-10 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
 		</div>
 	);
 }

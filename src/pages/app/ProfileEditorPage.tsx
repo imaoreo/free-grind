@@ -14,7 +14,7 @@ import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
 } from "../../types/visiting";
-import { validateMediaHash } from "../../utils/media";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
 	getBodyTypeLabelMap,
@@ -363,6 +363,7 @@ export function ProfileEditorPage() {
 			| "lookingFor"
 			| "meetAt"
 			| "grindrTribes"
+			| "tribesImInto"
 			| "genders"
 			| "pronouns"
 			| "sexualHealth"
@@ -400,6 +401,7 @@ export function ProfileEditorPage() {
 				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
 				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
 				addIfChanged("showAge", "showAge");
+				addIfChanged("showDistance", "showDistance");
 				addIfChanged("age", "age", parseNullableInteger);
 				addIfChanged("height", "height", parseNullableNumber);
 				addIfChanged("weight", "weight", parseNullableWeight);
@@ -409,6 +411,7 @@ export function ProfileEditorPage() {
 				addIfChanged("sexualPosition", "sexualPosition", parseNullableInteger);
 				addIfChanged("showTribes", "showTribes");
 				addIfChanged("grindrTribes", "grindrTribes");
+				addIfChanged("tribesImInto", "tribesImInto");
 				addIfChanged("relationshipStatus", "relationshipStatus", parseNullableInteger);
 				addIfChanged("lookingFor", "lookingFor");
 				addIfChanged("meetAt", "meetAt");
@@ -660,20 +663,20 @@ export function ProfileEditorPage() {
 	return (
 		<section className="app-screen">
 			<div className="mx-auto grid w-full max-w-[1180px] gap-6">
-                <header>
-                    <BackToSettings />
-                    <h1 className="app-title mb-2">{t("profile_editor.title")}</h1>
-                    <p className="app-subtitle">{t("profile_editor.subtitle")}</p>
-                </header>
+				<header>
+					<BackToSettings />
+					<h1 className="app-title mb-1">{t("profile_editor.title")}</h1>
+					<p className="app-subtitle">{t("profile_editor.subtitle")}</p>
+				</header>
 
 				{isLoadingProfile && !profile ? (
-					<div className="surface-card rounded-3xl p-5 sm:p-6">
+					<div className="surface-card p-5 sm:p-6">
 						<p className="text-sm font-medium text-[var(--text-muted)]">
 							{t("profile_editor.loading")}
 						</p>
 					</div>
 				) : profileError && !profile ? (
-					<div className="surface-card rounded-3xl p-5 sm:p-6">
+					<div className="surface-card p-5 sm:p-6">
 						<p className="text-sm font-semibold">
 							{t("profile_editor.error_load")}
 						</p>
@@ -683,59 +686,64 @@ export function ProfileEditorPage() {
 					</div>
 				) : (
 					<div className="grid gap-6">
-						<div className="surface-card rounded-[28px] p-5 sm:p-6">
-							<div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-								<div className="flex items-center gap-4 sm:gap-5">
-									<div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:h-20 sm:w-20 sm:text-2xl">
-										{draftInitials}
-									</div>
-									<div>
-										<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-											{t("profile_editor.summary")}
-										</p>
-										<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
-											{draftDisplayName}
-										</h2>
-										<div className="mt-3 flex flex-wrap gap-2">
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedRelationshipLabel}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedBodyTypeLabel}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{tagList.length > 0
-													? t("profile_editor.tags_count", {
-															count: tagList.length,
-														})
-													: t("profile_editor.no_tags")}
-											</span>
-											<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-												{selectedVisitingModeLabel}
-											</span>
+						<div className="surface-card overflow-hidden">
+							<div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
+								<div className="relative h-16 w-16 shrink-0 sm:h-20 sm:w-20">
+									{profilePhotoHashes[0] ? (
+										<img
+											src={getThumbImageUrl(profilePhotoHashes[0], "320x320")}
+											alt={draftDisplayName}
+											className="h-full w-full rounded-full object-cover shadow-sm"
+										/>
+									) : (
+										<div className="flex h-full w-full items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:text-2xl">
+											{draftInitials}
 										</div>
+									)}
+								</div>
+								<div>
+									<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
+										{t("profile_editor.summary")}
+									</p>
+									<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
+										{draftDisplayName}
+									</h2>
+									<div className="mt-3 flex flex-wrap gap-2">
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedRelationshipLabel}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedBodyTypeLabel}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{tagList.length > 0
+												? t("profile_editor.tags_count", {
+														count: tagList.length,
+													})
+												: t("profile_editor.no_tags")}
+										</span>
+										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
+											{selectedVisitingModeLabel}
+										</span>
 									</div>
 								</div>
+							</div>
 
-								<div className="flex w-full flex-col items-start gap-2 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 lg:w-auto lg:min-w-[260px]">
-									<p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
-										{t("profile_editor.completion_title")}
-									</p>
-									<p className="text-3xl font-semibold leading-none">
-										{completionPercent}%
-									</p>
-									<div className="h-2 w-full overflow-hidden rounded-full bg-[var(--surface)]">
-										<div
-											className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
-											style={{ width: `${completionPercent}%` }}
-										/>
-									</div>
+							<div className="border-t border-[var(--border)] px-4 py-3 sm:px-5">
+								<div className="mb-1.5 flex items-center justify-between gap-3">
 									<p className="text-xs text-[var(--text-muted)]">
 										{t("profile_editor.completion_signals", {
 											count: completionCount,
 											total: completionChecklist.length,
 										})}
 									</p>
+									<p className="text-xs font-bold">{completionPercent}%</p>
+								</div>
+								<div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+									<div
+										className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
+										style={{ width: `${completionPercent}%` }}
+									/>
 								</div>
 							</div>
 						</div>
@@ -775,17 +783,17 @@ export function ProfileEditorPage() {
 								vaccineOptions={vaccineOptions}
 							/>
 
-							<aside className="grid gap-4 lg:sticky lg:top-4">
-								<div className="surface-card rounded-3xl p-4 sm:p-5">
-									<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+							<aside className="grid gap-3 lg:sticky lg:top-4">
+								<div className="surface-card p-4">
+									<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 										{t("profile_editor.actions.title")}
 									</p>
-									<div className="mt-3 grid gap-2.5">
+									<div className="grid gap-2">
 										<button
 											type="button"
 											onClick={handleSaveProfile}
 											disabled={!canSave}
-											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed"
+											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											<Save className="h-4 w-4" />
 											{isSaving
@@ -796,16 +804,18 @@ export function ProfileEditorPage() {
 											type="button"
 											onClick={handleResetDraft}
 											disabled={!hasChanges || isSaving}
-											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 font-medium disabled:cursor-not-allowed disabled:opacity-50"
+											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
 										>
 											<RefreshCw className="h-4 w-4" />
 											{t("profile_editor.actions.reset")}
 										</button>
 									</div>
-									<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-										{t("profile_editor.actions.footer")}
-									</p>
-								</div>{" "}
+									{hasChanges && (
+										<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
+											{t("profile_editor.actions.footer")}
+										</p>
+									)}
+								</div>
 							</aside>
 						</div>
 					</div>

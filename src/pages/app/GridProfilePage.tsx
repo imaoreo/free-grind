@@ -102,6 +102,16 @@ export function GridProfilePage() {
 		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
 	});
 
+	const [isDesktopLike, setIsDesktopLike] = useState(() =>
+		window.matchMedia("(hover: hover) and (pointer: fine)").matches
+	);
+	useEffect(() => {
+		const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+		const update = () => setIsDesktopLike(query.matches);
+		query.addEventListener("change", update);
+		return () => query.removeEventListener("change", update);
+	}, []);
+
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
 
@@ -254,6 +264,14 @@ export function GridProfilePage() {
 		nextParams.set("targetProfileId", targetProfileId);
 		nextParams.set("returnTo", safeReturnTo);
 		navigate(`/chat?${nextParams.toString()}`);
+	};
+
+	const handleSendQuickMessage = async (targetProfileId: string, text: string) => {
+		try {
+			await apiFunctions.sendText({ targetProfileId: Number(targetProfileId), text });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+		}
 	};
 
 	const performBlockProfile = async (targetProfileId: string) => {
@@ -570,7 +588,7 @@ export function GridProfilePage() {
 	return (
 		<>
 			<ProfileDetailsModal
-				variant="page"
+				variant={isDesktopLike ? "modal" : "page"}
 				isOpen
 				onClose={() => {
 					navigate(safeReturnTo, { replace: true });
@@ -578,6 +596,7 @@ export function GridProfilePage() {
 				onPrevProfile={handlePrevProfile}
 				onNextProfile={handleNextProfile}
 				onMessageProfile={handleMessageProfile}
+				onSendQuickMessage={handleSendQuickMessage}
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}

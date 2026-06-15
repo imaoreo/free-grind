@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
+        "privacy": "Privacy & Analytics",
+        "privacy_desc": "Ghost mode, media blur, and analytics.",
         "automation": "Automation",
         "automation_desc": "Configure automated blocking rules and automatic grid refresh.",
         "issue_board": "Issues & Feature Requests",
@@ -25,6 +27,7 @@
         "export_chat": "Export Chat Data",
         "export_chat_desc": "Download all locally stored messages as a JSON file.",
         "check_updates": "Check for Updates",
+        "check_updates_desc": "Download and install the latest version of Free Grind.",
         "check_now": "Check Now",
         "environment": "Environment",
         "switching": "Switching…",
@@ -137,6 +140,7 @@
         "session_placeholder": "What are you looking for?",
         "char_limit": "{{count}}/140",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "i_am_hosting": "Hosting",
         "show_on_map": "Show me on map",
         "start_now": "Start Now",
@@ -172,7 +176,7 @@
         "title": "Right Now Filters",
         "subtitle": "Refine the Right Now feed",
         "apply": "Apply",
-        "position": "Position",
+        "position": "Role",
         "age_range": "Age Range",
         "back_aria": "Back"
     },
@@ -212,7 +216,8 @@
         "local_filters": {
             "title": "Local Filters",
             "description": "These filters apply instantly to the profiles already loaded.",
-            "is_visiting": "Visiting"
+            "is_visiting": "Visiting",
+            "nickname_placeholder": "Name…"
         }
     },
     "browse_location": {
@@ -238,7 +243,11 @@
         "map_picker_open": "Open",
         "map_picker_instructions": "Open the map to drop a pin and then save that location.",
         "map_picker_tap_hint": "Tap map to place pin.",
-        "use_selected_location": "Use this location"
+        "use_selected_location": "Use this location",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manual",
+        "badge_active": "Active",
+        "current_location_heading": "Current Location"
     },
     "nav": {
         "browse": "Browse",
@@ -374,7 +383,7 @@
         "media_counts_images": "{{count}} images",
         "media_counts_total": " · {{count}} total media",
         "media_desc": ". Add images, remove them, or reorder display order.",
-        "upload": "Add images",
+        "upload": "Add media",
         "uploading": "Uploading…",
         "refresh": "Refresh",
         "loading_media": "Loading album media…",
@@ -392,7 +401,7 @@
         "error_rename_fallback": "Failed to rename album",
         "error_delete_fallback": "Failed to delete album",
         "error_load_details_fallback": "Failed to load album details",
-        "error_upload_fallback": "Failed to upload picture",
+        "error_upload_fallback": "Failed to upload media",
         "error_reorder_unsupported": "Cannot reorder this album due to unsupported media IDs",
         "error_reorder_fallback": "Failed to reorder media",
         "error_delete_content_fallback": "Failed to delete media"
@@ -467,13 +476,16 @@
                 "weight_placeholder": "Weight in kg",
                 "ethnicity": "Ethnicity",
                 "body_type": "Body Type",
-                "show_position": "Show Position",
-                "show_position_desc": "Let people see your position on profile.",
-                "position": "Position",
+                "show_position": "Show Role",
+                "show_position_desc": "Let people see your role on profile.",
+                "position": "Role",
                 "show_tribes": "Show Tribes",
                 "show_tribes_desc": "Choose whether your tribes are visible publicly.",
+                "show_distance": "Share Distance",
+                "show_distance_desc": "Control whether your distance is visible to others.",
                 "relationship_status": "Relationship Status",
                 "tribes": "Tribes",
+                "tribes_im_into": "Tribes I'm Into",
                 "not_set": "Not set",
                 "relationship_not_set": "Relationship not set",
                 "body_type_not_set": "Body type not set"
@@ -483,7 +495,7 @@
                 "description": "What you're open to and how",
                 "looking_for": "Looking For",
                 "meet_at": "Meet At",
-                "accept_nsfw": "Accept NSFW Pics"
+                "accept_nsfw": "NSFW pics?"
             },
             "identity": {
                 "title": "Identity",
@@ -538,17 +550,34 @@
             "about_me_length": "About Me must stay under 255 characters."
         }
     },
+    "privacy": {
+        "ghost_mode": "Ghost Mode",
+        "global_ghost_mode": "Global Ghost Mode",
+        "global_ghost_mode_desc": "Hide read receipts for all chats. The other person won't know you read their message until you reply or turn Ghost Mode off.",
+        "per_chat_overrides": "Per-Chat Overrides (Eye Button)",
+        "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Ghosted chats are highlighted in your Inbox.",
+        "nsfw_content": "NSFW Content"
+    },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
+        "appearance": "Appearance",
+        "layout": "Layout",
+        "regional": "Regional",
+        "navigation_tabs": "Navigation Tabs",
+        "show_right_now": "Right Now Tab",
+        "show_right_now_desc": "Show the Right Now tab in the bottom navigation.",
+        "show_interest": "Interest Tab",
+        "show_interest_desc": "Show the Interest tab in the bottom navigation.",
+        "default_interest_view": "Default Interest View",
+        "interest_show_taps": "Taps First",
+        "interest_show_views": "Views First",
         "units": "Units",
         "units_description": "Choose how distance and height are displayed.",
         "units_world": "World (meters + cm)",
         "units_uk": "UK (meters + feet/inches)",
         "units_american": "American (miles + feet/inches)",
-        "blur_incoming_media": "Blur Incoming Media",
-        "blur_incoming_media_description": "Automatically blur incoming images and videos in chats. On desktop, hover or click to reveal. In chats, revealed media resets when you leave and return.",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
+        "blur_incoming_media": "Blur Chat Media",
+        "blur_incoming_media_description": "Automatically blur images and videos in chats. On desktop, hover or click to reveal. In chats, revealed media resets when you leave and return.",
         "color_scheme": "Color Scheme",
         "accent_color": "Accent Color",
         "selected": "Selected",
@@ -557,6 +586,7 @@
         "apply_hex": "Apply Hex",
         "hex_error": "Enter a valid hex color like #22c55e or 22c55e",
         "browse_grid_mobile": "Browse Grid (Mobile)",
+        "browse_grid_mobile_desc": "Adjust how many profiles appear per row on mobile.",
         "columns_2": "2 Columns",
         "columns_3": "3 Columns",
         "reveal_effect": {
@@ -573,6 +603,8 @@
         "preview_primary": "Primary Button",
         "preview_outlined": "Outlined",
         "preview_subtle": "Subtle",
+        "preview_input": "Free Grind",
+        "preview_badge": "NEW",
         "schemes": {
             "system": "System",
             "light": "Light",
@@ -679,6 +711,7 @@
         "conversation": "Conversation",
         "unknown": "Unknown",
         "you": "You",
+        "typing": "typing…",
         "read": "read",
         "unread": "unread",
         "today": "Today",
@@ -695,6 +728,7 @@
         "open_filters": "Open filters",
         "profile": "Profile",
         "view_profile": "View profile",
+        "received_media": "Received media",
         "favorite": "Favorite",
         "unfavorite": "Unfavorite",
         "no_conversations_match": "No conversations match your filters.",
@@ -713,8 +747,24 @@
         "share_location_label": "Share location",
         "share_location_confirm": "Share this location?",
         "drawer_label": "Drawer",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "Send GIF",
+            "tab_trending": "Trending",
+            "tab_recent": "Recent",
+            "search_placeholder": "Search GIFs…",
+            "error_load": "Could not load GIFs.",
+            "error_search": "Search failed.",
+            "retry": "Retry",
+            "no_results": "No GIFs found.",
+            "recent_empty": "No recently sent GIFs.",
+            "recent_empty_hint": "GIFs you send will appear here.",
+            "send_confirm": "Send GIF?"
+        },
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
+        "cancel_recording": "Slide left to cancel",
+        "stop_recording": "Stop recording",
         "expiration": {
             "title": "Access Duration",
             "indefinite": "Indefinite",
@@ -742,12 +792,17 @@
         },
         "preview": {
             "sent_image": "Sent an image",
+            "sent_gif": "Sent a GIF",
+            "sent_gaymoji": "Sent a Gaymoji",
             "shared_album": "Shared an album",
             "sent_audio": "Sent an audio message",
             "reacted_album_content": "Reacted to album content",
+            "tapped_album_photo_yours": "Tapped your album photo",
+            "tapped_album_photo_theirs": "Tapped their album photo",
             "sent_video": "Sent a video",
             "sent_location": "Sent a location",
-            "sent_message": "Sent a message"
+            "sent_message": "Sent a message",
+            "replied_profile_photo": "Replied to a profile photo"
         },
         "thread": {
             "unsent": "This message was unsent",
@@ -757,7 +812,10 @@
             "location_placeholder": "[location]",
             "unsupported_placeholder": "[unsupported message]",
             "shared_image": "Shared an image",
+            "shared_gif": "Shared a GIF",
             "shared_video": "Shared a video",
+            "image_expired": "Expired",
+            "video_expired": "Expired",
             "shared_audio": "Shared an audio message",
             "location_shared": "Location shared",
             "failed": "Failed",
@@ -765,7 +823,11 @@
             "shared_alt": "Shared",
             "taken_on_grindr": "Taken on Grindr",
             "album_cover": "Album cover",
-            "album_share": "Album share"
+            "album_share": "Album share",
+            "album_image": "Album image",
+            "replied_to_photo": "Replied to your profile photo",
+            "reacted_to_image": "Reacted to your album image",
+            "audio_label": "Audio"
         },
         "actions": {
             "title": "Message actions",
@@ -787,10 +849,15 @@
         "attachments": {
             "only_image_video": "Only image and video attachments are supported.",
             "ready_to_send": "Ready to send: {{file}}",
-            "looping": "looping",
+            "looping": "Looping",
+            "looping_description": "The video will play on repeat",
+            "max_views": "Max views",
+            "view_once": "View once",
+            "view_once_description": "The image can only be viewed once for 10 seconds",
             "taken_on_grindr": "Taken on Grindr watermark",
-            "taken_on_grindr_description": "Include the timestamp to certify the authenticy and recency of your photo",
-            "send_attachment": "Send attachment",
+            "taken_on_grindr_description": "Include the timestamp to certify the authenticity and recency of your photo",
+            "send": "Send",
+            "send_expiring": "Send expiring",
             "uploading": "Uploading attachment",
             "too_large": "Attachment is too large. Limit is 12MB."
         },
@@ -830,7 +897,11 @@
             "upload_media_failed": "Failed to upload media",
             "load_drawer_media": "Failed to load drawer media",
             "send_drawer_media": "Failed to send media from drawer",
-            "delete_conversation": "Failed to delete conversation"
+            "delete_conversation": "Failed to delete conversation",
+            "microphone_access": "Could not access microphone.",
+            "microphone_denied": "Microphone access denied.",
+            "microphone_not_found": "No microphone found.",
+            "recording_too_short": "Recording too short."
         },
         "toasts": {
             "cleared_local_history": "Cleared local history for this chat",
@@ -845,6 +916,15 @@
             "write_first_message": "Write your first message...",
             "no_messages_yet": "No messages yet",
             "send_first_message_hint": "Send a message below to start the conversation."
+        },
+        "media_sheet": {
+            "title": "Received Media",
+            "tab_albums": "Albums",
+            "tab_media": "Media",
+            "albums_empty_title": "No albums shared yet",
+            "albums_empty_desc": "Albums shared with you will appear here",
+            "media_empty_title": "No media received yet",
+            "media_empty_desc": "Photos sent to you will appear here"
         }
     },
     "chat_drawer": {
@@ -856,6 +936,7 @@
         "error_no_selection": "Please select at least one image.",
         "error_send_failed": "Failed to send media.",
         "add_photo": "Add photo",
+        "add_video": "Add video",
         "delete_media": "Delete media",
         "media_alt": "Drawer media",
         "take_photo": "Take photo",
@@ -865,8 +946,8 @@
         "delete_confirm_title": "Delete from drawer?",
         "delete_confirm_message": "Are you sure you want to delete this media from your drawer?",
         "delete_confirm_label": "Delete",
-        "is_expiring_toggle_on": "10s",
-        "is_expiring_toggle_off": "Off",
+        "is_expiring_toggle_on": "1×",
+        "is_expiring_toggle_off": "unlimited",
         "is_expiring_send": "Send expiring ({{count}})",
         "is_expiring_title_on": "Expiring (10s)",
         "is_expiring_title_off": "Send normal"
@@ -887,6 +968,16 @@
         "profile_fallback": "Profile {{id}}",
         "last_online": "Last online {{value}}",
         "close_photo_viewer": "Close photo viewer",
+        "save_to_gallery": "Save to photos",
+        "save_to_gallery_success": "Saved to your photo library",
+        "save_to_gallery_error": "Failed to save to photo library",
+        "save_to_gallery_unsupported": "Saving to photos isn't supported on this device",
+        "save_all": "Save all",
+        "save_all_progress": "Saving {{done}}/{{total}}…",
+        "save_all_success": "Saved {{count}} items to your photo library",
+        "save_all_partial": "Saved {{succeeded}}/{{total}} items ({{failed}} failed)",
+        "save_all_error": "Failed to save items to photo library",
+        "save_all_empty": "Nothing to save",
         "previous_photo": "Previous photo",
         "next_photo": "Next photo",
         "photo_alt": "{{name}} photo",
@@ -940,12 +1031,14 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Close profile details",
+        "message_placeholder": "Send a message…",
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}",
         "tags": "Tags",
         "expectations": "Expectations",
         "looking_for": "Looking for",
         "meet_at": "Meet at",
+        "accept_nsfw": "NSFW pics?",
         "tribes": "Tribes",
         "pronouns": "Pronouns",
         "right_now": "Right now",
@@ -953,7 +1046,7 @@
         "hiv_status": "HIV status",
         "last_tested": "Last tested",
         "vaccines": "Vaccines",
-        "position": "Position",
+        "position": "Role",
         "height": "Height",
         "weight": "Weight",
         "body_type": "Body type",
@@ -1145,6 +1238,8 @@
         "subtitle": "Find conversations, messages, and profiles",
         "back_to_inbox": "Back to Inbox",
         "placeholder": "Search conversations, messages, profiles",
+        "mode_label": "Search mode",
+        "quick_start_label": "Quick start",
         "quick_start_placeholder": "Quick start by profile ID",
         "view": "View",
         "message": "Message",
@@ -1175,5 +1270,8 @@
         "pull": "Pull to refresh",
         "release": "Release to refresh",
         "refreshing": "Refreshing..."
+    },
+    "common": {
+        "cancel": "Cancel"
     }
 }

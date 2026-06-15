@@ -74,13 +74,14 @@ export interface SharedConversationImage {
 
 export interface UploadChatMediaParams {
 	multipart: MultipartUpload;
-	options: { looping: boolean; takenOnGrindr: boolean };
+	options: { looping: boolean; takenOnGrindr: boolean; durationSeconds?: number };
 }
 
 export interface UploadChatMediaResponse {
 	mediaId: number;
 	mediaHash: string | null;
 	url: string | null;
+	expiresAt: number | null;
 }
 
 export interface UploadAlbumContentParams {

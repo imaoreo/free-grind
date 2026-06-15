@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Free Grind uses your location to show nearby profiles and let you set your browsing location.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Free Grind uses your location to show nearby profiles and let you set your browsing location.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Free Grind needs access to your photo library to let you choose photos to share or upload to your profile.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Free Grind needs permission to save photos and videos to your photo library.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Free Grind needs access to your camera to let you take photos to share or upload to your profile.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Free Grind needs access to your microphone to record voice messages.</string>
+</dict>
+</plist>

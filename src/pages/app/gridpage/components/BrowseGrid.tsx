@@ -7,10 +7,43 @@ import { useTranslation } from "react-i18next";
 import {
 	EmptyState,
 	ErrorState,
-	LoadingState,
 } from "../../../../components/ui/states";
 import { getAsyncState } from "../../../../hooks/useAsyncViewState";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+
+function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; mobileColumns: "2" | "3" }) {
+	const count = isDesktop ? 30 : mobileColumns === "2" ? 16 : 24;
+	return (
+		<div
+			className={cn("w-full grid", isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px")}
+			style={{
+				gridTemplateColumns: isDesktop
+					? "repeat(6, minmax(0, 1fr))"
+					: mobileColumns === "2"
+						? "repeat(auto-fill, minmax(clamp(33.4%, 15vw, 250px), 1fr))"
+						: "repeat(auto-fill, minmax(clamp(25.1%, 15vw, 250px), 1fr))",
+			}}
+		>
+			{Array.from({ length: count }).map((_, i) => (
+				<div
+					key={i}
+					className={cn(
+						"animate-pulse bg-[var(--surface-2)] relative w-full h-0 pb-[100%] overflow-hidden",
+						!isDesktop && "rounded-[4px]",
+						isDesktop && "rounded-xl",
+					)}
+				>
+					<div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/30 to-transparent p-2 flex flex-col gap-1.5">
+						<div className="h-2.5 w-16 rounded-full bg-white/20" />
+					</div>
+					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/30 to-transparent p-2 flex gap-1">
+						<div className="h-2 w-8 rounded-full bg-white/20" />
+					</div>
+				</div>
+			))}
+		</div>
+	);
+}
 
 type BrowseGridProps = {
 	isLoadingCards: boolean;
@@ -94,13 +127,7 @@ export function BrowseGrid({
 
 	if (viewState === "loading") {
 		return (
-			/* Padding applied to maintain header alignment for non-grid states */
-			<div className="w-full px-[var(--app-px)]">
-				<LoadingState
-					title={t("browse_page.loading_nearby")}
-					description={t("browse_page.fetching_feed")}
-				/>
-			</div>
+			<BrowseGridSkeleton isDesktop={isDesktop} mobileColumns={mobileGridColumns as "2" | "3"} />
 		);
 	}
 
@@ -133,7 +160,7 @@ export function BrowseGrid({
 			<div
 				className={cn(
 					"w-full grid",
-					isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-0",
+					isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px",
 				)}
 				style={{
 					gridTemplateColumns: isDesktop
