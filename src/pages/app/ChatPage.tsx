@@ -2703,6 +2703,56 @@ export function ChatPage() {
 		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
+	const sendGiphyMessage = useCallback(
+		async (gif: { id: string; urlPath: string; stillPath: string; previewPath: string; width: number; height: number }) => {
+			if (!userId) return;
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Giphy",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: {
+						id: gif.id,
+						urlPath: gif.urlPath,
+						stillPath: gif.stillPath,
+						previewPath: gif.previewPath,
+						width: gif.width,
+						height: gif.height,
+						imageHash: "",
+					},
+					replyToMessageId: replyTargetMessageId,
+				});
+
+				setReplyTargetMessageId(null);
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
+	);
+
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
@@ -3798,6 +3848,7 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onSendGiphy={sendGiphyMessage}
 			onAudioRecorded={onAudioRecorded}
 			pendingAudioBlob={pendingAudioBlob}
 			pendingAudioDuration={pendingAudioDuration}
