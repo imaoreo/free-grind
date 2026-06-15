@@ -1,7 +1,7 @@
 use reqwest::Client;
 use reqwest_cookie_store::CookieStoreMutex;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::{Mutex, RwLock};
 use url::Url;
 
 use crate::error::AppError;
@@ -98,12 +98,10 @@ impl GrindrClient {
         let http = {
             // Non-Windows: use system/user trust roots.
             #[cfg(target_os = "android")]
-            let mut builder = Client::builder()
-                .cookie_provider(cookie_store.clone());
+            let mut builder = Client::builder().cookie_provider(cookie_store.clone());
 
             #[cfg(not(target_os = "android"))]
-            let builder = Client::builder()
-                .cookie_provider(cookie_store.clone());
+            let builder = Client::builder().cookie_provider(cookie_store.clone());
 
             #[cfg(target_os = "android")]
             {
@@ -115,7 +113,7 @@ impl GrindrClient {
         };
 
         #[cfg(debug_assertions)]
-                eprintln!(
+        eprintln!(
             "[HTTP-CLIENT] Initializing GrindrClient on os={}",
             std::env::consts::OS
         );
