@@ -27,6 +27,7 @@ import {
 	Share2,
 	SquareCenterlineDashedHorizontal,
 	SquareStack,
+	Sticker,
 	TimerOff,
 	Trash2,
 	User,
@@ -75,6 +76,7 @@ import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import { GiphyPickerSheet } from "./GiphyPickerSheet";
 
 async function fixWebmDuration(blob: Blob, durationMs: number): Promise<Blob> {
 	if (!blob.type.includes("webm")) return blob;
@@ -197,6 +199,7 @@ type ChatThreadPanelProps = {
 	onShareAlbumFromDrawer: (albumId: number, expirationType: string) => Promise<void>;
 	onStopAlbumShareFromDrawer: (albumId: number) => Promise<void>;
 	onSendLocation: (lat: number, lon: number) => void | Promise<void>;
+	onSendGiphy: (gif: { id: string; urlPath: string; stillPath: string; previewPath: string; width: number; height: number }) => void | Promise<void>;
 	onAudioRecorded: (blob: Blob, durationMs: number, autoSend?: boolean) => void;
 	pendingAudioBlob: Blob | null;
 	pendingAudioDuration: number;
@@ -213,6 +216,7 @@ type ChatThreadPanelProps = {
 	selectedActionMessageMine: boolean;
 	isAlbumSheetOpen: boolean;
 	onOpenMediaSheet?: () => void;
+	isPartnerTyping?: boolean;
 };
 
 const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
@@ -236,6 +240,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
 	const [phrasesExpanded, setPhrasesExpanded] = useState(false);
+	const [isGiphyPickerOpen, setIsGiphyPickerOpen] = useState(false);
 	const [newPhraseInput, setNewPhraseInput] = useState("");
 
 	const [isRecording, setIsRecording] = useState(false);
@@ -494,6 +499,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		selectedActionMessageMine,
 		isAlbumSheetOpen,
 		onOpenMediaSheet,
+		isPartnerTyping = false,
 		toggleDrawer,
 		isDrawerOpen,
 		isLoadingDrawer,
@@ -509,6 +515,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onShareAlbumFromDrawer,
 		onStopAlbumShareFromDrawer,
 		onSendLocation,
+		onSendGiphy,
 	} = props;
 
     const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
@@ -1401,6 +1408,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
 						threadBottomRef={threadBottomRef}
+						isPartnerTyping={isPartnerTyping}
 				/>
 				)
 			) : (
@@ -1685,6 +1693,18 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => {
+									setIsGiphyPickerOpen((prev) => !prev);
+									if (isDrawerOpen) toggleDrawer();
+								}}
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
+								aria-label={t("chat.giphy.button_label")}
+								title={t("chat.giphy.button_label")}
+							>
+								<Sticker className="h-5 w-5" />
+							</button>
+							<button
+								type="button"
+								onClick={() => {
 									if (!selectedConversation) { toast.error(t("chat.errors.no_conversation_yet", { defaultValue: "Send a text message first to unlock media." })); return; }
 									attachmentInputRef.current?.click();
 									if (isDrawerOpen) toggleDrawer();
@@ -1923,6 +1943,18 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 						</BottomDrawer>
                     ) : null}
+
+					{isGiphyPickerOpen ? (
+						<GiphyPickerSheet
+							onClose={() => setIsGiphyPickerOpen(false)}
+							onSelect={(gif) => {
+								setIsGiphyPickerOpen(false);
+								void onSendGiphy(gif);
+							}}
+							isDesktop={isDesktop}
+							isSending={isSending}
+						/>
+					) : null}
 
 					{isSavedPhrasesOpen ? (
 						<BottomSheet

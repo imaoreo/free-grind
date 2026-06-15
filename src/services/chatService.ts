@@ -364,6 +364,13 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			await assertSuccess(response, t("chat.errors.delete_failed"));
 		},
 
+		async sendTypingStatus(conversationId: string, status: "Typing" | "Cleared"): Promise<void> {
+			await fetchRest("/v4/chatstatus/typing", {
+				method: "POST",
+				body: { conversationId, status },
+			});
+		},
+
 		async reactToMessage(payload: ChatReactionPayload) {
 			const safePayload = chatReactionPayloadSchema.parse(payload);
 			const response = await fetchRest("/v4/chat/message/reaction", {

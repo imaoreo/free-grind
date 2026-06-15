@@ -296,8 +296,11 @@
                 "position": "",
                 "show_tribes": "",
                 "show_tribes_desc": "",
+                "show_distance": "",
+                "show_distance_desc": "",
                 "relationship_status": "",
                 "tribes": "",
+                "tribes_im_into": "",
                 "not_set": "",
                 "relationship_not_set": "",
                 "body_type_not_set": ""
@@ -407,6 +410,7 @@
         "muted": "",
         "unknown": "",
         "you": "",
+        "typing": "aan het typen…",
         "today": "",
         "yesterday": "",
         "retry": "",
@@ -428,6 +432,20 @@
         "send": "",
         "open": "",
         "drawer_label": "",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "GIF sturen",
+            "tab_trending": "Trending",
+            "tab_recent": "Recent",
+            "search_placeholder": "Zoek GIFs…",
+            "error_load": "Kon geen GIFs laden.",
+            "error_search": "Zoeken mislukt.",
+            "retry": "Opnieuw proberen",
+            "no_results": "Geen GIFs gevonden.",
+            "recent_empty": "Geen recent verzonden GIFs.",
+            "recent_empty_hint": "GIFs die je verstuurt verschijnen hier.",
+            "send_confirm": "GIF sturen?"
+        },
         "drawer_unavailable": "",
         "album_fallback": "",
         "select_conversation": "",
@@ -553,7 +571,8 @@
         "close_photo_viewer": "",
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before"
+        "chatted_before": "Chatted before",
+        "accept_nsfw": ""
     },
     "auth": {
         "sign_in": {

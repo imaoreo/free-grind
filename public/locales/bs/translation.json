@@ -301,8 +301,11 @@
                 "position": "",
                 "show_tribes": "",
                 "show_tribes_desc": "",
+                "show_distance": "",
+                "show_distance_desc": "",
                 "relationship_status": "",
                 "tribes": "",
+                "tribes_im_into": "",
                 "not_set": "",
                 "relationship_not_set": "",
                 "body_type_not_set": ""
@@ -423,6 +426,7 @@
         "muted": "",
         "unknown": "",
         "you": "",
+        "typing": "piše…",
         "today": "",
         "yesterday": "",
         "retry": "",
@@ -537,7 +541,21 @@
             "cleared_local_history": "",
             "album_shared": ""
         },
-        "no_messages_yet": ""
+        "no_messages_yet": "",
+        "giphy": {
+            "title": "GIF-ovi",
+            "button_label": "Pošalji GIF",
+            "tab_trending": "U trendu",
+            "tab_recent": "Nedavni",
+            "search_placeholder": "Pretraži GIF-ove…",
+            "error_load": "Nije moguće učitati GIF-ove.",
+            "error_search": "Pretraga nije uspjela.",
+            "retry": "Pokušaj ponovo",
+            "no_results": "Nema GIF-ova.",
+            "recent_empty": "Nema nedavno poslanih GIF-ova.",
+            "recent_empty_hint": "GIF-ovi koje pošalješ će se prikazati ovdje.",
+            "send_confirm": "Pošalji GIF?"
+        }
     },
     "profile_details": {
         "loading": "",
@@ -567,7 +585,8 @@
         "status": "",
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before"
+        "chatted_before": "Chatted before",
+        "accept_nsfw": ""
     },
     "browse_page": {
         "refreshing_feed": "",

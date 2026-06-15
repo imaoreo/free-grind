@@ -26,7 +26,9 @@ import { setConversationDirectory } from "../../services/conversationDirectory";
 import {
 	CHAT_REALTIME_EVENT,
 	CHAT_REALTIME_STATUS,
+	TYPING_STATUS_EVENT,
 	getChatRealtimeStatus,
+	type TypingStatusDetail,
 } from "../../components/ChatRealtimeBridge";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
 import {
@@ -260,6 +262,10 @@ export function ChatPage() {
 	const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
 	const [threadError, setThreadError] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
+	const [typingConversationIds, setTypingConversationIds] = useState<Set<string>>(new Set());
+	const typingExpireTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+	const isSendingTypingRef = useRef(false);
+	const typingDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [replyTargetMessageId, setReplyTargetMessageId] = useState<string | null>(null);
 	const [isSending, setIsSending] = useState(false);
 	const [isUpdatingConversationState, setIsUpdatingConversationState] =
@@ -1627,7 +1633,7 @@ export function ChatPage() {
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			// appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
+			appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
 
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
 			if (
@@ -1649,29 +1655,20 @@ export function ChatPage() {
 				return;
 			}
 
-			if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
-				// appLog.debug(`[ChatPage] read event detected type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
-				const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
-				for (const payload of payloads) {
-					if (!payload || typeof payload !== "object") continue;
-					const record = payload as Record<string, unknown>;
-					const cid = (record.conversationId || record.cid) as string | undefined;
-					const rawTs = Number(record.timestamp || record.ts);
-					const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
-					const senderId = Number(record.profileId || record.senderId);
-
-					// appLog.debug(`[ChatPage] parsed read event candidate cid=${cid} ts=${ts} senderId=${senderId} currentUserId=${userId} activeCid=${selectedConversationIdRef.current}`);
+			if (envelope.type === "chat.v1.conversation_read") {
+				const record = envelope.payload as Record<string, unknown> | undefined;
+				if (record) {
+					const cid = record.conversationId as string | undefined;
+					const ts = Number(record.timestamp); // already milliseconds per API spec
+					const senderId = Number(record.profileId);
 
 					if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
-						// If the other person read our messages
 						if (userId != null && senderId !== userId) {
 							if (cid === selectedConversationIdRef.current) {
-								// appLog.debug("[ChatPage] updating threadLastReadTimestamp", { ts });
 								setThreadLastReadTimestamp(ts);
 							}
 							void chatLog.appendMessages(cid, [], ts);
 						}
-						return; // Found it
 					}
 				}
 				return;
@@ -1791,16 +1788,81 @@ export function ChatPage() {
 			const status = (event as CustomEvent<RealtimeStatus>).detail;
 			if (status) handleRealtimeStatus(status);
 		};
+		const onTyping = (event: Event) => {
+			const detail = (event as CustomEvent<TypingStatusDetail>).detail;
+			if (!detail) return;
+			const { conversationId, status } = detail;
+			if (status === "Typing") {
+				setTypingConversationIds((prev) => {
+					const next = new Set(prev);
+					next.add(conversationId);
+					return next;
+				});
+				// Auto-expire after 8s in case Cleared never arrives
+				const existing = typingExpireTimers.current.get(conversationId);
+				if (existing) clearTimeout(existing);
+				const timer = setTimeout(() => {
+					setTypingConversationIds((prev) => {
+						const next = new Set(prev);
+						next.delete(conversationId);
+						return next;
+					});
+					typingExpireTimers.current.delete(conversationId);
+				}, 8000);
+				typingExpireTimers.current.set(conversationId, timer);
+			} else {
+				setTypingConversationIds((prev) => {
+					if (!prev.has(conversationId)) return prev;
+					const next = new Set(prev);
+					next.delete(conversationId);
+					return next;
+				});
+				const existing = typingExpireTimers.current.get(conversationId);
+				if (existing) {
+					clearTimeout(existing);
+					typingExpireTimers.current.delete(conversationId);
+				}
+			}
+		};
 		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
+		window.addEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
 		return () => {
 			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 			window.removeEventListener(
 				CHAT_REALTIME_STATUS,
 				onStatus as EventListener,
 			);
+			window.removeEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
 		};
 	}, [handleRealtimeEvent, handleRealtimeStatus]);
+
+	// Send typing status to API when draft changes
+	const selectedConversationIdForTyping = selectedConversation?.data.conversationId ?? null;
+	useEffect(() => {
+		if (!selectedConversationIdForTyping) return;
+		if (isChatGhosted(selectedConversationIdForTyping)) return;
+		const cid = selectedConversationIdForTyping;
+
+		if (typingDebounceTimer.current) {
+			clearTimeout(typingDebounceTimer.current);
+			typingDebounceTimer.current = null;
+		}
+
+		if (draft.length > 0) {
+			typingDebounceTimer.current = setTimeout(() => {
+				if (!isSendingTypingRef.current) {
+					isSendingTypingRef.current = true;
+					service.sendTypingStatus(cid, "Typing").finally(() => {
+						isSendingTypingRef.current = false;
+					});
+				}
+			}, 300);
+		} else {
+			service.sendTypingStatus(cid, "Cleared").catch(() => {});
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [draft, selectedConversationIdForTyping]);
 
 	useEffect(() => {
 		if (realtimeStatus === "connected") {
@@ -2622,6 +2684,56 @@ export function ChatPage() {
 						targetId: targetProfileIdValue,
 					},
 					body: { lat, lon },
+					replyToMessageId: replyTargetMessageId,
+				});
+
+				setReplyTargetMessageId(null);
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
+	);
+
+	const sendGiphyMessage = useCallback(
+		async (gif: { id: string; urlPath: string; stillPath: string; previewPath: string; width: number; height: number }) => {
+			if (!userId) return;
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Giphy",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: {
+						id: gif.id,
+						urlPath: gif.urlPath,
+						stillPath: gif.stillPath,
+						previewPath: gif.previewPath,
+						width: gif.width,
+						height: gif.height,
+						imageHash: "",
+					},
 					replyToMessageId: replyTargetMessageId,
 				});
 
@@ -3630,6 +3742,7 @@ export function ChatPage() {
 				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
 			}}
 			onClearInboxFilters={clearInboxFilters}
+			typingConversationIds={typingConversationIds}
 		/>
 	);
 
@@ -3735,6 +3848,7 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onSendGiphy={sendGiphyMessage}
 			onAudioRecorded={onAudioRecorded}
 			pendingAudioBlob={pendingAudioBlob}
 			pendingAudioDuration={pendingAudioDuration}
@@ -3751,6 +3865,7 @@ export function ChatPage() {
 			selectedActionMessageMine={selectedActionMessageMine}
 			isAlbumSheetOpen={isAlbumSheetOpen}
 			onOpenMediaSheet={() => setIsChatMediaSheetOpen(true)}
+			isPartnerTyping={selectedConversation != null && typingConversationIds.has(selectedConversation.data.conversationId)}
 		/>
 	);
 
@@ -3767,7 +3882,7 @@ export function ChatPage() {
 								{...sharedInboxHeaderProps}
 								isDesktop={true}
 							/>
-							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-3 grid grid-cols-[360px_minmax(0,1fr)] gap-3">
+							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom,0px)+104px)] grid grid-cols-[360px_minmax(0,1fr)] gap-3">
 								{renderInbox}
 								{renderThread}
 							</div>
