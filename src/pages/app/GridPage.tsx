@@ -1184,17 +1184,18 @@ export function GridPage() {
 								<button
 									type="button"
 									onClick={() => setIsLocationOpen(true)}
-									className="inline-flex min-h-12 w-full items-center gap-2.5 rounded-full bg-[color-mix(in_srgb,var(--surface-2)_84%,transparent)] pl-2 pr-4 text-left transition active:scale-[0.99] overflow-hidden"
+									className="glass-pill inline-flex min-h-12 w-full items-center gap-2.5 pl-2 pr-4 text-left active:scale-[0.99] overflow-hidden"
+									style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 								>
 									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
 										{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
 									</div>
 									<div className="min-w-0 flex-1">
-										<p className={`truncate text-sm font-semibold leading-tight ${locationName ? "text-[var(--text)]" : "text-[var(--text-muted)]"}`}>
-											{locationName || t("browse_page.current_location")}
-										</p>
-										<p className="text-[10px] font-medium text-[var(--text-muted)]">
+										<p className="text-sm font-semibold leading-tight text-[var(--text)]">
 											{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+										</p>
+										<p className={`truncate text-[10px] font-medium leading-tight ${locationName ? "text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>
+											{locationName || t("browse_page.current_location")}
 										</p>
 									</div>
 								</button>
