@@ -856,7 +856,7 @@ export function ChatThreadMessages({
                                                 </span>
                                             )}
                                             {isExpiringImage ? (
-                                                <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                     <Eye className="h-3 w-3" />
                                                     <span>{t("chat.attachments.view_once")}</span>
                                                 </div>
@@ -1124,12 +1124,12 @@ export function ChatThreadMessages({
                                                     />
                                                     {isLimitedVideo && (
                                                         videoMaxViews === 1 ? (
-                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                            <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                                 <Eye className="h-3 w-3" />
                                                                 <span>{t("chat.attachments.view_once")}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)] shadow-lg backdrop-blur-sm">
+                                                            <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                                 <Repeat2 className="h-3 w-3" />
                                                                 <span>Replay</span>
                                                             </div>
