@@ -358,7 +358,7 @@
         "media_counts_images": "{{count}} imagens",
         "media_counts_total": " • {{count}} mídia total",
         "media_desc": ". Adicione imagens, remova-as ou reordene a ordem de exibição.",
-        "upload": "Adicionar imagens",
+        "upload": "Adicionar mídia",
         "uploading": "Carregando…",
         "refresh": "Atualizar",
         "loading_media": "Carregando mídia do álbum…",
@@ -377,7 +377,7 @@
         "error_rename_fallback": "Falha ao renomear o álbum",
         "error_delete_fallback": "Falha ao excluir o álbum",
         "error_load_details_fallback": "Não foi possível carregar os detalhes do álbum",
-        "error_upload_fallback": "Não foi possível carregar a imagem",
+        "error_upload_fallback": "Não foi possível carregar o arquivo",
         "error_reorder_unsupported": "Não é possível reordenar este álbum devido a IDs de mídia não suportados",
         "error_reorder_fallback": "Falha ao reordenar a mídia",
         "error_delete_content_fallback": "Falha ao excluir mídia"

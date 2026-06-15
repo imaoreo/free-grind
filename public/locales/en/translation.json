@@ -383,7 +383,7 @@
         "media_counts_images": "{{count}} images",
         "media_counts_total": " · {{count}} total media",
         "media_desc": ". Add images, remove them, or reorder display order.",
-        "upload": "Add images",
+        "upload": "Add media",
         "uploading": "Uploading…",
         "refresh": "Refresh",
         "loading_media": "Loading album media…",
@@ -401,7 +401,7 @@
         "error_rename_fallback": "Failed to rename album",
         "error_delete_fallback": "Failed to delete album",
         "error_load_details_fallback": "Failed to load album details",
-        "error_upload_fallback": "Failed to upload picture",
+        "error_upload_fallback": "Failed to upload media",
         "error_reorder_unsupported": "Cannot reorder this album due to unsupported media IDs",
         "error_reorder_fallback": "Failed to reorder media",
         "error_delete_content_fallback": "Failed to delete media"

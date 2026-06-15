@@ -49,6 +49,8 @@ export interface DeleteOwnAlbumInput {
 export interface UploadOwnAlbumContentInput {
 	albumId: string;
 	multipart: MultipartUpload;
+	width?: number;
+	height?: number;
 }
 
 export interface ReorderOwnAlbumContentInput {

@@ -366,7 +366,7 @@
         "media_counts_images": "{{count}} Bilder",
         "media_counts_total": " · {{count}} Medien insgesamt",
         "media_desc": ". Bilder hinzufügen, entfernen oder die Reihenfolge ändern.",
-        "upload": "Bilder hinzufügen",
+        "upload": "Medien hinzufügen",
         "uploading": "Lade hoch…",
         "refresh": "Aktualisieren",
         "loading_media": "Lade Albummedien…",
@@ -384,7 +384,7 @@
         "error_rename_fallback": "Album konnte nicht umbenannt werden",
         "error_delete_fallback": "Album konnte nicht gelöscht werden",
         "error_load_details_fallback": "Details konnten nicht geladen werden",
-        "error_upload_fallback": "Bild konnte nicht hochgeladen werden",
+        "error_upload_fallback": "Medium konnte nicht hochgeladen werden",
         "error_reorder_unsupported": "Reihenfolge kann nicht geändert werden (nicht unterstützte Medien-IDs)",
         "error_reorder_fallback": "Reihenfolge konnte nicht geändert werden",
         "error_delete_content_fallback": "Medium konnte nicht gelöscht werden"
