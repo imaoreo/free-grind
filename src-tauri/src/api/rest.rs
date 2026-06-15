@@ -86,11 +86,14 @@ impl GrindrClient {
         };
 
         let auth_token = self.authorization_header().await;
-        let mut response = make_request(auth_token.clone(), &device).send().await.map_err(|e| {
-            #[cfg(debug_assertions)]
-            eprintln!("[HTTP] network error on {} {}: {e}", method, url);
-            e
-        })?;
+        let mut response = make_request(auth_token.clone(), &device)
+            .send()
+            .await
+            .map_err(|e| {
+                #[cfg(debug_assertions)]
+                eprintln!("[HTTP] network error on {} {}: {e}", method, url);
+                e
+            })?;
 
         if response.status().as_u16() == 401 && !is_auth_path {
             let _lock = self.refresh_lock.lock().await;
@@ -103,23 +106,21 @@ impl GrindrClient {
 
             let new_auth_token = self.authorization_header().await;
             let device = self.device.read().await;
-            response = make_request(new_auth_token, &device).send().await.map_err(|e| {
-                #[cfg(debug_assertions)]
-                eprintln!("[HTTP] network error on {} {}: {e}", method, url);
-                e
-            })?;
+            response = make_request(new_auth_token, &device)
+                .send()
+                .await
+                .map_err(|e| {
+                    #[cfg(debug_assertions)]
+                    eprintln!("[HTTP] network error on {} {}: {e}", method, url);
+                    e
+                })?;
         }
 
         let status = response.status();
         let text = response.text().await.unwrap_or_default();
 
         #[cfg(debug_assertions)]
-        eprintln!(
-            "[HTTP] <- {} {} | Status: {}",
-            method,
-            url,
-            status
-        );
+        eprintln!("[HTTP] <- {} {} | Status: {}", method, url, status);
 
         if !status.is_success() {
             #[cfg(debug_assertions)]
@@ -132,7 +133,13 @@ impl GrindrClient {
             let message = json
                 .get("message")
                 .and_then(|m| m.as_str())
-                .unwrap_or_else(|| if text.is_empty() { "Unknown error" } else { &text })
+                .unwrap_or_else(|| {
+                    if text.is_empty() {
+                        "Unknown error"
+                    } else {
+                        &text
+                    }
+                })
                 .to_owned();
 
             return Err(AppError::Api { code, message });

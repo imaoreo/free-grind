@@ -17,3 +17,6 @@ frontend.tar.gz.sig
 src-tauri/gen/
 !src-tauri/gen/android/app/src/main/AndroidManifest.xml
 /.build
+
+# exe-manager build output and runtime data (manager.exe/child.exe + instance state)
+/windows-exe

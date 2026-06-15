@@ -244,6 +244,26 @@ jobs:
               }
             }
 
+            // Publish portable role-specific binaries for Windows.
+            // Runtime mode is selected by executable filename (manager vs child).
+            if (suffix === 'windows-x64') {
+              const baseExe = path.join('src-tauri', 'target', 'release', 'free-grind.exe');
+              if (fs.existsSync(baseExe)) {
+                uploads.push({
+                  src: baseExe,
+                  name: `free-grind-manager-v${version}-${suffix}.exe`,
+                  mime: mimeTypes['.exe'],
+                });
+                uploads.push({
+                  src: baseExe,
+                  name: `free-grind-child-v${version}-${suffix}.exe`,
+                  mime: mimeTypes['.exe'],
+                });
+              } else {
+                console.log(`! Skipped manager/child portable exes: ${baseExe} not found`);
+              }
+            }
+
             for (const { src, name, mime } of uploads) {
               const data = fs.readFileSync(src);
               await github.rest.repos.uploadReleaseAsset({
