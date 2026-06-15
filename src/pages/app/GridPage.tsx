@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, X } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, X, Eye, EyeOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -143,6 +143,8 @@ export function GridPage() {
 	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
 	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
 	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
+	const [showDistance, setShowDistance] = useState<boolean>(true);
+	const [isTogglingDistance, setIsTogglingDistance] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
@@ -291,10 +293,40 @@ export function GridPage() {
 
 		void loadProfilePhoto();
 
+		const loadShowDistance = async () => {
+			try {
+				const raw = await apiFunctions.getRawProfile(userId) as Record<string, unknown>;
+				const profiles = Array.isArray(raw?.profiles) ? raw.profiles : [];
+				const profile = profiles[0] as Record<string, unknown> | undefined;
+				const value = profile?.showDistance;
+				if (!cancelled) {
+					setShowDistance(typeof value === "boolean" ? value : true);
+				}
+			} catch {
+				// non-critical
+			}
+		};
+		void loadShowDistance();
+
 		return () => {
 			cancelled = true;
 		};
 	}, [apiFunctions, userId]);
+
+	const handleToggleDistance = useCallback(async () => {
+		if (isTogglingDistance) return;
+		const next = !showDistance;
+		setShowDistance(next);
+		setIsTogglingDistance(true);
+		try {
+			await apiFunctions.updateMyProfile({ showDistance: next });
+		} catch {
+			setShowDistance(!next);
+			toast.error(t("browse_page.errors.toggle_distance_failed", { defaultValue: "Could not update distance setting." }));
+		} finally {
+			setIsTogglingDistance(false);
+		}
+	}, [apiFunctions, isTogglingDistance, showDistance, t]);
 
 	const browseCacheKey = useMemo(() => {
 		if (!geohash) {
@@ -1181,24 +1213,40 @@ export function GridPage() {
 									/>
 								</button>
 
-								<button
-									type="button"
-									onClick={() => setIsLocationOpen(true)}
-									className="glass-pill inline-flex min-h-12 w-full items-center gap-2.5 pl-2 pr-4 text-left active:scale-[0.99] overflow-hidden"
+								<div
+									className="glass-pill inline-flex min-h-12 w-full items-center overflow-hidden"
 									style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 								>
-									<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
-										{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
-									</div>
-									<div className="min-w-0 flex-1">
-										<p className="text-sm font-semibold leading-tight text-[var(--text)]">
-											{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
-										</p>
-										<p className={`truncate text-[10px] font-medium leading-tight ${locationName ? "text-[var(--text-muted)]" : "text-[var(--text-muted)]"}`}>
-											{locationName || t("browse_page.current_location")}
-										</p>
-									</div>
-								</button>
+									<button
+										type="button"
+										onClick={() => setIsLocationOpen(true)}
+										className="flex min-w-0 flex-1 items-center gap-2.5 pl-2 pr-3 text-left active:scale-[0.99]"
+									>
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
+											{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-semibold leading-tight text-[var(--text)]">
+												{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+											</p>
+											<p className="truncate text-[10px] font-medium leading-tight text-[var(--text-muted)]">
+												{locationName || t("browse_page.current_location")}
+											</p>
+										</div>
+									</button>
+									<button
+										type="button"
+										onClick={(e) => { e.stopPropagation(); void handleToggleDistance(); }}
+										disabled={isTogglingDistance}
+										title={showDistance ? t("browse_page.distance_visible", { defaultValue: "Distance visible to others" }) : t("browse_page.distance_hidden", { defaultValue: "Distance hidden from others" })}
+										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-50 mr-1"
+									>
+										{showDistance
+											? <Eye className="h-4 w-4 text-[var(--accent)]" />
+											: <EyeOff className="h-4 w-4 text-[var(--text-muted)]" />
+										}
+									</button>
+								</div>
 							</div>
 
 							<div className="-mx-[var(--app-px)] overflow-x-auto pb-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
