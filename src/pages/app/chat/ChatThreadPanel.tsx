@@ -1697,8 +1697,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									if (isDrawerOpen) toggleDrawer();
 								}}
 								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
-								aria-label={t("chat.giphy.button_label", { defaultValue: "Send GIF" })}
-								title={t("chat.giphy.button_label", { defaultValue: "Send GIF" })}
+								aria-label={t("chat.giphy.button_label")}
+								title={t("chat.giphy.button_label")}
 							>
 								<Sticker className="h-5 w-5" />
 							</button>
