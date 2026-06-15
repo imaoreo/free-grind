@@ -573,29 +573,3 @@ jobs:
             });
 
             console.log(`✓ Unsigned iOS IPA uploaded to release as ${ipaName}`);
-
-
-  publish-release:
-    needs:
-      - create-release
-      - publish-ota
-      - build-desktop
-      - build-android
-      - build-ios
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Publish release
-        uses: actions/github-script@v7
-        env:
-          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
-        with:
-          script: |
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: Number(process.env.RELEASE_ID),
-              draft: false,
-              prerelease: false
-            });
