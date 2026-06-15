@@ -11,6 +11,19 @@ type LeafletLocationPickerProps = {
 	initialCenter?: [number, number];
 };
 
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+function createPinIcon(L: any) {
+	const accentColor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#ffcc01";
+	return L.divIcon({
+		className: "",
+		html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="${accentColor}" stroke="${accentColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3" fill="white" stroke="white"/></svg>`,
+		iconSize: [28, 28],
+		iconAnchor: [14, 28],
+	});
+}
+
 export function LeafletLocationPicker({
 	selectedLocation,
 	onPick,
@@ -33,42 +46,21 @@ export function LeafletLocationPicker({
 				const L = await import("leaflet");
 				await import("leaflet/dist/leaflet.css");
 
-				if (!mounted || !mapContainerRef.current || mapRef.current) {
-					return;
-				}
+				if (!mounted || !mapContainerRef.current || mapRef.current) return;
 
 				leafletRef.current = L;
 
-				const map = L.map(mapContainerRef.current, {
-					zoomControl: true,
-				}).setView(
-					selectedLocation
-						? [selectedLocation.lat, selectedLocation.lon]
-						: initialCenter,
+				const map = L.map(mapContainerRef.current, { zoomControl: true }).setView(
+					selectedLocation ? [selectedLocation.lat, selectedLocation.lon] : initialCenter,
 					selectedLocation ? defaultZoom : 2,
 				);
 
-				L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-					attribution:
-						'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-				}).addTo(map);
-
-				map.on("click", (event: any) => {
-					onPick(event.latlng.lat, event.latlng.lng);
-				});
-
+				L.tileLayer(TILE_URL, { attribution: TILE_ATTRIBUTION }).addTo(map);
+				map.on("click", (event: any) => { onPick(event.latlng.lat, event.latlng.lng); });
 				mapRef.current = map;
 
 				if (selectedLocation) {
-					markerRef.current = L.circleMarker(
-						[selectedLocation.lat, selectedLocation.lon],
-						{
-							radius: 9,
-							color: "#131821",
-							fillColor: "#ffcc01",
-							fillOpacity: 0.95,
-						},
-					).addTo(map);
+					markerRef.current = L.marker([selectedLocation.lat, selectedLocation.lon], { icon: createPinIcon(L) }).addTo(map);
 				}
 			} catch {
 				onError(t("browse_location.map_picker_error_load"));
@@ -91,30 +83,15 @@ export function LeafletLocationPicker({
 	useEffect(() => {
 		const map = mapRef.current;
 		const L = leafletRef.current;
-
-		if (!map || !L || !selectedLocation) {
-			return;
-		}
+		if (!map || !L || !selectedLocation) return;
 
 		if (markerRef.current) {
 			markerRef.current.setLatLng([selectedLocation.lat, selectedLocation.lon]);
 		} else {
-			markerRef.current = L.circleMarker(
-				[selectedLocation.lat, selectedLocation.lon],
-				{
-					radius: 9,
-					color: "#131821",
-					fillColor: "#ffcc01",
-					fillOpacity: 0.95,
-				},
-			).addTo(map);
+			markerRef.current = L.marker([selectedLocation.lat, selectedLocation.lon], { icon: createPinIcon(L) }).addTo(map);
 		}
 
-		map.setView(
-			[selectedLocation.lat, selectedLocation.lon],
-			Math.max(defaultZoom, map.getZoom()),
-		);
-
+		map.setView([selectedLocation.lat, selectedLocation.lon], Math.max(defaultZoom, map.getZoom()));
 		map.invalidateSize();
 	}, [defaultZoom, selectedLocation]);
 

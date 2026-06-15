@@ -11,6 +11,7 @@ interface BottomDrawerProps {
 	isProcessing?: boolean;
 	zIndex?: string;
 	isDesktop?: boolean;
+	footerLeft?: ReactNode;
 	children: ReactNode;
 }
 
@@ -23,6 +24,7 @@ export function BottomDrawer({
 	isProcessing = false,
 	zIndex = "z-[60]",
 	isDesktop = false,
+	footerLeft,
 	children,
 }: BottomDrawerProps) {
 	return (
@@ -43,6 +45,7 @@ export function BottomDrawer({
 			</div>
 			{children}
 			<div className="flex gap-2 px-3">
+				{footerLeft}
 				{cancelLabel && (
 					<SheetClose
 						disabled={isProcessing}

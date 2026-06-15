@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 export function ProtectedLayout() {
 	const location = useLocation();
     const isChatConversationRoute =
-        /^\/chat\/[^/]+$/.test(location.pathname) ||
+        (/^\/chat\/[^/]+$/.test(location.pathname) && location.pathname !== "/chat/albums") ||
         (location.pathname === "/chat" && new URLSearchParams(location.search).has("targetProfileId"));
+	const isProfileRoute = /^\/profile\/[^/]+$/.test(location.pathname);
 
 	// Determine if we are on a large enough screen to show both the inbox and chat thread.
 	// This matches the 1024px breakpoint used in ChatPage.tsx for the dual-pane layout.
@@ -21,8 +22,8 @@ export function ProtectedLayout() {
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
 
-	// Hide navbar on mobile and tablet conversation pages (where chat is full-screen).
-	const shouldHideNavbar = isChatConversationRoute && !isChatDualPane;
+	// Hide navbar on mobile/tablet for full-screen chat or profile pages.
+	const shouldHideNavbar = (isChatConversationRoute || isProfileRoute) && !isChatDualPane;
 
 	return (
 		<div className="relative">

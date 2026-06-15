@@ -14,11 +14,11 @@
  *   when the message was sent by the current user.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/useAuth";
 import { useApi } from "../hooks/useApi";
-import { ChatRealtimeManager } from "../services/chatRealtime";
+import { ChatRealtimeManager, setActiveRealtimeManager } from "../services/chatRealtime";
 import { TauriWebSocket, isTauriRuntime } from "../services/tauriWebSocket";
 import * as chatLog from "../services/chatLog";
 import {
@@ -38,6 +38,13 @@ export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
 export const TAP_RECEIVED_EVENT = "fg:tap-received";
 export const VIEW_RECEIVED_EVENT = "fg:view-received";
+export const TYPING_STATUS_EVENT = "fg:typing-status";
+
+export type TypingStatusDetail = {
+	conversationId: string;
+	profileId: string;
+	status: "Typing" | "Cleared" | "Sent";
+};
 
 // Global cache to allow late-mounting components (like ChatPage) to see the
 // current connection status immediately.
@@ -165,7 +172,10 @@ export function ChatRealtimeBridge() {
     const apiFunctions = useApiFunctions();
 	const location = useLocation();
 
-	const [token, setToken] = useState<string | null>(null);
+	const callMethodRef = useRef(callMethod);
+	useEffect(() => {
+		callMethodRef.current = callMethod;
+	}, [callMethod]);
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
@@ -177,52 +187,16 @@ export function ChatRealtimeBridge() {
 		userIdRef.current = userId;
 	}, [userId]);
 
-	// Fetch the WS token whenever the authenticated user changes.
+	// Boot the realtime manager whenever the user is authenticated.
+	// getToken is called fresh on every (re)connect so an expired token
+	// never blocks reconnection.
 	useEffect(() => {
 		if (!userId) {
-			setToken(null);
 			if (lastKnownStatus !== "idle") {
 				dispatchStatus("idle");
 			}
-			// appLog.debug("[chat-ws:bridge] no user; skipping token fetch");
 			return;
 		}
-
-		let active = true;
-		void callMethod("websocket_token")
-			.then((tok) => {
-				if (!active) return;
-				// Ensure we handle both raw string and potential object wrappers
-				const value = typeof tok === "string" ? tok : null;
-
-				/*
-				appLog.debug("[chat-ws:bridge] token received", {
-					success: !!value,
-					type: typeof tok,
-					length: value?.length ?? 0
-				});
-				*/
-
-				setToken(value);
-				if (!value) {
-					dispatchStatus("polling");
-				}
-			})
-			.catch(() => {
-				if (!active) return;
-				setToken(null);
-				dispatchStatus("polling");
-				appLog.warn("[chat-ws:bridge] token fetch failed");
-			});
-
-		return () => {
-			active = false;
-		};
-	}, [callMethod, userId]);
-
-	// Boot the realtime manager once we have a token.
-	useEffect(() => {
-		if (!token) return;
 
 		/*
 		appLog.debug("[chat-ws:bridge] starting manager", {
@@ -232,12 +206,20 @@ export function ChatRealtimeBridge() {
 
 		const manager = new ChatRealtimeManager({
 			url: "wss://grindr.mobi/v1/ws",
-			getToken: () => token,
+			getToken: async () => {
+				try {
+					const tok = await callMethodRef.current("websocket_token");
+					return typeof tok === "string" ? tok : null;
+				} catch {
+					appLog.warn("[chat-ws:bridge] token fetch failed");
+					return null;
+				}
+			},
 			onStatusChange: (status) => {
 				dispatchStatus(status);
 			},
 			onEvent: async (envelope) => {
-				// appLog.debug(`[chat-ws:bridge] onEvent type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
+				appLog.debug(`[chat-ws:bridge] onEvent type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
 
 				// Dispatch event AFTER potential DB updates if we want consistency,
 				// or BEFORE if we want speed. Let's do DB updates first for critical stuff.
@@ -273,32 +255,41 @@ export function ChatRealtimeBridge() {
 					}
 				}
 
-				if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
-					const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
-					for (const payload of payloads) {
-						if (!payload || typeof payload !== "object") continue;
-						const record = payload as Record<string, unknown>;
-						const cid = (record.conversationId || record.cid) as string | undefined;
-						const rawTs = Number(record.timestamp || record.ts);
-						const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
-						const senderId = Number(record.profileId || record.senderId);
+				if (envelope.type === "chat.v1.typing_status") {
+					const record = envelope.payload as Record<string, unknown> | undefined;
+					if (record) {
+						const conversationId = record.conversationId as string | undefined;
+						const profileId = record.profileId as string | undefined;
+						const status = record.status as string | undefined;
+						if (conversationId && profileId && status) {
+							window.dispatchEvent(
+								new CustomEvent<TypingStatusDetail>(TYPING_STATUS_EVENT, {
+									detail: { conversationId, profileId, status: status as TypingStatusDetail["status"] },
+								}),
+							);
+						}
+					}
+				}
+
+				if (envelope.type === "chat.v1.conversation_read") {
+					const record = envelope.payload as Record<string, unknown> | undefined;
+					if (record) {
+						const cid = record.conversationId as string | undefined;
+						const ts = Number(record.timestamp); // already milliseconds per API spec
+						const senderId = Number(record.profileId);
 
 						if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId) && userIdRef.current != null) {
 							if (senderId !== userIdRef.current) {
-								// The other person read our messages
 								await chatLog.appendMessages(cid, [], ts);
 							} else {
-								// WE read the messages (possibly on another device)
-								// Try to find the profileId for this conversation to clear the index
 								const conv = getConversation(cid);
- 							if (conv && !isChatGhosted(cid)) { // <-- Added Ghost Check
- 								const other = getOtherParticipant(conv, userIdRef.current);
- 								if (other?.profileId) {
- 									await clearUnreadCountForProfile(String(other.profileId)).catch(() => {});
- 								}
- 							}
+								if (conv && !isChatGhosted(cid)) {
+									const other = getOtherParticipant(conv, userIdRef.current);
+									if (other?.profileId) {
+										await clearUnreadCountForProfile(String(other.profileId)).catch(() => {});
+									}
+								}
 							}
-							break;
 						}
 					}
 				}
@@ -373,6 +364,7 @@ export function ChatRealtimeBridge() {
 		});
 
 		manager.start();
+		setActiveRealtimeManager(manager);
 
 		// Handle Foreground/Background shifts on Android
 		const handleVisibilityChange = () => {
@@ -390,9 +382,10 @@ export function ChatRealtimeBridge() {
 		return () => {
 			// appLog.debug("[chat-ws:bridge] stopping manager");
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
+			setActiveRealtimeManager(null);
 			manager.stop({ suppressStatus: true });
 		};
-	}, [token]);
+	}, [userId]);
 
 	return null;
 }

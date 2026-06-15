@@ -38,7 +38,10 @@
         "issue_board": "Problemas y solicitudes de sugerencias",
         "issue_board_desc": "Descubre y busca los informes de problemas y solicitudes de sugerencias.",
         "automation": "Automatización",
-        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar."
+        "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar.",
+        "privacy": "Privacidad y análisis",
+        "privacy_desc": "Modo fantasma, desenfoque multimedia, y análisis.",
+        "check_updates_desc": "Descarga e instala la última versión de Free Grind."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -101,6 +104,7 @@
         "session_placeholder": "¿Qué estás buscando ahora?",
         "char_limit": "{{count}}/140",
         "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
         "i_am_hosting": "Alojar",
         "show_on_map": "Mostrarme en el mapa",
         "start_now": "Empezar ahora",
@@ -137,7 +141,7 @@
         "title": "Filtros Right Now",
         "subtitle": "Afina la página de Right Now",
         "apply": "Aplicar",
-        "position": "Posición",
+        "position": "Rol",
         "age_range": "Rango de edad",
         "back_aria": "Volver"
     },
@@ -177,7 +181,8 @@
         "local_filters": {
             "title": "Filtros locales",
             "description": "Estos filtros se aplican instantáneamente a los perfiles ya cargados.",
-            "is_visiting": "Visitando"
+            "is_visiting": "Visitando",
+            "nickname_placeholder": "Name…"
         }
     },
     "about_page": {
@@ -250,7 +255,7 @@
         "media_counts_images": "{{count}} imágenes",
         "media_counts_total": " · {{count}} contenido total",
         "media_desc": ". Añade imágenes, elimínelas o cambia el orden de visualización.",
-        "upload": "Añadir imágenes",
+        "upload": "Añadir multimedia",
         "uploading": "Subiendo…",
         "refresh": "Recargar",
         "loading_media": "Cargando contenido de álbum…",
@@ -269,7 +274,7 @@
         "error_rename_fallback": "Error al renombrar álbum",
         "error_delete_fallback": "Error al borrar álbum",
         "error_load_details_fallback": "Error al cargar detalles del álbum",
-        "error_upload_fallback": "Error al subir imagen",
+        "error_upload_fallback": "Error al subir archivo",
         "error_reorder_unsupported": "No se pudo reorganizar este álbum debido a que el ID del contenido no está soportado",
         "error_reorder_fallback": "Error al reorganizar contenido",
         "error_delete_content_fallback": "Error al borrar el contenido",
@@ -346,13 +351,16 @@
                 "weight_placeholder": "Peso en kg",
                 "ethnicity": "Etnicidad",
                 "body_type": "Complexión física",
-                "show_position": "Mostrar posición",
-                "show_position_desc": "Permite a los demás ver tu posición en el perfil.",
-                "position": "Posición",
+                "show_position": "Mostrar rol",
+                "show_position_desc": "Permite a los demás ver tu rol en el perfil.",
+                "position": "Rol",
                 "show_tribes": "Mostrar tribus",
                 "show_tribes_desc": "Elige si tus tribus son visibles o no de forma pública.",
+                "show_distance": "Compartir distancia",
+                "show_distance_desc": "Controla si tu distancia es visible para otros.",
                 "relationship_status": "Situación amorosa",
                 "tribes": "Tribus",
+                "tribes_im_into": "Tribus que me gustan",
                 "not_set": "Sin especificar",
                 "relationship_not_set": "Situación amorosa sin establecer",
                 "body_type_not_set": "Complexión física sin establecer"
@@ -501,6 +509,15 @@
             "no_messages_yet": "Sin mensajes todavía",
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
+        "media_sheet": {
+            "title": "Medios recibidos",
+            "tab_albums": "Álbumes",
+            "tab_media": "Medios",
+            "albums_empty_title": "Aún no se han compartido álbumes",
+            "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
+            "media_empty_title": "Aún no has recibido medios",
+            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
+        },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",
         "loading_inbox": "Cargando buzón...",
@@ -517,6 +534,7 @@
         "muted": "Silenciado",
         "unknown": "Desconocido",
         "you": "Tú",
+        "typing": "escribiendo…",
         "today": "Hoy",
         "yesterday": "Ayer",
         "retry": "Volver a intentar",
@@ -530,6 +548,8 @@
         "no_messages_yet": "No tienes mensajes todavía.",
         "share_album": "Compartir álbum",
         "attach_media": "Adjuntar contenido",
+        "cancel_recording": "Deslizar a la izquierda para cancelar",
+        "stop_recording": "Detener grabación",
         "manage_albums": "Gestionar álbumes",
         "no_albums_available": "No hay álbumes disponibles. Crea uno en Configuración primero.",
         "share": "Compartir",
@@ -543,12 +563,17 @@
         },
         "preview": {
             "sent_image": "Envió una imagen",
+            "sent_gif": "Envió un GIF",
+            "sent_gaymoji": "Envió un Gaymoji",
             "shared_album": "Compartió un álbum",
             "sent_audio": "Envió un mensaje de audio",
             "reacted_album_content": "Reaccionó a contenido de álbum",
+            "tapped_album_photo_yours": "Le gustó tu foto de álbum",
+            "tapped_album_photo_theirs": "Te gustó su foto de álbum",
             "sent_video": "Envió un vídeo",
             "sent_message": "Envió un mensaje",
-            "sent_location": "Envió una ubicación"
+            "sent_location": "Envió una ubicación",
+            "replied_profile_photo": "Respondió a una foto de perfil"
         },
         "thread": {
             "unsent": "Este mensaje fue eliminado",
@@ -557,7 +582,9 @@
             "audio_placeholder": "[audio]",
             "unsupported_placeholder": "[mensaje no soportado]",
             "shared_image": "Compartió una imagen",
+            "shared_gif": "Compartió un GIF",
             "shared_video": "Compartió un vídeo",
+            "video_expired": "Caducado",
             "shared_audio": "Compartió un mensaje de audio",
             "failed": "Hubo un error",
             "from_local_history": "De tu historial local",
@@ -565,8 +592,13 @@
             "taken_on_grindr": "Tomada en Grindr",
             "album_cover": "Portada de álbum",
             "album_share": "Compartir álbum",
+            "album_image": "Imagen de álbum",
+            "replied_to_photo": "Respondió a tu foto de perfil",
+            "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
-            "location_shared": "Ubicación compartida"
+            "location_shared": "Ubicación compartida",
+            "audio_label": "Audio",
+            "image_expired": "Caducado"
         },
         "actions": {
             "title": "Acciones de mensaje",
@@ -587,12 +619,18 @@
         },
         "attachments": {
             "ready_to_send": "Listo para enviar: {{file}}",
-            "looping": "",
-            "taken_on_grindr": "TomadoEnGrindr",
-            "send_attachment": "Enviar archivo",
+            "looping": "En bucle",
+            "looping_description": "El vídeo se reproducirá en bucle",
+            "max_views": "Vistas máx.",
+            "view_once": "Ver una vez",
+            "view_once_description": "La imagen solo se puede ver una vez durante 10 segundos",
+            "taken_on_grindr": "Tomado con marca de agua de Grindr",
+            "send": "Enviar",
+            "send_expiring": "Enviar expirando",
             "uploading": "Subiendo archivo",
             "too_large": "El archivo es demasiado grande. El límite es 12MB.",
-            "only_image_video": "Solo adjuntos de vídeo e imagen son soportados."
+            "only_image_video": "Solo adjuntos de vídeo e imagen son soportados.",
+            "taken_on_grindr_description": "Añade la marca de tiempo para certificar la autenticidad y la actualidad de tu foto"
         },
         "errors": {
             "load_albums": "Error al cargar álbumes",
@@ -622,7 +660,11 @@
             "send_drawer_media": "Error al enviar contenido de la galería",
             "delete_conversation": "Error al eliminar conversación",
             "no_location_set": "La ubicación no está establecida en los ajustes",
-            "invalid_location": "Formato de ubicación inválido"
+            "invalid_location": "Formato de ubicación inválido",
+            "microphone_access": "No se pudo acceder al micrófono.",
+            "microphone_denied": "Acceso al micrófono denegado.",
+            "microphone_not_found": "No se encontró ningún micrófono.",
+            "recording_too_short": "Grabación demasiado corta."
         },
         "toasts": {
             "cleared_local_history": "Se ha limpiado el historial local para este chat",
@@ -665,10 +707,25 @@
         },
         "load_older_messages": "Cargar mensajes más antiguos",
         "view_profile": "Ver perfil",
+        "received_media": "Medios recibidos",
         "favorite": "Favorito",
         "unfavorite": "Quitar de favoritos",
         "share_album_label": "Compartir álbum",
         "drawer_label": "Galería",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "Enviar GIF",
+            "tab_trending": "Tendencias",
+            "tab_recent": "Recientes",
+            "search_placeholder": "Buscar GIFs…",
+            "error_load": "No se pudieron cargar los GIFs.",
+            "error_search": "Error en la búsqueda.",
+            "retry": "Reintentar",
+            "no_results": "No se encontraron GIFs.",
+            "recent_empty": "No hay GIFs enviados recientemente.",
+            "recent_empty_hint": "Los GIFs que envíes aparecerán aquí.",
+            "send_confirm": "¿Enviar GIF?"
+        },
         "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
         "share_location_label": "Compartir ubicación",
         "share_location_confirm": "¿Compartir esta ubicación?"
@@ -696,6 +753,7 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Cerrar detalles de perfil",
+        "message_placeholder": "Enviar un mensaje…",
         "default_profile": "Perfil por defecto",
         "open_photo": "Abrir foto {{index}}",
         "user_id": "ID de usuario",
@@ -720,6 +778,7 @@
         "expectations": "Expectativas",
         "looking_for": "Buscando",
         "meet_at": "Vernos en",
+        "accept_nsfw": "¿Fotos NSFW?",
         "tribes": "Tribus",
         "pronouns": "Pronombres",
         "right_now": "Right now",
@@ -727,7 +786,7 @@
         "hiv_status": "Estado VIH",
         "last_tested": "Último análisis",
         "vaccines": "Vacunas",
-        "position": "Posición",
+        "position": "Rol",
         "height": "Altura",
         "weight": "Peso",
         "body_type": "Complexión física",
@@ -885,10 +944,32 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "RU (metros + pies/pulgadas)",
         "units_american": "Inglés (millas + pies/pulgadas)",
-        "blur_incoming_media": "Desenfocar contenido entrante",
-        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos entrantes en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
-        "enabled": "Habilitado",
-        "disabled": "Deshabilitado"
+        "blur_incoming_media": "Desenfocar contenido del chat",
+        "blur_incoming_media_description": "Desenfoca automáticamente imágenes y vídeos en los chats. En la versión de escritorio, pasa o haz clic para revelar. En los chats, el contenido revelado se reinicia cuando sales y vuelves.",
+        "appearance": "Apariencia",
+        "layout": "Disposición",
+        "regional": "Regional",
+        "navigation_tabs": "Pestañas de navegación",
+        "show_right_now": "Pestaña Right Now",
+        "show_right_now_desc": "Muestra la pestaña Right Now en la parte inferior de navegación.",
+        "show_interest": "Pestaña interés",
+        "show_interest_desc": "Muestra la pestaña interés en la parte inferior de navegación.",
+        "default_interest_view": "Muestra la pestaña interés en la parte inferior de navegación",
+        "interest_show_taps": "Taps primero",
+        "interest_show_views": "Visitas primero",
+        "browse_grid_mobile_desc": "Ajusta cuántos perfiles aparecen por fila en el móvil.",
+        "preview_input": "Free Grind",
+        "preview_badge": "NUEVO",
+        "reveal_effect": {
+            "title": "Efecto de revelación",
+            "description": "El efecto de revelación anima los elementos según te desplazas hacia abajo. Puedes deshabilitarlo o cambiar su intensidad.",
+            "enable": "Habilitar efecto de revelación",
+            "enable_desc": "Muestra los elementos con una animación sutil cuando entren a la vista.",
+            "strengths": {
+                "subtle": "Sutil",
+                "pronounced": "Pronunciado"
+            }
+        }
     },
     "chat_filters": {
         "title": "Filtros de chat",
@@ -911,7 +992,7 @@
             "views": "Visitas",
             "taps": "Taps"
         },
-        "total_viewed_count": "Total de visitas",
+        "total_viewed_count": "Total",
         "refreshing": "Recargando {{tab}}...",
         "loading": "Cargando {{tab}}...",
         "error_load": "No se pudo cargar {{tab}}",
@@ -934,10 +1015,11 @@
             "limitation_title": "Cómo funciona",
             "limitation_desc": "Grindr normalmente solo muestra el último visitante al completo. Los demás por lo general están ocultos tras un muro de pago o se muestra como previsualizaciones anónimas.",
             "recovery_desc": "Free Grindr relaciona automáticamente los visitantes anónimos con tu historial local. Si encontramos una coincidencia, el perfil se te revelará.",
-            "button": "¡Entendido!",
+            "button": "Entendido",
             "recovery_title": "Recuperación inteligente"
         },
-        "unknown_profile": "Perfil desconocido"
+        "unknown_profile": "Perfil desconocido",
+        "total_taps_count": "Total"
     },
     "browse_location": {
         "title": "Buscar ubicación",
@@ -962,7 +1044,11 @@
         "map_picker_instructions": "Abre el mapa para marcar un punto y guardar esa ubicación.",
         "map_picker_tap_hint": "Toca el mapa para marcarlo.",
         "use_selected_location": "Usa esta ubicación",
-        "back_aria": "Volver a Navegar"
+        "back_aria": "Volver a Navegar",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manual",
+        "badge_active": "Activo",
+        "current_location_heading": "Ubicación actual"
     },
     "issues_form": {
         "title": "Informar de error o sugerencia",
@@ -1051,6 +1137,8 @@
         "subtitle": "Encuentra conversaciones, mensajes y perfiles",
         "back_to_inbox": "Volver al buzón",
         "placeholder": "Busca conversaciones, mensajes y perfiles",
+        "mode_label": "Modo de búsqueda",
+        "quick_start_label": "Inicio rápido",
         "quick_start_placeholder": "Inicio rápido con ID de perfil",
         "view": "Ver",
         "message": "Mensaje",
@@ -1123,6 +1211,7 @@
         "error_no_selection": "Por favor, selecciona al menos una imagen.",
         "error_send_failed": "Error al enviar contenido.",
         "add_photo": "Añadir foto",
+        "add_video": "Agregar video",
         "delete_media": "Borrar contenido",
         "take_photo": "Tomar foto",
         "upload_photo": "Subir foto",
@@ -1133,10 +1222,11 @@
         "delete_confirm_label": "Borrar",
         "title": "Galería",
         "media_alt": "Contenido de la galería",
-        "is_expiring_toggle_on": "10s",
+        "is_expiring_toggle_on": "1×",
         "is_expiring_send": "Enviar efímera {{count}}",
         "is_expiring_title_on": "Efímera (10s)",
-        "is_expiring_title_off": "Enviar normal"
+        "is_expiring_title_off": "Enviar normal",
+        "is_expiring_toggle_off": "Ilimitado"
     },
     "favorites": {
         "added": "Añadido a favoritos",
@@ -1178,5 +1268,16 @@
         "chat_block_disabled": "Auto-bloqueo en el buzón deshabilitado",
         "auto_refresh_enabled": "Auto recarga habilitada",
         "auto_refresh_disabled": "Auto recarga deshabilitado"
+    },
+    "common": {
+        "cancel": "Cancelar"
+    },
+    "privacy": {
+        "ghost_mode": "Modo fantasma",
+        "global_ghost_mode": "Modo fantasma Global",
+        "global_ghost_mode_desc": "Oculta las confirmaciones de lectura en todos los chats. La otra persona no sabrá que has leído su mensaje hasta que respondas o desactives el modo fantasma.",
+        "per_chat_overrides": "Sobrescribir por chat (Botón de Ojo)",
+        "per_chat_overrides_desc": "Muestra un botón en la cabecera del chat para sobrescribir la configuración global para los chats especificados. Los chats que tengan el modo fantasma se resaltan en el buzón.",
+        "nsfw_content": "Contenido No Apto Para el Trabajo"
     }
 }

@@ -1,14 +1,10 @@
-import {
-	ChevronLeft,
-	ChevronRight,
-	Loader2,
-	X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
 	type FormEvent,
 	type TouchEvent,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useMemo,
 	useRef,
 	useState,
@@ -30,7 +26,9 @@ import { setConversationDirectory } from "../../services/conversationDirectory";
 import {
 	CHAT_REALTIME_EVENT,
 	CHAT_REALTIME_STATUS,
+	TYPING_STATUS_EVENT,
 	getChatRealtimeStatus,
+	type TypingStatusDetail,
 } from "../../components/ChatRealtimeBridge";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
 import {
@@ -53,20 +51,30 @@ import {
 } from "./chat/cache";
 import { ChatSearchPage } from "./ChatSearchPage";
 import { ChatInboxPanel } from "./chat/ChatInboxPanel";
+import { ChatInboxHeader } from "./chat/ChatInboxHeader";
+import { ChatFiltersOverlay } from "./chat/ChatFiltersOverlay";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
+import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
+import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
+	buildChatFiltersDraft,
 	extractImageHashFromSignedUrl,
 	getMessageAlbumId,
 	getMessageImageUrl,
+	getMessageImageCreatedAt,
+	getMessageTakenOnGrindr,
+	getMessageVideoUrl,
 	getMessageMediaId,
 	getMessagePreviewLabel,
 	getOtherParticipant,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
-    formatDateTime24
+    formatDateTime24,
+	type ChatFiltersDraft,
 } from "./chat/chatUtils";
+import type { SearchMode } from "../../types/chat-page";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
 import {
@@ -78,10 +86,30 @@ import {
 	upsertChatContactIndexFromInbox,
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
-import { markInboxSeen } from "../../services/seenStore";
+import { markInboxSeen, getInboxLastSeen } from "../../services/seenStore";
+import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
+import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
+import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+
+/**
+ * Checks whether a CloudFront signed URL has expired by reading the
+ * `Expires` query parameter (Unix epoch seconds).  No network request needed.
+ * Returns false if the URL cannot be parsed or has no Expires param.
+ */
+function isSignedUrlExpired(url: string): boolean {
+	try {
+		const expires = new URL(url).searchParams.get("Expires");
+		if (!expires) return false;
+		return Date.now() > Number(expires) * 1000;
+	} catch {
+		return false;
+	}
+}
+
+
 
 export function ChatPage() {
 	const { t } = useTranslation();
@@ -124,9 +152,40 @@ export function ChatPage() {
 		return localStorage.getItem("chat_hide_pinned") === "true";
 	});
 
+	// Header state (shared between ChatInboxHeader on desktop and ChatInboxPanel on mobile)
+	const [chatIsSearchOpen, setChatIsSearchOpen] = useState(false);
+	const [chatSearchQuery, setChatSearchQuery] = useState("");
+	const [chatSearchMode, setChatSearchMode] = useState<SearchMode>("messages");
+	const [chatIsFiltersOpen, setChatIsFiltersOpen] = useState(false);
+	const [chatFiltersDraft, setChatFiltersDraft] = useState<ChatFiltersDraft>(() => buildChatFiltersDraft({}));
+
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
+
+	useEffect(() => {
+		if (!userId) return;
+		const cached = getCachedOwnProfilePhotoHash();
+		if (cached !== undefined) {
+			setOwnProfilePhotoUrl(cached ? getThumbImageUrl(cached, "75x75") : null);
+			return;
+		}
+		void (async () => {
+			try {
+				const parsed = await service.getBrowseProfileMedia(userId);
+				const hash =
+					parsed.medias?.map((m) => m.mediaHash ?? "").find((h) => validateMediaHash(h)) ??
+					(parsed.profileImageMediaHash && validateMediaHash(parsed.profileImageMediaHash)
+						? parsed.profileImageMediaHash
+						: null) ??
+					null;
+				setCachedOwnProfilePhotoHash(hash);
+				setOwnProfilePhotoUrl(hash ? getThumbImageUrl(hash, "75x75") : null);
+			} catch {
+				setOwnProfilePhotoUrl(null);
+			}
+		})();
+	}, [userId, service]);
 
 	useEffect(() => {
 		const nextFilters = parseChatFiltersFromLocationState(location.state);
@@ -169,6 +228,16 @@ export function ChatPage() {
 		(inboxFilters.positions?.length ?? 0) > 0 ||
 		inboxFilters.distanceMeters != null;
 
+	const chatActiveFilterCount = [
+		inboxFilters.unreadOnly,
+		inboxFilters.chemistryOnly,
+		inboxFilters.favoritesOnly,
+		inboxFilters.rightNowOnly,
+		inboxFilters.onlineNowOnly,
+		inboxFilters.distanceMeters !== null && inboxFilters.distanceMeters !== undefined,
+		(inboxFilters.positions?.length ?? 0) > 0,
+	].filter(Boolean).length;
+
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
 	activeInboxFiltersRef.current = activeInboxFilters;
 
@@ -193,6 +262,10 @@ export function ChatPage() {
 	const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
 	const [threadError, setThreadError] = useState<string | null>(null);
 	const [draft, setDraft] = useState("");
+	const [typingConversationIds, setTypingConversationIds] = useState<Set<string>>(new Set());
+	const typingExpireTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+	const isSendingTypingRef = useRef(false);
+	const typingDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const [replyTargetMessageId, setReplyTargetMessageId] = useState<string | null>(null);
 	const [isSending, setIsSending] = useState(false);
 	const [isUpdatingConversationState, setIsUpdatingConversationState] =
@@ -261,7 +334,7 @@ export function ChatPage() {
 				setChatContactIndexByProfileId(indexChatContactRecordsByProfileId(records));
 			})
 			.catch((error) => {
-								appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
+				appLog.warn("[chat-index] failed to hydrate chat list contact index", error);
 			});
 
 		return () => {
@@ -358,6 +431,8 @@ export function ChatPage() {
 	const [isLoadingAlbums, setIsLoadingAlbums] = useState(false);
 	const [isSharingAlbum, setIsSharingAlbum] = useState(false);
 	const [shareableAlbums, setShareableAlbums] = useState<AlbumListItem[]>([]);
+	const [albumCoverMap, setAlbumCoverMap] = useState<Map<number, string>>(new Map());
+	const [ownProfilePhotoUrl, setOwnProfilePhotoUrl] = useState<string | null>(null);
 	const [pendingAlbumShare, setPendingAlbumShare] = useState<{
 		albumId: number;
 		albumName: string;
@@ -367,12 +442,13 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
-	const [fullScreenImageUrl, setFullScreenImageUrl] = useState<string | null>(null);
-	const [fullScreenImageMeta, setFullScreenImageMeta] = useState<{
-		takenOnGrindr: boolean;
-		createdAtLabel: string | null;
-		timestamp: number;
-	} | null>(null);
+	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
+	const albumViewerCancelledRef = useRef(false);
+	type ThreadMediaItem = PhotoViewerMedia & { meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number } };
+	const [fullScreenMediaList, setFullScreenMediaList] = useState<ThreadMediaItem[]>([]);
+	const [fullScreenMediaIndex, setFullScreenMediaIndex] = useState(0);
+	const fullScreenImageUrl = fullScreenMediaList.length > 0 ? fullScreenMediaList[fullScreenMediaIndex]?.url ?? null : null;
 
 	const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
 	const [uploadProgress, setUploadProgress] = useState(0);
@@ -380,6 +456,10 @@ export function ChatPage() {
 		useState<File | null>(null);
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
+	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
+	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
+	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
+	const [isSendingAudio, setIsSendingAudio] = useState(false);
 	const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 	const [isLoadingDrawer, setIsLoadingDrawer] = useState(false);
 	const [drawerError, setDrawerError] = useState<string | null>(null);
@@ -390,7 +470,7 @@ export function ChatPage() {
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
 	const searchQuery = "";
 	const imageViewerHistoryPushedRef = useRef(false);
-	const inboxTouchStartXRef = useRef<number | null>(null);
+
 	const inboxListRef = useRef<HTMLDivElement | null>(null);
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
@@ -417,6 +497,10 @@ export function ChatPage() {
 	useEffect(() => {
 		markInboxSeen(Math.max(Date.now(), maxActivityTimestamp));
 	}, [location.pathname, maxActivityTimestamp]);
+
+	// Scroll memory state (effects are placed after filteredConversations declaration)
+	const [hasRestoredInboxScroll, setHasRestoredInboxScroll] = useState(false);
+	const initialLastSeenInbox = useRef(getInboxLastSeen());
 
 	const targetProfileId = useMemo(() => {
 		const raw = searchParams.get("targetProfileId");
@@ -533,7 +617,7 @@ export function ChatPage() {
 				setLocalNicknamesByProfileId(nicknames);
 			})
 			.catch((error) => {
-								appLog.warn("[chat] failed to hydrate local nicknames", error);
+				appLog.warn("[chat] failed to hydrate local nicknames", error);
 			});
 
 		return () => {
@@ -541,31 +625,6 @@ export function ChatPage() {
 		};
 	}, [conversations, userId]);
 
-	const handleInboxTouchStart = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			inboxTouchStartXRef.current = event.touches[0]?.clientX ?? null;
-		},
-		[],
-	);
-
-	const handleInboxTouchEnd = useCallback(
-		(event: TouchEvent<HTMLDivElement>) => {
-			const startX = inboxTouchStartXRef.current;
-			if (startX == null) {
-				return;
-			}
-
-			const endX = event.changedTouches[0]?.clientX ?? startX;
-			const deltaX = startX - endX;
-
-			if (deltaX > 70) {
-				navigate("/settings/shared-albums");
-			}
-
-			inboxTouchStartXRef.current = null;
-		},
-		[navigate],
-	);
 
 	useEffect(() => {
 		selectedConversationIdRef.current = selectedConversationId;
@@ -593,25 +652,12 @@ export function ChatPage() {
 	}, [selectedConversation]);
 	useEffect(() => {
 		setPendingAlbumShare(null);
+		albumViewerCancelledRef.current = true;
+		setIsAlbumSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
 	}, [selectedConversationId]);
-
-	const isAlbumOpen = albumViewer !== null;
-	useEffect(() => {
-		if (!isAlbumOpen) return;
-		const prevState = history.state;
-		history.pushState({ albumOpen: true }, "");
-		const onPopState = () => {
-			setAlbumViewer(null);
-			setAlbumViewerMediaIndex(null);
-		};
-		window.addEventListener("popstate", onPopState);
-		return () => {
-			window.removeEventListener("popstate", onPopState);
-			if (history.state?.albumOpen) history.replaceState(prevState, "");
-		};
-	}, [isAlbumOpen]);
 
 	const messageSearchResults = useMemo(
 		() => searchMessagesLocal(searchQuery, { limit: 80 }),
@@ -657,6 +703,21 @@ export function ChatPage() {
 				})
 				.filter((item) => Number.isFinite(item.albumId));
 			setShareableAlbums(mapped);
+
+			const coverEntries = await Promise.all(
+				mapped.map(async ({ albumId }) => {
+					try {
+						const detail = await service.getAlbum(albumId);
+						const first = detail.content?.[0];
+						const url = first?.thumbUrl || first?.url || first?.coverUrl;
+						return url ? ([albumId, url] as [number, string]) : null;
+					} catch {
+						return null;
+					}
+				}),
+			);
+			setAlbumCoverMap(new Map(coverEntries.filter((e): e is [number, string] => e !== null)));
+
 			return mapped;
 		} catch (error) {
 			toast.error(
@@ -707,7 +768,7 @@ export function ChatPage() {
 						.filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
 					void upsertChatContactIndexFromInbox(inboxContactEntries).catch((error) => {
-												appLog.warn("[chat-index] failed to persist inbox metadata", error);
+						appLog.warn("[chat-index] failed to persist inbox metadata", error);
 					});
 				}
 
@@ -847,13 +908,27 @@ export function ChatPage() {
 							? (message.body as Record<string, unknown>)
 							: null;
 
-					if (!localBody?.url || currentBody?.url) {
+					// If the API already returned a fresh URL, use it as-is.
+					if (currentBody?.url) {
+						return message;
+					}
+
+					// Restore the cached URL only when it hasn't expired yet.
+					// Expired → return message without URL so the hydration pass below
+					// calls getMessage() and fetches a new signed URL from the API.
+					// Check body.url first (normalized form), then fall back to any URL field.
+					const cachedUrl = localMessage
+						? ((typeof localBody?.url === "string" ? localBody.url : null)
+							?? getMessageImageUrl(localMessage)
+							?? getMessageVideoUrl(localMessage))
+						: null;
+					if (!cachedUrl || isSignedUrlExpired(cachedUrl)) {
 						return message;
 					}
 
 					return {
 						...message,
-						body: { ...(currentBody ?? {}), url: localBody.url },
+						body: { ...(currentBody ?? {}), url: cachedUrl },
 					};
 				});
 
@@ -879,10 +954,11 @@ export function ChatPage() {
 							imageType === "expiring_image";
 
 						if (!isImageLike) return false;
-						if (getMessageImageUrl(message as UiMessage)) return false;
-						return getMessageMediaId(message as UiMessage) !== null;
+						return !getMessageImageUrl(message as UiMessage);
 					});
 
+                    // Images that have no URL (including those whose cached URL was expired
+                    // and stripped above) need a fresh signed URL from the API.
 					if (mediaIdImageMessages.length > 0) {
 						const unresolvedMessageIds = new Set(
 							mediaIdImageMessages.map((message) => message.messageId),
@@ -905,11 +981,17 @@ export function ChatPage() {
 								}
 
 								const hydrated = result.value as UiMessage;
-								if (!getMessageImageUrl(hydrated)) {
+								const resolvedUrl = getMessageImageUrl(hydrated);
+								if (!resolvedUrl) {
 									continue;
 								}
 
-								hydratedMessages.push(hydrated);
+								// Normalize the URL to body.url so the cache restore logic
+								// can reliably find it regardless of which field the API used.
+								const normalizedHydrated = (hydrated.body as any)?.url
+									? hydrated
+									: { ...hydrated, body: { ...(hydrated.body as Record<string, unknown> ?? {}), url: resolvedUrl } };
+								hydratedMessages.push(normalizedHydrated);
 								unresolvedMessageIds.delete(hydrated.messageId);
 							}
 
@@ -952,42 +1034,115 @@ export function ChatPage() {
 									if (item.url) sharedImageMap.set(item.mediaId, item.url);
 								}
 
-								const hydratedMessages: UiMessage[] = [];
+								const resolvedMessages: UiMessage[] = [];
+								const expiredMessages: UiMessage[] = [];
+
 								for (const message of fallbackMessages) {
 									const mediaId = getMessageMediaId(message as UiMessage);
 									if (mediaId == null) continue;
 									const url = sharedImageMap.get(mediaId);
-									if (!url || !message.body || typeof message.body !== "object")
-										continue;
-									const hydrated = {
-										...message,
-										body: { ...(message.body as Record<string, unknown>), url },
-									} as UiMessage;
-									if (getMessageImageUrl(hydrated))
-										hydratedMessages.push(hydrated);
-								}
-
-								if (!hydratedMessages.length) return;
-
-								// Persist resolved image URLs so they survive CloudFront expiry.
-								void chatLog.appendMessages(conversationId, hydratedMessages);
-
-								setThreadMessages((previous) => {
-									const map = new Map<string, UiMessage>();
-									for (const message of previous) {
-										if (message.conversationId === conversationId) {
-											map.set(message.messageId, message);
+									if (url && message.body && typeof message.body === "object") {
+										const hydrated = {
+											...message,
+											body: { ...(message.body as Record<string, unknown>), url },
+										} as UiMessage;
+										if (getMessageImageUrl(hydrated)) {
+											resolvedMessages.push(hydrated);
+											continue;
 										}
 									}
-									for (const message of hydratedMessages)
-										map.set(message.messageId, message);
-									return [...map.values()].sort(
-										(a, b) => a.timestamp - b.timestamp,
-									);
-								});
+									expiredMessages.push({
+										...(message as UiMessage),
+										body: {
+											...((message.body as Record<string, unknown>) ?? {}),
+											_imageExpired: true,
+										},
+									});
+								}
+
+								if (resolvedMessages.length > 0) {
+									void chatLog.appendMessages(conversationId, resolvedMessages);
+
+									if (selectedConversationIdRef.current !== conversationId) return;
+									setThreadMessages((previous) => {
+										const map = new Map<string, UiMessage>();
+										for (const message of previous) {
+											if (message.conversationId === conversationId) {
+												map.set(message.messageId, message);
+											}
+										}
+										for (const message of resolvedMessages)
+											map.set(message.messageId, message);
+										return [...map.values()].sort(
+											(a, b) => a.timestamp - b.timestamp,
+										);
+									});
+								}
+
+								if (expiredMessages.length > 0 && selectedConversationIdRef.current === conversationId) {
+									setThreadMessages((previous) => {
+										const map = new Map<string, UiMessage>();
+										for (const message of previous) {
+											if (message.conversationId === conversationId) {
+												map.set(message.messageId, message);
+											}
+										}
+										for (const message of expiredMessages)
+											map.set(message.messageId, message);
+										return [...map.values()].sort(
+											(a, b) => a.timestamp - b.timestamp,
+										);
+									});
+								}
 							})
 							.catch(() => {
 								// Best effort only.
+							});
+						});
+					}
+
+					// Hydrate received video messages that have no URL yet (mediaId may be null).
+					const mediaIdVideoMessages = responseMessages.filter((message) => {
+						const isVideoLike = message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo" || (message as UiMessage).chat1Type?.toLowerCase() === "video" || (message as UiMessage).chat1Type?.toLowerCase() === "private_video" || (message as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
+						if (!isVideoLike) return false;
+						return !getMessageVideoUrl(message as UiMessage);
+					});
+
+					if (mediaIdVideoMessages.length > 0) {
+						void Promise.allSettled(
+							mediaIdVideoMessages.map((message) =>
+								service.getMessage({ conversationId, messageId: message.messageId }),
+							),
+						).then((results) => {
+							const updates: UiMessage[] = [];
+							for (let i = 0; i < results.length; i++) {
+								const result = results[i];
+								const original = mediaIdVideoMessages[i] as UiMessage;
+								if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
+									const videoMsg = result.value as UiMessage;
+									const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+									// Normalize to body.url for reliable cache restore.
+									const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+										? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+										: videoMsg;
+									updates.push(normalizedVideo);
+								} else {
+									updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
+								}
+							}
+							if (updates.length === 0) return;
+                            void chatLog.appendMessages(
+                                conversationId,
+                                updates.filter((u) => !(u.body as any)?._videoExpired),
+                            );
+							if (selectedConversationIdRef.current !== conversationId) return;
+							setThreadMessages((previous) => {
+								const map = new Map<string, UiMessage>();
+								for (const message of previous) {
+									if (message.conversationId === conversationId) map.set(message.messageId, message);
+								}
+								for (const message of updates) map.set(message.messageId, message);
+								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 							});
 						});
 					}
@@ -1260,6 +1415,89 @@ export function ChatPage() {
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
+		// Hydrate real-time image messages that arrive without a URL.
+		const incomingImagesWithoutUrl = messages.filter((m) => {
+			const imageType = (m as UiMessage).chat1Type?.toLowerCase();
+			const isImageLike = m.type === "Image" || m.type === "ExpiringImage" || imageType === "image" || imageType === "expiring_image";
+			if (!isImageLike) return false;
+			return !getMessageImageUrl(m as UiMessage);
+		});
+		if (incomingImagesWithoutUrl.length > 0) {
+			void Promise.allSettled(
+				incomingImagesWithoutUrl.map((m) =>
+					service.getMessage({ conversationId: m.conversationId, messageId: m.messageId }),
+				),
+			).then((results) => {
+				const updates: UiMessage[] = [];
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i];
+					const original = incomingImagesWithoutUrl[i] as UiMessage;
+					if (result.status === "fulfilled" && getMessageImageUrl(result.value as UiMessage)) {
+						const imageMsg = result.value as UiMessage;
+						const resolvedImageUrl = getMessageImageUrl(imageMsg);
+						const normalizedImage = resolvedImageUrl && !(imageMsg.body as any)?.url
+							? { ...imageMsg, body: { ...(imageMsg.body as Record<string, unknown> ?? {}), url: resolvedImageUrl } }
+							: imageMsg;
+						updates.push(normalizedImage);
+					} else {
+						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _imageExpired: true } });
+					}
+				}
+				if (!updates.length) return;
+				void chatLog.appendMessages(
+					incomingImagesWithoutUrl[0].conversationId,
+					updates.filter((u) => !(u.body as any)?._imageExpired),
+				);
+				setThreadMessages((prev) => {
+					const map = new Map<string, UiMessage>();
+					for (const m of prev) map.set(m.messageId, m);
+					for (const m of updates) map.set(m.messageId, m);
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+			});
+		}
+
+		// Hydrate real-time video messages that arrive without a URL.
+		const incomingVideosWithoutUrl = messages.filter((m) => {
+			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
+			if (!isVideoLike) return false;
+			return !getMessageVideoUrl(m as UiMessage);
+		});
+		if (incomingVideosWithoutUrl.length > 0) {
+			void Promise.allSettled(
+				incomingVideosWithoutUrl.map((m) =>
+					service.getMessage({ conversationId: m.conversationId, messageId: m.messageId }),
+				),
+			).then((results) => {
+				const updates: UiMessage[] = [];
+				for (let i = 0; i < results.length; i++) {
+					const result = results[i];
+					const original = incomingVideosWithoutUrl[i] as UiMessage;
+					if (result.status === "fulfilled" && getMessageVideoUrl(result.value as UiMessage)) {
+						const videoMsg = result.value as UiMessage;
+						const resolvedVideoUrl = getMessageVideoUrl(videoMsg);
+						const normalizedVideo = resolvedVideoUrl && !(videoMsg.body as any)?.url
+							? { ...videoMsg, body: { ...(videoMsg.body as Record<string, unknown> ?? {}), url: resolvedVideoUrl } }
+							: videoMsg;
+						updates.push(normalizedVideo);
+					} else {
+						updates.push({ ...original, body: { ...(original.body as Record<string, unknown> ?? {}), _videoExpired: true } });
+					}
+				}
+				if (!updates.length) return;
+				const nonExpiredVideoUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
+				if (nonExpiredVideoUpdates.length > 0) {
+					void chatLog.appendMessages(incomingVideosWithoutUrl[0].conversationId, nonExpiredVideoUpdates);
+				}
+				setThreadMessages((prev) => {
+					const map = new Map<string, UiMessage>();
+					for (const m of prev) map.set(m.messageId, m);
+					for (const m of updates) map.set(m.messageId, m);
+					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+				});
+			});
+		}
+
 		const byConversation = new Map<string, Message>();
 		let hasUnknownConversation = false;
 		for (const message of messages) {
@@ -1395,7 +1633,7 @@ export function ChatPage() {
 
 	const applyRealtimeEnvelope = useCallback(
 		(envelope: RealtimeEnvelope) => {
-			// appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
+			appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
 
 			// chat.v1.conversation.delete — remove blocked/deleted conversations
 			if (
@@ -1417,29 +1655,20 @@ export function ChatPage() {
 				return;
 			}
 
-			if (envelope.type === "chat.v1.read" || envelope.type === "chat.v1.message_read") {
-				// appLog.debug(`[ChatPage] read event detected type=${envelope.type} payload=${JSON.stringify(envelope.payload)}`);
-				const payloads: unknown[] = [envelope.payload, envelope.data, envelope];
-				for (const payload of payloads) {
-					if (!payload || typeof payload !== "object") continue;
-					const record = payload as Record<string, unknown>;
-					const cid = (record.conversationId || record.cid) as string | undefined;
-					const rawTs = Number(record.timestamp || record.ts);
-					const ts = rawTs < 100_000_000_000 ? rawTs * 1000 : rawTs;
-					const senderId = Number(record.profileId || record.senderId);
-
-					// appLog.debug(`[ChatPage] parsed read event candidate cid=${cid} ts=${ts} senderId=${senderId} currentUserId=${userId} activeCid=${selectedConversationIdRef.current}`);
+			if (envelope.type === "chat.v1.conversation_read") {
+				const record = envelope.payload as Record<string, unknown> | undefined;
+				if (record) {
+					const cid = record.conversationId as string | undefined;
+					const ts = Number(record.timestamp); // already milliseconds per API spec
+					const senderId = Number(record.profileId);
 
 					if (cid && !Number.isNaN(ts) && !Number.isNaN(senderId)) {
-						// If the other person read our messages
 						if (userId != null && senderId !== userId) {
 							if (cid === selectedConversationIdRef.current) {
-								// appLog.debug("[ChatPage] updating threadLastReadTimestamp", { ts });
 								setThreadLastReadTimestamp(ts);
 							}
 							void chatLog.appendMessages(cid, [], ts);
 						}
-						return; // Found it
 					}
 				}
 				return;
@@ -1559,16 +1788,81 @@ export function ChatPage() {
 			const status = (event as CustomEvent<RealtimeStatus>).detail;
 			if (status) handleRealtimeStatus(status);
 		};
+		const onTyping = (event: Event) => {
+			const detail = (event as CustomEvent<TypingStatusDetail>).detail;
+			if (!detail) return;
+			const { conversationId, status } = detail;
+			if (status === "Typing") {
+				setTypingConversationIds((prev) => {
+					const next = new Set(prev);
+					next.add(conversationId);
+					return next;
+				});
+				// Auto-expire after 8s in case Cleared never arrives
+				const existing = typingExpireTimers.current.get(conversationId);
+				if (existing) clearTimeout(existing);
+				const timer = setTimeout(() => {
+					setTypingConversationIds((prev) => {
+						const next = new Set(prev);
+						next.delete(conversationId);
+						return next;
+					});
+					typingExpireTimers.current.delete(conversationId);
+				}, 8000);
+				typingExpireTimers.current.set(conversationId, timer);
+			} else {
+				setTypingConversationIds((prev) => {
+					if (!prev.has(conversationId)) return prev;
+					const next = new Set(prev);
+					next.delete(conversationId);
+					return next;
+				});
+				const existing = typingExpireTimers.current.get(conversationId);
+				if (existing) {
+					clearTimeout(existing);
+					typingExpireTimers.current.delete(conversationId);
+				}
+			}
+		};
 		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
+		window.addEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
 		return () => {
 			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 			window.removeEventListener(
 				CHAT_REALTIME_STATUS,
 				onStatus as EventListener,
 			);
+			window.removeEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
 		};
 	}, [handleRealtimeEvent, handleRealtimeStatus]);
+
+	// Send typing status to API when draft changes
+	const selectedConversationIdForTyping = selectedConversation?.data.conversationId ?? null;
+	useEffect(() => {
+		if (!selectedConversationIdForTyping) return;
+		if (isChatGhosted(selectedConversationIdForTyping)) return;
+		const cid = selectedConversationIdForTyping;
+
+		if (typingDebounceTimer.current) {
+			clearTimeout(typingDebounceTimer.current);
+			typingDebounceTimer.current = null;
+		}
+
+		if (draft.length > 0) {
+			typingDebounceTimer.current = setTimeout(() => {
+				if (!isSendingTypingRef.current) {
+					isSendingTypingRef.current = true;
+					service.sendTypingStatus(cid, "Typing").finally(() => {
+						isSendingTypingRef.current = false;
+					});
+				}
+			}, 300);
+		} else {
+			service.sendTypingStatus(cid, "Cleared").catch(() => {});
+		}
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [draft, selectedConversationIdForTyping]);
 
 	useEffect(() => {
 		if (realtimeStatus === "connected") {
@@ -1775,6 +2069,52 @@ export function ChatPage() {
 		}
 		return conversations;
 	}, [conversations, hidePinned]);
+
+	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
+	useEffect(() => {
+		const container = inboxListRef.current;
+		if (!container) return;
+		const handleScroll = () => {
+			sessionStorage.setItem("chat-inbox-scroll", JSON.stringify({
+				top: container.scrollTop,
+				timestamp: Date.now(),
+			}));
+		};
+		container.addEventListener("scroll", handleScroll, { passive: true });
+		return () => container.removeEventListener("scroll", handleScroll);
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [filteredConversations.length]);
+
+	// Scroll memory: restore position once on first load
+	useLayoutEffect(() => {
+		if (filteredConversations.length === 0 || isLoadingInbox || hasRestoredInboxScroll || !inboxListRef.current) return;
+		const storageKey = "chat-inbox-scroll";
+		if (maxActivityTimestamp > initialLastSeenInbox.current) {
+			sessionStorage.removeItem(storageKey);
+			inboxListRef.current.scrollTop = 0;
+			setHasRestoredInboxScroll(true);
+			return;
+		}
+		const saved = sessionStorage.getItem(storageKey);
+		if (saved) {
+			try {
+				const parsed = JSON.parse(saved);
+				if (parsed && typeof parsed === "object" && "top" in parsed) {
+					const { top, timestamp } = parsed as { top: number; timestamp: number };
+					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+						inboxListRef.current.scrollTop = top;
+					} else {
+						sessionStorage.removeItem(storageKey);
+					}
+				} else {
+					sessionStorage.removeItem(storageKey);
+				}
+			} catch {
+				sessionStorage.removeItem(storageKey);
+			}
+		}
+		setHasRestoredInboxScroll(true);
+	}, [filteredConversations.length, isLoadingInbox, hasRestoredInboxScroll, maxActivityTimestamp]);
 
 	const handleSelectConversation = (conversation: ConversationEntry) => {
 		const nextId = conversation.data.conversationId;
@@ -2150,7 +2490,7 @@ export function ChatPage() {
 						: t("chat.nicknames.cleared"),
 				);
 			} catch (error) {
-								appLog.warn("[chat] failed to save local nickname", error);
+				appLog.warn("[chat] failed to save local nickname", error);
 				const fallbackMessage = t("chat.nicknames.save_failed");
 				const message =
 					error instanceof Error
@@ -2200,8 +2540,6 @@ export function ChatPage() {
 			const replySnippet = selectedReplyMessage
 				? getMessagePreviewLabel(selectedReplyMessage, t).trim()
 				: "";
-			const textWithReplyContext =
-				replySnippet.length > 0 ? `> ${replySnippet}\n${trimmed}` : trimmed;
 
 			setIsSending(true);
 			const localMessageId =
@@ -2220,7 +2558,7 @@ export function ChatPage() {
 						reactions: [],
 						type: "Text",
 						chat1Type: "text",
-						body: { text: textWithReplyContext },
+						body: { text: trimmed },
 						replyToMessage: selectedReplyMessage
 							? { messageId: selectedReplyMessage.messageId }
 							: null,
@@ -2244,7 +2582,8 @@ export function ChatPage() {
 			try {
 				const sentMessage = await service.sendText({
 					targetProfileId: targetProfileIdValue,
-					text: textWithReplyContext,
+					text: trimmed,
+					replyToMessageId: selectedReplyMessage?.messageId ?? null,
 				});
 
 				setThreadMessages((previous) => {
@@ -2345,8 +2684,10 @@ export function ChatPage() {
 						targetId: targetProfileIdValue,
 					},
 					body: { lat, lon },
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
@@ -2359,13 +2700,67 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId],
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
+	);
+
+	const sendGiphyMessage = useCallback(
+		async (gif: { id: string; urlPath: string; stillPath: string; previewPath: string; width: number; height: number }) => {
+			if (!userId) return;
+
+			const targetProfileIdValue = selectedConversation
+				? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+				: targetProfileId;
+
+			if (!targetProfileIdValue) {
+				toast.error(t("chat.errors.missing_recipient"));
+				return;
+			}
+
+			setIsSending(true);
+
+			try {
+				const sentMessage = await service.sendMessage({
+					type: "Giphy",
+					target: {
+						type: "Direct",
+						targetId: targetProfileIdValue,
+					},
+					body: {
+						id: gif.id,
+						urlPath: gif.urlPath,
+						stillPath: gif.stillPath,
+						previewPath: gif.previewPath,
+						width: gif.width,
+						height: gif.height,
+						imageHash: "",
+					},
+					replyToMessageId: replyTargetMessageId,
+				});
+
+				setReplyTargetMessageId(null);
+				if (selectedConversation) {
+					setThreadMessages((previous) => [...previous, sentMessage]);
+				} else {
+					openConversationById(sentMessage.conversationId);
+					void loadInbox({ page: 1, replace: true });
+				}
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			} finally {
+				setIsSending(false);
+			}
+		},
+		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
-			options: { looping: boolean; takenOnGrindr: boolean },
+			options: {
+				looping: boolean;
+				takenOnGrindr: boolean;
+				maxViews: number;
+			},
 		) => {
 			if (!userId) {
 				return;
@@ -2412,7 +2807,7 @@ export function ChatPage() {
 					type: isVideo ? "Video" : "Image",
 					chat1Type: isVideo ? "video" : "image",
 					body: { url: objectUrl },
-					replyToMessage: null,
+					replyToMessage: replyTargetMessageId ? { messageId: replyTargetMessageId } : null,
 					replyPreview: null,
 					dynamic: false,
 					clientState: "pending",
@@ -2425,11 +2820,23 @@ export function ChatPage() {
 
 			try {
 				const binaryUpload = await buildBinaryUpload(file);
+				let durationSeconds: number | undefined;
+				if (isVideo) {
+					durationSeconds = await new Promise<number>((resolve) => {
+						const vid = document.createElement("video");
+						vid.preload = "metadata";
+						const objUrl = URL.createObjectURL(file);
+						vid.onloadedmetadata = () => { URL.revokeObjectURL(objUrl); resolve(Math.ceil(vid.duration)); };
+						vid.onerror = () => { URL.revokeObjectURL(objUrl); resolve(0); };
+						vid.src = objUrl;
+					});
+				}
 				const uploaded = await service.uploadChatMedia({
 					multipart: binaryUpload,
 					options: {
 						looping: options.looping,
 						takenOnGrindr: options.takenOnGrindr,
+						durationSeconds,
 					},
 				});
 				setUploadProgress(96);
@@ -2438,7 +2845,9 @@ export function ChatPage() {
 				const imageHash = imageUrl
 					? uploaded.mediaHash || extractImageHashFromSignedUrl(imageUrl)
 					: uploaded.mediaHash;
-				const messageType = isVideo ? "Video" : "Image";
+				const isOnceImage = isImage && options.maxViews === 1;
+				const isUnlimitedVideo = isVideo && options.maxViews > 2;
+				const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 				const sentMessage = await service.sendMessage({
 					type: messageType,
 					target: {
@@ -2449,11 +2858,15 @@ export function ChatPage() {
 						mediaId: uploaded.mediaId,
 						width: null,
 						height: null,
+						...(isVideo ? { viewsRemaining: options.maxViews, maxViews: options.maxViews } : {}),
+						...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
 						...(imageUrl ? { url: imageUrl } : {}),
 						...(isImage && imageHash ? { imageHash } : {}),
 					},
+					replyToMessageId: replyTargetMessageId,
 				});
 
+				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
 					const merged = previous
 						.filter((message) => message.messageId !== localMessageId)
@@ -2524,6 +2937,8 @@ export function ChatPage() {
 			targetProfileId,
 			uploadProgress,
 			userId,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
@@ -2531,6 +2946,7 @@ export function ChatPage() {
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(2147483647);
 	}, []);
 
 	const confirmPendingAttachment = useCallback(() => {
@@ -2541,12 +2957,15 @@ export function ChatPage() {
 		void sendMediaAttachment(pendingAttachmentFile, {
 			looping: attachmentLooping,
 			takenOnGrindr: attachmentTakenOnGrindr,
+			maxViews: attachmentMaxViews,
 		});
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(2147483647);
 	}, [
 		attachmentLooping,
+		attachmentMaxViews,
 		attachmentTakenOnGrindr,
 		pendingAttachmentFile,
 		sendMediaAttachment,
@@ -2557,17 +2976,86 @@ export function ChatPage() {
 			void sendMediaAttachment(file, {
 				looping: attachmentLooping,
 				takenOnGrindr: attachmentTakenOnGrindr,
+				maxViews: attachmentMaxViews,
 			});
 			setPendingAttachmentFile(null);
 			setAttachmentLooping(false);
 			setAttachmentTakenOnGrindr(false);
+			setAttachmentMaxViews(2147483647);
 		},
-		[attachmentLooping, attachmentTakenOnGrindr, sendMediaAttachment],
+		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
 	);
+
+	const sendAudioBlob = useCallback(async (blob: Blob, durationMs: number) => {
+		if (!userId) return;
+		const targetIdValue = selectedConversation
+			? (getOtherParticipant(selectedConversation, userId)?.profileId ?? null)
+			: targetProfileId;
+		if (!targetIdValue) return;
+		setIsSendingAudio(true);
+		try {
+			const audioBytes = new Uint8Array(await blob.arrayBuffer());
+			const uploaded = await service.uploadChatMedia({
+				multipart: { body: audioBytes, contentType: blob.type || "audio/webm" },
+				options: { looping: false, takenOnGrindr: false, durationSeconds: durationMs },
+			});
+			await service.sendMessage({
+				type: "Audio",
+				target: { type: "Direct", targetId: Number(targetIdValue) },
+				body: {
+					mediaId: uploaded.mediaId,
+					mediaHash: uploaded.mediaHash,
+					url: uploaded.url,
+					contentType: blob.type || "audio/webm",
+					length: durationMs,
+					expiresAt: uploaded.expiresAt,
+				},
+				replyToMessageId: replyTargetMessageId,
+			});
+			setPendingAudioBlob(null);
+			setPendingAudioDuration(0);
+			setReplyTargetMessageId(null);
+		} catch (err) {
+			console.error("[sendAudioBlob] failed", {
+				err,
+				blobType: blob?.type,
+				blobSize: blob?.size,
+				durationMs,
+				conversationId: selectedConversation?.data.conversationId,
+				targetId: targetIdValue,
+			});
+			toast.error(err instanceof Error ? err.message : t("chat.errors.send_failed"));
+		} finally {
+			setIsSendingAudio(false);
+		}
+	}, [userId, selectedConversation, targetProfileId, service, t, replyTargetMessageId, setReplyTargetMessageId]);
+
+	const sendAudioBlobRef = useRef(sendAudioBlob);
+	useEffect(() => { sendAudioBlobRef.current = sendAudioBlob; }, [sendAudioBlob]);
+
+	const onAudioRecorded = useCallback((blob: Blob, durationMs: number, autoSend?: boolean) => {
+		if (autoSend) {
+			void sendAudioBlobRef.current(blob, durationMs);
+		} else {
+			setPendingAudioBlob(blob);
+			setPendingAudioDuration(durationMs);
+		}
+	}, []);
+
+	const cancelAudio = useCallback(() => {
+		setPendingAudioBlob(null);
+		setPendingAudioDuration(0);
+	}, []);
+
+	const confirmAudio = useCallback(async () => {
+		if (!pendingAudioBlob) return;
+		await sendAudioBlob(pendingAudioBlob, pendingAudioDuration);
+	}, [pendingAudioBlob, pendingAudioDuration, sendAudioBlob]);
 
 	const handleSend = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		void sendTextMessage(draft);
+		scrollThreadToBottom();
 	};
 
 	const handleRetry = (message: UiMessage) => {
@@ -2577,6 +3065,11 @@ export function ChatPage() {
 
 		if (message.type === "Image" || message.type === "ExpiringImage") {
 			toast.error(t("chat.errors.reupload_image"));
+			return;
+		}
+
+		if (message.type === "Video" || message.type === "PrivateVideo" || message.type === "NonExpiringVideo") {
+			toast.error(t("chat.errors.reupload_video"));
 			return;
 		}
 
@@ -2852,24 +3345,30 @@ export function ChatPage() {
 
 	const openAlbumViewerById = useCallback(
 		async (albumId: number) => {
+			albumViewerCancelledRef.current = false;
+			setIsAlbumSheetOpen(true);
 			setIsAlbumViewerLoading(true);
+			setAlbumViewer(null);
+			setAlbumViewerMediaIndex(null);
 			try {
 				const details = await service.getAlbum(albumId);
+				if (albumViewerCancelledRef.current) return;
 				setAlbumViewer({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					content: details.content,
 				});
-				setAlbumViewerMediaIndex(null);
 			} catch (error) {
+				if (albumViewerCancelledRef.current) return;
+				setIsAlbumSheetOpen(false);
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 				);
 			} finally {
-				setIsAlbumViewerLoading(false);
+				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service],
+		[service, t],
 	);
 
 	const closeAlbumMediaViewer = useCallback(() => {
@@ -2943,7 +3442,7 @@ export function ChatPage() {
 	}, [isDrawerOpen, drawerMedia.length, loadDrawerMedia, shareableAlbums.length, loadAlbums]);
 
 	const sendDrawerMedia = useCallback(
-		async (mediaIds: number[], isExpiring?: boolean) => {
+		async (mediaIds: number[], maxViews?: number) => {
 			if (!selectedConversation || !userId || mediaIds.length === 0) {
 				return;
 			}
@@ -2957,6 +3456,7 @@ export function ChatPage() {
 
 			setIsSendingDrawerMedia(true);
 			let finalSentMessage: UiMessage | undefined;
+			let pendingReplyId = replyTargetMessageId;
 			try {
 				// Send each media item as a separate image/video message
 				for (const mediaId of mediaIds) {
@@ -2964,8 +3464,10 @@ export function ChatPage() {
 					if (!media) continue;
 
 					const isVideo = media.contentType.startsWith("video");
-					const useExpiring = isExpiring && !isVideo;
-					const messageType = useExpiring ? "ExpiringImage" : isVideo ? "Video" : "Image";
+					const views = maxViews ?? 2147483647;
+					const isOnceImage = !isVideo && views === 1;
+                    const isUnlimitedVideo = isVideo && views > 2;
+				    const messageType = isVideo ? (isUnlimitedVideo ? "NonExpiringVideo" : "Video") : isOnceImage ? "ExpiringImage" : "Image";
 
 					const sentMessage = await service.sendMessage({
 						type: messageType,
@@ -2978,9 +3480,12 @@ export function ChatPage() {
 							width: null,
 							height: null,
 							url: media.url,
-							...(useExpiring ? { viewsRemaining: 1 } : {}),
+							...(isOnceImage ? { viewsRemaining: 1, maxViews: 1, duration: 10 } : {}),
+							...(isVideo ? { viewsRemaining: views, maxViews: views } : {}),
 						},
+						replyToMessageId: pendingReplyId,
 					});
+					pendingReplyId = null;
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
@@ -3010,6 +3515,7 @@ export function ChatPage() {
 					}));
 				}
 
+				setReplyTargetMessageId(null);
 				toast.success(t("chat.toasts.media_sent"));
 				setIsDrawerOpen(false);
 
@@ -3031,29 +3537,43 @@ export function ChatPage() {
 			t,
 			syncConversation,
 			loadDrawerMedia,
+			replyTargetMessageId,
+			setReplyTargetMessageId,
 		],
 	);
 
 	const addDrawerMedia = useCallback(
-		async (file: File, takenOnGrindr: boolean) => {
-			if (!file.type.startsWith("image/")) {
-				toast.error("Only photos are supported in the drawer.");
-				return;
-			}
+		async (file: File, takenOnGrindr: boolean, looping?: boolean) => {
+			const isVideo = file.type.startsWith("video/");
 
-			if (file.size > 12 * 1024 * 1024) {
+			if (file.size > 100 * 1024 * 1024) {
 				toast.error(t("chat.attachments.too_large"));
 				return;
 			}
 
 			setIsAddingDrawerMedia(true);
 			try {
+				let durationSeconds: number | undefined;
+				if (isVideo) {
+					durationSeconds = await new Promise<number>((resolve) => {
+						const vid = document.createElement("video");
+						vid.preload = "metadata";
+						vid.onloadedmetadata = () => {
+							resolve(isFinite(vid.duration) ? Math.round(vid.duration) : 0);
+							URL.revokeObjectURL(vid.src);
+						};
+						vid.onerror = () => { resolve(0); URL.revokeObjectURL(vid.src); };
+						vid.src = URL.createObjectURL(file);
+					});
+				}
+
 				const binaryUpload = await buildBinaryUpload(file);
 				const uploaded = await service.uploadChatMedia({
 					multipart: binaryUpload,
 					options: {
-						looping: false,
-						takenOnGrindr,
+						looping: isVideo ? (looping ?? false) : false,
+						takenOnGrindr: isVideo ? false : takenOnGrindr,
+						...(durationSeconds != null ? { durationSeconds } : {}),
 					},
 				});
 				await service.addMediaToDrawer(uploaded.mediaId);
@@ -3102,25 +3622,53 @@ export function ChatPage() {
 		setPendingAttachmentFile(file);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }) => {
-		setFullScreenImageUrl(imageUrl);
-		setFullScreenImageMeta(meta ?? null);
-	}, []);
+	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
+		const list: ThreadMediaItem[] = [];
+		for (const msg of threadMessages) {
+			const imgUrl = getMessageImageUrl(msg);
+			if (imgUrl) {
+				const createdAt = getMessageImageCreatedAt(msg);
+				list.push({
+					url: imgUrl,
+					type: "image",
+					meta: {
+						takenOnGrindr: getMessageTakenOnGrindr(msg),
+						createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
+						timestamp: msg.timestamp,
+					},
+				});
+				continue;
+			}
+			const vidUrl = getMessageVideoUrl(msg);
+			if (vidUrl) list.push({ url: vidUrl, type: "video" });
+		}
+		const idx = list.findIndex((item) => item.url === imageUrl);
+		if (idx === -1 || list.length === 0) {
+			// Fallback: single item
+			setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
+			setFullScreenMediaIndex(0);
+		} else {
+			setFullScreenMediaList(list);
+			setFullScreenMediaIndex(idx);
+		}
+	}, [threadMessages]);
 
 	const closeFullScreenImage = useCallback(() => {
-		if (!fullScreenImageUrl) {
+		if (fullScreenMediaList.length === 0) {
 			return;
 		}
 
-		setFullScreenImageUrl(null);
+		setFullScreenMediaList([]);
+		setFullScreenMediaIndex(0);
 
 		if (imageViewerHistoryPushedRef.current) {
 			imageViewerHistoryPushedRef.current = false;
 			window.history.back();
 		}
-	}, [fullScreenImageUrl]);
+	}, [fullScreenMediaList.length]);
 
 	useEffect(() => {
 		if (!fullScreenImageUrl || imageViewerHistoryPushedRef.current) {
@@ -3138,7 +3686,8 @@ export function ChatPage() {
 			}
 
 			imageViewerHistoryPushedRef.current = false;
-			setFullScreenImageUrl(null);
+			setFullScreenMediaList([]);
+			setFullScreenMediaIndex(0);
 		};
 
 		window.addEventListener("popstate", handlePopState);
@@ -3148,18 +3697,34 @@ export function ChatPage() {
 		};
 	}, [fullScreenImageUrl]);
 
+	const sharedInboxHeaderProps = {
+		realtimeStatusMeta,
+		inboxFilters,
+		hidePinned,
+		hasActiveInboxFilters,
+		activeFilterCount: chatActiveFilterCount,
+		isSearchOpen: chatIsSearchOpen,
+		searchQuery: chatSearchQuery,
+		searchMode: chatSearchMode,
+		onSetIsSearchOpen: setChatIsSearchOpen,
+		onSetSearchQuery: setChatSearchQuery,
+		onSetSearchMode: setChatSearchMode,
+		onSetIsFiltersOpen: setChatIsFiltersOpen,
+		onSetFiltersDraft: setChatFiltersDraft,
+		onToggleFavoritesOnly: toggleInboxFavoritesOnly,
+		onToggleHidePinned: () => setHidePinned((prev) => !prev),
+	} as const;
+
 	const renderInbox = (
 		<ChatInboxPanel
+			{...sharedInboxHeaderProps}
 			isDesktop={isDesktop}
+			showHeader={!isDesktop}
 			isLoadingInbox={isLoadingInbox}
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
-			inboxFilters={inboxFilters}
-			hidePinned={hidePinned}
-			hasActiveInboxFilters={hasActiveInboxFilters}
 			filteredConversations={filteredConversations}
 			nextPage={nextPage}
-			realtimeStatusMeta={realtimeStatusMeta}
 			selectedConversationId={selectedConversationId}
 			userId={userId}
 			localNicknamesByProfileId={localNicknamesByProfileId}
@@ -3167,31 +3732,17 @@ export function ChatPage() {
 			nowTimestamp={nowTimestamp}
 			presenceResults={presenceResults}
 			inboxListRef={inboxListRef}
-			onRefreshInbox={() => void loadInbox({ page: 1, replace: true })}
+			onRefreshInbox={() => loadInbox({ page: 1, replace: true })}
 			onLoadMoreInbox={handleLoadMoreInbox}
-			onInboxTouchStart={handleInboxTouchStart}
-			onInboxTouchEnd={handleInboxTouchEnd}
 			onSelectConversation={handleSelectConversation}
 			onViewProfile={(profileId) => {
-				const returnTo = getProfileReturnToChatPath(profileId);
+				const returnTo = "/chat";
 				const nextParams = new URLSearchParams();
 				nextParams.set("returnTo", returnTo);
 				navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
 			}}
 			onClearInboxFilters={clearInboxFilters}
-			onToggleHidePinned={() => setHidePinned((prev) => !prev)}
-			onToggleFavoritesOnly={toggleInboxFavoritesOnly}
-			onOpenFilters={(inboxFiltersDraft) =>
-				navigate("/chat/filters", {
-					state: {
-						inboxFiltersDraft,
-						returnTo: `${location.pathname}${location.search}`,
-					},
-				})
-			}
-			onOpenSearch={() => navigate("/chat/search")}
-			onOpenInbox={() => navigate("/chat")}
-			onOpenAlbums={() => navigate("/settings/shared-albums")}
+			typingConversationIds={typingConversationIds}
 		/>
 	);
 
@@ -3266,16 +3817,20 @@ export function ChatPage() {
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}
 			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			attachmentMaxViews={attachmentMaxViews}
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			setAttachmentMaxViews={setAttachmentMaxViews}
 			confirmPendingAttachment={confirmPendingAttachment}
 			confirmAttachmentFile={confirmAttachmentFile}
 			cancelPendingAttachment={cancelPendingAttachment}
 			isAlbumPickerOpen={isAlbumPickerOpen}
 			isLoadingAlbums={isLoadingAlbums}
 			shareableAlbums={shareableAlbums}
+			albumCoverMap={albumCoverMap}
+			ownProfilePhotoUrl={ownProfilePhotoUrl}
 			isSharingAlbum={isSharingAlbum}
-				pendingAlbumShare={pendingAlbumShare}
+			pendingAlbumShare={pendingAlbumShare}
 			shareAlbumToCurrentConversation={shareAlbumToCurrentConversation}
 			confirmPendingAlbumShare={confirmPendingAlbumShare}
 			closePendingAlbumShare={closePendingAlbumShare}
@@ -3293,6 +3848,13 @@ export function ChatPage() {
 			onShareAlbumFromDrawer={handleShareAlbumFromDrawer}
 			onStopAlbumShareFromDrawer={handleStopAlbumShare}
 			onSendLocation={sendLocationMessage}
+			onSendGiphy={sendGiphyMessage}
+			onAudioRecorded={onAudioRecorded}
+			pendingAudioBlob={pendingAudioBlob}
+			pendingAudioDuration={pendingAudioDuration}
+			isSendingAudio={isSendingAudio}
+			confirmAudio={confirmAudio}
+			cancelAudio={cancelAudio}
 			uploadProgress={uploadProgress}
 			draft={draft}
 			setDraft={setDraft}
@@ -3301,109 +3863,81 @@ export function ChatPage() {
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
-			albumViewer={albumViewer}
-			onCloseAlbumViewer={() => { setAlbumViewer(null); setAlbumViewerMediaIndex(null); }}
+			isAlbumSheetOpen={isAlbumSheetOpen}
+			onOpenMediaSheet={() => setIsChatMediaSheetOpen(true)}
+			isPartnerTyping={selectedConversation != null && typingConversationIds.has(selectedConversation.data.conversationId)}
 		/>
 	);
 
-	return (
-		<section
-			className={`app-screen ${isDesktop ? "overflow-hidden" : "!p-0 !max-w-none !w-full"}`}
-		>
-			<div className={isDesktop ? "mx-auto w-full max-w-6xl" : "w-full"}>
-
-        				{isSearchRoute ? (
-        					renderSearch
-        				) : isDesktop ? (
-        					<div
-        						className="grid h-full grid-cols-[360px_minmax(0,1fr)] gap-3"
-        						style={{
-        							height:
-        								"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
-						}}
-					>
-						{renderInbox}
-						{renderThread}
-					</div>
-				) : selectedConversation ?? targetProfileId ? (
-					renderThread
+		return (
+			<section
+				className={`app-screen ${isDesktop ? "w-full !h-dvh !px-0 !pb-0 overflow-x-hidden flex flex-col" : "!p-0 !max-w-none !w-full"}`}
+			>
+				{isDesktop ? (
+					isSearchRoute ? (
+						<div className="mx-auto w-full max-w-6xl px-[var(--app-px)]">{renderSearch}</div>
+					) : (
+						<>
+							<ChatInboxHeader
+								{...sharedInboxHeaderProps}
+								isDesktop={true}
+							/>
+							<div className="flex-1 min-h-0 mx-auto w-full max-w-6xl px-3 pb-[calc(env(safe-area-inset-bottom,0px)+104px)] grid grid-cols-[360px_minmax(0,1fr)] gap-3">
+								{renderInbox}
+								{renderThread}
+							</div>
+						</>
+					)
 				) : (
-					renderInbox
+					<div className="w-full">
+						{isSearchRoute ? renderSearch : selectedConversation ?? targetProfileId ? renderThread : renderInbox}
+					</div>
 				)}
-			</div>
 
-			{isAlbumViewerLoading ? (
-				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-					<div className="surface-card flex items-center gap-2 p-4 text-sm text-[var(--text-muted)]">
-						<Loader2 className="h-4 w-4 animate-spin" /> {t("chat.loading_album")}
-					</div>
-				</div>
-			) : null}
+			{chatIsFiltersOpen && (
+				<ChatFiltersOverlay
+					isDesktop={isDesktop}
+					draft={chatFiltersDraft}
+					onChangeDraft={setChatFiltersDraft}
+					onClose={() => setChatIsFiltersOpen(false)}
+					onApply={setInboxFilters}
+				/>
+			)}
 
-			{albumViewer ? (
-				<div
-					className="fixed inset-0 z-40 bg-black/65 p-4"
-					onClick={() => {
-						setAlbumViewerMediaIndex(null);
+			{isChatMediaSheetOpen && selectedConversation ? (() => {
+				const otherP = getOtherParticipant(selectedConversation, userId);
+				const otherPhotoUrl = otherP?.primaryMediaHash && validateMediaHash(otherP.primaryMediaHash)
+					? getThumbImageUrl(otherP.primaryMediaHash, "75x75")
+					: null;
+				return (
+					<ChatMediaSheet
+						conversationId={selectedConversation.data.conversationId}
+						senderProfileId={otherP?.profileId != null ? String(otherP.profileId) : null}
+						userId={userId}
+						isDesktop={isDesktop}
+						onClose={() => setIsChatMediaSheetOpen(false)}
+						openAlbumViewerById={openAlbumViewerById}
+						openFullScreenImage={(url) => openFullScreenImage(url)}
+						senderPhotoUrl={otherPhotoUrl}
+					/>
+				);
+			})() : null}
+
+			{isAlbumSheetOpen ? (
+				<ChatAlbumSheet
+					viewer={albumViewer}
+					isLoading={isAlbumViewerLoading}
+					fullScreenIndex={albumViewerMediaIndex}
+					onClose={() => {
+						albumViewerCancelledRef.current = true;
+						setIsAlbumSheetOpen(false);
 						setAlbumViewer(null);
+						setAlbumViewerMediaIndex(null);
+						setIsAlbumViewerLoading(false);
 					}}
-				>
-					<div
-						className="mx-auto flex h-full w-full max-w-4xl flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
-						onClick={(event) => event.stopPropagation()}
-					>
-						<div className="mb-3 flex items-center justify-between">
-							<p className="font-semibold">
-								{albumViewer.albumName || "Album"}
-							</p>
-							<button
-								type="button"
-								onClick={() => {
-									setAlbumViewerMediaIndex(null);
-									setAlbumViewer(null);
-								}}
-								className="rounded-lg border border-[var(--border)] p-2"
-							>
-								<X className="h-4 w-4" />
-							</button>
-						</div>
-						<div className="grid flex-1 grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3">
-							{albumViewer.content.map((item, index) => {
-								const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
-								if (!mediaUrl) {
-									return (
-										<div
-											key={item.contentId}
-											className="flex min-h-24 items-center justify-center rounded-lg bg-[var(--surface-2)] text-xs text-[var(--text-muted)]"
-										>
-											Unavailable
-										</div>
-									);
-								}
-
-								return (
-									<button
-										type="button"
-										key={item.contentId}
-										onClick={() => openAlbumMediaViewer(index)}
-										className="relative overflow-hidden rounded-lg"
-									>
-										<img
-											src={mediaUrl}
-											alt="Album content"
-											className="h-32 w-full object-cover"
-										/>
-										{item.contentType?.startsWith("video/") ? (
-											<span className="absolute bottom-1.5 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-												Video
-											</span>
-										) : null}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-				</div>
+					onOpenFullScreen={openAlbumMediaViewer}
+					isDesktop={isDesktop}
+				/>
 			) : null}
 
 			<PhotoViewer
@@ -3414,27 +3948,33 @@ export function ChatPage() {
 			/>
 
 			<PhotoViewer
-				isOpen={!!fullScreenImageUrl}
+				isOpen={fullScreenMediaList.length > 0}
 				onClose={closeFullScreenImage}
-				photos={fullScreenImageUrl ? [fullScreenImageUrl] : []}
-				renderExtraInfo={fullScreenImageMeta ? () => (
-                    <p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
-                        <style>{`
-                            @keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
-                            .logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
-                        `}</style>
-                        {fullScreenImageMeta.takenOnGrindr ? (
-                            <img
-                                src={freegrindLogo}
-                                alt={t("chat.thread.taken_on_grindr")}
-                                className="h-3.5 w-3.5 rounded-full logo-shine"
-                            />
-                        ) : null}
-                        {fullScreenImageMeta.timestamp ? (
-                            <span>{formatDateTime24(fullScreenImageMeta.timestamp)}</span>
-                        ) : null}
-                    </p>
-				) : undefined}
+				photos={fullScreenMediaList}
+				initialIndex={fullScreenMediaIndex}
+				onIndexChange={setFullScreenMediaIndex}
+				renderExtraInfo={(idx) => {
+					const meta = fullScreenMediaList[idx]?.meta;
+					if (!meta) return null;
+					return (
+						<p className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25">
+							<style>{`
+								@keyframes logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+								.logo-shine { animation: logo-shine 2.8s ease-in-out infinite; }
+							`}</style>
+							{meta.takenOnGrindr ? (
+								<img
+									src={freegrindLogo}
+									alt={t("chat.thread.taken_on_grindr")}
+									className="h-3.5 w-3.5 rounded-full logo-shine"
+								/>
+							) : null}
+							{meta.timestamp ? (
+								<span>{formatDateTime24(meta.timestamp)}</span>
+							) : null}
+						</p>
+					);
+				}}
 			/>
 		</section>
 	);

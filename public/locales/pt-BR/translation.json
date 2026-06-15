@@ -111,6 +111,7 @@
         "days_short": "{{count}}d",
         "seconds_short": "{{count}}s",
         "add_photo": "Adicionar foto",
+        "add_video": "Adicionar vídeo",
         "close_aria": "Fechar",
         "create_session_title": "Right Now",
         "edit_session_title": "Editar sessão",
@@ -190,7 +191,8 @@
         "local_filters": {
             "title": "Filtros locais",
             "description": "Estes filtros são aplicados instantaneamente aos perfis já carregados.",
-            "is_visiting": "Visitando"
+            "is_visiting": "Visitando",
+            "nickname_placeholder": "Name…"
         }
     },
     "browse_location": {
@@ -216,7 +218,11 @@
         "map_picker_open": "Abrir",
         "map_picker_instructions": "Abra o mapa para marcar um ponto e depois salve essa localização.",
         "map_picker_tap_hint": "Toque no mapa para colocar um marcador.",
-        "use_selected_location": "Use este local"
+        "use_selected_location": "Use este local",
+        "mode_gps": "GPS · Auto",
+        "mode_manual": "Manual",
+        "badge_active": "Ativo",
+        "current_location_heading": "Localização atual"
     },
     "nav": {
         "browse": "Navegar",
@@ -352,7 +358,7 @@
         "media_counts_images": "{{count}} imagens",
         "media_counts_total": " • {{count}} mídia total",
         "media_desc": ". Adicione imagens, remova-as ou reordene a ordem de exibição.",
-        "upload": "Adicionar imagens",
+        "upload": "Adicionar mídia",
         "uploading": "Carregando…",
         "refresh": "Atualizar",
         "loading_media": "Carregando mídia do álbum…",
@@ -371,7 +377,7 @@
         "error_rename_fallback": "Falha ao renomear o álbum",
         "error_delete_fallback": "Falha ao excluir o álbum",
         "error_load_details_fallback": "Não foi possível carregar os detalhes do álbum",
-        "error_upload_fallback": "Não foi possível carregar a imagem",
+        "error_upload_fallback": "Não foi possível carregar o arquivo",
         "error_reorder_unsupported": "Não é possível reordenar este álbum devido a IDs de mídia não suportados",
         "error_reorder_fallback": "Falha ao reordenar a mídia",
         "error_delete_content_fallback": "Falha ao excluir mídia"
@@ -432,8 +438,11 @@
                 "position": "Posição",
                 "show_tribes": "Mostrar Tribos",
                 "show_tribes_desc": "Escolha se suas tribos serão visíveis publicamente.",
+                "show_distance": "Compartilhar Distância",
+                "show_distance_desc": "Controle se sua distância é visível para outros.",
                 "relationship_status": "Estado civil",
                 "tribes": "Tribos",
+                "tribes_im_into": "Tribos que me atraem",
                 "not_set": "Não definido",
                 "relationship_not_set": "Relacionamento não definido",
                 "body_type_not_set": "Tipo de corpo não especificado"
@@ -553,10 +562,8 @@
         "units_world": "Mundo (metros + cm)",
         "units_uk": "Reino Unido (metros + pés/polegadas)",
         "units_american": "Americano (milhas + pés/polegadas)",
-        "blur_incoming_media": "Mídia de entrada desfocada",
-        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos recebidos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar.",
-        "enabled": "Habilitado",
-        "disabled": "Desabilitado"
+        "blur_incoming_media": "Desfocar mídia do chat",
+        "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar."
     },
     "issues_form": {
         "title": "Reportar um erro ou sugerir uma funcionalidade",
@@ -629,6 +636,7 @@
         "conversation": "Conversa",
         "unknown": "Desconhecido",
         "you": "Você",
+        "typing": "digitando…",
         "read": "ler",
         "unread": "não lido",
         "today": "Hoje",
@@ -664,6 +672,8 @@
             "expired": "expirado"
         },
         "attach_media": "Anexar mídia",
+        "cancel_recording": "Deslize para a esquerda para cancelar",
+        "stop_recording": "Parar gravação",
         "manage_albums": "",
         "loading_albums": "Carregando álbuns...",
         "no_albums_available": "Nenhum álbum disponível. Crie um primeiro nas Configurações.",
@@ -682,12 +692,17 @@
         },
         "preview": {
             "sent_image": "Enviou uma imagem",
+            "sent_gif": "Enviou um GIF",
+            "sent_gaymoji": "Enviou um Gaymoji",
             "shared_album": "Compartilhou um álbum",
             "sent_audio": "Envie uma mensagem de áudio",
             "reacted_album_content": "Reagi ao conteúdo do álbum",
+            "tapped_album_photo_yours": "Curtiu sua foto do álbum",
+            "tapped_album_photo_theirs": "Você curtiu a foto do álbum deles",
             "sent_video": "Enviei um vídeo",
             "sent_location": "Enviou a localização",
-            "sent_message": "Enviei uma mensagem"
+            "sent_message": "Enviei uma mensagem",
+            "replied_profile_photo": "Respondeu a uma foto de perfil"
         },
         "thread": {
             "unsent": "Esta mensagem não foi enviada",
@@ -697,7 +712,9 @@
             "location_placeholder": "[localização]",
             "unsupported_placeholder": "[mensagem não suportada]",
             "shared_image": "Compartilhou uma imagem",
+            "shared_gif": "Compartilhou um GIF",
             "shared_video": "Compartilhou um vídeo",
+            "video_expired": "Expirado",
             "shared_audio": "Compartilhou uma mensagem de áudio",
             "location_shared": "Localização compartilhada",
             "failed": "Falha",
@@ -705,7 +722,10 @@
             "shared_alt": "Compartilhado",
             "taken_on_grindr": "Foto tirada no Grindr",
             "album_cover": "Capa do álbum",
-            "album_share": "Compartilhar álbum"
+            "album_share": "Compartilhar álbum",
+            "album_image": "Imagem de álbum",
+            "replied_to_photo": "Respondeu à sua foto de perfil",
+            "reacted_to_image": "Reagiu à sua imagem do álbum"
         },
         "actions": {
             "title": "Ações da mensagem",
@@ -728,8 +748,13 @@
             "only_image_video": "Apenas anexos de imagem e vídeo são suportados.",
             "ready_to_send": "Pronto para enviar: {{file}}",
             "looping": "Em repetição",
+            "looping_description": "O vídeo será reproduzido em loop",
+            "max_views": "Máx. visualizações",
+            "view_once": "Ver uma vez",
+            "view_once_description": "A imagem só pode ser vista uma vez por 10 segundos",
             "taken_on_grindr": "feitoNoGrindr",
-            "send_attachment": "Enviar anexo",
+            "send": "Enviar",
+            "send_expiring": "Enviar expirando",
             "uploading": "Carregando anexo",
             "too_large": "O anexo é muito grande. O limite é de 12 MB."
         },
@@ -761,7 +786,11 @@
             "send_drawer_media": "Falha ao enviar mídia da pasta",
             "delete_conversation": "Falha ao excluir a conversa",
             "no_location_set": "Nenhuma localização definida nas configurações",
-            "invalid_location": "Formato de localização inválido"
+            "invalid_location": "Formato de localização inválido",
+            "microphone_access": "Não foi possível acessar o microfone.",
+            "microphone_denied": "Acesso ao microfone negado.",
+            "microphone_not_found": "Nenhum microfone encontrado.",
+            "recording_too_short": "Gravação muito curta."
         },
         "toasts": {
             "cleared_local_history": "Histórico local apagado nesse bate-papo",
@@ -777,6 +806,15 @@
             "no_messages_yet": "Nenhuma mensagem ainda",
             "send_first_message_hint": "Envie uma mensagem abaixo para iniciar a conversa."
         },
+        "media_sheet": {
+            "title": "Mídia recebida",
+            "tab_albums": "Álbuns",
+            "tab_media": "Mídia",
+            "albums_empty_title": "Nenhum álbum compartilhado ainda",
+            "albums_empty_desc": "Álbuns compartilhados com você aparecerão aqui",
+            "media_empty_title": "Nenhuma mídia recebida ainda",
+            "media_empty_desc": "Fotos enviadas para você aparecerão aqui"
+        },
         "delete_conversation": "Apagar conversa",
         "delete_conversation_in_progress": "Apagando conversa...",
         "delete_conversation_confirm": "Apagar esta conversa? Esta ação não pode ser desfeita.",
@@ -790,10 +828,25 @@
         },
         "load_older_messages": "Carregar mensagens antigas",
         "view_profile": "Ver perfil",
+        "received_media": "Mídia recebida",
         "favorite": "Favorito",
         "unfavorite": "Remover dos favoritos",
         "share_album_label": "Compartilhar álbum",
         "drawer_label": "Pasta",
+        "giphy": {
+            "title": "GIFs",
+            "button_label": "Enviar GIF",
+            "tab_trending": "Em alta",
+            "tab_recent": "Recentes",
+            "search_placeholder": "Buscar GIFs…",
+            "error_load": "Não foi possível carregar os GIFs.",
+            "error_search": "Falha na busca.",
+            "retry": "Tentar novamente",
+            "no_results": "Nenhum GIF encontrado.",
+            "recent_empty": "Nenhum GIF enviado recentemente.",
+            "recent_empty_hint": "Os GIFs que você enviar aparecerão aqui.",
+            "send_confirm": "Enviar GIF?"
+        },
         "drawer_unavailable": "Envie uma mensagem primeiro para usar o menu",
         "share_location_label": "Compartilhar localização",
         "share_location_confirm": "Compartilhar este local?"
@@ -852,12 +905,14 @@
         "x": "X",
         "facebook": "Facebook",
         "close_profile_details": "Fechar detalhes do perfil",
+        "message_placeholder": "Enviar uma mensagem…",
         "default_profile": "Perfil padrão",
         "open_photo": "Abrir foto {{index}}",
         "tags": "Etiquetas",
         "expectations": "Expectativas",
         "looking_for": "Procurando por",
         "meet_at": "Encontre-se em",
+        "accept_nsfw": "Fotos NSFW?",
         "tribes": "Tribos",
         "pronouns": "Pronomes",
         "right_now": "Right Now",
@@ -1063,6 +1118,8 @@
         "subtitle": "Encontre conversas, mensagens e perfis",
         "back_to_inbox": "Voltar à caixa de entrada",
         "placeholder": "Pesquisar conversas, mensagens, perfis",
+        "mode_label": "Modo de busca",
+        "quick_start_label": "Início rápido",
         "quick_start_placeholder": "Início rápido por ID de perfil",
         "view": "Visualizar",
         "message": "Mensagem",
@@ -1122,6 +1179,7 @@
         "error_no_selection": "Por favor, selecione pelo menos uma imagem.",
         "error_send_failed": "Falha ao enviar a mídia.",
         "add_photo": "Adicionar foto",
+        "add_video": "Adicionar vídeo",
         "delete_media": "Excluir mídia",
         "take_photo": "Tirar foto",
         "upload_photo": "Carregar foto",
@@ -1132,8 +1190,8 @@
         "delete_confirm_label": "Excluir",
         "title": "Pasta",
         "media_alt": "Pasta de mídia",
-        "is_expiring_toggle_on": "10s",
-        "is_expiring_toggle_off": "Desativado",
+        "is_expiring_toggle_on": "1×",
+        "is_expiring_toggle_off": "ilimitado",
         "is_expiring_send": "Enviar como temporária ({{count}})",
         "is_expiring_title_on": "Expira em (10s)",
         "is_expiring_title_off": "Enviar normalmente"
@@ -1178,5 +1236,8 @@
         "chat_block_disabled": "Bloqueio automático da caixa de entrada desativado",
         "auto_refresh_enabled": "Atualização automática ativada",
         "auto_refresh_disabled": "Atualização automática desativada"
+    },
+    "common": {
+        "cancel": "Cancelar"
     }
 }

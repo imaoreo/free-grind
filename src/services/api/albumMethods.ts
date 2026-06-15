@@ -1,12 +1,14 @@
 import {
 	albumDetailSchema,
 	albumLimitsSchema,
+	albumPosterSchema,
 	albumsResponseSchema,
 	sharedAlbumViewSchema,
 	sharedAlbumsResponseSchema,
 	type Album,
 	type AlbumDetail,
 	type AlbumLimits,
+	type AlbumPoster,
 	type SharedAlbumView,
 	type SharedAlbum,
 } from "../../types/albums";
@@ -14,6 +16,7 @@ import type {
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
 	DeleteOwnAlbumInput,
+	GetAlbumPosterInput,
 	GetSharedAlbumsForProfileInput,
 	OpenSharedAlbumInput,
 	OpenSharedAlbumResult,
@@ -88,7 +91,12 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 		async uploadOwnAlbumContent(
 			input: UploadOwnAlbumContentInput,
 		): Promise<{ contentId: number }> {
-			const response = await fetchRest(`/v1/albums/${input.albumId}/content`, {
+			const query = new URLSearchParams();
+			if (input.width != null) query.set("width", String(input.width));
+			if (input.height != null) query.set("height", String(input.height));
+			const qs = query.toString();
+			const url = `/v1/albums/${input.albumId}/content${qs ? `?${qs}` : ""}`;
+			const response = await fetchRest(url, {
 				method: "POST",
 				rawBody: input.multipart.body,
 				contentType: input.multipart.contentType,
@@ -141,6 +149,14 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 			return { ok: true };
 		},
 
+		async getAlbumPoster(input: GetAlbumPosterInput): Promise<AlbumPoster> {
+			const response = await fetchRest(
+				`/v1/albums/${input.albumId}/content/${input.contentId}/poster`,
+			);
+			await assertSuccess(response, t("api.errors.load_album_poster", { defaultValue: "Failed to load album poster." }));
+			return albumPosterSchema.parse(await parseJsonSafe(response));
+		},
+
 		async getSharedAlbums(
 			input: GetSharedAlbumsInput,
 		): Promise<SharedAlbumView> {
@@ -160,9 +176,7 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 				return [];
 			}
 			await assertSuccess(response, t("api.errors.load_shared_albums_profile"));
-			const payload = sharedAlbumsResponseSchema.parse(
-				await parseJsonSafe(response),
-			);
+			const payload = sharedAlbumsResponseSchema.parse(await parseJsonSafe(response));
 			return payload.albums;
 		},
 

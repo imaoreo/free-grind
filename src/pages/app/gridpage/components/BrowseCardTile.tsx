@@ -12,6 +12,7 @@ import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
+import { useRevealOnScroll } from "../../../../hooks/useRevealOnScroll";
 
 type BrowseCardTileProps = {
 	card: BrowseCard;
@@ -30,6 +31,7 @@ export function BrowseCardTile({
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
 	const { unitsPreset, showDebugInfo } = usePreferences();
+	const { ref, revealClass } = useRevealOnScroll();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
@@ -47,7 +49,7 @@ export function BrowseCardTile({
 
 
 	return (
-		<div className={cn(!isDesktop && "bg-black flex")}>
+		<div ref={ref} className={cn(!isDesktop && "bg-black rounded-[4px] overflow-hidden", revealClass)}>
 			<button
 				type="button"
 				key={card.profileId}
@@ -57,7 +59,7 @@ export function BrowseCardTile({
 					!isDemoCard && "active:scale-95",
 					isDesktop
 						? "rounded-xl shadow-sm"
-						: "rounded-[4px] border-[0.5px] border-black",
+						: "rounded-[4px]",
 					isBoosting ? "p-[2.5px] z-20" : "p-0",
 					isDemoCard && "cursor-default"
 				)}
@@ -72,7 +74,13 @@ export function BrowseCardTile({
 					/>
 				)}
 
-				<div className="relative aspect-[5/5] bg-[var(--surface-2)] z-10 rounded-[inherit] overflow-hidden">
+				{/*
+					Replace "aspect-[5/5]" with "h-0 pb-[100%]", since "aspect-ratio" collapses tile height to ~0 on
+                    pre-iOS-15 WebKit. This triggered an endless pagination loop
+                    that crashed the WebView renderer. thank you flo
+				*/}
+				<div className="relative w-full h-0 pb-[100%] bg-[var(--surface-2)] z-10 rounded-[inherit] overflow-hidden">
+					<div className="absolute inset-0">
 					<ProfileImage
 						src={card.primaryImageUrl}
 						alt={t("browse_page.profile_photo_alt", { name })}
@@ -173,6 +181,7 @@ export function BrowseCardTile({
 							<MapPin className="h-3.5 w-3.5" />
 							{formatDistance(card.distanceMeters, t, unitsPreset)}
 						</span>
+					</div>
 					</div>
 				</div>
 			</button>
