@@ -524,7 +524,7 @@
             "error_photo_limit": "Remova uma foto antes de adicionar outra"
         },
         "errors": {
-            "display_name_length": "O nome de exibição deve ter entre 3 e 15 caracteres.",
+            "display_name_length": "O nome de exibição deve ter no máximo 15 caracteres.",
             "about_me_length": "A seção \"Sobre mim\" deve ter no máximo 255 caracteres."
         }
     },
