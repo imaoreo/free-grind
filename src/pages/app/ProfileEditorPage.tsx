@@ -260,15 +260,6 @@ export function ProfileEditorPage() {
 		return hashes.slice(0, MAX_PROFILE_PHOTOS);
 	}, [profile?.medias, profile?.profileImageMediaHash]);
 
-	const photoSlots = useMemo(
-		() =>
-			Array.from(
-				{ length: MAX_PROFILE_PHOTOS },
-				(_, index) => profilePhotoHashes[index] ?? null,
-			),
-		[profilePhotoHashes],
-	);
-
 	const selectedRelationshipLabel = useMemo(() => {
 		if (!draft.relationshipStatus) {
 			return t("profile_editor.sections.states.relationship_not_set");
@@ -609,25 +600,6 @@ export function ProfileEditorPage() {
 		}
 	};
 
-	const handleSetPrimaryPhoto = async (hash: string) => {
-		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
-			return;
-		}
-
-		if (profilePhotoHashes[0] === hash) {
-			return;
-		}
-
-		const reordered = [
-			hash,
-			...profilePhotoHashes.filter((currentHash) => currentHash !== hash),
-		];
-
-		await persistProfilePhotos(reordered, {
-			successMessage: t("profile_editor.toasts.primary_updated"),
-		});
-	};
-
 	const handleRemovePhoto = async (hash: string) => {
 		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
 			return;
@@ -640,6 +612,13 @@ export function ProfileEditorPage() {
 				successMessage: t("profile_editor.toasts.photo_removed"),
 			},
 		);
+	};
+
+	const handleReorderPhotos = async (newHashes: string[]) => {
+		if (isSavingPhotos || isUploadingPhoto) return;
+		await persistProfilePhotos(newHashes, {
+			successMessage: t("profile_editor.toasts.photos_reordered"),
+		});
 	};
 
 	const handleResetDraft = () => {
@@ -756,13 +735,12 @@ export function ProfileEditorPage() {
 								displayNameError={displayNameError}
 								aboutMeError={aboutMeError}
 								tagList={tagList}
-								photoSlots={photoSlots}
 								profilePhotoHashes={profilePhotoHashes}
 								isSavingPhotos={isSavingPhotos}
 								isUploadingPhoto={isUploadingPhoto}
 								onUploadPhoto={handleUploadPhoto}
-								onSetPrimaryPhoto={handleSetPrimaryPhoto}
 								onRemovePhoto={handleRemovePhoto}
+								onReorderPhotos={handleReorderPhotos}
 								visitingMode={draftVisitingMode}
 								isLoadingVisitingMode={isLoadingVisitingMode}
 								visitingModeError={visitingModeError}

@@ -1,19 +1,36 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	AtSign,
 	BadgeInfo,
 	Camera,
 	Compass,
+	GripVertical,
 	Home,
-	ImageOff,
 	MapPin,
+	Plus,
 	Ruler,
 	ShieldPlus,
 	Sparkles,
-	Star,
 	Trash2,
 } from "lucide-react";
+import {
+	DndContext,
+	PointerSensor,
+	TouchSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+	type DragOverEvent,
+	type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	rectSortingStrategy,
+	useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
@@ -21,6 +38,88 @@ import {
 import { getThumbImageUrl } from "../../../utils/media";
 import { CategoryHeader, ChipGroup, ToggleRow } from "./ProfileEditorComponents";
 import { MAX_PROFILE_PHOTOS, type ProfileDraft } from "./profileEditorUtils";
+
+type SortablePhotoSlotProps = {
+	hash: string;
+	slotIndex: number;
+	isSavingPhotos: boolean;
+	isUploadingPhoto: boolean;
+	onRemovePhoto: (hash: string) => void;
+	t: ReturnType<typeof useTranslation>["t"];
+};
+
+function SortablePhotoSlot({
+	hash,
+	slotIndex,
+	isSavingPhotos,
+	isUploadingPhoto,
+	onRemovePhoto,
+	t,
+}: SortablePhotoSlotProps) {
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: hash });
+
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	const isPrimary = slotIndex === 0;
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			className={[
+				"relative aspect-square overflow-hidden rounded-2xl bg-[var(--surface-2)]",
+				isDragging ? "opacity-40" : "",
+			].join(" ")}
+		>
+			<img
+				src={getThumbImageUrl(hash, "320x320")}
+				alt={`Profile photo ${slotIndex + 1}`}
+				className="h-full w-full object-cover"
+			/>
+
+			{/* Bottom gradient for legibility */}
+			<div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
+
+			{/* Primary badge / slot number */}
+			<div className="absolute bottom-2 left-2">
+				{isPrimary ? (
+					<span className="rounded-md bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow-sm">
+						{t("profile_editor.sections.pictures.primary")}
+					</span>
+				) : (
+					<span className="rounded-md bg-black/40 px-2 py-0.5 text-[10px] font-semibold text-white/80">
+						#{slotIndex + 1}
+					</span>
+				)}
+			</div>
+
+			{/* Drag handle */}
+			{!isSavingPhotos && !isUploadingPhoto && (
+				<div
+					{...attributes}
+					{...listeners}
+					className="absolute right-2 top-2 cursor-grab touch-none rounded-lg bg-black/40 p-1.5 text-white backdrop-blur-sm active:cursor-grabbing"
+				>
+					<GripVertical className="h-3.5 w-3.5" />
+				</div>
+			)}
+
+			{/* Delete button */}
+			<button
+				type="button"
+				onClick={() => void onRemovePhoto(hash)}
+				disabled={isSavingPhotos || isUploadingPhoto}
+				className="absolute bottom-2 right-2 rounded-lg bg-black/40 p-1.5 text-white/80 backdrop-blur-sm transition-colors hover:bg-red-500/80 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+			>
+				<Trash2 className="h-3.5 w-3.5" />
+			</button>
+		</div>
+	);
+}
 
 type Option = { value: number; label: string };
 
@@ -41,13 +140,12 @@ type ProfileEditorFormSectionsProps = {
 	displayNameError: string | null;
 	aboutMeError: string | null;
 	tagList: string[];
-	photoSlots: (string | null)[];
 	profilePhotoHashes: string[];
 	isSavingPhotos: boolean;
 	isUploadingPhoto: boolean;
 	onUploadPhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
-	onSetPrimaryPhoto: (hash: string) => void;
 	onRemovePhoto: (hash: string) => void;
+	onReorderPhotos: (newHashes: string[]) => void;
 	visitingMode: VisitingMode;
 	isLoadingVisitingMode: boolean;
 	visitingModeError: string | null;
@@ -75,13 +173,12 @@ export function ProfileEditorFormSections({
 	displayNameError,
 	aboutMeError,
 	tagList,
-	photoSlots,
 	profilePhotoHashes,
 	isSavingPhotos,
 	isUploadingPhoto,
 	onUploadPhoto,
-	onSetPrimaryPhoto,
 	onRemovePhoto,
+	onReorderPhotos,
 	visitingMode,
 	isLoadingVisitingMode,
 	visitingModeError,
@@ -103,6 +200,40 @@ export function ProfileEditorFormSections({
 }: ProfileEditorFormSectionsProps) {
 	const { t } = useTranslation();
 	const visitingModeDisabled = isLoadingVisitingMode || Boolean(visitingModeError);
+	const [activeId, setActiveId] = useState<string | null>(null);
+	const [overId, setOverId] = useState<string | null>(null);
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+	);
+
+	const liveOrder = useMemo(() => {
+		if (!activeId || !overId || activeId === overId) return profilePhotoHashes;
+		const from = profilePhotoHashes.indexOf(activeId);
+		const to = profilePhotoHashes.indexOf(overId);
+		if (from === -1 || to === -1) return profilePhotoHashes;
+		return arrayMove(profilePhotoHashes, from, to);
+	}, [activeId, overId, profilePhotoHashes]);
+
+	const handleDndDragStart = ({ active }: DragStartEvent) => {
+		setActiveId(String(active.id));
+	};
+
+	const handleDndDragOver = ({ over }: DragOverEvent) => {
+		setOverId(over ? String(over.id) : null);
+	};
+
+	const handleDndDragEnd = ({ active, over }: DragEndEvent) => {
+		setActiveId(null);
+		setOverId(null);
+		if (!over || active.id === over.id) return;
+		const from = profilePhotoHashes.indexOf(String(active.id));
+		const to = profilePhotoHashes.indexOf(String(over.id));
+		if (from === -1 || to === -1) return;
+		onReorderPhotos(arrayMove(profilePhotoHashes, from, to));
+	};
+
 	const visitingModeOptions: Array<{
 		value: VisitingMode;
 		icon: typeof MapPin;
@@ -122,97 +253,77 @@ export function ProfileEditorFormSections({
 					icon={Camera}
 				/>
 				<div className="grid gap-4">
-					<div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3.5 sm:p-4">
+					<div className="flex items-center justify-between gap-3">
 						<p className="text-sm text-[var(--text-muted)]">
 							{t("profile_editor.sections.pictures.usage", {
 								count: profilePhotoHashes.length,
 								total: MAX_PROFILE_PHOTOS,
 							})}
 						</p>
-						<label
-							htmlFor="profile-photo-upload"
-							className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors hover:border-[var(--text-muted)]"
-						>
-							<Camera className="h-4 w-4" />
-							{isUploadingPhoto
-								? t("profile_editor.sections.pictures.uploading")
-								: t("profile_editor.sections.pictures.add")}
-						</label>
+						{(() => {
+							const uploadDisabled = isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS;
+							return (
+								<label
+									htmlFor={uploadDisabled ? undefined : "profile-photo-upload"}
+									className={[
+										"inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors",
+										uploadDisabled
+											? "cursor-not-allowed opacity-40"
+											: "cursor-pointer hover:border-[var(--text-muted)]",
+									].join(" ")}
+								>
+									<Camera className="h-4 w-4" />
+									{isUploadingPhoto
+										? t("profile_editor.sections.pictures.uploading")
+										: t("profile_editor.sections.pictures.add")}
+								</label>
+							);
+						})()}
 						<input
 							id="profile-photo-upload"
 							type="file"
 							accept="image/*"
 							onChange={onUploadPhoto}
-							disabled={isUploadingPhoto || isSavingPhotos}
+							disabled={isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS}
 							className="hidden"
 						/>
 					</div>
 
-					<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-						{photoSlots.map((hash, index) => {
-							const isPrimary = index === 0;
-							return (
-								<div
-									key={`${hash ?? "empty"}-${index}`}
-									className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-2"
-								>
-									<div className="relative aspect-square overflow-hidden rounded-xl bg-[var(--surface)]">
-										{hash ? (
-											<img
-												src={getThumbImageUrl(hash, "320x320")}
-												alt={`Profile photo ${index + 1}`}
-												className="h-full w-full object-cover"
-											/>
-										) : (
-											<div className="flex h-full items-center justify-center text-[var(--text-muted)]">
-												<ImageOff className="h-5 w-5" />
-											</div>
-										)}
-									</div>
-
-									<div className="mt-2 space-y-2">
-										<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-											{isPrimary
-												? t("profile_editor.sections.pictures.primary")
-												: t("profile_editor.sections.pictures.slot", {
-														index: index + 1,
-													})}
-										</p>
-
-										{hash ? (
-											<div className="grid gap-1.5">
-												<button
-													type="button"
-													onClick={() => void onSetPrimaryPhoto(hash)}
-													disabled={isPrimary || isSavingPhotos || isUploadingPhoto}
-													className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50"
-												>
-													<Star className="h-3.5 w-3.5" />
-													{t("profile_editor.sections.pictures.set_primary")}
-												</button>
-												<button
-													type="button"
-													onClick={() => void onRemovePhoto(hash)}
-													disabled={isSavingPhotos || isUploadingPhoto}
-													className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-													{t("profile_editor.sections.pictures.remove")}
-												</button>
-											</div>
-										) : (
-											<label
-												htmlFor="profile-photo-upload"
-												className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 text-xs font-medium text-[var(--text-muted)]"
-											>
-												{t("profile_editor.sections.pictures.add")}
-											</label>
-										)}
-									</div>
-								</div>
-							);
-						})}
-					</div>
+					<DndContext
+						sensors={sensors}
+						onDragStart={handleDndDragStart}
+						onDragOver={handleDndDragOver}
+						onDragEnd={handleDndDragEnd}
+						onDragCancel={() => { setActiveId(null); setOverId(null); }}
+					>
+						<SortableContext items={profilePhotoHashes} strategy={rectSortingStrategy}>
+							<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+								{profilePhotoHashes.map((hash) => (
+									<SortablePhotoSlot
+										key={hash}
+										hash={hash}
+										slotIndex={liveOrder.indexOf(hash)}
+										isSavingPhotos={isSavingPhotos}
+										isUploadingPhoto={isUploadingPhoto}
+										onRemovePhoto={onRemovePhoto}
+										t={t}
+									/>
+								))}
+								{Array.from({ length: MAX_PROFILE_PHOTOS - profilePhotoHashes.length }).map((_, i) => (
+									<label
+										key={`empty-${i}`}
+										htmlFor="profile-photo-upload"
+										className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+									>
+										<Plus className="h-6 w-6" />
+										<span className="text-xs font-medium">
+											{t("profile_editor.sections.pictures.add")}
+										</span>
+									</label>
+								))}
+							</div>
+						</SortableContext>
+					</DndContext>
 
 					{isSavingPhotos ? (
 						<p className="text-xs text-[var(--text-muted)]">
