@@ -469,12 +469,6 @@ export function ProfileDetailsContent({
 								: ""}
 						</span>
 					)}
-					{activeProfile.lastReceivedTapTimestamp != null && (
-						<span className="flex items-center gap-1">
-							<Flame className="h-3 w-3" />
-							{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
-						</span>
-					)}
 				</div>
 				{isDesktopLike && messageProfileId && onMessageProfile ? (
 					<div className="mt-3 flex items-center justify-center gap-4 py-1">
