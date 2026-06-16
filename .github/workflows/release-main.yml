@@ -244,6 +244,26 @@ jobs:
               }
             }
 
+            // Publish portable role-specific binaries for Windows.
+            // Runtime mode is selected by executable filename (manager vs child).
+            if (suffix === 'windows-x64') {
+              const baseExe = path.join('src-tauri', 'target', 'release', 'free-grind.exe');
+              if (fs.existsSync(baseExe)) {
+                uploads.push({
+                  src: baseExe,
+                  name: `free-grind-manager-v${version}-${suffix}.exe`,
+                  mime: mimeTypes['.exe'],
+                });
+                uploads.push({
+                  src: baseExe,
+                  name: `free-grind-child-v${version}-${suffix}.exe`,
+                  mime: mimeTypes['.exe'],
+                });
+              } else {
+                console.log(`! Skipped manager/child portable exes: ${baseExe} not found`);
+              }
+            }
+
             for (const { src, name, mime } of uploads) {
               const data = fs.readFileSync(src);
               await github.rest.repos.uploadReleaseAsset({
@@ -553,29 +573,3 @@ jobs:
             });
 
             console.log(`✓ Unsigned iOS IPA uploaded to release as ${ipaName}`);
-
-
-  publish-release:
-    needs:
-      - create-release
-      - publish-ota
-      - build-desktop
-      - build-android
-      - build-ios
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Publish release
-        uses: actions/github-script@v7
-        env:
-          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
-        with:
-          script: |
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: Number(process.env.RELEASE_ID),
-              draft: false,
-              prerelease: false
-            });

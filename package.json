@@ -1,6 +1,6 @@
 {
     "name": "free-grind",
-    "version": "0.5.2",
+    "version": "0.5.3",
     "license": "Personal Use License",
     "author": "Jay Brammeld <jay@imaoreo.dev> (https://imaoreo.dev)",
     "type": "module",
@@ -9,6 +9,7 @@
         "build": "vite build",
         "ota": "bun run scripts/publish-ota.mjs",
         "dev": "bun run dev:desktop",
+        "exe-manager": "powershell -ExecutionPolicy Bypass -File \"./tools/exe-manager/ExeManager.ps1\"",
         "dev:web": "vite dev",
         "dev:desktop": "sh scripts/dev-desktop.sh",
         "dev:ios": "sh scripts/dev-ios.sh",
