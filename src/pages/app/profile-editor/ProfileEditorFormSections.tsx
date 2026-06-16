@@ -251,44 +251,42 @@ export function ProfileEditorFormSections({
 					title={t("profile_editor.sections.pictures.title")}
 					description={t("profile_editor.sections.pictures.description")}
 					icon={Camera}
+					action={
+						<>
+							{(() => {
+								const uploadDisabled = isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS;
+								return (
+									<label
+										htmlFor={uploadDisabled ? undefined : "profile-photo-upload"}
+										className={[
+											"inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium transition-colors",
+											uploadDisabled
+												? "cursor-not-allowed opacity-40"
+												: "cursor-pointer hover:border-[var(--text-muted)]",
+										].join(" ")}
+									>
+										<Plus className="h-4 w-4" />
+										{isUploadingPhoto
+											? t("profile_editor.sections.pictures.uploading")
+											: t("profile_editor.sections.pictures.add")}
+										<span className="ml-1 rounded bg-[var(--surface)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-muted)]">
+											{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS}
+										</span>
+									</label>
+								);
+							})()}
+							<input
+								id="profile-photo-upload"
+								type="file"
+								accept="image/*"
+								onChange={onUploadPhoto}
+								disabled={isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS}
+								className="hidden"
+							/>
+						</>
+					}
 				/>
 				<div className="grid gap-4">
-					<div className="flex items-center justify-between gap-3">
-						<p className="text-sm text-[var(--text-muted)]">
-							{t("profile_editor.sections.pictures.usage", {
-								count: profilePhotoHashes.length,
-								total: MAX_PROFILE_PHOTOS,
-							})}
-						</p>
-						{(() => {
-							const uploadDisabled = isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS;
-							return (
-								<label
-									htmlFor={uploadDisabled ? undefined : "profile-photo-upload"}
-									className={[
-										"inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm font-medium transition-colors",
-										uploadDisabled
-											? "cursor-not-allowed opacity-40"
-											: "cursor-pointer hover:border-[var(--text-muted)]",
-									].join(" ")}
-								>
-									<Camera className="h-4 w-4" />
-									{isUploadingPhoto
-										? t("profile_editor.sections.pictures.uploading")
-										: t("profile_editor.sections.pictures.add")}
-								</label>
-							);
-						})()}
-						<input
-							id="profile-photo-upload"
-							type="file"
-							accept="image/*"
-							onChange={onUploadPhoto}
-							disabled={isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS}
-							className="hidden"
-						/>
-					</div>
-
 					<DndContext
 						sensors={sensors}
 						onDragStart={handleDndDragStart}
@@ -330,9 +328,6 @@ export function ProfileEditorFormSections({
 							{t("profile_editor.sections.pictures.saving")}
 						</p>
 					) : null}
-					<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-						{t("profile_editor.sections.pictures.footer")}
-					</p>
 				</div>
 			</div>
 

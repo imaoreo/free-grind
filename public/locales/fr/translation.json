@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Photos",
-                "description": "Emplacements pour les photos",
+                "description": "Ajoutez et arrangez vos photos",
                 "usage": "{{count}}/{{total}} photos ajoutées",
                 "add": "Ajouter une photo",
                 "uploading": "Téléversement…",
