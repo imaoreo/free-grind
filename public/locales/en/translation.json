@@ -547,7 +547,7 @@
             "error_photo_limit": "Remove a photo before adding another one"
         },
         "errors": {
-            "display_name_length": "Display name must be between 3 and 15 characters.",
+            "display_name_length": "Display name cannot exceed 15 characters.",
             "about_me_length": "About Me must stay under 255 characters."
         }
     },

@@ -422,7 +422,7 @@
             "error_photo_limit": "Supprimez une photo avant d'en ajouter une autre"
         },
         "errors": {
-            "display_name_length": "Le nom d'affichage doit comporter entre 3 et 15 caractères.",
+            "display_name_length": "Le nom d'affichage ne peut pas dépasser 15 caractères.",
             "about_me_length": "La description doit comporter moins de 255 caractères."
         }
     },
