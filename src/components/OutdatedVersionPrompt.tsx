@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 const DEFAULT_RELEASES_URL = "https://github.com/imaoreo/free-grind/releases";
-const DEFAULT_LATEST_VERSION = "0.5.2";
+const DEFAULT_LATEST_VERSION = "0.5.3";
 const TARGET_OUTDATED_VERSIONS = new Set(["0.5.0", "0.5.1", "5.0.0", "5.1.0"]);
 
 type ReleaseInfo = {

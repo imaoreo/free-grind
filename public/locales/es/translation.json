@@ -888,7 +888,7 @@
             }
         },
         "chat_history": "Chat history",
-        "last_message": "Last message {{time}}",
+        "last_message": "Último mensaje {{time}}",
         "chatted_before": "Chatted before",
         "block": "Bloquear",
         "unblock": "Desbloquear",
@@ -984,9 +984,9 @@
         }
     },
     "interest_page": {
-        "empty_views": "No views yet",
+        "empty_views": "Sin visitas aún",
         "empty_views_desc": "Las visitas de perfil recientes aparecerán aquí.",
-        "empty_taps": "No taps yet",
+        "empty_taps": "Sin taps aún",
         "empty_taps_desc": "Las personas que enviaron un tap aparecerán aquí.",
         "profile_fallback": "Perfil {{id}}",
         "title": "Interés",

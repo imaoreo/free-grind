@@ -1,6 +1,6 @@
 [package]
 name = "free-grind"
-version = "0.5.2"
+version = "0.5.3"
 description = "Free Grind is a Grindr Client"
 authors = ["Jay Brammeld <jay@imaoreo.dev>"]
 edition = "2021"
