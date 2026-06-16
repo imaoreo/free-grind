@@ -389,7 +389,7 @@ export function ProfileEditorPage() {
 					}
 				};
 
-				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
+				addIfChanged("displayName", "displayName", (v) => v.trim());
 				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
 				addIfChanged("showAge", "showAge");
 				addIfChanged("showDistance", "showDistance");
