@@ -18,6 +18,8 @@ let genderOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 let pronounOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 let blockedProfileIdsCache: CacheEntry<Set<string>> | null = null;
 let ownProfilePhotoHashCache: CacheEntry<string | null> | null = null;
+let ownDisplayNameCache: string | null | undefined = undefined;
+let ownShowDistanceCache: boolean | undefined = undefined;
 
 function getFromCache<T>(
 	cache: Map<string, CacheEntry<T>>,
@@ -139,4 +141,20 @@ export function setCachedOwnProfilePhotoHash(hash: string | null) {
 		value: hash,
 		expiresAt: Infinity, // Session-based: does not expire until app reload
 	};
+}
+
+export function getCachedOwnDisplayName(): string | null | undefined {
+	return ownDisplayNameCache;
+}
+
+export function setCachedOwnDisplayName(name: string | null) {
+	ownDisplayNameCache = name;
+}
+
+export function getCachedOwnShowDistance(): boolean | undefined {
+	return ownShowDistanceCache;
+}
+
+export function setCachedOwnShowDistance(value: boolean) {
+	ownShowDistanceCache = value;
 }

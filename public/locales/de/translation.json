@@ -404,7 +404,7 @@
         "sections": {
             "pictures": {
                 "title": "Bilder",
-                "description": "Fotoplätze",
+                "description": "Lade Fotos hoch und sortiere sie",
                 "usage": "{{count}}/{{total}} Fotos verwendet",
                 "add": "Foto hinzufügen",
                 "uploading": "Hochladen…",
@@ -522,6 +522,7 @@
             "photo_uploaded": "Foto hochgeladen",
             "primary_updated": "Primärfoto aktualisiert",
             "photo_removed": "Foto entfernt",
+            "photos_reordered": "Fotoreihenfolge aktualisiert",
             "error_update": "Profilaktualisierung fehlgeschlagen",
             "error_photos": "Profilfotoaktualisierung fehlgeschlagen",
             "error_upload": "Bild-Upload fehlgeschlagen",
@@ -982,6 +983,7 @@
         "meet_at": "Treffen bei",
         "accept_nsfw": "NSFW-Bilder?",
         "tribes": "Tribes",
+        "tribes_im_into": "Tribes, die ich mag",
         "pronouns": "Pronomen",
         "right_now": "Right Now",
         "health": "Gesundheit",

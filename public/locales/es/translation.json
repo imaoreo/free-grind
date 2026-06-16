@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Imágenes",
-                "description": "Espacios para fotos",
+                "description": "Sube y organiza tus fotos",
                 "usage": "{{count}}/{{total}} fotos puestas",
                 "add": "Añadir foto",
                 "uploading": "Subiendo…",
@@ -414,6 +414,7 @@
             "photo_uploaded": "Foto subida",
             "primary_updated": "Foto principal actualizada",
             "photo_removed": "Foto eliminada",
+            "photos_reordered": "Orden de fotos actualizado",
             "error_update": "Error al actualizar perfil",
             "error_photos": "Error al actualizar fotos de perfil",
             "error_upload": "Error al añadir imagen",
@@ -780,6 +781,7 @@
         "meet_at": "Vernos en",
         "accept_nsfw": "¿Fotos NSFW?",
         "tribes": "Tribus",
+        "tribes_im_into": "Tribus que me gustan",
         "pronouns": "Pronombres",
         "right_now": "Right now",
         "health": "Salud",

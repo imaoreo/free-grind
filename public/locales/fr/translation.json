@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Photos",
-                "description": "Emplacements pour les photos",
+                "description": "Ajoutez et arrangez vos photos",
                 "usage": "{{count}}/{{total}} photos ajoutées",
                 "add": "Ajouter une photo",
                 "uploading": "Téléversement…",
@@ -414,6 +414,7 @@
             "photo_uploaded": "Photo téléversée",
             "primary_updated": "Photo principale mise à jour",
             "photo_removed": "Photo supprimée",
+            "photos_reordered": "Ordre des photos mis à jour",
             "error_update": "Erreur lors de la mise à jour du profil",
             "error_photos": "Erreur lors de la mise à jour des photos",
             "error_upload": "Erreur lors de l'ajout de l'image",
@@ -801,6 +802,7 @@
         "meet_at": "Lieu de rencontre",
         "accept_nsfw": "Photos NSFW ?",
         "tribes": "Tribus",
+        "tribes_im_into": "Tribus qui m'intéressent",
         "pronouns": "Pronoms",
         "right_now": "Right Now",
         "health": "Santé",
