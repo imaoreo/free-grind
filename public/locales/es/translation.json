@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Imágenes",
-                "description": "Espacios para fotos",
+                "description": "Sube y organiza tus fotos",
                 "usage": "{{count}}/{{total}} fotos puestas",
                 "add": "Añadir foto",
                 "uploading": "Subiendo…",

@@ -708,7 +708,7 @@ export function ProfileEditorPage() {
 								</div>
 							</div>
 
-							<div className="border-t border-[var(--border)] px-4 py-3 sm:px-5">
+							<div className="border-t border-[var(--border)] px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
 								<div className="mb-1.5 flex items-center justify-between gap-3">
 									<p className="text-xs text-[var(--text-muted)]">
 										{t("profile_editor.completion_signals", {

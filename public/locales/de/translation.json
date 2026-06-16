@@ -404,7 +404,7 @@
         "sections": {
             "pictures": {
                 "title": "Bilder",
-                "description": "Fotoplätze",
+                "description": "Lade Fotos hoch und sortiere sie",
                 "usage": "{{count}}/{{total}} Fotos verwendet",
                 "add": "Foto hinzufügen",
                 "uploading": "Hochladen…",
