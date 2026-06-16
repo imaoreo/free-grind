@@ -92,6 +92,7 @@ type ProfileDetailsContentProps = {
 	ethnicityLabels: LabelMap;
 	relationshipStatusLabels: LabelMap;
 	extraTopSection?: ReactNode;
+	hidePicturesSection?: boolean;
 };
 
 export function ProfileDetailsContent({
@@ -139,6 +140,7 @@ export function ProfileDetailsContent({
 	ethnicityLabels,
 	relationshipStatusLabels,
 	extraTopSection,
+	hidePicturesSection = false,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -256,7 +258,7 @@ export function ProfileDetailsContent({
 					</span>
 				</div>
 			)}
-			{(activeProfilePhotoHashes.length > 0 || !isDesktopLike) && (
+			{!hidePicturesSection && (activeProfilePhotoHashes.length > 0 || !isDesktopLike) && (
 			<div>
 				{activeProfilePhotoHashes.length > 0 ? (
 					<>
