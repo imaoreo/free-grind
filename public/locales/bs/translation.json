@@ -655,7 +655,21 @@
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
     },
+    "favorites": {
+        "note_section_title": "Privatna bilješka",
+        "note_placeholder": "Dodaj ličnu bilješku o ovom profilu...",
+        "phone_number_placeholder": "Broj telefona (opcionalno)",
+        "note_empty": "Dodaj bilješku...",
+        "note_saved": "Bilješka sačuvana",
+        "note_deleted": "Bilješka obrisana",
+        "save_note_failed": "Čuvanje bilješke nije uspjelo",
+        "delete_note_failed": "Brisanje bilješke nije uspjelo",
+        "get_note_failed": "Učitavanje bilješke nije uspjelo",
+        "delete_note": "Obriši bilješku"
+    },
     "common": {
-        "cancel": "Otkaži"
+        "cancel": "Otkaži",
+        "save": "Sačuvaj",
+        "edit": "Uredi"
     }
 }

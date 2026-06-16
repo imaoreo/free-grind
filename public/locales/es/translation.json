@@ -422,7 +422,7 @@
             "error_photo_limit": "Borra una foto antes de añadir otra"
         },
         "errors": {
-            "display_name_length": "El nombre en pantalla debe de tener entre 3 a 15 caracteres.",
+            "display_name_length": "El nombre en pantalla no puede tener más de 15 caracteres.",
             "about_me_length": "Sobre mí tiene que tener menos de 255 caracteres."
         }
     },
@@ -1240,7 +1240,17 @@
         "notes_loaded_one": "{{count}} nota de favorito cargado",
         "notes_loaded_many": "{{count}} notas de favoritos cargados",
         "notes_loaded_other": "{{count}} notas de favoritos cargados",
-        "search_placeholder": "Buscando notas..."
+        "search_placeholder": "Buscando notas...",
+        "note_section_title": "Nota privada",
+        "note_placeholder": "Añadir una nota personal sobre este perfil...",
+        "phone_number_placeholder": "Número de teléfono (opcional)",
+        "note_empty": "Añadir una nota...",
+        "note_saved": "Nota guardada",
+        "note_deleted": "Nota eliminada",
+        "save_note_failed": "Error al guardar la nota",
+        "delete_note_failed": "Error al eliminar la nota",
+        "get_note_failed": "Error al cargar la nota",
+        "delete_note": "Eliminar nota"
     },
     "settings_automation": {
         "auto_block_title": "Auto-Bloquear Mensaje",
@@ -1272,7 +1282,9 @@
         "auto_refresh_disabled": "Auto recarga deshabilitado"
     },
     "common": {
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "edit": "Editar"
     },
     "privacy": {
         "ghost_mode": "Modo fantasma",

@@ -325,7 +325,7 @@ export function ProfileEditorPage() {
 			return null;
 		}
 
-		if (value.length < 3 || value.length > 15) {
+		if (value.length > 15) {
 			return t("profile_editor.errors.display_name_length");
 		}
 
@@ -389,7 +389,7 @@ export function ProfileEditorPage() {
 					}
 				};
 
-				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
+				addIfChanged("displayName", "displayName", (v) => v.trim());
 				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
 				addIfChanged("showAge", "showAge");
 				addIfChanged("showDistance", "showDistance");
@@ -624,19 +624,6 @@ export function ProfileEditorPage() {
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
 		setDraftVisitingMode(savedVisitingMode);
-	};
-
-	const handleLogout = async () => {
-		try {
-			await logout();
-			navigate("/auth/sign-in");
-		} catch (error) {
-			const message =
-				error instanceof Error && error.message
-					? error.message
-					: "Failed to log out.";
-			toast.error(message);
-		}
 	};
 
 	return (
