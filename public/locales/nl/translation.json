@@ -354,6 +354,7 @@
             "photo_uploaded": "",
             "primary_updated": "",
             "photo_removed": "",
+            "photos_reordered": "Fotovolgorde bijgewerkt",
             "error_update": "",
             "error_photos": "",
             "error_upload": "",
@@ -572,7 +573,8 @@
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
         "chatted_before": "Chatted before",
-        "accept_nsfw": ""
+        "accept_nsfw": "",
+        "tribes_im_into": ""
     },
     "auth": {
         "sign_in": {
