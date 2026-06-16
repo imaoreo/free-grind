@@ -914,7 +914,17 @@
         "loading_notes": "Lade Notizen...",
         "notes_loaded_one": "{{count}} Favoriten-Notiz geladen",
         "notes_loaded_other": "{{count}} Favoriten-Notizen geladen",
-        "search_placeholder": "Suche in Notizen..."
+        "search_placeholder": "Suche in Notizen...",
+        "note_section_title": "Private Notiz",
+        "note_placeholder": "Persönliche Notiz zu diesem Profil hinzufügen...",
+        "phone_number_placeholder": "Telefonnummer (optional)",
+        "note_empty": "Notiz hinzufügen...",
+        "note_saved": "Notiz gespeichert",
+        "note_deleted": "Notiz gelöscht",
+        "save_note_failed": "Fehler beim Speichern der Notiz",
+        "delete_note_failed": "Fehler beim Löschen der Notiz",
+        "get_note_failed": "Fehler beim Laden der Notiz",
+        "delete_note": "Notiz löschen"
     },
     "profile_details": {
         "title": "Profildetails",
@@ -1216,6 +1226,8 @@
         "refreshing": "Aktualisiere..."
     },
     "common": {
-        "cancel": "Abbrechen"
+        "cancel": "Abbrechen",
+        "save": "Speichern",
+        "edit": "Bearbeiten"
     }
 }

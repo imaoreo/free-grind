@@ -962,7 +962,17 @@
         "loading_notes": "Loading notes...",
         "notes_loaded_one": "{{count}} favorite note loaded",
         "notes_loaded_other": "{{count}} favorite notes loaded",
-        "search_placeholder": "Search notes..."
+        "search_placeholder": "Search notes...",
+        "note_section_title": "Private note",
+        "note_placeholder": "Add a personal note about this profile...",
+        "phone_number_placeholder": "Phone number (optional)",
+        "note_empty": "Add a note...",
+        "note_saved": "Note saved",
+        "note_deleted": "Note deleted",
+        "save_note_failed": "Failed to save note",
+        "delete_note_failed": "Failed to delete note",
+        "get_note_failed": "Failed to load note",
+        "delete_note": "Delete note"
     },
     "profile_details": {
         "title": "Profile details",
@@ -1274,6 +1284,8 @@
         "refreshing": "Refreshing..."
     },
     "common": {
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "save": "Save",
+        "edit": "Edit"
     }
 }

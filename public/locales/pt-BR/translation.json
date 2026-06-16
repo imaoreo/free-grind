@@ -1208,7 +1208,17 @@
         "search_placeholder": "Buscar anotações...",
         "notes_loaded_one": "Português (Brasil), Muitos (1000000, 2000000)",
         "notes_loaded_many": "{{count}} de anotações de favorito carregadas",
-        "notes_loaded_other": "{{count}} anotações de favorito carregadas"
+        "notes_loaded_other": "{{count}} anotações de favorito carregadas",
+        "note_section_title": "Nota privada",
+        "note_placeholder": "Adicionar uma nota pessoal sobre este perfil...",
+        "phone_number_placeholder": "Número de telefone (opcional)",
+        "note_empty": "Adicionar uma nota...",
+        "note_saved": "Nota salva",
+        "note_deleted": "Nota excluída",
+        "save_note_failed": "Falha ao salvar a nota",
+        "delete_note_failed": "Falha ao excluir a nota",
+        "get_note_failed": "Falha ao carregar a nota",
+        "delete_note": "Excluir nota"
     },
     "settings_automation": {
         "auto_block_title": "Bloqueio Automático de Mensagens",
@@ -1240,6 +1250,8 @@
         "auto_refresh_disabled": "Atualização automática desativada"
     },
     "common": {
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "save": "Salvar",
+        "edit": "Editar"
     }
 }

@@ -1,4 +1,5 @@
-import { Ban, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Star, Triangle, X } from "lucide-react";
+import { Ban, Check, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X } from "lucide-react";
+import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -342,6 +343,190 @@ export function ProfileDetailsModal({
 	const barTapOptionsRef = useRef<HTMLDivElement>(null);
 	const controlsBarRef = useRef<HTMLDivElement>(null);
 	const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+	const [profileNote, setProfileNote] = useState("");
+	const [profilePhoneNumber, setProfilePhoneNumber] = useState("");
+	const [isLoadingNote, setIsLoadingNote] = useState(false);
+	const [isEditingNote, setIsEditingNote] = useState(false);
+	const [noteDraft, setNoteDraft] = useState("");
+	const [phoneNumberDraft, setPhoneNumberDraft] = useState("");
+	const [isSavingNote, setIsSavingNote] = useState(false);
+
+	useEffect(() => {
+		if (!messageProfileId || isOwnProfile || !isFavorite) {
+			setProfileNote("");
+			setProfilePhoneNumber("");
+			setIsEditingNote(false);
+			return;
+		}
+
+		let cancelled = false;
+		setIsLoadingNote(true);
+		setProfileNote("");
+		setProfilePhoneNumber("");
+		setIsEditingNote(false);
+
+		apiFunctions.getProfileNote(String(messageProfileId))
+			.then((data) => {
+				if (!cancelled) {
+					setProfileNote(data.notes ?? "");
+					setProfilePhoneNumber(data.phoneNumber ?? "");
+				}
+			})
+			.catch(() => {})
+			.finally(() => {
+				if (!cancelled) setIsLoadingNote(false);
+			});
+
+		return () => { cancelled = true; };
+	}, [messageProfileId, isOwnProfile, isFavorite]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const handleSaveNote = async () => {
+		if (!messageProfileId) return;
+		setIsSavingNote(true);
+		try {
+			await apiFunctions.saveProfileNote(String(messageProfileId), {
+				notes: noteDraft,
+				phoneNumber: phoneNumberDraft,
+			});
+			setProfileNote(noteDraft);
+			setProfilePhoneNumber(phoneNumberDraft);
+			setIsEditingNote(false);
+			toast.success(t("favorites.note_saved"));
+		} catch {
+			toast.error(t("favorites.save_note_failed"));
+		} finally {
+			setIsSavingNote(false);
+		}
+	};
+
+	const handleDeleteNote = async () => {
+		if (!messageProfileId) return;
+		setIsSavingNote(true);
+		try {
+			await apiFunctions.deleteProfileNote(String(messageProfileId));
+			setProfileNote("");
+			setProfilePhoneNumber("");
+			setIsEditingNote(false);
+			toast.success(t("favorites.note_deleted"));
+		} catch {
+			toast.error(t("favorites.delete_note_failed"));
+		} finally {
+			setIsSavingNote(false);
+		}
+	};
+
+	const notesSectionJsx = isFavorite && !isOwnProfile ? (
+		<div className="px-3">
+			{/* Header row */}
+			<div className="mb-2.5 flex items-center justify-between">
+				<div className="flex items-center gap-2">
+					<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+						{t("favorites.note_section_title")}
+					</p>
+					{isLoadingNote && (
+						<div className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--text-muted)] border-t-transparent" />
+					)}
+				</div>
+				{isEditingNote ? (
+					<div className="flex items-center gap-1">
+						<button
+							type="button"
+							onClick={handleSaveNote}
+							disabled={isSavingNote}
+							className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-2.5 py-1 text-xs font-medium text-[var(--accent-contrast)] transition hover:opacity-90 disabled:opacity-50"
+						>
+							<Check className="h-3 w-3" />
+							{t("common.save")}
+						</button>
+						<button
+							type="button"
+							onClick={() => setIsEditingNote(false)}
+							disabled={isSavingNote}
+							className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-50"
+						>
+							<X className="h-3 w-3" />
+							{t("common.cancel")}
+						</button>
+					</div>
+				) : (
+					<button
+						type="button"
+						onClick={() => { setNoteDraft(profileNote); setPhoneNumberDraft(profilePhoneNumber); setIsEditingNote(true); }}
+						disabled={isLoadingNote}
+						className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition hover:text-[var(--text)]"
+					>
+						<Pencil className="h-3 w-3" />
+						{t("common.edit")}
+					</button>
+				)}
+			</div>
+
+			{/* Body */}
+			{isEditingNote ? (
+				<div className="space-y-2">
+					<div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)] transition-colors focus-within:border-[var(--accent)]">
+						<div className="flex items-start gap-2.5 px-3 pt-3 pb-2">
+							<StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+							<textarea
+								autoFocus
+								value={noteDraft}
+								onChange={(e) => setNoteDraft(e.target.value)}
+								placeholder={t("favorites.note_placeholder")}
+								rows={3}
+								className="min-w-0 flex-1 resize-none bg-transparent text-sm leading-relaxed text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none"
+							/>
+						</div>
+						<div className="flex items-center gap-2.5 border-t border-[var(--border)] px-3 py-2.5">
+							<Phone className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+							<input
+								type="tel"
+								value={phoneNumberDraft}
+								onChange={(e) => setPhoneNumberDraft(e.target.value)}
+								placeholder={t("favorites.phone_number_placeholder")}
+								className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none"
+							/>
+						</div>
+					</div>
+					{(profileNote || profilePhoneNumber) && (
+						<div className="flex justify-end">
+							<button
+								type="button"
+								onClick={handleDeleteNote}
+								disabled={isSavingNote}
+								className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+							>
+								<Trash2 className="h-3 w-3" />
+								{t("favorites.delete_note")}
+							</button>
+						</div>
+					)}
+				</div>
+			) : profileNote ? (
+				<div className="space-y-1.5">
+					<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+						<p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{profileNote}</p>
+					</div>
+					{profilePhoneNumber && (
+						<div className="flex min-h-10 items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3">
+							<Phone className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+							<span className="text-sm text-[var(--text)]">{profilePhoneNumber}</span>
+						</div>
+					)}
+				</div>
+			) : (
+				<button
+					type="button"
+					onClick={() => { setNoteDraft(""); setPhoneNumberDraft(""); setIsEditingNote(true); }}
+					disabled={isLoadingNote}
+					className="flex w-full items-center gap-2.5 rounded-xl border border-dashed border-[var(--border)] px-4 py-3 text-left transition hover:border-[var(--accent)]/60 hover:bg-[var(--surface-2)]"
+				>
+					<StickyNote className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+					<span className="text-sm text-[var(--text-muted)]">{t("favorites.note_empty")}</span>
+				</button>
+			)}
+		</div>
+	) : null;
 
 	const barTapEmoji = (id: number) => id === 0 ? "👋" : id === 2 ? "😈" : "🔥";
     const barTapParticleColor = (id: number) => id === 0 ? "rgba(234,179,8,0.9)" : id === 2 ? "rgba(168,85,247,0.9)" : "rgba(249,115,22,0.9)";
@@ -846,6 +1031,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								bodyTypeLabels={bodyTypeLabels}
 								ethnicityLabels={ethnicityLabels}
 								relationshipStatusLabels={relationshipStatusLabels}
+								extraTopSection={notesSectionJsx}
 							/>
 						) : null}
 					</div>
@@ -1178,6 +1364,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							bodyTypeLabels={bodyTypeLabels}
 							ethnicityLabels={ethnicityLabels}
 							relationshipStatusLabels={relationshipStatusLabels}
+							extraTopSection={notesSectionJsx}
 						/>
 					) : null}
 				</div>

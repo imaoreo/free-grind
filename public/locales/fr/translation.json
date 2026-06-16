@@ -1204,7 +1204,17 @@
         "added": "Ajouté aux favoris",
         "removed": "Retiré des favoris",
         "add_failed": "Erreur lors de l'ajout aux favoris",
-        "remove_failed": "Erreur lors du retrait des favoris"
+        "remove_failed": "Erreur lors du retrait des favoris",
+        "note_section_title": "Note privée",
+        "note_placeholder": "Ajouter une note personnelle sur ce profil...",
+        "phone_number_placeholder": "Numéro de téléphone (facultatif)",
+        "note_empty": "Ajouter une note...",
+        "note_saved": "Note enregistrée",
+        "note_deleted": "Note supprimée",
+        "save_note_failed": "Échec de l'enregistrement de la note",
+        "delete_note_failed": "Échec de la suppression de la note",
+        "get_note_failed": "Échec du chargement de la note",
+        "delete_note": "Supprimer la note"
     },
     "settings_automation": {
         "auto_block_title": "Auto-Block message",
@@ -1236,7 +1246,9 @@
         "auto_refresh_disabled": "Actualisation automatique désactivée"
     },
     "common": {
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "edit": "Modifier"
     },
     "privacy": {
         "ghost_mode": "Mode fantôme",
