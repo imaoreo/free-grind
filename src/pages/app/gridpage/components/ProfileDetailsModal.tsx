@@ -30,9 +30,11 @@ import {
 	getVaccineLabelMap,
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
+import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { formatDateTime24 } from "../../chat/chatUtils";
+import { formatRelativeTime } from "../../../../utils/relativeTime";
 import {
 	formatEstimatedAccountCreation,
 	formatDistance,
@@ -329,12 +331,14 @@ export function ProfileDetailsModal({
 	const modalCarouselIndexRef = useRef(0);
 	const modalCarouselTotalRef = useRef(0);
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+	const modalContentScrollRef = useRef<HTMLDivElement | null>(null);
 	const pageWrapRef = useRef<HTMLDivElement | null>(null);
 	const [profileSwipeDelta, setProfileSwipeDelta] = useState(0);
 	const profileSwipeRef = useRef({ startX: 0, startY: 0, decided: false, horizontal: false, dragging: false, lastDelta: 0 });
 	const [headerOpacity, setHeaderOpacity] = useState(0);
 	const [headerFadeDuration, setHeaderFadeDuration] = useState(0);
 	const headerScrolled = isDesktopLike || headerOpacity > 0.5;
+	const modalHeaderScrolled = isModalSplit || headerOpacity > 0.5;
 	const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 	const [showBlockConfirm, setShowBlockConfirm] = useState(false);
 	const [quickMessageDraft, setQuickMessageDraft] = useState("");
@@ -677,6 +681,27 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		el.addEventListener("scroll", onScroll, { passive: true });
 		return () => el.removeEventListener("scroll", onScroll);
 	}, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
+		const el = modalContentScrollRef.current;
+		if (!el || isModalSplit) return;
+		setHeaderOpacity(0);
+		setHeaderFadeDuration(0);
+		let lastScrollTop = 0;
+		const onScroll = () => {
+			const scrollTop = el.scrollTop;
+			const scrollingDown = scrollTop > lastScrollTop;
+			lastScrollTop = scrollTop;
+			setHeaderFadeDuration(scrollingDown ? 0 : 400);
+			setHeaderOpacity(Math.min(scrollTop / 150, 1));
+		};
+		el.addEventListener("scroll", onScroll, { passive: true });
+		return () => {
+			el.removeEventListener("scroll", onScroll);
+			setHeaderOpacity(0);
+			setHeaderFadeDuration(0);
+		};
+	}, [isOpen, isModalSplit]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
         const el = pageWrapRef.current;
@@ -1264,7 +1289,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				onClick={(event) => event.stopPropagation()}
 			>
 				{/* Left panel: full-height photo carousel (split mode only) */}
-				{isModalSplit && !isLoadingActiveProfile && !activeProfileError && activeProfile && activeProfilePhotoHashes.length > 0 && (
+				{isModalSplit && !isLoadingActiveProfile && !activeProfileError && activeProfile && (
 					<div
 						className="relative shrink-0 overflow-hidden bg-black"
 						style={{ width: "42%" }}
@@ -1274,6 +1299,12 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							else if (e.deltaY < 0) setMobileCarouselPhotoIndex((i) => Math.max(i - 1, 0));
 						}}
 					>
+						{activeProfilePhotoHashes.length === 0 && (
+							<ProfileImage
+								alt={t("profile_details.default_profile")}
+								className="h-full w-full object-cover brightness-50"
+							/>
+						)}
 						{activeProfilePhotoHashes.map((hash, index) => (
 							<div
 								key={hash}
@@ -1296,6 +1327,16 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								/>
 							</div>
 						))}
+						{activeProfile.lastReceivedTapTimestamp != null && (
+							<div className="pointer-events-none absolute bottom-3 left-3 z-20">
+								<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+									<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+									<span className="text-xs font-medium text-white">
+										{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
+									</span>
+								</div>
+							</div>
+						)}
 						{activeProfilePhotoHashes.length > 1 && (
 							<div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-2 rounded-full bg-black/30 px-[7px] py-[14px] backdrop-blur-sm">
@@ -1315,25 +1356,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				)}
 
 				{/* Right column (or full width on non-split): header + content + footer */}
-				<div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+				<div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
 					{/* Header */}
-					<div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5">
+					<div
+						className={isModalSplit
+							? "flex shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 sm:px-5"
+							: "pointer-events-none absolute inset-x-0 top-0 z-40 px-4 py-3 sm:px-5"
+						}
+					>
+						{!isModalSplit && (
+							<div
+								className={`absolute inset-0 bg-[var(--surface-2)] backdrop-blur-xl${headerOpacity > 0.5 ? " border-b border-[var(--border)]" : ""}`}
+								style={{ opacity: headerOpacity, transition: `opacity ${headerFadeDuration}ms ease-out` }}
+								aria-hidden="true"
+							/>
+						)}
+						<div className={isModalSplit ? "flex w-full items-center gap-3" : "pointer-events-auto relative flex w-full items-center gap-3"}>
 						<button
 							type="button"
 							onClick={onClose}
-							className="shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)]"
+							className={`shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${modalHeaderScrolled ? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 							aria-label={t("profile_details.close_profile_details")}
 						>
 							<ChevronLeft className="h-4 w-4" />
 						</button>
-						<div className="min-w-0 flex-1">
+						<div className={`min-w-0 flex-1${modalHeaderScrolled ? "" : " drop-shadow-[0_1px_1px_rgba(0,0,0,0.85)]"}`}>
 							<div className="flex items-center gap-2">
-								<p className="truncate text-base font-semibold">{activeProfileName}</p>
+								<p className={`truncate text-base font-semibold${modalHeaderScrolled ? "" : " text-white"}`}>{activeProfileName}</p>
 								{activeProfile?.age != null && Number.isFinite(activeProfile.age) && (
-									<span className="shrink-0 text-sm text-[var(--text-muted)]">{activeProfile.age}</span>
+									<span className={`shrink-0 text-sm ${modalHeaderScrolled ? "text-[var(--text-muted)]" : "text-white/70"}`}>{activeProfile.age}</span>
 								)}
 							</div>
-							<p className="mt-0.5 text-xs text-[var(--text-muted)]">
+							<p className={`mt-0.5 text-xs ${modalHeaderScrolled ? "text-[var(--text-muted)]" : "text-white/70"}`}>
 								{[profileStatusLabel, profileDistance != null ? formatDistance(profileDistance, t, unitsPreset) : null].filter(Boolean).join(" · ")}
 							</p>
 						</div>
@@ -1341,7 +1395,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							<button
 								type="button"
 								onClick={() => navigate("/settings/profile-editor")}
-								className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)]"
+								className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${modalHeaderScrolled ? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 								aria-label={t("profile_editor.edit_profile")}
 							>
 								<Pencil className="h-4 w-4" />
@@ -1354,7 +1408,15 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										type="button"
 										onClick={() => onToggleFavoriteProfile(String(messageProfileId), isFavorite)}
 										disabled={isTogglingFavorite}
-										className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isFavorite ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}
+										className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${
+											isFavorite
+												? modalHeaderScrolled
+													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+													: "border-white/70 bg-white/15 text-white backdrop-blur-md"
+												: modalHeaderScrolled
+													? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+													: "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"
+										}`}
 										aria-label={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 									>
 										<Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
@@ -1365,7 +1427,15 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										type="button"
 										onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : setShowBlockConfirm(true)}
 										disabled={isBlockingProfile}
-										className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isBlocked ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15"}`}
+										className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${
+											isBlocked
+												? modalHeaderScrolled
+													? "border-red-500/50 bg-red-500/10 text-red-400"
+													: "border-red-400/60 bg-red-500/20 text-red-300 backdrop-blur-md"
+												: modalHeaderScrolled
+													? "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15"
+													: "border-red-400/50 bg-red-500/15 text-red-300 backdrop-blur-md hover:border-red-400/80"
+										}`}
 										aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
 									>
 										<Ban className="h-4 w-4" />
@@ -1375,7 +1445,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									<button
 										type="button"
 										onClick={() => setIsActionsMenuOpen((v) => !v)}
-										className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
+										className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors ${modalHeaderScrolled ? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"}`}
 										aria-label="More actions"
 										aria-expanded={isActionsMenuOpen}
 									>
@@ -1400,17 +1470,29 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								</div>
 							</div>
 						)}
+						</div>
 					</div>
 
 					{/* Content area */}
-					<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
+					<div ref={modalContentScrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
 						{/* Non-split: carousel scrolls with content, positioned above details */}
-						{!isModalSplit && !isLoadingActiveProfile && !activeProfileError && activeProfile && activeProfilePhotoHashes.length > 0 && (
+						{!isModalSplit && !isLoadingActiveProfile && !activeProfileError && activeProfile && (
 							<div
 								ref={modalCarouselRef}
 								className="relative overflow-hidden bg-black"
 								style={{ height: `min(55dvh, calc((100vw - 3rem) * 1.25))` }}
 							>
+								<div
+									className="pointer-events-none absolute inset-x-0 top-0 z-10"
+									style={{ height: "6rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+									aria-hidden="true"
+								/>
+								{activeProfilePhotoHashes.length === 0 && (
+									<ProfileImage
+										alt={t("profile_details.default_profile")}
+										className="h-full w-full object-cover brightness-50"
+									/>
+								)}
 								{activeProfilePhotoHashes.map((hash, index) => (
 									<div
 										key={hash}
@@ -1433,6 +1515,16 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										/>
 									</div>
 								))}
+								{activeProfile.lastReceivedTapTimestamp != null && (
+									<div className="pointer-events-none absolute bottom-3 left-3 z-20">
+										<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+											<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+											<span className="text-xs font-medium text-white">
+												{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
+											</span>
+										</div>
+									</div>
+								)}
 								{activeProfilePhotoHashes.length > 1 && (
 									<div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
 										<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
