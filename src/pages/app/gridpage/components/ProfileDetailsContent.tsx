@@ -25,7 +25,7 @@ import {
 	User,
 	Zap,
 } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
@@ -91,6 +91,7 @@ type ProfileDetailsContentProps = {
 	bodyTypeLabels: LabelMap;
 	ethnicityLabels: LabelMap;
 	relationshipStatusLabels: LabelMap;
+	extraTopSection?: ReactNode;
 };
 
 export function ProfileDetailsContent({
@@ -137,6 +138,7 @@ export function ProfileDetailsContent({
 	bodyTypeLabels,
 	ethnicityLabels,
 	relationshipStatusLabels,
+	extraTopSection,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -490,6 +492,8 @@ export function ProfileDetailsContent({
 					</div>
 				) : null}
 			</div>
+
+			{extraTopSection}
 
 			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
