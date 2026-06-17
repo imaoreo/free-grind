@@ -196,7 +196,8 @@ jobs:
           script: |
             const fs = require('fs');
             const path = require('path');
-            const { execSync } = require('child_process');
+            const os = require('os');
+            const { execFileSync } = require('child_process');
 
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             const version = pkg.version;
@@ -227,41 +228,54 @@ jobs:
             // Ordered longest-first so multi-part extensions are matched before shorter ones
             const allowedExts = ['.tar.gz.sig', '.tar.gz', '.exe.sig', '.msi.sig', '.dmg', '.exe', '.msi'];
 
+            function addUpload(src, assetName, mime) {
+              uploads.push({ src, name: assetName, mime });
+            }
+
+            function versionedAssetName(baseName) {
+              return `free-grind-v${version}-${suffix}-${baseName}`;
+            }
+
             for (const sub of subDirs) {
               const dir = path.join(bundleDir, sub);
               if (!fs.existsSync(dir)) continue;
               for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                // On macOS, Tauri may output a .app directory without a DMG.
+                // Zip that directory so we always publish a runnable desktop artifact.
+                if (suffix === 'macos-universal' && entry.isDirectory() && entry.name.endsWith('.app')) {
+                  const appPath = path.join(dir, entry.name);
+                  const zipPath = path.join(os.tmpdir(), `${entry.name}.zip`);
+                  if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true });
+                  execFileSync('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath]);
+                  addUpload(zipPath, versionedAssetName(`${entry.name}.zip`), 'application/zip');
+                  continue;
+                }
+
                 if (!entry.isFile()) continue;
                 const file = entry.name;
                 const finalExt = allowedExts.find(e => file.endsWith(e));
                 if (!finalExt) continue;
                 const mime = mimeTypes[finalExt] ?? 'application/octet-stream';
-                uploads.push({
-                  src: path.join(dir, file),
-                  name: `free-grind-v${version}-${suffix}${finalExt}`,
-                  mime,
-                });
+                addUpload(path.join(dir, file), versionedAssetName(file), mime);
               }
             }
 
             // Publish portable role-specific binaries for Windows.
-            // Runtime mode is selected by executable filename (manager vs child).
+            // Runtime mode is selected by executable filename (manager vs child/client).
             if (suffix === 'windows-x64') {
               const baseExe = path.join('src-tauri', 'target', 'release', 'free-grind.exe');
               if (fs.existsSync(baseExe)) {
-                uploads.push({
-                  src: baseExe,
-                  name: `free-grind-manager-v${version}-${suffix}.exe`,
-                  mime: mimeTypes['.exe'],
-                });
-                uploads.push({
-                  src: baseExe,
-                  name: `free-grind-child-v${version}-${suffix}.exe`,
-                  mime: mimeTypes['.exe'],
-                });
+                addUpload(baseExe, `free-grind-manager-v${version}-${suffix}.exe`, mimeTypes['.exe']);
+                addUpload(baseExe, `free-grind-client-v${version}-${suffix}.exe`, mimeTypes['.exe']);
+                // Keep a child alias for compatibility with older automation.
+                addUpload(baseExe, `free-grind-child-v${version}-${suffix}.exe`, mimeTypes['.exe']);
               } else {
                 console.log(`! Skipped manager/child portable exes: ${baseExe} not found`);
               }
+            }
+
+            if (uploads.length === 0) {
+              throw new Error(`No desktop artifacts found for ${suffix} under ${bundleDir}`);
             }
 
             for (const { src, name, mime } of uploads) {
@@ -492,11 +506,22 @@ jobs:
             exit 1
           fi
 
-          SCHEME=$(xcodebuild "${PROJECT_ARGS[@]}" -list | awk '/Schemes:/ {flag=1; next} flag && NF {print $1; exit}')
+          SCHEME=$(xcodebuild "${PROJECT_ARGS[@]}" -list \
+            | awk '/Schemes:/ {flag=1; next} flag && NF {gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print}')
+
+          IOS_SCHEME=$(printf '%s\n' "$SCHEME" | grep -Ei '(^|_|-)ios$|_iOS$|iOS' | head -n 1 || true)
+          if [ -n "$IOS_SCHEME" ]; then
+            SCHEME="$IOS_SCHEME"
+          else
+            SCHEME=$(printf '%s\n' "$SCHEME" | head -n 1)
+          fi
+
           if [ -z "$SCHEME" ]; then
             echo "Failed to resolve iOS scheme"
             exit 1
           fi
+
+          echo "Using iOS scheme: $SCHEME"
 
           DERIVED_DATA_PATH="$RUNNER_TEMP/ios-derived"
           xcodebuild "${PROJECT_ARGS[@]}" \
