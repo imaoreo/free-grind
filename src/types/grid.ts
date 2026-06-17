@@ -129,7 +129,7 @@ export const profileDetailItemSchema = z.object({
 		.transform(v => v ?? []),
 	verifiedInstagramId: z.string().nullable().optional(),
 	lastThrobTimestamp: z.unknown().nullable().optional(),
-	isBlockable: z.boolean().optional(),
+	isBlockable: z.boolean().nullable().optional(),
 	lookingFor: z.array(z.number()).nullable().optional().transform(v => v ?? []),
 	meetAt: z.array(z.number()).nullable().optional().transform(v => v ?? []),
 	grindrTribes: z.array(z.number()).nullable().optional().transform(v => v ?? []),

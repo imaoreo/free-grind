@@ -17,7 +17,7 @@ export const profileSchema = z.object({
 	sexualPosition: z.number().nullable().optional(),
 	showTribes: z.boolean().optional(),
 	grindrTribes: z.array(z.number()).optional().default([]),
-	tribesImInto: z.array(z.number()).optional().default([]),
+	tribesImInto: z.array(z.number()).nullable().optional().default([]),
 	relationshipStatus: z.number().nullable().optional(),
 	lookingFor: z.array(z.number()).optional().default([]),
 	meetAt: z.array(z.number()).optional().default([]),

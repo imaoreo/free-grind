@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Photos",
-                "description": "Emplacements pour les photos",
+                "description": "Ajoutez et arrangez vos photos",
                 "usage": "{{count}}/{{total}} photos ajoutées",
                 "add": "Ajouter une photo",
                 "uploading": "Téléversement…",
@@ -414,6 +414,7 @@
             "photo_uploaded": "Photo téléversée",
             "primary_updated": "Photo principale mise à jour",
             "photo_removed": "Photo supprimée",
+            "photos_reordered": "Ordre des photos mis à jour",
             "error_update": "Erreur lors de la mise à jour du profil",
             "error_photos": "Erreur lors de la mise à jour des photos",
             "error_upload": "Erreur lors de l'ajout de l'image",
@@ -421,7 +422,7 @@
             "error_photo_limit": "Supprimez une photo avant d'en ajouter une autre"
         },
         "errors": {
-            "display_name_length": "Le nom d'affichage doit comporter entre 3 et 15 caractères.",
+            "display_name_length": "Le nom d'affichage ne peut pas dépasser 15 caractères.",
             "about_me_length": "La description doit comporter moins de 255 caractères."
         }
     },
@@ -801,6 +802,7 @@
         "meet_at": "Lieu de rencontre",
         "accept_nsfw": "Photos NSFW ?",
         "tribes": "Tribus",
+        "tribes_im_into": "Tribus qui m'intéressent",
         "pronouns": "Pronoms",
         "right_now": "Right Now",
         "health": "Santé",
@@ -1202,7 +1204,17 @@
         "added": "Ajouté aux favoris",
         "removed": "Retiré des favoris",
         "add_failed": "Erreur lors de l'ajout aux favoris",
-        "remove_failed": "Erreur lors du retrait des favoris"
+        "remove_failed": "Erreur lors du retrait des favoris",
+        "note_section_title": "Note privée",
+        "note_placeholder": "Ajouter une note personnelle sur ce profil...",
+        "phone_number_placeholder": "Numéro de téléphone (facultatif)",
+        "note_empty": "Ajouter une note...",
+        "note_saved": "Note enregistrée",
+        "note_deleted": "Note supprimée",
+        "save_note_failed": "Échec de l'enregistrement de la note",
+        "delete_note_failed": "Échec de la suppression de la note",
+        "get_note_failed": "Échec du chargement de la note",
+        "delete_note": "Supprimer la note"
     },
     "settings_automation": {
         "auto_block_title": "Auto-Block message",
@@ -1234,7 +1246,9 @@
         "auto_refresh_disabled": "Actualisation automatique désactivée"
     },
     "common": {
-        "cancel": "Annuler"
+        "cancel": "Annuler",
+        "save": "Enregistrer",
+        "edit": "Modifier"
     },
     "privacy": {
         "ghost_mode": "Mode fantôme",

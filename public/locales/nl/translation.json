@@ -236,7 +236,7 @@
         "sections": {
             "pictures": {
                 "title": "",
-                "description": "",
+                "description": "Voeg foto's toe en orden ze",
                 "usage": "",
                 "add": "",
                 "uploading": "",
@@ -354,6 +354,7 @@
             "photo_uploaded": "",
             "primary_updated": "",
             "photo_removed": "",
+            "photos_reordered": "Fotovolgorde bijgewerkt",
             "error_update": "",
             "error_photos": "",
             "error_upload": "",
@@ -572,7 +573,8 @@
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
         "chatted_before": "Chatted before",
-        "accept_nsfw": ""
+        "accept_nsfw": "",
+        "tribes_im_into": ""
     },
     "auth": {
         "sign_in": {
@@ -652,7 +654,21 @@
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
     },
+    "favorites": {
+        "note_section_title": "Privénotitie",
+        "note_placeholder": "Voeg een persoonlijke notitie toe over dit profiel...",
+        "phone_number_placeholder": "Telefoonnummer (optioneel)",
+        "note_empty": "Notitie toevoegen...",
+        "note_saved": "Notitie opgeslagen",
+        "note_deleted": "Notitie verwijderd",
+        "save_note_failed": "Notitie opslaan mislukt",
+        "delete_note_failed": "Notitie verwijderen mislukt",
+        "get_note_failed": "Notitie laden mislukt",
+        "delete_note": "Notitie verwijderen"
+    },
     "common": {
-        "cancel": "Annuleren"
+        "cancel": "Annuleren",
+        "save": "Opslaan",
+        "edit": "Bewerken"
     }
 }

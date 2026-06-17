@@ -296,7 +296,7 @@
         "sections": {
             "pictures": {
                 "title": "Imágenes",
-                "description": "Espacios para fotos",
+                "description": "Sube y organiza tus fotos",
                 "usage": "{{count}}/{{total}} fotos puestas",
                 "add": "Añadir foto",
                 "uploading": "Subiendo…",
@@ -414,6 +414,7 @@
             "photo_uploaded": "Foto subida",
             "primary_updated": "Foto principal actualizada",
             "photo_removed": "Foto eliminada",
+            "photos_reordered": "Orden de fotos actualizado",
             "error_update": "Error al actualizar perfil",
             "error_photos": "Error al actualizar fotos de perfil",
             "error_upload": "Error al añadir imagen",
@@ -421,7 +422,7 @@
             "error_photo_limit": "Borra una foto antes de añadir otra"
         },
         "errors": {
-            "display_name_length": "El nombre en pantalla debe de tener entre 3 a 15 caracteres.",
+            "display_name_length": "El nombre en pantalla no puede tener más de 15 caracteres.",
             "about_me_length": "Sobre mí tiene que tener menos de 255 caracteres."
         }
     },
@@ -780,6 +781,7 @@
         "meet_at": "Vernos en",
         "accept_nsfw": "¿Fotos NSFW?",
         "tribes": "Tribus",
+        "tribes_im_into": "Tribus que me gustan",
         "pronouns": "Pronombres",
         "right_now": "Right now",
         "health": "Salud",
@@ -886,7 +888,7 @@
             }
         },
         "chat_history": "Chat history",
-        "last_message": "Last message {{time}}",
+        "last_message": "Último mensaje {{time}}",
         "chatted_before": "Chatted before",
         "block": "Bloquear",
         "unblock": "Desbloquear",
@@ -982,9 +984,9 @@
         }
     },
     "interest_page": {
-        "empty_views": "No views yet",
+        "empty_views": "Sin visitas aún",
         "empty_views_desc": "Las visitas de perfil recientes aparecerán aquí.",
-        "empty_taps": "No taps yet",
+        "empty_taps": "Sin taps aún",
         "empty_taps_desc": "Las personas que enviaron un tap aparecerán aquí.",
         "profile_fallback": "Perfil {{id}}",
         "title": "Interés",
@@ -1238,7 +1240,17 @@
         "notes_loaded_one": "{{count}} nota de favorito cargado",
         "notes_loaded_many": "{{count}} notas de favoritos cargados",
         "notes_loaded_other": "{{count}} notas de favoritos cargados",
-        "search_placeholder": "Buscando notas..."
+        "search_placeholder": "Buscando notas...",
+        "note_section_title": "Nota privada",
+        "note_placeholder": "Añadir una nota personal sobre este perfil...",
+        "phone_number_placeholder": "Número de teléfono (opcional)",
+        "note_empty": "Añadir una nota...",
+        "note_saved": "Nota guardada",
+        "note_deleted": "Nota eliminada",
+        "save_note_failed": "Error al guardar la nota",
+        "delete_note_failed": "Error al eliminar la nota",
+        "get_note_failed": "Error al cargar la nota",
+        "delete_note": "Eliminar nota"
     },
     "settings_automation": {
         "auto_block_title": "Auto-Bloquear Mensaje",
@@ -1270,7 +1282,9 @@
         "auto_refresh_disabled": "Auto recarga deshabilitado"
     },
     "common": {
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "edit": "Editar"
     },
     "privacy": {
         "ghost_mode": "Modo fantasma",

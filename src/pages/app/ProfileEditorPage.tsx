@@ -260,15 +260,6 @@ export function ProfileEditorPage() {
 		return hashes.slice(0, MAX_PROFILE_PHOTOS);
 	}, [profile?.medias, profile?.profileImageMediaHash]);
 
-	const photoSlots = useMemo(
-		() =>
-			Array.from(
-				{ length: MAX_PROFILE_PHOTOS },
-				(_, index) => profilePhotoHashes[index] ?? null,
-			),
-		[profilePhotoHashes],
-	);
-
 	const selectedRelationshipLabel = useMemo(() => {
 		if (!draft.relationshipStatus) {
 			return t("profile_editor.sections.states.relationship_not_set");
@@ -334,7 +325,7 @@ export function ProfileEditorPage() {
 			return null;
 		}
 
-		if (value.length < 3 || value.length > 15) {
+		if (value.length > 15) {
 			return t("profile_editor.errors.display_name_length");
 		}
 
@@ -398,7 +389,7 @@ export function ProfileEditorPage() {
 					}
 				};
 
-				addIfChanged("displayName", "displayName", (v) => v.trim() || null);
+				addIfChanged("displayName", "displayName", (v) => v.trim());
 				addIfChanged("aboutMe", "aboutMe", (v) => v.trim() || null);
 				addIfChanged("showAge", "showAge");
 				addIfChanged("showDistance", "showDistance");
@@ -609,25 +600,6 @@ export function ProfileEditorPage() {
 		}
 	};
 
-	const handleSetPrimaryPhoto = async (hash: string) => {
-		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
-			return;
-		}
-
-		if (profilePhotoHashes[0] === hash) {
-			return;
-		}
-
-		const reordered = [
-			hash,
-			...profilePhotoHashes.filter((currentHash) => currentHash !== hash),
-		];
-
-		await persistProfilePhotos(reordered, {
-			successMessage: t("profile_editor.toasts.primary_updated"),
-		});
-	};
-
 	const handleRemovePhoto = async (hash: string) => {
 		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
 			return;
@@ -642,22 +614,16 @@ export function ProfileEditorPage() {
 		);
 	};
 
+	const handleReorderPhotos = async (newHashes: string[]) => {
+		if (isSavingPhotos || isUploadingPhoto) return;
+		await persistProfilePhotos(newHashes, {
+			successMessage: t("profile_editor.toasts.photos_reordered"),
+		});
+	};
+
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
 		setDraftVisitingMode(savedVisitingMode);
-	};
-
-	const handleLogout = async () => {
-		try {
-			await logout();
-			navigate("/auth/sign-in");
-		} catch (error) {
-			const message =
-				error instanceof Error && error.message
-					? error.message
-					: "Failed to log out.";
-			toast.error(message);
-		}
 	};
 
 	return (
@@ -729,7 +695,7 @@ export function ProfileEditorPage() {
 								</div>
 							</div>
 
-							<div className="border-t border-[var(--border)] px-4 py-3 sm:px-5">
+							<div className="border-t border-[var(--border)] px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
 								<div className="mb-1.5 flex items-center justify-between gap-3">
 									<p className="text-xs text-[var(--text-muted)]">
 										{t("profile_editor.completion_signals", {
@@ -756,13 +722,12 @@ export function ProfileEditorPage() {
 								displayNameError={displayNameError}
 								aboutMeError={aboutMeError}
 								tagList={tagList}
-								photoSlots={photoSlots}
 								profilePhotoHashes={profilePhotoHashes}
 								isSavingPhotos={isSavingPhotos}
 								isUploadingPhoto={isUploadingPhoto}
 								onUploadPhoto={handleUploadPhoto}
-								onSetPrimaryPhoto={handleSetPrimaryPhoto}
 								onRemovePhoto={handleRemovePhoto}
+								onReorderPhotos={handleReorderPhotos}
 								visitingMode={draftVisitingMode}
 								isLoadingVisitingMode={isLoadingVisitingMode}
 								visitingModeError={visitingModeError}

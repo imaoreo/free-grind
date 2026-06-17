@@ -19,12 +19,16 @@ import {
 	getCachedPronounOptions,
 	getCachedBlockedProfileIds,
 	getCachedOwnProfilePhotoHash,
+	getCachedOwnDisplayName,
+	getCachedOwnShowDistance,
 	setCachedBrowseCards,
 	setCachedGenderOptions,
 	setCachedProfileDetail,
 	setCachedPronounOptions,
 	setCachedBlockedProfileIds,
 	setCachedOwnProfilePhotoHash,
+	setCachedOwnDisplayName,
+	setCachedOwnShowDistance,
 } from "./gridpage/cache";
 import { isCurrentlyOnline } from "./gridpage/utils";
 import { Avatar } from "../../components/ui/avatar";
@@ -79,6 +83,7 @@ export function GridPage() {
 	const [nextPage, setNextPage] = useState<number | null>(null);
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
+	const [ownDisplayName, setOwnDisplayName] = useState<string | null>(() => getCachedOwnDisplayName() ?? null);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
@@ -143,7 +148,7 @@ export function GridPage() {
 	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
 	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
 	const [hasAttemptedFetchNotes, setHasAttemptedFetchNotes] = useState(false);
-	const [showDistance, setShowDistance] = useState<boolean>(true);
+	const [showDistance, setShowDistance] = useState<boolean>(() => getCachedOwnShowDistance() ?? true);
 	const [isTogglingDistance, setIsTogglingDistance] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
@@ -266,7 +271,7 @@ export function GridPage() {
 
 		let cancelled = false;
 
-		const loadProfilePhoto = async () => {
+		void (async () => {
 			try {
 				const parsed = await apiFunctions.getBrowseProfileMedia(userId);
 				const mediaHashFromList = parsed.medias
@@ -278,50 +283,55 @@ export function GridPage() {
 					(mediaHashFromProfile && validateMediaHash(mediaHashFromProfile)
 						? mediaHashFromProfile
 						: null);
-
 				if (!cancelled) {
 					const nextHash = firstHash ?? null;
 					setProfileImageHash(nextHash);
 					setCachedOwnProfilePhotoHash(nextHash);
 				}
 			} catch {
-				if (!cancelled) {
-					setProfileImageHash(null);
-				}
+				if (!cancelled) setProfileImageHash(null);
 			}
-		};
-
-		void loadProfilePhoto();
-
-		const loadShowDistance = async () => {
-			try {
-				const raw = await apiFunctions.getRawProfile(userId) as Record<string, unknown>;
-				const profiles = Array.isArray(raw?.profiles) ? raw.profiles : [];
-				const profile = profiles[0] as Record<string, unknown> | undefined;
-				const value = profile?.showDistance;
-				if (!cancelled) {
-					setShowDistance(typeof value === "boolean" ? value : true);
-				}
-			} catch {
-				// non-critical
-			}
-		};
-		void loadShowDistance();
+		})();
 
 		return () => {
 			cancelled = true;
 		};
 	}, [apiFunctions, userId]);
 
+	useEffect(() => {
+		if (!userId) return;
+		let cancelled = false;
+		void (async () => {
+			try {
+				const raw = await apiFunctions.getRawProfile(userId) as Record<string, unknown>;
+				const profiles = Array.isArray(raw?.profiles) ? raw.profiles : [];
+				const profile = profiles[0] as Record<string, unknown> | undefined;
+				if (!cancelled) {
+					const sd = typeof profile?.showDistance === "boolean" ? profile.showDistance : true;
+					setShowDistance(sd);
+					setCachedOwnShowDistance(sd);
+					const name = typeof profile?.displayName === "string" ? profile.displayName : null;
+					setOwnDisplayName(name);
+					setCachedOwnDisplayName(name);
+				}
+			} catch {
+				// non-critical
+			}
+		})();
+		return () => { cancelled = true; };
+	}, [apiFunctions, userId]);
+
 	const handleToggleDistance = useCallback(async () => {
 		if (isTogglingDistance) return;
 		const next = !showDistance;
 		setShowDistance(next);
+		setCachedOwnShowDistance(next);
 		setIsTogglingDistance(true);
 		try {
 			await apiFunctions.updateMyProfile({ showDistance: next });
 		} catch {
 			setShowDistance(!next);
+			setCachedOwnShowDistance(!next);
 			toast.error(t("browse_page.errors.toggle_distance_failed", { defaultValue: "Could not update distance setting." }));
 		} finally {
 			setIsTogglingDistance(false);
@@ -819,6 +829,22 @@ export function GridPage() {
 		[cards],
 	);
 
+	const selfCardImageUrl = useMemo(
+		() => profileImageHash ? getThumbImageUrl(profileImageHash, "320x320") : null,
+		[profileImageHash],
+	);
+
+	const selfCard = useMemo((): BrowseCard | null => {
+		if (!userId) return null;
+		return {
+			profileId: String(userId),
+			displayName: ownDisplayName ?? undefined,
+			primaryImageUrl: selfCardImageUrl ?? undefined,
+			onlineUntil: Date.now() + 60 * 60 * 1000,
+			distanceMeters: 0,
+		};
+	}, [userId, ownDisplayName, selfCardImageUrl]);
+
 	const sortedCards = useMemo(() => {
 		const allCards = (SHOW_DEMO_DATA && showDebugInfo) ? [...DEMO_CARDS, ...cards] : cards;
 		let results: BrowseCard[];
@@ -889,16 +915,22 @@ export function GridPage() {
 			});
 		}
 
+		if (selfCard) {
+			results = [selfCard, ...results.filter((c) => c.profileId !== selfCard.profileId)];
+		}
+
 		return results;
-	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes]);
+	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes, selfCard]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
 			return null;
 		}
-
+		if (selfCard && activeProfileId === selfCard.profileId) {
+			return selfCard;
+		}
 		return cards.find((card) => card.profileId === activeProfileId) ?? null;
-	}, [activeProfileId, cards]);
+	}, [activeProfileId, cards, selfCard]);
 
 	const selectedProfileChatContact = useMemo(() => {
 		if (!activeProfileId) {
@@ -1202,19 +1234,19 @@ export function GridPage() {
 								<button
 									type="button"
 									onClick={() => navigate("/settings")}
-									className="shrink-0 rounded-full transition-all active:scale-95"
+									className="h-12 w-12 shrink-0 rounded-full transition-all active:scale-95"
 									aria-label={t("browse_page.open_settings")}
 									title={t("browse_page.settings")}
 								>
 									<Avatar
 										src={profilePhotoUrl}
 										alt={t("browse_page.your_profile_photo")}
-										className="h-11 w-11"
+										className="h-full w-full"
 									/>
 								</button>
 
 								<div
-									className="glass-pill inline-flex min-h-12 w-full items-center overflow-hidden"
+									className="glass-pill inline-flex h-12 w-full items-center overflow-hidden"
 									style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
 								>
 									<button
