@@ -236,27 +236,54 @@ jobs:
               return `free-grind-v${version}-${suffix}-${baseName}`;
             }
 
+            console.log(`📦 Artifact search: suffix=${suffix}, bundleDir=${bundleDir}`);
+            console.log(`📂 Searching subdirs: ${subDirs.join(', ')}`);
+
             for (const sub of subDirs) {
               const dir = path.join(bundleDir, sub);
-              if (!fs.existsSync(dir)) continue;
-              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              console.log(`  Checking: ${dir}`);
+              if (!fs.existsSync(dir)) {
+                console.log(`    ❌ Does not exist`);
+                continue;
+              }
+              const entries = fs.readdirSync(dir, { withFileTypes: true });
+              console.log(`    ✓ Found ${entries.length} entries`);
+              
+              for (const entry of entries) {
+                console.log(`      - ${entry.name} (${entry.isDirectory() ? 'dir' : 'file'})`);
+                
                 // On macOS, Tauri may output a .app directory without a DMG.
                 // Zip that directory so we always publish a runnable desktop artifact.
                 if (suffix === 'macos-universal' && entry.isDirectory() && entry.name.endsWith('.app')) {
                   const appPath = path.join(dir, entry.name);
                   const zipPath = path.join(os.tmpdir(), `${entry.name}.zip`);
+                  console.log(`        ↻ Zipping .app bundle: ${zipPath}`);
                   if (fs.existsSync(zipPath)) fs.rmSync(zipPath, { force: true });
-                  execFileSync('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath]);
-                  addUpload(zipPath, versionedAssetName(`${entry.name}.zip`), 'application/zip');
+                  try {
+                    execFileSync('/usr/bin/ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', appPath, zipPath]);
+                    addUpload(zipPath, versionedAssetName(`${entry.name}.zip`), 'application/zip');
+                    console.log(`        ✓ Zipped and queued`);
+                  } catch (e) {
+                    console.log(`        ⚠ Failed to zip: ${e.message}`);
+                  }
                   continue;
                 }
 
-                if (!entry.isFile()) continue;
+                if (!entry.isFile()) {
+                  console.log(`        ⊘ Skipping directory`);
+                  continue;
+                }
+                
                 const file = entry.name;
                 const finalExt = allowedExts.find(e => file.endsWith(e));
-                if (!finalExt) continue;
+                if (!finalExt) {
+                  console.log(`        ⊘ Extension not in allowlist`);
+                  continue;
+                }
+                
                 const mime = mimeTypes[finalExt] ?? 'application/octet-stream';
                 addUpload(path.join(dir, file), versionedAssetName(file), mime);
+                console.log(`        ✓ Queued as ${versionedAssetName(file)}`);
               }
             }
 
@@ -269,12 +296,19 @@ jobs:
                 addUpload(baseExe, `free-grind-client-v${version}-${suffix}.exe`, mimeTypes['.exe']);
                 // Keep a child alias for compatibility with older automation.
                 addUpload(baseExe, `free-grind-child-v${version}-${suffix}.exe`, mimeTypes['.exe']);
+                console.log(`  ✓ Windows portables queued`);
               } else {
-                console.log(`! Skipped manager/child portable exes: ${baseExe} not found`);
+                console.log(`  ❌ Windows executable not found: ${baseExe}`);
               }
             }
 
+            console.log(`\n📋 Total artifacts queued: ${uploads.length}`);
             if (uploads.length === 0) {
+              console.log(`\nDebug: Listing actual bundle directory structure:`);
+              if (fs.existsSync(bundleDir)) {
+                const allEntries = fs.readdirSync(bundleDir, { recursive: true, withFileTypes: false });
+                allEntries.slice(0, 30).forEach(e => console.log(`  ${e}`));
+              }
               throw new Error(`No desktop artifacts found for ${suffix} under ${bundleDir}`);
             }
 
