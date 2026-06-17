@@ -25,7 +25,7 @@ import {
 	User,
 	Zap,
 } from "lucide-react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
 import {
@@ -91,6 +91,9 @@ type ProfileDetailsContentProps = {
 	bodyTypeLabels: LabelMap;
 	ethnicityLabels: LabelMap;
 	relationshipStatusLabels: LabelMap;
+	extraTopSection?: ReactNode;
+	hidePicturesSection?: boolean;
+	onDragDeltaChange?: (delta: number) => void;
 };
 
 export function ProfileDetailsContent({
@@ -137,6 +140,9 @@ export function ProfileDetailsContent({
 	bodyTypeLabels,
 	ethnicityLabels,
 	relationshipStatusLabels,
+	extraTopSection,
+	hidePicturesSection = false,
+	onDragDeltaChange,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
@@ -204,6 +210,7 @@ export function ProfileDetailsContent({
 			e.preventDefault();
 			lastDeltaRef.current = dy;
 			setDragDelta(dy);
+			onDragDeltaChange?.(dy);
 		};
 
 		const onEnd = () => {
@@ -220,6 +227,7 @@ export function ProfileDetailsContent({
 			}
 			lastDeltaRef.current = 0;
 			setDragDelta(0);
+			onDragDeltaChange?.(0);
 		};
 
 		el.addEventListener('touchstart', onStart, { passive: true });
@@ -254,7 +262,7 @@ export function ProfileDetailsContent({
 					</span>
 				</div>
 			)}
-			{(activeProfilePhotoHashes.length > 0 || !isDesktopLike) && (
+			{!hidePicturesSection && (activeProfilePhotoHashes.length > 0 || !isDesktopLike) && (
 			<div>
 				{activeProfilePhotoHashes.length > 0 ? (
 					<>
@@ -461,12 +469,6 @@ export function ProfileDetailsContent({
 								: ""}
 						</span>
 					)}
-					{activeProfile.lastReceivedTapTimestamp != null && (
-						<span className="flex items-center gap-1">
-							<Flame className="h-3 w-3" />
-							{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
-						</span>
-					)}
 				</div>
 				{isDesktopLike && messageProfileId && onMessageProfile ? (
 					<div className="mt-3 flex items-center justify-center gap-4 py-1">
@@ -490,6 +492,8 @@ export function ProfileDetailsContent({
 					</div>
 				) : null}
 			</div>
+
+			{extraTopSection}
 
 			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
@@ -527,8 +531,8 @@ export function ProfileDetailsContent({
 							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 								{t("profile_details.about")}
 							</p>
-							<div className="rounded-xl bg-[var(--surface-2)] px-4 py-3">
-								<p className="text-base leading-relaxed text-[var(--text)]">
+							<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">
 									{activeProfile.aboutMe?.trim()}
 								</p>
 							</div>
@@ -574,6 +578,15 @@ export function ProfileDetailsContent({
 										<p className="text-sm">
 											<span className="font-semibold text-[var(--text)]">{t("profile_details.tribes")}:</span>{" "}
 											<span className="text-[var(--text-muted)]">{formatEnumArray(activeProfile.grindrTribes, tribeLabels, t)}</span>
+										</p>
+									</div>
+								)}
+								{!shouldHideField(formatEnumArray(activeProfile.tribesImInto, tribeLabels, t)) && (
+									<div className="flex items-start gap-2.5">
+										<Flame className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+										<p className="text-sm">
+											<span className="font-semibold text-[var(--text)]">{t("profile_details.tribes_im_into")}:</span>{" "}
+											<span className="text-[var(--text-muted)]">{formatEnumArray(activeProfile.tribesImInto, tribeLabels, t)}</span>
 										</p>
 									</div>
 								)}

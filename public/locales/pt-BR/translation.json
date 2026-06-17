@@ -398,7 +398,7 @@
         "sections": {
             "pictures": {
                 "title": "Fotos",
-                "description": "Espaços para fotos",
+                "description": "Adicione e organize suas fotos",
                 "usage": "{{count}}/{{total}} fotos usadas",
                 "add": "Adicionar foto",
                 "uploading": "Carregando…",
@@ -516,6 +516,7 @@
             "photo_uploaded": "Foto enviada",
             "primary_updated": "Foto principal atualizada",
             "photo_removed": "Foto removida",
+            "photos_reordered": "Ordem das fotos atualizada",
             "error_update": "Falha ao atualizar o perfil",
             "error_photos": "Falha ao atualizar as fotos do perfil",
             "error_upload": "Falha ao carregar a imagem",
@@ -523,7 +524,7 @@
             "error_photo_limit": "Remova uma foto antes de adicionar outra"
         },
         "errors": {
-            "display_name_length": "O nome de exibição deve ter entre 3 e 15 caracteres.",
+            "display_name_length": "O nome de exibição deve ter no máximo 15 caracteres.",
             "about_me_length": "A seção \"Sobre mim\" deve ter no máximo 255 caracteres."
         }
     },
@@ -914,6 +915,7 @@
         "meet_at": "Encontre-se em",
         "accept_nsfw": "Fotos NSFW?",
         "tribes": "Tribos",
+        "tribes_im_into": "Tribos que me atraem",
         "pronouns": "Pronomes",
         "right_now": "Right Now",
         "health": "Saúde",
@@ -1206,7 +1208,17 @@
         "search_placeholder": "Buscar anotações...",
         "notes_loaded_one": "Português (Brasil), Muitos (1000000, 2000000)",
         "notes_loaded_many": "{{count}} de anotações de favorito carregadas",
-        "notes_loaded_other": "{{count}} anotações de favorito carregadas"
+        "notes_loaded_other": "{{count}} anotações de favorito carregadas",
+        "note_section_title": "Nota privada",
+        "note_placeholder": "Adicionar uma nota pessoal sobre este perfil...",
+        "phone_number_placeholder": "Número de telefone (opcional)",
+        "note_empty": "Adicionar uma nota...",
+        "note_saved": "Nota salva",
+        "note_deleted": "Nota excluída",
+        "save_note_failed": "Falha ao salvar a nota",
+        "delete_note_failed": "Falha ao excluir a nota",
+        "get_note_failed": "Falha ao carregar a nota",
+        "delete_note": "Excluir nota"
     },
     "settings_automation": {
         "auto_block_title": "Bloqueio Automático de Mensagens",
@@ -1238,6 +1250,8 @@
         "auto_refresh_disabled": "Atualização automática desativada"
     },
     "common": {
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "save": "Salvar",
+        "edit": "Editar"
     }
 }

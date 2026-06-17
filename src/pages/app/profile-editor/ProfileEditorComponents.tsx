@@ -1,3 +1,4 @@
+import React from "react";
 import { Ruler } from "lucide-react";
 import { Chip } from "../../../components/ui/chip";
 
@@ -5,22 +6,25 @@ export function CategoryHeader({
 	title,
 	description,
 	icon: Icon,
+	action,
 }: {
 	title: string;
 	description: string;
 	icon: typeof Ruler;
+	action?: React.ReactNode;
 }) {
 	return (
 		<div className="mb-5 flex items-start gap-3">
 			<div className="rounded-2xl p-2.5 bg-[var(--surface-2)] text-[var(--text-muted)] shrink-0">
 				<Icon className="h-5 w-5" strokeWidth={2.1} />
 			</div>
-			<div>
+			<div className="min-w-0 flex-1">
 				<p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 					{title}
 				</p>
 				<h3 className="mt-0.5 text-base font-semibold leading-tight">{description}</h3>
 			</div>
+			{action && <div className="shrink-0">{action}</div>}
 		</div>
 	);
 }

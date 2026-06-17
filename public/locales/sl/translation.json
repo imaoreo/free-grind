@@ -246,7 +246,7 @@
         "sections": {
             "pictures": {
                 "title": "",
-                "description": "",
+                "description": "Naloži in uredi svoje fotografije",
                 "usage": "",
                 "add": "",
                 "uploading": "",
@@ -364,6 +364,7 @@
             "photo_uploaded": "",
             "primary_updated": "",
             "photo_removed": "",
+            "photos_reordered": "Vrstni red fotografij posodobljen",
             "error_update": "",
             "error_photos": "",
             "error_upload": "",
@@ -605,7 +606,8 @@
         "chat_history": "Chat history",
         "last_message": "Last message {{time}}",
         "chatted_before": "Chatted before",
-        "accept_nsfw": ""
+        "accept_nsfw": "",
+        "tribes_im_into": ""
     },
     "customizability": {
         "subtitle": "",
@@ -660,7 +662,21 @@
         "empty_taps": "No taps yet",
         "empty_taps_desc": "People who tap you will appear here."
     },
+    "favorites": {
+        "note_section_title": "Zasebna opomba",
+        "note_placeholder": "Dodaj osebno opombo o tem profilu...",
+        "phone_number_placeholder": "Telefonska številka (neobvezno)",
+        "note_empty": "Dodaj opombo...",
+        "note_saved": "Opomba shranjena",
+        "note_deleted": "Opomba izbrisana",
+        "save_note_failed": "Shranjevanje opombe ni uspelo",
+        "delete_note_failed": "Brisanje opombe ni uspelo",
+        "get_note_failed": "Nalaganje opombe ni uspelo",
+        "delete_note": "Izbriši opombo"
+    },
     "common": {
-        "cancel": "Prekliči"
+        "cancel": "Prekliči",
+        "save": "Shrani",
+        "edit": "Uredi"
     }
 }
