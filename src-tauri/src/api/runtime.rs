@@ -259,8 +259,11 @@ fn resolve_child_exe_path() -> Result<PathBuf, AppError> {
     })?;
 
     let candidates = [
+        manager_dir.join("client.exe"),
         manager_dir.join("child.exe"),
+        manager_dir.join("free-grind-client.exe"),
         manager_dir.join("free-grind-child.exe"),
+        manager_dir.join("Free Grind Client.exe"),
         manager_dir.join("Free Grind Child.exe"),
         manager_dir.join("free-grind.exe"),
     ];
@@ -291,7 +294,7 @@ fn resolve_child_exe_path() -> Result<PathBuf, AppError> {
                 .and_then(|s| s.to_str())
                 .unwrap_or_default()
                 .to_ascii_lowercase();
-            if stem.contains("child") && !stem.contains("manager") {
+            if (stem.contains("child") || stem.contains("client")) && !stem.contains("manager") {
                 return Ok(path);
             }
         }

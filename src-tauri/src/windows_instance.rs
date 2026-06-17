@@ -129,7 +129,7 @@ fn detect_mode() -> WindowsRuntimeMode {
         if arg == "--manager" {
             return WindowsRuntimeMode::Manager;
         }
-        if arg == "--child" {
+        if arg == "--child" || arg == "--client" {
             return WindowsRuntimeMode::Child;
         }
     }
@@ -148,7 +148,7 @@ fn detect_mode() -> WindowsRuntimeMode {
         if stem.contains("manager") {
             return WindowsRuntimeMode::Manager;
         }
-        if stem.contains("child") {
+        if stem.contains("child") || stem.contains("client") {
             return WindowsRuntimeMode::Child;
         }
     }
@@ -166,7 +166,7 @@ fn detect_mode() -> WindowsRuntimeMode {
         if mode == "manager" {
             return WindowsRuntimeMode::Manager;
         }
-        if mode == "child" {
+        if mode == "child" || mode == "client" {
             return WindowsRuntimeMode::Child;
         }
     }
