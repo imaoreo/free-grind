@@ -202,8 +202,13 @@ jobs:
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             const version = pkg.version;
             const suffix = process.env.ARTIFACT_SUFFIX;
-            const bundleDir = process.env.BUNDLE_DIR;
+            let bundleDir = process.env.BUNDLE_DIR;
             const releaseId = Number(process.env.RELEASE_ID);
+
+            // Resolve bundleDir to absolute path for debugging
+            if (!path.isAbsolute(bundleDir)) {
+              bundleDir = path.resolve(bundleDir);
+            }
 
             const mimeTypes = {
               '.dmg':         'application/x-apple-diskimage',
@@ -237,6 +242,7 @@ jobs:
             }
 
             console.log(`📦 Artifact search: suffix=${suffix}, bundleDir=${bundleDir}`);
+            console.log(`   bundleDir exists: ${fs.existsSync(bundleDir)}`);
             console.log(`📂 Searching subdirs: ${subDirs.join(', ')}`);
 
             for (const sub of subDirs) {
