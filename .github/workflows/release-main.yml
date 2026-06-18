@@ -33,7 +33,7 @@ jobs:
 
       - name: Create draft release
         id: create-release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data } = await github.rest.repos.createRelease({
@@ -104,7 +104,7 @@ jobs:
           echo "ota_bundle_url=$(jq -r '.bundle_url' ota-upload-response.json)" >> "$GITHUB_OUTPUT"
 
       - name: Upload OTA artifacts to GitHub release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
           OTA_VERSION: ${{ steps.ota-upload.outputs.ota_version }}
@@ -149,7 +149,7 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
-            args: --target universal-apple-darwin
+            args: --target universal-apple-darwin --bundles app,dmg
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
             artifact_suffix: macos-universal
             bundle_dir: src-tauri/target/universal-apple-darwin/release/bundle
@@ -187,7 +187,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Upload desktop artifacts to release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
           ARTIFACT_SUFFIX: ${{ matrix.artifact_suffix }}
@@ -240,6 +240,41 @@ jobs:
             function versionedAssetName(baseName) {
               return `free-grind-v${version}-${suffix}-${baseName}`;
             }
+
+            function hasAnyBundleSubdir(dir) {
+              if (!fs.existsSync(dir)) return false;
+              return subDirs.some((sub) => fs.existsSync(path.join(dir, sub)));
+            }
+
+            function resolveBundleDir() {
+              const candidates = [bundleDir];
+
+              // Tauri can place bundle outputs in different target layouts depending on host/build settings.
+              if (suffix === 'macos-universal') {
+                candidates.push(
+                  'src-tauri/target/release/bundle',
+                  'src-tauri/target/universal-apple-darwin/release/bundle',
+                  'src-tauri/target/aarch64-apple-darwin/release/bundle',
+                  'src-tauri/target/x86_64-apple-darwin/release/bundle'
+                );
+              }
+
+              const resolved = candidates
+                .filter(Boolean)
+                .map((c) => (path.isAbsolute(c) ? c : path.resolve(c)));
+
+              for (const candidate of resolved) {
+                if (hasAnyBundleSubdir(candidate)) {
+                  return candidate;
+                }
+              }
+
+              // Prefer the first existing directory even if expected subdirs are missing for better diagnostics.
+              const firstExisting = resolved.find((c) => fs.existsSync(c));
+              return firstExisting || resolved[0];
+            }
+
+            bundleDir = resolveBundleDir();
 
             console.log(`📦 Artifact search: suffix=${suffix}, bundleDir=${bundleDir}`);
             console.log(`   bundleDir exists: ${fs.existsSync(bundleDir)}`);
@@ -305,6 +340,21 @@ jobs:
                 console.log(`  ✓ Windows portables queued`);
               } else {
                 console.log(`  ❌ Windows executable not found: ${baseExe}`);
+              }
+            }
+
+            // Fallback for macOS: if bundling didn't emit dmg/macos folders,
+            // still publish the universal executable as a compressed artifact.
+            if (suffix === 'macos-universal' && uploads.length === 0) {
+              const baseBinary = path.resolve('src-tauri/target/universal-apple-darwin/release/free-grind');
+              if (fs.existsSync(baseBinary)) {
+                const fallbackTar = path.join(os.tmpdir(), `free-grind-v${version}-${suffix}-binary.tar.gz`);
+                if (fs.existsSync(fallbackTar)) fs.rmSync(fallbackTar, { force: true });
+                execFileSync('/usr/bin/tar', ['-czf', fallbackTar, '-C', path.dirname(baseBinary), path.basename(baseBinary)]);
+                addUpload(fallbackTar, `free-grind-v${version}-${suffix}-binary.tar.gz`, 'application/gzip');
+                console.log(`  ✓ Added macOS binary fallback artifact from ${baseBinary}`);
+              } else {
+                console.log(`  ❌ macOS fallback binary not found at ${baseBinary}`);
               }
             }
 
@@ -407,7 +457,7 @@ jobs:
         run: bunx tauri android build --apk -v
 
       - name: Upload Android APK to release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RELEASE_NAME: ${{ needs.create-release.outputs.release_name }}
           PACKAGE_VERSION: ${{ needs.create-release.outputs.tag_name }}
@@ -606,7 +656,7 @@ jobs:
           echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Upload iOS IPA to release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
           IPA_PATH: ${{ steps.ios_ipa.outputs.ipa_path }}
