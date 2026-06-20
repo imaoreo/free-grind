@@ -1,4 +1,4 @@
-import { Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Ban, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +27,7 @@ export type ChatInboxHeaderProps = {
 	onSetFiltersDraft: (v: ChatFiltersDraft) => void;
 	onToggleFavoritesOnly: () => void;
 	onToggleHidePinned: () => void;
+	blockedMeCount?: number;
 };
 
 export function ChatInboxHeader({
@@ -46,6 +47,7 @@ export function ChatInboxHeader({
 	onSetFiltersDraft,
 	onToggleFavoritesOnly,
 	onToggleHidePinned,
+	blockedMeCount = 0,
 }: ChatInboxHeaderProps) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -74,6 +76,21 @@ export function ChatInboxHeader({
 						</h1>
 
 						<div className="flex shrink-0 items-center gap-0.5">
+							{!isSearchOpen && (
+								<button
+									type="button"
+									onClick={() => navigate("/chat/blocked-me")}
+									className="relative rounded-xl p-2 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									aria-label={t("chat.blocked_me.title", { defaultValue: "Blocked you" })}
+								>
+									<Ban className="h-5 w-5" />
+									{blockedMeCount > 0 && (
+										<span className="absolute right-1 top-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold leading-none text-white">
+											{blockedMeCount > 9 ? "9+" : blockedMeCount}
+										</span>
+									)}
+								</button>
+							)}
 							{!isSearchOpen && (
 								<button
 									type="button"

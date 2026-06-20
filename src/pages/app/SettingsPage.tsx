@@ -28,6 +28,7 @@ import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { exportAllLogs } from "../../services/chatLog";
+import { shareOrDownloadJson } from "../../utils/exportFile";
 import {
 	checkForHotswapUpdate,
 	getCurrentHotswapChannel,
@@ -152,16 +153,7 @@ export function SettingsPage() {
 		setIsExporting(true);
 		try {
 			const data = await exportAllLogs();
-			const json = JSON.stringify(data, null, 2);
-			const blob = new Blob([json], { type: "application/json" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `free-grind-export-${new Date().toISOString().slice(0, 10)}.json`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			await shareOrDownloadJson(`free-grind-export-${new Date().toISOString().slice(0, 10)}.json`, data);
 			toast.success("Chat export downloaded.");
 		} catch (error) {
 			const message = getErrorMessage(error, "Failed to export chat data.");

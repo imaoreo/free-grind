@@ -194,6 +194,7 @@ export function ChatInboxPanel({
 	presenceResults,
 	inboxListRef,
 	showHeader,
+	blockedMeCount,
 	isSearchOpen,
 	searchQuery,
 	searchMode,
@@ -299,6 +300,7 @@ export function ChatInboxPanel({
 					onSetFiltersDraft={onSetFiltersDraft}
 					onToggleFavoritesOnly={onToggleFavoritesOnly}
 					onToggleHidePinned={onToggleHidePinned}
+					blockedMeCount={blockedMeCount}
 				/>
 			)}
 

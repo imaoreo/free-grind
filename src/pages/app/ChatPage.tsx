@@ -89,6 +89,8 @@ import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen, getInboxLastSeen } from "../../services/seenStore";
 import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
+import { runBlockedMeDetection, removeBlockedMeWatch } from "../../services/blockDetection";
+import { blockedMeStore } from "../../services/blockedMeStore";
 import { isChatGhosted } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
 import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
@@ -144,6 +146,7 @@ export function ChatPage() {
 	const [isLoadingInbox, setIsLoadingInbox] = useState(true);
 	const [isLoadingMoreInbox, setIsLoadingMoreInbox] = useState(false);
 	const [inboxError, setInboxError] = useState<string | null>(null);
+	const [blockedMeCount, setBlockedMeCount] = useState(0);
 	const [inboxFilters, setInboxFilters] = useState<InboxFilters>({});
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
@@ -162,6 +165,10 @@ export function ChatPage() {
 	useEffect(() => {
 		localStorage.setItem("chat_hide_pinned", String(hidePinned));
 	}, [hidePinned]);
+
+	useEffect(() => {
+		void blockedMeStore.getConfirmed().then((confirmed) => setBlockedMeCount(confirmed.length));
+	}, []);
 
 	useEffect(() => {
 		if (!userId) return;
@@ -771,6 +778,13 @@ export function ChatPage() {
 						appLog.warn("[chat-index] failed to persist inbox metadata", error);
 					});
 				}
+
+				void runBlockedMeDetection(service, response.entries, userId, replace && page === 1)
+					.then(() => blockedMeStore.getConfirmed())
+					.then((confirmed) => setBlockedMeCount(confirmed.length))
+					.catch((error) => {
+						appLog.warn("[blocked-me] detection sweep failed, sad", error);
+					});
 
 				setConversations((previous) => {
 					const entriesWithUnreadFixed = response.entries.map((entry) => {
@@ -2302,7 +2316,16 @@ export function ChatPage() {
 
 			setIsDeletingConversationId(conversationId);
 			try {
+				const deletedConversation = conversationsRef.current.find(
+					(conversation) => conversation.data.conversationId === conversationId,
+				);
 				await service.deleteConversation(conversationId);
+				if (deletedConversation && userId != null) {
+					const otherParticipant = getOtherParticipant(deletedConversation, userId);
+					if (otherParticipant?.profileId) {
+						void removeBlockedMeWatch(String(otherParticipant.profileId));
+					}
+				}
 				const remainingConversations = conversationsRef.current.filter(
 					(conversation) => conversation.data.conversationId !== conversationId,
 				);
@@ -2339,7 +2362,7 @@ export function ChatPage() {
 				setIsDeletingConversationId(null);
 			}
 		},
-		[isDeletingConversationId, isDesktop, navigate, service, t],
+		[isDeletingConversationId, isDesktop, navigate, service, t, userId],
 	);
 
 	const blockProfileFromChat = useCallback(
@@ -2353,6 +2376,7 @@ export function ChatPage() {
 
 			try {
 				await blockProfileMutation(targetProfileId);
+				void removeBlockedMeWatch(targetProfileId);
 				setConversations((previous) =>
 					previous.filter(
 						(conversation) =>
@@ -3713,6 +3737,7 @@ export function ChatPage() {
 		onSetFiltersDraft: setChatFiltersDraft,
 		onToggleFavoritesOnly: toggleInboxFavoritesOnly,
 		onToggleHidePinned: () => setHidePinned((prev) => !prev),
+		blockedMeCount,
 	} as const;
 
 	const renderInbox = (

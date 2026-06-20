@@ -22,6 +22,8 @@ import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 import { AboutPage } from "./pages/app/AboutPage.tsx";
 import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
 import { SettingsBlockedPage } from "./pages/app/SettingsBlockedPage.tsx";
+import { BlockedMePage } from "./pages/app/BlockedMePage";
+import { BlockedMeConversationPage } from "./pages/app/BlockedMeConversationPage";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
@@ -37,6 +39,7 @@ import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 import { EntitlementsBridge } from "./components/EntitlementsBridge";
+import { BlockedMeBridge } from "./components/BlockedMeBridge";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { usePreferences } from "./contexts/PreferencesContext";
 import ManagerApp from "./ManagerApp";
@@ -137,6 +140,7 @@ export default function App() {
 					<ChatRealtimeBridge />
 					<ActiveRouteBridge />
 					<EntitlementsBridge />
+					<BlockedMeBridge />
 					<OutdatedVersionPrompt />
 					<AnalyticsConsentPrompt />
 					<Routes>
@@ -167,6 +171,8 @@ export default function App() {
 								<Route path="/chat/filters" element={<ChatFiltersPage />} />
 								<Route path="/chat/search" element={<ChatSearchPage />} />
 								<Route path="/chat/albums" element={<SharedAlbumsPage />} />
+								<Route path="/chat/blocked-me" element={<BlockedMePage />} />
+								<Route path="/chat/blocked-me/:profileId" element={<BlockedMeConversationPage />} />
 								<Route path="/chat/:conversationId" element={<ChatPage />} />
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
 								<Route path="/settings" element={<SettingsPage />} />
