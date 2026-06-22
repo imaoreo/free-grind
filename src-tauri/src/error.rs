@@ -1,6 +1,7 @@
 use std::fmt;
 
 use serde::Serialize;
+use wreq;
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", content = "message")]
@@ -23,6 +24,12 @@ impl fmt::Display for AppError {
 }
 
 impl std::error::Error for AppError {}
+
+impl From<wreq::Error> for AppError {
+    fn from(e: wreq::Error) -> Self {
+        AppError::Http(e.to_string())
+    }
+}
 
 impl From<reqwest::Error> for AppError {
     fn from(e: reqwest::Error) -> Self {
