@@ -1,0 +1,7 @@
+# Fix mis-aligned LINKEDIT string pool with Apple's newer linkers
+# This applies to compilation FOR macOS (including proc-macros built as part of Android build)
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-args=-Wl,-ld_classic"]
+
+[build]
+jobs = 4

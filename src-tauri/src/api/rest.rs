@@ -1,4 +1,4 @@
-use reqwest::Method;
+use wreq::Method;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -10,7 +10,7 @@ use crate::state::AppState;
 
 use super::client::GrindrClient;
 use super::client::BASE_URL;
-use super::headers::build_headers;
+use super::headers::{build_headers, DeviceInfo};
 
 #[derive(Serialize, Deserialize)]
 pub struct RawResponse {
@@ -43,6 +43,16 @@ impl GrindrClient {
         Ok(())
     }
 
+    fn apply_headers(
+        mut req: wreq::RequestBuilder,
+        items: &[(wreq::header::HeaderName, wreq::header::HeaderValue)],
+    ) -> wreq::RequestBuilder {
+        for (name, value) in items {
+            req = req.header(name.clone(), value.clone());
+        }
+        req
+    }
+
     pub(super) async fn request_json<TReq, TResp>(
         &self,
         method: Method,
@@ -69,20 +79,13 @@ impl GrindrClient {
 
         let device = self.device.read().await;
 
-        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
-            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
-            let headers = if is_external {
-                let mut h = reqwest::header::HeaderMap::new();
-                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
-                h
-            } else {
-                build_headers(device, "Free", auth_token.as_deref())
-            };
-            let mut request = self.http.request(method.clone(), &url).headers(headers);
+        let make_request = |auth_token: Option<String>, device: &DeviceInfo| {
+            let headers = build_headers(device, "Free", auth_token.as_deref());
+            let mut req = Self::apply_headers(self.http.request(method.clone(), &url), &headers);
             if let Some(body) = body {
-                request = request.json(body);
+                req = req.json(body);
             }
-            request
+            req
         };
 
         let auth_token = self.authorization_header().await;
@@ -92,7 +95,7 @@ impl GrindrClient {
             .map_err(|e| {
                 #[cfg(debug_assertions)]
                 eprintln!("[HTTP] network error on {} {}: {e}", method, url);
-                e
+                AppError::Http(e.to_string())
             })?;
 
         if response.status().as_u16() == 401 && !is_auth_path {
@@ -112,7 +115,7 @@ impl GrindrClient {
                 .map_err(|e| {
                     #[cfg(debug_assertions)]
                     eprintln!("[HTTP] network error on {} {}: {e}", method, url);
-                    e
+                    AppError::Http(e.to_string())
                 })?;
         }
 
@@ -187,31 +190,25 @@ impl GrindrClient {
 
         let device = self.device.read().await;
 
-        let make_request = |auth_token: Option<String>, device: &super::headers::DeviceInfo| {
-            let is_external = url.starts_with("http") && !url.contains("grindr.mobi");
-            let headers = if is_external {
-                let mut h = reqwest::header::HeaderMap::new();
-                h.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"));
-                h
-            } else {
-                build_headers(device, "Free", auth_token.as_deref())
-            };
-            let mut request = self.http.request(method.clone(), &url).headers(headers);
+        let make_request = |auth_token: Option<String>, device: &DeviceInfo| {
+            let headers = build_headers(device, "Free", auth_token.as_deref());
+            let mut req = Self::apply_headers(self.http.request(method.clone(), &url), &headers);
 
-            if let Some(body) = body.as_ref() {
-                request = request.body(body.clone());
+            if let Some(ref body_bytes) = body {
+                req = req.body(body_bytes.clone());
 
                 if let Some(content_type) = content_type {
-                    request = request.header("Content-Type", content_type);
+                    req = req.header("Content-Type", content_type);
                 } else {
-                    request = request.header("Content-Type", "application/json");
+                    req = req.header("Content-Type", "application/json");
                 }
             }
 
-            request
+            req
         };
 
-        let mut response = make_request(auth_token.clone(), &device).send().await?;
+        let mut response = make_request(auth_token.clone(), &device).send().await
+            .map_err(|e| AppError::Http(e.to_string()))?;
         #[cfg(debug_assertions)]
         eprintln!(
             "[HTTP] <- {} {} | Status: {}",
@@ -230,13 +227,19 @@ impl GrindrClient {
 
             let new_auth_token = self.authorization_header().await;
             let device = self.device.read().await;
-            response = make_request(new_auth_token, &device).send().await?;
+            response = make_request(new_auth_token, &device).send().await
+                .map_err(|e| AppError::Http(e.to_string()))?;
         }
 
         let status = response.status().as_u16();
-        let body = response.bytes().await?.to_vec();
+        let response_body = response.bytes().await
+            .map_err(|e| AppError::Http(e.to_string()))?
+            .to_vec();
 
-        Ok(RawResponse { status, body })
+        Ok(RawResponse {
+            status,
+            body: response_body,
+        })
     }
 }
 

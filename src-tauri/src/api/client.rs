@@ -1,13 +1,11 @@
-use reqwest::Client;
-use reqwest_cookie_store::CookieStoreMutex;
-use std::sync::Arc;
+use wreq::Client;
+
 use tokio::sync::{Mutex, RwLock};
-use url::Url;
 
 use crate::error::AppError;
 
 use super::auth::{AuthStorage, Session};
-use super::headers::{build_headers, DeviceInfo};
+use super::headers::{build_headers, build_grindr_client, DeviceInfo};
 
 pub const BASE_URL: &str = "https://grindr.mobi";
 
@@ -15,8 +13,6 @@ pub struct GrindrClient {
     pub(super) http: Client,
     pub(super) session: RwLock<Option<Session>>,
     pub(super) user_agent: String,
-    #[allow(dead_code)]
-    pub(super) cookie_store: Arc<CookieStoreMutex>,
     pub(super) device: RwLock<DeviceInfo>,
     pub(super) refresh_lock: Mutex<()>,
 }
@@ -26,31 +22,16 @@ impl GrindrClient {
         &self.user_agent
     }
 
-    /// Returns a `Cookie` header value containing all cookies stored for `https://grindr.mobi`,
-    /// so that the WebSocket handshake can include the same Cloudflare session cookies.
-    #[allow(dead_code)]
     pub fn cookie_header_for_base_url(&self) -> Option<String> {
-        let url = Url::parse(BASE_URL).ok()?;
-        let store = self.cookie_store.lock().ok()?;
-        let pairs: Vec<_> = store.get_request_values(&url).collect();
-        if pairs.is_empty() {
-            None
-        } else {
-            Some(
-                pairs
-                    .iter()
-                    .map(|(k, v)| format!("{k}={v}"))
-                    .collect::<Vec<_>>()
-                    .join("; "),
-            )
-        }
+        // wreq doesn't track cookies as it's a fingerprinting client
+        // WebSocket connections use token in URL + Authorization header instead
+        None
     }
 }
 
 impl GrindrClient {
     pub fn new() -> Result<Self, AppError> {
         let mut device = DeviceInfo::default();
-        let cookie_store = Arc::new(CookieStoreMutex::new(Default::default()));
 
         let session = match AuthStorage::get_session() {
             Ok(Some(session)) => {
@@ -81,36 +62,14 @@ impl GrindrClient {
 
         let headers = build_headers(&device, "Free", None);
         let user_agent = headers
-            .get("User-Agent")
-            .and_then(|v| v.to_str().ok())
+            .iter()
+            .find(|(name, _)| name.as_str() == "user-agent")
+            .and_then(|(_, value)| value.to_str().ok())
             .unwrap_or("")
             .to_owned();
 
-        #[cfg(target_os = "windows")]
-        let http = {
-            // Windows: use system certificate store, skip custom CA
-            Client::builder()
-                .cookie_provider(cookie_store.clone())
-                .build()?
-        };
-
-        #[cfg(not(target_os = "windows"))]
-        let http = {
-            // Non-Windows: use system/user trust roots.
-            #[cfg(target_os = "android")]
-            let mut builder = Client::builder().cookie_provider(cookie_store.clone());
-
-            #[cfg(not(target_os = "android"))]
-            let builder = Client::builder().cookie_provider(cookie_store.clone());
-
-            #[cfg(target_os = "android")]
-            {
-                // Allow TLS interception tooling on Android builds.
-                builder = builder.danger_accept_invalid_certs(true);
-            }
-
-            builder.build()?
-        };
+        let http = build_grindr_client()
+            .map_err(|e| AppError::Http(format!("Failed to build wreq client: {}", e)))?;
 
         #[cfg(debug_assertions)]
         eprintln!(
@@ -122,7 +81,6 @@ impl GrindrClient {
             http,
             session: RwLock::new(session),
             user_agent,
-            cookie_store,
             device: RwLock::new(device),
             refresh_lock: Mutex::new(()),
         })

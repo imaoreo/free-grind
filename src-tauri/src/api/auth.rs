@@ -3,6 +3,7 @@ use keyring_core::Entry;
 use serde::{Deserialize, Serialize};
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use std::path::PathBuf;
+use wreq::Method;
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -497,7 +498,7 @@ impl GrindrClient {
         #[cfg(debug_assertions)]
         eprintln!("[HTTP-AUTH] POST /v8/sessions for email={}", body.email());
         let session_resp: SessionResponse = self
-            .request_json(reqwest::Method::POST, "/v8/sessions", Some(body))
+            .request_json(Method::POST, "/v8/sessions", Some(body))
             .await
             .map_err(|e| {
                 #[cfg(debug_assertions)]
@@ -736,7 +737,7 @@ impl GrindrClient {
 
         let response = self
             .request_raw(
-                reqwest::Method::POST,
+                Method::POST,
                 "/v3/gcm-push-tokens",
                 Some(body),
                 Some("application/json"),
