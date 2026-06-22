@@ -94,18 +94,29 @@ pub fn build_headers(
     let mut headers = HeaderMap::new();
 
     // The order of headers is strictly checked by the API.
+    // References https://opengrind.org/grindr-api/security-headers#correct-headers-order
+    //   1. Authorization (optional)
+    //   2. L-Time-Zone
+    //   3. L-Grindr-Roles (only when authorized)
+    //   4. L-Device-Info
+    //   5. Accept
+    //   6. User-Agent
+    //   7. L-Locale
+    //   8. Accept-Language (lowercase `l`)
+    //   9. Accept-Encoding (always `gzip`)
+    
     // 1. Authorization
     if let Some(token) = auth_token {
         headers.insert("Authorization", HeaderValue::from_str(token).unwrap());
     }
 
     // 2. L-Time-Zone
-    headers.insert("L-Time-Zone", HeaderValue::from_static(TIMEZONE));
+    headers.insert("l-time-zone", HeaderValue::from_static(TIMEZONE));
 
-    // 3. L-Grindr-Roles
+    // 3. L-Grindr-Roles (only when authorized)
     if auth_token.is_some() {
         let roles = format!("[{}]", subscription_tier.to_uppercase());
-        headers.insert("L-Grindr-Roles", HeaderValue::from_str(&roles).unwrap());
+        headers.insert("l-grindr-roles", HeaderValue::from_str(&roles).unwrap());
     }
 
     // 4. L-Device-Info
@@ -118,12 +129,12 @@ pub fn build_headers(
         device.advertising_id
     );
     headers.insert(
-        "L-Device-Info",
+        "l-device-info",
         HeaderValue::from_str(&device_info).unwrap(),
     );
 
     // 5. Accept
-    headers.insert("Accept", HeaderValue::from_static("application/json"));
+    headers.insert("accept", HeaderValue::from_static("application/json"));
 
     // 6. User-Agent
     let version_info = version_info();
@@ -135,16 +146,19 @@ pub fn build_headers(
         device.device_model,
         device.manufacturer
     );
-    headers.insert("User-Agent", HeaderValue::from_str(&user_agent).unwrap());
+    headers.insert("user-agent", HeaderValue::from_str(&user_agent).unwrap());
 
     // 7. L-Locale
-    headers.insert("L-Locale", HeaderValue::from_static("en_US"));
+    headers.insert("l-locale", HeaderValue::from_static("en_US"));
 
     // 8. Accept-Language
-    headers.insert("Accept-Language", HeaderValue::from_static("en-US"));
+    headers.insert("accept-language", HeaderValue::from_static("en-US"));
 
-    // Additional headers
-    headers.insert("requireRealDeviceInfo", HeaderValue::from_static("true"));
+    // 9. Accept-Encoding
+    headers.insert("accept-encoding", HeaderValue::from_static("gzip"));
+
+    // Content-Type, Content-Length/Transfer-Encoding and Cookie are added by reqwest itself
+    // Host is moved to the :authority pseudo-header in HTTP/2
 
     headers
 }
