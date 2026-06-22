@@ -41,6 +41,7 @@ import {
 	type HotswapChannel,
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
+import { FingerprintCheckButton } from "../../components/FingerprintCheckButton";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
@@ -644,6 +645,20 @@ export function SettingsPage() {
 												</Button>
 											</div>
 										</div>
+									</div>
+								</div>
+							</div>
+							<div className="p-4 sm:p-5 border-t border-[var(--border)]">
+								<div className="flex items-start gap-3">
+									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
+										<Radar className="h-5 w-5" />
+									</div>
+									<div className="grid gap-3 min-w-0 flex-1">
+										<div>
+											<p className="text-sm font-semibold">Fingerprint Check</p>
+											<p className="text-xs text-[var(--text-muted)] mt-0.5">Verify your HTTP/TLS fingerprint matches OkHttp configuration.</p>
+										</div>
+										<FingerprintCheckButton />
 									</div>
 								</div>
 							</div>

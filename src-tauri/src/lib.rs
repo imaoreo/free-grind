@@ -1,4 +1,5 @@
 mod api;
+mod commands;
 mod error;
 mod instance_lock;
 mod state;
@@ -111,6 +112,7 @@ pub fn run() {
                 api::websocket::ws_send,
                 api::websocket::ws_disconnect,
                 api::websocket::ws_status,
+                commands::fingerprint::check_fingerprint,
             ])
             .run(context)
             .expect("error while running tauri application");
@@ -161,6 +163,7 @@ pub fn run() {
                 api::websocket::ws_send,
                 api::websocket::ws_disconnect,
                 api::websocket::ws_status,
+                commands::fingerprint::check_fingerprint,
             ])
             .run(context)
             .expect("error while running tauri application");
