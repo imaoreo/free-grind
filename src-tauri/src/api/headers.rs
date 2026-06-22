@@ -94,7 +94,6 @@ pub fn build_headers(
     let mut headers = HeaderMap::new();
 
     // The order of headers is strictly checked by the API.
-    // References https://opengrind.org/grindr-api/security-headers#correct-headers-order
     //   1. Authorization (optional)
     //   2. L-Time-Zone
     //   3. L-Grindr-Roles (only when authorized)
