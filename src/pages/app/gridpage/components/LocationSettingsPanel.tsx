@@ -2,7 +2,7 @@ import { Crosshair, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { GeocodeResult, SelectedLocation } from "../../GridPage.types";
-import { LeafletLocationPicker } from "./LeafletLocationPicker";
+import { MapLocationPicker } from "./MapLocationPicker";
 
 type LocationSettingsPanelProps = {
 	isVisible: boolean;
@@ -145,7 +145,7 @@ export function LocationSettingsPanel({
 								{mapPickerError}
 							</div>
 						) : (
-							<LeafletLocationPicker
+							<MapLocationPicker
 								selectedLocation={selectedLocation}
 								onPick={onMapPick}
 								onError={onMapPickerError}

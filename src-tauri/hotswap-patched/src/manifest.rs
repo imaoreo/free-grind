@@ -53,6 +53,12 @@ pub struct HotswapMeta {
     /// to decide whether to grant a grace period or trigger rollback.
     #[serde(default)]
     pub unconfirmed_launch_count: u32,
+    /// The channel this version was downloaded from, if any.
+    /// Sequence numbers are only comparable within the same channel, so
+    /// this is used to detect channel switches and bypass the sequence
+    /// gate when the requested channel differs from this one.
+    #[serde(default)]
+    pub channel: Option<String>,
 }
 
 /// Result returned to the frontend from `hotswap_check`.

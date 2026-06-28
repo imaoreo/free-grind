@@ -103,7 +103,14 @@ pub(crate) async fn check_update<R: Runtime>(
         return Ok(None);
     }
 
-    if manifest.sequence <= ctx.current_sequence {
+    // Sequence numbers are only comparable within the same channel — a
+    // channel with less frequent releases can have a lower "latest"
+    // sequence than another channel the device has already applied an
+    // update from. If the requested channel differs from the channel the
+    // active version came from, skip the sequence gate entirely so
+    // switching channels (e.g. dev -> main) doesn't get stuck forever.
+    let same_channel = ctx.channel == ctx.current_channel;
+    if same_channel && manifest.sequence <= ctx.current_sequence {
         log::info!(
             "[hotswap] Manifest sequence {} is not newer than current {}",
             manifest.sequence,
@@ -133,6 +140,9 @@ pub(crate) async fn check_update<R: Runtime>(
 
 /// Options for the download operation, bundled to avoid excessive arguments.
 pub(crate) struct DownloadOptions<'a> {
+    /// The channel this download was requested under. Persisted into the
+    /// version's metadata so future checks can detect channel switches.
+    pub channel: Option<String>,
     pub pubkey: &'a str,
     pub base_dir: &'a Path,
     pub max_bundle_size: u64,
@@ -246,6 +256,7 @@ pub(crate) async fn download_and_extract<R: Runtime>(
             min_binary_version: manifest.min_binary_version.clone(),
             confirmed: false,
             unconfirmed_launch_count: 0,
+            channel: opts.channel.clone(),
         },
     )?;
 
@@ -864,6 +875,7 @@ mod tests {
                 min_binary_version: min_bin.to_string(),
                 confirmed,
                 unconfirmed_launch_count: 0,
+                channel: None,
             },
         )
         .unwrap();
@@ -959,6 +971,7 @@ mod tests {
                 min_binary_version: "1.0.0".into(),
                 confirmed: false,
                 unconfirmed_launch_count: 0,
+                channel: None,
             },
         )
         .unwrap();
@@ -1171,6 +1184,7 @@ mod tests {
     ) -> crate::resolver::CheckContext {
         crate::resolver::CheckContext {
             current_sequence,
+            current_channel: None,
             binary_version: binary_version.to_string(),
             platform: "macos",
             arch: "aarch64",
@@ -1220,6 +1234,36 @@ mod tests {
     async fn test_check_update_sequence_older() {
         let resolver = MockResolver::returning_manifest(make_manifest(3, "1.0.0"));
         let ctx = make_check_ctx("1.0.0", 5);
+        let result = check_update(&resolver, &ctx, None::<&tauri::AppHandle<tauri::Wry>>)
+            .await
+            .unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_check_update_channel_switch_bypasses_sequence_gate() {
+        // Active version came from "dev" at a high sequence. Switching to
+        // "main", whose latest sequence is lower, must still be offered —
+        // sequence numbers aren't comparable across channels.
+        let resolver = MockResolver::returning_manifest(make_manifest(5, "1.0.0"));
+        let mut ctx = make_check_ctx("1.0.0", 100);
+        ctx.current_channel = Some("dev".into());
+        ctx.channel = Some("main".into());
+        let result = check_update(&resolver, &ctx, None::<&tauri::AppHandle<tauri::Wry>>)
+            .await
+            .unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().sequence, 5);
+    }
+
+    #[tokio::test]
+    async fn test_check_update_same_channel_still_gated() {
+        // Re-checking the same channel must still respect the sequence gate
+        // so an already-applied (or older) manifest isn't re-offered.
+        let resolver = MockResolver::returning_manifest(make_manifest(5, "1.0.0"));
+        let mut ctx = make_check_ctx("1.0.0", 100);
+        ctx.current_channel = Some("main".into());
+        ctx.channel = Some("main".into());
         let result = check_update(&resolver, &ctx, None::<&tauri::AppHandle<tauri::Wry>>)
             .await
             .unwrap();

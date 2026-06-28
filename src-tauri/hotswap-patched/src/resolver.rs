@@ -11,6 +11,11 @@ use url::Url;
 pub struct CheckContext {
     /// Current monotonic sequence (0 if no version cached).
     pub current_sequence: u64,
+    /// The channel the currently active version was downloaded from
+    /// (`None` if running embedded assets). Sequence numbers are only
+    /// meaningful when compared within the same channel — see
+    /// [`crate::updater::check_update`].
+    pub current_channel: Option<String>,
     /// Binary version from tauri.conf.json.
     pub binary_version: String,
     /// Current platform (e.g. "macos", "windows", "linux", "android").
@@ -235,6 +240,7 @@ mod tests {
     fn test_ctx(seq: u64) -> CheckContext {
         CheckContext {
             current_sequence: seq,
+            current_channel: None,
             binary_version: "1.0.0".into(),
             platform: "macos",
             arch: "aarch64",
@@ -387,6 +393,7 @@ mod tests {
     fn test_check_context_with_channel() {
         let ctx = CheckContext {
             current_sequence: 5,
+            current_channel: None,
             binary_version: "1.0.0".into(),
             platform: "linux",
             arch: "x86_64",
@@ -428,6 +435,7 @@ mod tests {
         let resolver = HttpResolver::new("https://original.example.com/ota");
         let ctx = CheckContext {
             current_sequence: 10,
+            current_channel: None,
             binary_version: "2.0.0".into(),
             platform: "windows",
             arch: "x86_64",

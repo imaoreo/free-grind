@@ -9,7 +9,7 @@
         "customizability": "Customizability",
         "customizability_desc": "Change color scheme and accent color.",
         "privacy": "Privacy & Analytics",
-        "privacy_desc": "Ghost mode, media blur, and analytics.",
+        "privacy_desc": "Read receipts, profile view tracking, media blur, and analytics.",
         "automation": "Automation",
         "automation_desc": "Configure automated blocking rules and automatic grid refresh.",
         "issue_board": "Issues & Feature Requests",
@@ -552,12 +552,15 @@
         }
     },
     "privacy": {
-        "ghost_mode": "Ghost Mode",
-        "global_ghost_mode": "Global Ghost Mode",
-        "global_ghost_mode_desc": "Hide read receipts for all chats. The other person won't know you read their message until you reply or turn Ghost Mode off.",
+        "read_receipts": "Read Receipts",
+        "send_read_receipts": "Send Read Receipts",
+        "send_read_receipts_desc": "Let others see when you've read their messages. Turn this off to read messages without them knowing until you reply.",
         "per_chat_overrides": "Per-Chat Overrides (Eye Button)",
-        "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Ghosted chats are highlighted in your Inbox.",
-        "nsfw_content": "NSFW Content"
+        "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Chats with read receipts hidden are highlighted in your Inbox.",
+        "nsfw_content": "NSFW Content",
+        "profile_views": "Profile Views",
+        "record_profile_views": "Record Profile Views",
+        "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace."
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",

@@ -40,7 +40,7 @@
         "automation": "Automatisation",
         "automation_desc": "Configurer les règles de blocage automatisées et l'actualisation automatique de la grille.",
         "privacy": "Confidentialité et Statistiques",
-        "privacy_desc": "Mode fantôme, flou des médias et statistiques.",
+        "privacy_desc": "Accusés de lecture, suivi des visites de profil, flou des médias et statistiques.",
         "check_updates_desc": "Télécharger et installer la dernière version de Free Grindr."
     },
     "shared_albums": {
@@ -1251,10 +1251,14 @@
         "edit": "Modifier"
     },
     "privacy": {
-        "ghost_mode": "Mode fantôme",
-        "global_ghost_mode": "Mode fantôme global",
-        "global_ghost_mode_desc": "Masquer les accusés de lecture pour toutes les conversations. L'autre personne ne saura pas que vous avez lu son message tant que vous n'aurez pas répondu ou désactivé le mode fantôme.",
-        "per_chat_overrides_desc": "Afficher un bouton dans l'en-tête de la conversation pour remplacer le paramètre global pour des conversations spécifiques. Les conversations fantômes sont mises en évidence dans votre boîte de réception.",
-        "nsfw_content": "Contenu NSFW"
+        "read_receipts": "Accusés de lecture",
+        "send_read_receipts": "Envoyer les accusés de lecture",
+        "send_read_receipts_desc": "Permet aux autres de voir quand vous avez lu leur message. Désactivez ceci pour lire les messages sans que l'autre personne le sache jusqu'à votre réponse.",
+        "per_chat_overrides": "Remplacer par conversation (Bouton Œil)",
+        "per_chat_overrides_desc": "Afficher un bouton dans l'en-tête de la conversation pour remplacer le paramètre global pour des conversations spécifiques. Les conversations avec accusés de lecture masqués sont mises en évidence dans votre boîte de réception.",
+        "nsfw_content": "Contenu NSFW",
+        "profile_views": "Visites de profil",
+        "record_profile_views": "Enregistrer les visites de profil",
+        "record_profile_views_desc": "Permet aux autres de voir que vous avez consulté leur profil. Désactivez ceci pour parcourir les profils sans laisser de trace."
     }
 }

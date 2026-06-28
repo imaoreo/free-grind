@@ -32,7 +32,7 @@ import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { getConversation } from "../services/conversationDirectory";
 import { shouldAutoBlock, getMatchedForbiddenWord, notifyAutoBlock } from "../utils/autoblock";
 import { useApiFunctions } from "../hooks/useApiFunctions";
-import { isChatGhosted } from "../utils/privacy";
+import { isReadReceiptsHidden } from "../utils/privacy";
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
 export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
@@ -283,7 +283,7 @@ export function ChatRealtimeBridge() {
 								await chatLog.appendMessages(cid, [], ts);
 							} else {
 								const conv = getConversation(cid);
-								if (conv && !isChatGhosted(cid)) {
+								if (conv && !isReadReceiptsHidden(cid)) {
 									const other = getOtherParticipant(conv, userIdRef.current);
 									if (other?.profileId) {
 										await clearUnreadCountForProfile(String(other.profileId)).catch(() => {});

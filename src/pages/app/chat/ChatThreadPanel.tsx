@@ -1,10 +1,10 @@
 import {
 	Album,
 	Ban,
+	Check,
+	CheckCheck,
 	ChevronLeft,
 	Ellipsis,
-    Eye,
-    EyeOff,
 	Heart,
 	Hourglass,
 	ImagePlus,
@@ -19,6 +19,7 @@ import {
 	BookMarked,
 	MessageCircleOff,
 	MessageCircleX,
+	MessageSquareQuote,
 	PencilLine,
 	Pin,
 	Reply,
@@ -41,7 +42,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
-import { isIos } from "../../../services/saveMedia";
+import { isIos, isAndroid, saveMediaToDevice } from "../../../services/saveMedia";
 import {
 	useModalClose,
 } from "../../../hooks/useModalClose";
@@ -50,7 +51,7 @@ import type { ConversationEntry, Message } from "../../../types/messages";
 import type { DrawerMedia } from "./ChatDrawerPanel";
 import { ChatDrawerPanel } from "./ChatDrawerPanel";
 import { decodeGeohash } from "../../../utils/geohash";
-import { LeafletLocationPicker } from "../gridpage/components/LeafletLocationPicker";
+import { MapLocationPicker } from "../gridpage/components/MapLocationPicker";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
@@ -72,7 +73,7 @@ import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
-import { isChatGhosted, toggleChatGhost } from "../../../utils/privacy";
+import { SHOW_READ_RECEIPT_TOGGLE_KEY, isReadReceiptsHidden, toggleReadReceiptsHidden } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
@@ -615,7 +616,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	}, [pendingAttachmentFile, attachmentCompletedCrop, confirmAttachmentFile]);
 
 	const handleUsePhrase = (phrase: string) => {
-		setDraft(draft ? `${draft} ${phrase}` : phrase);
+		setDraft(phrase);
 	};
 
 	const handleAddPhrase = () => {
@@ -680,12 +681,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		return ids;
 	}, [threadMessages]);
 
-    const [showGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
-    const [isGhosted, setIsGhosted] = useState(true);
+    const [showReadReceiptToggle] = useState(() => window.localStorage.getItem(SHOW_READ_RECEIPT_TOGGLE_KEY) !== "false");
+    const [readReceiptsHidden, setReadReceiptsHidden] = useState(true);
 
     useEffect(() => {
         if (selectedConversation) {
-            setIsGhosted(isChatGhosted(selectedConversation.data.conversationId));
+            setReadReceiptsHidden(isReadReceiptsHidden(selectedConversation.data.conversationId));
         }
     }, [selectedConversation]);
 
@@ -975,14 +976,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<div className="flex items-center gap-2">
             {isDesktop && (
                 <>
-                    {showGhostButton && selectedConversation && (
+                    {showReadReceiptToggle && selectedConversation && (
                         <button
                             type="button"
                             onClick={() => {
- 												const newState = toggleChatGhost(selectedConversation.data.conversationId);
- 												setIsGhosted(newState);
- 												
- 												// If turning Ghost Mode OFF, instantly mark the last message as read!
+ 												const newState = toggleReadReceiptsHidden(selectedConversation.data.conversationId);
+ 												setReadReceiptsHidden(newState);
+
+ 												// If read receipts are now enabled (not hidden), instantly mark the last message as read!
  												if (!newState) {
  													const lastMsg = threadMessages[threadMessages.length - 1];
  													if (lastMsg) {
@@ -992,17 +993,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
  														loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
  													}
  												}
- 												toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF. They will see read receipts.");
+ 												toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on. They will see when you've read their messages.");
  											}}
                             className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                                isGhosted
+                                readReceiptsHidden
                                     ? "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
                                     : "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
                             }`}
-                            title={isGhosted ? "Ghost Mode ON (Hidden)" : "Ghost Mode OFF (Visible)"}
+                            title={readReceiptsHidden ? "Read Receipts Off (Hidden)" : "Read Receipts On (Visible)"}
                         >
-                            {isGhosted ? <EyeOff className="mr-1 inline h-3.5 w-3.5" /> : <Eye className="mr-1 inline h-3.5 w-3.5" />}
-                            {isGhosted ? "Ghosting" : "Reading"}
+                            {readReceiptsHidden ? <Check className="mr-1 inline h-3.5 w-3.5" /> : <CheckCheck className="mr-1 inline h-3.5 w-3.5" />}
+                            {readReceiptsHidden ? "Hidden" : "Sending"}
                         </button>
                     )}
                     <button
@@ -1111,22 +1112,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												</button>
 											)}
 
-                                            {/* --- MOBILE GHOST TOGGLE --- */}
-											{!isDesktop && showGhostButton && selectedConversation && (
+                                            {/* --- MOBILE READ RECEIPTS TOGGLE --- */}
+											{!isDesktop && showReadReceiptToggle && selectedConversation && (
 												<button
 													type="button"
 													onClick={() => {
 														setIsHeaderActionsMenuOpen(false);
-														const newState = toggleChatGhost(selectedConversation.data.conversationId);
-														setIsGhosted(newState);
-														toast.success(newState ? "Ghost Mode ON for this chat." : "Ghost Mode OFF.");
+														const newState = toggleReadReceiptsHidden(selectedConversation.data.conversationId);
+														setReadReceiptsHidden(newState);
+														toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on for this chat.");
 													}}
 													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition ${
-														isGhosted ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+														readReceiptsHidden ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
 													}`}
 												>
-													{isGhosted ? <EyeOff className="mr-2 h-4 w-4 opacity-70" /> : <Eye className="mr-2 h-4 w-4 opacity-70" />}
-													{isGhosted ? "Ghosting (Hidden)" : "Reading (Visible)"}
+													{readReceiptsHidden ? <Check className="mr-2 h-4 w-4 opacity-70" /> : <CheckCheck className="mr-2 h-4 w-4 opacity-70" />}
+													{readReceiptsHidden ? "Read Receipts Off (Hidden)" : "Read Receipts On (Visible)"}
 												</button>
 											)}
 											{/* --------------------------- */}
@@ -1456,13 +1457,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											key={idx}
 											type="button"
 											onClick={() => handleUsePhrase(phrase)}
-											className={`shrink-0 whitespace-nowrap rounded-2xl rounded-br-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
+											className={`max-w-[200px] shrink-0 rounded-2xl rounded-br-[3px] border px-3 py-1.5 text-xs font-medium transition active:scale-95 ${
 												isExact
 													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 													: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
 											}`}
 										>
-											{phrase}
+											<span className="block truncate">{phrase}</span>
 										</button>
 									);
 								})}
@@ -1932,7 +1933,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						>
 							<div className="px-3 pb-3">
 								<div className="overflow-hidden rounded-xl border border-[var(--border)]" style={{ height: "40dvh" }}>
-									<LeafletLocationPicker
+									<MapLocationPicker
 										selectedLocation={pendingLocationShare}
 										onPick={(lat, lon) => setPendingLocationShare({ lat, lon })}
 										onError={(msg) => toast.error(msg)}
@@ -2020,7 +2021,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								<div className="border-t border-[var(--border)]" />
 
 								{/* Phrases list */}
-								<div data-lenis-prevent className="overflow-y-auto" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
+								<div data-lenis-prevent className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: phrasesExpanded ? "72dvh" : "40dvh", transition: "max-height 0.25s ease" }}>
 									{savedPhrases.length === 0 ? (
 										<div className="flex flex-col items-center justify-center gap-2.5 text-center text-[var(--text-muted)]" style={{ minHeight: "40dvh" }}>
 											<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--surface-2)]">
@@ -2034,25 +2035,26 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											</p>
 										</div>
 									) : (
-										<div>
+										<div className="divide-y divide-[var(--border)]">
 											{savedPhrases.map((phrase, originalIndex) => (
-												<div key={originalIndex} className="group flex items-center px-4">
-													<div className="flex flex-1 items-center gap-1 py-3">
-														<SheetClose
-															onClick={() => handleUsePhrase(phrase)}
-															className="min-w-0 flex-1 text-left text-sm text-[var(--text)] transition hover:text-[var(--accent)]"
-														>
-															{phrase}
-														</SheetClose>
-														<button
-															type="button"
-															onClick={() => handleDeletePhrase(originalIndex)}
-															className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-red-400"
-															aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
-														>
-															<Trash2 className="h-3.5 w-3.5" />
-														</button>
+												<div key={originalIndex} className="group flex items-start gap-3 px-4 py-3">
+													<div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
+														<MessageSquareQuote className="h-3.5 w-3.5" />
 													</div>
+													<SheetClose
+														onClick={() => handleUsePhrase(phrase)}
+														className="min-w-0 flex-1 break-words text-left text-sm leading-relaxed text-[var(--text)] transition hover:text-[var(--accent)]"
+													>
+														<span className="block break-words">{phrase}</span>
+													</SheetClose>
+													<button
+														type="button"
+														onClick={() => handleDeletePhrase(originalIndex)}
+														className="mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+														aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+													>
+														<Trash2 className="h-3.5 w-3.5" />
+													</button>
 												</div>
 											))}
 										</div>
@@ -2122,7 +2124,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 										if (!mediaUrl && !audioUrl) return null;
 
-										if (mediaUrl && isIos()) {
+										if (mediaUrl && (isIos() || isAndroid())) {
 											return (
 												<button
 													type="button"
@@ -2146,10 +2148,25 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													event.preventDefault();
 													event.stopPropagation();
 													setOpenMessageActionId(null);
-													const url = mediaUrl || audioUrl;
-													if (url) {
+													if (mediaUrl) {
+														void (async () => {
+															try {
+																const saved = await saveMediaToDevice(mediaUrl, videoUrl ? "video" : "image");
+																if (saved) {
+																	toast.success(t("profile_details.save_to_gallery_success"));
+																} else {
+																	toast.error(t("profile_details.save_to_gallery_unsupported"));
+																}
+															} catch (e) {
+																appLog.error("Failed to save media to gallery", e);
+																toast.error(t("profile_details.save_to_gallery_error"));
+															}
+														})();
+														return;
+													}
+													if (audioUrl) {
 														const a = document.createElement("a");
-														a.href = url;
+														a.href = audioUrl;
 														a.download = `media-${Date.now()}`;
 														a.target = "_blank";
 														document.body.appendChild(a);

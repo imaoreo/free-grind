@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { isIos, saveMediaToGallery } from "../services/saveMedia";
+import { saveMediaToDevice } from "../services/saveMedia";
 import { appLog } from "../utils/logger";
 
 export type PhotoViewerMedia = {
@@ -302,20 +302,9 @@ export function PhotoViewer({
 		if (!photo || isSaving) return;
 		const { url, type } = getMediaInfo(photo);
 
-		if (!isIos()) {
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `media-${Date.now()}`;
-			a.target = "_blank";
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			return;
-		}
-
 		setIsSaving(true);
 		try {
-			const saved = await saveMediaToGallery(url, type);
+			const saved = await saveMediaToDevice(url, type);
 			if (saved) {
 				toast.success(t("profile_details.save_to_gallery_success"));
 			} else {

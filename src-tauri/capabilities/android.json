@@ -1,0 +1,8 @@
+{
+	"$schema": "../gen/schemas/android-schema.json",
+	"identifier": "android-features",
+	"description": "Capabilities specific to Android (android-fs plugin is only compiled in for Android)",
+	"platforms": ["android"],
+	"windows": ["main"],
+	"permissions": ["android-fs:default", "android-fs:allow-remove-file"]
+}

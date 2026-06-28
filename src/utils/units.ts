@@ -95,18 +95,18 @@ export function formatHeightForUnits(
 }
 
 export function formatWeightForUnits(
-	valueGrams: number | null | undefined,
+	valueKg: number | null | undefined,
 	unitsPreset: UnitsPreset,
 	t?: (key: string, options?: any) => string,
 ): string {
-	if (valueGrams == null || !Number.isFinite(valueGrams)) {
+	if (valueKg == null || !Number.isFinite(valueKg)) {
 		return t ? t("browse_page.not_set") : "Not set";
 	}
 
 	if (unitsPreset === "american") {
-		const pounds = Math.max(0, Math.round(gramsToPounds(valueGrams)));
+		const pounds = Math.max(0, Math.round(valueKg * POUNDS_PER_KG));
 		return `${pounds}lb`;
 	}
 
-	return `${Math.max(0, Math.round(gramsToKg(valueGrams)))}kg`;
+	return `${Math.max(0, Math.round(valueKg))}kg`;
 }

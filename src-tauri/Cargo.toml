@@ -65,6 +65,7 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 android-native-keyring-store = "0.5.0"
+tauri-plugin-android-fs = { version = "=28.2.2", features = ["legacy_storage_permission"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
 tauri-plugin-ios-photos = "0.3"

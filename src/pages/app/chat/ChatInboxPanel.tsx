@@ -1,4 +1,4 @@
-import { Ghost, MessageCircle, Pin } from "lucide-react";
+import { EyeOff, MessageCircle, Pin } from "lucide-react";
 import { useEffect, useRef, type RefObject } from "react";
 import { ChatSearchPanel } from "./ChatSearchPanel";
 import { ChatInboxHeader, type ChatInboxHeaderProps } from "./ChatInboxHeader";
@@ -16,7 +16,7 @@ import {
 	getParticipantOnlineMeta,
 	getPreviewText,
 } from "../chat/chatUtils";
-import { isChatGhosted } from "../../../utils/privacy";
+import { isReadReceiptsHidden } from "../../../utils/privacy";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../../config/design-config";
 
@@ -84,7 +84,7 @@ function ChatConversationRow({
 	const isOtherParticipantOnline = otherParticipantOnlineMeta.isOnline;
 	const databaseUnread = otherProfileId ? chatContactIndexByProfileId[otherProfileId]?.unreadCount ?? 0 : 0;
 	const apiUnread = conversation.data.unreadCount;
-	const isGhosted = isChatGhosted(conversation.data.conversationId);
+	const readReceiptsHidden = isReadReceiptsHidden(conversation.data.conversationId);
 
 	return (
 		<div
@@ -125,8 +125,8 @@ function ChatConversationRow({
 						<p className="truncate text-sm font-semibold text-[var(--text)]">
 							{displayName}
 						</p>
-						{isGhosted && (
-							<Ghost className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+						{readReceiptsHidden && (
+							<EyeOff className="h-3.5 w-3.5 shrink-0 text-purple-400" />
 						)}
 						{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
 							<img

@@ -367,6 +367,7 @@
 	#app {
 		width: 100%;
 		min-height: 100%;
+		overflow-x: hidden;
 	}
 
 	body {
@@ -907,78 +908,56 @@
   animation: trash-bounce 0.3s ease-out forwards;
 }
 
-/* ── Leaflet dark mode ── */
+/* ── MapLibre control theming ── */
 
-/* Invert only the map tiles — pin marker and controls are unaffected */
-:root[data-scheme="dark"] .leaflet-tile-pane {
-  filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-scheme="light"]) .leaflet-tile-pane {
-    filter: invert(0.88) hue-rotate(180deg) saturate(0.65) brightness(0.9);
-  }
+/* The compact attribution toggle sits flush in the exact corner by default;
+   inset it slightly so rounded/overflow-hidden map containers don't clip it. */
+.maplibregl-ctrl-bottom-right > .maplibregl-ctrl-attrib.maplibregl-compact::after {
+  bottom: 4px;
+  right: 4px;
 }
 
-:root[data-scheme="dark"] .leaflet-bar a,
-:root[data-scheme="dark"] .leaflet-bar a:hover {
+/* Give the zoom control more breathing room from the map edge than the 10px default */
+.maplibregl-ctrl-top-right .maplibregl-ctrl {
+  margin: 16px 16px 0 0;
+}
+
+:root[data-scheme="dark"] .maplibregl-ctrl-group,
+:root[data-scheme="dark"] .maplibregl-ctrl-attrib {
   background-color: var(--surface-2);
-  color: var(--text);
-  border-bottom-color: var(--border);
 }
-:root[data-scheme="dark"] .leaflet-bar a:hover {
-  background-color: var(--surface-3, var(--surface-2));
-}
-:root[data-scheme="dark"] .leaflet-bar a.leaflet-disabled {
+:root[data-scheme="dark"] .maplibregl-ctrl-group button:not(:disabled):hover {
   background-color: var(--surface);
+}
+:root[data-scheme="dark"] .maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+:root[data-scheme="dark"] .maplibregl-ctrl-icon,
+:root[data-scheme="dark"] .maplibregl-ctrl-attrib-button {
+  filter: invert(1);
+}
+:root[data-scheme="dark"] .maplibregl-ctrl-attrib,
+:root[data-scheme="dark"] .maplibregl-ctrl-attrib a {
   color: var(--text-muted);
-}
-:root[data-scheme="dark"] .leaflet-bar {
-  border-color: var(--border);
-  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
-}
-:root[data-scheme="dark"] .leaflet-control-attribution {
-  background-color: color-mix(in srgb, var(--bg) 80%, transparent);
-  color: var(--text-muted);
-}
-:root[data-scheme="dark"] .leaflet-control-attribution a {
-  color: var(--text-muted);
-}
-:root[data-scheme="dark"] .leaflet-popup-content-wrapper,
-:root[data-scheme="dark"] .leaflet-popup-tip {
-  background-color: var(--surface-2);
-  color: var(--text);
-  box-shadow: 0 3px 14px rgba(0,0,0,0.5);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-scheme="light"]) .leaflet-bar a,
-  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-group,
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-attrib {
     background-color: var(--surface-2);
-    color: var(--text);
-    border-bottom-color: var(--border);
   }
-  :root:not([data-scheme="light"]) .leaflet-bar a:hover {
-    background-color: var(--surface-3, var(--surface-2));
-  }
-  :root:not([data-scheme="light"]) .leaflet-bar a.leaflet-disabled {
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-group button:not(:disabled):hover {
     background-color: var(--surface);
+  }
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-group button + button {
+    border-top-color: var(--border);
+  }
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-icon,
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-attrib-button {
+    filter: invert(1);
+  }
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-attrib,
+  :root:not([data-scheme="light"]) .maplibregl-ctrl-attrib a {
     color: var(--text-muted);
-  }
-  :root:not([data-scheme="light"]) .leaflet-bar {
-    border-color: var(--border);
-    box-shadow: 0 1px 5px rgba(0,0,0,0.5);
-  }
-  :root:not([data-scheme="light"]) .leaflet-control-attribution {
-    background-color: color-mix(in srgb, var(--bg) 80%, transparent);
-    color: var(--text-muted);
-  }
-  :root:not([data-scheme="light"]) .leaflet-control-attribution a {
-    color: var(--text-muted);
-  }
-  :root:not([data-scheme="light"]) .leaflet-popup-content-wrapper,
-  :root:not([data-scheme="light"]) .leaflet-popup-tip {
-    background-color: var(--surface-2);
-    color: var(--text);
-    box-shadow: 0 3px 14px rgba(0,0,0,0.5);
   }
 }

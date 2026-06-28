@@ -36,7 +36,7 @@ import type {
 } from "../types/chat-service";
 
 import { shouldAutoBlock, isOutsideAgeLimits, notifyAutoBlock } from "../utils/autoblock";
-import { isChatGhosted } from "../utils/privacy";
+import { isReadReceiptsHidden } from "../utils/privacy";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "./apiHelpers";
 import { appLog } from "../utils/logger";
 import { sendViaRealtime } from "./chatRealtime";
@@ -333,11 +333,11 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 		},
 
 		async markRead(conversationId: string, messageId: string): Promise<void> {
- 		// --- GHOST MODE CHECK ---
- 		if (isChatGhosted(conversationId)) {
+ 		// --- READ RECEIPTS CHECK ---
+ 		if (isReadReceiptsHidden(conversationId)) {
  			return; // Silently do nothing. They will never know you read it!
  		}
- 		// ------------------------
+ 		// ---------------------------
 
  		const response = await fetchRest(
  			`/v4/chat/conversation/${conversationId}/read/${messageId}`,

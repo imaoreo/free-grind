@@ -40,7 +40,6 @@ import {
 	parseDateInput,
 	parseNullableInteger,
 	parseNullableNumber,
-	parseNullableWeight,
 	normalizeTagList,
 	profileResponseSchema,
 	profileSchema,
@@ -53,6 +52,12 @@ export function ProfileEditorPage() {
 	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
 	const [profile, setProfile] = useState<z.infer<typeof profileSchema> | null>(
+		null,
+	);
+	// Raw, un-stripped profile JSON as returned by the server. Used as the base
+	// for full-profile-replace saves so fields our local schema doesn't know
+	// about (travel plans, right-now status, etc.) aren't lost on save.
+	const [rawProfile, setRawProfile] = useState<Record<string, any> | null>(
 		null,
 	);
 	const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -157,12 +162,15 @@ export function ProfileEditorPage() {
 				setIsLoadingProfile(true);
 			}
 			setProfileError(null);
-			const parsed = profileResponseSchema.parse(
-				await apiFunctions.getRawProfile(userId),
-			);
+			const raw = await apiFunctions.getRawProfile(userId);
+			const parsed = profileResponseSchema.parse(raw);
 			setProfile(parsed.profiles[0]);
+			setRawProfile(
+				(raw as { profiles?: Record<string, any>[] })?.profiles?.[0] ?? null,
+			);
 		} catch (error) {
 			setProfile(null);
+			setRawProfile(null);
 			setProfileError(
 				error instanceof Error ? error.message : t("profile_editor.error_load"),
 			);
@@ -395,7 +403,7 @@ export function ProfileEditorPage() {
 				addIfChanged("showDistance", "showDistance");
 				addIfChanged("age", "age", parseNullableInteger);
 				addIfChanged("height", "height", parseNullableNumber);
-				addIfChanged("weight", "weight", parseNullableWeight);
+				addIfChanged("weight", "weight", parseNullableNumber);
 				addIfChanged("ethnicity", "ethnicity", parseNullableInteger);
 				addIfChanged("bodyType", "bodyType", parseNullableInteger);
 				addIfChanged("showPosition", "showPosition");
@@ -437,8 +445,25 @@ export function ProfileEditorPage() {
 				}
 
 				if (Object.keys(payload).length > 0) {
-					await apiFunctions.updateMyProfile(payload);
+					// Full replace instead of PATCH: the server silently ignores
+					// explicit nulls meant to clear a field (e.g. bodyType/ethnicity
+					// back to "not set") on the partial-update endpoint. Merging
+					// onto the last-fetched raw profile keeps fields we don't model
+					// (travel plans, right-now status, etc.) intact.
+					const mergedProfile: Record<string, any> = {
+						...rawProfile,
+						...payload,
+					};
+					if (payload.socialNetworks) {
+						mergedProfile.socialNetworks = {
+							...rawProfile?.socialNetworks,
+							...payload.socialNetworks,
+						};
+					}
 
+					await apiFunctions.replaceMyProfile(mergedProfile);
+
+					setRawProfile(mergedProfile);
 					// Update local profile state immediately
 					setProfile((current) => {
 						if (!current) return null;

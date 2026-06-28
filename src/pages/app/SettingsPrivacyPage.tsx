@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, Eye, Ghost, ImageOff } from "lucide-react";
+import { BarChart3, CheckCheck, Eye, ImageOff, ToggleRight } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import {
+	HIDE_READ_RECEIPTS_GLOBAL_KEY,
+	RECORD_PROFILE_VIEWS_KEY,
+	SHOW_READ_RECEIPT_TOGGLE_KEY,
+	isRecordProfileViewsEnabled,
+} from "../../utils/privacy";
 import {
 	readAnalyticsConsentChoice,
 	writeAnalyticsConsentChoice,
@@ -14,8 +20,9 @@ export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
 	const { blurIncomingMedia, setPreferences } = usePreferences();
 
-	const [ghostMode, setGhostMode] = useState(() => window.localStorage.getItem("fg-ghost-mode") === "true");
-	const [showGhostButton, setShowGhostButton] = useState(() => window.localStorage.getItem("fg-show-ghost-btn") !== "false");
+	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => window.localStorage.getItem(HIDE_READ_RECEIPTS_GLOBAL_KEY) !== "true");
+	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => window.localStorage.getItem(SHOW_READ_RECEIPT_TOGGLE_KEY) !== "false");
+	const [recordProfileViews, setRecordProfileViews] = useState(() => isRecordProfileViewsEnabled());
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(() => readAnalyticsConsentChoice());
 
 	return (
@@ -28,30 +35,48 @@ export function SettingsPrivacyPage() {
 
 			<div className="grid gap-6">
 
-				{/* Ghost Mode */}
+				{/* Read Receipts */}
 				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.ghost_mode")}</p>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.read_receipts")}</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
-							icon={<Ghost className="h-5 w-5" />}
+							icon={<CheckCheck className="h-5 w-5" />}
 							iconClass="bg-indigo-500/15 text-indigo-400"
-							label={t("privacy.global_ghost_mode")}
-							description={t("privacy.global_ghost_mode_desc")}
-							checked={ghostMode}
+							label={t("privacy.send_read_receipts")}
+							description={t("privacy.send_read_receipts_desc")}
+							checked={readReceiptsEnabled}
 							onChange={(checked) => {
-								setGhostMode(checked);
-								window.localStorage.setItem("fg-ghost-mode", String(checked));
+								setReadReceiptsEnabled(checked);
+								window.localStorage.setItem(HIDE_READ_RECEIPTS_GLOBAL_KEY, String(!checked));
 							}}
 						/>
 						<ToggleRow
-							icon={<Eye className="h-5 w-5" />}
+							icon={<ToggleRight className="h-5 w-5" />}
 							iconClass="bg-blue-500/15 text-blue-400"
 							label={t("privacy.per_chat_overrides")}
 							description={t("privacy.per_chat_overrides_desc")}
-							checked={showGhostButton}
+							checked={showReadReceiptToggle}
 							onChange={(checked) => {
-								setShowGhostButton(checked);
-								window.localStorage.setItem("fg-show-ghost-btn", String(checked));
+								setShowReadReceiptToggle(checked);
+								window.localStorage.setItem(SHOW_READ_RECEIPT_TOGGLE_KEY, String(checked));
+							}}
+						/>
+					</div>
+				</div>
+
+				{/* Profile Views */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.profile_views")}</p>
+					<div className="surface-card overflow-hidden">
+						<ToggleRow
+							icon={<Eye className="h-5 w-5" />}
+							iconClass="bg-amber-500/15 text-amber-400"
+							label={t("privacy.record_profile_views")}
+							description={t("privacy.record_profile_views_desc")}
+							checked={recordProfileViews}
+							onChange={(checked) => {
+								setRecordProfileViews(checked);
+								window.localStorage.setItem(RECORD_PROFILE_VIEWS_KEY, String(checked));
 							}}
 						/>
 					</div>

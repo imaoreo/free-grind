@@ -7,7 +7,7 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { appLog } from "../../utils/logger";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { type GeocodeResult, type SelectedLocation, geocodeResultSchema } from "./GridPage.types";
-import { LeafletLocationPicker } from "./gridpage/components/LeafletLocationPicker";
+import { MapLocationPicker } from "./gridpage/components/MapLocationPicker";
 
 interface LocationOverlayProps {
 	onClose: () => void;
@@ -327,7 +327,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 											{mapPickerError ? (
 												<p className="px-4 py-3 text-sm text-[var(--text-muted)]">{mapPickerError}</p>
 											) : (
-												<LeafletLocationPicker
+												<MapLocationPicker
 													selectedLocation={selectedLocation}
 													onPick={(lat, lon) => setSelectedLocation({
 														lat,

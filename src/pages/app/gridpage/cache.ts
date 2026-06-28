@@ -77,6 +77,18 @@ export function setCachedBrowseCards(
 	setInCache(browseCache, cacheKey, { cards, nextPage }, BROWSE_CACHE_TTL_MS);
 }
 
+export function removeProfileFromBrowseCache(profileId: string) {
+	for (const [cacheKey, entry] of browseCache) {
+		browseCache.set(cacheKey, {
+			...entry,
+			value: {
+				...entry.value,
+				cards: entry.value.cards.filter((card) => card.profileId !== profileId),
+			},
+		});
+	}
+}
+
 export function getCachedGenderOptions(): ManagedOption[] | null {
 	if (!genderOptionsCache) {
 		return null;

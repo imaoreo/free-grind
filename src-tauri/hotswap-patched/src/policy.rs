@@ -317,6 +317,7 @@ mod tests {
             min_binary_version: min_bin.into(),
             confirmed,
             unconfirmed_launch_count: 0,
+            channel: None,
         }
     }
 

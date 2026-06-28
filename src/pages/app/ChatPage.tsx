@@ -89,9 +89,9 @@ import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { markInboxSeen, getInboxLastSeen } from "../../services/seenStore";
 import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { shouldAutoBlock, isOutsideAgeLimits } from "../../utils/autoblock";
-import { isChatGhosted } from "../../utils/privacy";
+import { isReadReceiptsHidden } from "../../utils/privacy";
 import freegrindLogo from "../../images/freegrind-logo.webp";
-import { getCachedOwnProfilePhotoHash, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
+import { getCachedOwnProfilePhotoHash, removeProfileFromBrowseCache, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
 /**
@@ -1177,6 +1177,7 @@ export function ChatPage() {
 					
 					if (blockId) {
 						blockProfileMutation(String(blockId)).catch(() => {});
+						removeProfileFromBrowseCache(String(blockId));
 					}
 
 					setThreadMessages([]);
@@ -1201,7 +1202,8 @@ export function ChatPage() {
 							appLog.info(`[AutoBlock] Sweeping conversation due to: ${reason}`);
 							
 							blockProfileMutation(String(blockId)).catch(() => {});
-							
+							removeProfileFromBrowseCache(String(blockId));
+
 							setThreadMessages([]);
 							setThreadConversationId(null);
 							if (isDesktop) {
@@ -1338,9 +1340,9 @@ export function ChatPage() {
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
 								syncConversation((conversation) => {
- 								// --- GHOST CHECK ---
- 								if (isChatGhosted(conversationId)) return conversation; 
- 								// -------------------
+ 								// --- READ RECEIPTS CHECK ---
+ 								if (isReadReceiptsHidden(conversationId)) return conversation;
+ 								// ---------------------------
  								const other = getOtherParticipant(conversation, userId);
  								if (other?.profileId) {
  									const pid = String(other.profileId);
@@ -1581,8 +1583,8 @@ export function ChatPage() {
  					.markRead(conversation.data.conversationId, latestMessage.messageId)
  					.catch(() => {});
  				
- 				// --- GHOST CHECK ---
- 				if (!isChatGhosted(conversation.data.conversationId)) {
+ 				// --- READ RECEIPTS CHECK ---
+ 				if (!isReadReceiptsHidden(conversation.data.conversationId)) {
  					const other = getOtherParticipant(conversation, userId);
  					if (other?.profileId) {
  						const pid = String(other.profileId);
@@ -1841,7 +1843,7 @@ export function ChatPage() {
 	const selectedConversationIdForTyping = selectedConversation?.data.conversationId ?? null;
 	useEffect(() => {
 		if (!selectedConversationIdForTyping) return;
-		if (isChatGhosted(selectedConversationIdForTyping)) return;
+		if (isReadReceiptsHidden(selectedConversationIdForTyping)) return;
 		const cid = selectedConversationIdForTyping;
 
 		if (typingDebounceTimer.current) {
@@ -2064,11 +2066,15 @@ export function ChatPage() {
 	}, [replyTargetMessageId, threadMessages]);
 
 	const filteredConversations = useMemo(() => {
-		if (hidePinned) {
-			return conversations.filter((c) => !c.data.pinned);
+		let result = conversations;
+		if (activeInboxFilters.favoritesOnly) {
+			result = result.filter((c) => c.data.favorite);
 		}
-		return conversations;
-	}, [conversations, hidePinned]);
+		if (hidePinned) {
+			result = result.filter((c) => !c.data.pinned);
+		}
+		return result;
+	}, [conversations, hidePinned, activeInboxFilters.favoritesOnly]);
 
 	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
 	useEffect(() => {
@@ -2234,10 +2240,19 @@ export function ChatPage() {
 			} else {
 				await service.pinConversation(selectedConversation.data.conversationId);
 			}
-			syncConversation((conversation) => ({
-				...conversation,
-				data: { ...conversation.data, pinned: !isPinned },
-			}));
+			setConversations((previous) => {
+				const updated = previous.map((conversation) =>
+					conversation.data.conversationId === selectedConversation.data.conversationId
+						? { ...conversation, data: { ...conversation.data, pinned: !isPinned } }
+						: conversation,
+				);
+				// Re-sort so the pin change is reflected in list order immediately.
+				return [...updated].sort((a, b) => {
+					if (a.data.pinned && !b.data.pinned) return -1;
+					if (b.data.pinned && !a.data.pinned) return 1;
+					return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
+				});
+			});
 		} catch (error) {
 			toast.error(
 				error instanceof Error ? error.message : t("chat.errors.update_pin_state"),
@@ -2353,6 +2368,7 @@ export function ChatPage() {
 
 			try {
 				await blockProfileMutation(targetProfileId);
+				removeProfileFromBrowseCache(targetProfileId);
 				setConversations((previous) =>
 					previous.filter(
 						(conversation) =>

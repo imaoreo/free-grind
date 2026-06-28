@@ -38,7 +38,7 @@ pub fn run() {
     #[cfg(not(mobile))]
     {
         #[cfg(target_os = "windows")]
-        let _instance_lock_guard = match instance_lock::acquire_for_current_child_instance() {
+        let instance_lock_guard = match instance_lock::acquire_for_current_child_instance() {
             Ok(guard) => guard,
             Err(error) => {
                 eprintln!("Free Grind failed to acquire child instance lock: {}", error);
@@ -68,7 +68,7 @@ pub fn run() {
             builder = builder.plugin(hotswap_plugin);
         }
 
-        builder
+        let app = builder
             .plugin(tauri_plugin_notification::init())
             .plugin(tauri_plugin_os::init())
             .plugin(tauri_plugin_geolocation::init())
@@ -114,8 +114,28 @@ pub fn run() {
                 api::websocket::ws_status,
                 commands::fingerprint::check_fingerprint,
             ])
-            .run(context)
+            .build(context)
             .expect("error while running tauri application");
+
+        // On Windows, the desktop event loop terminates the process with
+        // std::process::exit once the window closes and never returns control
+        // to this function, so instance_lock_guard's Drop would otherwise
+        // never run, leaving a stale instance.lock behind that blocks every
+        // future launch of this child instance. RunEvent::Exit fires just
+        // before that exit, so release the lock there instead.
+        #[cfg(target_os = "windows")]
+        {
+            let mut instance_lock_guard = instance_lock_guard;
+            app.run(move |_app_handle, event| {
+                if let tauri::RunEvent::Exit = event {
+                    instance_lock_guard.take();
+                }
+            });
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            app.run(|_app_handle, _event| {});
+        }
     }
 
     #[cfg(mobile)]
@@ -140,6 +160,9 @@ pub fn run() {
 
         #[cfg(target_os = "ios")]
         let builder = builder.plugin(tauri_plugin_ios_photos::init());
+
+        #[cfg(target_os = "android")]
+        let builder = builder.plugin(tauri_plugin_android_fs::init());
 
         builder
             .manage(AppState { client })

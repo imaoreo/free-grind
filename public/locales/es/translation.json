@@ -40,7 +40,7 @@
         "automation": "Automatización",
         "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar.",
         "privacy": "Privacidad y análisis",
-        "privacy_desc": "Modo fantasma, desenfoque multimedia, y análisis.",
+        "privacy_desc": "Confirmaciones de lectura, vistas de perfil, desenfoque multimedia, y análisis.",
         "check_updates_desc": "Descarga e instala la última versión de Free Grind."
     },
     "shared_albums": {
@@ -1287,11 +1287,14 @@
         "edit": "Editar"
     },
     "privacy": {
-        "ghost_mode": "Modo fantasma",
-        "global_ghost_mode": "Modo fantasma Global",
-        "global_ghost_mode_desc": "Oculta las confirmaciones de lectura en todos los chats. La otra persona no sabrá que has leído su mensaje hasta que respondas o desactives el modo fantasma.",
+        "read_receipts": "Confirmaciones de lectura",
+        "send_read_receipts": "Enviar confirmaciones de lectura",
+        "send_read_receipts_desc": "Permite que otros vean cuándo has leído su mensaje. Desactívalo para leer mensajes sin que la otra persona lo sepa hasta que respondas.",
         "per_chat_overrides": "Sobrescribir por chat (Botón de Ojo)",
-        "per_chat_overrides_desc": "Muestra un botón en la cabecera del chat para sobrescribir la configuración global para los chats especificados. Los chats que tengan el modo fantasma se resaltan en el buzón.",
-        "nsfw_content": "Contenido No Apto Para el Trabajo"
+        "per_chat_overrides_desc": "Muestra un botón en la cabecera del chat para sobrescribir la configuración global para los chats especificados. Los chats con confirmaciones de lectura ocultas se resaltan en el buzón.",
+        "nsfw_content": "Contenido No Apto Para el Trabajo",
+        "profile_views": "Vistas de perfil",
+        "record_profile_views": "Registrar vistas de perfil",
+        "record_profile_views_desc": "Permite que otros vean que has visitado su perfil. Desactívalo para explorar perfiles sin dejar rastro."
     }
 }

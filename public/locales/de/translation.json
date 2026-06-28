@@ -9,7 +9,7 @@
         "customizability": "Personalisierung",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
         "privacy": "Privatsphäre & Analytics",
-        "privacy_desc": "Ghost-Modus, Medien-Blur und Analytics.",
+        "privacy_desc": "Lesebestätigungen, Profilaufrufe, Medien-Blur und Analytics.",
         "automation": "Automation",
         "automation_desc": "Konfiguriere automatische Blockierregeln und Grid-Aktualisierungen.",
         "report_issue": "Fehler oder Feature melden",
@@ -535,12 +535,15 @@
         }
     },
     "privacy": {
-        "ghost_mode": "Ghost Mode",
-        "global_ghost_mode": "Globaler Ghost Mode",
-        "global_ghost_mode_desc": "Lesebestätigungen für alle Chats ausblenden. Die andere Person weiß nicht, dass du die Nachricht gelesen hast, bis du antwortest oder den Ghost Mode deaktivierst.",
+        "read_receipts": "Lesebestätigungen",
+        "send_read_receipts": "Lesebestätigungen senden",
+        "send_read_receipts_desc": "Lässt andere sehen, wenn du ihre Nachricht gelesen hast. Schalte dies aus, um Nachrichten zu lesen, ohne dass die andere Person es bis zu deiner Antwort merkt.",
         "per_chat_overrides": "Chat-Ausnahmen (Auge-Button)",
-        "per_chat_overrides_desc": "Zeigt einen Button im Chat-Header, um die globale Einstellung für einzelne Chats zu überschreiben. Ghostete Chats werden im Posteingang hervorgehoben.",
-        "nsfw_content": "NSFW-Inhalte"
+        "per_chat_overrides_desc": "Zeigt einen Button im Chat-Header, um die globale Einstellung für einzelne Chats zu überschreiben. Chats mit versteckten Lesebestätigungen werden im Posteingang hervorgehoben.",
+        "nsfw_content": "NSFW-Inhalte",
+        "profile_views": "Profilaufrufe",
+        "record_profile_views": "Profilaufrufe aufzeichnen",
+        "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern."
     },
     "customizability": {
         "subtitle": "Personalisiere das Aussehen der App.",

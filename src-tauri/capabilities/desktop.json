@@ -1,0 +1,17 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "desktop-features",
+	"description": "Capabilities specific to desktop platforms (saving media to Pictures/Videos)",
+	"platforms": ["macOS", "windows", "linux"],
+	"windows": ["main"],
+	"permissions": [
+		{
+			"identifier": "fs:allow-mkdir",
+			"allow": [{ "path": "$PICTURE/FreeGrind" }, { "path": "$VIDEO/FreeGrind" }]
+		},
+		{
+			"identifier": "fs:allow-write-file",
+			"allow": [{ "path": "$PICTURE/FreeGrind/**" }, { "path": "$VIDEO/FreeGrind/**" }]
+		}
+	]
+}

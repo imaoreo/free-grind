@@ -13,11 +13,13 @@ import {
 	PHAssetCollectionType,
 	PHAssetCollectionSubtype,
 } from "@gbyte/tauri-plugin-ios-photos";
+import { AndroidFs, AndroidPublicImageDir, AndroidPublicVideoDir } from "tauri-plugin-android-fs-api";
 import { isTauriRuntime } from "./tauriWebSocket";
 import { appLog } from "../utils/logger";
 
 const ALBUM_NAME = "Free Grind";
 const SAVE_DIR = "fg-media-save";
+const FOLDER_NAME = "FreeGrind";
 
 export function isIos(): boolean {
 	if (!isTauriRuntime()) return false;
@@ -26,6 +28,19 @@ export function isIos(): boolean {
 	} catch {
 		return false;
 	}
+}
+
+export function isAndroid(): boolean {
+	if (!isTauriRuntime()) return false;
+	try {
+		return platform() === "android";
+	} catch {
+		return false;
+	}
+}
+
+function isDesktopTauri(): boolean {
+	return isTauriRuntime() && !isIos() && !isAndroid();
 }
 
 async function ensurePhotosAuthorized(): Promise<boolean> {
@@ -118,6 +133,61 @@ export async function saveMediaToGallery(url: string, type: "image" | "video"): 
 	}
 }
 
+async function fetchMediaBytes(url: string): Promise<{ bytes: Uint8Array; contentType: string | null }> {
+	const response = await fetch(url);
+	if (!response.ok) throw new Error(`Failed to download media (${response.status})`);
+	const bytes = new Uint8Array(await response.arrayBuffer());
+	return { bytes, contentType: response.headers.get("content-type") };
+}
+
+function mimeTypeFor(type: "image" | "video", extension: string, contentType: string | null): string {
+	if (contentType) return contentType.split(";")[0].trim();
+	if (type === "video") return extension === "mov" ? "video/quicktime" : "video/mp4";
+	return extension === "png" ? "image/png" : "image/jpeg";
+}
+
+/**
+ * Saves a remote chat-media URL into the public Pictures/Movies gallery via
+ * MediaStore, in a "FreeGrind" sub-folder. Android only.
+ */
+async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): Promise<boolean> {
+	const { bytes, contentType } = await fetchMediaBytes(url);
+	const extension = extensionFromUrl(url, type);
+	const mimeType = mimeTypeFor(type, extension, contentType);
+	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+	const relativePath = `${FOLDER_NAME}/${fileName}`;
+
+	const uri = type === "video"
+		? await AndroidFs.createNewPublicVideoFile(AndroidPublicVideoDir.Movies, relativePath, mimeType, { isPending: true })
+		: await AndroidFs.createNewPublicImageFile(AndroidPublicImageDir.Pictures, relativePath, mimeType, { isPending: true });
+
+	try {
+		await AndroidFs.writeFile(uri, bytes);
+		await AndroidFs.setPublicFilePending(uri, false);
+		await AndroidFs.scanPublicFile(uri);
+		return true;
+	} catch (error) {
+		appLog.error("[saveMedia] Android writeFile/scan failed", error);
+		await AndroidFs.removeFile(uri).catch(() => {});
+		throw error;
+	}
+}
+
+/**
+ * Saves a remote chat-media URL into the user's Pictures/Videos folder, in a
+ * "FreeGrind" sub-folder. Desktop (Windows/macOS/Linux) only.
+ */
+async function saveMediaToFolderDesktop(url: string, type: "image" | "video"): Promise<boolean> {
+	const { bytes } = await fetchMediaBytes(url);
+	const extension = extensionFromUrl(url, type);
+	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+	const baseDir = type === "video" ? BaseDirectory.Video : BaseDirectory.Picture;
+
+	await mkdir(FOLDER_NAME, { baseDir, recursive: true });
+	await writeFile(`${FOLDER_NAME}/${fileName}`, bytes, { baseDir });
+	return true;
+}
+
 const BATCH_DELAY_MS = 400;
 
 export type SaveMediaBatchItem = { url: string; type: "image" | "video" };
@@ -139,9 +209,21 @@ function downloadFile(url: string): void {
 }
 
 /**
+ * Saves a single media item natively where possible: iOS -> photo library
+ * album, Android -> Pictures/Movies gallery, desktop -> Pictures/Videos
+ * folder. Falls back to a plain browser download outside of Tauri (web preview).
+ */
+export async function saveMediaToDevice(url: string, type: "image" | "video"): Promise<boolean> {
+	if (isIos()) return saveMediaToGallery(url, type);
+	if (isAndroid()) return saveMediaToGalleryAndroid(url, type);
+	if (isDesktopTauri()) return saveMediaToFolderDesktop(url, type);
+	downloadFile(url);
+	return true;
+}
+
+/**
  * Sequentially!!! saves a list of media items, with a tiny bitty delay between each
- * to avoid triggerin the CDN/API. On iOS, items are saved to the photo
- * library. On other platforms, each item triggers a browser download (thats how it was before)
+ * to avoid triggerin the CDN/API.
  */
 export async function saveMediaBatch(
 	items: SaveMediaBatchItem[],
@@ -153,14 +235,9 @@ export async function saveMediaBatch(
 	for (let i = 0; i < items.length; i++) {
 		const { url, type } = items[i];
 		try {
-			if (isIos()) {
-				const saved = await saveMediaToGallery(url, type);
-				if (saved) succeeded++;
-				else failed++;
-			} else {
-				downloadFile(url);
-				succeeded++;
-			}
+			const saved = await saveMediaToDevice(url, type);
+			if (saved) succeeded++;
+			else failed++;
 		} catch (error) {
 			appLog.error("[saveMedia] Failed to save item in batch", error);
 			failed++;

@@ -203,6 +203,7 @@ pub(crate) struct HotswapState {
     pub(crate) channel: Mutex<Option<String>>,
     pub(crate) endpoint_override: Mutex<Option<String>>,
     pub(crate) current_sequence: Mutex<u64>,
+    pub(crate) current_channel: Mutex<Option<String>>,
     pub(crate) current_version: Mutex<Option<String>>,
     pub(crate) pending_manifest: Mutex<Option<HotswapManifest>>,
     /// Shared handle to the live asset directory used by `HotswapAssets`.
@@ -224,6 +225,7 @@ impl fmt::Debug for HotswapState {
             .field("max_retries", &self.max_retries)
             .field("channel", &self.channel)
             .field("current_sequence", &self.current_sequence)
+            .field("current_channel", &self.current_channel)
             .field("current_version", &self.current_version)
             .finish_non_exhaustive()
     }
@@ -501,6 +503,7 @@ fn build_plugin<R: Runtime>(
     );
     let meta = ota_dir.as_ref().and_then(|d| updater::read_meta(d));
     let current_sequence = meta.as_ref().map(|m| m.sequence).unwrap_or(0);
+    let current_channel = meta.as_ref().and_then(|m| m.channel.clone());
     let current_version = meta.map(|m| m.version);
 
     // Shared handle: HotswapAssets reads from this on every request,
@@ -515,6 +518,7 @@ fn build_plugin<R: Runtime>(
     let binary_version_clone = binary_version.clone();
     let base_dir_clone = base_dir.clone();
     let current_sequence_clone = current_sequence;
+    let current_channel_clone = current_channel.clone();
     let current_version_clone = current_version.clone();
     let http_client = reqwest::Client::new();
 
@@ -544,6 +548,7 @@ fn build_plugin<R: Runtime>(
                 channel: Mutex::new(channel),
                 endpoint_override: Mutex::new(None),
                 current_sequence: Mutex::new(current_sequence_clone),
+                current_channel: Mutex::new(current_channel_clone),
                 current_version: Mutex::new(current_version_clone),
                 pending_manifest: Mutex::new(None),
                 live_asset_dir,

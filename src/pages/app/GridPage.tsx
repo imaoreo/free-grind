@@ -21,6 +21,7 @@ import {
 	getCachedOwnProfilePhotoHash,
 	getCachedOwnDisplayName,
 	getCachedOwnShowDistance,
+	removeProfileFromBrowseCache,
 	setCachedBrowseCards,
 	setCachedGenderOptions,
 	setCachedProfileDetail,
@@ -1029,6 +1030,7 @@ export function GridPage() {
 			try {
 				await blockProfileMutation(targetProfileId);
 				setCards((prev) => prev.filter((card) => card.profileId !== targetProfileId));
+				removeProfileFromBrowseCache(targetProfileId);
 				if (activeProfileId === targetProfileId) {
 					setActiveProfileId(null);
 				}

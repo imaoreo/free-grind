@@ -125,7 +125,7 @@ export function SettingsSavedPhrasesPage() {
 				</div>
 
 				{/* Phrases list */}
-				<div>
+				<div className="min-w-0">
 					<div className="mb-2 flex items-center gap-2 px-1">
 						<p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 							{t("settings_saved_phrases.current", { defaultValue: "Phrases" })}
@@ -154,12 +154,12 @@ export function SettingsSavedPhrasesPage() {
 								{savedPhrases.map((phrase, index) => (
 									<div
 										key={`${phrase}-${index}`}
-										className="flex items-center gap-3 px-4 py-3"
+										className="flex items-start gap-3 px-4 py-3"
 									>
 										<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
 											<MessageSquareQuote className="h-3.5 w-3.5" />
 										</div>
-										<p className="min-w-0 flex-1 truncate text-sm">{phrase}</p>
+										<p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{phrase}</p>
 										<button
 											type="button"
 											onClick={() => handleDeletePhrase(index)}

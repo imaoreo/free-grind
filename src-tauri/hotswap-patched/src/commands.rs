@@ -17,6 +17,13 @@ fn build_check_context(state: &HotswapState) -> Result<CheckContext> {
             .map_err(|_| Error::LockPoisoned)?;
         *guard
     };
+    let current_channel = {
+        let guard = state
+            .current_channel
+            .lock()
+            .map_err(|_| Error::LockPoisoned)?;
+        guard.clone()
+    };
     let channel = {
         let guard = state.channel.lock().map_err(|_| Error::LockPoisoned)?;
         guard.clone()
@@ -34,6 +41,7 @@ fn build_check_context(state: &HotswapState) -> Result<CheckContext> {
 
     Ok(CheckContext {
         current_sequence,
+        current_channel,
         binary_version: state.binary_version.clone(),
         platform: current_platform(),
         arch: current_arch(),
@@ -150,7 +158,13 @@ pub async fn hotswap_apply<R: Runtime>(app: AppHandle<R>) -> Result<String> {
         .lock()
         .map_err(|_| Error::LockPoisoned)?
         .clone();
+    let channel = state
+        .channel
+        .lock()
+        .map_err(|_| Error::LockPoisoned)?
+        .clone();
     let opts = updater::DownloadOptions {
+        channel,
         pubkey: &state.pubkey,
         base_dir: &state.base_dir,
         max_bundle_size: state.max_bundle_size,
@@ -205,7 +219,13 @@ pub async fn hotswap_download<R: Runtime>(app: AppHandle<R>) -> Result<String> {
         .lock()
         .map_err(|_| Error::LockPoisoned)?
         .clone();
+    let channel = state
+        .channel
+        .lock()
+        .map_err(|_| Error::LockPoisoned)?
+        .clone();
     let opts = updater::DownloadOptions {
+        channel,
         pubkey: &state.pubkey,
         base_dir: &state.base_dir,
         max_bundle_size: state.max_bundle_size,
@@ -275,6 +295,20 @@ fn update_state_after_apply(
         *seq = manifest.sequence;
     }
     {
+        // The version was downloaded under whatever channel is currently
+        // configured — record it so a later channel switch can be detected.
+        let channel = state
+            .channel
+            .lock()
+            .map_err(|_| Error::LockPoisoned)?
+            .clone();
+        let mut current_channel = state
+            .current_channel
+            .lock()
+            .map_err(|_| Error::LockPoisoned)?;
+        *current_channel = channel;
+    }
+    {
         let mut ver = state
             .current_version
             .lock()
@@ -323,6 +357,13 @@ pub async fn hotswap_rollback<R: Runtime>(app: AppHandle<R>) -> Result<HotswapVe
             .lock()
             .map_err(|_| Error::LockPoisoned)?;
         *seq = new_meta.as_ref().map(|m| m.sequence).unwrap_or(0);
+    }
+    {
+        let mut current_channel = state
+            .current_channel
+            .lock()
+            .map_err(|_| Error::LockPoisoned)?;
+        *current_channel = new_meta.as_ref().and_then(|m| m.channel.clone());
     }
     {
         let mut ver = state
