@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { useAuth } from "../../contexts/useAuth";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
 import {
@@ -39,7 +40,8 @@ import {
 	emptyDraft,
 	parseDateInput,
 	parseNullableInteger,
-	parseNullableNumber,
+	parseNullableHeightToCm,
+	parseNullableWeightToGrams,
 	normalizeTagList,
 	profileResponseSchema,
 	profileSchema,
@@ -51,6 +53,7 @@ export function ProfileEditorPage() {
 	const { userId, logout } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
+	const { unitsPreset } = usePreferences();
 	const [profile, setProfile] = useState<z.infer<typeof profileSchema> | null>(
 		null,
 	);
@@ -211,8 +214,8 @@ export function ProfileEditorPage() {
 	}, [loadProfile, loadVisitingMode]);
 
 	useEffect(() => {
-		setDraft(profileToDraft(profile));
-	}, [profile]);
+		setDraft(profileToDraft(profile, unitsPreset));
+	}, [profile, unitsPreset]);
 
 	useEffect(() => {
 		setDraftVisitingMode(savedVisitingMode);
@@ -235,7 +238,7 @@ export function ProfileEditorPage() {
 		return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "U";
 	}, [draftDisplayName]);
 
-	const savedDraft = useMemo(() => profileToDraft(profile), [profile]);
+	const savedDraft = useMemo(() => profileToDraft(profile, unitsPreset), [profile, unitsPreset]);
 
 	const hasProfileChanges = useMemo(
 		() => JSON.stringify(draft) !== JSON.stringify(savedDraft),
@@ -402,8 +405,8 @@ export function ProfileEditorPage() {
 				addIfChanged("showAge", "showAge");
 				addIfChanged("showDistance", "showDistance");
 				addIfChanged("age", "age", parseNullableInteger);
-				addIfChanged("height", "height", parseNullableNumber);
-				addIfChanged("weight", "weight", parseNullableNumber);
+				addIfChanged("height", "height", (v) => parseNullableHeightToCm(v, unitsPreset));
+				addIfChanged("weight", "weight", (v) => parseNullableWeightToGrams(v, unitsPreset));
 				addIfChanged("ethnicity", "ethnicity", parseNullableInteger);
 				addIfChanged("bodyType", "bodyType", parseNullableInteger);
 				addIfChanged("showPosition", "showPosition");
@@ -742,6 +745,7 @@ export function ProfileEditorPage() {
 						<div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(270px,0.65fr)] lg:items-start">
 							<ProfileEditorFormSections
 								draft={draft}
+								unitsPreset={unitsPreset}
 								onDraftChange={handleDraftChange}
 								onToggleMultiValue={toggleMultiValue}
 								displayNameError={displayNameError}

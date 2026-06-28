@@ -13,7 +13,7 @@ import {
 	PHAssetCollectionType,
 	PHAssetCollectionSubtype,
 } from "@gbyte/tauri-plugin-ios-photos";
-import { AndroidFs, AndroidPublicImageDir, AndroidPublicVideoDir } from "tauri-plugin-android-fs-api";
+import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
 import { isTauriRuntime } from "./tauriWebSocket";
 import { appLog } from "../utils/logger";
 
@@ -147,7 +147,7 @@ function mimeTypeFor(type: "image" | "video", extension: string, contentType: st
 }
 
 /**
- * Saves a remote chat-media URL into the public Pictures/Movies gallery via
+ * Saves a remote chat-media URL into the public Downloads collection via
  * MediaStore, in a "FreeGrind" sub-folder. Android only.
  */
 async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): Promise<boolean> {
@@ -158,8 +158,8 @@ async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): 
 	const relativePath = `${FOLDER_NAME}/${fileName}`;
 
 	const uri = type === "video"
-		? await AndroidFs.createNewPublicVideoFile(AndroidPublicVideoDir.Movies, relativePath, mimeType, { isPending: true })
-		: await AndroidFs.createNewPublicImageFile(AndroidPublicImageDir.Pictures, relativePath, mimeType, { isPending: true });
+		? await AndroidFs.createNewPublicVideoFile(AndroidPublicGeneralPurposeDir.Download, relativePath, mimeType, { isPending: true })
+		: await AndroidFs.createNewPublicImageFile(AndroidPublicGeneralPurposeDir.Download, relativePath, mimeType, { isPending: true });
 
 	try {
 		await AndroidFs.writeFile(uri, bytes);
@@ -174,14 +174,14 @@ async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): 
 }
 
 /**
- * Saves a remote chat-media URL into the user's Pictures/Videos folder, in a
+ * Saves a remote chat-media URL into the user's Downloads folder, in a
  * "FreeGrind" sub-folder. Desktop (Windows/macOS/Linux) only.
  */
 async function saveMediaToFolderDesktop(url: string, type: "image" | "video"): Promise<boolean> {
 	const { bytes } = await fetchMediaBytes(url);
 	const extension = extensionFromUrl(url, type);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-	const baseDir = type === "video" ? BaseDirectory.Video : BaseDirectory.Picture;
+	const baseDir = BaseDirectory.Download;
 
 	await mkdir(FOLDER_NAME, { baseDir, recursive: true });
 	await writeFile(`${FOLDER_NAME}/${fileName}`, bytes, { baseDir });
@@ -210,13 +210,33 @@ function downloadFile(url: string): void {
 
 /**
  * Saves a single media item natively where possible: iOS -> photo library
- * album, Android -> Pictures/Movies gallery, desktop -> Pictures/Videos
- * folder. Falls back to a plain browser download outside of Tauri (web preview).
+ * album, Android/desktop -> Downloads/FreeGrind folder. Falls back to a
+ * plain browser download/open outside of Tauri (web preview), and also if
+ * the native save itself throws (e.g. missing plugin/permission).
  */
 export async function saveMediaToDevice(url: string, type: "image" | "video"): Promise<boolean> {
 	if (isIos()) return saveMediaToGallery(url, type);
-	if (isAndroid()) return saveMediaToGalleryAndroid(url, type);
-	if (isDesktopTauri()) return saveMediaToFolderDesktop(url, type);
+
+	if (isAndroid()) {
+		try {
+			return await saveMediaToGalleryAndroid(url, type);
+		} catch (error) {
+			appLog.error("[saveMedia] Android save failed, falling back to browser", error);
+			downloadFile(url);
+			return true;
+		}
+	}
+
+	if (isDesktopTauri()) {
+		try {
+			return await saveMediaToFolderDesktop(url, type);
+		} catch (error) {
+			appLog.error("[saveMedia] Desktop save failed, falling back to browser", error);
+			downloadFile(url);
+			return true;
+		}
+	}
+
 	downloadFile(url);
 	return true;
 }

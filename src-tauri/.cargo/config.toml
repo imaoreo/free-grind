@@ -3,5 +3,10 @@
 [target.aarch64-apple-darwin]
 rustflags = ["-C", "link-args=-Wl,-ld_classic"]
 
+# rustc's bundled rust-lld fails to resolve versioned OpenSSL 3.5 symbols
+# (SSL_ctrl, ERR_get_error_all, ...) on this toolchain; fall back to ld.bfd.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=bfd"]
+
 [build]
 jobs = 4

@@ -36,6 +36,7 @@ import {
 	type VisitingMode,
 } from "../../../types/visiting";
 import { getThumbImageUrl } from "../../../utils/media";
+import { type UnitsPreset } from "../../../utils/units";
 import { CategoryHeader, ChipGroup, ToggleRow } from "./ProfileEditorComponents";
 import { MAX_PROFILE_PHOTOS, type ProfileDraft } from "./profileEditorUtils";
 
@@ -135,6 +136,7 @@ type ToggleMultiValueKey =
 
 type ProfileEditorFormSectionsProps = {
 	draft: ProfileDraft;
+	unitsPreset: UnitsPreset;
 	onDraftChange: <K extends keyof ProfileDraft>(key: K, value: ProfileDraft[K]) => void;
 	onToggleMultiValue: (key: ToggleMultiValueKey, value: number) => void;
 	displayNameError: string | null;
@@ -168,6 +170,7 @@ type ProfileEditorFormSectionsProps = {
 
 export function ProfileEditorFormSections({
 	draft,
+	unitsPreset,
 	onDraftChange,
 	onToggleMultiValue,
 	displayNameError,
@@ -199,6 +202,8 @@ export function ProfileEditorFormSections({
 	vaccineOptions,
 }: ProfileEditorFormSectionsProps) {
 	const { t } = useTranslation();
+	const isImperialHeight = unitsPreset === "uk" || unitsPreset === "american";
+	const isImperialWeight = unitsPreset === "american";
 	const visitingModeDisabled = isLoadingVisitingMode || Boolean(visitingModeError);
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const [overId, setOverId] = useState<string | null>(null);
@@ -547,7 +552,11 @@ export function ProfileEditorFormSections({
 								value={draft.height}
 								onChange={(event) => onDraftChange("height", event.target.value)}
 								className="input-field"
-								placeholder={t("profile_editor.sections.states.height_placeholder")}
+								placeholder={t(
+									isImperialHeight
+										? "profile_editor.sections.states.height_placeholder_in"
+										: "profile_editor.sections.states.height_placeholder",
+								)}
 							/>
 						</div>
 						<div>
@@ -560,7 +569,11 @@ export function ProfileEditorFormSections({
 								value={draft.weight}
 								onChange={(event) => onDraftChange("weight", event.target.value)}
 								className="input-field"
-								placeholder={t("profile_editor.sections.states.weight_placeholder")}
+								placeholder={t(
+									isImperialWeight
+										? "profile_editor.sections.states.weight_placeholder_lb"
+										: "profile_editor.sections.states.weight_placeholder",
+								)}
 							/>
 						</div>
 					</div>

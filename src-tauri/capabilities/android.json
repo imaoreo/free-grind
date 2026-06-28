@@ -4,5 +4,12 @@
 	"description": "Capabilities specific to Android (android-fs plugin is only compiled in for Android)",
 	"platforms": ["android"],
 	"windows": ["main"],
-	"permissions": ["android-fs:default", "android-fs:allow-remove-file"]
+	"permissions": [
+		"android-fs:allow-create-new-public-image-file",
+		"android-fs:allow-create-new-public-video-file",
+		"android-fs:allow-write-file",
+		"android-fs:allow-set-public-file-pending",
+		"android-fs:allow-scan-public-file",
+		"android-fs:allow-remove-file"
+	]
 }

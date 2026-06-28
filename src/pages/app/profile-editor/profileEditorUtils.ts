@@ -1,4 +1,17 @@
 import z from "zod";
+import {
+	cmToInches,
+	gramsToKg,
+	gramsToPounds,
+	inchesToCm,
+	kgToGrams,
+	poundsToGrams,
+	type UnitsPreset,
+} from "../../../utils/units";
+
+function isImperialHeight(unitsPreset: UnitsPreset): boolean {
+	return unitsPreset === "uk" || unitsPreset === "american";
+}
 
 export const MAX_PROFILE_PHOTOS = 5;
 
@@ -160,6 +173,7 @@ export async function buildSquareThumbCoords(file: File): Promise<string> {
 
 export function profileToDraft(
 	profile: z.infer<typeof profileSchema> | null,
+	unitsPreset: UnitsPreset = "world",
 ): ProfileDraft {
 	if (!profile) {
 		return emptyDraft;
@@ -172,8 +186,16 @@ export function profileToDraft(
 		showAge: profile.showAge ?? true,
 		showDistance: profile.showDistance ?? true,
 		age: profile.age?.toString() ?? "",
-		height: profile.height?.toString() ?? "",
-		weight: profile.weight?.toString() ?? "",
+		// profile.height is returned by the GET endpoint in cm; the editor input
+		// is labeled (and saved) in cm, or total inches for uk/american presets.
+		height: profile.height != null
+			? String(Math.round(isImperialHeight(unitsPreset) ? cmToInches(profile.height) : profile.height))
+			: "",
+		// profile.weight is returned by the GET endpoint in grams; the editor
+		// input is labeled (and saved) in kg, or lb for the american units preset.
+		weight: profile.weight != null
+			? String(Math.round(unitsPreset === "american" ? gramsToPounds(profile.weight) : gramsToKg(profile.weight)))
+			: "",
 		ethnicity: profile.ethnicity?.toString() ?? "",
 		bodyType: profile.bodyType?.toString() ?? "",
 		showPosition: profile.showPosition ?? false,
@@ -204,6 +226,26 @@ export function parseNullableNumber(value: string): number | null {
 
 	const parsed = Number(value);
 	return Number.isFinite(parsed) ? parsed : null;
+}
+
+// The weight input is shown/typed in kg (or lb for the american units preset),
+// but the API reads and writes weight in grams.
+export function parseNullableWeightToGrams(value: string, unitsPreset: UnitsPreset): number | null {
+	const amount = parseNullableNumber(value);
+	if (amount == null) {
+		return null;
+	}
+	return Math.round(unitsPreset === "american" ? poundsToGrams(amount) : kgToGrams(amount));
+}
+
+// The height input is shown/typed in cm (or total inches for the uk/american
+// units presets), but the API reads and writes height in cm.
+export function parseNullableHeightToCm(value: string, unitsPreset: UnitsPreset): number | null {
+	const amount = parseNullableNumber(value);
+	if (amount == null) {
+		return null;
+	}
+	return Math.round(isImperialHeight(unitsPreset) ? inchesToCm(amount) : amount);
 }
 
 export function parseNullableInteger(value: string): number | null {
