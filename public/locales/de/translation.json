@@ -543,6 +543,7 @@
         "per_chat_overrides": "Chat-Ausnahmen (Auge-Button)",
         "per_chat_overrides_desc": "Zeigt einen Button im Chat-Header, um die globale Einstellung für einzelne Chats zu überschreiben. Chats mit versteckten Lesebestätigungen werden im Posteingang hervorgehoben.",
         "nsfw_content": "NSFW-Inhalte",
+        "read_receipts_hidden_badge": "Lesebestätigungen für diesen Chat versteckt",
         "profile_views": "Profilaufrufe",
         "record_profile_views": "Profilaufrufe aufzeichnen",
         "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern."

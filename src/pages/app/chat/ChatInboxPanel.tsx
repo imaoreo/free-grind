@@ -16,7 +16,7 @@ import {
 	getParticipantOnlineMeta,
 	getPreviewText,
 } from "../chat/chatUtils";
-import { isReadReceiptsHidden } from "../../../utils/privacy";
+import { isReadReceiptsHidden, useReadReceiptsChanged } from "../../../utils/privacy";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../../config/design-config";
 
@@ -126,7 +126,9 @@ function ChatConversationRow({
 							{displayName}
 						</p>
 						{readReceiptsHidden && (
-							<EyeOff className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+							<span title={t("privacy.read_receipts_hidden_badge")}>
+								<EyeOff className="h-3.5 w-3.5 shrink-0 text-purple-400" />
+							</span>
 						)}
 						{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
 							<img
@@ -212,6 +214,7 @@ export function ChatInboxPanel({
 	typingConversationIds,
 }: ChatInboxPanelProps) {
 	const { t } = useTranslation();
+	useReadReceiptsChanged();
 	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const lastScrollAtRef = useRef(0);
 	const lastRequestedPageRef = useRef<number | null>(null);

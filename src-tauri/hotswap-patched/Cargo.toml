@@ -135,7 +135,7 @@ features = [
 version = "2"
 features = ["build"]
 
-[target.'cfg(not(target_os = "android"))'.dependencies.reqwest]
+[target.'cfg(target_os = "linux")'.dependencies.reqwest]
 version = "0.12"
 features = [
     "json",
@@ -143,6 +143,14 @@ features = [
     "rustls-tls",
 ]
 default-features = false
+
+[target.'cfg(not(any(target_os = "android", target_os = "linux")))'.dependencies.reqwest]
+version = "0.12"
+features = [
+    "json",
+    "stream",
+    "native-tls",
+]
 
 [target.'cfg(target_os = "android")'.dependencies.reqwest]
 version = "0.12"

@@ -560,6 +560,7 @@
         "per_chat_overrides": "Per-Chat Overrides (Eye Button)",
         "per_chat_overrides_desc": "Show a button in the chat header to override the global setting for specific chats. Chats with read receipts hidden are highlighted in your Inbox.",
         "nsfw_content": "NSFW Content",
+        "read_receipts_hidden_badge": "Read receipts hidden for this chat",
         "profile_views": "Profile Views",
         "record_profile_views": "Record Profile Views",
         "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace."

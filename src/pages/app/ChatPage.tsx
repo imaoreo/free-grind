@@ -1881,19 +1881,37 @@ export function ChatPage() {
 
 		const intervalId = window.setInterval(() => {
 			void loadInbox({ page: 1, replace: true, silent: true });
-			if (selectedConversationId) {
-				void loadThread({
-					conversationId: selectedConversationId,
-					older: false,
-					silent: true,
-				});
-			}
 		}, intervalMs);
 
 		return () => {
 			window.clearInterval(intervalId);
 		};
-	}, [loadInbox, loadThread, realtimeStatus, selectedConversationId]);
+	}, [loadInbox, realtimeStatus]);
+
+	// The realtime socket can report "connected" while still silently dropping
+	// individual events (e.g. chat.v1.conversation_read), so read-receipt status
+	// for the open chat can go stale even when realtimeStatus looks healthy.
+	// Poll the active thread on a short interval, independent of connection
+	// status, as a fallback so "read"/"unread" catches up regardless.
+	useEffect(() => {
+		if (!selectedConversationId) {
+			return;
+		}
+
+		const intervalMs = document.hidden ? 20_000 : 10_000;
+
+		const intervalId = window.setInterval(() => {
+			void loadThread({
+				conversationId: selectedConversationId,
+				older: false,
+				silent: true,
+			});
+		}, intervalMs);
+
+		return () => {
+			window.clearInterval(intervalId);
+		};
+	}, [loadThread, selectedConversationId]);
 
 	useEffect(() => {
 		if (!selectedConversationId) {
