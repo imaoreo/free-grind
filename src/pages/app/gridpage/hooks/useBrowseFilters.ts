@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
 	type BrowseFilters,
@@ -74,9 +74,16 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		});
 	}, [location.key, location.state, location.pathname, location.search, navigate]);
 
-	// Persist filter state on every change
+	// Persist filter state on every change, but skip the very first run (mount
+	// with whatever initial draft was passed in) so it can't race the async
+	// load in GridPage and overwrite a freshly-loaded draft with stale data.
+	const hasMountedRef = useRef(false);
 	useEffect(() => {
-		saveBrowseFiltersDraft({
+		if (!hasMountedRef.current) {
+			hasMountedRef.current = true;
+			return;
+		}
+		void saveBrowseFiltersDraft({
 			sortBy,
 			browseFilters,
 			ageMin,

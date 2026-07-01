@@ -1,4 +1,4 @@
-import { Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Archive, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +27,9 @@ export type ChatInboxHeaderProps = {
 	onSetFiltersDraft: (v: ChatFiltersDraft) => void;
 	onToggleFavoritesOnly: () => void;
 	onToggleHidePinned: () => void;
+	showArchivedOnly: boolean;
+	archivedCount: number;
+	onToggleShowArchivedOnly: () => void;
 };
 
 export function ChatInboxHeader({
@@ -46,6 +49,9 @@ export function ChatInboxHeader({
 	onSetFiltersDraft,
 	onToggleFavoritesOnly,
 	onToggleHidePinned,
+	showArchivedOnly,
+	archivedCount,
+	onToggleShowArchivedOnly,
 }: ChatInboxHeaderProps) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -130,6 +136,31 @@ export function ChatInboxHeader({
 								{hidePinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
 								{t("chat.pinned")}
 							</button>
+
+							{archivedCount > 0 && (
+								<button
+									type="button"
+									onClick={onToggleShowArchivedOnly}
+									className={cn(
+										"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+										showArchivedOnly
+											? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+											: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+									)}
+									style={!showArchivedOnly ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+								>
+									<Archive className="h-3.5 w-3.5" />
+									{t("chat.archived.filter_label", { defaultValue: "Archived" })}
+									<span className={cn(
+										"ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold",
+										showArchivedOnly
+											? "bg-white/30"
+											: "bg-[var(--accent)] text-[var(--accent-contrast)]",
+									)}>
+										{archivedCount}
+									</span>
+								</button>
+							)}
 
 							<button
 								type="button"

@@ -74,7 +74,9 @@ type BrowseFiltersDraftInput = {
 	nicknameFilter?: string;
 };
 
-const STORAGE_KEY = "open-grind:browse-filters";
+import { getSetting, setSetting } from "../../services/chatDb";
+
+const STORAGE_KEY = "browseFilters";
 
 function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
@@ -162,31 +164,18 @@ export function normalizeBrowseFiltersDraft(
 	};
 }
 
-export function loadBrowseFiltersDraft(): BrowseFiltersDraft {
-	if (typeof window === "undefined") {
-		return getDefaultBrowseFiltersDraft();
-	}
-
+export async function loadBrowseFiltersDraft(): Promise<BrowseFiltersDraft> {
 	try {
-		const raw = window.localStorage.getItem(STORAGE_KEY);
-		if (!raw) {
-			return getDefaultBrowseFiltersDraft();
-		}
-
-		const parsed = JSON.parse(raw) as BrowseFiltersDraftInput;
-		return normalizeBrowseFiltersDraft(parsed);
+		const stored = await getSetting<BrowseFiltersDraftInput>(STORAGE_KEY);
+		return normalizeBrowseFiltersDraft(stored);
 	} catch {
 		return getDefaultBrowseFiltersDraft();
 	}
 }
 
-export function saveBrowseFiltersDraft(draft: BrowseFiltersDraft): void {
-	if (typeof window === "undefined") {
-		return;
-	}
-
+export async function saveBrowseFiltersDraft(draft: BrowseFiltersDraft): Promise<void> {
 	try {
-		window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+		await setSetting(STORAGE_KEY, draft);
 	} catch {
 		// Ignore storage failures to avoid blocking filter interactions.
 	}

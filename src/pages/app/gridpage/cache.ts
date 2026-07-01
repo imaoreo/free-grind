@@ -170,3 +170,20 @@ export function getCachedOwnShowDistance(): boolean | undefined {
 export function setCachedOwnShowDistance(value: boolean) {
 	ownShowDistanceCache = value;
 }
+
+/**
+ * Resets every module-level cache here — call on logout/account switch.
+ * Without this, a second account would briefly see the previous account's
+ * profile cache, browse cards, blocked list, and own-profile fields, since
+ * none of these caches were ever keyed or cleared by account.
+ */
+export function clearAllCaches(): void {
+	profileCache.clear();
+	browseCache.clear();
+	genderOptionsCache = null;
+	pronounOptionsCache = null;
+	blockedProfileIdsCache = null;
+	ownProfilePhotoHashCache = null;
+	ownDisplayNameCache = undefined;
+	ownShowDistanceCache = undefined;
+}

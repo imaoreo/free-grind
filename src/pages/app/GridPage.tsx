@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, X, Eye, EyeOff } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, Eye, EyeOff } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -31,10 +31,11 @@ import {
 	setCachedOwnDisplayName,
 	setCachedOwnShowDistance,
 } from "./gridpage/cache";
-import { isCurrentlyOnline } from "./gridpage/utils";
+import { setSavedAccountDisplayName, setSavedAccountPhotoHash } from "../../services/savedAccountProfiles";
 import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseSortOption,
+	getDefaultBrowseFiltersDraft,
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
@@ -50,15 +51,14 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
+import { getAutoRefreshSettings } from "../../utils/autoblock";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
 import { LocationOverlay } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
-
-const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
-const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
+import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../utils/blockConfirm";
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -77,12 +77,12 @@ export function GridPage() {
 	} = usePreferences();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const persistedBrowseFilters = useMemo(() => loadBrowseFiltersDraft(), []);
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
 	const [nextPage, setNextPage] = useState<number | null>(null);
 	const [cardsError, setCardsError] = useState<string | null>(null);
+	const [isLocationMissing, setIsLocationMissing] = useState(false);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
 	const [ownDisplayName, setOwnDisplayName] = useState<string | null>(() => getCachedOwnDisplayName() ?? null);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
@@ -91,6 +91,16 @@ export function GridPage() {
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
 	const [isProfileSearchOpen, setIsProfileSearchOpen] = useState(false);
 	const [profileSearchInput, setProfileSearchInput] = useState("");
+	const profileSearchDialogRef = useRef<HTMLDialogElement | null>(null);
+	useEffect(() => {
+		const dialog = profileSearchDialogRef.current;
+		if (!dialog) return;
+		if (isProfileSearchOpen) {
+			if (!dialog.open) dialog.showModal();
+		} else if (dialog.open) {
+			dialog.close();
+		}
+	}, [isProfileSearchOpen]);
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
@@ -233,7 +243,12 @@ export function GridPage() {
 		clearBrowseFilters,
 		nicknameFilter,
 		applyDraft,
-	} = useBrowseFilters(persistedBrowseFilters);
+	} = useBrowseFilters(getDefaultBrowseFiltersDraft());
+
+	useEffect(() => {
+		void loadBrowseFiltersDraft().then(applyDraft);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 	const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -288,6 +303,7 @@ export function GridPage() {
 					const nextHash = firstHash ?? null;
 					setProfileImageHash(nextHash);
 					setCachedOwnProfilePhotoHash(nextHash);
+					setSavedAccountPhotoHash(String(userId), nextHash);
 				}
 			} catch {
 				if (!cancelled) setProfileImageHash(null);
@@ -314,6 +330,7 @@ export function GridPage() {
 					const name = typeof profile?.displayName === "string" ? profile.displayName : null;
 					setOwnDisplayName(name);
 					setCachedOwnDisplayName(name);
+					setSavedAccountDisplayName(String(userId), name);
 				}
 			} catch {
 				// non-critical
@@ -469,6 +486,7 @@ export function GridPage() {
 				setCardsError(
 					t("browse_page.errors.set_location"),
 				);
+				setIsLocationMissing(true);
 				setIsLoadingCards(false);
 				return;
 			}
@@ -483,6 +501,7 @@ export function GridPage() {
 				return;
 			}
 
+			setIsLocationMissing(false);
 			setCardsError(null);
 
 			if (cached) {
@@ -710,8 +729,8 @@ export function GridPage() {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const enabled = localStorage.getItem("fg-auto-refresh-enabled") === "true";
-		const intervalMinutes = parseInt(localStorage.getItem("fg-auto-refresh-interval") || "5", 10);
+		const { enabled, intervalMinutes: rawIntervalMinutes } = getAutoRefreshSettings();
+		const intervalMinutes = parseInt(rawIntervalMinutes, 10);
 
 		if (!enabled || isNaN(intervalMinutes) || intervalMinutes <= 0) {
 			return;
@@ -824,11 +843,6 @@ export function GridPage() {
 
 		return getThumbImageUrl(profileImageHash, "75x75");
 	}, [profileImageHash]);
-
-	const onlineCount = useMemo(
-		() => cards.filter((card) => isCurrentlyOnline(card.onlineUntil)).length,
-		[cards],
-	);
 
 	const selfCardImageUrl = useMemo(
 		() => profileImageHash ? getThumbImageUrl(profileImageHash, "320x320") : null,
@@ -1230,7 +1244,7 @@ export function GridPage() {
 				<header ref={headerRef} className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
 					<PageHeaderBackground color="var(--accent)" />
 					<div className="pointer-events-auto px-[var(--app-px)] sm:px-4">
-					<div className="sm:hidden">
+					<div>
 						<div>
 							<div className="mb-1 flex items-center gap-2">
 								<button
@@ -1268,17 +1282,21 @@ export function GridPage() {
 											</p>
 										</div>
 									</button>
+									<div className="mx-1 h-6 w-px bg-[var(--border)] opacity-40" />
 									<button
 										type="button"
 										onClick={(e) => { e.stopPropagation(); void handleToggleDistance(); }}
 										disabled={isTogglingDistance}
 										title={showDistance ? t("browse_page.distance_visible", { defaultValue: "Distance visible to others" }) : t("browse_page.distance_hidden", { defaultValue: "Distance hidden from others" })}
-										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition active:scale-90 disabled:opacity-50 mr-1"
+										className="flex h-12 shrink-0 flex-col items-center justify-center gap-[3px] pl-3 pr-4 transition active:scale-90 disabled:opacity-50"
 									>
 										{showDistance
-											? <Eye className="h-4 w-4 text-[var(--accent)]" />
-											: <EyeOff className="h-4 w-4 text-[var(--text-muted)]" />
+											? <Eye className="h-3.5 w-3.5 text-[var(--accent)]" />
+											: <EyeOff className="h-3.5 w-3.5 text-[var(--text-muted)]" />
 										}
+										<span className={`block text-center text-[7px] font-bold uppercase leading-none ${showDistance ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
+											dist
+										</span>
 									</button>
 								</div>
 							</div>
@@ -1429,166 +1447,6 @@ export function GridPage() {
 							</div>
 						</div>
 					</div>
-
-					<div className="hidden sm:block">
-						<div className="mb-2 flex items-start justify-between gap-4">
-							<div>
-								<h1 className="app-title">{t("browse_page.title")}</h1>
-								<div className="mt-2 flex flex-wrap items-center gap-2">
-									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
-										<span
-											className="h-2 w-2 rounded-full bg-zinc-400"
-											aria-hidden="true"
-										/>
-										<span>{cards.length}</span>
-									</div>
-									<div className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)]">
-										<span
-											className="h-2 w-2 rounded-full bg-emerald-500"
-											aria-hidden="true"
-										/>
-										<span>{onlineCount}</span>
-									</div>
-									<button
-										type="button"
-										onClick={() => setIsLocationOpen(true)}
-										className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] max-w-[200px]"
-									>
-										{useAutoLocation
-											? <Navigation className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-											: <MapPin className={`h-3.5 w-3.5 shrink-0 ${locationName ? "text-[var(--accent)]" : ""}`} />
-										}
-										<span className="hidden lg:inline truncate">
-											{locationName || t("browse_page.location")}
-										</span>
-									</button>
-									<button
-										type="button"
-										onClick={() => setIsFiltersOpen(true)}
-										className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									>
-										<SlidersHorizontal className="h-3.5 w-3.5" />
-										<span className="hidden lg:inline">
-											{t("browse_page.filter")}
-										</span>
-										{hasActiveBrowseFilters ? (
-											<span className="inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]">
-												{activeFilterCount}
-											</span>
-										) : null}
-									</button>
-
-									<div className="relative inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-2.5 pr-1.5 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] focus-within:border-[var(--accent)] focus-within:text-[var(--text)]">
-										<ListFilter className="mr-1 h-3.5 w-3.5 shrink-0" />
-										<select
-											value={sortBy}
-											onChange={(e) => setSortBy(e.target.value as BrowseSortOption)}
-											className="appearance-none bg-transparent cursor-pointer outline-none pr-3"
-										>
-											<option value="default">{t("browse_page.sort")}</option>
-											<option value="distance">{t("browse_filters.sort.distance")}</option>
-											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-											<option value="popular">{t("browse_filters.sort.popular")}</option>
-											<option value="name">{t("browse_filters.sort.name_az")}</option>
-										</select>
-									</div>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												favorites: !prev.favorites,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.favorites
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Star
-											className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("browse_filters.options.favorites")}
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												rightNow: !prev.rightNow,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.rightNow
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Droplet
-											className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("browse_filters.options.right_now")}
-										</span>
-									</button>
-
-									<button
-										type="button"
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												isVisiting: !prev.isVisiting,
-											}))
-										}
-										className={`inline-flex items-center gap-2 rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium transition ${
-											browseFilters.isVisiting
-												? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-contrast)]"
-												: "bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-										}`}
-									>
-										<Plane
-											className={`h-3.5 w-3.5 ${browseFilters.isVisiting ? "fill-current" : ""}`}
-										/>
-										<span className="hidden lg:inline">
-											{t("profile_details.visiting")}
-										</span>
-									</button>
-
-									{hasActiveBrowseFilters ? (
-										<button
-											type="button"
-											onClick={clearBrowseFilters}
-											className="inline-flex items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-										>
-											{t("browse_filters.clear_all")}
-										</button>
-									) : null}
-								</div>
-							</div>
-							<div className="flex flex-col items-end gap-2">
-								<button
-									type="button"
-									onClick={() => navigate("/settings")}
-									className="rounded-full transition-all hover:scale-[1.03]"
-									aria-label={t("browse_page.open_settings")}
-									title={t("browse_page.settings")}
-								>
-									<Avatar
-										src={profilePhotoUrl}
-										alt={t("browse_page.your_profile_photo")}
-										className="h-11 w-11"
-									/>
-								</button>
-							</div>
-						</div>
-						<p className="app-subtitle">{t("browse_page.subtitle")}</p>
-					</div>
 					</div>
 				</header>
 
@@ -1604,6 +1462,8 @@ export function GridPage() {
 						<BrowseGrid
 							isLoadingCards={isLoadingCards}
 							cardsError={cardsError}
+							isLocationMissing={isLocationMissing}
+							onOpenLocation={() => setIsLocationOpen(true)}
 							cards={sortedCards}
 							chatContactIndexByProfileId={
 								(SHOW_DEMO_DATA && showDebugInfo)
@@ -1771,80 +1631,54 @@ export function GridPage() {
 				/>
 			)}
 
-			{isProfileSearchOpen && (
-				<div className="fixed inset-0 z-[55] flex flex-col isolate">
-					<div
-						className="absolute inset-0 bg-black/45 backdrop-blur-sm animate-backdrop-in"
-						onClick={() => setIsProfileSearchOpen(false)}
+			<dialog
+				ref={profileSearchDialogRef}
+				className="fixed left-1/2 top-1/2 m-0 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-0 text-[var(--text)] shadow-2xl backdrop:bg-black/45"
+				onClick={(e) => { if (e.target === profileSearchDialogRef.current) setIsProfileSearchOpen(false); }}
+				onKeyDown={(e) => { if (e.key === "Escape") setIsProfileSearchOpen(false); }}
+			>
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						const id = profileSearchInput.trim();
+						if (!id) return;
+						setIsProfileSearchOpen(false);
+						setActiveProfileId(id);
+					}}
+					className="p-4"
+				>
+					<p className="text-sm font-semibold text-[var(--text)]">Open Profile by ID</p>
+					<p className="mt-1 text-sm leading-relaxed text-[var(--text-muted)]">
+						Got a profile ID from a link? Paste it here to jump straight to that profile.
+					</p>
+					<input
+						autoFocus
+						type="number"
+						inputMode="numeric"
+						value={profileSearchInput}
+						onChange={(e) => setProfileSearchInput(e.target.value)}
+						placeholder="123456789"
+						className="input-field mt-4"
 					/>
-					<div
-						role="dialog"
-						aria-modal="true"
-						className="relative mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-[var(--bg)] shadow-2xl animate-modal-top-in md:border-x md:border-[var(--border)]"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-							<PageHeaderBackground color="var(--accent)" />
-							<div className="flex items-center justify-between gap-3">
-								<div className="flex items-center gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
-										<Search className="h-5 w-5" />
-									</div>
-									<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">Profile ID</h2>
-								</div>
-								<button
-									type="button"
-									onClick={() => setIsProfileSearchOpen(false)}
-									className="shrink-0 rounded-full bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
-									aria-label="Close"
-								>
-									<X className="h-5 w-5" />
-								</button>
-							</div>
-						</header>
-						<div className="shrink-0 border-b border-[var(--border)]" />
-						<div className="flex-1 overflow-y-auto px-[var(--app-px)] py-4">
-							<form
-								onSubmit={(e) => {
-									e.preventDefault();
-									const id = profileSearchInput.trim();
-									if (!id) return;
-									setIsProfileSearchOpen(false);
-									setActiveProfileId(id);
-								}}
-								className="space-y-3"
-							>
-								<section
-									className="rounded-2xl p-4"
-									style={{
-										backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-										border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-									}}
-								>
-									<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">Profile ID</p>
-									<input
-										autoFocus
-										type="number"
-										inputMode="numeric"
-										value={profileSearchInput}
-										onChange={(e) => setProfileSearchInput(e.target.value)}
-										placeholder="123456789"
-										className="input-field w-full"
-									/>
-								</section>
-								<button
-									type="submit"
-									disabled={!profileSearchInput.trim()}
-									className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--accent)] px-4 py-3 text-sm font-bold text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/30 transition active:scale-95 disabled:opacity-40"
-								>
-									<Search className="h-4 w-4" />
-									Open Profile
-								</button>
-							</form>
-						</div>
+					<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+						<button
+							type="button"
+							onClick={() => setIsProfileSearchOpen(false)}
+							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						>
+							Cancel
+						</button>
+						<button
+							type="submit"
+							disabled={!profileSearchInput.trim()}
+							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						>
+							<Search className="h-4 w-4" />
+							Open Profile
+						</button>
 					</div>
-				</div>
-			)}
+				</form>
+			</dialog>
 		</>
 	);
 }

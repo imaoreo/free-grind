@@ -1,6 +1,6 @@
 import { appLog } from "../utils/logger";
+import { getAllSavedPhrases, setSavedPhrases as setSavedPhrasesInDb } from "./chatDb";
 
-export const SAVED_PHRASES_STORAGE_KEY = "fg-saved-phrases";
 export const SAVED_PHRASES_UPDATED_EVENT = "fg:saved-phrases-updated";
 
 export function normalizeSavedPhrases(input: string[]): string[] {
@@ -14,42 +14,26 @@ export function normalizeSavedPhrases(input: string[]): string[] {
 	return Array.from(unique);
 }
 
-export function loadSavedPhrases(): string[] {
-	if (typeof window === "undefined") {
-		return [];
-	}
-
+export async function loadSavedPhrases(): Promise<string[]> {
 	try {
-		const stored = window.localStorage.getItem(SAVED_PHRASES_STORAGE_KEY);
-		if (!stored) {
-			return [];
-		}
-		const parsed = JSON.parse(stored);
-		if (!Array.isArray(parsed)) {
-			return [];
-		}
-		const normalized = normalizeSavedPhrases(
-			parsed.filter((value): value is string => typeof value === "string"),
-		);
-		return normalized;
+		return await getAllSavedPhrases();
 	} catch (error) {
 		appLog.error("[savedPhrases] loadSavedPhrases failed", error);
 		return [];
 	}
 }
 
-export function saveSavedPhrases(nextPhrases: string[]): string[] {
+export async function saveSavedPhrases(nextPhrases: string[]): Promise<string[]> {
 	const normalized = normalizeSavedPhrases(nextPhrases);
-	if (typeof window === "undefined") {
-		return normalized;
+	const stored = await setSavedPhrasesInDb(normalized);
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(
+			new CustomEvent<string[]>(SAVED_PHRASES_UPDATED_EVENT, {
+				detail: stored,
+			}),
+		);
 	}
-	window.localStorage.setItem(SAVED_PHRASES_STORAGE_KEY, JSON.stringify(normalized));
-	window.dispatchEvent(
-		new CustomEvent<string[]>(SAVED_PHRASES_UPDATED_EVENT, {
-			detail: normalized,
-		}),
-	);
-	return normalized;
+	return stored;
 }
 
 export function phrasesToTxt(phrases: string[]): string {

@@ -948,6 +948,9 @@
         "error_load_feed": "Impossible de charger votre grille",
         "empty_title": "Impossible de trouver des profils à proximité",
         "empty_desc": "Essayez d'actualiser la grille après avoir mis à jour votre emplacement.",
+        "no_location_title": "Définissez votre position pour commencer",
+        "no_location_desc": "Nous avons besoin de connaître votre position pour afficher les profils à proximité.",
+        "no_location_button": "Définir la position",
         "loading": "Chargement...",
         "errors": {
             "load_timeout": "Le temps de recherche de la grille est écoulé. Veuillez vérifier votre connexion et réessayer.",

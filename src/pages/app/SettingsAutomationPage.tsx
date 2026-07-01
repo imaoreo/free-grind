@@ -5,38 +5,37 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { useTranslation } from "react-i18next";
 import { RangeSlider, Slider } from "../../components/ui/range-slider";
+import { getAutomationSettings, setAutomationSettings } from "../../utils/autoblock";
 
 export function SettingsAutomationPage() {
 	const { t } = useTranslation();
 
-	const [blockOnChat, setBlockOnChat] = useState(() => window.localStorage.getItem("fg-block-chat") === "true");
-	const [forbiddenWords, setForbiddenWords] = useState(() => window.localStorage.getItem("fg-forbidden-words") || "");
-	const [minAge, setMinAge] = useState(() => window.localStorage.getItem("fg-block-min-age") || "18");
-	const [maxAge, setMaxAge] = useState(() => window.localStorage.getItem("fg-block-max-age") || "99");
-	const [refreshEnabled, setRefreshEnabled] = useState(() => window.localStorage.getItem("fg-auto-refresh-enabled") === "true");
-	const [refreshInterval, setRefreshInterval] = useState(() => window.localStorage.getItem("fg-auto-refresh-interval") || "5");
+	const [blockOnChat, setBlockOnChat] = useState(() => getAutomationSettings().blockOnChat);
+	const [forbiddenWords, setForbiddenWords] = useState(() => getAutomationSettings().forbiddenWords);
+	const [minAge, setMinAge] = useState(() => getAutomationSettings().minAge);
+	const [maxAge, setMaxAge] = useState(() => getAutomationSettings().maxAge);
+	const [refreshEnabled, setRefreshEnabled] = useState(() => getAutomationSettings().refreshEnabled);
+	const [refreshInterval, setRefreshInterval] = useState(() => getAutomationSettings().refreshInterval);
 
 	const handleToggleChatBlock = (val: boolean) => {
 		setBlockOnChat(val);
-		window.localStorage.setItem("fg-block-chat", String(val));
+		void setAutomationSettings({ blockOnChat: val });
 		toast.success(val ? t("settings_automation.chat_block_enabled") : t("settings_automation.chat_block_disabled"), { id: "chat-block-toggle" });
 	};
 
 	const handleToggleRefresh = (val: boolean) => {
 		setRefreshEnabled(val);
-		window.localStorage.setItem("fg-auto-refresh-enabled", String(val));
+		void setAutomationSettings({ refreshEnabled: val });
 		toast.success(val ? t("settings_automation.auto_refresh_enabled") : t("settings_automation.auto_refresh_disabled"), { id: "refresh-toggle" });
 	};
 
 	const handleSaveAutoBlock = () => {
-		window.localStorage.setItem("fg-forbidden-words", forbiddenWords);
-		window.localStorage.setItem("fg-block-min-age", minAge);
-		window.localStorage.setItem("fg-block-max-age", maxAge);
+		void setAutomationSettings({ forbiddenWords, minAge, maxAge });
 		toast.success(t("settings_automation.block_rules_updated"));
 	};
 
 	const handleSaveRefresh = () => {
-		window.localStorage.setItem("fg-auto-refresh-interval", refreshInterval);
+		void setAutomationSettings({ refreshInterval });
 		toast.success(t("settings_automation.refresh_settings_updated"));
 	};
 

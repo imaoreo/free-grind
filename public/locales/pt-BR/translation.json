@@ -258,6 +258,9 @@
         "error_load_feed": "Não foi possível carregar o feed de navegação",
         "empty_title": "Nenhum perfil próximo foi localizado",
         "empty_desc": "Tente atualizar o feed depois de atualizar sua localização.",
+        "no_location_title": "Defina sua localização para começar",
+        "no_location_desc": "Precisamos saber onde você está para mostrar perfis próximos.",
+        "no_location_button": "Definir localização",
         "loading": "Carregando",
         "errors": {
             "load_timeout": "A solicitação de navegação no feed expirou. Verifique sua conexão e tente novamente.",

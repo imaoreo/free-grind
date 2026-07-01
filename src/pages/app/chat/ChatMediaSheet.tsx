@@ -1,15 +1,35 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, Images, LayoutGrid, Loader2, X } from "lucide-react";
+import { Download, Images, LayoutGrid, Loader2, Play, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
-import { PhotoViewer } from "../../../components/PhotoViewer";
+import { PhotoViewer, type PhotoViewerMedia } from "../../../components/PhotoViewer";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
-import { saveMediaBatch } from "../../../services/saveMedia";
+import { saveMediaBytesBatch } from "../../../services/saveMedia";
+import { fetchAndEncode, toDataUri } from "../../../services/mediaStore";
+import { captureAlbum, getLocalAlbum } from "../../../services/albumStore";
+import * as chatDb from "../../../services/chatDb";
+import { extractImageHashFromSignedUrl } from "./chatUtils";
 import { appLog } from "../../../utils/logger";
-import type { SharedConversationImage } from "../../../types/chat-service";
+
+const IMAGE_HASH_KEY_PREFIX = "image:hash:";
+
+/**
+ * Content fingerprint for de-duping the local/live merge below. A local
+ * image captured via the chat-message flow can end up keyed by mediaId or
+ * messageId instead of a hash (whenever getMessageImageHash/
+ * extractImageHashFromSignedUrl couldn't derive one at capture time) — so
+ * the URL-hash check alone can miss real duplicates. Hashing the actual
+ * base64 content is key-scheme-independent and always catches them.
+ */
+async function hashBase64(base64: string): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base64));
+	return Array.from(new Uint8Array(digest))
+		.map((b) => b.toString(16).padStart(2, "0"))
+		.join("");
+}
 
 type Tab = "albums" | "media";
 
@@ -18,6 +38,14 @@ type SharedAlbum = {
 	albumName: string | null;
 	coverUrl: string | null;
 	contentCount: { imageCount: number; videoCount: number };
+};
+
+type LocalMediaItem = {
+	mediaKey: string;
+	kind: "image" | "video";
+	dataUri: string;
+	mimeType: string | null;
+	base64: string;
 };
 
 type Props = {
@@ -46,27 +74,25 @@ export function ChatMediaSheet({
 	const [tab, setTab] = useState<Tab>("media");
 	const [albums, setAlbums] = useState<SharedAlbum[]>([]);
 	const [albumsLoading, setAlbumsLoading] = useState(true);
-	const [images, setImages] = useState<SharedConversationImage[]>([]);
+	const [media, setMedia] = useState<LocalMediaItem[]>([]);
 	const [mediaLoading, setMediaLoading] = useState(true);
 	const [failedCovers, setFailedCovers] = useState<Set<number>>(new Set());
-	const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
 	const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 	const [isSavingAll, setIsSavingAll] = useState(false);
 
 	const handleSaveAll = async () => {
-		const urls = images.filter((i) => i.url).map((i) => i.url!);
-		if (urls.length === 0) {
+		if (media.length === 0) {
 			toast.error(t("profile_details.save_all_empty"));
 			return;
 		}
 
 		setIsSavingAll(true);
 		const toastId = toast.loading(
-			t("profile_details.save_all_progress", { done: 0, total: urls.length }),
+			t("profile_details.save_all_progress", { done: 0, total: media.length }),
 		);
 		try {
-			const result = await saveMediaBatch(
-				urls.map((url) => ({ url, type: "image" as const })),
+			const result = await saveMediaBytesBatch(
+				media.map((m) => ({ base64: m.base64, mimeType: m.mimeType, type: m.kind })),
 				(done, total) => {
 					toast.loading(t("profile_details.save_all_progress", { done, total }), {
 						id: toastId,
@@ -96,30 +122,218 @@ export function ChatMediaSheet({
 		}
 	};
 
-	// Load shared albums from API
+	// Load this conversation's albums from the local cache first — durable
+	// even once a share expires/exhausts server-side — then merge in the
+	// live list (exact albumId match, no heuristic needed here) so covers/
+	// counts stay fresh when reachable, and so albums surfaced only via this
+	// profile-wide endpoint (not necessarily backed by a message in this
+	// conversation's own history) still get captured for permanent access.
 	useEffect(() => {
-		if (!senderProfileId) { setAlbumsLoading(false); return; }
+		let cancelled = false;
 		setAlbumsLoading(true);
-		service.getSharedAlbumsForProfile({ profileId: Number(senderProfileId) })
-			.then((sharedAlbums) => {
-				setAlbums(sharedAlbums.map((a) => ({
+
+		void (async () => {
+			let localAlbumIds = new Set<number>();
+			try {
+				const stored = await chatDb.getAlbumsForConversation(conversationId);
+				const withCovers = await Promise.all(
+					stored.map(async (a) => {
+						const albumId = Number(a.albumId);
+						const local = await getLocalAlbum(albumId);
+						const first = local?.content[0] ?? null;
+						const videoCount =
+							local?.content.filter((c) => c.contentType?.startsWith("video/")).length ?? 0;
+						return {
+							albumId,
+							albumName: a.albumName,
+							coverUrl: first?.thumbUrl ?? first?.coverUrl ?? first?.url ?? null,
+							contentCount: {
+								imageCount: (local?.content.length ?? 0) - videoCount,
+								videoCount,
+							},
+						};
+					}),
+				);
+				localAlbumIds = new Set(withCovers.map((a) => a.albumId));
+				if (!cancelled) setAlbums(withCovers);
+			} catch (error) {
+				appLog.warn("[ChatMediaSheet] failed to load local albums", error);
+			} finally {
+				if (!cancelled) setAlbumsLoading(false);
+			}
+
+			if (!senderProfileId) {
+				return;
+			}
+
+			try {
+				const sharedAlbums = await service.getSharedAlbumsForProfile({
+					profileId: Number(senderProfileId),
+				});
+				if (cancelled) return;
+				const liveAlbums: SharedAlbum[] = sharedAlbums.map((a) => ({
 					albumId: a.albumId,
 					albumName: a.albumName ?? a.name ?? null,
 					coverUrl: a.content?.thumbUrl ?? a.content?.url ?? a.content?.coverUrl ?? null,
 					contentCount: a.contentCount,
-				})));
-			})
-			.catch((err) => console.error("[ChatMediaSheet] getSharedAlbumsForProfile failed", err))
-			.finally(() => setAlbumsLoading(false));
-	}, [senderProfileId, service]);
+				}));
+				setAlbums((previous) => {
+					const map = new Map(previous.map((a) => [a.albumId, a] as const));
+					for (const a of liveAlbums) {
+						map.set(a.albumId, a); // live metadata wins when reachable
+					}
+					return [...map.values()];
+				});
 
-	// Load shared images from API
+				for (const album of liveAlbums) {
+					if (localAlbumIds.has(album.albumId)) continue;
+					void (async () => {
+						try {
+							const details = await service.getAlbum(album.albumId);
+							await captureAlbum({
+								albumId: details.albumId,
+								albumName: details.albumName,
+								content: details.content,
+								ownerProfileId: senderProfileId,
+								conversationId,
+								sharedViaMessageId: null,
+								remainingViews: null,
+								isViewable: null,
+							});
+						} catch (error) {
+							appLog.warn(
+								`[ChatMediaSheet] failed to eagerly capture album ${album.albumId}`,
+								error,
+							);
+						}
+					})();
+				}
+			} catch (err) {
+				console.error("[ChatMediaSheet] getSharedAlbumsForProfile failed", err);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [conversationId, senderProfileId, service]);
+
+	// Load this conversation's media from the local cache (chatDb) first — it
+	// stays viewable forever, even after the server no longer serves it
+	// (expired signed URLs, view-once exhausted, conversation
+	// archived/blocked) — then merge in anything the live API still has that
+	// isn't cached yet (e.g. an older conversation predating this cache).
+	// The live endpoint exposes no messageId/hash to cross-reference chatDb
+	// with directly, so de-duping uses the content hash embedded in
+	// Grindr's signed CloudFront URLs instead — a heuristic, not a
+	// guaranteed-exact match, but the same hash this codebase already
+	// relies on elsewhere to identify images across re-signed URLs.
 	useEffect(() => {
+		let cancelled = false;
 		setMediaLoading(true);
-		service.getSharedConversationImages(conversationId)
-			.then((imgs) => setImages(imgs.filter((i) => i.url)))
-			.catch(() => {})
-			.finally(() => setMediaLoading(false));
+
+		void (async () => {
+			let knownUrlHashes = new Set<string>();
+			let knownContentHashes = new Set<string>();
+			try {
+				const files = await chatDb.getMediaFilesForConversation(conversationId);
+				if (cancelled) return;
+				setMedia(
+					files.map((f) => ({
+						mediaKey: f.mediaKey,
+						kind: f.kind === "video" ? "video" : "image",
+						dataUri: toDataUri(f.mimeType, f.dataBase64),
+						mimeType: f.mimeType,
+						base64: f.dataBase64,
+					})),
+				);
+				knownUrlHashes = new Set(
+					files
+						.filter((f) => f.mediaKey.startsWith(IMAGE_HASH_KEY_PREFIX))
+						.map((f) => f.mediaKey.slice(IMAGE_HASH_KEY_PREFIX.length)),
+				);
+				// Robust fallback, independent of which media_key scheme a given
+				// local image happened to be captured under (hash/mediaId/
+				// messageId) — covers the cases the URL-hash pre-check below
+				// would otherwise miss.
+				knownContentHashes = new Set(
+					await Promise.all(files.map((f) => hashBase64(f.dataBase64))),
+				);
+			} catch (error) {
+				appLog.warn("[ChatMediaSheet] failed to load local media", error);
+			} finally {
+				if (!cancelled) setMediaLoading(false);
+			}
+
+			try {
+				const liveImages = await service.getSharedConversationImages(conversationId);
+
+				for (const img of liveImages) {
+					if (cancelled) return;
+					if (!img.url) continue;
+
+					const urlHash = extractImageHashFromSignedUrl(img.url);
+					if (urlHash && knownUrlHashes.has(urlHash)) {
+						// Fast path: definitely already local, skip the download.
+						continue;
+					}
+
+					const fetched = await fetchAndEncode(img.url);
+					if (!fetched || cancelled) continue;
+
+					const contentHash = await hashBase64(fetched.base64);
+					if (knownContentHashes.has(contentHash)) {
+						// Already local under a different media_key scheme — don't
+						// add a visible duplicate, but it's still worth recording
+						// the URL hash now so a future load can take the fast path.
+						if (urlHash) knownUrlHashes.add(urlHash);
+						continue;
+					}
+					knownContentHashes.add(contentHash);
+					if (urlHash) knownUrlHashes.add(urlHash);
+
+					const mediaKey = urlHash
+						? `${IMAGE_HASH_KEY_PREFIX}${urlHash}`
+						: `image:media:${img.mediaId}`;
+
+					await chatDb.upsertMediaFile({
+						mediaKey,
+						conversationId,
+						messageId: null,
+						kind: "image",
+						mimeType: fetched.mimeType,
+						dataBase64: fetched.base64,
+						viewOnce: false,
+						sizeBytes: fetched.sizeBytes,
+						fetchStatus: "ok",
+					});
+
+					if (!cancelled) {
+						setMedia((previous) => {
+							if (previous.some((m) => m.mediaKey === mediaKey)) {
+								return previous;
+							}
+							return [
+								...previous,
+								{
+									mediaKey,
+									kind: "image" as const,
+									dataUri: toDataUri(fetched.mimeType, fetched.base64),
+									mimeType: fetched.mimeType,
+									base64: fetched.base64,
+								},
+							];
+						});
+					}
+				}
+			} catch (error) {
+				appLog.warn("[ChatMediaSheet] failed to merge live shared images", error);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
 	}, [conversationId, service]);
 
 	const tabs: { id: Tab; label: string; icon: React.ReactNode; count: number; loading: boolean }[] = [
@@ -127,7 +341,7 @@ export function ChatMediaSheet({
 			id: "media",
 			label: t("chat.media_sheet.tab_media"),
 			icon: <Images className="h-4 w-4" />,
-			count: images.length,
+			count: media.length,
 			loading: mediaLoading,
 		},
 		{
@@ -139,6 +353,8 @@ export function ChatMediaSheet({
 		},
 	];
 
+	const viewerPhotos: PhotoViewerMedia[] = media.map((m) => ({ url: m.dataUri, type: m.kind }));
+
 	return (
 		<>
 		<BottomSheet onClose={onClose} isDesktop={isDesktop} panelClassName="max-h-[82dvh]">
@@ -147,7 +363,7 @@ export function ChatMediaSheet({
 				<div className="flex items-center justify-between px-4 pb-3">
 					<p className="text-sm font-semibold text-[var(--text)]">{t("chat.media_sheet.title")}</p>
 					<div className="flex items-center gap-2">
-						{tab === "media" && images.length > 0 && (
+						{tab === "media" && media.length > 0 && (
 							<button
 								type="button"
 								onClick={() => void handleSaveAll()}
@@ -247,7 +463,7 @@ export function ChatMediaSheet({
 						<div className="flex items-center justify-center py-16">
 							<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
 						</div>
-					) : images.length === 0 ? (
+					) : media.length === 0 ? (
 						<div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
 							<Images className="h-10 w-10 opacity-30" />
 							<p className="text-sm font-medium">{t("chat.media_sheet.media_empty_title")}</p>
@@ -255,26 +471,35 @@ export function ChatMediaSheet({
 						</div>
 					) : (
 						<div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-							{images.map((img, idx) => {
-								if (!img.url || failedImages.has(img.mediaId)) return null;
-								return (
-									<button
-										key={img.mediaId}
-										type="button"
-										onClick={() => setViewerIndex(idx)}
-										className="group aspect-square overflow-hidden rounded-lg bg-[var(--surface-2)]"
-									>
+							{media.map((item, idx) => (
+								<button
+									key={item.mediaKey}
+									type="button"
+									onClick={() => setViewerIndex(idx)}
+									className="group relative aspect-square overflow-hidden rounded-lg bg-[var(--surface-2)]"
+								>
+									{item.kind === "video" ? (
+										<>
+											{/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+											<video
+												src={item.dataUri}
+												muted
+												playsInline
+												className="h-full w-full object-cover transition group-hover:scale-105"
+											/>
+											<div className="absolute inset-0 flex items-center justify-center bg-black/15">
+												<Play className="h-6 w-6 text-white drop-shadow" fill="white" />
+											</div>
+										</>
+									) : (
 										<img
-											src={img.url}
+											src={item.dataUri}
 											alt=""
 											className="h-full w-full object-cover transition group-hover:scale-105"
-											onError={() =>
-												setFailedImages((prev) => new Set([...prev, img.mediaId]))
-											}
 										/>
-									</button>
-								);
-							})}
+									)}
+								</button>
+							))}
 						</div>
 					)}
 				</div>
@@ -285,7 +510,7 @@ export function ChatMediaSheet({
 			<PhotoViewer
 				isOpen
 				onClose={() => setViewerIndex(null)}
-				photos={images.filter((i) => i.url).map((i) => i.url!)}
+				photos={viewerPhotos}
 				initialIndex={viewerIndex}
 			/>,
 			document.body,

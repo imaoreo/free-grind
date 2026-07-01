@@ -1,9 +1,38 @@
 import { useEffect, useState } from "react";
+import { getSetting, setSetting } from "../services/chatDb";
 
 // --- PER-CHAT READ RECEIPTS LOGIC ---
-export const HIDE_READ_RECEIPTS_GLOBAL_KEY = "fg-hide-read-receipts";
-export const SHOW_READ_RECEIPT_TOGGLE_KEY = "fg-show-read-receipt-toggle";
-const READ_RECEIPTS_EXCEPTIONS_KEY = "fg-read-receipts-exceptions";
+// Backed by the active profile's db, kept in an in-memory cache so the
+// synchronous getters below (called from hot paths like chatService.ts and
+// ChatRealtimeBridge.tsx) don't need to await a db round-trip — mirrors the
+// pattern in utils/autoblock.ts.
+
+interface PrivacySettings {
+    hideReadReceiptsGlobal: boolean;
+    showReadReceiptToggle: boolean;
+    recordProfileViews: boolean;
+    readReceiptsExceptions: Record<string, boolean>;
+}
+
+const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
+    hideReadReceiptsGlobal: false,
+    showReadReceiptToggle: true,
+    recordProfileViews: true,
+    readReceiptsExceptions: {},
+};
+
+const PRIVACY_SETTINGS_KEY = "privacy";
+
+let privacyCache: PrivacySettings = DEFAULT_PRIVACY_SETTINGS;
+
+export async function loadPrivacyCache(): Promise<void> {
+    try {
+        const stored = await getSetting<Partial<PrivacySettings>>(PRIVACY_SETTINGS_KEY);
+        privacyCache = { ...DEFAULT_PRIVACY_SETTINGS, ...stored };
+    } catch {
+        privacyCache = DEFAULT_PRIVACY_SETTINGS;
+    }
+}
 
 // localStorage writes don't trigger re-renders in other components, so anything
 // that displays read-receipts state (e.g. the chat list) needs to be told to
@@ -15,7 +44,7 @@ function notifyReadReceiptsChanged() {
 }
 
 // Forces the calling component to re-render whenever read-receipts state
-// changes anywhere in the app, so localStorage-derived values stay in sync.
+// changes anywhere in the app, so cache-derived values stay in sync.
 export function useReadReceiptsChanged(): void {
     const [, setVersion] = useState(0);
 
@@ -27,39 +56,51 @@ export function useReadReceiptsChanged(): void {
 }
 
 export function isReadReceiptsHidden(conversationId: string): boolean {
-    const globalHidden = window.localStorage.getItem(HIDE_READ_RECEIPTS_GLOBAL_KEY) === "true";
-    const exceptionsStr = window.localStorage.getItem(READ_RECEIPTS_EXCEPTIONS_KEY) || "{}";
-
-    try {
-        // Tell TypeScript exactly what shape this object is
-        const exceptions = JSON.parse(exceptionsStr) as Record<string, boolean>;
-
-        if (typeof exceptions[conversationId] === "boolean") {
-            return exceptions[conversationId];
-        }
-    } catch {}
-
-    return globalHidden;
+    const exception = privacyCache.readReceiptsExceptions[conversationId];
+    if (typeof exception === "boolean") {
+        return exception;
+    }
+    return privacyCache.hideReadReceiptsGlobal;
 }
 
+/** Optimistic: updates the cache and returns the new state synchronously, persists in the background. */
 export function toggleReadReceiptsHidden(conversationId: string): boolean {
-    const currentState = isReadReceiptsHidden(conversationId);
-    const exceptionsStr = window.localStorage.getItem(READ_RECEIPTS_EXCEPTIONS_KEY) || "{}";
-
-    try {
-        const exceptions = JSON.parse(exceptionsStr) as Record<string, boolean>;
-        exceptions[conversationId] = !currentState;
-        window.localStorage.setItem(READ_RECEIPTS_EXCEPTIONS_KEY, JSON.stringify(exceptions));
-    } catch {
-        window.localStorage.setItem(READ_RECEIPTS_EXCEPTIONS_KEY, JSON.stringify({ [conversationId]: !currentState }));
-    }
+    const nextState = !isReadReceiptsHidden(conversationId);
+    privacyCache = {
+        ...privacyCache,
+        readReceiptsExceptions: { ...privacyCache.readReceiptsExceptions, [conversationId]: nextState },
+    };
+    void setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
     notifyReadReceiptsChanged();
-    return !currentState;
+    return nextState;
+}
+
+export function getShowReadReceiptToggle(): boolean {
+    return privacyCache.showReadReceiptToggle;
+}
+
+export function getHideReadReceiptsGlobal(): boolean {
+    return privacyCache.hideReadReceiptsGlobal;
+}
+
+export async function setHideReadReceiptsGlobal(value: boolean): Promise<void> {
+    privacyCache = { ...privacyCache, hideReadReceiptsGlobal: value };
+    await setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
+    notifyReadReceiptsChanged();
+}
+
+export async function setShowReadReceiptToggle(value: boolean): Promise<void> {
+    privacyCache = { ...privacyCache, showReadReceiptToggle: value };
+    await setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
 }
 
 // --- RECORD PROFILE VIEWS SETTING ---
-export const RECORD_PROFILE_VIEWS_KEY = "fg-record-profile-views";
 
 export function isRecordProfileViewsEnabled(): boolean {
-    return window.localStorage.getItem(RECORD_PROFILE_VIEWS_KEY) !== "false";
+    return privacyCache.recordProfileViews;
+}
+
+export async function setRecordProfileViewsEnabled(value: boolean): Promise<void> {
+    privacyCache = { ...privacyCache, recordProfileViews: value };
+    await setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
 }

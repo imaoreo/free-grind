@@ -4,10 +4,12 @@ import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { cn } from "../../../../utils/cn";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MapPin } from "lucide-react";
 import {
 	EmptyState,
 	ErrorState,
 } from "../../../../components/ui/states";
+import { Button } from "../../../../components/ui/button";
 import { getAsyncState } from "../../../../hooks/useAsyncViewState";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 
@@ -48,6 +50,8 @@ function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; 
 type BrowseGridProps = {
 	isLoadingCards: boolean;
 	cardsError: string | null;
+	isLocationMissing?: boolean;
+	onOpenLocation?: () => void;
 	cards: BrowseCard[];
 	chatContactIndexByProfileId?: Record<string, ChatContactIndexRecord>;
 	onSelectProfile: (profileId: string) => void;
@@ -60,6 +64,8 @@ type BrowseGridProps = {
 export function BrowseGrid({
 	isLoadingCards,
 	cardsError,
+	isLocationMissing,
+	onOpenLocation,
 	cards,
 	chatContactIndexByProfileId,
 	onSelectProfile,
@@ -119,6 +125,33 @@ export function BrowseGrid({
 		observer.observe(sentinel);
 		return () => observer.disconnect();
 	}, [cards.length, hasMore, isLoadingMore, onLoadMore]);
+
+	if (isLocationMissing) {
+		return (
+			/* Padding applied to maintain header alignment for non-grid states */
+			<div className="w-full px-[var(--app-px)]">
+				<div
+					className="flex flex-col items-center justify-center gap-4 text-center"
+					style={{ minHeight: "60dvh" }}
+				>
+					<div className="rounded-2xl bg-[var(--surface-2)] p-4">
+						<MapPin className="h-7 w-7 text-[var(--accent)]" />
+					</div>
+					<div className="grid max-w-xs gap-1.5">
+						<p className="text-base font-semibold text-[var(--text)]">
+							{t("browse_page.no_location_title")}
+						</p>
+						<p className="text-sm text-[var(--text-muted)]">
+							{t("browse_page.no_location_desc")}
+						</p>
+					</div>
+					<Button variant="primary" onClick={onOpenLocation} leftIcon={<MapPin className="h-4 w-4" />}>
+						{t("browse_page.no_location_button")}
+					</Button>
+				</div>
+			</div>
+		);
+	}
 
 	const viewState = getAsyncState(
 		{ isLoading: isLoadingCards, error: cardsError, data: cards },

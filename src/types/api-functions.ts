@@ -141,3 +141,17 @@ export interface GetSharedAlbumsInput {
     onlyVideo?: boolean;
     blur?: boolean;
 }
+
+export interface GetAlbumSharesInput {
+    albumId: string;
+}
+
+export interface UnshareAlbumInput {
+    albumId: string;
+    profiles: Array<{ profileId: number; shareId: number }>;
+}
+
+export interface GetAlbumContentProcessingInput {
+    albumId: string;
+    contentId: string;
+}

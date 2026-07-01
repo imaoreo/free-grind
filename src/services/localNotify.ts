@@ -1,9 +1,13 @@
 /**
- * desktopNotify.ts — fire native OS notifications when a new chat message
- * arrives while the app is in the background or the conversation isn't open.
+ * localNotify.ts — fire native OS notifications instantly from the chat
+ * WebSocket while the app is in the foreground, instead of waiting on FCM's
+ * delivery delay.
  *
- * Mobile (iOS/Android) is intentionally excluded; the OS already handles its
- * own notifications via the chat app stack.
+ * Android is intentionally excluded; it has its own native notification
+ * pipeline (FreeGrindFirebaseMessagingService / NotificationPoster) reached
+ * via the FreeGrindBridge JS interface, which dedupes against the FCM path.
+ * Desktop and iOS have no competing push channel, so this is a plain
+ * fire-and-forget call.
  */
 
 import {
@@ -15,23 +19,30 @@ import { platform } from "@tauri-apps/plugin-os";
 import { isTauriRuntime } from "./tauriWebSocket";
 import { appLog } from "../utils/logger";
 
-let permissionPromise: Promise<boolean> | null = null;
-let cachedIsDesktop: boolean | null = null;
+// Matches the Linux .desktop entry's `Icon=`/`StartupWMClass=` value (the
+// main binary name, not the bundle `identifier`) — confirmed against the
+// installed /usr/share/applications/Free Grind.desktop. Passing this as the
+// notification icon lets the icon theme resolve it once the app is properly
+// installed with icons bundled (see tauri.conf.json `bundle.icon`).
+const APP_ICON_NAME = "free-grind";
 
-function detectDesktop(): boolean {
-	if (cachedIsDesktop != null) return cachedIsDesktop;
+let permissionPromise: Promise<boolean> | null = null;
+let cachedIsSupported: boolean | null = null;
+
+function detectLocalNotifySupported(): boolean {
+	if (cachedIsSupported != null) return cachedIsSupported;
 	if (!isTauriRuntime()) {
-		cachedIsDesktop = false;
+		cachedIsSupported = false;
 		return false;
 	}
 	try {
 		const p = platform();
-		cachedIsDesktop = p === "macos" || p === "windows" || p === "linux";
+		cachedIsSupported = p === "macos" || p === "windows" || p === "linux" || p === "ios";
 	} catch (error) {
 		appLog.warn("[notify] platform() failed", error);
-		cachedIsDesktop = false;
+		cachedIsSupported = false;
 	}
-	return cachedIsDesktop;
+	return cachedIsSupported;
 }
 
 async function ensurePermission(): Promise<boolean> {
@@ -59,30 +70,30 @@ async function ensurePermission(): Promise<boolean> {
  * rather than waiting for the first incoming message. Safe to call repeatedly;
  * only prompts once per app session.
  */
-export async function primeDesktopNotifications(): Promise<boolean> {
-	if (!detectDesktop()) {
-		appLog.debug("[notify] prime skipped (not desktop)");
+export async function primeLocalNotifications(): Promise<boolean> {
+	if (!detectLocalNotifySupported()) {
+		appLog.debug("[notify] prime skipped (not supported)");
 		return false;
 	}
 	appLog.debug("[notify] priming permission");
 	return ensurePermission();
 }
 
-export interface DesktopNotifyOptions {
+export interface LocalNotifyOptions {
 	title: string;
 	body: string;
+	/** Conversation/thread grouping key (e.g. conversationId, or "taps"). */
+	group?: string;
 	/** When true, skip the notification (e.g. user is viewing the conversation). */
 	suppress?: boolean;
 }
 
-export async function notifyMessage(
-	options: DesktopNotifyOptions,
-): Promise<void> {
+export async function notifyLocal(options: LocalNotifyOptions): Promise<void> {
 	if (options.suppress) {
 		appLog.debug("[notify] suppressed", options.title);
 		return;
 	}
-	if (!detectDesktop()) {
+	if (!detectLocalNotifySupported()) {
 		return;
 	}
 	const granted = await ensurePermission();
@@ -92,7 +103,12 @@ export async function notifyMessage(
 	}
 	try {
 		appLog.debug("[notify] sending", options.title);
-		sendNotification({ title: options.title, body: options.body });
+		sendNotification({
+			title: options.title,
+			body: options.body,
+			group: options.group,
+			icon: APP_ICON_NAME,
+		});
 	} catch (error) {
 		appLog.warn("[notify] sendNotification failed", error);
 	}

@@ -60,15 +60,32 @@ export function applyDarkMapTheme(map: any): void {
 
 /**
  * CARTO's basemap styles only switch on street-name labels quite late
- * (minor roads need zoom 16+). Lower the zoom thresholds a couple of levels
- * so names become readable sooner while zooming in. Call after the style
- * has (re)loaded, e.g. on the MapLibre "style.load" event.
+ * (minor roads need zoom 16+), and house numbers later still (zoom 17+,
+ * the "housenumber" layer). Lower both thresholds so they become visible
+ * sooner while zooming in — useful for picking a precise location. Call
+ * after the style has (re)loaded, e.g. on the MapLibre "style.load" event.
  */
 export function relaxRoadZoomThresholds(map: any): void {
 	try {
 		for (const layer of map.getStyle()?.layers ?? []) {
-			if (layer.type !== "symbol" || !/^roadname_/.test(layer.id) || typeof layer.minzoom !== "number") continue;
-			map.setLayerZoomRange(layer.id, Math.max(0, layer.minzoom - 2), layer.maxzoom ?? 24);
+			if (layer.type !== "symbol") continue;
+			if (/^roadname_/.test(layer.id) && typeof layer.minzoom === "number") {
+				map.setLayerZoomRange(layer.id, Math.max(0, layer.minzoom - 2), layer.maxzoom ?? 24);
+			} else if (layer.id === "housenumber" || layer["source-layer"] === "housenumber") {
+				// The underlying tile source's real data tops out at zoom 14
+				// (everything past that is the same tile overzoomed), so 14 is
+				// the earliest this layer can show anything regardless of the
+				// style's declared minzoom. Its default text-size is also a
+				// zoom-stop function starting at 17 (9px), which clamps to
+				// that same tiny size for any zoom below it — fix the size too
+				// so house numbers are actually legible once they appear.
+				map.setLayerZoomRange(layer.id, 14, layer.maxzoom ?? 24);
+				try {
+					map.setLayoutProperty(layer.id, "text-size", 11);
+				} catch {
+					// non-fatal — zoom range relaxation above still applies
+				}
+			}
 		}
 	} catch {
 		// best-effort tweak; skip if the upstream style schema changed

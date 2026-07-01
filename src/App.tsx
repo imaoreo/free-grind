@@ -29,18 +29,22 @@ import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
+import { SettingsChatDataPage } from "./pages/app/SettingsChatDataPage.tsx";
 import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
-import { AnalyticsConsentPrompt } from "./components/AnalyticsConsentPrompt";
+import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
 import { OutdatedVersionPrompt } from "./components/OutdatedVersionPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 import { EntitlementsBridge } from "./components/EntitlementsBridge";
+import { SplashReadyBridge } from "./components/SplashReadyBridge";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { usePreferences } from "./contexts/PreferencesContext";
 import ManagerApp from "./ManagerApp";
 import { getRuntimeContext } from "./services/runtimeContext";
+import { hasCompletedOnboarding } from "./utils/onboardingStorage";
+import { useRenderPhase } from "./hooks/useRenderPhase";
 
 function ErrorPage() {
 	const { t } = useTranslation();
@@ -128,17 +132,34 @@ function ManagerRoutePage() {
 }
 
 export default function App() {
+	const [showOnboarding, setShowOnboarding] = useState(() => !hasCompletedOnboarding());
+	// The routed page itself (below) always mounts on the first frame — only
+	// these non-visual startup bridges are staggered one per frame, so their
+	// setup (websocket connect, native push-notification registration, route
+	// tracking, entitlements fetch) doesn't all land in the same first commit
+	// as the initial route.
+	const renderPhase = useRenderPhase(5);
+
 	return (
 		<AuthProvider>
+			<SplashReadyBridge />
 			<PreferencesProvider>
 				<SmoothScroll>
-					<ManagerModeRedirect />
-					<PushNotificationBridge />
-					<ChatRealtimeBridge />
-					<ActiveRouteBridge />
-					<EntitlementsBridge />
-					<OutdatedVersionPrompt />
-					<AnalyticsConsentPrompt />
+					{showOnboarding ? (
+						<div className="app-shell">
+							<PermissionsOnboarding onComplete={() => setShowOnboarding(false)} />
+						</div>
+					) : (<>
+					{renderPhase >= 1 && <ManagerModeRedirect />}
+					{renderPhase >= 2 && <PushNotificationBridge />}
+					{renderPhase >= 3 && <ChatRealtimeBridge />}
+					{renderPhase >= 4 && <ActiveRouteBridge />}
+					{renderPhase >= 5 && (
+						<>
+							<EntitlementsBridge />
+							<OutdatedVersionPrompt />
+						</>
+					)}
 					<Routes>
 						<Route element={<RootLayout />}>
 							<Route path="/manager" element={<ManagerRoutePage />} />
@@ -171,6 +192,7 @@ export default function App() {
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
 								<Route path="/settings" element={<SettingsPage />} />
 								<Route path="/settings/automation" element={<SettingsAutomationPage />} />
+								<Route path="/settings/chat-data" element={<SettingsChatDataPage />} />
 								<Route path="/settings/privacy" element={<SettingsPrivacyPage />} />
 								<Route path="/settings/about" element={<AboutPage />} />
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
@@ -214,6 +236,7 @@ export default function App() {
 							<Route path="*" element={<ErrorPage />} />
 						</Route>
 					</Routes>
+					</>)}
 				</SmoothScroll>
 			</PreferencesProvider>
 		</AuthProvider>

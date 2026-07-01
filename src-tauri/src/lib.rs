@@ -92,6 +92,47 @@ pub fn run() {
                         });
                     }
                 }
+
+                // WebView2 (Chromium) has its own geolocation/microphone backends wired
+                // to the Windows Location service and audio devices, but only
+                // prompts/grants them if the host app handles PermissionRequested —
+                // without this it silently denies navigator.geolocation and
+                // navigator.mediaDevices.getUserMedia calls instead of showing the
+                // OS prompt.
+                #[cfg(target_os = "windows")]
+                {
+                    use tauri::Manager;
+                    use webview2_com::Microsoft::Web::WebView2::Win32::{
+                        COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
+                        COREWEBVIEW2_PERMISSION_STATE_ALLOW, PermissionRequestedEventHandler,
+                    };
+                    if let Some(win) = app.get_webview_window("main") {
+                        let _ = win.with_webview(|webview| {
+                            let Ok(core) = webview.controller().CoreWebView2() else {
+                                return;
+                            };
+                            let mut token = Default::default();
+                            unsafe {
+                                let _ = core.add_PermissionRequested(
+                                    &PermissionRequestedEventHandler::create(Box::new(
+                                        |_sender, args| {
+                                            let Some(args) = args else { return Ok(()) };
+                                            let mut kind = Default::default();
+                                            args.PermissionKind(&mut kind)?;
+                                            if kind == COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION
+                                                || kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE
+                                            {
+                                                args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)?;
+                                            }
+                                            Ok(())
+                                        },
+                                    )),
+                                    &mut token,
+                                );
+                            }
+                        });
+                    }
+                }
                 Ok(())
             })
             .invoke_handler(tauri::generate_handler![
@@ -108,6 +149,9 @@ pub fn run() {
                 api::auth::auth_state,
                 api::auth::websocket_token,
                 api::auth::sync_push_token,
+                api::auth::list_saved_accounts,
+                api::auth::switch_account,
+                api::auth::remove_saved_account,
                 api::rest::request,
                 api::websocket::ws_connect,
                 api::websocket::ws_send,
@@ -182,6 +226,9 @@ pub fn run() {
                 api::auth::auth_state,
                 api::auth::websocket_token,
                 api::auth::sync_push_token,
+                api::auth::list_saved_accounts,
+                api::auth::switch_account,
+                api::auth::remove_saved_account,
                 api::rest::request,
                 api::websocket::ws_connect,
                 api::websocket::ws_send,

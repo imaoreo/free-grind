@@ -21,11 +21,18 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useBlockProfile } from "../../hooks/queries/useProfileQueries";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
-import { type ChatApiError } from "../../services/chatService";
+import { ChatApiError } from "../../services/chatService";
 import { setConversationDirectory } from "../../services/conversationDirectory";
+import * as chatDb from "../../services/chatDb";
+import type { ArchivedReason } from "../../types/chat-db";
+import {
+	archiveConversation,
+	unarchiveConversation,
+} from "../../services/conversationArchive";
 import {
 	CHAT_REALTIME_EVENT,
 	CHAT_REALTIME_STATUS,
+	CHAT_SYSTEM_MESSAGE_EVENT,
 	TYPING_STATUS_EVENT,
 	getChatRealtimeStatus,
 	type TypingStatusDetail,
@@ -60,7 +67,10 @@ import * as chatLog from "../../services/chatLog";
 import {
 	buildBinaryUpload,
 	buildChatFiltersDraft,
+	buildPreviewFromMessage,
 	extractImageHashFromSignedUrl,
+	getMediaCaptureTarget,
+	isPreviewUnhelpful,
 	getMessageAlbumId,
 	getMessageImageUrl,
 	getMessageImageCreatedAt,
@@ -74,6 +84,10 @@ import {
     formatDateTime24,
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
+import { fetchAndStoreMedia, hydrateMediaByMessageId } from "../../services/mediaStore";
+import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
+import { useAvatarCache } from "../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../services/avatarStore";
 import type { SearchMode } from "../../types/chat-page";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
@@ -94,6 +108,13 @@ import freegrindLogo from "../../images/freegrind-logo.webp";
 import { getCachedOwnProfilePhotoHash, removeProfileFromBrowseCache, setCachedOwnProfilePhotoHash } from "./gridpage/cache";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
+// Local pagination for archived threads (chatDb has no server to ask, so we
+// page through it ourselves) — a "pageKey" here is this prefix + a cursor
+// timestamp, never sent anywhere, just round-tripped through the same
+// messagePageKeyRef the live API path already uses.
+const LOCAL_PAGE_KEY_PREFIX = "local:";
+const ARCHIVED_THREAD_PAGE_SIZE = 30;
+
 /**
  * Checks whether a CloudFront signed URL has expired by reading the
  * `Expires` query parameter (Unix epoch seconds).  No network request needed.
@@ -109,10 +130,63 @@ function isSignedUrlExpired(url: string): boolean {
 	}
 }
 
+/**
+ * Eagerly fetch-and-store every message's media bytes into chatDb, fire-and-
+ * forget. Safe to call repeatedly for the same messages — mediaStore de-dupes
+ * in-flight fetches and skips anything already cached. Called from every
+ * point a message's URL gets resolved (initial load, hydration fallbacks,
+ * realtime arrival) so content survives signed-URL expiry / view-once limits.
+ */
+function captureMediaForMessages(messages: UiMessage[], conversationId: string): void {
+	for (const message of messages) {
+		const target = getMediaCaptureTarget(message);
+		if (target) {
+			void fetchAndStoreMedia({
+				mediaKey: target.mediaKey,
+				kind: target.kind,
+				url: target.url,
+				conversationId,
+				messageId: message.messageId,
+				viewOnce: target.viewOnce,
+			});
+		} else if (message.type !== "Giphy") {
+			// No live URL on this message anymore (expired, archived
+			// conversation, server stopped refreshing it) — fall back to
+			// whatever's already cached for it by message id instead.
+			void hydrateMediaByMessageId(message.messageId);
+		}
+	}
+}
+
+/**
+ * In-memory counterpart to chatLog.ts's DB-level merge rule: when an
+ * incoming update wipes a message's body via unsend but we already had real
+ * content showing for it, keep showing that content (flagged localHistory)
+ * instead of letting the wipe blindly overwrite it. Without this, the DB
+ * stays correct but the UI flickers back to "message was unsent" the next
+ * time this conversation's messages are merged in-memory (poll, reload,
+ * realtime echo of our own unsend).
+ */
+function mergeMessagePreservingUnsendWipe(
+	previous: UiMessage | undefined,
+	incoming: UiMessage,
+): UiMessage {
+	if (!previous) {
+		return incoming;
+	}
+	const prevBody = previous.body as Record<string, unknown> | null | undefined;
+	const newBody = incoming.body as Record<string, unknown> | null | undefined;
+	if (incoming.unsent && !newBody && prevBody) {
+		return { ...previous, unsent: true, localHistory: true };
+	}
+	return incoming;
+}
+
 
 
 export function ChatPage() {
 	const { t } = useTranslation();
+	useAvatarCache();
 	const location = useLocation();
 	const navigate = useNavigate();
 	const { conversationId: routeConversationId } = useParams();
@@ -127,6 +201,7 @@ export function ChatPage() {
 	const messageElementRefs = useRef(new Map<string, HTMLDivElement>());
 	const selectedConversationIdRef = useRef<string | null>(null);
 	const conversationsRef = useRef<ConversationEntry[]>([]);
+	const threadMessagesRef = useRef<UiMessage[]>([]);
 	const messagePageKeyRef = useRef<string | null>(null);
 	const isLoadingOlderMessagesRef = useRef(false);
 	const preserveThreadScrollRef = useRef(false);
@@ -140,6 +215,25 @@ export function ChatPage() {
 	const conversationsWithPendingUnreadRef = useRef(new Set<string>());
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
+	// The canonical source of truth for archived chats' display data — holds
+	// the full entry directly rather than just an id, so archived chats render
+	// independently of whatever `conversations` (the live-inbox mirror)
+	// happens to contain at any given moment. A conversation that's gone from
+	// the server by definition never comes back via /v4/inbox to repopulate
+	// `conversations` on its own, so it can't be the source for this.
+	const [archivedConversations, setArchivedConversations] = useState<
+		Map<string, { reason: ArchivedReason; entry: ConversationEntry }>
+	>(new Map());
+	const archivedConversationsRef = useRef(archivedConversations);
+	useEffect(() => {
+		archivedConversationsRef.current = archivedConversations;
+	}, [archivedConversations]);
+	// Guards the one-time union (on the first successful inbox load after
+	// mount) of chatDb-known, non-archived conversations the live response
+	// didn't include — e.g. one unarchived elsewhere (GridProfilePage) while
+	// this page wasn't mounted, before the server has caught up. Only once,
+	// so later filter-driven replaces still fully trust the server.
+	const hasUnionedLocalConversationsRef = useRef(false);
 	const [nextPage, setNextPage] = useState<number | null>(null);
 	const [isLoadingInbox, setIsLoadingInbox] = useState(true);
 	const [isLoadingMoreInbox, setIsLoadingMoreInbox] = useState(false);
@@ -148,9 +242,14 @@ export function ChatPage() {
 	const [selectedDesktopConversationId, setSelectedDesktopConversationId] =
 		useState<string | null>(null);
 
-	const [hidePinned, setHidePinned] = useState(() => {
-		return localStorage.getItem("chat_hide_pinned") === "true";
-	});
+	const [hidePinned, setHidePinned] = useState(false);
+	const [showArchivedOnly, setShowArchivedOnly] = useState(false);
+
+	useEffect(() => {
+		void chatDb.getSetting<boolean>("chatHidePinned").then((value) => {
+			if (value != null) setHidePinned(value);
+		});
+	}, []);
 
 	// Header state (shared between ChatInboxHeader on desktop and ChatInboxPanel on mobile)
 	const [chatIsSearchOpen, setChatIsSearchOpen] = useState(false);
@@ -159,15 +258,22 @@ export function ChatPage() {
 	const [chatIsFiltersOpen, setChatIsFiltersOpen] = useState(false);
 	const [chatFiltersDraft, setChatFiltersDraft] = useState<ChatFiltersDraft>(() => buildChatFiltersDraft({}));
 
+	const hidePinnedLoadedRef = useRef(false);
 	useEffect(() => {
-		localStorage.setItem("chat_hide_pinned", String(hidePinned));
+		if (!hidePinnedLoadedRef.current) {
+			// Skip the very first run (mount with the default `false`) so it
+			// can't race the async load above and overwrite a stored `true`.
+			hidePinnedLoadedRef.current = true;
+			return;
+		}
+		void chatDb.setSetting("chatHidePinned", hidePinned);
 	}, [hidePinned]);
 
 	useEffect(() => {
 		if (!userId) return;
 		const cached = getCachedOwnProfilePhotoHash();
 		if (cached !== undefined) {
-			setOwnProfilePhotoUrl(cached ? getThumbImageUrl(cached, "75x75") : null);
+			setOwnProfilePhotoUrl(resolveAvatarSrc(cached, cached ? getThumbImageUrl(cached, "75x75") : null));
 			return;
 		}
 		void (async () => {
@@ -180,7 +286,7 @@ export function ChatPage() {
 						: null) ??
 					null;
 				setCachedOwnProfilePhotoHash(hash);
-				setOwnProfilePhotoUrl(hash ? getThumbImageUrl(hash, "75x75") : null);
+				setOwnProfilePhotoUrl(resolveAvatarSrc(hash, hash ? getThumbImageUrl(hash, "75x75") : null));
 			} catch {
 				setOwnProfilePhotoUrl(null);
 			}
@@ -576,8 +682,11 @@ export function ChatPage() {
 			conversations.find(
 				(conversation) =>
 					conversation.data.conversationId === selectedConversationId,
-			) ?? null,
-		[conversations, selectedConversationId],
+			) ??
+			(selectedConversationId
+				? archivedConversations.get(selectedConversationId)?.entry ?? null
+				: null),
+		[conversations, archivedConversations, selectedConversationId],
 	);
 
 	const selectedConversationOtherProfileId = useMemo(() => {
@@ -637,6 +746,57 @@ export function ChatPage() {
 		conversationsRef.current = conversations;
 		setConversationDirectory(conversations);
 	}, [conversations]);
+
+	useEffect(() => {
+		threadMessagesRef.current = threadMessages;
+	}, [threadMessages]);
+
+	// Shared by every archive trigger (ws-delete, 404-on-open): records the
+	// reason plus a displayable entry, sourced from whatever's already loaded
+	// and falling back to chatDb for anything not currently in memory.
+	const archiveConversationsLocally = useCallback(
+		(ids: string[], reason: ArchivedReason) => {
+			const unresolved: string[] = [];
+			const resolved = new Map<string, ConversationEntry>();
+			for (const id of ids) {
+				const entry =
+					archivedConversationsRef.current.get(id)?.entry ??
+					conversationsRef.current.find((c) => c.data.conversationId === id);
+				if (entry) {
+					resolved.set(id, entry);
+				} else {
+					unresolved.push(id);
+				}
+			}
+
+			if (resolved.size > 0) {
+				setArchivedConversations((previous) => {
+					const next = new Map(previous);
+					for (const [id, entry] of resolved) {
+						next.set(id, { reason, entry });
+					}
+					return next;
+				});
+			}
+
+			if (unresolved.length > 0) {
+				void Promise.all(unresolved.map((id) => chatDb.getConversation(id))).then(
+					(results) => {
+						setArchivedConversations((previous) => {
+							const next = new Map(previous);
+							for (const result of results) {
+								if (result) {
+									next.set(result.conversationId, { reason, entry: result.entry });
+								}
+							}
+							return next;
+						});
+					},
+				);
+			}
+		},
+		[],
+	);
 
 	useEffect(() => {
 		messagePageKeyRef.current = messagePageKey;
@@ -729,6 +889,72 @@ export function ChatPage() {
 		}
 	}, [service]);
 
+	// Hydrate archived conversations from the local DB on mount. These never
+	// come back from a fresh /v4/inbox response (by definition — that's what
+	// "archived" means here), so they need to be seeded into UI state once;
+	// archivedConversations (not `conversations`) is what filteredConversations
+	// renders them from, so there's nothing else to keep in sync here.
+	useEffect(() => {
+		let cancelled = false;
+		void chatDb
+			.listConversations({ includeArchived: true })
+			.then(async (stored) => {
+				if (cancelled) {
+					return;
+				}
+				const archived = stored.filter((c) => c.archived);
+				appLog.debug(
+					`[ChatPage] hydrated ${archived.length} archived conversation(s) from chatDb`,
+				);
+				if (archived.length === 0) {
+					return;
+				}
+				// Same fallback as loadInbox: the stored preview can be null if it
+				// was last synced while the live API was already returning that,
+				// even though we have real local history.
+				const withPreviews = await Promise.all(
+					archived.map(async (c) => {
+						if (!isPreviewUnhelpful(c.entry.data.preview)) {
+							return c;
+						}
+						const messages = await chatDb.getMessages(c.conversationId);
+						for (let i = messages.length - 1; i >= 0; i--) {
+							const message = messages[i];
+							if (message.body && typeof message.body === "object") {
+								return {
+									...c,
+									entry: {
+										...c.entry,
+										data: {
+											...c.entry.data,
+											preview: buildPreviewFromMessage(message, t),
+										},
+									},
+								};
+							}
+						}
+						return c;
+					}),
+				);
+				setArchivedConversations((previous) => {
+					const next = new Map(previous);
+					for (const c of withPreviews) {
+						next.set(c.conversationId, {
+							reason: c.archivedReason ?? "ws_delete",
+							entry: c.entry,
+						});
+					}
+					return next;
+				});
+			})
+			.catch((error) => {
+				appLog.warn("[ChatPage] failed to hydrate archived conversations", error);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
 	const loadInbox = useCallback(
 		async ({
 			page,
@@ -772,6 +998,61 @@ export function ChatPage() {
 					});
 				}
 
+				// Persist every fetched conversation durably (needed so a conversation
+				// can be found locally later — e.g. opening a chat from a profile —
+				// regardless of inbox pagination, and so offline reads have data).
+				for (const entry of response.entries) {
+					const otherParticipant = getOtherParticipant(entry, userId);
+					void chatDb
+						.upsertConversation(
+							entry,
+							otherParticipant?.profileId != null
+								? String(otherParticipant.profileId)
+								: null,
+						)
+						.catch((error) => {
+							appLog.warn("[chat-db] failed to persist conversation", error);
+						});
+				}
+
+				// A conversation reappearing in a fresh inbox response means the other
+				// party messaged again (or we unblocked them) — un-archive it.
+				const reappearedArchivedIds = response.entries
+					.map((entry) => entry.data.conversationId)
+					.filter((cid) => archivedConversationsRef.current.has(cid));
+				if (reappearedArchivedIds.length > 0) {
+					for (const cid of reappearedArchivedIds) {
+						void unarchiveConversation(cid);
+					}
+					// Insert "SystemUnblocked" for conversations that were archived
+					// due to a block (ws_delete / offline-403). Conversations that
+					// disappeared due to a 404 ("not_found") are not block-related
+					// and don't get this marker.
+					const blockArchivedIds = reappearedArchivedIds.filter(
+						(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
+					);
+					if (blockArchivedIds.length > 0) {
+						const inserted = await Promise.all(
+							blockArchivedIds.map((cid) =>
+								chatDb.insertSystemMessage(cid, "SystemUnblocked").catch(() => null),
+							),
+						);
+						const valid = inserted.filter((m): m is Message => m !== null);
+						if (valid.length > 0) {
+							window.dispatchEvent(
+								new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
+							);
+						}
+					}
+					setArchivedConversations((previous) => {
+						const next = new Map(previous);
+						for (const cid of reappearedArchivedIds) {
+							next.delete(cid);
+						}
+						return next;
+					});
+				}
+
 				setConversations((previous) => {
 					const entriesWithUnreadFixed = response.entries.map((entry) => {
 						const cid = entry.data.conversationId;
@@ -797,6 +1078,20 @@ export function ChatPage() {
 					});
 
 					if (replace) {
+						// Archived conversations are rendered from archivedConversations
+						// directly (see filteredConversations), not from this array, so
+						// there's nothing to preserve here — a plain replace is correct.
+
+						// Polling re-fetches on a fixed interval regardless of whether
+						// anything changed — avoid an unnecessary re-render (visible as
+						// the list/avatars appearing to "reload") when the data is
+						// actually identical to what's already shown.
+						if (
+							previous.length === entriesWithUnreadFixed.length &&
+							JSON.stringify(previous) === JSON.stringify(entriesWithUnreadFixed)
+						) {
+							return previous;
+						}
 						return entriesWithUnreadFixed;
 					}
 
@@ -821,20 +1116,110 @@ export function ChatPage() {
 					});
 				});
 
+				if (replace && !hasUnionedLocalConversationsRef.current) {
+					hasUnionedLocalConversationsRef.current = true;
+					const responseIds = new Set(
+						response.entries.map((entry) => entry.data.conversationId),
+					);
+					void chatDb.listConversations({ includeArchived: false }).then((stored) => {
+						const missing = stored.filter((c) => !responseIds.has(c.conversationId));
+						if (missing.length === 0) {
+							return;
+						}
+						setConversations((previous) => {
+							const map = new Map(
+								previous.map((c) => [c.data.conversationId, c] as const),
+							);
+							for (const c of missing) {
+								if (!map.has(c.conversationId)) {
+									map.set(c.conversationId, c.entry);
+								}
+							}
+							return [...map.values()].sort((a, b) => {
+								if (a.data.pinned && !b.data.pinned) return -1;
+								if (b.data.pinned && !a.data.pinned) return 1;
+								return (
+									(b.data.lastActivityTimestamp ?? 0) -
+									(a.data.lastActivityTimestamp ?? 0)
+								);
+							});
+						});
+					});
+				}
+
+				// The live API sometimes returns a null preview for a conversation
+				// whose last message was unsent server-side, even though we have
+				// real history for it locally — patch in a preview built from that
+				// history instead of leaving the inbox row stuck on "no messages
+				// yet" for a conversation that clearly has messages.
+				const entriesNeedingFallbackPreview = response.entries.filter((entry) =>
+					isPreviewUnhelpful(entry.data.preview),
+				);
+				if (entriesNeedingFallbackPreview.length > 0) {
+					void Promise.all(
+						entriesNeedingFallbackPreview.map(async (entry) => {
+							const cid = entry.data.conversationId;
+							const localData = await chatLog.readLog(cid);
+							for (let i = localData.messages.length - 1; i >= 0; i--) {
+								const message = localData.messages[i];
+								if (message.body && typeof message.body === "object") {
+									return [cid, buildPreviewFromMessage(message, t)] as const;
+								}
+							}
+							return null;
+						}),
+					).then((results) => {
+						const patches = new Map(
+							results.filter(
+								(r): r is readonly [string, ReturnType<typeof buildPreviewFromMessage>] =>
+									r != null,
+							),
+						);
+						if (patches.size === 0) {
+							return;
+						}
+						setConversations((previous) =>
+							previous.map((conversation) =>
+								patches.has(conversation.data.conversationId)
+									? {
+											...conversation,
+											data: {
+												...conversation.data,
+												preview: patches.get(conversation.data.conversationId)!,
+											},
+										}
+									: conversation,
+							),
+						);
+					});
+				}
+
 				setNextPage(response.nextPage ?? null);
 				if (replace && response.entries.length > 0) {
 					setSelectedDesktopConversationId((previous) =>
-						previous &&
-						response.entries.some(
-							(conversation) => conversation.data.conversationId === previous,
-						)
-							? previous
-							: targetProfileId
-								? null
-								: (response.entries[0]?.data.conversationId ?? null),
+						// A selection already made (e.g. via the targetProfileId lookup,
+						// which can resolve through the local DB for a conversation
+						// that isn't on this inbox page) must never be clobbered just
+						// because it's absent from *this* page's entries — only default
+						// to the first conversation when nothing is selected yet.
+						previous ?? (targetProfileId ? null : (response.entries[0]?.data.conversationId ?? null)),
 					);
 				}
 			} catch (error) {
+				// A real HTTP error response (ChatApiError) should still surface as
+				// an error — only fall back to the local DB when the request never
+				// got an HTTP response at all (no connectivity).
+				if (!(error instanceof ChatApiError) && replace) {
+					try {
+						const stored = await chatDb.listConversations({ includeArchived: true });
+						setConversations(stored.map((c) => c.entry));
+						setNextPage(null);
+						setInboxError(null);
+						return;
+					} catch {
+						// Fall through to the generic error path below.
+					}
+				}
 				const message =
 					error instanceof Error ? error.message : t("chat.errors.load_inbox");
 				setInboxError(message);
@@ -856,6 +1241,109 @@ export function ChatPage() {
 			older: boolean;
 			silent?: boolean;
 		}) => {
+			// Already known to be gone server-side (discovered via an earlier 404)
+			// — skip the doomed network call entirely and page through the local
+			// cache instead, mirroring the live path's pageKey/"load older"
+			// mechanics exactly so the experience is identical either way.
+			if (archivedConversationsRef.current.has(conversationId)) {
+				if (older) {
+					if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
+						return;
+					}
+					const container = threadScrollContainerRef.current;
+					if (container) {
+						preserveThreadScrollRef.current = true;
+						olderLoadSnapshotRef.current = {
+							scrollTop: container.scrollTop,
+							scrollHeight: container.scrollHeight,
+						};
+					}
+					isLoadingOlderMessagesRef.current = true;
+					setIsLoadingOlderMessages(true);
+					try {
+						const beforeTimestamp = Number(
+							messagePageKeyRef.current.slice(LOCAL_PAGE_KEY_PREFIX.length),
+						);
+						const olderMessages = await chatDb.getMessagesPage(conversationId, {
+							beforeTimestamp,
+							limit: ARCHIVED_THREAD_PAGE_SIZE,
+						});
+						const nextPageKey =
+							olderMessages.length > 0
+								? `${LOCAL_PAGE_KEY_PREFIX}${olderMessages[0].timestamp}`
+								: null;
+						setMessagePageKey(nextPageKey);
+						messagePageKeyRef.current = nextPageKey;
+						if (selectedConversationIdRef.current === conversationId) {
+							setThreadMessages((previous) => {
+								const map = new Map<string, UiMessage>();
+								for (const m of olderMessages) map.set(m.messageId, m);
+								for (const m of previous) map.set(m.messageId, m);
+								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+							});
+						}
+					} finally {
+						setIsLoadingOlderMessages(false);
+						isLoadingOlderMessagesRef.current = false;
+					}
+					return;
+				}
+
+				setThreadError(null);
+				setThreadConversationId(conversationId);
+				const [initialMessages, lastRead] = await Promise.all([
+					chatDb.getMessagesPage(conversationId, { limit: ARCHIVED_THREAD_PAGE_SIZE }),
+					chatDb.getLastReadTimestamp(conversationId),
+				]);
+				const nextPageKey =
+					initialMessages.length > 0
+						? `${LOCAL_PAGE_KEY_PREFIX}${initialMessages[0].timestamp}`
+						: null;
+				setMessagePageKey(nextPageKey);
+				messagePageKeyRef.current = nextPageKey;
+				if (selectedConversationIdRef.current === conversationId) {
+					setThreadMessages(initialMessages);
+					setThreadLastReadTimestamp(lastRead ?? null);
+				}
+
+				// Archived threads never reach the live API, so the normal
+				// markRead/unread-clearing path further up never runs for them —
+				// clear local unread state directly here instead, otherwise it
+				// stays stuck "unread" forever.
+				const archivedEntry = archivedConversationsRef.current.get(conversationId)?.entry;
+				if (archivedEntry && archivedEntry.data.unreadCount > 0) {
+					void chatDb.setConversationUnreadCount(conversationId, 0).catch(() => {});
+					setArchivedConversations((previous) => {
+						const info = previous.get(conversationId);
+						if (!info) {
+							return previous;
+						}
+						const next = new Map(previous);
+						next.set(conversationId, {
+							...info,
+							entry: {
+								...info.entry,
+								data: { ...info.entry.data, unreadCount: 0 },
+							},
+						});
+						return next;
+					});
+					const other = getOtherParticipant(archivedEntry, userId);
+					if (other?.profileId) {
+						const pid = String(other.profileId);
+						void clearUnreadCountForProfile(pid).catch(() => {});
+						setChatContactIndexByProfileId((prev) => {
+							const existing = prev[pid];
+							if (!existing) {
+								return prev;
+							}
+							return { ...prev, [pid]: { ...existing, unreadCount: 0 } };
+						});
+					}
+				}
+				return;
+			}
+
 			if (older) {
 				if (!messagePageKeyRef.current || isLoadingOlderMessagesRef.current) {
 					return;
@@ -908,6 +1396,14 @@ export function ChatPage() {
 							? (message.body as Record<string, unknown>)
 							: null;
 
+					// Unsend wipe (by either party) — if we already had real content
+					// cached locally, keep showing it instead of the server's emptied
+					// version. Source of truth here is chatDb (durable across
+					// restarts), not just in-memory state.
+					if (message.unsent && !currentBody && localBody) {
+						return { ...localMessage, unsent: true, localHistory: true } as UiMessage;
+					}
+
 					// If the API already returned a fresh URL, use it as-is.
 					if (currentBody?.url) {
 						return message;
@@ -941,6 +1437,10 @@ export function ChatPage() {
 					conversationId,
 					responseMessages,
 					older ? undefined : normalizedLastRead,
+				);
+				captureMediaForMessages(responseMessages, conversationId);
+				captureAlbumsForMessages(responseMessages, conversationId, (id) =>
+					service.getAlbum(id),
 				);
 
 				if (!older) {
@@ -997,6 +1497,7 @@ export function ChatPage() {
 
 							if (hydratedMessages.length > 0) {
 								void chatLog.appendMessages(conversationId, hydratedMessages);
+								captureMediaForMessages(hydratedMessages, conversationId);
 
 								if (selectedConversationIdRef.current !== conversationId) return;
 
@@ -1062,6 +1563,7 @@ export function ChatPage() {
 
 								if (resolvedMessages.length > 0) {
 									void chatLog.appendMessages(conversationId, resolvedMessages);
+									captureMediaForMessages(resolvedMessages, conversationId);
 
 									if (selectedConversationIdRef.current !== conversationId) return;
 									setThreadMessages((previous) => {
@@ -1131,10 +1633,9 @@ export function ChatPage() {
 								}
 							}
 							if (updates.length === 0) return;
-                            void chatLog.appendMessages(
-                                conversationId,
-                                updates.filter((u) => !(u.body as any)?._videoExpired),
-                            );
+                            const nonExpiredUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
+                            void chatLog.appendMessages(conversationId, nonExpiredUpdates);
+                            captureMediaForMessages(nonExpiredUpdates, conversationId);
 							if (selectedConversationIdRef.current !== conversationId) return;
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -1218,21 +1719,48 @@ export function ChatPage() {
 				// --------------------------------------------------
 
 				setThreadMessages((previous) => {
+					const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					if (older) {
 						// Older messages prepended; keep existing (including any local-only).
 						for (const message of responseMessages)
-							map.set(message.messageId, message);
+							map.set(
+								message.messageId,
+								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
+							);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load or poll: preserve already-surfaced messages for this conversation.
+						// Fresh load or poll: seed from the full local history (chatDb)
+						// first, not just whatever's already in memory — otherwise a
+						// conversation that just came back from being archived (e.g.
+						// unblocked, partner messaged again) would lose everything
+						// older than the live API's response, which can be as narrow
+						// as that one brand-new message. Hybrid: old local history,
+						// then the fresh data layered on top.
+						const localById = new Map(
+							localMessages
+								.filter((m) => m.conversationId === conversationId)
+								.map((m) => [m.messageId, m] as const),
+						);
+						for (const [id, message] of localById) {
+							// Flagged local-only since they're no longer on the server
+							// (the live response below didn't include them) — anything
+							// that *is* still live gets this overwritten further down.
+							map.set(id, { ...message, _localOnly: true } as UiMessage);
+						}
 						for (const message of previous) {
 							if (message.conversationId === conversationId) {
 								map.set(message.messageId, message);
 							}
 						}
 						for (const message of responseMessages)
-							map.set(message.messageId, message);
+							map.set(
+								message.messageId,
+								mergeMessagePreservingUnsendWipe(
+									previousById.get(message.messageId) ?? localById.get(message.messageId),
+									message,
+								),
+							);
 					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
@@ -1307,27 +1835,43 @@ export function ChatPage() {
 					: null;
 
 				if (!older) {
-					const newest = response.messages[response.messages.length - 1];
-					if (newest) {
-						const previewText = getMessagePreviewLabel(newest, t);
+					// Same idea as loadInbox's fallback: don't just take the live
+					// API's raw last message for the preview — if it's an empty
+					// unsend (or otherwise contentless), that would overwrite a
+					// perfectly good preview with a generic placeholder every time
+					// this thread is opened. Walk back through the combined local +
+					// live history to find the last message that actually has
+					// content, but still timestamp the conversation by the true
+					// newest message.
+					const candidateMessages = new Map<string, Message>();
+					for (const message of localMessages) {
+						if (message.conversationId === conversationId) {
+							candidateMessages.set(message.messageId, message);
+						}
+					}
+					for (const message of responseMessages) {
+						candidateMessages.set(message.messageId, message);
+					}
+					const sortedCandidates = [...candidateMessages.values()].sort(
+						(a, b) => a.timestamp - b.timestamp,
+					);
+					const newest = sortedCandidates[sortedCandidates.length - 1];
+					let bestPreviewMessage: Message | null = null;
+					for (let i = sortedCandidates.length - 1; i >= 0; i--) {
+						const candidate = sortedCandidates[i];
+						if (candidate.body && typeof candidate.body === "object") {
+							bestPreviewMessage = candidate;
+							break;
+						}
+					}
 
+					if (newest && bestPreviewMessage) {
 						syncConversation((conversation) => ({
 							...conversation,
 							data: {
 								...conversation.data,
 								lastActivityTimestamp: newest.timestamp,
-								preview: {
-									conversationId: {
-										value: newest.conversationId,
-									},
-									messageId: newest.messageId,
-									senderId: newest.senderId,
-									type: newest.type,
-									chat1Type: newest.chat1Type ?? "text",
-									text: previewText,
-									albumId: null,
-									imageHash: null,
-								},
+								preview: buildPreviewFromMessage(bestPreviewMessage, t),
 							},
 						}));
 					}
@@ -1340,9 +1884,10 @@ export function ChatPage() {
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
 								syncConversation((conversation) => {
- 								// --- READ RECEIPTS CHECK ---
- 								if (isReadReceiptsHidden(conversationId)) return conversation;
- 								// ---------------------------
+ 								// Hiding read receipts only suppresses telling the *server*
+ 								// (handled inside service.markRead itself) — our own local
+ 								// unread state should still clear, otherwise it stays stuck
+ 								// "unread" forever even though we're actively reading it.
  								const other = getOtherParticipant(conversation, userId);
  								if (other?.profileId) {
  									const pid = String(other.profileId);
@@ -1368,6 +1913,58 @@ export function ChatPage() {
 					}
 				}
 			} catch (error) {
+				const apiError = error as ChatApiError;
+				if (apiError?.status === 404 && !archivedConversationsRef.current.has(conversationId)) {
+					// The server can no longer produce this conversation at all —
+					// archive it locally instead of just showing a load error.
+					void archiveConversation(conversationId, "not_found");
+					archiveConversationsLocally([conversationId], "not_found");
+				}
+				if (apiError?.status === 403 && !archivedConversationsRef.current.has(conversationId)) {
+					// 403 means we were blocked while the app was offline — the
+					// conversation is permanently inaccessible but the local history
+					// is still valid. Archive it the same way a WS delete would,
+					// persist to chatDb so the next launch starts it as archived,
+					// and leave a local system message marking when it was detected.
+					void archiveConversation(conversationId, "ws_delete");
+					archiveConversationsLocally([conversationId], "ws_delete");
+					await chatDb.insertSystemMessage(conversationId, "SystemBlocked").catch(() => {});
+				}
+				if (apiError?.status === 404 || apiError?.status === 403 || archivedConversationsRef.current.has(conversationId)) {
+					// Recover the same way whether the request literally 404d/403d,
+					// or it failed because a block's chat.v1.conversation.delete WS
+					// event raced ahead and archived the conversation while a
+					// poll/open was already in flight — show cached history instead
+					// of an error state (this will keep failing forever, so
+					// surfacing "failed to load" would be wrong).
+					if (!older && selectedConversationIdRef.current === conversationId) {
+						const localData = await chatLog.readLog(conversationId);
+						setThreadMessages(localData.messages);
+						setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
+						setThreadError(null);
+					}
+					return;
+				}
+				// A real HTTP error response (ChatApiError, handled above) should still
+				// surface as an error — only fall back to the local DB when the
+				// request never got an HTTP response at all (no connectivity).
+				if (!(error instanceof ChatApiError) && !older) {
+					try {
+						const localData = await chatLog.readLog(conversationId);
+						if (
+							localData.messages.length > 0 &&
+							selectedConversationIdRef.current === conversationId
+						) {
+							setThreadMessages(localData.messages);
+							setThreadLastReadTimestamp(localData.lastReadTimestamp ?? null);
+							setThreadError(null);
+							return;
+						}
+					} catch {
+						// Fall through to the generic error path below.
+					}
+				}
+
 				const message =
 					error instanceof Error ? error.message : t("chat.errors.load_messages");
 				setThreadError(message);
@@ -1377,7 +1974,7 @@ export function ChatPage() {
 				isLoadingOlderMessagesRef.current = false;
 			}
 		},
-		[service, syncConversation],
+		[service, syncConversation, archiveConversationsLocally],
 	);
 
 	const mergeIncomingMessages = useCallback((messages: Message[]) => {
@@ -1394,6 +1991,8 @@ export function ChatPage() {
 		}
 		for (const [cid, msgs] of byConv) {
 			void chatLog.appendMessages(cid, msgs);
+			captureMediaForMessages(msgs, cid);
+			captureAlbumsForMessages(msgs, cid, (id) => service.getAlbum(id));
 		}
 
 		setThreadMessages((previous) => {
@@ -1410,7 +2009,10 @@ export function ChatPage() {
 
 			for (const message of messages) {
 				if (message.conversationId === activeConversationId) {
-					map.set(message.messageId, message);
+					map.set(
+						message.messageId,
+						mergeMessagePreservingUnsendWipe(map.get(message.messageId), message),
+					);
 				}
 			}
 
@@ -1446,9 +2048,14 @@ export function ChatPage() {
 					}
 				}
 				if (!updates.length) return;
+				const nonExpiredImageUpdates = updates.filter((u) => !(u.body as any)?._imageExpired);
 				void chatLog.appendMessages(
 					incomingImagesWithoutUrl[0].conversationId,
-					updates.filter((u) => !(u.body as any)?._imageExpired),
+					nonExpiredImageUpdates,
+				);
+				captureMediaForMessages(
+					nonExpiredImageUpdates,
+					incomingImagesWithoutUrl[0].conversationId,
 				);
 				setThreadMessages((prev) => {
 					const map = new Map<string, UiMessage>();
@@ -1490,6 +2097,10 @@ export function ChatPage() {
 				const nonExpiredVideoUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
 				if (nonExpiredVideoUpdates.length > 0) {
 					void chatLog.appendMessages(incomingVideosWithoutUrl[0].conversationId, nonExpiredVideoUpdates);
+					captureMediaForMessages(
+						nonExpiredVideoUpdates,
+						incomingVideosWithoutUrl[0].conversationId,
+					);
 				}
 				setThreadMessages((prev) => {
 					const map = new Map<string, UiMessage>();
@@ -1520,6 +2131,42 @@ export function ChatPage() {
 
 		if (hasUnknownConversation) {
 			void loadInbox({ page: 1, replace: true, silent: true });
+		}
+
+		// If a message arrives for an archived conversation, unarchive it immediately
+		// and insert a SystemUnblocked marker if it was archived due to a block.
+		const incomingConversationIds = [...new Set(messages.map((m) => m.conversationId))];
+		const reappearedArchivedIds = incomingConversationIds.filter((cid) =>
+			archivedConversationsRef.current.has(cid),
+		);
+		if (reappearedArchivedIds.length > 0) {
+			for (const cid of reappearedArchivedIds) {
+				void unarchiveConversation(cid);
+			}
+			const blockArchivedIds = reappearedArchivedIds.filter(
+				(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
+			);
+			if (blockArchivedIds.length > 0) {
+				void Promise.all(
+					blockArchivedIds.map((cid) =>
+						chatDb.insertSystemMessage(cid, "SystemUnblocked").catch(() => null),
+					),
+				).then((inserted) => {
+					const valid = inserted.filter((m): m is Message => m !== null);
+					if (valid.length > 0) {
+						window.dispatchEvent(
+							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
+						);
+					}
+				});
+			}
+			setArchivedConversations((previous) => {
+				const next = new Map(previous);
+				for (const cid of reappearedArchivedIds) {
+					next.delete(cid);
+				}
+				return next;
+			});
 		}
 
 		// Update threadLastReadTimestamp if we receive a message from the other person
@@ -1582,24 +2229,24 @@ export function ChatPage() {
  				void service
  					.markRead(conversation.data.conversationId, latestMessage.messageId)
  					.catch(() => {});
- 				
- 				// --- READ RECEIPTS CHECK ---
- 				if (!isReadReceiptsHidden(conversation.data.conversationId)) {
- 					const other = getOtherParticipant(conversation, userId);
- 					if (other?.profileId) {
- 						const pid = String(other.profileId);
- 						void clearUnreadCountForProfile(pid).catch(() => {});
- 						setChatContactIndexByProfileId((prev) => {
- 							const existing = prev[pid];
- 							if (!existing) return prev;
- 							return {
- 								...prev,
- 								[pid]: { ...existing, unreadCount: 0 },
- 							};
- 						});
- 					}
+
+ 				// Hiding read receipts only suppresses telling the *server*
+ 				// (handled inside service.markRead itself) — our own local
+ 				// unread state should still clear, otherwise it stays stuck
+ 				// "unread" forever even though we're actively reading it.
+ 				const other = getOtherParticipant(conversation, userId);
+ 				if (other?.profileId) {
+ 					const pid = String(other.profileId);
+ 					void clearUnreadCountForProfile(pid).catch(() => {});
+ 					setChatContactIndexByProfileId((prev) => {
+ 						const existing = prev[pid];
+ 						if (!existing) return prev;
+ 						return {
+ 							...prev,
+ 							[pid]: { ...existing, unreadCount: 0 },
+ 						};
+ 					});
  				}
- 				// -------------------
  			}
 
 				return {
@@ -1637,7 +2284,12 @@ export function ChatPage() {
 		(envelope: RealtimeEnvelope) => {
 			appLog.debug(`[ChatPage] applyRealtimeEnvelope type=${envelope.type} full=${JSON.stringify(envelope)}`);
 
-			// chat.v1.conversation.delete — remove blocked/deleted conversations
+			// chat.v1.conversation.delete — blocked/deleted, but also fires on
+			// unblock with nothing in the payload to tell which. The bridge
+			// already toggled these in the DB before forwarding this event based
+			// on prior archived state; mirror the same toggle here for our own UI
+			// state. Never remove from `conversations` — archived chats must stay
+			// reachable and readable.
 			if (
 				envelope.type === "chat.v1.conversation.delete" &&
 				envelope.payload &&
@@ -1649,10 +2301,50 @@ export function ChatPage() {
 							(id): id is string => typeof id === "string",
 						)
 					: [];
-				if (ids.length > 0) {
-					setConversations((previous) =>
-						previous.filter((c) => !ids.includes(c.data.conversationId)),
-					);
+				const idsToArchive = ids.filter((id) => !archivedConversationsRef.current.has(id));
+				const idsToUnarchive = ids.filter((id) => archivedConversationsRef.current.has(id));
+				if (idsToArchive.length > 0) {
+					archiveConversationsLocally(idsToArchive, "ws_delete");
+				}
+				if (idsToUnarchive.length > 0) {
+					// Resolve entries before removing them from archivedConversations
+					// below, and add them straight into `conversations` — otherwise an
+					// unarchived conversation the live /v4/inbox hasn't caught up to
+					// yet would vanish entirely (neither archived nor live) until the
+					// server happens to return it.
+					const entriesToRestore = idsToUnarchive
+						.map((id) => archivedConversationsRef.current.get(id)?.entry)
+						.filter((entry): entry is ConversationEntry => entry != null);
+					for (const id of idsToUnarchive) {
+						void unarchiveConversation(id);
+					}
+					setArchivedConversations((previous) => {
+						const next = new Map(previous);
+						for (const id of idsToUnarchive) {
+							next.delete(id);
+						}
+						return next;
+					});
+					if (entriesToRestore.length > 0) {
+						setConversations((previous) => {
+							const map = new Map(
+								previous.map((c) => [c.data.conversationId, c] as const),
+							);
+							for (const entry of entriesToRestore) {
+								if (!map.has(entry.data.conversationId)) {
+									map.set(entry.data.conversationId, entry);
+								}
+							}
+							return [...map.values()].sort((a, b) => {
+								if (a.data.pinned && !b.data.pinned) return -1;
+								if (b.data.pinned && !a.data.pinned) return 1;
+								return (
+									(b.data.lastActivityTimestamp ?? 0) -
+									(a.data.lastActivityTimestamp ?? 0)
+								);
+							});
+						});
+					}
 				}
 				return;
 			}
@@ -1720,7 +2412,7 @@ export function ChatPage() {
 				mergeIncomingMessages(unique);
 			}
 		},
-		[mergeIncomingMessages, userId],
+		[mergeIncomingMessages, userId, archiveConversationsLocally],
 	);
 
 	const handleRealtimeEvent = useCallback(
@@ -1786,6 +2478,19 @@ export function ChatPage() {
 			const envelope = (event as CustomEvent<RealtimeEnvelope>).detail;
 			if (envelope) handleRealtimeEvent(envelope);
 		};
+		const onSystemMessage = (event: Event) => {
+			const messages = (event as CustomEvent<Message[]>).detail;
+			if (!messages?.length) return;
+			const activeConversationId = selectedConversationIdRef.current;
+			const relevant = messages.filter((m) => m.conversationId === activeConversationId);
+			if (relevant.length === 0) return;
+			setThreadMessages((previous) => {
+				const map = new Map<string, UiMessage>();
+				for (const m of previous) map.set(m.messageId, m);
+				for (const m of relevant) map.set(m.messageId, m);
+				return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+			});
+		};
 		const onStatus = (event: Event) => {
 			const status = (event as CustomEvent<RealtimeStatus>).detail;
 			if (status) handleRealtimeStatus(status);
@@ -1829,6 +2534,7 @@ export function ChatPage() {
 		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
 		window.addEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
+		window.addEventListener(CHAT_SYSTEM_MESSAGE_EVENT, onSystemMessage as EventListener);
 		return () => {
 			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 			window.removeEventListener(
@@ -1836,6 +2542,10 @@ export function ChatPage() {
 				onStatus as EventListener,
 			);
 			window.removeEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
+			window.removeEventListener(
+				CHAT_SYSTEM_MESSAGE_EVENT,
+				onSystemMessage as EventListener,
+			);
 		};
 	}, [handleRealtimeEvent, handleRealtimeStatus]);
 
@@ -1894,7 +2604,25 @@ export function ChatPage() {
 	// Poll the active thread on a short interval, independent of connection
 	// status, as a fallback so "read"/"unread" catches up regardless.
 	useEffect(() => {
-		if (!selectedConversationId) {
+		// Archived conversations are gone server-side and will 404 forever —
+		// polling them for read receipts is pointless and just spams failed
+		// requests every cycle.
+		if (!selectedConversationId || archivedConversations.has(selectedConversationId)) {
+			return;
+		}
+
+		// If the other person sent the last message, our own messages before
+		// it are necessarily already read (they had to read up to that point
+		// to reply) — there's nothing left to confirm. Only keep polling
+		// while we're the one waiting to see if our own last message gets
+		// read; otherwise this would just send a request every cycle for no
+		// reason.
+		const lastMessage = threadMessages[threadMessages.length - 1];
+		const lastMessageIsMine =
+			lastMessage != null &&
+			userId != null &&
+			Number(lastMessage.senderId) === Number(userId);
+		if (!lastMessageIsMine) {
 			return;
 		}
 
@@ -1911,7 +2639,29 @@ export function ChatPage() {
 		return () => {
 			window.clearInterval(intervalId);
 		};
-	}, [loadThread, selectedConversationId]);
+	}, [loadThread, selectedConversationId, archivedConversations, threadMessages, userId]);
+
+	// Periodically re-check album share status for messages in the open thread
+	// so a revoked share triggers the "no longer shared" badge without the user
+	// having to reload the thread. Uses refs so the interval itself is stable
+	// and doesn't restart on every message change.
+	useEffect(() => {
+		if (!selectedConversationId) return;
+
+		const intervalId = window.setInterval(() => {
+			const cid = selectedConversationIdRef.current;
+			if (!cid) return;
+			const albumMessages = threadMessagesRef.current.filter(
+				(m) => m.type === "Album" || m.type === "ExpiringAlbum" || m.type === "ExpiringAlbumV2",
+			);
+			if (albumMessages.length === 0) return;
+			captureAlbumsForMessages(albumMessages, cid, (id) => service.getAlbum(id));
+		}, document.hidden ? 60_000 : 30_000);
+
+		return () => {
+			window.clearInterval(intervalId);
+		};
+	}, [selectedConversationId, service]);
 
 	useEffect(() => {
 		if (!selectedConversationId) {
@@ -2083,8 +2833,40 @@ export function ChatPage() {
 		);
 	}, [replyTargetMessageId, threadMessages]);
 
+	const archivedConversationIds = useMemo(
+		() => new Set(archivedConversations.keys()),
+		[archivedConversations],
+	);
+
 	const filteredConversations = useMemo(() => {
-		let result = conversations;
+		// Mirrors the other filter pills (favoritesOnly etc.): the normal view
+		// shows everything, including archived chats; the "Archived" pill
+		// narrows down to only those, it doesn't hide them otherwise. Archived
+		// entries are sourced from archivedConversations directly (never from
+		// `conversations`, which only ever mirrors live /v4/inbox data and so
+		// can never contain something that's by definition gone from there).
+		const archivedEntries = [...archivedConversations.values()].map(
+			(info) => info.entry,
+		);
+
+		let result: ConversationEntry[];
+		if (showArchivedOnly) {
+			result = archivedEntries;
+		} else {
+			const liveConversations = conversations.filter(
+				(c) => !archivedConversations.has(c.data.conversationId),
+			);
+			// Sort archived entries back into their natural position (by
+			// recency) instead of always tacking them on at the very end,
+			// where a single archived chat among many active ones would be
+			// easy to miss without scrolling.
+			result = [...liveConversations, ...archivedEntries].sort((a, b) => {
+				if (a.data.pinned && !b.data.pinned) return -1;
+				if (b.data.pinned && !a.data.pinned) return 1;
+				return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
+			});
+		}
+
 		if (activeInboxFilters.favoritesOnly) {
 			result = result.filter((c) => c.data.favorite);
 		}
@@ -2092,7 +2874,13 @@ export function ChatPage() {
 			result = result.filter((c) => !c.data.pinned);
 		}
 		return result;
-	}, [conversations, hidePinned, activeInboxFilters.favoritesOnly]);
+	}, [
+		conversations,
+		hidePinned,
+		activeInboxFilters.favoritesOnly,
+		archivedConversations,
+		showArchivedOnly,
+	]);
 
 	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
 	useEffect(() => {
@@ -2218,17 +3006,62 @@ export function ChatPage() {
 			),
 		);
 
-		if (!existingConversation) {
+		if (existingConversation) {
+			if (selectedConversationId !== existingConversation.data.conversationId) {
+				openConversationById(existingConversation.data.conversationId);
+			}
 			return;
 		}
 
-		if (selectedConversationId === existingConversation.data.conversationId) {
+		// Could be an archived conversation — those are never in `conversations`
+		// (see filteredConversations), so check archivedConversations directly
+		// before falling back to a fresh DB lookup.
+		const existingArchived = [...archivedConversations.values()].find((info) =>
+			info.entry.data.participants.some(
+				(participant) => participant.profileId === targetProfileId,
+			),
+		);
+		if (existingArchived) {
+			if (selectedConversationId !== existingArchived.entry.data.conversationId) {
+				openConversationById(existingArchived.entry.data.conversationId);
+			}
 			return;
 		}
 
-		openConversationById(existingConversation.data.conversationId);
+		// Not found in the currently-loaded (paginated) inbox state — fall back
+		// to the local DB, which remembers every conversation ever seen
+		// regardless of inbox pagination. Fixes opening a chat from a profile
+		// landing on an empty "new conversation" screen when a real one exists.
+		let cancelled = false;
+		void chatDb.findConversationByProfileId(String(targetProfileId)).then((stored) => {
+			if (cancelled || !stored) {
+				return;
+			}
+			if (stored.archived) {
+				setArchivedConversations((previous) => {
+					const next = new Map(previous);
+					next.set(stored.conversationId, {
+						reason: stored.archivedReason ?? "not_found",
+						entry: stored.entry,
+					});
+					return next;
+				});
+			} else {
+				setConversations((previous) =>
+					previous.some((c) => c.data.conversationId === stored.conversationId)
+						? previous
+						: [...previous, stored.entry],
+				);
+			}
+			openConversationById(stored.conversationId);
+		});
+
+		return () => {
+			cancelled = true;
+		};
 	}, [
 		conversations,
+		archivedConversations,
 		openConversationById,
 		selectedConversationId,
 		targetProfileId,
@@ -2336,6 +3169,17 @@ export function ChatPage() {
 			setIsDeletingConversationId(conversationId);
 			try {
 				await service.deleteConversation(conversationId);
+				// This is the one real purge path — every other case (block, 404,
+				// inbox absence) archives, never deletes.
+				await chatDb.deleteConversationCascade(conversationId);
+				setArchivedConversations((previous) => {
+					if (!previous.has(conversationId)) {
+						return previous;
+					}
+					const next = new Map(previous);
+					next.delete(conversationId);
+					return next;
+				});
 				const remainingConversations = conversationsRef.current.filter(
 					(conversation) => conversation.data.conversationId !== conversationId,
 				);
@@ -3212,24 +4056,24 @@ export function ChatPage() {
 		const previous = threadMessages;
 		setIsMutatingMessageId(message.messageId);
 		setOpenMessageActionId(null);
+		// Keep the original content visible — only flag it as unsent/local
+		// history, instead of wiping the body the way the server does.
 		setThreadMessages((current) =>
 			current.map((item) =>
 				item.messageId === message.messageId
-					? {
-							...item,
-							unsent: true,
-							body: null,
-							type: "Retract",
-						}
+					? { ...item, unsent: true, localHistory: true }
 					: item,
 			),
 		);
-
 		try {
 			await service.unsendMessage({
 				conversationId: selectedConversation.data.conversationId,
 				messageId: message.messageId,
 			});
+			// Only persist once the server has actually confirmed the unsend —
+			// otherwise a failed request would leave the DB row incorrectly
+			// flagged unsent even though nothing happened server-side.
+			void chatDb.markMessageUnsentLocally(message.messageId);
 		} catch (error) {
 			setThreadMessages(previous);
 			toast.error(error instanceof Error ? error.message : t("chat.errors.unsend_failed"));
@@ -3248,6 +4092,7 @@ export function ChatPage() {
 			setThreadMessages((current) =>
 				current.filter((item) => item.messageId !== message.messageId),
 			);
+			void chatLog.removeMessage(message.messageId);
 			return;
 		}
 
@@ -3267,6 +4112,7 @@ export function ChatPage() {
 				conversationId: selectedConversation.data.conversationId,
 				messageId: message.messageId,
 			});
+			await chatLog.removeMessage(message.messageId);
 		} catch (error) {
 			setThreadMessages(previous);
 			toast.error(error instanceof Error ? error.message : t("chat.errors.delete_failed"));
@@ -3381,23 +4227,58 @@ export function ChatPage() {
 		async (albumId: number) => {
 			albumViewerCancelledRef.current = false;
 			setIsAlbumSheetOpen(true);
-			setIsAlbumViewerLoading(true);
-			setAlbumViewer(null);
 			setAlbumViewerMediaIndex(null);
+
+			// Show the local cache immediately if we have one — covers both the
+			// offline case and the case where the share has already
+			// expired/exhausted server-side but we captured it durably when it
+			// was first received.
+			const cached = await getLocalAlbum(albumId).catch(() => null);
+			if (albumViewerCancelledRef.current) return;
+			if (cached) {
+				setAlbumViewer(cached);
+				setIsAlbumViewerLoading(false);
+			} else {
+				setAlbumViewer(null);
+				setIsAlbumViewerLoading(true);
+			}
+
+			// Always also try refreshing from the live API — the owner can add
+			// content to an album after it was first shared, so don't keep
+			// showing a stale local snapshot forever just because we have one.
+			// captureAlbum reuses already-downloaded bytes per content item and
+			// only fetches genuinely new ones, so this doesn't re-download
+			// anything we already have.
 			try {
 				const details = await service.getAlbum(albumId);
 				if (albumViewerCancelledRef.current) return;
-				setAlbumViewer({
+				await captureAlbum({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					content: details.content,
+					ownerProfileId: null,
+					conversationId: null,
+					sharedViaMessageId: null,
+					remainingViews: null,
+					isViewable: null,
 				});
+				const merged = await getLocalAlbum(albumId);
+				if (albumViewerCancelledRef.current) return;
+				setAlbumViewer(
+					merged ?? {
+						albumId: details.albumId,
+						albumName: details.albumName,
+						content: details.content,
+					},
+				);
 			} catch (error) {
 				if (albumViewerCancelledRef.current) return;
-				setIsAlbumSheetOpen(false);
-				toast.error(
-					error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
-				);
+				if (!cached) {
+					setIsAlbumSheetOpen(false);
+					toast.error(
+						error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
+					);
+				}
 			} finally {
 				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
@@ -3747,6 +4628,9 @@ export function ChatPage() {
 		onSetFiltersDraft: setChatFiltersDraft,
 		onToggleFavoritesOnly: toggleInboxFavoritesOnly,
 		onToggleHidePinned: () => setHidePinned((prev) => !prev),
+		showArchivedOnly,
+		archivedCount: archivedConversations.size,
+		onToggleShowArchivedOnly: () => setShowArchivedOnly((prev) => !prev),
 	} as const;
 
 	const renderInbox = (
@@ -3758,6 +4642,7 @@ export function ChatPage() {
 			isLoadingMoreInbox={isLoadingMoreInbox}
 			inboxError={inboxError}
 			filteredConversations={filteredConversations}
+			archivedConversationIds={archivedConversationIds}
 			nextPage={nextPage}
 			selectedConversationId={selectedConversationId}
 			userId={userId}
@@ -3805,6 +4690,16 @@ export function ChatPage() {
 			onToggleFavorite={toggleFavoriteFromChat}
 			isFavorite={selectedConversation?.data.favorite ?? false}
 			isTogglingFavorite={isTogglingFavoriteProfileId !== null}
+			isArchived={
+				selectedConversationId
+					? archivedConversations.has(selectedConversationId)
+					: false
+			}
+			archivedReason={
+				selectedConversationId
+					? archivedConversations.get(selectedConversationId)?.reason ?? null
+					: null
+			}
 			localNickname={
 				selectedConversationOtherProfileId
 					? localNicknamesByProfileId[selectedConversationOtherProfileId] ?? null
@@ -3940,9 +4835,12 @@ export function ChatPage() {
 
 			{isChatMediaSheetOpen && selectedConversation ? (() => {
 				const otherP = getOtherParticipant(selectedConversation, userId);
-				const otherPhotoUrl = otherP?.primaryMediaHash && validateMediaHash(otherP.primaryMediaHash)
-					? getThumbImageUrl(otherP.primaryMediaHash, "75x75")
-					: null;
+				const otherPhotoUrl = resolveAvatarSrc(
+					otherP?.primaryMediaHash,
+					otherP?.primaryMediaHash && validateMediaHash(otherP.primaryMediaHash)
+						? getThumbImageUrl(otherP.primaryMediaHash, "75x75")
+						: null,
+				);
 				return (
 					<ChatMediaSheet
 						conversationId={selectedConversation.data.conversationId}

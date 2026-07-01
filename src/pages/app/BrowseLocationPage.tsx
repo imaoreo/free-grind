@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { checkPermissions, requestPermissions, getCurrentPosition } from "@tauri-apps/plugin-geolocation";
 import { appLog } from "../../utils/logger";
+import { getCurrentLocation } from "../../services/currentLocation";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
 import {
@@ -88,24 +88,10 @@ export function BrowseLocationPage() {
 		setIsDetectingLocation(true);
 
 		try {
-			let permissions = await checkPermissions();
-			if (permissions.location !== "granted" && permissions.location !== "denied") {
-				permissions = await requestPermissions(["location"]);
-			}
-			if (permissions.location !== "granted") {
-				setLocationError(t("browse_location.error_access"));
-				return;
-			}
-
-			const position = await getCurrentPosition({
-				enableHighAccuracy: true,
-				timeout: 12000,
-				maximumAge: 20000,
-			});
-
+			const { lat, lon } = await getCurrentLocation();
 			await updateLocationPreference(
-				position.coords.latitude,
-				position.coords.longitude,
+				lat,
+				lon,
 				t("browse_location.current_location_label"),
 				true,
 			);

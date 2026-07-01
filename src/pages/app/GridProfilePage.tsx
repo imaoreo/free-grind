@@ -30,15 +30,34 @@ import {
 } from "./GridPage.types";
 import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
+import { findConversationByProfileId, insertSystemMessage } from "../../services/chatDb";
+import { unarchiveConversation } from "../../services/conversationArchive";
 import { appLog } from "../../utils/logger";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-
-const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
-const SKIP_UNBLOCK_CONFIRM_KEY = "profile_skip_unblock_confirm";
+import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../utils/blockConfirm";
 
 const profileRouteParamsSchema = z.object({
 	profileId: z.string().min(1),
 });
+
+// Successfully loading someone's full profile here is evidence we're not
+// blocked by them anymore — a real signal independent of the WS
+// chat.v1.conversation.delete event, which can be missed (app not running,
+// connection drop) when an unblock actually happens.
+function unarchiveConversationIfArchived(profileId: string) {
+	void findConversationByProfileId(profileId)
+		.then((stored) => {
+			if (stored?.archived) {
+				void unarchiveConversation(stored.conversationId);
+				void insertSystemMessage(stored.conversationId, "SystemUnblocked").catch((error) => {
+					appLog.error("[grid-profile] failed to insert system message", error);
+				});
+			}
+		})
+		.catch((error) => {
+			appLog.warn("[grid-profile] failed to check archived conversation", error);
+		});
+}
 
 export function GridProfilePage() {
 	const { t } = useTranslation();
@@ -214,6 +233,7 @@ export function GridProfilePage() {
 				if (!cancelled) {
 					setActiveProfile(parsed);
 					setCachedProfileDetail(profileId, parsed);
+					unarchiveConversationIfArchived(profileId);
 				}
 			} catch (error) {
 				if (!cancelled) {

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Download, Images, MessageCircle, Play, UserRound, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Button } from "../../../components/ui/button";
 import { EmptyState } from "../../../components/ui/states";
+import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
 import { saveMediaBatch } from "../../../services/saveMedia";
 import { appLog } from "../../../utils/logger";
 import type { AlbumViewer } from "../../../types/shared-albums";
@@ -35,6 +36,15 @@ export function AlbumViewerPanel({
 }: AlbumViewerPanelProps) {
 	const { t } = useTranslation();
 	const [isSavingAll, setIsSavingAll] = useState(false);
+	const [isClosing, setIsClosing] = useState(false);
+	const isClosingRef = useRef(false);
+
+	const handleClose = () => {
+		if (isClosingRef.current) return;
+		isClosingRef.current = true;
+		setIsClosing(true);
+		setTimeout(() => closeViewer(), 280);
+	};
 
 	const handleSaveAll = async () => {
 		const items = viewer.content
@@ -81,93 +91,74 @@ export function AlbumViewerPanel({
 	};
 
 	return (
-		<div
-			className="fixed inset-0 z-50 bg-black/80 p-0 backdrop-blur-sm sm:p-5"
-			onClick={closeViewer}
-		>
+		<div className={`fixed inset-0 z-[55] flex flex-col no-touch-callout isolate ${isClosing ? "pointer-events-none" : ""}`}>
 			<div
-				className="mx-auto flex h-[100dvh] w-full max-w-6xl flex-col overflow-hidden bg-[var(--surface)] sm:h-full sm:rounded-2xl sm:border sm:border-[var(--border)]"
-				onClick={(event) => event.stopPropagation()}
+				className={`absolute inset-0 bg-black/45 backdrop-blur-sm ${isClosing ? "animate-backdrop-out" : "animate-backdrop-in"}`}
+				onClick={handleClose}
+			/>
+
+			<div
+				role="dialog"
+				aria-modal="true"
+				className={`relative mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-[var(--bg)] shadow-2xl transform-gpu will-change-transform ${
+					isClosing ? "animate-modal-top-out" : "animate-modal-top-in"
+				} md:border-x md:border-[var(--border)]`}
+				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}
-				<div
-					className="relative shrink-0 px-4 pb-4 sm:px-6"
-					style={{ paddingTop: "max(16px, env(safe-area-inset-top, 0px))" }}
-				>
-					<button
-						type="button"
-						onClick={closeViewer}
-						aria-label={t("shared_albums.close_viewer")}
-						className="absolute right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] transition hover:bg-[var(--border)] hover:text-[var(--text)]"
-						style={{ top: "max(16px, env(safe-area-inset-top, 0px))" }}
-					>
-						<X className="h-4 w-4" />
-					</button>
-
-					{viewer.content.length > 0 && (
-						<button
-							type="button"
-							onClick={() => void handleSaveAll()}
-							disabled={isSavingAll}
-							aria-label={t("profile_details.save_all")}
-							className="absolute right-14 inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--border)] hover:text-[var(--text)] disabled:opacity-50"
-							style={{ top: "max(16px, env(safe-area-inset-top, 0px))" }}
-						>
-							<Download className="h-3.5 w-3.5" />
-							{t("profile_details.save_all")}
-						</button>
-					)}
-
-					<div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-2.5 py-1">
-						<Images className="h-3 w-3 text-[var(--accent)]" />
-						<span className="text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-							{t("shared_albums.album_label")}
-						</span>
-					</div>
-
-					<h2 className="pr-10 text-xl font-bold leading-tight tracking-tight text-[var(--text)]">
-						{viewer.albumName?.trim() || `Album #${viewer.albumId}`}
-					</h2>
-
-					<div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-						<span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-							<UserRound className="h-3.5 w-3.5 shrink-0" />
-							<span className="truncate">{viewer.profileName}</span>
-						</span>
-						<span className="h-1 w-1 shrink-0 rounded-full bg-[var(--border)]" />
-						<span className="text-sm text-[var(--text-muted)]">
-							{t("shared_albums.items_count", { count: viewer.content.length })}
-							{selectedViewerItem ? ` · ${viewerIndex + 1}/${viewer.content.length}` : ""}
-						</span>
-					</div>
-
-					{!hideProfileActions && (
-						<div className="mt-4 flex gap-2">
-							<Button
-								type="button"
-								variant="secondary"
-								size="sm"
-								onClick={() => onMessageProfile(viewer.profileId)}
-								className="gap-1.5"
-							>
-								<MessageCircle className="h-4 w-4" />
-								{t("profile_details.message")}
-							</Button>
-							<Button
-								type="button"
-								variant="secondary"
-								size="sm"
-								onClick={() => onViewProfile(viewer.profileId)}
-								className="gap-1.5"
-							>
-								<UserRound className="h-4 w-4" />
-								{t("chat.view_profile")}
-							</Button>
+				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+					<PageHeaderBackground color="var(--accent)" />
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex min-w-0 items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
+								<Images className="h-5 w-5" />
+							</div>
+							<div className="min-w-0">
+								<h2 className="truncate text-xl font-bold tracking-tight text-[var(--text)]">
+									{viewer.albumName?.trim() || `Album #${viewer.albumId}`}
+								</h2>
+								<div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+									<span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
+										<UserRound className="h-3 w-3 shrink-0" />
+										<span className="truncate max-w-[160px]">{viewer.profileName}</span>
+									</span>
+									<span className="h-1 w-1 shrink-0 rounded-full bg-[var(--border)]" />
+									<span className="text-xs text-[var(--text-muted)]">
+										{t("shared_albums.items_count", { count: viewer.content.length })}
+										{fullScreenIndex !== null && selectedViewerItem
+											? ` · ${viewerIndex + 1}/${viewer.content.length}`
+											: ""}
+									</span>
+								</div>
+							</div>
 						</div>
-					)}
-				</div>
 
-				<div className="mx-4 shrink-0 border-t border-[var(--border)] sm:mx-6" />
+						<div className="flex shrink-0 items-center gap-2">
+							{viewer.content.length > 0 && (
+								<button
+									type="button"
+									onClick={() => void handleSaveAll()}
+									disabled={isSavingAll}
+									aria-label={t("profile_details.save_all")}
+									className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 text-xs font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90 disabled:opacity-50"
+								>
+									<Download className="h-3.5 w-3.5" />
+									{t("profile_details.save_all")}
+								</button>
+							)}
+							<button
+								type="button"
+								onClick={handleClose}
+								aria-label={t("shared_albums.close_viewer")}
+								className="shrink-0 rounded-full bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
+							>
+								<X className="h-5 w-5" />
+							</button>
+						</div>
+					</div>
+				</header>
+
+				<div className="shrink-0 border-t border-[var(--border)]" />
 
 				{viewer.content.length === 0 ? (
 					<div className="flex-1 p-4 sm:p-6">
@@ -196,7 +187,7 @@ export function AlbumViewerPanel({
 										onClick={() => openFullScreen(index)}
 										className={`group relative aspect-square overflow-hidden rounded-xl transition-all duration-150 ${
 											isActive
-												? "ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--surface)] scale-[0.97]"
+												? "ring-2 ring-[var(--accent)] ring-offset-1 ring-offset-[var(--bg)] scale-[0.97]"
 												: "hover:scale-[1.02] hover:shadow-lg active:scale-[0.97]"
 										}`}
 									>
@@ -228,6 +219,32 @@ export function AlbumViewerPanel({
 								);
 							})}
 						</div>
+					</div>
+				)}
+
+				{!hideProfileActions && (
+					<div
+						className="relative z-10 shrink-0 border-t border-[var(--border)] px-[var(--app-px)] pt-3 flex gap-2"
+						style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+					>
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => onMessageProfile(viewer.profileId)}
+							className="flex-1 gap-1.5"
+						>
+							<MessageCircle className="h-4 w-4" />
+							{t("profile_details.message")}
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => onViewProfile(viewer.profileId)}
+							className="flex-1 gap-1.5"
+						>
+							<UserRound className="h-4 w-4" />
+							{t("chat.view_profile")}
+						</Button>
 					</div>
 				)}
 			</div>

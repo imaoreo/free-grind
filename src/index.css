@@ -665,6 +665,24 @@
 		transition: border-color 140ms ease;
 	}
 
+	.input-field::placeholder {
+		color: var(--text-muted);
+		opacity: 0.45;
+	}
+
+	.input-field.input-field-glass {
+		background: color-mix(in srgb, var(--surface-2) 55%, transparent);
+		border-color: color-mix(in srgb, var(--border) 55%, transparent);
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+	}
+	.input-field.input-field-glass:focus {
+		background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+	}
+	.input-field.input-field-glass::placeholder {
+		opacity: 0.4;
+	}
+
 	.input-field:focus {
 		outline: 2px solid rgba(255, 204, 1, 0.58);
 		outline: 2px solid color-mix(in srgb, var(--accent) 58%, transparent);
@@ -960,4 +978,81 @@
   :root:not([data-scheme="light"]) .maplibregl-ctrl-attrib a {
     color: var(--text-muted);
   }
+}
+
+/* Full-screen on mobile, centered card on desktop */
+.fs-card-outer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+.fs-card-inner {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fs-card-inner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  background: linear-gradient(
+    to bottom,
+    oklch(0 0 0 / 0.26) 0%,
+    oklch(0 0 0 / 0.14) 30%,
+    oklch(0 0 0 / 0.04) 65%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+.top-dots-wrap {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-glow {
+  display: block;
+}
+
+@media (min-width: 640px) {
+  .fs-card-inner::before {
+    display: none;
+  }
+  .auth-glow {
+    display: none;
+  }
+  .fs-card-outer {
+    background: transparent;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .fs-card-outer.fs-card-overlay {
+    background: oklch(0 0 0 / 0.5);
+  }
+  .fs-card-inner {
+    flex: none;
+    width: 100%;
+    max-width: 26rem;
+    max-height: 90vh;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: 0 20px 40px -8px oklch(0 0 0 / 0.18);
+  }
+  .fs-card-inner.fs-card-lg {
+    max-width: 30rem;
+  }
+  .fs-card-inner .top-dots-wrap {
+    padding-bottom: 3.5rem;
+  }
+
 }

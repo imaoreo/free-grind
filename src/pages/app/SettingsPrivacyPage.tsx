@@ -5,10 +5,12 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import {
-	HIDE_READ_RECEIPTS_GLOBAL_KEY,
-	RECORD_PROFILE_VIEWS_KEY,
-	SHOW_READ_RECEIPT_TOGGLE_KEY,
+	getHideReadReceiptsGlobal,
+	getShowReadReceiptToggle,
 	isRecordProfileViewsEnabled,
+	setHideReadReceiptsGlobal,
+	setRecordProfileViewsEnabled,
+	setShowReadReceiptToggle as persistShowReadReceiptToggle,
 } from "../../utils/privacy";
 import {
 	readAnalyticsConsentChoice,
@@ -20,8 +22,8 @@ export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
 	const { blurIncomingMedia, setPreferences } = usePreferences();
 
-	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => window.localStorage.getItem(HIDE_READ_RECEIPTS_GLOBAL_KEY) !== "true");
-	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => window.localStorage.getItem(SHOW_READ_RECEIPT_TOGGLE_KEY) !== "false");
+	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => !getHideReadReceiptsGlobal());
+	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => getShowReadReceiptToggle());
 	const [recordProfileViews, setRecordProfileViews] = useState(() => isRecordProfileViewsEnabled());
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(() => readAnalyticsConsentChoice());
 
@@ -47,7 +49,7 @@ export function SettingsPrivacyPage() {
 							checked={readReceiptsEnabled}
 							onChange={(checked) => {
 								setReadReceiptsEnabled(checked);
-								window.localStorage.setItem(HIDE_READ_RECEIPTS_GLOBAL_KEY, String(!checked));
+								void setHideReadReceiptsGlobal(!checked);
 							}}
 						/>
 						<ToggleRow
@@ -58,7 +60,7 @@ export function SettingsPrivacyPage() {
 							checked={showReadReceiptToggle}
 							onChange={(checked) => {
 								setShowReadReceiptToggle(checked);
-								window.localStorage.setItem(SHOW_READ_RECEIPT_TOGGLE_KEY, String(checked));
+								void persistShowReadReceiptToggle(checked);
 							}}
 						/>
 					</div>
@@ -76,7 +78,7 @@ export function SettingsPrivacyPage() {
 							checked={recordProfileViews}
 							onChange={(checked) => {
 								setRecordProfileViews(checked);
-								window.localStorage.setItem(RECORD_PROFILE_VIEWS_KEY, String(checked));
+								void setRecordProfileViewsEnabled(checked);
 							}}
 						/>
 					</div>

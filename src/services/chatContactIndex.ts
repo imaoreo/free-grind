@@ -97,8 +97,13 @@ function isSqliteLockedError(error: unknown): boolean {
 	return /database is locked|\(code:\s*(5|517)\)/i.test(error);
 }
 
+function isClosedPoolError(error: unknown): boolean {
+	const msg = error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
+	return /closed pool|connection.*closed|pool.*closed/i.test(msg);
+}
+
 async function executeWithLockRetry(
-	db: Database,
+	_db: Database,
 	label: string,
 	run: () => Promise<void>,
 ): Promise<void> {
@@ -116,6 +121,11 @@ async function executeWithLockRetry(
 				}
 				return;
 			} catch (error) {
+				if (isClosedPoolError(error)) {
+					appLog.warn("[chat-index] connection pool closed, resetting", { label });
+					dbPromise = null;
+					throw error;
+				}
 				const locked = isSqliteLockedError(error);
 				if (!locked || attempt >= maxAttempts) {
 					throw error;
@@ -255,28 +265,29 @@ export async function getChatContactIndexForProfiles(
 	}
 
 	const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
-	const rows = await db.select<ChatContactIndexRow[]>(
-		`
-		SELECT
-			profile_id,
-			conversation_id,
-			last_message_timestamp,
-			unread_count,
-			has_chatted,
-			updated_at
-		FROM chat_contact_index
-		WHERE profile_id IN (${placeholders})
-		`,
-		ids,
-	);
-
-	/*
-	appLog.debug("[chat-index] hydrate", {
-		queried: ids.length,
-		matched: rows.length,
-		hasChattedCount: rows.filter((r) => Boolean(r.has_chatted)).length,
-	});
-	*/
+	let rows: ChatContactIndexRow[];
+	try {
+		rows = await db.select<ChatContactIndexRow[]>(
+			`
+			SELECT
+				profile_id,
+				conversation_id,
+				last_message_timestamp,
+				unread_count,
+				has_chatted,
+				updated_at
+			FROM chat_contact_index
+			WHERE profile_id IN (${placeholders})
+			`,
+			ids,
+		);
+	} catch (error) {
+		if (isClosedPoolError(error)) {
+			appLog.warn("[chat-index] connection pool closed during read, resetting");
+			dbPromise = null;
+		}
+		throw error;
+	}
 
 	return rows.map((row) => ({
 		profileId: row.profile_id,

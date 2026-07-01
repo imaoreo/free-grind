@@ -8,6 +8,7 @@ import {
 	useModalClose,
 } from "../../../../hooks/useModalClose";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
+import { useTravelPlans } from "../../../../hooks/queries/useProfileQueries";
 import { useApiFunctions } from "../../../../hooks/useApiFunctions";
 import { useAuth } from "../../../../contexts/useAuth";
 import { profileResponseSchema } from "../../profile-editor/profileEditorUtils";
@@ -50,6 +51,7 @@ import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
 import { ConfirmDialog } from "../../../../components/ui/confirm-dialog";
+import { SKIP_BLOCK_CONFIRM_KEY } from "../../../../utils/blockConfirm";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -191,6 +193,7 @@ export function ProfileDetailsModal({
 		: "offline";
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const { data: travelPlans } = useTravelPlans(activeProfile?.profileId);
 	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
 	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
@@ -338,6 +341,13 @@ export function ProfileDetailsModal({
 	const [carouselDragDelta, setCarouselDragDelta] = useState(0);
 	const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
 	const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+	const requestBlock = () => {
+		if (typeof window !== "undefined" && window.localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true") {
+			if (messageProfileId) onBlockProfile?.(String(messageProfileId));
+		} else {
+			setShowBlockConfirm(true);
+		}
+	};
 	const [quickMessageDraft, setQuickMessageDraft] = useState("");
 	const [barTapPickerOpen, setBarTapPickerOpen] = useState(false);
 	const [barInputVisible, setBarInputVisible] = useState(true);
@@ -946,7 +956,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							{(onBlockProfile || onUnblockProfile) && (
 								<button
 									type="button"
-									onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : setShowBlockConfirm(true)}
+									onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : requestBlock()}
 									disabled={isBlockingProfile}
 									className={`inline-flex shrink-0 items-center justify-center rounded-xl border p-2 transition-colors disabled:opacity-60 ${
 										isBlocked
@@ -1064,6 +1074,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							openPhotoViewer={openPhotoViewer}
 							activeProfileName={activeProfileName}
 							estimatedCreatedAt={estimatedCreatedAt}
+							travelPlans={travelPlans}
 							profileStatusLabel={profileStatusLabel}
 							profileStatusLevel={profileStatusLevel}
 							ownTags={ownTags}
@@ -1406,7 +1417,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 												</button>
 											)}
 											{(onBlockProfile || onUnblockProfile) && (
-												<button type="button" onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : setShowBlockConfirm(true)} disabled={isBlockingProfile}
+												<button type="button" onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : requestBlock()} disabled={isBlockingProfile}
 													className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isBlocked ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15"}`}
 													aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}>
 													<Ban className="h-4 w-4" />
@@ -1451,6 +1462,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											openPhotoViewer={openPhotoViewer}
 											activeProfileName={activeProfileName}
 											estimatedCreatedAt={estimatedCreatedAt}
+											travelPlans={travelPlans}
 											profileStatusLabel={profileStatusLabel}
 											profileStatusLevel={profileStatusLevel}
 											ownTags={ownTags}

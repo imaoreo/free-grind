@@ -3,16 +3,21 @@ import type { AlbumDetail } from "../../../types/albums";
 export function countAlbumMedia(detail: AlbumDetail | undefined): {
 	total: number;
 	images: number;
+	videos: number;
 	nonImages: number;
 } {
 	const content = detail?.content ?? [];
 	const images = content.filter((item) =>
 		(item.contentType ?? "").toLowerCase().startsWith("image/"),
 	).length;
+	const videos = content.filter((item) =>
+		(item.contentType ?? "").toLowerCase().startsWith("video/"),
+	).length;
 	const total = content.length;
 	return {
 		total,
 		images,
+		videos,
 		nonImages: Math.max(0, total - images),
 	};
 }
@@ -42,6 +47,22 @@ export function getVideodimensions(file: File): Promise<{ width: number; height:
 			resolve(videoWidth > 0 && videoHeight > 0 ? { width: videoWidth, height: videoHeight } : undefined);
 		};
 		vid.onerror = () => { URL.revokeObjectURL(objUrl); resolve(undefined); };
+		vid.src = objUrl;
+	});
+}
+
+/** Returns the duration of a video file in milliseconds, or null if unreadable. */
+export function getVideoDurationMs(file: File): Promise<number | null> {
+	return new Promise((resolve) => {
+		const vid = document.createElement("video");
+		vid.preload = "metadata";
+		const objUrl = URL.createObjectURL(file);
+		vid.onloadedmetadata = () => {
+			URL.revokeObjectURL(objUrl);
+			const { duration } = vid;
+			resolve(Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1000) : null);
+		};
+		vid.onerror = () => { URL.revokeObjectURL(objUrl); resolve(null); };
 		vid.src = objUrl;
 	});
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ShieldOff, UserX } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { useNavigate, useLocation } from "react-router-dom";
 import { BackToSettings } from "../../components/BackToSettings";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -19,6 +20,8 @@ type BlockedProfileListItem = {
 
 export function SettingsBlockedPage() {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const location = useLocation();
 	const apiFunctions = useApiFunctions();
 	const { data: blockedIdsData, isLoading: isLoadingIds, refetch: refetchIds } = useBlockedProfileIds();
 	const { mutateAsync: unblockProfileMutation, isPending: isUnblocking } = useUnblockProfile();
@@ -69,7 +72,7 @@ export function SettingsBlockedPage() {
 								const displayName =
 									typeof nameRaw === "string" && nameRaw.trim().length > 0
 										? nameRaw.trim()
-										: t("profile_details.profile_fallback", { id: profileId });
+										: t("settings_blocked.name_fallback", { defaultValue: "Someone" });
 								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
 								const avatarUrl =
 									typeof hashRaw === "string" && validateMediaHash(hashRaw)
@@ -88,7 +91,7 @@ export function SettingsBlockedPage() {
 						const meta = detailsById.get(profileId);
 						return {
 							profileId,
-							displayName: meta?.displayName ?? t("profile_details.profile_fallback", { id: profileId }),
+							displayName: meta?.displayName ?? t("settings_blocked.name_fallback", { defaultValue: "Someone" }),
 							avatarUrl: meta?.avatarUrl ?? null,
 						} satisfies BlockedProfileListItem;
 					}),
@@ -211,20 +214,26 @@ export function SettingsBlockedPage() {
 								const isMutating = mutatingProfileId === profile.profileId;
 								return (
 									<div key={profile.profileId} className="flex items-center gap-3 px-4 py-3">
-										<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full">
-											<ProfileImage
-												src={profile.avatarUrl}
-												alt={t("profile_details.photo_alt", { name: profile.displayName })}
-											/>
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-semibold">
-												{profile.displayName}
-											</p>
-											<p className="text-xs text-[var(--text-muted)]">
-												{t("settings_blocked.profile_id", { id: profile.profileId })}
-											</p>
-										</div>
+										<button
+											type="button"
+											className="flex min-w-0 flex-1 items-center gap-3 text-left"
+											onClick={() => navigate(`/profile/${profile.profileId}`, { state: { returnTo: location.pathname } })}
+										>
+											<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full">
+												<ProfileImage
+													src={profile.avatarUrl}
+													alt={t("profile_details.photo_alt", { name: profile.displayName })}
+												/>
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-semibold">
+													{profile.displayName}
+												</p>
+												<p className="text-xs text-[var(--text-muted)]">
+													{t("settings_blocked.profile_id", { id: profile.profileId })}
+												</p>
+											</div>
+										</button>
 										<button
 											type="button"
 											onClick={() => handleUnblockPress(profile.profileId)}

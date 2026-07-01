@@ -1,4 +1,4 @@
-import { EyeOff, MessageCircle, Pin } from "lucide-react";
+import { Archive, EyeOff, MessageCircle, Pin } from "lucide-react";
 import { useEffect, useRef, type RefObject } from "react";
 import { ChatSearchPanel } from "./ChatSearchPanel";
 import { ChatInboxHeader, type ChatInboxHeaderProps } from "./ChatInboxHeader";
@@ -18,6 +18,8 @@ import {
 } from "../chat/chatUtils";
 import { isReadReceiptsHidden, useReadReceiptsChanged } from "../../../utils/privacy";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { useAvatarCache } from "../../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../../config/design-config";
 
 type ChatInboxPanelProps = ChatInboxHeaderProps & {
@@ -25,6 +27,7 @@ type ChatInboxPanelProps = ChatInboxHeaderProps & {
 	isLoadingMoreInbox: boolean;
 	inboxError: string | null;
 	filteredConversations: ConversationEntry[];
+	archivedConversationIds: Set<string>;
 	nextPage: number | null;
 	selectedConversationId: string | null;
 	userId: number | null;
@@ -51,6 +54,7 @@ type ChatConversationRowProps = {
 	presenceResults: Record<string, boolean>;
 	isSelected: boolean;
 	isTyping: boolean;
+	isArchived: boolean;
 	onSelectConversation: (c: ConversationEntry) => void;
 	onViewProfile: (profileId: number) => void;
 };
@@ -64,12 +68,14 @@ function ChatConversationRow({
 	presenceResults,
 	isSelected,
 	isTyping,
+	isArchived,
 	onSelectConversation,
 	onViewProfile,
 }: ChatConversationRowProps) {
 	const { t } = useTranslation();
 	const { showDebugInfo } = usePreferences();
 	const { ref, revealClass } = useRevealOnScroll();
+	useAvatarCache();
 
 	const otherParticipant = getOtherParticipant(conversation, userId);
 	const otherProfileId = otherParticipant?.profileId ? String(otherParticipant.profileId) : null;
@@ -105,7 +111,10 @@ function ChatConversationRow({
 			>
 				<div className="h-14 w-14 squircle bg-[var(--surface-2)] drop-shadow-sm">
 					<ProfileImage
-						src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+						src={resolveAvatarSrc(
+							otherParticipant?.primaryMediaHash,
+							getParticipantAvatarUrl(otherParticipant?.primaryMediaHash),
+						)}
 						alt={displayName}
 					/>
 				</div>
@@ -125,6 +134,11 @@ function ChatConversationRow({
 						<p className="truncate text-sm font-semibold text-[var(--text)]">
 							{displayName}
 						</p>
+						{isArchived && (
+							<span title={t("chat.archived.badge", { defaultValue: "Archived" })}>
+								<Archive className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+							</span>
+						)}
 						{readReceiptsHidden && (
 							<span title={t("privacy.read_receipts_hidden_badge")}>
 								<EyeOff className="h-3.5 w-3.5 shrink-0 text-purple-400" />
@@ -186,6 +200,7 @@ export function ChatInboxPanel({
 	hasActiveInboxFilters,
 	activeFilterCount,
 	filteredConversations,
+	archivedConversationIds,
 	nextPage,
 	realtimeStatusMeta,
 	selectedConversationId,
@@ -211,6 +226,9 @@ export function ChatInboxPanel({
 	onClearInboxFilters: _onClearInboxFilters,
 	onToggleHidePinned,
 	onToggleFavoritesOnly,
+	showArchivedOnly,
+	archivedCount,
+	onToggleShowArchivedOnly,
 	typingConversationIds,
 }: ChatInboxPanelProps) {
 	const { t } = useTranslation();
@@ -239,7 +257,12 @@ export function ChatInboxPanel({
 
 	useEffect(() => {
 		const sentinel = loadMoreSentinelRef.current;
-		if (!sentinel || !nextPage) {
+		// Archived conversations are sourced from chatDb, not live inbox
+		// pagination — paging further through /v4/inbox can never surface
+		// more of them, so don't auto-load while that filter is active (the
+		// short filtered list would otherwise keep the sentinel in view and
+		// trigger an endless fetch-everything cascade).
+		if (!sentinel || !nextPage || showArchivedOnly) {
 			return;
 		}
 
@@ -266,7 +289,13 @@ export function ChatInboxPanel({
 
 		observer.observe(sentinel);
 		return () => observer.disconnect();
-	}, [filteredConversations.length, isLoadingMoreInbox, nextPage, onLoadMoreInbox]);
+	}, [
+		filteredConversations.length,
+		isLoadingMoreInbox,
+		nextPage,
+		onLoadMoreInbox,
+		showArchivedOnly,
+	]);
 
 	return (
 		<PullToRefreshContainer
@@ -302,6 +331,9 @@ export function ChatInboxPanel({
 					onSetFiltersDraft={onSetFiltersDraft}
 					onToggleFavoritesOnly={onToggleFavoritesOnly}
 					onToggleHidePinned={onToggleHidePinned}
+					showArchivedOnly={showArchivedOnly}
+					archivedCount={archivedCount}
+					onToggleShowArchivedOnly={onToggleShowArchivedOnly}
 				/>
 			)}
 
@@ -378,12 +410,13 @@ export function ChatInboxPanel({
 											presenceResults={presenceResults}
 											isSelected={conversation.data.conversationId === selectedConversationId}
 											isTyping={typingConversationIds?.has(conversation.data.conversationId) ?? false}
+											isArchived={archivedConversationIds.has(conversation.data.conversationId)}
 											onSelectConversation={onSelectConversation}
 											onViewProfile={onViewProfile}
 										/>
 									))}
 
-									{nextPage ? (
+									{nextPage && !showArchivedOnly ? (
 										<div className="px-3 py-2">
 											<div ref={loadMoreSentinelRef} className="h-8 w-full" aria-hidden="true" />
 											{isLoadingMoreInbox ? (

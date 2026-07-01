@@ -69,12 +69,34 @@ function redactUnknown(value: unknown, parentKey?: string, seen = new WeakSet())
 	return String(value);
 }
 
-function normalizeLogArg(value: unknown): unknown {
+// Host-object error types — DOMException (getUserMedia), GeolocationPositionError
+// (navigator.geolocation), and similar — don't extend Error and carry their
+// name/message/code on the prototype rather than as own enumerable properties,
+// so redactUnknown's Object.entries() finds nothing and logs "{}". Duck-type
+// instead of enumerating every such type individually.
+function isErrorLike(
+	value: unknown,
+): value is { name?: string; message?: string; code?: number; stack?: string } {
 	if (value instanceof Error) {
+		return true;
+	}
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+	const candidate = value as { message?: unknown; name?: unknown; code?: unknown };
+	return (
+		typeof candidate.message === "string" &&
+		(typeof candidate.name === "string" || typeof candidate.code === "number")
+	);
+}
+
+function normalizeLogArg(value: unknown): unknown {
+	if (isErrorLike(value)) {
 		return {
 			name: value.name,
 			message: value.message,
-			stack: value.stack,
+			...(typeof value.code === "number" ? { code: value.code } : {}),
+			...(value.stack ? { stack: value.stack } : {}),
 		};
 	}
 
@@ -115,7 +137,7 @@ function writeLog(level: AppLogLevel, args: unknown[]) {
 	const processedArgs = args.map((arg) => {
 		if (typeof arg === "object" && arg !== null) {
 			try {
-				return JSON.stringify(arg);
+				return JSON.stringify(normalizeLogArg(arg));
 			} catch {
 				return String(arg);
 			}

@@ -12,6 +12,7 @@ import { ProfileImage } from "../../components/ui/profile-image";
 import type { ConversationEntry } from "../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { captureAlbum } from "../../services/albumStore";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
@@ -236,6 +237,19 @@ export function SharedAlbumsPage() {
 					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
 					viewerHistoryPushedRef.current = true;
 				}
+
+				// Fully cache every content item's bytes, same as albums shared
+				// in a chat thread — so the album survives the share expiring.
+				void captureAlbum({
+					albumId: details.albumId,
+					albumName: details.albumName,
+					content: details.content,
+					ownerProfileId: String(item.profileId),
+					conversationId: item.conversationId,
+					sharedViaMessageId: null,
+					remainingViews: null,
+					isViewable: true,
+				});
 			} catch (openError) {
 				setOpenAlbumError(
 					openError instanceof Error
@@ -386,118 +400,128 @@ export function SharedAlbumsPage() {
 	]);
 
 	return (
-		<PullToRefreshContainer
-			className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
-			contentClassName="flex flex-1 flex-col min-h-0"
-			style={{ overflow: "visible", overflowX: "hidden" }}
-			onRefresh={handleRefresh}
-			isDisabled={isLoading || isRefreshing}
-			isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
-			refreshingLabel={t("shared_albums.loading_title")}
-			spinnerColor="var(--accent)"
-		>
-			{/* Header */}
-			<header className="relative z-20 shrink-0 flex flex-col pointer-events-none">
-				<PageHeaderBackground color="var(--accent)" />
-				<div className="pointer-events-auto flex flex-col mx-auto w-full max-w-6xl px-[var(--app-px)]">
-					<button
-						type="button"
-						onClick={() => navigate("/chat")}
-						className="mb-3 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-					>
-						<ChevronLeft className="h-4 w-4" />
-						{t("nav.inbox")}
-					</button>
-					<h1 className="app-title">{t("shared_albums.title")}</h1>
-
-					<div className="mt-3 flex flex-wrap items-center gap-2 pb-4">
-						<div
-							className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)]"
-							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
-						>
-							<Album className="h-3.5 w-3.5" />
-							{isLoading ? 0 : items.length}
-						</div>
-						<div
-							className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)]"
-							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
-						>
-							<Users className="h-3.5 w-3.5" />
-							{isLoading ? 0 : profileCount}
-						</div>
+		<>
+			<PullToRefreshContainer
+				className="app-screen flex h-dvh flex-col w-full !px-0 !pb-0 overflow-x-hidden"
+				contentClassName="flex flex-1 flex-col min-h-0"
+				style={{ overflow: "visible", overflowX: "hidden" }}
+				onRefresh={handleRefresh}
+				isDisabled={isLoading || isRefreshing}
+				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 0}
+				refreshingLabel={t("shared_albums.loading_title")}
+				spinnerColor="var(--accent)"
+			>
+				{/* Header */}
+				<header className="relative z-20 shrink-0 flex flex-col pointer-events-none">
+					<PageHeaderBackground color="var(--accent)" />
+					<div className="pointer-events-auto flex flex-col mx-auto w-full max-w-6xl px-[var(--app-px)]">
 						<button
 							type="button"
-							onClick={handleRefresh}
-							disabled={isRefreshing || isLoading}
-							className="glass-pill inline-flex h-9 shrink-0 items-center justify-center px-4 text-[var(--accent)] transition hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20 disabled:opacity-50"
-							style={{ "--pill-color": "var(--accent)" } as CSSProperties}
-							aria-label={t("shared_albums.refresh")}
+							onClick={() => navigate("/chat")}
+							className="mb-3 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
 						>
-							<RefreshCw className={`h-3.5 w-3.5 ${isRefreshing || isLoading ? "animate-spin" : ""}`} />
+							<ChevronLeft className="h-4 w-4" />
+							{t("nav.inbox")}
 						</button>
+						<h1 className="app-title">{t("shared_albums.title")}</h1>
+
+						<div className="mt-3 flex flex-wrap items-center gap-2 pb-4">
+							<div
+								className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)]"
+								style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+							>
+								<Album className="h-3.5 w-3.5" />
+								{isLoading ? 0 : items.length}
+							</div>
+							<div
+								className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)]"
+								style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+							>
+								<Users className="h-3.5 w-3.5" />
+								{isLoading ? 0 : profileCount}
+							</div>
+							<button
+								type="button"
+								onClick={handleRefresh}
+								disabled={isRefreshing || isLoading}
+								className="glass-pill inline-flex h-9 shrink-0 items-center justify-center px-4 text-[var(--accent)] transition hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20 disabled:opacity-50"
+								style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+								aria-label={t("shared_albums.refresh")}
+							>
+								<RefreshCw className={`h-3.5 w-3.5 ${isRefreshing || isLoading ? "animate-spin" : ""}`} />
+							</button>
+						</div>
 					</div>
-				</div>
-			</header>
+				</header>
 
-			<FeedScrollContainer ref={feedContainerRef}>
-				<div className="mx-auto w-full max-w-6xl px-[var(--app-px)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
-					{openAlbumError ? (
-						<ErrorState
-							title={t("shared_albums.error_open_title")}
-							description={openAlbumError}
-							onRetry={() => setOpenAlbumError(null)}
-						/>
-					) : null}
+				<FeedScrollContainer ref={feedContainerRef}>
+					<div className="mx-auto w-full max-w-6xl px-[var(--app-px)] pb-[calc(env(safe-area-inset-bottom,0px)+120px)]">
+						{openAlbumError ? (
+							<ErrorState
+								title={t("shared_albums.error_open_title")}
+								description={openAlbumError}
+								onRetry={() => setOpenAlbumError(null)}
+							/>
+						) : null}
 
-					{isLoading ? (
-						<div
-							className="grid gap-4"
-							style={{
-								gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
-							}}
-						>
-							{Array.from({ length: 12 }).map((_, i) => (
-								<div key={i} className="surface-card overflow-hidden rounded-2xl">
-									<div className="relative aspect-[4/6] w-full animate-pulse bg-[var(--surface-2)]">
-										<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
-											<div className="h-20 w-20 rounded-full bg-[var(--border)]" />
-											<div className="h-3 w-24 rounded-full bg-[var(--border)]" />
+						{isLoading ? (
+							<div
+								className="grid gap-4"
+								style={{
+									gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
+								}}
+							>
+								{Array.from({ length: 12 }).map((_, i) => (
+									<div key={i} className="surface-card overflow-hidden rounded-2xl">
+										<div className="relative aspect-[4/6] w-full animate-pulse bg-[var(--surface-2)]">
+											<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3">
+												<div className="h-20 w-20 rounded-full bg-[var(--border)]" />
+												<div className="h-3 w-24 rounded-full bg-[var(--border)]" />
+											</div>
 										</div>
 									</div>
-								</div>
-							))}
-						</div>
-					) : error ? (
-						<ErrorState
-							title={t("shared_albums.error_load_title")}
-							description={error}
-							onRetry={() => { setIsLoading(true); void loadSharedAlbums(); }}
-						/>
-					) : items.length === 0 ? (
-						<EmptyState
-							title={t("shared_albums.empty_title")}
-							description={t("shared_albums.empty_desc")}
-						/>
-					) : (
-						<div
-							className="grid gap-4"
-							style={{
-								gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
-							}}
-						>
-							{items.map((item) => (
-								<AlbumCard
-									key={`${item.profileId}:${item.album.albumId}`}
-									item={item}
-									onClick={() => void openViewer(item)}
-									t={t}
-								/>
-							))}
-						</div>
-					)}
-				</div>
-			</FeedScrollContainer>
+								))}
+							</div>
+						) : error ? (
+							<ErrorState
+								title={t("shared_albums.error_load_title")}
+								description={error}
+								onRetry={() => { setIsLoading(true); void loadSharedAlbums(); }}
+							/>
+						) : items.length === 0 ? (
+							<EmptyState
+								title={t("shared_albums.empty_title")}
+								description={t("shared_albums.empty_desc")}
+							/>
+						) : (
+							<div
+								className="grid gap-4"
+								style={{
+									gridTemplateColumns: `repeat(auto-fill, minmax(clamp(${minmaxValue}, 15vw, 250px), 1fr))`,
+								}}
+							>
+								{items.map((item) => (
+									<AlbumCard
+										key={`${item.profileId}:${item.album.albumId}`}
+										item={item}
+										onClick={() => void openViewer(item)}
+										t={t}
+									/>
+								))}
+							</div>
+						)}
+					</div>
+				</FeedScrollContainer>
+			</PullToRefreshContainer>
 
+			{/*
+			 * Rendered as siblings of PullToRefreshContainer, not children — its
+			 * Content Layer always has an active `transform` (even translateY(0)),
+			 * which makes it the containing block for `position: fixed`
+			 * descendants. Nesting these overlays inside it would clip them to
+			 * app-screen's padding (a gap at the top) and trap them under the
+			 * bottom NavBar's stacking context instead of covering it.
+			 */}
 			{isOpeningAlbum ? (
 				<div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
 					<div className="surface-card p-4 text-sm text-[var(--text-muted)]">
@@ -528,6 +552,6 @@ export function SharedAlbumsPage() {
 					onIndexChange={handleIndexChange}
 				/>
 			)}
-		</PullToRefreshContainer>
+		</>
 	);
 }

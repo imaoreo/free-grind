@@ -10,11 +10,15 @@ import {
 	createAlbum,
 	createPhotos,
 	createVideos,
+	deleteAlbumMedias,
 	PHAssetCollectionType,
 	PHAssetCollectionSubtype,
 } from "@gbyte/tauri-plugin-ios-photos";
-import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
+import { AndroidFs, AndroidPublicGeneralPurposeDir, type AndroidFsUri } from "tauri-plugin-android-fs-api";
 import { isTauriRuntime } from "./tauriWebSocket";
+import { toDataUri } from "./mediaStore";
+import * as chatDb from "./chatDb";
+import type { DownloadedMediaEntry } from "../types/chat-db";
 import { appLog } from "../utils/logger";
 
 const ALBUM_NAME = "Free Grind";
@@ -64,73 +68,11 @@ async function ensureAlbumId(): Promise<string> {
 	return created;
 }
 
-function extensionFromUrl(url: string, type: "image" | "video"): string {
-	try {
-		const pathname = new URL(url).pathname;
-		const match = /\.([a-zA-Z0-9]+)$/.exec(pathname);
-		if (match) return match[1].toLowerCase();
-	} catch {
-		// ignore, fall back to default below xd
-	}
-	return type === "video" ? "mp4" : "jpg";
-}
-
-/**
- * // Downloads a remote chat-media URL and saves it to the devices photo
- * // library, in a "Free Grind" album. iOS only.
- */
-export async function saveMediaToGallery(url: string, type: "image" | "video"): Promise<boolean> {
-	if (!isIos()) return false;
-
-	const authorized = await ensurePhotosAuthorized();
-	if (!authorized) {
-		appLog.warn("[saveMedia] Photos permission not granted");
-		return false;
-	}
-
-	const response = await fetch(url);
-	if (!response.ok) throw new Error(`Failed to download media (${response.status})`);
-	const bytes = new Uint8Array(await response.arrayBuffer());
-
-	const cache = await appCacheDir();
-
-	try {
-		await mkdir(SAVE_DIR, { baseDir: BaseDirectory.AppCache, recursive: true });
-	} catch (error) {
-		appLog.error("[saveMedia] mkdir failed", error);
-		throw error;
-	}
-
-	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extensionFromUrl(url, type)}`;
-	const relativePath = `${SAVE_DIR}/${fileName}`;
-	const absolutePath = await join(cache, relativePath);
-
-	try {
-		await writeFile(relativePath, bytes, { baseDir: BaseDirectory.AppCache });
-	} catch (error) {
-		appLog.error("[saveMedia] writeFile failed", error);
-		throw error;
-	}
-
-	try {
-		const albumId = await ensureAlbumId();
-
-		const created = type === "video"
-			? await createVideos({ album: albumId, files: [absolutePath] })
-			: await createPhotos({ album: albumId, files: [absolutePath] });
-
-		if (!created || created.length === 0) {
-			throw new Error("Photos library did not return a created asset");
-		}
-		return true;
-	} catch (error) {
-		appLog.error("[saveMedia] createPhotos/createVideos failed", error);
-		throw error;
-	} finally {
-		await remove(relativePath, { baseDir: BaseDirectory.AppCache }).catch((error) => {
-			appLog.warn("[saveMedia] Failed to clean up temp file", error);
-		});
-	}
+/** Fire-and-forget: records a successfully saved file in the local manifest used for storage-usage reporting and "delete all downloaded media". */
+function recordDownloadedMediaEntry(entry: Omit<DownloadedMediaEntry, "savedAt">): void {
+	void chatDb.insertDownloadedMediaEntry({ ...entry, savedAt: Date.now() }).catch((error) => {
+		appLog.warn("[saveMedia] failed to record downloaded-media entry", error);
+	});
 }
 
 async function fetchMediaBytes(url: string): Promise<{ bytes: Uint8Array; contentType: string | null }> {
@@ -146,14 +88,89 @@ function mimeTypeFor(type: "image" | "video", extension: string, contentType: st
 	return extension === "png" ? "image/png" : "image/jpeg";
 }
 
-/**
- * Saves a remote chat-media URL into the public Downloads collection via
- * MediaStore, in a "FreeGrind" sub-folder. Android only.
- */
-async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): Promise<boolean> {
-	const { bytes, contentType } = await fetchMediaBytes(url);
-	const extension = extensionFromUrl(url, type);
-	const mimeType = mimeTypeFor(type, extension, contentType);
+function base64ToBytes(base64: string): Uint8Array {
+	const binary = atob(base64);
+	const bytes = new Uint8Array(binary.length);
+	for (let i = 0; i < binary.length; i++) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	return bytes;
+}
+
+function extensionFromMimeType(mimeType: string | null, type: "image" | "video"): string {
+	const subtype = mimeType?.split("/")[1]?.split(";")[0]?.trim();
+	if (subtype === "jpeg") return "jpg";
+	if (subtype === "quicktime") return "mov";
+	if (subtype) return subtype;
+	return type === "video" ? "mp4" : "jpg";
+}
+
+async function saveMediaBytesToGallery(
+	bytes: Uint8Array,
+	mimeType: string | null,
+	type: "image" | "video",
+): Promise<boolean> {
+	if (!isIos()) return false;
+
+	const authorized = await ensurePhotosAuthorized();
+	if (!authorized) {
+		appLog.warn("[saveMedia] Photos permission not granted");
+		return false;
+	}
+
+	const cache = await appCacheDir();
+	try {
+		await mkdir(SAVE_DIR, { baseDir: BaseDirectory.AppCache, recursive: true });
+	} catch (error) {
+		appLog.error("[saveMedia] mkdir failed", error);
+		throw error;
+	}
+
+	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extensionFromMimeType(mimeType, type)}`;
+	const relativePath = `${SAVE_DIR}/${fileName}`;
+	const absolutePath = await join(cache, relativePath);
+
+	try {
+		await writeFile(relativePath, bytes, { baseDir: BaseDirectory.AppCache });
+	} catch (error) {
+		appLog.error("[saveMedia] writeFile failed", error);
+		throw error;
+	}
+
+	try {
+		const albumId = await ensureAlbumId();
+		const created = type === "video"
+			? await createVideos({ album: albumId, files: [absolutePath] })
+			: await createPhotos({ album: albumId, files: [absolutePath] });
+		if (!created || created.length === 0) {
+			throw new Error("Photos library did not return a created asset");
+		}
+		recordDownloadedMediaEntry({
+			identifier: created[0],
+			platform: "ios",
+			albumId,
+			byteSize: bytes.byteLength,
+			mimeType,
+			kind: type,
+		});
+		return true;
+	} catch (error) {
+		appLog.error("[saveMedia] createPhotos/createVideos failed", error);
+		throw error;
+	} finally {
+		await remove(relativePath, { baseDir: BaseDirectory.AppCache }).catch((error) => {
+			appLog.warn("[saveMedia] Failed to clean up temp file", error);
+		});
+	}
+}
+
+async function saveMediaBytesToGalleryAndroid(
+	bytes: Uint8Array,
+	mimeTypeIn: string | null,
+	type: "image" | "video",
+): Promise<boolean> {
+	const extension = extensionFromMimeType(mimeTypeIn, type);
+	const mimeType = mimeTypeIn || mimeTypeFor(type, extension, null);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 	const relativePath = `${FOLDER_NAME}/${fileName}`;
 
@@ -165,6 +182,14 @@ async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): 
 		await AndroidFs.writeFile(uri, bytes);
 		await AndroidFs.setPublicFilePending(uri, false);
 		await AndroidFs.scanPublicFile(uri);
+		recordDownloadedMediaEntry({
+			identifier: JSON.stringify(uri),
+			platform: "android",
+			albumId: null,
+			byteSize: bytes.byteLength,
+			mimeType,
+			kind: type,
+		});
 		return true;
 	} catch (error) {
 		appLog.error("[saveMedia] Android writeFile/scan failed", error);
@@ -173,19 +198,55 @@ async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): 
 	}
 }
 
+async function saveMediaBytesToFolderDesktop(
+	bytes: Uint8Array,
+	mimeType: string | null,
+	type: "image" | "video",
+): Promise<boolean> {
+	const extension = extensionFromMimeType(mimeType, type);
+	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
+	const baseDir = BaseDirectory.Download;
+	const relativePath = `${FOLDER_NAME}/${fileName}`;
+
+	await mkdir(FOLDER_NAME, { baseDir, recursive: true });
+	await writeFile(relativePath, bytes, { baseDir });
+	recordDownloadedMediaEntry({
+		identifier: relativePath,
+		platform: "desktop",
+		albumId: null,
+		byteSize: bytes.byteLength,
+		mimeType,
+		kind: type,
+	});
+	return true;
+}
+
+/**
+ * // Downloads a remote chat-media URL and saves it to the devices photo
+ * // library, in a "Free Grind" album. iOS only.
+ */
+export async function saveMediaToGallery(url: string, type: "image" | "video"): Promise<boolean> {
+	if (!isIos()) return false;
+	const { bytes, contentType } = await fetchMediaBytes(url);
+	return saveMediaBytesToGallery(bytes, contentType, type);
+}
+
+/**
+ * Saves a remote chat-media URL into the public Downloads collection via
+ * MediaStore, in a "FreeGrind" sub-folder. Android only.
+ */
+async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): Promise<boolean> {
+	const { bytes, contentType } = await fetchMediaBytes(url);
+	return saveMediaBytesToGalleryAndroid(bytes, contentType, type);
+}
+
 /**
  * Saves a remote chat-media URL into the user's Downloads folder, in a
  * "FreeGrind" sub-folder. Desktop (Windows/macOS/Linux) only.
  */
 async function saveMediaToFolderDesktop(url: string, type: "image" | "video"): Promise<boolean> {
-	const { bytes } = await fetchMediaBytes(url);
-	const extension = extensionFromUrl(url, type);
-	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-	const baseDir = BaseDirectory.Download;
-
-	await mkdir(FOLDER_NAME, { baseDir, recursive: true });
-	await writeFile(`${FOLDER_NAME}/${fileName}`, bytes, { baseDir });
-	return true;
+	const { bytes, contentType } = await fetchMediaBytes(url);
+	return saveMediaBytesToFolderDesktop(bytes, contentType, type);
 }
 
 const BATCH_DELAY_MS = 400;
@@ -241,6 +302,107 @@ export async function saveMediaToDevice(url: string, type: "image" | "video"): P
 	return true;
 }
 
+function downloadDataUri(dataUri: string): void {
+	const a = document.createElement("a");
+	a.href = dataUri;
+	a.download = `media-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	a.target = "_blank";
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+}
+
+/**
+ * Like saveMediaToDevice, but for media we already have the bytes for
+ * locally (base64, from chatDb) rather than a live URL — needed for chat
+ * media that may no longer have a working remote URL at all (expired,
+ * archived conversation) but is still cached and viewable.
+ */
+export async function saveMediaBytesToDevice(
+	base64: string,
+	mimeType: string | null,
+	type: "image" | "video",
+): Promise<boolean> {
+	const bytes = base64ToBytes(base64);
+
+	if (isIos()) return saveMediaBytesToGallery(bytes, mimeType, type);
+
+	if (isAndroid()) {
+		try {
+			return await saveMediaBytesToGalleryAndroid(bytes, mimeType, type);
+		} catch (error) {
+			appLog.error("[saveMedia] Android save failed, falling back to browser", error);
+			downloadDataUri(toDataUri(mimeType, base64));
+			return true;
+		}
+	}
+
+	if (isDesktopTauri()) {
+		try {
+			return await saveMediaBytesToFolderDesktop(bytes, mimeType, type);
+		} catch (error) {
+			appLog.error("[saveMedia] Desktop save failed, falling back to browser", error);
+			downloadDataUri(toDataUri(mimeType, base64));
+			return true;
+		}
+	}
+
+	downloadDataUri(toDataUri(mimeType, base64));
+	return true;
+}
+
+/**
+ * Silent variant for background auto-download: same as saveMediaBytesToDevice
+ * but never falls back to opening a browser download — on any failure it
+ * throws so the caller can log and move on without disrupting the UI.
+ */
+export async function saveMediaBytesToDeviceSilent(
+	base64: string,
+	mimeType: string | null,
+	type: "image" | "video",
+): Promise<boolean> {
+	const bytes = base64ToBytes(base64);
+
+	if (isIos()) return saveMediaBytesToGallery(bytes, mimeType, type);
+	if (isAndroid()) return saveMediaBytesToGalleryAndroid(bytes, mimeType, type);
+	if (isDesktopTauri()) return saveMediaBytesToFolderDesktop(bytes, mimeType, type);
+
+	// Not a supported native platform — skip silently instead of opening a
+	// browser download, since this runs in the background without user intent.
+	return false;
+}
+
+export type SaveMediaBytesBatchItem = { base64: string; mimeType: string | null; type: "image" | "video" };
+
+/** Bytes-based counterpart to saveMediaBatch, for locally-cached media. */
+export async function saveMediaBytesBatch(
+	items: SaveMediaBytesBatchItem[],
+	onProgress?: (done: number, total: number) => void,
+): Promise<SaveMediaBatchResult> {
+	let succeeded = 0;
+	let failed = 0;
+
+	for (let i = 0; i < items.length; i++) {
+		const { base64, mimeType, type } = items[i];
+		try {
+			const saved = await saveMediaBytesToDevice(base64, mimeType, type);
+			if (saved) succeeded++;
+			else failed++;
+		} catch (error) {
+			appLog.error("[saveMedia] Failed to save item in batch", error);
+			failed++;
+		}
+
+		onProgress?.(i + 1, items.length);
+
+		if (i < items.length - 1) {
+			await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY_MS));
+		}
+	}
+
+	return { total: items.length, succeeded, failed };
+}
+
 /**
  * Sequentially!!! saves a list of media items, with a tiny bitty delay between each
  * to avoid triggerin the CDN/API.
@@ -271,4 +433,90 @@ export async function saveMediaBatch(
 	}
 
 	return { total: items.length, succeeded, failed };
+}
+
+/** Total size and count of every file this app has saved to the device. */
+export async function getDownloadedMediaUsage(): Promise<{ count: number; totalBytes: number }> {
+	return chatDb.getDownloadedMediaUsage();
+}
+
+export type DeleteAllDownloadedMediaResult = { deleted: number; failed: number };
+
+/**
+ * Deletes every file this app has ever saved to the device (manual saves
+ * and auto-downloads alike) — precisely the tracked entries, nothing the
+ * user added to the same album/folder themselves. Platform-specific:
+ * iOS deletes tracked Photos assets from the "Free Grind" album,
+ * Android removes each tracked MediaStore file, desktop removes each
+ * tracked file from Downloads/FreeGrind.
+ */
+export async function deleteAllDownloadedMedia(): Promise<DeleteAllDownloadedMediaResult> {
+	const entries = await chatDb.getDownloadedMediaEntries();
+	if (entries.length === 0) {
+		return { deleted: 0, failed: 0 };
+	}
+
+	let deleted = 0;
+	let failed = 0;
+	const succeededIdentifiers: string[] = [];
+
+	if (isIos()) {
+		const byAlbum = new Map<string, string[]>();
+		for (const entry of entries) {
+			if (!entry.albumId) {
+				failed += 1;
+				continue;
+			}
+			const list = byAlbum.get(entry.albumId) ?? [];
+			list.push(entry.identifier);
+			byAlbum.set(entry.albumId, list);
+		}
+		for (const [albumId, identifiers] of byAlbum) {
+			try {
+				const ok = await deleteAlbumMedias({ album: albumId, identifiers });
+				if (ok) {
+					deleted += identifiers.length;
+					succeededIdentifiers.push(...identifiers);
+				} else {
+					failed += identifiers.length;
+				}
+			} catch (error) {
+				appLog.error("[saveMedia] Failed to delete iOS album medias", error);
+				failed += identifiers.length;
+			}
+		}
+	} else if (isAndroid()) {
+		for (const entry of entries) {
+			try {
+				const uri = JSON.parse(entry.identifier) as AndroidFsUri;
+				await AndroidFs.removeFile(uri);
+				deleted += 1;
+				succeededIdentifiers.push(entry.identifier);
+			} catch (error) {
+				appLog.error("[saveMedia] Failed to delete Android file", error);
+				failed += 1;
+			}
+		}
+	} else if (isDesktopTauri()) {
+		for (const entry of entries) {
+			try {
+				await remove(entry.identifier, { baseDir: BaseDirectory.Download });
+				deleted += 1;
+				succeededIdentifiers.push(entry.identifier);
+			} catch (error) {
+				appLog.error("[saveMedia] Failed to delete desktop file", error);
+				failed += 1;
+			}
+		}
+	} else {
+		// Not a supported native platform — browser downloads aren't tracked
+		// or revocable from here, nothing to do.
+		return { deleted: 0, failed: 0 };
+	}
+
+	if (succeededIdentifiers.length > 0) {
+		await chatDb.deleteDownloadedMediaEntries(succeededIdentifiers);
+	}
+
+	return { deleted, failed };
 }

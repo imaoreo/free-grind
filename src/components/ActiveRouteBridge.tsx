@@ -17,6 +17,7 @@ declare global {
 	interface Window {
 		FreeGrindBridge?: {
 			setActiveRoute?: (route: string) => void;
+			postLocalNotification?: (payloadJson: string) => void;
 		};
 	}
 }

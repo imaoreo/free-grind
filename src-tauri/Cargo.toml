@@ -42,7 +42,7 @@ rmp-serde = "1.3.1"
 serde_bytes = "0.11"
 tauri-plugin-geolocation = "2"
 tauri-plugin-os = "2"
-tauri-plugin-notification = "2"
+tauri-plugin-notification = { path = "notification-patched" }
 tauri-plugin-http = "2"
 futures-util = "0.3"
 http = "1"
@@ -59,6 +59,10 @@ rustls = { version = "0.23", features = ["ring"] }
 windows-native-keyring-store = "0.5.1"
 # Use rustls for WebSocket on Windows to avoid SChannel JA3 fingerprint detection by Cloudflare
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+# Same webview2-com/windows versions wry (our Tauri version's webview backend) already
+# pulls in, so the ICoreWebView2 types in lib.rs line up with what's actually loaded.
+webview2-com = "0.38"
+windows = "0.61"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }

@@ -2,7 +2,8 @@ import { Check, Clock, Loader2, Search, Send, Sticker, TrendingUp, X } from "luc
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
-import { GIPHY_API_KEY, GIPHY_BASE, GIPHY_RECENT_GIFS_KEY as RECENT_GIFS_KEY, GIPHY_RECENT_GIFS_MAX as RECENT_GIFS_MAX } from "../../../config/giphy-config";
+import { GIPHY_API_KEY, GIPHY_BASE, GIPHY_RECENT_GIFS_MAX as RECENT_GIFS_MAX } from "../../../config/giphy-config";
+import { getRecentGifs, setRecentGifs } from "../../../services/chatDb";
 
 interface GiphyItem {
 	id: string;
@@ -15,22 +16,18 @@ interface GiphyItem {
 	height: number;
 }
 
-function loadRecentGifs(): GiphyItem[] {
+async function loadRecentGifs(): Promise<GiphyItem[]> {
 	try {
-		const raw = window.localStorage.getItem(RECENT_GIFS_KEY);
-		if (!raw) return [];
-		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed) ? (parsed as GiphyItem[]) : [];
+		return await getRecentGifs<GiphyItem>();
 	} catch {
 		return [];
 	}
 }
 
-function saveRecentGif(gif: GiphyItem): GiphyItem[] {
-	const existing = loadRecentGifs().filter((g) => g.id !== gif.id);
+async function saveRecentGif(gif: GiphyItem): Promise<GiphyItem[]> {
+	const existing = (await loadRecentGifs()).filter((g) => g.id !== gif.id);
 	const next = [gif, ...existing].slice(0, RECENT_GIFS_MAX);
-	window.localStorage.setItem(RECENT_GIFS_KEY, JSON.stringify(next));
-	return next;
+	return setRecentGifs(next);
 }
 
 interface GiphyPickerSheetProps {
@@ -146,7 +143,11 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [selectedGif, setSelectedGif] = useState<GiphyItem | null>(null);
-	const [recentGifs, setRecentGifs] = useState<GiphyItem[]>(() => loadRecentGifs());
+	const [recentGifs, setRecentGifsState] = useState<GiphyItem[]>([]);
+
+	useEffect(() => {
+		void loadRecentGifs().then(setRecentGifsState);
+	}, []);
 	const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const loadTrending = useCallback(async () => {
@@ -317,7 +318,7 @@ export function GiphyPickerSheet({ onClose, onSelect, isDesktop, isSending = fal
 					<button
 						type="button"
 						onClick={() => {
-							setRecentGifs(saveRecentGif(selectedGif));
+							void saveRecentGif(selectedGif).then(setRecentGifsState);
 							onSelect(selectedGif);
 							onClose();
 						}}

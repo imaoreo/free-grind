@@ -135,6 +135,21 @@ export function formatProfilePhotoCreatedAt(
 	return formatter.format(new Date(timestamp));
 }
 
+export function formatTravelDateRange(startMs: number, endMs: number): string {
+	const dayFormatter = getDateTimeFormatter(i18n.language, { month: "short", day: "numeric" });
+	const dayYearFormatter = getDateTimeFormatter(i18n.language, {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	});
+	const start = new Date(startMs);
+	const end = new Date(endMs);
+	const sameYear = start.getFullYear() === end.getFullYear();
+	const startLabel = sameYear ? dayFormatter.format(start) : dayYearFormatter.format(start);
+	const endLabel = dayYearFormatter.format(end);
+	return `${startLabel} – ${endLabel}`;
+}
+
 export function formatDistance(
 	distanceMeters: number | null | undefined,
 	t?: (key: string, options?: any) => string,

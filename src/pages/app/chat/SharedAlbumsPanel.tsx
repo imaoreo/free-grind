@@ -10,8 +10,13 @@ import { EmptyState, ErrorState, LoadingState } from "../../../components/ui/sta
 import type { ConversationEntry } from "../../../types/chat";
 import type { AlbumViewer, SharedAlbumItem } from "../../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
+import { useAvatarCache } from "../../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { AlbumViewerPanel } from "../shared-albums/AlbumViewerPanel";
 import { PhotoViewer, type PhotoViewerMedia } from "../../../components/PhotoViewer";
+import { getAllAlbums, getConversation } from "../../../services/chatDb";
+import { cacheAlbumFromSharedPage, captureAlbum, getCachedAlbumCoverUri, getLocalAlbum } from "../../../services/albumStore";
+import { toDataUri } from "../../../services/mediaStore";
 
 function getCounterparty(
 	entry: ConversationEntry,
@@ -33,6 +38,7 @@ type Props = {
 
 export function SharedAlbumsPanel({ isDesktop }: Props) {
 	const { t } = useTranslation();
+	useAvatarCache();
 	const navigate = useNavigate();
 	const { userId } = useAuth();
 	const { mobileGridColumns } = usePreferences();
@@ -55,6 +61,52 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 
 	const loadSharedAlbums = useCallback(async () => {
 		setError(null);
+
+		// Show cached albums immediately while the API loads
+		const cachedStoredAlbums = await getAllAlbums().catch(() => []);
+		if (cachedStoredAlbums.length > 0) {
+			const cachedItems = await Promise.all(
+				cachedStoredAlbums.map(async (stored): Promise<SharedAlbumItem | null> => {
+					const profileId = stored.ownerProfileId ? Number(stored.ownerProfileId) : null;
+					if (profileId == null) return null;
+					let profileName = `Profile ${profileId}`;
+					let profileMediaHash: string | null = null;
+					if (stored.conversationId) {
+						const conv = await getConversation(stored.conversationId).catch(() => null);
+						if (conv) {
+							profileName = conv.entry.data.name?.trim() || profileName;
+							const cp = getCounterparty(conv.entry, userId);
+							if (cp?.mediaHash && validateMediaHash(cp.mediaHash)) {
+								profileMediaHash = cp.mediaHash;
+							}
+						}
+					}
+					const cachedCover = getCachedAlbumCoverUri(Number(stored.albumId)) ??
+						(stored.previewCoverBase64 && stored.previewCoverMimeType
+							? toDataUri(stored.previewCoverMimeType, stored.previewCoverBase64)
+							: null);
+					return {
+						profileId,
+						profileName,
+						profileMediaHash,
+						conversationId: stored.conversationId,
+						album: {
+							albumId: Number(stored.albumId),
+							albumName: stored.albumName,
+							content: cachedCover ? { thumbUrl: cachedCover, url: cachedCover, coverUrl: cachedCover } : null,
+							contentCount: { imageCount: 0, videoCount: 0 },
+						},
+						albumNumber: Number.MAX_SAFE_INTEGER,
+						localOnly: true,
+					};
+				}),
+			);
+			const validCached = cachedItems.filter((x): x is SharedAlbumItem => x !== null);
+			if (validCached.length > 0) {
+				setItems(validCached);
+			}
+		}
+
 		try {
 			const profileMap = new Map<
 				number,
@@ -80,8 +132,19 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 			}
 
 			const feed = await apiFunctions.getSharedAlbums({});
+			const liveAlbumIds = new Set(feed.sharedAlbums.map((sa) => sa.albumId));
+
 			const nextItems: SharedAlbumItem[] = feed.sharedAlbums.map((sa) => {
 				const meta = profileMap.get(sa.ownerProfileId);
+				const conversationId = meta?.conversationId ?? null;
+				// Fire-and-forget: cache cover into chatDb for offline access
+				void cacheAlbumFromSharedPage({
+					albumId: sa.albumId,
+					albumName: sa.name,
+					ownerProfileId: sa.ownerProfileId,
+					conversationId,
+					coverUrl: sa.coverContent.location,
+				});
 				return {
 					profileId: sa.ownerProfileId,
 					profileName: meta?.profileName || sa.profile.name?.trim() || `Profile ${sa.ownerProfileId}`,
@@ -89,7 +152,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 						meta?.profileMediaHash && validateMediaHash(meta.profileMediaHash)
 							? meta.profileMediaHash
 							: null,
-					conversationId: meta?.conversationId ?? null,
+					conversationId,
 					album: {
 						albumId: sa.albumId,
 						albumName: sa.name,
@@ -104,7 +167,49 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				};
 			});
 			nextItems.sort((a, b) => a.albumNumber - b.albumNumber);
-			setItems(nextItems);
+
+			// Append cached-only albums (no longer in live feed) at the end
+			const cachedOnlyItems = (await getAllAlbums().catch(() => [])).filter(
+				(s) => !liveAlbumIds.has(Number(s.albumId)),
+			);
+			const extraItems = await Promise.all(
+				cachedOnlyItems.map(async (stored): Promise<SharedAlbumItem | null> => {
+					const profileId = stored.ownerProfileId ? Number(stored.ownerProfileId) : null;
+					if (profileId == null) return null;
+					let profileName = `Profile ${profileId}`;
+					let profileMediaHash: string | null = null;
+					if (stored.conversationId) {
+						const conv = await getConversation(stored.conversationId).catch(() => null);
+						if (conv) {
+							profileName = conv.entry.data.name?.trim() || profileName;
+							const cp = getCounterparty(conv.entry, userId);
+							if (cp?.mediaHash && validateMediaHash(cp.mediaHash)) {
+								profileMediaHash = cp.mediaHash;
+							}
+						}
+					}
+					const cachedCover = getCachedAlbumCoverUri(Number(stored.albumId)) ??
+						(stored.previewCoverBase64 && stored.previewCoverMimeType
+							? toDataUri(stored.previewCoverMimeType, stored.previewCoverBase64)
+							: null);
+					return {
+						profileId,
+						profileName,
+						profileMediaHash,
+						conversationId: stored.conversationId,
+						album: {
+							albumId: Number(stored.albumId),
+							albumName: stored.albumName,
+							content: cachedCover ? { thumbUrl: cachedCover, url: cachedCover, coverUrl: cachedCover } : null,
+							contentCount: { imageCount: 0, videoCount: 0 },
+						},
+						albumNumber: Number.MAX_SAFE_INTEGER,
+						localOnly: true,
+					};
+				}),
+			);
+
+			setItems([...nextItems, ...extraItems.filter((x): x is SharedAlbumItem => x !== null)]);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : t("shared_albums.error_load_fallback"));
 		} finally {
@@ -127,15 +232,43 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 			setOpenAlbumError(null);
 			setIsOpeningAlbum(true);
 			try {
-				await apiFunctions.openSharedAlbum({ albumId: item.album.albumId });
-				const details = await apiFunctions.getAlbum(item.album.albumId);
-				setViewer({
-					albumId: details.albumId,
-					albumName: details.albumName,
-					profileId: item.profileId,
-					profileName: item.profileName,
-					content: details.content,
-				});
+				if (item.localOnly) {
+					const local = await getLocalAlbum(item.album.albumId);
+					if (!local || local.content.length === 0) {
+						setOpenAlbumError(t("shared_albums.error_open_fallback"));
+						return;
+					}
+					setViewer({
+						albumId: local.albumId,
+						albumName: local.albumName ?? item.album.albumName ?? null,
+						profileId: item.profileId,
+						profileName: item.profileName,
+						content: local.content,
+					});
+				} else {
+					await apiFunctions.openSharedAlbum({ albumId: item.album.albumId });
+					const details = await apiFunctions.getAlbum(item.album.albumId);
+					setViewer({
+						albumId: details.albumId,
+						albumName: details.albumName,
+						profileId: item.profileId,
+						profileName: item.profileName,
+						content: details.content,
+					});
+
+					// Fully cache every content item's bytes, same as albums
+					// shared in a chat thread — so it survives the share expiring.
+					void captureAlbum({
+						albumId: details.albumId,
+						albumName: details.albumName,
+						content: details.content,
+						ownerProfileId: String(item.profileId),
+						conversationId: item.conversationId,
+						sharedViaMessageId: null,
+						remainingViews: null,
+						isViewable: true,
+					});
+				}
 				setViewerIndex(0);
 				if (!viewerHistoryPushedRef.current) {
 					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
@@ -147,7 +280,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum],
+		[apiFunctions, isOpeningAlbum, t],
 	);
 
 	const handleMessageProfile = useCallback(
@@ -310,9 +443,12 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 								item.album.content?.url ||
 								item.album.content?.coverUrl ||
 								null;
-							const avatarUrl = item.profileMediaHash
-								? getThumbImageUrl(item.profileMediaHash, "320x320")
-								: null;
+							const avatarUrl = resolveAvatarSrc(
+								item.profileMediaHash,
+								item.profileMediaHash
+									? getThumbImageUrl(item.profileMediaHash, "320x320")
+									: null,
+							);
 
 							return (
 								<button
@@ -334,6 +470,11 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 										) : (
 											<div className="flex h-full w-full items-center justify-center text-[var(--text-muted)]">
 												<Album className="h-8 w-8" />
+											</div>
+										)}
+										{item.localOnly && (
+											<div className="absolute left-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[9px] font-semibold text-white/80 backdrop-blur-sm">
+												{t("shared_albums.cached_label", { defaultValue: "cached" })}
 											</div>
 										)}
 										<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">

@@ -9,6 +9,8 @@ import type { ConversationEntry } from "../../../types/messages";
 import type { ProfileSearchResult, SearchMode } from "../../../types/chat-page";
 import { getProfileImageUrl, validateMediaHash } from "../../../utils/media";
 import { ProfileImage } from "../../../components/ui/profile-image";
+import { useAvatarCache } from "../../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { formatDistance } from "../gridpage/utils";
 import {
 	indexConversations,
@@ -30,6 +32,7 @@ export function ChatSearchPanel({ isDesktop, searchQuery, searchMode, onClose, o
 	const service = useApiFunctions();
 	const { geohash, unitsPreset } = usePreferences();
 	const { t } = useTranslation();
+	useAvatarCache();
 
 	const [conversations, setConversations] = useState<ConversationEntry[]>([]);
 	const [isLoadingInbox, setIsLoadingInbox] = useState(true);
@@ -57,7 +60,7 @@ export function ChatSearchPanel({ isDesktop, searchQuery, searchMode, onClose, o
 
 	const getSearchProfileImage = useCallback((hash: string | null | undefined) => {
 		if (!hash || !validateMediaHash(hash)) return null;
-		return getProfileImageUrl(hash);
+		return resolveAvatarSrc(hash, getProfileImageUrl(hash));
 	}, []);
 
 	useEffect(() => {

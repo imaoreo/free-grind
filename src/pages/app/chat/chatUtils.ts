@@ -2,6 +2,7 @@ import i18n from "../../../i18n";
 import { useEffect, useState } from "react";
 import type { ConversationEntry, InboxFilters, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
+import type { MediaKind } from "../../../types/chat-db";
 import {
 	getProfileImageUrl,
 	getThumbImageUrl,
@@ -279,6 +280,68 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 		default:
 			return t("chat.preview.sent_message");
 	}
+}
+
+// Types getPreviewText/getMessagePreviewLabel can render a specific label
+// for. Anything else with no text falls through to the generic "Sent a
+// message" — which we'd rather replace with the real last message when we
+// have local history for it.
+const SELF_EXPLANATORY_PREVIEW_TYPES = new Set([
+	"Image",
+	"ExpiringImage",
+	"Giphy",
+	"Gaymoji",
+	"Album",
+	"ExpiringAlbum",
+	"ExpiringAlbumV2",
+	"Audio",
+	"AlbumContentReaction",
+	"Video",
+	"PrivateVideo",
+	"NonExpiringVideo",
+	"Location",
+]);
+
+/**
+ * Whether a conversation's preview is worth showing as-is, or should be
+ * replaced with one derived from local history instead — covers both a
+ * missing preview (e.g. last message was unsent server-side) and a present
+ * but textless, unrecognized-type preview that would otherwise render as a
+ * generic "Sent a message".
+ */
+export function isPreviewUnhelpful(
+	preview: ConversationEntry["data"]["preview"],
+): boolean {
+	if (!preview) {
+		return true;
+	}
+	if (preview.text?.trim()) {
+		return false;
+	}
+	return !preview.type || !SELF_EXPLANATORY_PREVIEW_TYPES.has(preview.type);
+}
+
+/**
+ * Builds an inbox-preview object from an actual message, for when the live
+ * API's own preview is unusable (e.g. null — seen when the last message was
+ * unsent server-side, even though earlier history exists). Used as a local
+ * fallback so the inbox row shows the last real message instead of "no
+ * messages yet" on a conversation that clearly has history.
+ */
+export function buildPreviewFromMessage(
+	message: Message,
+	t: TranslateFn,
+): NonNullable<ConversationEntry["data"]["preview"]> {
+	return {
+		conversationId: { value: message.conversationId },
+		messageId: message.messageId,
+		senderId: message.senderId,
+		type: message.type,
+		chat1Type: message.chat1Type ?? "text",
+		text: getMessagePreviewLabel(message, t),
+		albumId: null,
+		imageHash: null,
+	};
 }
 
 export function getMessageText(message: UiMessage, t: TranslateFn): string {
@@ -652,6 +715,143 @@ export function getMessageVideoUrl(message: UiMessage): string | null {
 				return normalized;
 			}
 		}
+	}
+
+	return null;
+}
+
+function getMessageImageHash(message: UiMessage): string | null {
+	if (!message.body || typeof message.body !== "object") {
+		return null;
+	}
+	const body = message.body as Record<string, unknown>;
+	const candidates: unknown[] = [
+		body.imageHash,
+		body.mediaHash,
+		body.hash,
+		body.fileCacheKey,
+	];
+	for (const candidate of candidates) {
+		if (typeof candidate !== "string") {
+			continue;
+		}
+		const trimmed = candidate.trim();
+		if (
+			trimmed &&
+			(validateMediaHash(trimmed) || /^[a-z0-9_-]{16,}$/i.test(trimmed))
+		) {
+			return trimmed;
+		}
+	}
+	return null;
+}
+
+/**
+ * Stable, resend-invariant key for caching a message's media bytes in
+ * chatDb's media_files table. Images prefer a content hash (survives
+ * resend/re-fetch since the signed URL's query string changes every time);
+ * video/audio have no hash field so they fall back to mediaId or the
+ * messageId itself.
+ */
+export function getMediaKeyForMessage(
+	message: UiMessage,
+	kind: "image" | "video" | "audio",
+): string {
+	if (kind === "image") {
+		const hash = getMessageImageHash(message);
+		if (hash) {
+			return `image:${hash}`;
+		}
+		const url = getMessageImageUrl(message);
+		const urlHash = url ? extractImageHashFromSignedUrl(url) : null;
+		if (urlHash) {
+			return `image:${urlHash}`;
+		}
+		const mediaId = getMessageMediaId(message);
+		if (mediaId != null) {
+			return `image:media:${mediaId}`;
+		}
+		return `image:msg:${message.messageId}`;
+	}
+
+	if (kind === "video") {
+		const mediaId = getMessageMediaId(message);
+		if (mediaId != null) {
+			return `video:media:${mediaId}`;
+		}
+		return `video:msg:${message.messageId}`;
+	}
+
+	return `audio:msg:${message.messageId}`;
+}
+
+export type MediaCaptureTarget = {
+	mediaKey: string;
+	kind: MediaKind;
+	url: string;
+	viewOnce: boolean;
+};
+
+// Sender-side code (ChatPage.tsx) uses this exact sentinel for "unlimited"
+// (e.g. `setAttachmentMaxViews(2147483647)`, `views = maxViews ?? 2147483647`).
+// Anything below it — 1 ("view once"), 2 ("view twice"), or any other finite
+// count — is a limited view, not just exactly 1.
+const UNLIMITED_VIEWS = 2_147_483_647;
+
+function isViewLimitedMessage(message: UiMessage): boolean {
+	const body = message.body as Record<string, unknown> | null | undefined;
+	const maxViews = typeof body?.maxViews === "number" ? body.maxViews : null;
+	const viewsRemaining =
+		typeof body?.viewsRemaining === "number" ? body.viewsRemaining : null;
+	const candidate = maxViews ?? viewsRemaining;
+
+	if (candidate != null) {
+		return candidate > 0 && candidate < UNLIMITED_VIEWS;
+	}
+
+	// No explicit view-limit field on the body — fall back to the type string.
+	return message.type === "ExpiringImage" || message.type === "PrivateVideo";
+}
+
+/**
+ * Whatever this message's media is (if any) and however its URL was
+ * resolved, this is what should be eagerly captured into chatDb's
+ * media_files table. Giphy is intentionally excluded — it's third-party,
+ * non-expiring CDN content, not Grindr media subject to URL expiry.
+ */
+export function getMediaCaptureTarget(message: UiMessage): MediaCaptureTarget | null {
+	if (message.type === "Giphy") {
+		return null;
+	}
+
+	const imageUrl = getMessageImageUrl(message);
+	if (imageUrl) {
+		return {
+			mediaKey: getMediaKeyForMessage(message, "image"),
+			kind: "image",
+			url: imageUrl,
+			viewOnce: isViewLimitedMessage(message),
+		};
+	}
+
+	const videoUrl = getMessageVideoUrl(message);
+	if (videoUrl) {
+		return {
+			mediaKey: getMediaKeyForMessage(message, "video"),
+			kind: "video",
+			url: videoUrl,
+			viewOnce: isViewLimitedMessage(message),
+		};
+	}
+
+	const audioUrl = getMessageAudioUrl(message);
+	if (audioUrl) {
+		return {
+			mediaKey: getMediaKeyForMessage(message, "audio"),
+			kind: "audio",
+			url: audioUrl,
+			viewOnce: false,
+		};
 	}
 
 	return null;

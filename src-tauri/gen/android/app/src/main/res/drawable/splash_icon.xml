@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher foreground mipmap is a full-bleed adaptive-icon layer meant
+     to be clipped into shape by the OS launcher — the Splash Screen API
+     doesn't do that clipping, so used directly it renders oversized. This
+     inset shrinks it down to a normal splash-icon size. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@mipmap/ic_launcher_foreground"
+    android:insetLeft="25%"
+    android:insetTop="25%"
+    android:insetRight="25%"
+    android:insetBottom="25%" />

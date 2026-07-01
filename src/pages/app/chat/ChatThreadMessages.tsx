@@ -1,4 +1,4 @@
-import { Album, Ellipsis, Eye, Hourglass, Lock, MessageCircleQuestion, Mic, Play, Repeat2, Reply, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Ellipsis, Eye, Hourglass, Lock, MessageCircleQuestion, Mic, Play, Repeat2, Reply, ShieldCheck, VideoOff, ImageOff } from "lucide-react";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -13,7 +13,19 @@ import type { UiMessage } from "../../../types/chat-page";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
 import { usePreferences } from "../../../contexts/PreferencesContext";
+import { useLocalMediaCache } from "../../../hooks/useLocalMediaCache";
+import { getCachedMediaUri, getMessageFallbackMediaKey } from "../../../services/mediaStore";
+import { useAlbumCache } from "../../../hooks/useAlbumCache";
+import {
+    ensureAlbumCacheChecked,
+    getCachedAlbumCoverUri,
+    isAlbumCachedLocally,
+    isAlbumKnownRevoked,
+} from "../../../services/albumStore";
+import { useAvatarCache } from "../../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
+import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
 import {
 	formatDateHeader,
 	formatDateTime24,
@@ -21,6 +33,7 @@ import {
 	getMessageAlbumCoverUrl,
 	getMessageAlbumId,
 	getMessageAudioUrl,
+	getMediaCaptureTarget,
 	getMessageImageCreatedAt,
 	getGaymojiUrl,
 	getMessageImageUrl,
@@ -64,6 +77,7 @@ type ChatThreadMessagesProps = {
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	isPartnerTyping?: boolean;
+	isArchived?: boolean;
 };
 
 const getReactionEmoji = (type: number): string => {
@@ -185,8 +199,12 @@ export function ChatThreadMessages({
 	handleStopAlbumShare,
 	threadBottomRef,
 	isPartnerTyping = false,
+	isArchived = false,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
+	useLocalMediaCache();
+	useAlbumCache();
+	useAvatarCache();
 	const { blurIncomingMedia } = usePreferences();
 	const [revealedMediaMessageIds, setRevealedMediaMessageIds] = useState<Set<string>>(
 		() => new Set(),
@@ -319,6 +337,21 @@ export function ChatThreadMessages({
 			if (m.type !== "Album" && m.type !== "ExpiringAlbum" && m.type !== "ExpiringAlbumV2") continue;
 			const aid = getMessageAlbumId(m);
 			if (aid) map.set(aid, m.messageId);
+		}
+		return map;
+	}, [threadMessages]);
+
+	// Whether the most recent share of each album is currently viewable —
+	// once an album is shared again, older messages for the same album
+	// shouldn't keep showing a "cached, no longer shared" badge.
+	const albumActivelyShared = useMemo(() => {
+		const map = new Map<number, boolean>();
+		for (const m of threadMessages) {
+			if (m.type !== "Album" && m.type !== "ExpiringAlbum" && m.type !== "ExpiringAlbumV2") continue;
+			const aid = getMessageAlbumId(m);
+			if (!aid) continue;
+			const body = m.body as Record<string, unknown> | null | undefined;
+			map.set(aid, body?.isViewable === true);
 		}
 		return map;
 	}, [threadMessages]);
@@ -504,12 +537,53 @@ export function ChatThreadMessages({
                     );
                     const isNewDay = currentHeader !== lastHeader;
                     lastHeader = currentHeader;
+
+                    if (message.type === "SystemBlocked" || message.type === "SystemUnblocked") {
+                        const isBlocked = message.type === "SystemBlocked";
+                        return (
+                            <Fragment key={message.messageId}>
+                                {isNewDay && (
+                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                                            {currentHeader}
+                                        </span>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                    </div>
+                                )}
+                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                                    {isBlocked ? (
+                                        <Ban className="h-3.5 w-3.5 shrink-0" />
+                                    ) : (
+                                        <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                                    )}
+                                    <span>
+                                        {isBlocked
+                                            ? t("chat.system.blocked", { defaultValue: "You were blocked" })
+                                            : t("chat.system.unblocked", { defaultValue: "You were unblocked" })}
+                                    </span>
+                                    <span className="text-[var(--text-muted)]/70">
+                                        {formatDateTime24(message.timestamp)}
+                                    </span>
+                                </div>
+                            </Fragment>
+                        );
+                    }
+
                     const mine =
                         userId != null && Number(message.senderId) === Number(userId);
                     const failed = message.clientState === "failed";
                     const pending = message.clientState === "pending";
-                    const localOnly = message._localOnly === true;
-                    const imageUrl = getMessageImageUrl(message);
+                    // Every message in an archived conversation is local-only by
+                    // definition (the whole thread is gone from the API) — singling
+                    // out individual messages with the badge/dimming is redundant
+                    // and inconsistent. Show them all normally; the per-message
+                    // local-history treatment is reserved for active conversations
+                    // where one specific message was preserved through an unsend.
+                    const localOnly =
+                        !isArchived &&
+                        (message._localOnly === true || message.localHistory === true);
+                    let imageUrl = getMessageImageUrl(message);
                     const gaymojiUrl = getGaymojiUrl(message);
                     const messageTakenOnGrindr = getMessageTakenOnGrindr(message);
                     const imageCreatedAt = getMessageImageCreatedAt(message);
@@ -517,11 +591,57 @@ export function ChatThreadMessages({
                         imageCreatedAt != null
                             ? formatDateTime24(imageCreatedAt)
                             : null;
-                    const videoUrl = getMessageVideoUrl(message);
-                    const audioUrl = getMessageAudioUrl(message);
+                    let videoUrl = getMessageVideoUrl(message);
+                    let audioUrl = getMessageAudioUrl(message);
+                    // Prefer the locally-cached copy (survives signed-URL expiry /
+                    // view-once limits) over the remote URL once it's available.
+                    if (imageUrl || videoUrl || audioUrl) {
+                        const captureTarget = getMediaCaptureTarget(message);
+                        const cachedUri = captureTarget
+                            ? getCachedMediaUri(captureTarget.mediaKey)
+                            : null;
+                        if (cachedUri) {
+                            if (imageUrl) imageUrl = cachedUri;
+                            else if (videoUrl) videoUrl = cachedUri;
+                            else if (audioUrl) audioUrl = cachedUri;
+                        }
+                    } else {
+                        // The live message no longer carries a URL at all (expired
+                        // and never refreshed, conversation archived, etc.) — fall
+                        // back to whatever's cached for it by message id, so media
+                        // we already downloaded keeps showing instead of going blank.
+                        const fallbackUri = getCachedMediaUri(
+                            getMessageFallbackMediaKey(message.messageId),
+                        );
+                        if (fallbackUri) {
+                            if (fallbackUri.startsWith("data:video/")) videoUrl = fallbackUri;
+                            else if (fallbackUri.startsWith("data:audio/")) audioUrl = fallbackUri;
+                            else imageUrl = fallbackUri;
+                        }
+                    }
                     const location = getMessageLocation(message);
                     const albumId = getMessageAlbumId(message);
-                    const albumCover = getMessageAlbumCoverUrl(message);
+                    if (albumId != null) {
+                        // Lazily checks chatDb the first time this album is
+                        // rendered in this session (e.g. right after an app
+                        // restart, before any capture pass has re-run) so a
+                        // previously-captured album shows as open-able
+                        // immediately instead of only after its next refresh.
+                        ensureAlbumCacheChecked(albumId);
+                    }
+                    const isAlbumCachedForMessage = albumId != null && isAlbumCachedLocally(albumId);
+                    // Prefer the cached cover over the live body's
+                    // coverUrl/previewUrl, not just as a fallback for when it's
+                    // missing — that field can be a stale signed URL that's
+                    // non-null but already broken, which a null-coalescing
+                    // fallback would never catch. Keying the cache by album id
+                    // (not message id) also means that once a newer share
+                    // refreshes the cover, every older message referencing the
+                    // same album immediately shows that same, freshest cover —
+                    // not just the message that triggered the refresh.
+                    const albumCover =
+                        (albumId != null ? getCachedAlbumCoverUri(albumId) : null) ??
+                        getMessageAlbumCoverUrl(message);
                     const messageText = getMessageText(message, t);
                     const replyPreviewRaw = message.replyPreview as {
                         text?: string; type?: string; chat1Type?: string;
@@ -640,11 +760,13 @@ export function ChatThreadMessages({
                             (participant) =>
                                 Number(participant.profileId) === Number(message.senderId),
                         ) ?? null;
-                    const senderAvatarUrl =
+                    const senderAvatarUrl = resolveAvatarSrc(
+                        senderParticipant?.primaryMediaHash,
                         senderParticipant?.primaryMediaHash &&
                         validateMediaHash(senderParticipant.primaryMediaHash)
                             ? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-                            : null;
+                            : null,
+                    );
                     const senderLabel = mine
                         ? t("chat.you")
                         : selectedConversation.data.name?.trim() || t("chat.unknown");
@@ -695,7 +817,36 @@ export function ChatThreadMessages({
 
                     const isExpiringMedia = isAlbumMessage && !isIndefinite && isLatestShare && (expiresAt > 0 || isOnce);
 
-                    const isLocked = isAlbumMessage && (!isLatestShare || !msgBody?.isViewable);
+                    // A cached album stays open-able regardless of what the live
+                    // message body currently says about viewability/expiry —
+                    // that's the whole point of capturing it durably.
+                    const isLocked =
+                        isAlbumMessage &&
+                        !isAlbumCachedForMessage &&
+                        (!isLatestShare || !msgBody?.isViewable);
+                    // Same expiry signal as isLocked, but for the case where it's
+                    // only avoided because we have a durable local copy — flag
+                    // that so it's clear the live share is actually gone. Suppressed
+                    // once the album has been shared again (its latest share is
+                    // viewable), even for older messages referencing the same album.
+                    //
+                    // isAlbumKnownRevoked is checked first: it comes from a
+                    // session-scoped in-memory set populated the moment a 403/404
+                    // is returned by the album API, which happens well before the
+                    // next thread-messages poll can update isViewable in the
+                    // message body. albumActivelyShared is skipped if the revoked
+                    // flag is already set, so the badge appears immediately on
+                    // revocation rather than only after the next poll.
+                    const isAlbumLiveAgain =
+                        albumId != null &&
+                        !isAlbumKnownRevoked(albumId) &&
+                        albumActivelyShared.get(albumId) === true;
+                    const isCachedExpiredAlbum =
+                        isAlbumMessage &&
+                        isAlbumCachedForMessage &&
+                        !isArchived &&
+                        !isAlbumLiveAgain &&
+                        (!isLatestShare || !msgBody?.isViewable);
 
                     return (
                     /* Use Fragment to allow rendering the separator and the message as a single map item */
@@ -759,7 +910,7 @@ export function ChatThreadMessages({
                                                         ? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
                                                         : "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
                                                 }`
-                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${localOnly ? "opacity-50" : ""}`}
+                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
                                 >
                                     <div className={isMediaOnlyBubble && hasReply ? `overflow-hidden rounded-2xl ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}` : "contents"}>
                                     {localOnly && !hasVisualMedia ? (
@@ -964,20 +1115,21 @@ export function ChatThreadMessages({
                                                 <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
                                                     <Album className="h-8 w-8" />
                                                 </div>
-                                                {localOnly && (
+                                                {(localOnly || isCachedExpiredAlbum) && (
                                                     <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
                                                         {t("chat.thread.from_local_history")}
                                                     </span>
                                                 )}
                                                 {albumCover ? (
-                                                    <img
-                                                        src={albumCover}
-                                                    alt={t("chat.thread.album_cover")}
-                                                        className={`h-full w-full object-cover ${isLocked ? "scale-110 blur-sm opacity-50" : ""}`}
-                                                        onError={(event) => {
-                                                            event.currentTarget.style.display = "none";
-                                                        }}
-                                                    />
+                                                    <>
+                                                        <img
+                                                            key={albumCover}
+                                                            src={albumCover}
+                                                            alt={t("chat.thread.album_cover")}
+                                                            className={`h-full w-full scale-110 object-cover ${isLocked ? "blur-sm opacity-50" : ""}`}
+                                                        />
+                                                        {!isLocked && <div className="absolute inset-0 bg-black/25" />}
+                                                    </>
                                                 ) : null}
 
                                                 {isLocked && (
@@ -988,8 +1140,8 @@ export function ChatThreadMessages({
                                                         </span>
                                                     </div>
                                                 )}
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
-                                                    <div className="h-16 w-16 overflow-hidden rounded-full border-white/30 bg-white/15 text-white shadow-lg backdrop-blur-sm">
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
+                                                    <div className="h-20 w-20 overflow-hidden rounded-full border border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
                                                         <ProfileImage
                                                             src={senderAvatarUrl}
                                                             alt={senderLabel}
@@ -1330,7 +1482,12 @@ export function ChatThreadMessages({
                                     ) : null}
 
                                     {isAlbumMessage && !isAlbumOnlyBubble ? (
-                                        <div className={`mb-2 rounded-xl border border-black/10 p-2 ${isLocked ? "bg-[var(--surface-2)] opacity-60" : "bg-[color-mix(in_srgb,var(--surface)_76%,transparent)]"}`}>
+                                        <div className={`relative mb-2 rounded-xl border border-black/10 p-2 ${isLocked ? "bg-[var(--surface-2)] opacity-60" : "bg-[color-mix(in_srgb,var(--surface)_76%,transparent)]"} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}>
+                                            {(localOnly || isCachedExpiredAlbum) && (
+                                                <span className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                                                    {t("chat.thread.from_local_history")}
+                                                </span>
+                                            )}
                                             {albumCover ? (
                                                 <img
                                                     src={albumCover}
@@ -1522,9 +1679,9 @@ export function ChatThreadMessages({
                                                                         hasText ? body.text : "",
                                                                     );
                                                                     if (wordToBan && wordToBan.trim()) {
-                                                                        const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+                                                                        const currentList = getForbiddenWords();
                                                                         const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-                                                                        window.localStorage.setItem("fg-forbidden-words", newList);
+                                                                        void setForbiddenWords(newList);
                                                                         toast.success(
                                                                             t("chat.actions.ban_word_added", {
                                                                                 defaultValue:

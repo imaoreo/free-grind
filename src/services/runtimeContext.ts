@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { BaseDirectory, exists, readTextFile } from "@tauri-apps/plugin-fs";
+import { platform } from "@tauri-apps/plugin-os";
 
 export type RuntimeMode = "manager" | "child";
 
@@ -42,6 +43,20 @@ function parseTraceContext(raw: string): RuntimeContext | null {
 }
 
 async function getTraceRuntimeContext(): Promise<RuntimeContext | null> {
+    // Manager/child multi-instance mode is a Windows-only concept (see
+    // windows_instance.rs / instance_lock.rs, both #[cfg(target_os =
+    // "windows")] on the Rust side) — this fs read has no purpose on
+    // mobile. More importantly, it's the *first* @tauri-apps/plugin-fs
+    // command the app ever calls, fired unconditionally from main.tsx before
+    // anything else. On Android that first fs-scope resolution runs on the
+    // WebView's JavaBridge thread and can deadlock against the main thread's
+    // WebviewManager::prepare_pending_webview (invoked from onPageFinished)
+    // if it happens to race the initial page load — observed as a 5s
+    // "Input dispatching timed out" ANR right at cold start. Skipping this
+    // call entirely on non-Windows platforms removes that race outright.
+    if (platform() !== "windows") {
+        return null;
+    }
     const tracePath = "AppData/Local/free-grind/manager/runtime-mode.txt";
     try {
         const traceExists = await exists(tracePath, { baseDir: BaseDirectory.Home });

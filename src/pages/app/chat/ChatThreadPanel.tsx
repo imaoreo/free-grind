@@ -1,11 +1,12 @@
 import {
 	Album,
+	Archive,
 	Ban,
 	Check,
 	CheckCheck,
 	ChevronLeft,
 	Ellipsis,
-	Heart,
+	Star,
 	Hourglass,
 	ImagePlus,
 	Images,
@@ -73,11 +74,16 @@ import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
-import { SHOW_READ_RECEIPT_TOGGLE_KEY, isReadReceiptsHidden, toggleReadReceiptsHidden } from "../../../utils/privacy";
+import { getShowReadReceiptToggle, isReadReceiptsHidden, toggleReadReceiptsHidden } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { GiphyPickerSheet } from "./GiphyPickerSheet";
+import type { ArchivedReason } from "../../../types/chat-db";
+import { useAvatarCache } from "../../../hooks/useAvatarCache";
+import { resolveAvatarSrc } from "../../../services/avatarStore";
+import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
+import { SKIP_BLOCK_CONFIRM_KEY } from "../../../utils/blockConfirm";
 
 async function fixWebmDuration(blob: Blob, durationMs: number): Promise<Blob> {
 	if (!blob.type.includes("webm")) return blob;
@@ -218,9 +224,10 @@ type ChatThreadPanelProps = {
 	isAlbumSheetOpen: boolean;
 	onOpenMediaSheet?: () => void;
 	isPartnerTyping?: boolean;
+	isArchived?: boolean;
+	archivedReason?: ArchivedReason | null;
 };
 
-const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 
 function AudioPreviewPlayer({ blob, durationMs, recordedBars, recordedFraction }: { blob: Blob; durationMs: number; recordedBars: number[]; recordedFraction: number }) {
 	const [url, setUrl] = useState<string | null>(null);
@@ -235,6 +242,7 @@ function AudioPreviewPlayer({ blob, durationMs, recordedBars, recordedFraction }
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
+	useAvatarCache();
     const apiFunctions = useApiFunctions();
 	const { unitsPreset, geohash } = usePreferences();
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
@@ -431,6 +439,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isBlockingProfile = false,
 		onToggleFavorite,
 		isFavorite = false,
+		isArchived = false,
+		archivedReason = null,
 		isTogglingFavorite = false,
 		localNickname = null,
 		onEditLocalNickname,
@@ -519,7 +529,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		onSendGiphy,
 	} = props;
 
-    const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
+    const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
+
+	useEffect(() => {
+		void loadSavedPhrases().then(setSavedPhrases);
+	}, []);
 
 	useEffect(() => {
 		if (!pendingAttachmentFile) {
@@ -619,16 +633,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setDraft(phrase);
 	};
 
-	const handleAddPhrase = () => {
+	const handleAddPhrase = async () => {
 		const trimmed = newPhraseInput.trim();
 		if (!trimmed) return;
-		const updated = saveSavedPhrases([...savedPhrases, trimmed]);
+		const updated = await saveSavedPhrases([...savedPhrases, trimmed]);
 		setSavedPhrases(updated);
 		setNewPhraseInput("");
 	};
 
-	const handleDeletePhrase = (index: number) => {
-		const updated = saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+	const handleDeletePhrase = async (index: number) => {
+		const updated = await saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
 		setSavedPhrases(updated);
 	};
 
@@ -640,15 +654,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				setSavedPhrases(detail);
 				return;
 			}
-			setSavedPhrases(loadSavedPhrases());
+			void loadSavedPhrases().then(setSavedPhrases);
 		};
 
 		window.addEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
-		window.addEventListener("storage", syncSavedPhrases);
 
 		return () => {
 			window.removeEventListener(SAVED_PHRASES_UPDATED_EVENT, syncSavedPhrases as EventListener);
-			window.removeEventListener("storage", syncSavedPhrases);
 		};
 	}, []);
     
@@ -681,7 +693,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		return ids;
 	}, [threadMessages]);
 
-    const [showReadReceiptToggle] = useState(() => window.localStorage.getItem(SHOW_READ_RECEIPT_TOGGLE_KEY) !== "false");
+    const [showReadReceiptToggle] = useState(() => getShowReadReceiptToggle());
     const [readReceiptsHidden, setReadReceiptsHidden] = useState(true);
 
     useEffect(() => {
@@ -937,7 +949,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											{ state: { returnTo } },
 										);
 									}}
-									disabled={!otherParticipant}
+									disabled={!otherParticipant || isArchived}
 									aria-label="Open profile"
 									title={otherParticipantOnlineMeta.label}
 									className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
@@ -947,7 +959,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									}`}
 								>
 									<ProfileImage
-										src={getParticipantAvatarUrl(otherParticipant?.primaryMediaHash)}
+										src={resolveAvatarSrc(
+											otherParticipant?.primaryMediaHash,
+											getParticipantAvatarUrl(otherParticipant?.primaryMediaHash),
+										)}
 										alt={displayName}
 									/>
 								</button>
@@ -974,86 +989,58 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-            {isDesktop && (
+            {isDesktop && !isArchived && (
                 <>
-                    {showReadReceiptToggle && selectedConversation && (
-                        <button
-                            type="button"
-                            onClick={() => {
- 												const newState = toggleReadReceiptsHidden(selectedConversation.data.conversationId);
- 												setReadReceiptsHidden(newState);
-
- 												// If read receipts are now enabled (not hidden), instantly mark the last message as read!
- 												if (!newState) {
- 													const lastMsg = threadMessages[threadMessages.length - 1];
- 													if (lastMsg) {
- 														// Tell the server
- 														apiFunctions.markRead(selectedConversation.data.conversationId, lastMsg.messageId).catch(() => {});
- 														// Refresh the thread to clear the bold text locally
- 														loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
- 													}
- 												}
- 												toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on. They will see when you've read their messages.");
- 											}}
-                            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
-                                readReceiptsHidden
-                                    ? "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                                    : "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
-                            }`}
-                            title={readReceiptsHidden ? "Read Receipts Off (Hidden)" : "Read Receipts On (Visible)"}
-                        >
-                            {readReceiptsHidden ? <Check className="mr-1 inline h-3.5 w-3.5" /> : <CheckCheck className="mr-1 inline h-3.5 w-3.5" />}
-                            {readReceiptsHidden ? "Hidden" : "Sending"}
-                        </button>
-                    )}
                     <button
                         type="button"
                         onClick={() => {
                             if (!otherParticipant || !onToggleFavorite) return;
                             void onToggleFavorite(otherParticipant.profileId, isFavorite);
-											}}
-											disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
-											className={`rounded-xl border px-3 py-2 text-xs font-medium transition disabled:opacity-60 ${
-												isFavorite
-													? "border-pink-500/40 bg-pink-500/10 text-pink-400 hover:bg-pink-500/20"
-													: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
-											}`}
-										>
-											{isTogglingFavorite ? (
-												<Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
-											) : (
-												<Heart className={`mr-1 inline h-3.5 w-3.5 ${isFavorite ? "fill-current" : ""}`} />
-											)}
-											{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
-										</button>
-										<button
-											type="button"
-											disabled={isUpdatingConversationState}
-											onClick={togglePin}
-											className="rounded-xl border border-[var(--border)] px-3 py-2 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
-										>
-											<Pin className="mr-1 inline h-3.5 w-3.5" />
-											{selectedConversation.data.pinned ? t("chat.unpin") : t("chat.pin")}
-										</button>
-										<button
-											type="button"
-											onClick={requestBlockProfile}
-											disabled={isBlockingProfile || !otherParticipant || !onBlockProfile}
-											className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-300 transition hover:bg-red-500/20 disabled:opacity-60"
-										>
-											{isBlockingProfile ? (
-												<Loader2 className="mr-1 inline h-3.5 w-3.5 animate-spin" />
-											) : (
-												<Ban className="mr-1 inline h-3.5 w-3.5" />
-											)}
-											{isBlockingProfile
-												? t("profile_details.block_in_progress")
-												: t("profile_details.block")}
-										</button>
-									</>
-								)}
+                        }}
+                        disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
+                        title={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
+                        className={`rounded-xl border p-2 transition disabled:opacity-60 ${
+                            isFavorite
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        }`}
+                    >
+                        {isTogglingFavorite ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={isUpdatingConversationState}
+                        onClick={togglePin}
+                        title={selectedConversation.data.pinned ? t("chat.unpin") : t("chat.pin")}
+                        className={`rounded-xl border p-2 transition disabled:opacity-60 ${
+                            selectedConversation.data.pinned
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] hover:brightness-110"
+                                : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]"
+                        }`}
+                    >
+                        <Pin className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={requestBlockProfile}
+                        disabled={isBlockingProfile || !otherParticipant || !onBlockProfile}
+                        title={isBlockingProfile ? t("profile_details.block_in_progress") : t("profile_details.block")}
+                        className="rounded-xl border border-red-500/40 bg-red-500/10 p-2 text-red-300 transition hover:bg-red-500/20 disabled:opacity-60"
+                    >
+                        {isBlockingProfile ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Ban className="h-4 w-4" />
+                        )}
+                    </button>
+                </>
+            )}
 
-								{isDesktop && onOpenMediaSheet && (
+								{isDesktop && !isArchived && onOpenMediaSheet && (
 									<button
 										type="button"
 										onClick={onOpenMediaSheet}
@@ -1081,7 +1068,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									</button>
 									{isHeaderActionsMenuOpen ? (
 										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
-                                            <button
+											{!isArchived && (
+											<button
 												type="button"
 												onClick={() => {
 													setIsHeaderActionsMenuOpen(false);
@@ -1097,7 +1085,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<User className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.view_profile")}
 											</button>
-
+											)}
 											{!isDesktop && onOpenMediaSheet && (
 												<button
 													type="button"
@@ -1111,15 +1099,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{t("chat.received_media")}
 												</button>
 											)}
-
-                                            {/* --- MOBILE READ RECEIPTS TOGGLE --- */}
-											{!isDesktop && showReadReceiptToggle && selectedConversation && (
+											{showReadReceiptToggle && selectedConversation && !isArchived && (
 												<button
 													type="button"
 													onClick={() => {
 														setIsHeaderActionsMenuOpen(false);
 														const newState = toggleReadReceiptsHidden(selectedConversation.data.conversationId);
 														setReadReceiptsHidden(newState);
+														if (!newState) {
+															const lastMsg = threadMessages[threadMessages.length - 1];
+															if (lastMsg) {
+																apiFunctions.markRead(selectedConversation.data.conversationId, lastMsg.messageId).catch(() => {});
+																loadThread({ conversationId: selectedConversation.data.conversationId, older: false });
+															}
+														}
 														toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on for this chat.");
 													}}
 													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition ${
@@ -1127,65 +1120,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													}`}
 												>
 													{readReceiptsHidden ? <Check className="mr-2 h-4 w-4 opacity-70" /> : <CheckCheck className="mr-2 h-4 w-4 opacity-70" />}
-													{readReceiptsHidden ? "Read Receipts Off (Hidden)" : "Read Receipts On (Visible)"}
+													{readReceiptsHidden ? "Read Receipts Off" : "Read Receipts On"}
 												</button>
 											)}
-											{/* --------------------------- */}
-                                            
-                                            {/* --- BAN PROFILE NAME --- */}
-											<button
-												type="button"
-												onClick={() => {
-													setIsHeaderActionsMenuOpen(false);
-													const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
-													const newList = currentList ? `${currentList}, ${displayName}` : displayName;
-													window.localStorage.setItem("fg-forbidden-words", newList);
-													toast.success(`Added "${displayName}" to Forbidden Keywords!`);
-												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
-											>
-												<Ban className="mr-2 h-4 w-4 opacity-70" />
-												Ban Name "{displayName}"
-											</button>
-											{/* ------------------------ */}
-
-                                            {/* --- BAN PROFILE BIO --- */}
-											<button
-												type="button"
-												onClick={async () => {
-													setIsHeaderActionsMenuOpen(false);
-													if (!otherParticipant) return;
-													
-													const loadToast = toast.loading("Loading bio...");
-													try {
-														const profile = await apiFunctions.getProfileDetail(String(otherParticipant.profileId));
-														toast.dismiss(loadToast);
-														
-														const bio = profile.aboutMe || "";
-														if (!bio.trim()) {
-															toast.error("This user has no bio!");
-															return;
-														}
-
-														const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
-														if (wordToBan && wordToBan.trim()) {
-															const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
-															const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-															window.localStorage.setItem("fg-forbidden-words", newList);
-															toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
-														}
-													} catch (e) {
-														toast.dismiss(loadToast);
-														toast.error("Failed to load bio.");
-													}
-												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
-											>
-												<Ban className="mr-2 h-4 w-4 opacity-70" />
-												Ban Bio Phrase
-											</button>
-											{/* ----------------------- */}
-
 											<button
 												type="button"
 												onClick={() => {
@@ -1199,8 +1136,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<PencilLine className="mr-2 h-4 w-4 opacity-70" />
 												{localNickname ? t("chat.nicknames.edit") : t("chat.nicknames.set")}
 											</button>
-
-											{!isDesktop && (
+											{!isDesktop && !isArchived && (
 												<>
 													<button
 														type="button"
@@ -1211,13 +1147,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														}}
 														disabled={isTogglingFavorite || !otherParticipant || !onToggleFavorite}
 														className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition disabled:opacity-60 ${
-															isFavorite ? "text-pink-400 hover:bg-pink-500/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
+															isFavorite ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
 														}`}
 													>
 														{isTogglingFavorite ? (
 															<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 														) : (
-															<Heart className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
+															<Star className={`mr-2 h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
 														)}
 														{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 													</button>
@@ -1235,25 +1171,75 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													</button>
 												</>
 											)}
-
-											<button
-												type="button"
-												disabled={isUpdatingConversationState}
-												onClick={() => {
-													setIsHeaderActionsMenuOpen(false);
-													void toggleMute();
-												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
-											>
-												{selectedConversation.data.muted ? (
-													<Volume2 className="mr-2 h-4 w-4 opacity-70" />
-												) : (
-													<MessageCircleOff className="mr-2 h-4 w-4 opacity-70" />
-												)}
-												{selectedConversation.data.muted ? t("chat.unmute") : t("chat.mute")}
-											</button>
-
-											{!isDesktop && (
+											{!isArchived && (
+												<button
+													type="button"
+													disabled={isUpdatingConversationState}
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														void toggleMute();
+													}}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+												>
+													{selectedConversation.data.muted ? (
+														<Volume2 className="mr-2 h-4 w-4 opacity-70" />
+													) : (
+														<MessageCircleOff className="mr-2 h-4 w-4 opacity-70" />
+													)}
+													{selectedConversation.data.muted ? t("chat.unmute") : t("chat.mute")}
+												</button>
+											)}
+											{/* — Keyword banning — */}
+											{!isArchived && (
+												<>
+													<div className="my-1 h-px bg-[var(--border)]" />
+													<button
+														type="button"
+														onClick={() => {
+															setIsHeaderActionsMenuOpen(false);
+															const currentList = getForbiddenWords();
+															const newList = currentList ? `${currentList}, ${displayName}` : displayName;
+															void setForbiddenWords(newList);
+															toast.success(`Added "${displayName}" to Forbidden Keywords!`);
+														}}
+														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+													>
+														<Ban className="mr-2 h-4 w-4 opacity-50" />
+														Ban Name "{displayName}"
+													</button>
+													<button
+														type="button"
+														onClick={async () => {
+															setIsHeaderActionsMenuOpen(false);
+															if (!otherParticipant) return;
+															const loadToast = toast.loading("Loading bio...");
+															try {
+																const profile = await apiFunctions.getProfileDetail(String(otherParticipant.profileId));
+																toast.dismiss(loadToast);
+																const bio = profile.aboutMe || "";
+																if (!bio.trim()) { toast.error("This user has no bio!"); return; }
+																const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
+																if (wordToBan && wordToBan.trim()) {
+																	const currentList = getForbiddenWords();
+																	const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+																	void setForbiddenWords(newList);
+																	toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
+																}
+															} catch (e) {
+																toast.dismiss(loadToast);
+																toast.error("Failed to load bio.");
+															}
+														}}
+														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+													>
+														<Ban className="mr-2 h-4 w-4 opacity-50" />
+														Ban Bio Phrase
+													</button>
+												</>
+											)}
+											{/* — Destructive — */}
+											<div className="my-1 h-px bg-[var(--border)]" />
+											{!isDesktop && !isArchived && (
 												<button
 													type="button"
 													onClick={requestBlockProfile}
@@ -1261,19 +1247,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
 												>
 													<Ban className="mr-2 h-4 w-4 opacity-70" />
-													{isBlockingProfile
-														? t("profile_details.block_in_progress")
-														: t("profile_details.block")}
+													{isBlockingProfile ? t("profile_details.block_in_progress") : t("profile_details.block")}
 												</button>
 											)}
-
 											<button
 												type="button"
 												onClick={() => {
 													setIsHeaderActionsMenuOpen(false);
 													void clearLocalHistory();
 												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10"
 											>
 												<Trash2 className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.clear_local_history")}
@@ -1285,9 +1268,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
 											>
 												<MessageCircleX className="mr-2 h-4 w-4 opacity-70" />
-												{isDeletingConversation
-													? t("chat.delete_conversation_in_progress")
-													: t("chat.delete_conversation")}
+												{isDeletingConversation ? t("chat.delete_conversation_in_progress") : t("chat.delete_conversation")}
 											</button>
 										</div>
 									) : null}
@@ -1410,6 +1391,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleStopAlbumShare={handleStopAlbumShare}
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
+						isArchived={isArchived}
 				/>
 				)
 			) : (
@@ -1424,6 +1406,36 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				</div>
 			)}
 
+					{isArchived ? (
+						<div
+							className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} bg-[var(--surface)]`}
+							style={
+								!isDesktop
+									? { paddingBottom: "max(12px, env(safe-area-inset-bottom))" }
+									: undefined
+							}
+						>
+							<div className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+								<div className="shrink-0 rounded-xl bg-[var(--surface)] p-2.5">
+									<Archive className="h-4 w-4 text-[var(--text-muted)]" />
+								</div>
+								<div className="grid gap-0.5 pt-0.5">
+									<p className="text-sm font-semibold text-[var(--text)]">
+										{t("chat.archived.title", { defaultValue: "Conversation archived" })}
+									</p>
+									<p className="text-xs text-[var(--text-muted)]">
+										{archivedReason === "not_found"
+											? t("chat.archived.not_found", {
+													defaultValue: "This conversation is no longer available. You can still read the history.",
+												})
+											: t("chat.archived.blocked_or_deleted", {
+													defaultValue: "This conversation is archived. You can still read the history, but can no longer send messages or view this person's profile.",
+												})}
+									</p>
+								</div>
+							</div>
+						</div>
+					) : (
 					<form
 						onSubmit={onFormSubmit}
 						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
@@ -1610,7 +1622,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									}}
 									rows={1}
 									maxLength={1000}
-									placeholder={selectedConversation ? t("chat.write_message") : t("chat.new_conversation.write_first_message")}
+									placeholder={
+										selectedConversation
+											? t("chat.write_message")
+											: t("chat.new_conversation.write_first_message")
+									}
 									className="flex-1 bg-transparent py-1 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none resize-none disabled:opacity-60"
 									style={{ fieldSizing: "content", maxHeight: "115px" } as React.CSSProperties}
 								/>
@@ -1697,7 +1713,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									setIsGiphyPickerOpen((prev) => !prev);
 									if (isDrawerOpen) toggleDrawer();
 								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.giphy.button_label")}
 								title={t("chat.giphy.button_label")}
 							>
@@ -1724,7 +1740,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									toggleDrawer();
 									if (pendingLocationShare) handleLocationShareRequest();
 								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.drawer_label")}
 								title={t("chat.drawer_label")}
 							>
@@ -1736,7 +1752,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									handleLocationShareRequest();
 									if (isDrawerOpen) toggleDrawer();
 								}}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.share_location_label", { defaultValue: "Share Location" })}
 								title={t("chat.share_location_label", { defaultValue: "Share Location" })}
 							>
@@ -1745,7 +1761,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							<button
 								type="button"
 								onClick={() => setIsSavedPhrasesOpen((prev) => !prev)}
-								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)]"
+								className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
 								aria-label={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 								title={t("chat.saved_phrases_label", { defaultValue: "Saved Phrases" })}
 							>
@@ -1763,6 +1779,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 
 					</form>
+					)}
 
 					{pendingAttachmentFile ? (
 						<BottomDrawer
@@ -2099,9 +2116,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         const body = selectedActionMessage.body as any;
                         const wordToBan = window.prompt("Trim this message down to the specific keyword you want to ban:", body?.text || "");
                         if (wordToBan && wordToBan.trim()) {
-                            const currentList = window.localStorage.getItem("fg-forbidden-words") || "";
+                            const currentList = getForbiddenWords();
                             const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-                            window.localStorage.setItem("fg-forbidden-words", newList);
+                            void setForbiddenWords(newList);
                             toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
                             setOpenMessageActionId(null);
                         }

@@ -1,16 +1,92 @@
-import { Loader2, Map, MapPin, Navigation, Search, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Bookmark, Check, Loader2, MapPin, Navigation, Search, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import z from "zod";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { appLog } from "../../utils/logger";
+import { getCurrentLocation } from "../../services/currentLocation";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { type GeocodeResult, type SelectedLocation, geocodeResultSchema } from "./GridPage.types";
 import { MapLocationPicker } from "./gridpage/components/MapLocationPicker";
+import {
+	formatNominatimAddress,
+	getCityFromAddress,
+	reverseGeocodeCityForGeohash,
+	reverseGeocodeGeohash,
+} from "./gridpage/geocoding";
+import {
+	addSavedLocation,
+	deleteSavedLocation,
+	loadSavedLocations,
+	type SavedLocation,
+} from "../../services/savedLocations";
 
 interface LocationOverlayProps {
 	onClose: () => void;
+}
+
+function SavedLocationRow({
+	location,
+	isActive,
+	disabled,
+	onApply,
+	onDelete,
+}: {
+	location: SavedLocation;
+	isActive: boolean;
+	disabled: boolean;
+	onApply: () => void;
+	onDelete: () => void;
+}) {
+	const { t } = useTranslation();
+	const [address, setAddress] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		void reverseGeocodeGeohash(location.geohash).then((label) => {
+			if (!cancelled) setAddress(label);
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [location.geohash]);
+
+	return (
+		<div className="flex items-center gap-1 bg-[var(--surface-2)]">
+			<button
+				type="button"
+				onClick={onApply}
+				disabled={disabled}
+				className="flex min-w-0 flex-1 items-center gap-4 p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
+			>
+				<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
+					<Bookmark className="h-4 w-4" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="truncate font-semibold text-[var(--text)]">{location.name}</p>
+					<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+						{address ?? t("browse_location.resolving_location")}
+					</p>
+				</div>
+				{isActive && (
+					<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
+						<Check className="h-3.5 w-3.5 shrink-0" />
+						{t("browse_location.badge_active")}
+					</div>
+				)}
+			</button>
+			<button
+				type="button"
+				onClick={onDelete}
+				disabled={disabled}
+				aria-label={t("browse_location.delete_saved_location")}
+				className="mr-2 shrink-0 rounded-xl p-2.5 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-60"
+			>
+				<Trash2 className="h-4 w-4" />
+			</button>
+		</div>
+	);
 }
 
 export function LocationOverlay({ onClose }: LocationOverlayProps) {
@@ -24,33 +100,83 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 	const [locationQuery, setLocationQuery] = useState("");
 	const [isSearchingLocation, setIsSearchingLocation] = useState(false);
 	const [locationResults, setLocationResults] = useState<GeocodeResult[]>([]);
-	const [isMapOpen, setIsMapOpen] = useState(false);
 	const [mapPickerError, setMapPickerError] = useState<string | null>(null);
 	const [lastSearchedQuery, setLastSearchedQuery] = useState("");
 	const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
-	const searchInputRef = useRef<HTMLInputElement>(null);
-
-	const initialCenter: [number, number] | undefined = (() => {
-		if (geohash) {
-			try {
-				const decoded = decodeGeohash(geohash);
-				return [(decoded.lat[0] + decoded.lat[1]) / 2, (decoded.lon[0] + decoded.lon[1]) / 2];
-			} catch { return undefined; }
-		}
-		return undefined;
-	})();
+	const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
 
 	useEffect(() => {
-		if (geohash && !selectedLocation) {
-			try {
-				const decoded = decodeGeohash(geohash);
-				const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
-				const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
-				setSelectedLocation({ lat, lon, label: locationName ?? t("browse_location.current_location_label") });
-			} catch { /* ignore */ }
+		void loadSavedLocations().then(setSavedLocations);
+	}, []);
+	const [isNamingLocation, setIsNamingLocation] = useState(false);
+	const [newLocationName, setNewLocationName] = useState("");
+	const searchInputRef = useRef<HTMLInputElement>(null);
+
+	// Derived directly from geohash (not one-time state) so it can never go
+	// stale — re-mounting isn't the only way this can change; geohash itself
+	// can change while this component is alive (e.g. right after saving a
+	// pick, before the close animation has actually unmounted it).
+	const geohashCenter = useMemo<[number, number] | undefined>(() => {
+		if (!geohash) return undefined;
+		try {
+			const decoded = decodeGeohash(geohash);
+			return [(decoded.lat[0] + decoded.lat[1]) / 2, (decoded.lon[0] + decoded.lon[1]) / 2];
+		} catch {
+			return undefined;
 		}
+	}, [geohash]);
+	const [gpsFallbackCenter, setGpsFallbackCenter] = useState<[number, number] | undefined>(undefined);
+	const initialCenter = geohashCenter ?? gpsFallbackCenter;
+
+	// Re-syncs selectedLocation to the saved geohash whenever it changes —
+	// previously this only ran once on mount, so if this component instance
+	// outlives a single open/close cycle (or the very first mount raced
+	// ahead of geohash being available), the map would keep showing
+	// whatever it started with instead of the actual saved location.
+	useEffect(() => {
+		if (!geohash) return;
+		try {
+			const decoded = decodeGeohash(geohash);
+			const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+			const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+			setSelectedLocation((current) =>
+				current && current.lat === lat && current.lon === lon
+					? current
+					: { lat, lon, label: locationName ?? t("browse_location.current_location_label") },
+			);
+		} catch { /* ignore */ }
+	}, [geohash, locationName, t]);
+
+	// No saved location to center on yet (fresh user) — try the device's
+	// current position just to position the map sensibly. This only nudges
+	// where the map opens; it doesn't pick/select anything or touch
+	// saveAndClose, so no permission-denied error needs surfacing.
+	useEffect(() => {
+		if (geohash) return;
+		void (async () => {
+			try {
+				const tauriGeo = await import("@tauri-apps/plugin-geolocation").catch(() => null);
+				if (tauriGeo) {
+					const perms = await tauriGeo.checkPermissions();
+					if (perms.location !== "granted") return;
+					const pos = await tauriGeo.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 });
+					setGpsFallbackCenter([pos.coords.latitude, pos.coords.longitude]);
+					return;
+				}
+				if (!("geolocation" in navigator)) return;
+				const pos = await new Promise<GeolocationPosition>((res, rej) =>
+					navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }),
+				);
+				setGpsFallbackCenter([pos.coords.latitude, pos.coords.longitude]);
+			} catch {
+				// no permission yet / unavailable — map just opens at the world view
+			}
+		})();
+	}, [geohash]);
+
+	useEffect(() => {
 		setTimeout(() => searchInputRef.current?.focus(), 120);
 	}, []);
 
@@ -86,24 +212,23 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 		}
 	};
 
+	// Resolves the geocoded place name for a GPS fix before saving, so the
+	// header pill/overlay title show the same "Street Number, City,
+	// District" format as every other way of picking a location, instead of
+	// a generic "Current location" string. Falls back to that generic text
+	// if the lookup fails — never blocks saving on it.
+	const resolveGpsLabel = async (lat: number, lon: number): Promise<string> => {
+		const label = await reverseGeocodeGeohash(encodeGeohash(lat, lon)).catch(() => null);
+		return label ?? t("browse_location.current_location_label");
+	};
+
 	const handleUseCurrentLocation = async () => {
 		setIsDetectingLocation(true);
 		setLocationError(null);
 		try {
-			const tauriGeo = await import("@tauri-apps/plugin-geolocation").catch(() => null);
-			if (tauriGeo) {
-				let perms = await tauriGeo.checkPermissions();
-				if (perms.location !== "granted" && perms.location !== "denied") perms = await tauriGeo.requestPermissions(["location"]);
-				if (perms.location !== "granted") { setLocationError(t("browse_location.error_access")); return; }
-				const pos = await tauriGeo.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 20000 });
-				await saveAndClose(pos.coords.latitude, pos.coords.longitude, t("browse_location.current_location_label"), true);
-				return;
-			}
-			if (!("geolocation" in navigator)) { setLocationError(t("browse_location.error_geolocation")); return; }
-			const pos = await new Promise<GeolocationPosition>((res, rej) =>
-				navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 12000, maximumAge: 20000 })
-			);
-			await saveAndClose(pos.coords.latitude, pos.coords.longitude, t("browse_location.current_location_label"), true);
+			const { lat, lon } = await getCurrentLocation();
+			const label = await resolveGpsLabel(lat, lon);
+			await saveAndClose(lat, lon, label, true);
 		} catch (e) {
 			appLog.error("Geolocation failed", e);
 			setLocationError(t("browse_location.error_access"));
@@ -118,7 +243,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 		setIsSearchingLocation(true);
 		try {
 			const res = await fetch(
-				`https://nominatim.openstreetmap.org/search?format=json&limit=6&q=${encodeURIComponent(query)}`,
+				`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=6&q=${encodeURIComponent(query)}`,
 				{ signal, headers: { "User-Agent": "Mozilla/5.0 (compatible)" } },
 			);
 			if (!res.ok) throw new Error("search failed");
@@ -143,6 +268,80 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 
 	const clearSearch = () => { setLocationQuery(""); setLocationResults([]); setLastSearchedQuery(""); searchInputRef.current?.focus(); };
 	const isSearching = locationQuery.trim().length > 0;
+	// Whether the current map pin already matches the saved/active location —
+	// regardless of whether that location came from a manual pick or GPS, so
+	// the "confirm new pick" footer doesn't flash for a location that was
+	// just auto-saved via "use current location".
+	const isActiveLocationSelected = !!locationName && selectedLocation?.label === locationName;
+
+	const handleMapPick = (lat: number, lon: number) => {
+		const fallbackLabel = t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
+		setSelectedLocation({ lat, lon, label: t("browse_location.resolving_location"), city: null });
+		const geohashForPick = encodeGeohash(lat, lon);
+		void reverseGeocodeGeohash(geohashForPick).then((label) => {
+			setSelectedLocation((current) =>
+				current && current.lat === lat && current.lon === lon
+					? { ...current, label: label ?? fallbackLabel }
+					: current,
+			);
+		});
+		void reverseGeocodeCityForGeohash(geohashForPick).then((city) => {
+			setSelectedLocation((current) =>
+				current && current.lat === lat && current.lon === lon ? { ...current, city } : current,
+			);
+		});
+	};
+
+	const handleSelectSearchResult = (result: GeocodeResult) => {
+		const lat = Number(result.lat);
+		const lon = Number(result.lon);
+		// Search results carry an address breakdown (addressdetails=1), so
+		// format it the same way as everywhere else right away; the
+		// reverse-geocode call below still refines it afterwards in case
+		// that lookup resolves a more precise/different address.
+		const initialLabel = (result.address && formatNominatimAddress(result.address, result.display_name)) ?? result.display_name;
+		const initialCity = result.address ? getCityFromAddress(result.address) : null;
+		setSelectedLocation({ lat, lon, label: initialLabel, city: initialCity });
+		setLocationQuery("");
+		setLocationResults([]);
+		setLastSearchedQuery("");
+		const geohashForResult = encodeGeohash(lat, lon);
+		void reverseGeocodeGeohash(geohashForResult).then((label) => {
+			if (!label) return;
+			setSelectedLocation((current) =>
+				current && current.lat === lat && current.lon === lon ? { ...current, label } : current,
+			);
+		});
+		if (!initialCity) {
+			void reverseGeocodeCityForGeohash(geohashForResult).then((city) => {
+				if (!city) return;
+				setSelectedLocation((current) =>
+					current && current.lat === lat && current.lon === lon ? { ...current, city } : current,
+				);
+			});
+		}
+	};
+
+	const handleApplySavedLocation = (location: SavedLocation) => {
+		void saveAndClose(location.lat, location.lon, location.name);
+	};
+
+	const handleDeleteSavedLocation = (id: string) => {
+		void deleteSavedLocation(id).then(setSavedLocations);
+	};
+
+	const handleSaveCurrentAsNamedLocation = () => {
+		const name = newLocationName.trim();
+		if (!name || !selectedLocation) return;
+		void addSavedLocation({
+			name,
+			geohash: encodeGeohash(selectedLocation.lat, selectedLocation.lon),
+			lat: selectedLocation.lat,
+			lon: selectedLocation.lon,
+		}).then(setSavedLocations);
+		setNewLocationName("");
+		setIsNamingLocation(false);
+	};
 
 	return (
 		<div className={`fixed inset-0 z-[55] flex flex-col no-touch-callout isolate ${isClosing ? "pointer-events-none" : ""}`}>
@@ -157,7 +356,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}
-				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+				<header className="relative shrink-0 overflow-hidden border-b border-[var(--border)] px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
 					<PageHeaderBackground color="var(--accent)" />
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
@@ -190,35 +389,9 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 					</div>
 				</header>
 
-				{/* Pinned search bar */}
-				<div className="shrink-0 border-b border-[var(--border)] bg-[var(--bg)] px-[var(--app-px)] py-3">
-					<div className="relative">
-						<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-						<input
-							ref={searchInputRef}
-							type="text"
-							value={locationQuery}
-							onChange={(e) => setLocationQuery(e.target.value)}
-							placeholder={t("browse_location.search_placeholder")}
-							className="h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] pl-10 pr-10 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:bg-[var(--surface)]"
-						/>
-						{isSearchingLocation ? (
-							<Loader2 className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
-						) : locationQuery ? (
-							<button
-								type="button"
-								onClick={clearSearch}
-								className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--text-muted)] transition hover:text-[var(--text)]"
-							>
-								<X className="h-3.5 w-3.5" />
-							</button>
-						) : null}
-					</div>
-				</div>
-
 				{/* Scrollable content */}
 				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
-					<div className="space-y-3 py-4">
+					<div className="space-y-4 py-4">
 
 						{/* Error */}
 						{locationError && (
@@ -228,138 +401,207 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 							</div>
 						)}
 
-						{/* GPS card */}
-						<button
-							type="button"
-							onClick={() => void handleUseCurrentLocation()}
-							disabled={isDetectingLocation || isSaving}
-							className="group w-full overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4 text-left transition hover:border-[var(--accent)]/40 active:scale-[0.99] disabled:opacity-60"
-						>
-							<div className="flex items-center gap-4">
-								<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/30">
-									{isDetectingLocation ? <Loader2 className="h-5 w-5 animate-spin" /> : <Navigation className="h-5 w-5" />}
-								</div>
-								<div className="min-w-0 flex-1">
-									<div className="flex items-center gap-2">
-										<p className="font-semibold text-[var(--text)]">
+						{/* Quick picks: GPS first, then saved locations — one consistent list/row style */}
+						<div>
+							<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+								{t("browse_location.quick_picks")}
+							</p>
+							<div className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]">
+								<button
+									type="button"
+									onClick={() => void handleUseCurrentLocation()}
+									disabled={isDetectingLocation || isSaving}
+									className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
+								>
+									<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
+										{isDetectingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="truncate font-semibold text-[var(--text)]">
 											{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
 										</p>
-										{useAutoLocation && !isDetectingLocation && (
-											<span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-white">
-												{t("browse_location.badge_active")}
-											</span>
-										)}
+										<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+											{useAutoLocation && locationName
+												? locationName
+												: t("browse_location.panel_subtitle")}
+										</p>
 									</div>
-									<p className="mt-0.5 text-xs text-[var(--text-muted)]">
-										{useAutoLocation && locationName
-											? locationName
-											: t("browse_location.panel_subtitle")}
-									</p>
-								</div>
-							</div>
-						</button>
-
-						{/* Search results */}
-						{isSearching ? (
-							locationResults.length > 0 ? (
-								<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
-									{locationResults.map((result, i) => (
-										<button
-											key={`${result.lat}:${result.lon}`}
-											type="button"
-											onClick={() => void saveAndClose(Number(result.lat), Number(result.lon), result.display_name)}
-											disabled={isSaving}
-											className={`flex w-full items-center gap-3.5 bg-[var(--surface-2)] px-4 py-3.5 text-left transition hover:bg-[var(--surface-3,var(--surface))] active:bg-[var(--surface)] disabled:opacity-60 ${i > 0 ? "border-t border-[var(--border)]" : ""}`}
-										>
-											<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--text-muted)]">
-												<MapPin className="h-3.5 w-3.5" />
-											</div>
-											<span className="text-sm text-[var(--text)] line-clamp-2">{result.display_name}</span>
-										</button>
-									))}
-								</div>
-							) : !isSearchingLocation ? (
-								<p className="py-2 text-sm text-[var(--text-muted)]">{t("browse_location.error_search_failed_general")}</p>
-							) : null
-						) : (
-							<>
-								{/* Current manual location card */}
-								{!useAutoLocation && locationName && (
-									<div className="flex items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-										<div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface)] text-[var(--accent)] shadow-sm">
-											<MapPin className="h-5 w-5" />
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
-												{t("browse_location.current_location_heading")}
-											</p>
-											<p className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{locationName}</p>
-										</div>
-										<span className="shrink-0 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-bold text-white">
+									{useAutoLocation && !isDetectingLocation && (
+										<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
+											<Check className="h-3.5 w-3.5 shrink-0" />
 											{t("browse_location.badge_active")}
-										</span>
-									</div>
-								)}
-
-								{/* Map picker card */}
-								<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
-									<button
-										type="button"
-										onClick={() => { setMapPickerError(null); setIsMapOpen((v) => !v); }}
-										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))]"
-									>
-										<div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-sm transition-colors ${isMapOpen ? "bg-[var(--accent)] text-white shadow-[var(--accent)]/30" : "bg-[var(--surface)] text-[var(--text-muted)]"}`}>
-											<Map className="h-5 w-5" />
-										</div>
-										<div className="flex-1">
-											<p className="font-semibold text-[var(--text)]">{t("browse_location.map_picker_title")}</p>
-											<p className="mt-0.5 text-xs text-[var(--text-muted)]">
-												{isMapOpen ? t("browse_location.map_picker_tap_hint") : t("browse_location.map_picker_instructions")}
-											</p>
-										</div>
-										<span className="shrink-0 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-muted)]">
-											{isMapOpen ? t("browse_location.map_picker_hide") : t("browse_location.map_picker_open")}
-										</span>
-									</button>
-
-									{isMapOpen && (
-										<div className="border-t border-[var(--border)]">
-											{mapPickerError ? (
-												<p className="px-4 py-3 text-sm text-[var(--text-muted)]">{mapPickerError}</p>
-											) : (
-												<MapLocationPicker
-													selectedLocation={selectedLocation}
-													onPick={(lat, lon) => setSelectedLocation({
-														lat,
-														lon,
-														label: t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) }),
-													})}
-													onError={setMapPickerError}
-													defaultZoom={11}
-													initialCenter={initialCenter}
-												/>
-											)}
-											{selectedLocation && (
-												<div className="flex items-center justify-between gap-3 border-t border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-													<div className="flex min-w-0 items-center gap-2">
-														<MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
-														<p className="truncate text-xs text-[var(--text-muted)]">{selectedLocation.label}</p>
-													</div>
-													<button
-														type="button"
-														disabled={isSaving}
-														onClick={() => void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)}
-														className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-bold text-white shadow-md shadow-[var(--accent)]/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
-													>
-														{isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("browse_location.use_selected_location")}
-													</button>
-												</div>
-											)}
 										</div>
 									)}
-								</div>
-							</>
+								</button>
+
+								{savedLocations.map((location) => (
+									<SavedLocationRow
+										key={location.id}
+										location={location}
+										isActive={!useAutoLocation && geohash === location.geohash}
+										disabled={isSaving}
+										onApply={() => handleApplySavedLocation(location)}
+										onDelete={() => handleDeleteSavedLocation(location.id)}
+									/>
+								))}
+							</div>
+						</div>
+
+						{/* Location search: separated from quick picks above as its own group */}
+						<div className="space-y-3">
+						<p className="px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+							{t("browse_location.location_search")}
+						</p>
+
+						{/* Search bar + results, attached as one dropdown-style card */}
+						<div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] transition focus-within:border-[var(--accent)]">
+							<div className="relative">
+								<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+								<input
+									ref={searchInputRef}
+									type="text"
+									value={locationQuery}
+									onChange={(e) => setLocationQuery(e.target.value)}
+									placeholder={t("browse_location.search_placeholder")}
+									className="h-12 w-full bg-transparent pl-10 pr-10 text-sm text-[var(--text)] outline-none"
+								/>
+								{isSearchingLocation ? (
+									<Loader2 className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-[var(--text-muted)]" />
+								) : locationQuery ? (
+									<button
+										type="button"
+										onClick={clearSearch}
+										className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									>
+										<X className="h-3.5 w-3.5" />
+									</button>
+								) : null}
+							</div>
+
+							{isSearching ? (
+								locationResults.length > 0 ? (
+									<div className="max-h-64 divide-y divide-[var(--border)] overflow-y-auto border-t border-[var(--border)]">
+										{locationResults.map((result) => (
+											<button
+												key={`${result.lat}:${result.lon}`}
+												type="button"
+												onClick={() => handleSelectSearchResult(result)}
+												className="flex w-full items-center gap-3.5 bg-[var(--surface-2)] px-4 py-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] active:bg-[var(--surface)]"
+											>
+												<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--text-muted)]">
+													<MapPin className="h-3.5 w-3.5" />
+												</div>
+												<span className="text-sm text-[var(--text)] line-clamp-2">
+													{(result.address && formatNominatimAddress(result.address, result.display_name)) ?? result.display_name}
+												</span>
+											</button>
+										))}
+									</div>
+								) : !isSearchingLocation ? (
+									<p className="border-t border-[var(--border)] bg-[var(--surface-2)] px-4 py-4 text-sm text-[var(--text-muted)]">
+										{t("browse_location.error_search_failed_general")}
+									</p>
+								) : null
+							) : null}
+						</div>
+
+						{/* Map + current selection — one container, so the map and its
+						    confirmation/save details read as a single unit instead of
+						    two separate cards. */}
+						{!isSearching && (
+							<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
+								{mapPickerError ? (
+									<p className="px-4 py-4 text-sm text-[var(--text-muted)]">{mapPickerError}</p>
+								) : (
+									<MapLocationPicker
+										selectedLocation={selectedLocation}
+										onPick={handleMapPick}
+										onError={setMapPickerError}
+										defaultZoom={11}
+										initialCenter={initialCenter}
+									/>
+								)}
+
+								{/* Only appears once you've tapped a new spot on the map above
+								    that differs from your active location — nothing to confirm
+								    (and no extra section) if it just matches what's already
+								    active, since that's already reflected above. */}
+								{selectedLocation && !isActiveLocationSelected && (
+									<div className="border-t border-[var(--border)] bg-[var(--surface-2)] p-4">
+										<div className="flex items-center gap-3">
+											<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white">
+												<MapPin className="h-4 w-4" />
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+													{t("browse_location.new_pick_heading")}
+												</p>
+												<p className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{selectedLocation.label}</p>
+											</div>
+											<button
+												type="button"
+												onClick={() => {
+													setIsNamingLocation((v) => {
+														const next = !v;
+														if (next && !newLocationName.trim() && selectedLocation.city) {
+															setNewLocationName(selectedLocation.city);
+														}
+														return next;
+													});
+												}}
+												aria-label={t("browse_location.save_as")}
+												className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition ${
+													isNamingLocation
+														? "border-[var(--accent)] bg-[var(--accent)] text-white"
+														: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+												}`}
+											>
+												<Bookmark className="h-4 w-4" />
+											</button>
+										</div>
+
+										{isNamingLocation && (
+											<div className="mt-3 flex gap-2">
+												<input
+													type="text"
+													autoFocus
+													value={newLocationName}
+													onChange={(e) => setNewLocationName(e.target.value)}
+													onKeyDown={(e) => { if (e.key === "Enter") handleSaveCurrentAsNamedLocation(); }}
+													placeholder={t("browse_location.save_as_placeholder")}
+													className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+												/>
+												<button
+													type="button"
+													disabled={!newLocationName.trim()}
+													onClick={handleSaveCurrentAsNamedLocation}
+													className="shrink-0 rounded-xl bg-[var(--accent)] px-4 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+												>
+													{t("travel_plans.save")}
+												</button>
+											</div>
+										)}
+
+										<button
+											type="button"
+											disabled={isSaving}
+											onClick={() => void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)}
+											className="relative mt-3 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--accent)] text-sm font-bold text-white shadow-md shadow-[var(--accent)]/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+										>
+											{isSaving ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : (
+												<>
+													<Check className="h-4 w-4" />
+													{t("browse_location.use_selected_location")}
+												</>
+											)}
+										</button>
+									</div>
+								)}
+							</div>
 						)}
+						</div>
 					</div>
 				</div>
 			</div>

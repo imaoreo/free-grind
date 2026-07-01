@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	RefreshCw,
@@ -16,6 +16,7 @@ import {
 	type VisitingMode,
 } from "../../types/visiting";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { setCachedOwnProfilePhotoHash } from "./gridpage/cache";
 import { BackToSettings } from "../../components/BackToSettings";
 import {
 	getBodyTypeLabelMap,
@@ -35,6 +36,7 @@ import {
 import { ProfileEditorFormSections } from "./profile-editor/ProfileEditorFormSections";
 import {
 	MAX_PROFILE_PHOTOS,
+	MEDIA_MODERATION_STATE,
 	type ProfileDraft,
 	buildSquareThumbCoords,
 	emptyDraft,
@@ -43,7 +45,6 @@ import {
 	parseNullableHeightToCm,
 	parseNullableWeightToGrams,
 	normalizeTagList,
-	profileResponseSchema,
 	profileSchema,
 	profileToDraft,
 } from "./profile-editor/profileEditorUtils";
@@ -75,6 +76,10 @@ export function ProfileEditorPage() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+	// Tracks each photo's last-seen moderation state across reloads, so a
+	// background poll can toast when one changes (e.g. pending -> approved)
+	// instead of just silently updating the UI. Null until the first load.
+	const previousModerationByHashRef = useRef<Map<string, number | null> | null>(null);
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
@@ -165,12 +170,42 @@ export function ProfileEditorPage() {
 				setIsLoadingProfile(true);
 			}
 			setProfileError(null);
-			const raw = await apiFunctions.getRawProfile(userId);
-			const parsed = profileResponseSchema.parse(raw);
-			setProfile(parsed.profiles[0]);
-			setRawProfile(
-				(raw as { profiles?: Record<string, any>[] })?.profiles?.[0] ?? null,
-			);
+			// Read through /v4/me/profile (the counterpart of the /v4 + /v3
+			// "me/profile*" endpoints used to save edits below) rather than
+			// /v7/profiles/:id — that's a different read path used for viewing
+			// other people's profiles, and can lag behind writes made here.
+			const raw = await apiFunctions.getMyOwnProfile();
+			const rawProfileObject =
+				raw && typeof raw === "object" && Array.isArray((raw as { profiles?: unknown }).profiles)
+					? ((raw as { profiles: Record<string, any>[] }).profiles[0] ?? null)
+					: (raw as Record<string, any> | null);
+			const parsed = profileSchema.parse(rawProfileObject);
+			setProfile(parsed);
+			setRawProfile(rawProfileObject);
+
+			const nextModerationByHash = new Map<string, number | null>();
+			for (const item of parsed.medias ?? []) {
+				if (item.mediaHash) {
+					nextModerationByHash.set(item.mediaHash, item.state ?? null);
+				}
+			}
+			const previous = previousModerationByHashRef.current;
+			if (previous) {
+				for (const [hash, prevState] of previous) {
+					const nextState = nextModerationByHash.get(hash);
+					if (nextState === undefined || nextState === prevState) {
+						continue;
+					}
+					if (nextState === MEDIA_MODERATION_STATE.APPROVED) {
+						toast.success(t("profile_editor.toasts.photo_approved", { defaultValue: "One of your photos was approved." }));
+					} else if (nextState === MEDIA_MODERATION_STATE.REJECTED) {
+						toast.error(t("profile_editor.toasts.photo_rejected", { defaultValue: "One of your photos was rejected." }));
+					} else if (nextState === MEDIA_MODERATION_STATE.PENDING) {
+						toast(t("profile_editor.toasts.photo_pending_again", { defaultValue: "One of your photos is pending review again." }));
+					}
+				}
+			}
+			previousModerationByHashRef.current = nextModerationByHash;
 		} catch (error) {
 			setProfile(null);
 			setRawProfile(null);
@@ -212,6 +247,27 @@ export function ProfileEditorPage() {
 		void loadProfile();
 		void loadVisitingMode();
 	}, [loadProfile, loadVisitingMode]);
+
+	const hasPendingPhotoModeration = useMemo(
+		() => (profile?.medias ?? []).some((item) => item.state === MEDIA_MODERATION_STATE.PENDING),
+		[profile?.medias],
+	);
+
+	// Periodically re-check moderation status while this page stays open and
+	// at least one photo is still pending review — reviews can land while
+	// the user is sitting here, and a silent reload (no loading spinner) is
+	// the only way to surface that without a manual refresh. Once nothing is
+	// pending anymore there's nothing left to learn from polling, so it
+	// stops. Slower while the tab is hidden since there's nothing to show.
+	useEffect(() => {
+		if (!userId || !hasPendingPhotoModeration) {
+			return;
+		}
+		const intervalId = window.setInterval(() => {
+			void loadProfile({ silent: true });
+		}, document.hidden ? 60_000 : 20_000);
+		return () => window.clearInterval(intervalId);
+	}, [userId, hasPendingPhotoModeration, loadProfile]);
 
 	useEffect(() => {
 		setDraft(profileToDraft(profile, unitsPreset));
@@ -260,7 +316,13 @@ export function ProfileEditorPage() {
 
 		const hashes = [...fromMedias];
 
+		// profileImageMediaHash can lag behind medias after deleting every
+		// photo — the server doesn't always clear it once medias is empty —
+		// so only trust it as a primary-photo fallback when at least one real
+		// media entry backs it up. Otherwise a deleted photo keeps reappearing
+		// here even though medias correctly reports none left.
 		if (
+			hashes.length > 0 &&
 			profile?.profileImageMediaHash &&
 			validateMediaHash(profile.profileImageMediaHash) &&
 			!hashes.includes(profile.profileImageMediaHash)
@@ -270,6 +332,16 @@ export function ProfileEditorPage() {
 
 		return hashes.slice(0, MAX_PROFILE_PHOTOS);
 	}, [profile?.medias, profile?.profileImageMediaHash]);
+
+	const photoModerationByHash = useMemo(() => {
+		const map = new Map<string, { state: number | null; reason: string | null }>();
+		for (const item of profile?.medias ?? []) {
+			if (item.mediaHash) {
+				map.set(item.mediaHash, { state: item.state ?? null, reason: item.reason ?? null });
+			}
+		}
+		return map;
+	}, [profile?.medias]);
 
 	const selectedRelationshipLabel = useMemo(() => {
 		if (!draft.relationshipStatus) {
@@ -529,6 +601,11 @@ export function ProfileEditorPage() {
 					await apiFunctions.deleteMyProfileImages(deletedHashes);
 				}
 
+				// The grid/chat header avatar reads this session-lifetime cache
+				// instead of re-fetching on every render — without updating it
+				// here it would keep showing a deleted/old photo until app restart.
+				setCachedOwnProfilePhotoHash(primaryImageHash ?? null);
+
 				await loadProfile();
 				toast.success(
 					options?.successMessage ?? t("profile_editor.toasts.photos_updated"),
@@ -752,6 +829,7 @@ export function ProfileEditorPage() {
 								aboutMeError={aboutMeError}
 								tagList={tagList}
 								profilePhotoHashes={profilePhotoHashes}
+								photoModerationByHash={photoModerationByHash}
 								isSavingPhotos={isSavingPhotos}
 								isUploadingPhoto={isUploadingPhoto}
 								onUploadPhoto={handleUploadPhoto}

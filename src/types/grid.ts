@@ -49,6 +49,22 @@ export const geocodeResultSchema = z.object({
 	display_name: z.string(),
 	lat: z.string(),
 	lon: z.string(),
+	address: z
+		.object({
+			road: z.string().optional(),
+			house_number: z.string().optional(),
+			neighbourhood: z.string().optional(),
+			suburb: z.string().optional(),
+			borough: z.string().optional(),
+			city_district: z.string().optional(),
+			city: z.string().optional(),
+			town: z.string().optional(),
+			village: z.string().optional(),
+			municipality: z.string().optional(),
+			state: z.string().optional(),
+			country: z.string().optional(),
+		})
+		.optional(),
 });
 
 export type GeocodeResult = z.infer<typeof geocodeResultSchema>;
@@ -181,6 +197,9 @@ export type SelectedLocation = {
 	lat: number;
 	lon: number;
 	label: string;
+	// Best-guess city name, used to default the "save as" name field — null
+	// while still resolving or if the lookup couldn't find one.
+	city?: string | null;
 };
 
 export type ManagedOption = {

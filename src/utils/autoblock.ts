@@ -1,5 +1,6 @@
 import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
 import { isTauriRuntime } from "../services/tauriWebSocket";
+import { getSetting, setSetting } from "../services/chatDb";
 import { appLog } from "./logger";
 
 export async function notifyAutoBlock(profileName: string, reason: string) {
@@ -25,6 +26,79 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Automation settings — backed by the active profile's db (chatDb), kept in
+// an in-memory cache so the hot-path checkers below (called per-message
+// during chat/grid filtering) can stay synchronous instead of awaiting a db
+// round-trip on every check.
+// ---------------------------------------------------------------------------
+
+export interface AutomationSettings {
+    blockOnChat: boolean;
+    blockGrid: boolean;
+    forbiddenWords: string;
+    minAge: string;
+    maxAge: string;
+    refreshEnabled: boolean;
+    refreshInterval: string;
+}
+
+const DEFAULT_AUTOMATION_SETTINGS: AutomationSettings = {
+    blockOnChat: false,
+    blockGrid: false,
+    forbiddenWords: "",
+    minAge: "18",
+    maxAge: "99",
+    refreshEnabled: false,
+    refreshInterval: "5",
+};
+
+const AUTOMATION_SETTINGS_KEY = "automation";
+
+let automationCache: AutomationSettings = DEFAULT_AUTOMATION_SETTINGS;
+
+/**
+ * Populates the in-memory automation cache from the active profile's db.
+ * Awaited by AuthContext before it flips settingsReady, so by the time any
+ * consumer observes settingsReady=true the cache already reflects the
+ * active profile.
+ */
+export async function loadAutomationCache(): Promise<void> {
+    try {
+        const stored = await getSetting<Partial<AutomationSettings>>(AUTOMATION_SETTINGS_KEY);
+        automationCache = { ...DEFAULT_AUTOMATION_SETTINGS, ...stored };
+    } catch (error) {
+        appLog.error("[AutoBlock] failed to load automation settings", error);
+        automationCache = DEFAULT_AUTOMATION_SETTINGS;
+    }
+    lastSavedWords = null;
+}
+
+export function getAutomationSettings(): AutomationSettings {
+    return automationCache;
+}
+
+export async function setAutomationSettings(
+    patch: Partial<AutomationSettings>,
+): Promise<AutomationSettings> {
+    automationCache = { ...automationCache, ...patch };
+    await setSetting(AUTOMATION_SETTINGS_KEY, automationCache);
+    lastSavedWords = null;
+    return automationCache;
+}
+
+export function getForbiddenWords(): string {
+    return automationCache.forbiddenWords;
+}
+
+export async function setForbiddenWords(value: string): Promise<void> {
+    await setAutomationSettings({ forbiddenWords: value });
+}
+
+export function getAutoRefreshSettings(): { enabled: boolean; intervalMinutes: string } {
+    return { enabled: automationCache.refreshEnabled, intervalMinutes: automationCache.refreshInterval };
+}
+
 let cachedKeywords: string[] = [];
 let cachedRegex: RegExp | null = null;
 let lastSavedWords: string | null = null;
@@ -32,14 +106,14 @@ let lastSavedWords: string | null = null;
 // NEW: Returns the exact word that triggered the block
 export function getMatchedForbiddenWord(text: string | null | undefined, context: "grid" | "chat"): string | null {
     if (!text) return null;
-    const isGridEnabled = window.localStorage.getItem("fg-block-grid") === "true";
-    const isChatEnabled = window.localStorage.getItem("fg-block-chat") !== "false"; 
+    const isGridEnabled = automationCache.blockGrid;
+    const isChatEnabled = automationCache.blockOnChat;
 
     if (context === "grid" && !isGridEnabled) return null;
     if (context === "chat" && !isChatEnabled) return null;
 
-    const savedWords = window.localStorage.getItem("fg-forbidden-words") || "";
-    
+    const savedWords = automationCache.forbiddenWords;
+
     // Cache logic: only re-compile regex if keywords changed
     if (savedWords !== lastSavedWords) {
         lastSavedWords = savedWords;
@@ -78,15 +152,15 @@ export function shouldAutoBlock(text: string | null | undefined, context: "grid"
 }
 
 export function isOutsideAgeLimits(age: number | null | undefined, context: "grid" | "chat"): boolean {
-    if (age == null) return false; 
-    const isGridEnabled = window.localStorage.getItem("fg-block-grid") === "true";
-    const isChatEnabled = window.localStorage.getItem("fg-block-chat") !== "false"; 
+    if (age == null) return false;
+    const isGridEnabled = automationCache.blockGrid;
+    const isChatEnabled = automationCache.blockOnChat;
 
     if (context === "grid" && !isGridEnabled) return false;
     if (context === "chat" && !isChatEnabled) return false;
 
-    const rawMin = window.localStorage.getItem("fg-block-min-age");
-    const rawMax = window.localStorage.getItem("fg-block-max-age");
+    const rawMin = automationCache.minAge;
+    const rawMax = automationCache.maxAge;
 
     if (rawMin && rawMin.trim() !== "") {
         const minAge = parseInt(rawMin.trim(), 10);

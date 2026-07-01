@@ -38,6 +38,7 @@
             android:launchMode="singleTask"
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
+            android:theme="@style/Theme.free_grind.Starting"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -65,4 +66,8 @@
             </intent-filter>
         </service>
     </application>
+    <!-- ANDROID FS PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- ANDROID FS PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
 </manifest>

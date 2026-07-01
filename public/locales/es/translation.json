@@ -456,6 +456,9 @@
         "error_load_feed": "No se pudo cargar tu página principal",
         "empty_title": "No se pudo obtener perfiles cercanos",
         "empty_desc": "Intenta refrescando la página principal después de actualizar tu ubicación.",
+        "no_location_title": "Establece tu ubicación para empezar",
+        "no_location_desc": "Necesitamos saber dónde estás para mostrarte perfiles cercanos.",
+        "no_location_button": "Establecer ubicación",
         "loading": "Cargando",
         "errors": {
             "load_timeout": "El tiempo de búsqueda para la página se ha agotado. Por favor, comprueba tu conexión e intenta de nuevo.",

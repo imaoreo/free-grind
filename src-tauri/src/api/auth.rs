@@ -488,6 +488,256 @@ impl AuthStorage {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Multi-account support — saved accounts you can switch between without
+// re-entering a password. Built on a generic, slot-keyed version of the
+// exact same storage primitive used above for the single active session
+// (OS keyring where available, file-based fallback on Windows / macOS
+// debug builds), so each account's full Session (including the live
+// session_id/auth_token, not just a short-lived JWT) can be restored
+// directly. Deliberately does not touch get_session/set_session/
+// clear_session above — the existing single "active" slot keeps working
+// exactly as before, completely unaffected by any of this.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedAccountMeta {
+    pub profile_id: String,
+    pub email: String,
+    pub last_used_at: u64,
+}
+
+const ACCOUNT_INDEX_SLOT: &str = "account-index";
+
+fn account_session_slot(profile_id: &str) -> String {
+    format!("session-{profile_id}")
+}
+
+impl AuthStorage {
+    #[cfg(target_os = "windows")]
+    fn slot_file_path(slot: &str) -> PathBuf {
+        crate::windows_instance::WindowsInstance::current()
+            .data_root()
+            .join(format!("{slot}.msgpack"))
+    }
+
+    #[cfg(target_os = "windows")]
+    fn get_slot_bytes(slot: &str) -> Result<Option<Vec<u8>>, AppError> {
+        let path = Self::slot_file_path(slot);
+        match std::fs::read(&path) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to read {} from {}: {}",
+                slot,
+                path.display(),
+                error
+            ))),
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    fn set_slot_bytes(slot: &str, bytes: &[u8]) -> Result<(), AppError> {
+        let path = Self::slot_file_path(slot);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                AppError::Auth(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    error
+                ))
+            })?;
+        }
+        std::fs::write(&path, bytes).map_err(|error| {
+            AppError::Auth(format!(
+                "Failed to write {} to {}: {}",
+                slot,
+                path.display(),
+                error
+            ))
+        })
+    }
+
+    #[cfg(target_os = "windows")]
+    fn clear_slot(slot: &str) -> Result<(), AppError> {
+        let path = Self::slot_file_path(slot);
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to clear {} at {}: {}",
+                slot,
+                path.display(),
+                error
+            ))),
+        }
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    fn slot_file_path(slot: &str) -> Result<PathBuf, AppError> {
+        let home = std::env::var("HOME").map_err(|_| {
+            AppError::Auth("HOME is not set; cannot resolve slot path".to_owned())
+        })?;
+
+        Ok(PathBuf::from(home)
+            .join("Library")
+            .join("Application Support")
+            .join("free-grind")
+            .join(format!("{slot}.msgpack")))
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    fn get_slot_bytes(slot: &str) -> Result<Option<Vec<u8>>, AppError> {
+        let path = Self::slot_file_path(slot)?;
+        match std::fs::read(&path) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to read {} from {}: {}",
+                slot,
+                path.display(),
+                error
+            ))),
+        }
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    fn set_slot_bytes(slot: &str, bytes: &[u8]) -> Result<(), AppError> {
+        let path = Self::slot_file_path(slot)?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|error| {
+                AppError::Auth(format!(
+                    "Failed to create directory {}: {}",
+                    parent.display(),
+                    error
+                ))
+            })?;
+        }
+        std::fs::write(&path, bytes).map_err(|error| {
+            AppError::Auth(format!(
+                "Failed to write {} to {}: {}",
+                slot,
+                path.display(),
+                error
+            ))
+        })
+    }
+
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    fn clear_slot(slot: &str) -> Result<(), AppError> {
+        let path = Self::slot_file_path(slot)?;
+        match std::fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(AppError::Auth(format!(
+                "Failed to clear {} at {}: {}",
+                slot,
+                path.display(),
+                error
+            ))),
+        }
+    }
+
+    // Covers macOS release, Linux, and Android — all keyring-backed. Unlike
+    // get_session/set_session above, this intentionally skips the
+    // macOS-release fallback-to-file path for simplicity: if keyring access
+    // fails here, saving/reading a saved account fails (logged, non-fatal —
+    // the single active session above is completely unaffected), rather
+    // than silently falling back to a less secure file.
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
+    fn get_slot_bytes(slot: &str) -> Result<Option<Vec<u8>>, AppError> {
+        let entry = Entry::new("free-grind", slot).map_err(|e| AppError::Auth(e.to_string()))?;
+        match entry.get_secret() {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(e) => Err(AppError::Auth(e.to_string())),
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
+    fn set_slot_bytes(slot: &str, bytes: &[u8]) -> Result<(), AppError> {
+        let entry = Entry::new("free-grind", slot).map_err(|e| AppError::Auth(e.to_string()))?;
+        entry
+            .set_secret(bytes)
+            .map_err(|e| AppError::Auth(e.to_string()))
+    }
+
+    #[cfg(not(any(target_os = "windows", all(target_os = "macos", debug_assertions))))]
+    fn clear_slot(slot: &str) -> Result<(), AppError> {
+        let entry = Entry::new("free-grind", slot).map_err(|e| AppError::Auth(e.to_string()))?;
+        match entry.delete_credential() {
+            Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+            Err(e) => Err(AppError::Auth(e.to_string())),
+        }
+    }
+
+    fn read_account_index() -> Result<Vec<SavedAccountMeta>, AppError> {
+        match Self::get_slot_bytes(ACCOUNT_INDEX_SLOT)? {
+            Some(bytes) => {
+                rmp_serde::decode::from_slice(&bytes).map_err(|e| AppError::Auth(e.to_string()))
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+
+    fn write_account_index(index: &[SavedAccountMeta]) -> Result<(), AppError> {
+        let bytes = rmp_serde::encode::to_vec(index).map_err(|e| AppError::Auth(e.to_string()))?;
+        Self::set_slot_bytes(ACCOUNT_INDEX_SLOT, &bytes)
+    }
+
+    /// Upserts this session into the saved-accounts store, keyed by
+    /// profile id — called on every successful login/refresh so accounts
+    /// automatically show up in the switcher with no separate "save" step.
+    pub fn save_account(session: &Session) -> Result<(), AppError> {
+        let slot = account_session_slot(&session.profile_id);
+        let bytes =
+            rmp_serde::encode::to_vec(session).map_err(|e| AppError::Auth(e.to_string()))?;
+        Self::set_slot_bytes(&slot, &bytes)?;
+
+        let mut index = Self::read_account_index()?;
+        let now = chrono::Utc::now().timestamp() as u64;
+        if let Some(existing) = index
+            .iter_mut()
+            .find(|account| account.profile_id == session.profile_id)
+        {
+            existing.email = session.email.clone();
+            existing.last_used_at = now;
+        } else {
+            index.push(SavedAccountMeta {
+                profile_id: session.profile_id.clone(),
+                email: session.email.clone(),
+                last_used_at: now,
+            });
+        }
+        Self::write_account_index(&index)
+    }
+
+    pub fn get_account_session(profile_id: &str) -> Result<Option<Session>, AppError> {
+        let slot = account_session_slot(profile_id);
+        match Self::get_slot_bytes(&slot)? {
+            Some(bytes) => rmp_serde::decode::from_slice::<Session>(&bytes)
+                .map(Some)
+                .map_err(|e| AppError::Auth(e.to_string())),
+            None => Ok(None),
+        }
+    }
+
+    pub fn list_saved_accounts() -> Result<Vec<SavedAccountMeta>, AppError> {
+        let mut accounts = Self::read_account_index()?;
+        accounts.sort_by(|a, b| b.last_used_at.cmp(&a.last_used_at));
+        Ok(accounts)
+    }
+
+    pub fn remove_saved_account(profile_id: &str) -> Result<(), AppError> {
+        let slot = account_session_slot(profile_id);
+        Self::clear_slot(&slot)?;
+        let mut index = Self::read_account_index()?;
+        index.retain(|account| account.profile_id != profile_id);
+        Self::write_account_index(&index)
+    }
+}
+
 impl GrindrClient {
     async fn create_session(
         &self,
@@ -535,6 +785,13 @@ impl GrindrClient {
             #[cfg(debug_assertions)]
             eprintln!(
                 "[HTTP-AUTH] Failed to persist session (continuing in-memory only): {}",
+                _error
+            );
+        }
+        if let Err(_error) = AuthStorage::save_account(&session) {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP-AUTH] Failed to register account in switcher (login still succeeded): {}",
                 _error
             );
         }
@@ -636,12 +893,23 @@ impl GrindrClient {
                         _error
                     );
                 }
+                if let Err(_error) = AuthStorage::save_account(&session) {
+                    #[cfg(debug_assertions)]
+                    eprintln!(
+                        "[HTTP-AUTH] Failed to register account in switcher (login still succeeded): {}",
+                        _error
+                    );
+                }
                 *self.session.write().await = Some(session);
                 Ok(LoginResult { profile_id })
             }
             Err(_exchange_error) => {
                 // Exchange failed — fall back to storing the JWT directly.
                 // The session will work until the JWT expires (~15-30 min).
+                // Deliberately not registered via save_account: it has no
+                // email to identify it by and would expire almost
+                // immediately, making it a dead/confusing entry in the
+                // switcher rather than a useful saved account.
                 #[cfg(debug_assertions)]
                 eprintln!(
                     "[HTTP-AUTH] login_with_jwt exchange failed (falling back to JWT-only session): {_exchange_error}"
@@ -701,6 +969,38 @@ impl GrindrClient {
         *self.session.write().await = Some(session);
 
         Ok(LoginResult { profile_id })
+    }
+
+    /// Makes a previously saved account the active session, without
+    /// re-entering a password — restores its stored Session (live
+    /// session_id/auth_token, not a re-derived JWT) directly into both the
+    /// single "active" slot (so normal boot/restore picks it up next
+    /// launch too) and this client's in-memory state.
+    pub async fn switch_account(&self, profile_id: &str) -> Result<LoginResult, AppError> {
+        let session = AuthStorage::get_account_session(profile_id)?.ok_or_else(|| {
+            AppError::Auth("No saved session for this account".to_owned())
+        })?;
+
+        {
+            let mut device = self.device.write().await;
+            device.device_id = session.device_id.clone();
+            device.advertising_id = session.advertising_id.clone();
+        }
+
+        if let Err(_error) = AuthStorage::set_session(&session) {
+            #[cfg(debug_assertions)]
+            eprintln!(
+                "[HTTP-AUTH] Failed to persist switched-to session (continuing in-memory only): {}",
+                _error
+            );
+        }
+
+        let result = LoginResult {
+            profile_id: session.profile_id.clone(),
+        };
+        *self.session.write().await = Some(session);
+
+        Ok(result)
     }
 
     pub async fn authorization_header(&self) -> Option<String> {
@@ -809,6 +1109,24 @@ pub async fn auth_state(state: tauri::State<'_, AppState>) -> Result<Option<u64>
     Ok(session
         .as_ref()
         .and_then(|s| s.profile_id.parse::<u64>().ok()))
+}
+
+#[tauri::command]
+pub async fn list_saved_accounts() -> Result<Vec<SavedAccountMeta>, AppError> {
+    AuthStorage::list_saved_accounts()
+}
+
+#[tauri::command]
+pub async fn switch_account(
+    state: tauri::State<'_, AppState>,
+    profile_id: String,
+) -> Result<LoginResult, AppError> {
+    state.client()?.switch_account(&profile_id).await
+}
+
+#[tauri::command]
+pub async fn remove_saved_account(profile_id: String) -> Result<(), AppError> {
+    AuthStorage::remove_saved_account(&profile_id)
 }
 
 #[tauri::command]

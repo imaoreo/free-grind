@@ -15,6 +15,13 @@ function isImperialHeight(unitsPreset: UnitsPreset): boolean {
 
 export const MAX_PROFILE_PHOTOS = 5;
 
+/** Media moderation review state, as returned per-item in a profile's `medias` array. */
+export const MEDIA_MODERATION_STATE = {
+	PENDING: 0,
+	APPROVED: 1,
+	REJECTED: 2,
+} as const;
+
 export const profileSchema = z.object({
 	profileId: z.string(),
 	displayName: z.string().nullable().optional(),
@@ -48,7 +55,13 @@ export const profileSchema = z.object({
 	isRoaming: z.boolean().optional(),
 	isTeleporting: z.boolean().optional(),
 	medias: z
-		.array(z.object({ mediaHash: z.string().optional() }))
+		.array(
+			z.object({
+				mediaHash: z.string().optional(),
+				state: z.number().nullable().optional(),
+				reason: z.string().nullable().optional(),
+			}),
+		)
 		.optional()
 		.default([]),
 	socialNetworks: z

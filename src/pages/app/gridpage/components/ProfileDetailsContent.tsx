@@ -16,18 +16,21 @@ import {
 	MessageCircle,
 	MessageSquare,
 	type LucideIcon,
+	Plane,
 	Ruler,
 	Scale,
 	Search,
 	Shield,
 	ShieldCheck,
+	Sparkles,
 	Syringe,
 	User,
 	Zap,
 } from "lucide-react";
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from "react";
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
+import type { TravelPlan } from "../../../../types/travel";
 import {
 	formatDistance,
 	formatEnumArray,
@@ -37,6 +40,7 @@ import {
 	formatWeightKg,
 	shouldHideField,
 } from "../utils";
+import { reverseGeocodeGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
@@ -44,8 +48,42 @@ import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
+import { formatTravelDateRange } from "../utils";
 
 type LabelMap = Record<number, string>;
+
+function TravelPlanRow({ plan, t }: { plan: TravelPlan; t: ReturnType<typeof useTranslation>["t"] }) {
+	const [location, setLocation] = useState<string | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		void reverseGeocodeGeohash(plan.geohash).then((label) => {
+			if (!cancelled) {
+				setLocation(label);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [plan.geohash]);
+
+	return (
+		<div className="flex items-start gap-2.5">
+			<Plane className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+			<div className="min-w-0">
+				<p className="text-sm text-[var(--text)]">
+					{location ?? t("profile_details.travel_resolving_location")}
+				</p>
+				<p className="text-xs text-[var(--text-muted)]">
+					{formatTravelDateRange(plan.startDate, plan.endDate)}
+				</p>
+				{plan.notes?.trim() && (
+					<p className="mt-1 text-sm italic text-[var(--text-muted)]">{plan.notes.trim()}</p>
+				)}
+			</div>
+		</div>
+	);
+}
 
 type ProfileDetailsContentProps = {
 	activeProfile: ProfileDetail;
@@ -58,6 +96,7 @@ type ProfileDetailsContentProps = {
 	openPhotoViewer: (index: number) => void;
 	activeProfileName: string;
 	estimatedCreatedAt: string;
+	travelPlans?: TravelPlan[];
 	profileStatusLabel: string;
 	profileStatusLevel: "online" | "recent" | "offline";
 	ownTags?: string[];
@@ -107,6 +146,7 @@ export function ProfileDetailsContent({
 	openPhotoViewer,
 	activeProfileName,
 	estimatedCreatedAt,
+	travelPlans,
 	profileStatusLabel,
 	profileStatusLevel,
 	ownTags = [],
@@ -148,6 +188,11 @@ export function ProfileDetailsContent({
 	const { unitsPreset } = usePreferences();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
+	const visibleTravelPlans = useMemo(
+		() => (travelPlans ?? []).filter((plan) => plan.showOnProfile && plan.endDate >= Date.now()),
+		[travelPlans],
+	);
+	const hasTravelPlans = visibleTravelPlans.length > 0;
 
 	const renderPhotoCreatedBadge = (_hash: string) => null;
 
@@ -409,6 +454,12 @@ export function ProfileDetailsContent({
 									{formatDistance(profileDistance, t, unitsPreset)}
 								</span>
 							)}
+							{activeProfile.isNew && (
+								<span className="flex items-center gap-1 rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
+									<Sparkles className="h-3 w-3" />
+									{t("profile_details.recently_joined")}
+								</span>
+							)}
 						</div>
 						{(PositionIcon != null && !shouldHideField(formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels)) || !shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) || !shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) || !shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t))) && (
 							<div className="mt-1 flex items-center gap-x-3 text-sm text-[var(--text-muted)]">
@@ -448,16 +499,8 @@ export function ProfileDetailsContent({
 						/>
 					)}
 				</div>
-				<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--text-muted)]">
-					<span className="flex items-center gap-1">
-						<Hash className="h-3 w-3" />
-						{activeProfile.profileId}
-					</span>
-					<span className="flex items-center gap-1">
-						<Calendar className="h-3 w-3" />
-						~{estimatedCreatedAt}
-					</span>
-					{hasChatHistory && (
+				{hasChatHistory && (
+					<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--text-muted)]">
 						<span className="flex items-center gap-1">
 							<MessageCircle className="h-3 w-3" />
 							{lastMessageLabel
@@ -468,8 +511,8 @@ export function ProfileDetailsContent({
 								? ` · ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
 								: ""}
 						</span>
-					)}
-				</div>
+					</div>
+				)}
 				{isDesktopLike && messageProfileId && onMessageProfile ? (
 					<div className="mt-3 flex items-center justify-center gap-4 py-1">
 						<button
@@ -495,9 +538,9 @@ export function ProfileDetailsContent({
 
 			{extraTopSection}
 
-			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
+			{(hasTagsContent || hasAboutContent || hasTravelPlans || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
-				{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields) && (
+				{(hasTagsContent || hasAboutContent || hasTravelPlans || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
 					{hasTagsContent && (
 						<div>
@@ -535,6 +578,19 @@ export function ProfileDetailsContent({
 								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">
 									{activeProfile.aboutMe?.trim()}
 								</p>
+							</div>
+						</div>
+					)}
+
+					{hasTravelPlans && (
+						<div>
+							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+								{t("profile_details.travel_plans")}
+							</p>
+							<div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+								{visibleTravelPlans.map((plan) => (
+									<TravelPlanRow key={plan.travelPlanId} plan={plan} t={t} />
+								))}
 							</div>
 						</div>
 					)}
@@ -772,6 +828,22 @@ export function ProfileDetailsContent({
 				)}
 			</div>
 			)}
+
+			<div className="px-3">
+				<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+					{t("profile_details.account_info")}
+				</p>
+				<div className="space-y-2.5">
+					<div className="flex items-center gap-2.5">
+						<Hash className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+						<p className="text-sm text-[var(--text-muted)]">{activeProfile.profileId}</p>
+					</div>
+					<div className="flex items-center gap-2.5">
+						<Calendar className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+						<p className="text-sm text-[var(--text-muted)]">{t("profile_details.estimated_joined", { date: estimatedCreatedAt })}</p>
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }

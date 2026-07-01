@@ -1,5 +1,5 @@
-import { BookMarked, Download, MessageSquarePlus, MessageSquareQuote, Plus, Trash2, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { BookMarked, Download, Loader2, MessageSquarePlus, MessageSquareQuote, Plus, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
@@ -12,20 +12,24 @@ import {
 
 export function SettingsSavedPhrasesPage() {
 	const { t } = useTranslation();
-	const [savedPhrases, setSavedPhrases] = useState<string[]>(() => loadSavedPhrases());
+	const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
 	const [newPhrase, setNewPhrase] = useState("");
 	const [isImporting, setIsImporting] = useState(false);
 	const importInputRef = useRef<HTMLInputElement | null>(null);
 
-	const handleAddPhrase = () => {
+	useEffect(() => {
+		void loadSavedPhrases().then(setSavedPhrases);
+	}, []);
+
+	const handleAddPhrase = async () => {
 		if (!newPhrase.trim()) return;
-		const updated = saveSavedPhrases([...savedPhrases, newPhrase]);
+		const updated = await saveSavedPhrases([...savedPhrases, newPhrase]);
 		setSavedPhrases(updated);
 		setNewPhrase("");
 	};
 
-	const handleDeletePhrase = (index: number) => {
-		const updated = saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+	const handleDeletePhrase = async (index: number) => {
+		const updated = await saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
 		setSavedPhrases(updated);
 	};
 
@@ -60,7 +64,7 @@ export function SettingsSavedPhrasesPage() {
 				toast.error(t("settings_saved_phrases.import_empty", { defaultValue: "No valid phrases found in that file." }));
 				return;
 			}
-			const updated = saveSavedPhrases(imported);
+			const updated = await saveSavedPhrases(imported);
 			setSavedPhrases(updated);
 			toast.success(t("settings_saved_phrases.import_success", { defaultValue: "Saved phrases imported." }));
 		} catch {
@@ -180,41 +184,59 @@ export function SettingsSavedPhrasesPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						{t("settings_saved_phrases.import_export_title", { defaultValue: "Import / Export" })}
 					</p>
-					<div className="surface-card overflow-hidden">
-						<div className="flex gap-2 p-4">
-							<button
-								type="button"
-								onClick={handleExportTxt}
-								disabled={savedPhrases.length === 0}
-								className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-semibold transition hover:border-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<Download className="h-3.5 w-3.5" />
-								{t("settings_saved_phrases.export_txt", { defaultValue: "Export .txt" })}
-							</button>
-							<button
-								type="button"
-								onClick={() => importInputRef.current?.click()}
-								disabled={isImporting}
-								className="inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 text-xs font-semibold transition hover:border-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-							>
-								<Upload className="h-3.5 w-3.5" />
-								{isImporting
-									? t("settings_saved_phrases.importing", { defaultValue: "Importing…" })
-									: t("settings_saved_phrases.import_txt", { defaultValue: "Import .txt" })}
-							</button>
-							<input
-								type="file"
-								ref={importInputRef}
-								onChange={(e) => void handleImportFile(e)}
-								accept=".txt,text/plain"
-								className="hidden"
-							/>
-						</div>
-						<div className="border-t border-[var(--border)] px-4 py-3">
-							<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-								{t("settings_saved_phrases.import_hint", { defaultValue: "Import expects one phrase per line and will replace the current list." })}
-							</p>
-						</div>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<button
+							type="button"
+							onClick={handleExportTxt}
+							disabled={savedPhrases.length === 0}
+							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${savedPhrases.length === 0 ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"}`}
+						>
+							<div className="shrink-0 rounded-2xl bg-teal-500/15 p-2.5 text-teal-400">
+								<Download className="h-5 w-5" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<p className="text-sm font-semibold leading-snug">
+									{t("settings_saved_phrases.export_txt", { defaultValue: "Export .txt" })}
+								</p>
+								<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+									{t("settings_saved_phrases.export_txt_desc", { defaultValue: "Save your phrases as a plain text file, one per line." })}
+								</p>
+							</div>
+							<Download className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+						</button>
+
+						<button
+							type="button"
+							onClick={() => importInputRef.current?.click()}
+							disabled={isImporting}
+							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isImporting ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"}`}
+						>
+							<div className="shrink-0 rounded-2xl bg-violet-500/15 p-2.5 text-violet-400">
+								<Upload className="h-5 w-5" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<p className="text-sm font-semibold leading-snug">
+									{isImporting
+										? t("settings_saved_phrases.importing", { defaultValue: "Importing…" })
+										: t("settings_saved_phrases.import_txt", { defaultValue: "Import .txt" })}
+								</p>
+								<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+									{t("settings_saved_phrases.import_txt_desc", { defaultValue: "One phrase per line — replaces the current list." })}
+								</p>
+							</div>
+							{isImporting ? (
+								<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--text-muted)]" />
+							) : (
+								<Upload className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+							)}
+						</button>
+						<input
+							type="file"
+							ref={importInputRef}
+							onChange={(e) => void handleImportFile(e)}
+							accept=".txt,text/plain"
+							className="hidden"
+						/>
 					</div>
 				</div>
 			</div>

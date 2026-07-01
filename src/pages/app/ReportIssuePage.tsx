@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { collectIssueLogs, getIssueAppInfo } from "../../utils/issueTelemetry";
 
 import { useApi } from "../../hooks/useApi";
+import { ToggleRow } from "../../components/ui/toggle-row";
 
 type ReportType = "BUG" | "FEATURE";
 
@@ -135,23 +136,144 @@ export function ReportIssuePage() {
     }
   };
 
+  if (bugOnly) {
+    return (
+      <div className="fs-card-outer">
+        <div className="fs-card-inner fs-card-lg flex flex-col">
+          {/* Back link */}
+          <div
+            className="shrink-0 px-6"
+            style={{ paddingTop: "max(56px, env(safe-area-inset-top))" }}
+          >
+            <Link
+              to="/auth/sign-in"
+              className="flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              {t("auth.sign_in.title")}
+            </Link>
+          </div>
+
+          {/* Header — same as AuthShell */}
+          <div className="flex shrink-0 flex-col items-center px-6 pb-10 text-center"
+            style={{ paddingTop: "max(32px, 2rem)" }}
+          >
+            <img
+              src="/newLogo.webp"
+              alt="Free Grind"
+              className="mb-7 h-16 w-16 rounded-2xl object-cover"
+            />
+            <h1 className="text-2xl font-bold text-[var(--text)]">{t("issues_form.title_bug_only")}</h1>
+            <p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">{t("issues_form.subtitle")}</p>
+          </div>
+
+          {/* Form */}
+          <div className="flex flex-1 flex-col overflow-y-auto px-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 pb-2">
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  {t("issues_form.title_label")}
+                </label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t("issues_form.title_placeholder")}
+                  className="input-field"
+                  maxLength={140}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  {t("issues_form.description_label")}
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t("issues_form.description_placeholder")}
+                  className="input-field min-h-[120px]"
+                  maxLength={4000}
+                  required
+                />
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  {t("issues_form.contact_label")} <span className="text-red-400">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={reporterContactPlatform}
+                    onChange={(e) => setReporterContactPlatform(e.target.value)}
+                    className="input-field w-auto shrink-0"
+                  >
+                    <option value="Discord">Discord</option>
+                    <option value="Telegram">Telegram</option>
+                    <option value="Email">Email</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input
+                    value={reporterContact}
+                    onChange={(e) => setReporterContact(e.target.value)}
+                    placeholder={t("issues_form.contact_placeholder")}
+                    className="input-field min-w-0 flex-1"
+                    maxLength={120}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+                  {t("issues_form.name_label")}
+                </label>
+                <input
+                  value={reporterName}
+                  onChange={(e) => setReporterName(e.target.value)}
+                  placeholder={t("issues_form.name_placeholder")}
+                  className="input-field"
+                  maxLength={80}
+                />
+              </div>
+
+              <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                <ToggleRow
+                  checked={includeAppInfo}
+                  onChange={setIncludeAppInfo}
+                  label={t("issues_form.include_app_info")}
+                  description={t("issues_form.include_app_info_hint")}
+                />
+                <div className="mx-4 h-px bg-[var(--border)]" />
+                <ToggleRow
+                  checked={includeLogs}
+                  onChange={setIncludeLogs}
+                  label={t("issues_form.include_logs")}
+                  description={t("issues_form.include_logs_hint")}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+              >
+                {isSubmitting ? t("issues_form.submitting") : t("issues_form.submit")}
+              </button>
+            </form>
+
+            <div style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <section className="app-screen">
       <header className="mb-6">
-        {bugOnly ? (
-          <Link
-            to="/auth/sign-in"
-            className="mb-4 flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            {t("auth.sign_in.title")}
-          </Link>
-        ) : (
-          <BackToSettings />
-        )}
-        <h1 className="app-title mb-2">
-          {bugOnly ? t("issues_form.title_bug_only") : t("issues_form.title")}
-        </h1>
+        <BackToSettings />
+        <h1 className="app-title mb-2">{t("issues_form.title")}</h1>
         <p className="app-subtitle">{t("issues_form.subtitle")}</p>
       </header>
 

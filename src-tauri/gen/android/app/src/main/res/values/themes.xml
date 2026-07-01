@@ -1,0 +1,37 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.free_grind" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Customize your theme here. -->
+    </style>
+
+    <!-- Shown by the system (via androidx.core.splashscreen) from process
+         start until MainActivity explicitly dismisses it once the WebView
+         has actually painted content — see MainActivity.onCreate's
+         installSplashScreen()/setKeepOnScreenCondition and JsBridge's
+         notifyContentReady(). Without this, the system splash disappears
+         as soon as the window itself is drawn (near-instant), leaving a
+         blank white/black WebView background visible for the several
+         seconds it then takes to load and render the app on top of it. -->
+    <style name="Theme.free_grind.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.free_grind</item>
+    </style>
+
+    <!-- Hosts splash_overlay.xml in its own Dialog window (see MainActivity's
+         splashDialog) rather than as a View added into the Activity's own
+         window — a hardware-accelerated WebView's surface can composite
+         above a plain sibling View regardless of add-order, so a same-window
+         View-based overlay gets silently painted over once the WebView
+         starts rendering. A Dialog is a genuinely separate window, layered
+         above the Activity's by the WindowManager, so it isn't subject to
+         that same-window compositing quirk. -->
+    <style name="SplashDialogTheme" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

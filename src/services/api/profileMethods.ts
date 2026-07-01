@@ -14,6 +14,7 @@ import type {
 import type { RestFetcher } from "../../types/chat-service";
 import type { VisitingMode } from "../../types/visiting";
 import { isVisitingMode } from "../../types/visiting";
+import { travelPlansResponseSchema, type TravelPlan, type TravelPlanPayload } from "../../types/travel";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 import { isRecordProfileViewsEnabled } from "../../utils/privacy";
 import { appLog } from "../../utils/logger";
@@ -256,6 +257,21 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 			return parseJsonSafe(response);
 		},
 
+		/**
+		 * GET /v4/me/profile — the read counterpart of updateMyProfile/
+		 * updateMyProfileImages (both write to /v4 or /v3 "me/profile*"
+		 * endpoints). Unlike GET /v7/profiles/:id (a different read path,
+		 * used for viewing arbitrary profiles), this one reliably reflects
+		 * edits made through those endpoints immediately — no read-after-
+		 * write lag — so the profile editor reloads through this after
+		 * saving photos/profile fields rather than getRawProfile.
+		 */
+		async getMyOwnProfile(): Promise<unknown> {
+			const response = await fetchRest("/v4/me/profile");
+			await assertSuccess(response, t("api.errors.load_profile"));
+			return parseJsonSafe(response);
+		},
+
 		async recordProfileView(profileId: number | string): Promise<void> {
 			if (!isRecordProfileViewsEnabled()) {
 				return;
@@ -318,6 +334,40 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 				body: { setting },
 			});
 			await assertSuccess(response, t("api.errors.save_visiting_mode"));
+			return { ok: true };
+		},
+
+		async getTravelPlans(profileId: number | string): Promise<TravelPlan[]> {
+			const response = await fetchRest(`/v6/profiles/travel/${profileId}`);
+			await assertSuccess(response, t("api.errors.load_travel_plans"));
+			const payload = await parseJsonSafe(response);
+			return travelPlansResponseSchema.parse(payload).travelPlans;
+		},
+
+		async createTravelPlan(payload: TravelPlanPayload): Promise<{ ok: true }> {
+			const { travelPlanId: _ignored, ...body } = payload;
+			const response = await fetchRest("/v6/profiles/travel", {
+				method: "POST",
+				body,
+			});
+			await assertSuccess(response, t("api.errors.save_travel_plan"));
+			return { ok: true };
+		},
+
+		async updateTravelPlan(payload: TravelPlanPayload & { travelPlanId: number }): Promise<{ ok: true }> {
+			const response = await fetchRest("/v6/profiles/travel/update", {
+				method: "POST",
+				body: payload,
+			});
+			await assertSuccess(response, t("api.errors.save_travel_plan"));
+			return { ok: true };
+		},
+
+		async deleteTravelPlan(travelPlanId: number): Promise<{ ok: true }> {
+			const response = await fetchRest(`/v6/profiles/travel/${travelPlanId}`, {
+				method: "DELETE",
+			});
+			await assertSuccess(response, t("api.errors.delete_travel_plan"));
 			return { ok: true };
 		},
 

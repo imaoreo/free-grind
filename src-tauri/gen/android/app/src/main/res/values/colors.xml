@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <!-- Matches the "bg" CSS variable in src/index.css (light mode) so the
+         native splash background doesn't visibly flash against the app's
+         own background once the WebView paints. -->
+    <color name="splash_background">#F5F7FA</color>
+    <!-- Matches the "text-muted" CSS variable in src/index.css (light mode) —
+         deliberately the muted/dimmer tone, not the full-strength "text" one,
+         for a lighter-weight splash label. -->
+    <color name="splash_text">#606A79</color>
+    <!-- Matches the "accent" CSS variable in src/index.css (same in both
+         light and dark mode, so no night-mode override needed). -->
+    <color name="splash_accent">#FFCC01</color>
+</resources>

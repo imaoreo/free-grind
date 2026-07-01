@@ -21,12 +21,6 @@
 			"allow": [
 				{
 					"path": "$APPDATA/preferences.json"
-				},
-				{
-					"path": "$APPDATA/chat-log"
-				},
-				{
-					"path": "$APPDATA/chat-log/**"
 				}
 			]
 		},
@@ -35,9 +29,6 @@
 			"allow": [
 				{
 					"path": "$APPDATA/preferences.json"
-				},
-				{
-					"path": "$APPDATA/chat-log/**"
 				}
 			]
 		},
@@ -46,33 +37,6 @@
 			"allow": [
 				{
 					"path": "$APPDATA/preferences.json"
-				},
-				{
-					"path": "$APPDATA/chat-log/**"
-				}
-			]
-		},
-		{
-			"identifier": "fs:allow-mkdir",
-			"allow": [
-				{
-					"path": "$APPDATA/chat-log"
-				}
-			]
-		},
-		{
-			"identifier": "fs:allow-read-dir",
-			"allow": [
-				{
-					"path": "$APPDATA/chat-log"
-				}
-			]
-		},
-		{
-			"identifier": "fs:allow-remove",
-			"allow": [
-				{
-					"path": "$APPDATA/chat-log/**"
 				}
 			]
 		},

@@ -4,6 +4,8 @@ import type { SearchProfileResult } from "./chat-service";
 export type UiMessage = Message & {
 	clientState?: "pending" | "failed";
 	_localOnly?: boolean;
+	/** Content kept locally despite the server wiping it via unsend. */
+	localHistory?: boolean;
 };
 
 export type AlbumListItem = {

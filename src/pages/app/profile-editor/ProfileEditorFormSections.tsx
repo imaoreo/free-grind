@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+	AlertTriangle,
 	AtSign,
 	BadgeInfo,
 	Camera,
+	Clock,
 	Compass,
 	GripVertical,
 	Home,
@@ -38,11 +40,15 @@ import {
 import { getThumbImageUrl } from "../../../utils/media";
 import { type UnitsPreset } from "../../../utils/units";
 import { CategoryHeader, ChipGroup, ToggleRow } from "./ProfileEditorComponents";
-import { MAX_PROFILE_PHOTOS, type ProfileDraft } from "./profileEditorUtils";
+import { TravelPlansSection } from "./TravelPlansSection";
+import { MAX_PROFILE_PHOTOS, MEDIA_MODERATION_STATE, type ProfileDraft } from "./profileEditorUtils";
+
+export type PhotoModeration = { state: number | null; reason: string | null };
 
 type SortablePhotoSlotProps = {
 	hash: string;
 	slotIndex: number;
+	moderation?: PhotoModeration;
 	isSavingPhotos: boolean;
 	isUploadingPhoto: boolean;
 	onRemovePhoto: (hash: string) => void;
@@ -52,6 +58,7 @@ type SortablePhotoSlotProps = {
 function SortablePhotoSlot({
 	hash,
 	slotIndex,
+	moderation,
 	isSavingPhotos,
 	isUploadingPhoto,
 	onRemovePhoto,
@@ -66,6 +73,8 @@ function SortablePhotoSlot({
 	};
 
 	const isPrimary = slotIndex === 0;
+	const isPending = moderation?.state === MEDIA_MODERATION_STATE.PENDING;
+	const isRejected = moderation?.state === MEDIA_MODERATION_STATE.REJECTED;
 
 	return (
 		<div
@@ -79,11 +88,29 @@ function SortablePhotoSlot({
 			<img
 				src={getThumbImageUrl(hash, "320x320")}
 				alt={`Profile photo ${slotIndex + 1}`}
-				className="h-full w-full object-cover"
+				className={`h-full w-full object-cover ${isRejected ? "opacity-50 grayscale" : ""}`}
 			/>
 
 			{/* Bottom gradient for legibility */}
 			<div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/60 to-transparent" />
+
+			{/* Moderation state badge */}
+			{(isPending || isRejected) && (
+				<div className="absolute left-2 top-2">
+					<span
+						title={moderation?.reason ?? undefined}
+						className={[
+							"inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white shadow-sm",
+							isRejected ? "bg-red-500/90" : "bg-amber-500/90",
+						].join(" ")}
+					>
+						{isRejected ? <AlertTriangle className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
+						{isRejected
+							? t("profile_editor.sections.pictures.rejected")
+							: t("profile_editor.sections.pictures.pending_moderation")}
+					</span>
+				</div>
+			)}
 
 			{/* Primary badge / slot number */}
 			<div className="absolute bottom-2 left-2">
@@ -143,6 +170,7 @@ type ProfileEditorFormSectionsProps = {
 	aboutMeError: string | null;
 	tagList: string[];
 	profilePhotoHashes: string[];
+	photoModerationByHash?: Map<string, PhotoModeration>;
 	isSavingPhotos: boolean;
 	isUploadingPhoto: boolean;
 	onUploadPhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
@@ -177,6 +205,7 @@ export function ProfileEditorFormSections({
 	aboutMeError,
 	tagList,
 	profilePhotoHashes,
+	photoModerationByHash,
 	isSavingPhotos,
 	isUploadingPhoto,
 	onUploadPhoto,
@@ -306,6 +335,7 @@ export function ProfileEditorFormSections({
 										key={hash}
 										hash={hash}
 										slotIndex={liveOrder.indexOf(hash)}
+										moderation={photoModerationByHash?.get(hash)}
 										isSavingPhotos={isSavingPhotos}
 										isUploadingPhoto={isUploadingPhoto}
 										onRemovePhoto={onRemovePhoto}
@@ -335,6 +365,8 @@ export function ProfileEditorFormSections({
 					) : null}
 				</div>
 			</div>
+
+			<TravelPlansSection profileId={profileId} />
 
 			{/* Profile / Basic Info */}
 			<div className="surface-card p-4 sm:p-5">

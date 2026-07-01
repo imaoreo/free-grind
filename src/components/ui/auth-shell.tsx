@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Card } from "./card";
 
 export function AuthShell({
 	title,
@@ -13,20 +12,42 @@ export function AuthShell({
 	footer?: ReactNode;
 }) {
 	return (
-		<div className="fixed inset-0 flex items-center justify-center overflow-y-auto bg-[var(--bg)] p-4">
-			<Card className="w-full max-w-md p-6 sm:max-w-lg sm:p-8 md:p-10">
-				<div className="mb-5 flex justify-center">
+		<div className="fs-card-outer">
+			<div className="fs-card-inner">
+				<div
+					className="auth-glow animate-morph-glow pointer-events-none absolute left-1/2 top-0 -z-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-[var(--accent)]/20 opacity-60 blur-3xl"
+					aria-hidden="true"
+				/>
+
+				{/* Header */}
+				<div
+					className="animate-fade-in relative flex shrink-0 flex-col items-center px-6 pb-10 text-center"
+					style={{ paddingTop: "max(64px, env(safe-area-inset-top))" }}
+				>
 					<img
 						src="/newLogo.webp"
 						alt="Free Grind"
-						className="h-14 w-14 rounded-2xl object-cover"
+						className="mb-7 h-16 w-16 rounded-2xl object-cover drop-shadow-[0_12px_20px_rgba(0,0,0,0.4)]"
 					/>
+					<h1 className="text-2xl font-bold text-[var(--text)]">{title}</h1>
+					<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">{subtitle}</p>
 				</div>
-				<h1 className="app-title mb-2">{title}</h1>
-				<p className="app-subtitle mb-7">{subtitle}</p>
-				{children}
-				{footer ? <div className="mt-5 text-center">{footer}</div> : null}
-			</Card>
+
+				{/* Form */}
+				<div className="animate-fade-in relative flex flex-1 flex-col overflow-y-auto px-6">
+					<div className="flex-1">{children}</div>
+					{footer ? (
+						<div
+							className="mt-6 text-center"
+							style={{ paddingBottom: "max(56px, calc(env(safe-area-inset-bottom) + 24px))" }}
+						>
+							{footer}
+						</div>
+					) : (
+						<div style={{ paddingBottom: "max(56px, calc(env(safe-area-inset-bottom) + 24px))" }} />
+					)}
+				</div>
+			</div>
 		</div>
 	);
 }

@@ -2,6 +2,7 @@ import {
 	albumDetailSchema,
 	albumLimitsSchema,
 	albumPosterSchema,
+	albumSharesResponseSchema,
 	albumsResponseSchema,
 	sharedAlbumViewSchema,
 	sharedAlbumsResponseSchema,
@@ -16,12 +17,15 @@ import type {
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
 	DeleteOwnAlbumInput,
+	GetAlbumContentProcessingInput,
 	GetAlbumPosterInput,
+	GetAlbumSharesInput,
 	GetSharedAlbumsForProfileInput,
 	OpenSharedAlbumInput,
 	OpenSharedAlbumResult,
 	ReorderOwnAlbumContentInput,
 	RenameOwnAlbumInput,
+	UnshareAlbumInput,
 	UploadOwnAlbumContentInput,
 	GetSharedAlbumsInput,
 } from "../../types/api-functions";
@@ -191,6 +195,31 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 				await assertSuccess(response, t("api.errors.open_shared_album"));
 			}
 			return { status: response.status };
+		},
+
+		async getAlbumShares(input: GetAlbumSharesInput): Promise<number[]> {
+			const response = await fetchRest(`/v1/albums/${input.albumId}/shares`);
+			await assertSuccess(response, t("api.errors.load_album_shares"));
+			const payload = albumSharesResponseSchema.parse(await parseJsonSafe(response));
+			return payload.profileIds;
+		},
+
+		async unshareAlbum(input: UnshareAlbumInput): Promise<{ ok: true }> {
+			const response = await fetchRest(`/v1/albums/${input.albumId}/unshares`, {
+				method: "PUT",
+				body: { profiles: input.profiles },
+			});
+			await assertSuccess(response, t("api.errors.unshare_album"));
+			return { ok: true };
+		},
+
+		async getAlbumContentProcessing(input: GetAlbumContentProcessingInput): Promise<boolean> {
+			const response = await fetchRest(`/v1/albums/${input.albumId}/content/${input.contentId}/processing`);
+			await assertSuccess(response, t("api.errors.load_album_processing"));
+			const payload = await parseJsonSafe(response);
+			return typeof payload === "object" && payload !== null && "processing" in payload
+				? Boolean((payload as { processing: unknown }).processing)
+				: false;
 		},
 	};
 }

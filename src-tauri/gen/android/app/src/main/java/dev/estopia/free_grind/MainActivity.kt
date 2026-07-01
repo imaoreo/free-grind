@@ -1,26 +1,27 @@
 package dev.estopia.free_grind
 
 import android.Manifest
+import android.app.Dialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.content.res.Configuration
 import android.os.Handler
 import android.os.Build
 import android.os.Bundle
 import android.os.Looper
-import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import android.provider.Settings
 import android.util.Log
+import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowInsetsControllerCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
@@ -28,6 +29,7 @@ import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.Executors
 
 class MainActivity : TauriActivity() {
   companion object {
@@ -97,23 +99,73 @@ class MainActivity : TauriActivity() {
   private var pendingFcmToken: String? = null
   private var latestFcmToken: String? = null
   private val mainHandler = Handler(Looper.getMainLooper())
-  private val requestNotificationPermission = registerForActivityResult(
-    ActivityResultContracts.RequestPermission()
-  ) { isGranted ->
-    if (isGranted) {
-      Log.d("FCM", "Notification permission granted")
-    } else {
-      Log.d("FCM", "Notification permission denied")
+  // Bounded pool prevents Binder-thread exhaustion when many WebSocket messages
+  // arrive simultaneously and each postLocalNotification spawns avatar+IPC work.
+  private val localNotifExecutor = Executors.newFixedThreadPool(2)
+  // The system SplashScreen theme only supports an icon + background — no
+  // text or spinner slot. This Dialog (same background/icon, plus a "Free
+  // Grind" label and an indeterminate spinner) stands in for it for as long
+  // as the app takes to actually paint real content — see
+  // JsBridge.notifyContentReady() and dismissSplash() below. It's a Dialog
+  // (its own Window), not a View added into the Activity's own window/
+  // WebView hierarchy: a hardware-accelerated WebView's surface can
+  // composite above a same-window sibling View regardless of add-order, so
+  // that approach got silently painted over the moment the WebView started
+  // rendering. A separate Window is layered above the Activity's by the
+  // WindowManager and isn't subject to that quirk. The postDelayed fallback
+  // prevents it lingering forever if the JS signal never arrives (error,
+  // WebView failing to load, etc.) — a real cold start (cargo/webview/JS
+  // bundle init) has been observed taking ~20-25s on its own, so this must
+  // stay well above that or it'll cut the splash early on every
+  // normal-but-slow launch instead of only on a genuinely broken one.
+  private var splashDialog: Dialog? = null
+
+  private fun dismissSplash() {
+    runOnUiThread {
+      splashDialog?.dismiss()
+      splashDialog = null
     }
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    // installSplashScreen() only bridges the gap before this Activity's own
+    // window exists — it's left to dismiss at its own (near-immediate)
+    // default timing rather than held with setKeepOnScreenCondition, because
+    // the system's SplashScreenView draws *on top of* everything else,
+    // including the splashDialog shown below; holding it would just hide
+    // that dialog's text/spinner behind the plain system splash for the
+    // entire wait. The dialog uses the same background/icon, so the handoff
+    // between the two is invisible regardless.
+    installSplashScreen()
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    splashDialog = Dialog(this, R.style.SplashDialogTheme).apply {
+      setContentView(R.layout.splash_overlay)
+      setCancelable(false)
+      window?.let { win ->
+        win.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
+        // The Dialog is its own Window, so it doesn't inherit the Activity's
+        // enableEdgeToEdge() status/nav bar styling — left alone, it shows
+        // the system default white status bar instead of matching the
+        // splash background.
+        val splashBackground = ContextCompat.getColor(this@MainActivity, R.color.splash_background)
+        win.statusBarColor = splashBackground
+        win.navigationBarColor = splashBackground
+        val isNightMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+          Configuration.UI_MODE_NIGHT_YES
+        WindowInsetsControllerCompat(win, win.decorView).apply {
+          isAppearanceLightStatusBars = !isNightMode
+          isAppearanceLightNavigationBars = !isNightMode
+        }
+      }
+      show()
+    }
+    mainHandler.postDelayed({ dismissSplash() }, 45000)
     activityRef = WeakReference(this)
-    ensureNotificationChannels()
-    requestNotificationPermissionIfNeeded()
-    requestBatteryOptimizationExemptionIfNeeded()
+    // Run off the main thread — createNotificationChannel makes IPC calls to
+    // NotificationManagerService that can block for several seconds on some
+    // devices (OxygenOS in particular) and cause a startup ANR.
+    localNotifExecutor.execute { ensureNotificationChannels() }
     initFirebase()
     handleNotificationIntent(intent)
   }
@@ -175,6 +227,45 @@ class MainActivity : TauriActivity() {
       Log.d("FCM", "JsBridge.setActiveRoute=$route foreground=$inForeground")
     }
 
+    /**
+     * Called once by main.tsx right after the first real paint (double
+     * requestAnimationFrame past the initial React render) — dismisses the
+     * system splash screen and the custom splash overlay installed in
+     * onCreate. Until this fires (or the 45s fallback in onCreate elapses),
+     * the splash stays up instead of the blank WebView background that
+     * would otherwise show while the app loads.
+     */
+    @JavascriptInterface
+    fun notifyContentReady() {
+      Log.d("Splash", "JsBridge.notifyContentReady() called from JS")
+      dismissSplash()
+    }
+
+    /**
+     * Posts a notification straight from the chat WebSocket while it's
+     * connected in the foreground, instead of waiting for the FCM push for
+     * the same message/tap to arrive. Runs off the JS-interface thread since
+     * NotificationPoster fetches the sender's avatar over the network.
+     * NotificationPoster dedupes against the later FCM-triggered post for
+     * the same conversation/tap, so it never shows twice.
+     */
+    @JavascriptInterface
+    fun postLocalNotification(payloadJson: String) {
+      localNotifExecutor.execute {
+        try {
+          NotificationPoster.postNotification(this@MainActivity, JSONObject(payloadJson))
+        } catch (e: Exception) {
+          Log.e("FCM", "Failed to post local notification", e)
+        }
+      }
+    }
+
+    @JavascriptInterface
+    fun checkMicrophonePermission(): Boolean {
+      return checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
     @JavascriptInterface
     fun vibrate(durationMs: Long) {
       try {
@@ -201,38 +292,8 @@ class MainActivity : TauriActivity() {
     if (activityRef?.get() === this) {
       activityRef = null
     }
+    localNotifExecutor.shutdown()
     super.onDestroy()
-  }
-
-  private fun requestNotificationPermissionIfNeeded() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      val hasPermission = ContextCompat.checkSelfPermission(
-        this,
-        Manifest.permission.POST_NOTIFICATIONS
-      ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-      Log.d("FCM", "POST_NOTIFICATIONS permission granted=$hasPermission")
-      if (!hasPermission) {
-        requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-      }
-    }
-  }
-
-  private fun requestBatteryOptimizationExemptionIfNeeded() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-    val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-    if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-      Log.d("FCM", "Requesting battery optimization exemption to prevent push delays")
-      try {
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-          data = Uri.parse("package:$packageName")
-        }
-        startActivity(intent)
-      } catch (e: Exception) {
-        Log.w("FCM", "Failed to open battery optimization settings", e)
-      }
-    } else {
-      Log.d("FCM", "Already exempt from battery optimization")
-    }
   }
 
   private fun initFirebase() {
