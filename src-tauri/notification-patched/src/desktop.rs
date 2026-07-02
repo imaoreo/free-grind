@@ -220,8 +220,14 @@ mod imp {
                 // displayed (notify-rust's own docs: "keeps a connection
                 // alive to ensure actions work on certain desktops"). Leak
                 // it intentionally so the notification persists normally.
+                // Windows' `show()` returns `Result<()>` (no handle to keep
+                // alive), so forgetting it there is a no-op the compiler
+                // warns about — only do it where it actually matters.
                 if let Ok(handle) = notification.show() {
+                    #[cfg(not(windows))]
                     std::mem::forget(handle);
+                    #[cfg(windows)]
+                    let _ = handle;
                 }
             });
 

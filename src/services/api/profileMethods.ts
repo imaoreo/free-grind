@@ -142,6 +142,8 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 
 		async getBrowseCards(params: {
 			geohash: string;
+			/** Browse a different area via cascade's exploreGeoHash instead of nearbyGeoHash — geohash (your real/reported location) stays untouched either way, see the exploreGeoHash/nearbyGeoHash mutual-exclusion note below. */
+			exploreGeohash?: string;
 			page?: number;
 			filters?: {
 				onlineOnly?: boolean;
@@ -170,9 +172,15 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 				tags?: string;
 			};
 		}): Promise<{ cards: BrowseCard[]; nextPage: number | null }> {
-			const queryParams = new URLSearchParams({
-				nearbyGeoHash: params.geohash,
-			});
+			// Cascade rejects nearbyGeoHash + exploreGeoHash together with
+			// CAS-4001 — exploring apparently relies on the server's own
+			// last-known (real) location for "nearby" once exploreGeoHash is
+			// present, so send only one or the other, never both.
+			const queryParams = new URLSearchParams(
+				params.exploreGeohash
+					? { exploreGeoHash: params.exploreGeohash }
+					: { nearbyGeoHash: params.geohash },
+			);
 
 			if (typeof params.page === "number") {
 				queryParams.set("pageNumber", String(params.page));

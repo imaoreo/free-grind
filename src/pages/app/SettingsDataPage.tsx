@@ -6,8 +6,9 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { useAuth } from "../../contexts/useAuth";
+import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
 import * as chatDb from "../../services/chatDb";
-import { deleteAllDownloadedMedia, getDownloadedMediaUsage } from "../../services/saveMedia";
+import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid } from "../../services/saveMedia";
 import { isAutoDownloadMediaEnabled, setAutoDownloadMediaEnabled } from "../../utils/mediaSettings";
 import { appLog } from "../../utils/logger";
 import type { FullDbExport } from "../../types/chat-db";
@@ -24,7 +25,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 	return error instanceof Error && error.message ? error.message : fallback;
 }
 
-export function SettingsChatDataPage() {
+export function SettingsDataPage() {
 	const { t } = useTranslation();
 	const { userId } = useAuth();
 
@@ -42,7 +43,7 @@ export function SettingsChatDataPage() {
 		try {
 			setUsage(await getDownloadedMediaUsage());
 		} catch (error) {
-			appLog.error("[SettingsChatDataPage] failed to load downloaded-media usage", error);
+			appLog.error("[SettingsDataPage] failed to load downloaded-media usage", error);
 		} finally {
 			setIsLoadingUsage(false);
 		}
@@ -58,7 +59,7 @@ export function SettingsChatDataPage() {
 			const result = await deleteAllDownloadedMedia();
 			if (result.failed > 0) {
 				toast.error(
-					t("chat_data.delete_partial", {
+					t("data_backup.delete_partial", {
 						defaultValue: "Deleted {{deleted}} files, {{failed}} failed.",
 						deleted: result.deleted,
 						failed: result.failed,
@@ -66,7 +67,7 @@ export function SettingsChatDataPage() {
 				);
 			} else {
 				toast.success(
-					t("chat_data.delete_success", {
+					t("data_backup.delete_success", {
 						defaultValue: "Deleted {{count}} downloaded files.",
 						count: result.deleted,
 					}),
@@ -74,7 +75,7 @@ export function SettingsChatDataPage() {
 			}
 			await loadUsage();
 		} catch (error) {
-			toast.error(getErrorMessage(error, t("chat_data.delete_failed", { defaultValue: "Failed to delete downloaded media." })));
+			toast.error(getErrorMessage(error, t("data_backup.delete_failed", { defaultValue: "Failed to delete downloaded media." })));
 		} finally {
 			setIsDeleting(false);
 			setShowDeleteConfirm(false);
@@ -83,25 +84,45 @@ export function SettingsChatDataPage() {
 
 	const handleExport = async () => {
 		if (userId == null) {
-			toast.error(t("chat_data.export_no_user", { defaultValue: "You must be signed in to export." }));
+			toast.error(t("data_backup.export_no_user", { defaultValue: "You must be signed in to export." }));
 			return;
 		}
 		setIsExporting(true);
 		try {
 			const data = await chatDb.exportFullDatabase(userId);
 			const json = JSON.stringify(data);
-			const blob = new Blob([json], { type: "application/json" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `free-grind-chat-data-${new Date().toISOString().slice(0, 10)}.json`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
-			toast.success(t("chat_data.export_success", { defaultValue: "Chat data exported." }));
+			const fileName = `free-grind-data-${new Date().toISOString().slice(0, 10)}.json`;
+
+			if (isAndroid()) {
+				// The blob-URL + <a download> trick below doesn't trigger a save on
+				// Android's WebView, so write the export directly via MediaStore instead.
+				const bytes = new TextEncoder().encode(json);
+				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, fileName, "application/json", {
+					isPending: true,
+				});
+				try {
+					await AndroidFs.writeFile(uri, bytes);
+					await AndroidFs.setPublicFilePending(uri, false);
+					await AndroidFs.scanPublicFile(uri);
+				} catch (error) {
+					await AndroidFs.removeFile(uri).catch(() => {});
+					throw error;
+				}
+			} else {
+				const blob = new Blob([json], { type: "application/json" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = fileName;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}
+
+			toast.success(t("data_backup.export_success", { defaultValue: "Data exported." }));
 		} catch (error) {
-			toast.error(getErrorMessage(error, t("chat_data.export_failed", { defaultValue: "Failed to export chat data." })));
+			toast.error(getErrorMessage(error, t("data_backup.export_failed", { defaultValue: "Failed to export data." })));
 		} finally {
 			setIsExporting(false);
 		}
@@ -109,7 +130,7 @@ export function SettingsChatDataPage() {
 
 	const handleImportFile = async (file: File) => {
 		if (userId == null) {
-			toast.error(t("chat_data.import_no_user", { defaultValue: "You must be signed in to import." }));
+			toast.error(t("data_backup.import_no_user", { defaultValue: "You must be signed in to import." }));
 			return;
 		}
 		setIsImporting(true);
@@ -120,19 +141,25 @@ export function SettingsChatDataPage() {
 			if (!result.ok) {
 				toast.error(
 					result.error === "wrong_owner"
-						? t("chat_data.import_wrong_owner", { defaultValue: "This export belongs to a different profile and can't be imported here." })
-						: t("chat_data.import_invalid", { defaultValue: "This file isn't a valid chat data export." }),
+						? t("data_backup.import_wrong_owner", { defaultValue: "This export belongs to a different profile and can't be imported here." })
+						: t("data_backup.import_invalid", { defaultValue: "This file isn't a valid data export." }),
 				);
 				return;
 			}
+			// A full import can touch conversations, messages, and every
+			// setting (automation, privacy, browse filters, location, etc.),
+			// each of which is otherwise cached in memory or React state and
+			// only ever (re)loaded on app start / account switch — a reload
+			// is the only way to guarantee everything reflects the import.
 			toast.success(
-				t("chat_data.import_success", {
-					defaultValue: "Imported {{count}} rows.",
+				t("data_backup.import_success", {
+					defaultValue: "Imported {{count}} rows. Reloading…",
 					count: result.rowsImported,
 				}),
 			);
+			window.location.reload();
 		} catch (error) {
-			toast.error(getErrorMessage(error, t("chat_data.import_failed", { defaultValue: "Failed to import chat data." })));
+			toast.error(getErrorMessage(error, t("data_backup.import_failed", { defaultValue: "Failed to import data." })));
 		} finally {
 			setIsImporting(false);
 		}
@@ -142,9 +169,9 @@ export function SettingsChatDataPage() {
 		<section className="app-screen">
 			<header className="mb-7">
 				<BackToSettings />
-				<h1 className="app-title mb-1">{t("chat_data.title", { defaultValue: "Chat Data" })}</h1>
+				<h1 className="app-title mb-1">{t("data_backup.title", { defaultValue: "Data" })}</h1>
 				<p className="app-subtitle">
-					{t("chat_data.subtitle", { defaultValue: "Manage downloaded media and back up your chat history." })}
+					{t("data_backup.subtitle", { defaultValue: "Manage downloaded media and back up your account's entire data." })}
 				</p>
 			</header>
 
@@ -152,14 +179,14 @@ export function SettingsChatDataPage() {
 				{/* Media Storage */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("chat_data.media_storage", { defaultValue: "Media Storage" })}
+						{t("data_backup.media_storage", { defaultValue: "Media Storage" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
 							icon={<Download className="h-5 w-5" />}
 							iconClass="bg-emerald-500/15 text-emerald-400"
-							label={t("chat_data.auto_download_media", { defaultValue: "Auto-download media" })}
-							description={t("chat_data.auto_download_media_desc", { defaultValue: "Also save every cached photo and video to your device's Downloads folder, in addition to the app's local database." })}
+							label={t("data_backup.auto_download_media", { defaultValue: "Auto-download media" })}
+							description={t("data_backup.auto_download_media_desc", { defaultValue: "Also save every cached photo and video to your device's Downloads folder, in addition to the app's local database." })}
 							checked={autoDownloadMedia}
 							onChange={(checked) => {
 								setAutoDownloadMedia(checked);
@@ -170,12 +197,12 @@ export function SettingsChatDataPage() {
 						<div className="flex items-center justify-between gap-4 px-4 py-3.5">
 							<div className="min-w-0">
 								<p className="text-sm font-medium text-[var(--text)]">
-									{t("chat_data.storage_used", { defaultValue: "Storage used" })}
+									{t("data_backup.storage_used", { defaultValue: "Storage used" })}
 								</p>
 								<p className="mt-0.5 text-xs text-[var(--text-muted)]">
 									{isLoadingUsage
-										? t("chat_data.storage_loading", { defaultValue: "Calculating…" })
-										: t("chat_data.storage_summary", {
+										? t("data_backup.storage_loading", { defaultValue: "Calculating…" })
+										: t("data_backup.storage_summary", {
 												defaultValue: "{{size}} across {{count}} files",
 												size: formatBytes(usage?.totalBytes ?? 0),
 												count: usage?.count ?? 0,
@@ -189,7 +216,7 @@ export function SettingsChatDataPage() {
 								className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-red-500/15 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/25 disabled:opacity-50"
 							>
 								{isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-								{t("chat_data.delete_all", { defaultValue: "Delete all" })}
+								{t("data_backup.delete_all", { defaultValue: "Delete all" })}
 							</button>
 						</div>
 					</div>
@@ -198,7 +225,7 @@ export function SettingsChatDataPage() {
 				{/* Backup */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("chat_data.backup", { defaultValue: "Backup" })}
+						{t("data_backup.backup", { defaultValue: "Backup" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<button
@@ -212,11 +239,11 @@ export function SettingsChatDataPage() {
 							</div>
 							<div className="min-w-0 flex-1">
 								<p className="text-sm font-semibold leading-snug">
-									{t("chat_data.export", { defaultValue: "Export chat data" })}
+									{t("data_backup.export", { defaultValue: "Export all data" })}
 								</p>
 								<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
-									{t("chat_data.export_card_desc", {
-										defaultValue: "Save conversations, messages, albums, avatars, and every cached photo/video to a file.",
+									{t("data_backup.export_card_desc", {
+										defaultValue: "Save your entire account to a file: conversations, messages, albums, avatars, cached photos/videos, saved phrases, saved locations, and every app setting.",
 									})}
 								</p>
 							</div>
@@ -238,11 +265,11 @@ export function SettingsChatDataPage() {
 							</div>
 							<div className="min-w-0 flex-1">
 								<p className="text-sm font-semibold leading-snug">
-									{t("chat_data.import", { defaultValue: "Import chat data" })}
+									{t("data_backup.import", { defaultValue: "Import data" })}
 								</p>
 								<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
-									{t("chat_data.import_card_desc", {
-										defaultValue: "Merge a previously exported file back in — nothing already here is erased.",
+									{t("data_backup.import_card_desc", {
+										defaultValue: "Merge a previously exported file back in — nothing already here is erased. The app reloads afterwards.",
 									})}
 								</p>
 							</div>
@@ -267,7 +294,7 @@ export function SettingsChatDataPage() {
 						<div className="flex items-start gap-2.5 px-4 py-3">
 							<ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
 							<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-								{t("chat_data.backup_note", {
+								{t("data_backup.backup_note", {
 									defaultValue: "Exports are tied to your profile — a file can only be imported back into the same account it came from.",
 								})}
 							</p>
@@ -278,11 +305,11 @@ export function SettingsChatDataPage() {
 
 			<ConfirmDialog
 				isOpen={showDeleteConfirm}
-				title={t("chat_data.delete_confirm_title", { defaultValue: "Delete all downloaded media?" })}
-				message={t("chat_data.delete_confirm_message", {
+				title={t("data_backup.delete_confirm_title", { defaultValue: "Delete all downloaded media?" })}
+				message={t("data_backup.delete_confirm_message", {
 					defaultValue: "This permanently deletes every photo and video this app has saved to your device (manual saves and auto-downloads). The app's own local cache is not affected.",
 				})}
-				confirmLabel={t("chat_data.delete_all", { defaultValue: "Delete all" })}
+				confirmLabel={t("data_backup.delete_all", { defaultValue: "Delete all" })}
 				cancelLabel={t("common.cancel", { defaultValue: "Cancel" })}
 				confirmTone="danger"
 				isProcessing={isDeleting}

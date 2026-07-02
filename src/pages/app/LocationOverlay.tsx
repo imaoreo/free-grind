@@ -22,19 +22,31 @@ import {
 	type SavedLocation,
 } from "../../services/savedLocations";
 
+export type ExploreLocation = { geohash: string; label: string } | null;
+
+// Explore gets its own accent (distinct from the app's --accent, used for the
+// real/"set" location) so the two modes are never visually ambiguous — same
+// color everywhere it shows up: this overlay's tab/banner/buttons and
+// GridPage's header pill.
+export const EXPLORE_COLOR = "#3b82f6";
+
 interface LocationOverlayProps {
 	onClose: () => void;
+	exploreLocation: ExploreLocation;
+	onSetExploreLocation: (next: ExploreLocation) => void;
 }
 
 function SavedLocationRow({
 	location,
 	isActive,
+	activeColor,
 	disabled,
 	onApply,
 	onDelete,
 }: {
 	location: SavedLocation;
 	isActive: boolean;
+	activeColor: string;
 	disabled: boolean;
 	onApply: () => void;
 	onDelete: () => void;
@@ -60,7 +72,10 @@ function SavedLocationRow({
 				disabled={disabled}
 				className="flex min-w-0 flex-1 items-center gap-4 p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
 			>
-				<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
+				<div
+					className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)]"
+					style={{ color: activeColor }}
+				>
 					<Bookmark className="h-4 w-4" />
 				</div>
 				<div className="min-w-0 flex-1">
@@ -70,7 +85,10 @@ function SavedLocationRow({
 					</p>
 				</div>
 				{isActive && (
-					<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
+					<div
+						className="flex shrink-0 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm"
+						style={{ backgroundColor: activeColor }}
+					>
 						<Check className="h-3.5 w-3.5 shrink-0" />
 						{t("browse_location.badge_active")}
 					</div>
@@ -89,12 +107,20 @@ function SavedLocationRow({
 	);
 }
 
-export function LocationOverlay({ onClose }: LocationOverlayProps) {
+export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation }: LocationOverlayProps) {
 	const { t } = useTranslation();
 	const { setPreferences, geohash, locationName, useAutoLocation } = usePreferences();
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
 	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+	// Which of the two ways to pick a location is active: "set" changes the
+	// real geohash (visible to others, persisted). "explore" browses a
+	// different area via /v7/search's exploreGeoHash without touching it —
+	// see GridPage's exploreLocation state for why this stays out of
+	// preferences. Defaults to whichever is already in effect.
+	const [activeTab, setActiveTab] = useState<"set" | "explore">(exploreLocation ? "explore" : "set");
+	const isExploreTab = activeTab === "explore";
 
 	const [isDetectingLocation, setIsDetectingLocation] = useState(false);
 	const [locationQuery, setLocationQuery] = useState("");
@@ -136,7 +162,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 	// ahead of geohash being available), the map would keep showing
 	// whatever it started with instead of the actual saved location.
 	useEffect(() => {
-		if (!geohash) return;
+		if (isExploreTab || !geohash) return;
 		try {
 			const decoded = decodeGeohash(geohash);
 			const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
@@ -147,7 +173,25 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 					: { lat, lon, label: locationName ?? t("browse_location.current_location_label") },
 			);
 		} catch { /* ignore */ }
-	}, [geohash, locationName, t]);
+	}, [isExploreTab, geohash, locationName, t]);
+
+	// Same idea as the geohash-sync effect above, but for the explore tab:
+	// keeps the map pin aligned with the current explore location (or the
+	// real location as a sensible starting point if none is set yet) without
+	// fighting the "set" tab's own sync effect above.
+	useEffect(() => {
+		if (!isExploreTab) return;
+		const source = exploreLocation ?? (geohash ? { geohash, label: locationName ?? t("browse_location.current_location_label") } : null);
+		if (!source) return;
+		try {
+			const decoded = decodeGeohash(source.geohash);
+			const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+			const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+			setSelectedLocation((current) =>
+				current && current.lat === lat && current.lon === lon ? current : { lat, lon, label: source.label },
+			);
+		} catch { /* ignore */ }
+	}, [isExploreTab, exploreLocation, geohash, locationName, t]);
 
 	// No saved location to center on yet (fresh user) — try the device's
 	// current position just to position the map sensibly. This only nudges
@@ -204,12 +248,30 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 		setIsSaving(true);
 		try {
 			await setPreferences({ geohash: encodeGeohash(lat, lon), locationName: label, useAutoLocation: isAuto });
+			// Setting your real location while still "exploring" elsewhere would
+			// leave the grid showing a place you just moved away from — end
+			// explore whenever you actually commit a new real location.
+			if (exploreLocation) {
+				onSetExploreLocation(null);
+			}
 			handleClose();
 		} catch {
 			setLocationError(t("browse_location.error_search_failed"));
 		} finally {
 			setIsSaving(false);
 		}
+	};
+
+	// Explore is local-only state (see GridPage), so unlike saveAndClose there's
+	// no request to await — it just updates the parent and closes.
+	const confirmExplore = (lat: number, lon: number, label: string) => {
+		onSetExploreLocation({ geohash: encodeGeohash(lat, lon), label });
+		handleClose();
+	};
+
+	const stopExploring = () => {
+		onSetExploreLocation(null);
+		handleClose();
 	};
 
 	// Resolves the geocoded place name for a GPS fix before saving, so the
@@ -272,7 +334,9 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 	// regardless of whether that location came from a manual pick or GPS, so
 	// the "confirm new pick" footer doesn't flash for a location that was
 	// just auto-saved via "use current location".
-	const isActiveLocationSelected = !!locationName && selectedLocation?.label === locationName;
+	const isActiveLocationSelected = isExploreTab
+		? !!exploreLocation && selectedLocation?.label === exploreLocation.label
+		: !!locationName && selectedLocation?.label === locationName;
 
 	const handleMapPick = (lat: number, lon: number) => {
 		const fallbackLabel = t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
@@ -323,6 +387,10 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 	};
 
 	const handleApplySavedLocation = (location: SavedLocation) => {
+		if (isExploreTab) {
+			confirmExplore(location.lat, location.lon, location.name);
+			return;
+		}
 		void saveAndClose(location.lat, location.lon, location.name);
 	};
 
@@ -357,17 +425,27 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 			>
 				{/* Header */}
 				<header className="relative shrink-0 overflow-hidden border-b border-[var(--border)] px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-					<PageHeaderBackground color="var(--accent)" />
+					<PageHeaderBackground color={exploreLocation ? EXPLORE_COLOR : "var(--accent)"} />
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
-								<MapPin className="h-5 w-5" />
+							<div
+								className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-colors"
+								style={{ backgroundColor: exploreLocation ? EXPLORE_COLOR : "var(--surface-2)", color: exploreLocation ? "#fff" : "var(--text)" }}
+							>
+								{exploreLocation ? <Search className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
 							</div>
 							<div>
 								<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">
 									{t("browse_location.title")}
 								</h2>
-								{locationName && (
+								{exploreLocation ? (
+									<p className="mt-0.5 flex items-center gap-1 text-xs" style={{ color: EXPLORE_COLOR }}>
+										<Search className="h-3 w-3 shrink-0" />
+										<span className="truncate max-w-[200px]">
+											{t("browse_location.exploring_label", { label: exploreLocation.label })}
+										</span>
+									</p>
+								) : locationName ? (
 									<p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--text-muted)]">
 										{useAutoLocation
 											? <Navigation className="h-3 w-3 shrink-0 text-[var(--accent)]" />
@@ -375,7 +453,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 										}
 										<span className="truncate max-w-[200px]">{locationName}</span>
 									</p>
-								)}
+								) : null}
 							</div>
 						</div>
 						<button
@@ -393,6 +471,46 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
 					<div className="space-y-4 py-4">
 
+						{/* Set vs. Explore: "set" changes your real, visible location;
+						    "explore" only changes what you browse — see confirmExplore.
+						    Explore gets its own color (EXPLORE_COLOR) everywhere — tab,
+						    banner, buttons — kept distinct from the app's --accent used
+						    for "set", so which mode is active is never ambiguous. */}
+						<div className="flex gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-2)] p-1 shadow-sm">
+							<button
+								type="button"
+								onClick={() => {
+									setActiveTab("set");
+									// Leaving the explore tab ends explore right away, not just
+									// once a new real location is confirmed — otherwise the grid
+									// would keep showing the explored area while this tab implies
+									// you're back to your real location.
+									if (exploreLocation) {
+										onSetExploreLocation(null);
+									}
+								}}
+								className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
+									!isExploreTab
+										? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-md shadow-[var(--accent)]/25"
+										: "text-[var(--text-muted)] hover:text-[var(--text)]"
+								}`}
+							>
+								<MapPin className="h-3.5 w-3.5" />
+								{t("browse_location.tab_set")}
+							</button>
+							<button
+								type="button"
+								onClick={() => setActiveTab("explore")}
+								style={isExploreTab ? { backgroundColor: EXPLORE_COLOR } : undefined}
+								className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] py-2 text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
+									isExploreTab ? "text-white shadow-md" : "text-[var(--text-muted)] hover:text-[var(--text)]"
+								}`}
+							>
+								<Search className="h-3.5 w-3.5" />
+								{t("browse_location.tab_explore")}
+							</button>
+						</div>
+
 						{/* Error */}
 						{locationError && (
 							<div className="flex items-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
@@ -401,44 +519,79 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 							</div>
 						)}
 
-						{/* Quick picks: GPS first, then saved locations — one consistent list/row style */}
+						{/* Quick picks: GPS first (set tab only), then saved locations — one
+						    consistent list/row style. Hidden entirely when there's nothing
+						    to show — e.g. the explore tab with no active explore and no
+						    saved locations yet, since GPS (the other permanent entry) only
+						    applies to the "set" tab. */}
+						{(!isExploreTab || exploreLocation || savedLocations.length > 0) && (
 						<div>
 							<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 								{t("browse_location.quick_picks")}
 							</p>
 							<div className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]">
-								<button
-									type="button"
-									onClick={() => void handleUseCurrentLocation()}
-									disabled={isDetectingLocation || isSaving}
-									className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
-								>
-									<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
-										{isDetectingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-									</div>
-									<div className="min-w-0 flex-1">
-										<p className="truncate font-semibold text-[var(--text)]">
-											{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
-										</p>
-										<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-											{useAutoLocation && locationName
-												? locationName
-												: t("browse_location.panel_subtitle")}
-										</p>
-									</div>
-									{useAutoLocation && !isDetectingLocation && (
-										<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
-											<Check className="h-3.5 w-3.5 shrink-0" />
-											{t("browse_location.badge_active")}
+								{isExploreTab && exploreLocation && (
+									<button
+										type="button"
+										onClick={stopExploring}
+										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))]"
+									>
+										<div
+											className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)]"
+											style={{ color: EXPLORE_COLOR }}
+										>
+											<X className="h-4 w-4" />
 										</div>
-									)}
-								</button>
+										<div className="min-w-0 flex-1">
+											<p className="truncate font-semibold text-[var(--text)]">
+												{t("browse_location.stop_explore")}
+											</p>
+											<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+												{t("browse_location.exploring_label", { label: exploreLocation.label })}
+											</p>
+										</div>
+									</button>
+								)}
+
+								{!isExploreTab && (
+									<button
+										type="button"
+										onClick={() => void handleUseCurrentLocation()}
+										disabled={isDetectingLocation || isSaving}
+										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
+									>
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
+											{isDetectingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="truncate font-semibold text-[var(--text)]">
+												{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
+											</p>
+											<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
+												{useAutoLocation && locationName
+													? locationName
+													: t("browse_location.panel_subtitle")}
+											</p>
+										</div>
+										{useAutoLocation && !isDetectingLocation && (
+											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
+												<Check className="h-3.5 w-3.5 shrink-0" />
+												{t("browse_location.badge_active")}
+											</div>
+										)}
+									</button>
+								)}
 
 								{savedLocations.map((location) => (
 									<SavedLocationRow
 										key={location.id}
 										location={location}
-										isActive={!useAutoLocation && geohash === location.geohash}
+										isActive={
+											isExploreTab
+												? exploreLocation?.geohash === location.geohash
+												: !useAutoLocation && geohash === location.geohash
+										}
+										activeColor={isExploreTab ? EXPLORE_COLOR : "var(--accent)"}
 										disabled={isSaving}
 										onApply={() => handleApplySavedLocation(location)}
 										onDelete={() => handleDeleteSavedLocation(location.id)}
@@ -446,6 +599,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 								))}
 							</div>
 						</div>
+						)}
 
 						{/* Location search: separated from quick picks above as its own group */}
 						<div className="space-y-3">
@@ -454,7 +608,11 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 						</p>
 
 						{/* Search bar + results, attached as one dropdown-style card */}
-						<div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] transition focus-within:border-[var(--accent)]">
+						<div
+							className={`overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] transition ${
+								isExploreTab ? "focus-within:border-[#3b82f6]" : "focus-within:border-[var(--accent)]"
+							}`}
+						>
 							<div className="relative">
 								<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
 								<input
@@ -519,6 +677,7 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 										onError={setMapPickerError}
 										defaultZoom={11}
 										initialCenter={initialCenter}
+										pinColor={isExploreTab ? EXPLORE_COLOR : undefined}
 									/>
 								)}
 
@@ -529,7 +688,10 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 								{selectedLocation && !isActiveLocationSelected && (
 									<div className="border-t border-[var(--border)] bg-[var(--surface-2)] p-4">
 										<div className="flex items-center gap-3">
-											<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white">
+											<div
+												className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white"
+												style={{ backgroundColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)" }}
+											>
 												<MapPin className="h-4 w-4" />
 											</div>
 											<div className="min-w-0 flex-1">
@@ -550,9 +712,14 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 													});
 												}}
 												aria-label={t("browse_location.save_as")}
+												style={
+													isNamingLocation
+														? { borderColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)", backgroundColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)" }
+														: undefined
+												}
 												className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition ${
 													isNamingLocation
-														? "border-[var(--accent)] bg-[var(--accent)] text-white"
+														? "text-white"
 														: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
 												}`}
 											>
@@ -569,13 +736,16 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 													onChange={(e) => setNewLocationName(e.target.value)}
 													onKeyDown={(e) => { if (e.key === "Enter") handleSaveCurrentAsNamedLocation(); }}
 													placeholder={t("browse_location.save_as_placeholder")}
-													className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+													className={`h-11 min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text)] outline-none transition ${
+														isExploreTab ? "focus:border-[#3b82f6]" : "focus:border-[var(--accent)]"
+													}`}
 												/>
 												<button
 													type="button"
 													disabled={!newLocationName.trim()}
 													onClick={handleSaveCurrentAsNamedLocation}
-													className="shrink-0 rounded-xl bg-[var(--accent)] px-4 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+													style={{ backgroundColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)" }}
+													className="shrink-0 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
 												>
 													{t("travel_plans.save")}
 												</button>
@@ -585,15 +755,24 @@ export function LocationOverlay({ onClose }: LocationOverlayProps) {
 										<button
 											type="button"
 											disabled={isSaving}
-											onClick={() => void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)}
-											className="relative mt-3 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--accent)] text-sm font-bold text-white shadow-md shadow-[var(--accent)]/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+											onClick={() =>
+												isExploreTab
+													? confirmExplore(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)
+													: void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)
+											}
+											style={isExploreTab ? { backgroundColor: EXPLORE_COLOR } : undefined}
+											className={`relative mt-3 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl text-sm font-bold text-white shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 ${
+												isExploreTab ? "" : "bg-[var(--accent)] shadow-[var(--accent)]/30"
+											}`}
 										>
 											{isSaving ? (
 												<Loader2 className="h-4 w-4 animate-spin" />
 											) : (
 												<>
 													<Check className="h-4 w-4" />
-													{t("browse_location.use_selected_location")}
+													{isExploreTab
+														? t("browse_location.start_explore")
+														: t("browse_location.use_selected_location")}
 												</>
 											)}
 										</button>

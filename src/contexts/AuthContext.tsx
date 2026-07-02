@@ -363,15 +363,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				window.localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, fallbackToken);
 			}
 
-			const lastSyncedToken = window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY);
-			if (lastSyncedToken === effectiveToken) {
+			// Keyed by token *and* account: the device's FCM token doesn't change
+			// when switching between saved accounts, but the backend association
+			// is per-account, so a stale "already synced" marker from the
+			// previous account would otherwise skip re-syncing for the new one.
+			const syncMarker = `${effectiveToken}::${state.userId}`;
+			const lastSyncedMarker = window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY);
+			if (lastSyncedMarker === syncMarker) {
 				return;
 			}
 
 			appLog.debug("[PUSH_SYNC] Syncing cached push token (retry loop)");
 			void callMethod("sync_push_token", { token: effectiveToken })
 				.then(() => {
-					window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, effectiveToken);
+					window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, syncMarker);
 					appLog.debug("[PUSH_SYNC] Cached push token sync succeeded");
 				})
 				.catch((error) => {

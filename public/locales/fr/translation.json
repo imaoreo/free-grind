@@ -298,7 +298,7 @@
                 "title": "Photos",
                 "description": "Ajoutez et arrangez vos photos",
                 "usage": "{{count}}/{{total}} photos ajoutées",
-                "add": "Ajouter une photo",
+                "add": "Ajouter",
                 "uploading": "Téléversement…",
                 "saving": "Enregistrement des modifications…",
                 "primary": "Principale",
@@ -340,7 +340,7 @@
                 }
             },
             "states": {
-                "title": "Statistiques",
+                "title": "Stats",
                 "description": "Statistiques visibles et traits du profil",
                 "show_age": "Afficher l'âge",
                 "show_age_desc": "Contrôle si votre âge est visible sur le profil.",

@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, Eye, EyeOff } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet, Search, Eye, EyeOff, Check, Loader2, Settings, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -31,7 +31,7 @@ import {
 	setCachedOwnDisplayName,
 	setCachedOwnShowDistance,
 } from "./gridpage/cache";
-import { setSavedAccountDisplayName, setSavedAccountPhotoHash } from "../../services/savedAccountProfiles";
+import { setSavedAccountDisplayName, setSavedAccountPhotoHash, getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
 import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseSortOption,
@@ -56,16 +56,18 @@ import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
-import { LocationOverlay } from "./LocationOverlay";
+import { LocationOverlay, type ExploreLocation, EXPLORE_COLOR } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
 import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../utils/blockConfirm";
+
+const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 
 export function GridPage() {
 	const { t } = useTranslation();
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-	const { userId } = useAuth();
+	const { userId, savedAccounts, switchAccount } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const {
 		geohash,
@@ -80,8 +82,37 @@ export function GridPage() {
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
-	const [nextPage, setNextPage] = useState<number | null>(null);
+	// Cascade encodes this as a page number, explore (/v7/search) as a
+	// (distance, profileId) cursor — see encodeSearchCursor/decodeSearchCursor.
+	const [nextPage, setNextPage] = useState<string | null>(null);
 	const [cardsError, setCardsError] = useState<string | null>(null);
+	// Explore mode: browse a different area via /v7/search's exploreGeoHash
+	// without touching the real geohash (preferences.geohash / nearbyGeoHash).
+	// Kept out of PreferencesContext and out of localStorage on purpose —
+	// this is meant to be temporary, so it only survives sessionStorage
+	// (same tab, until the app fully restarts), not a real preference.
+	const [exploreLocation, setExploreLocationRaw] = useState<ExploreLocation>(() => {
+		if (typeof window === "undefined") return null;
+		try {
+			const raw = sessionStorage.getItem(EXPLORE_LOCATION_STORAGE_KEY);
+			return raw ? (JSON.parse(raw) as ExploreLocation) : null;
+		} catch {
+			return null;
+		}
+	});
+	const setExploreLocation = useCallback((next: ExploreLocation) => {
+		setExploreLocationRaw(next);
+		if (typeof window === "undefined") return;
+		try {
+			if (next) {
+				sessionStorage.setItem(EXPLORE_LOCATION_STORAGE_KEY, JSON.stringify(next));
+			} else {
+				sessionStorage.removeItem(EXPLORE_LOCATION_STORAGE_KEY);
+			}
+		} catch {
+			// ignore — worst case explore resets on next load
+		}
+	}, []);
 	const [isLocationMissing, setIsLocationMissing] = useState(false);
 	const [profileImageHash, setProfileImageHash] = useState<string | null>(null);
 	const [ownDisplayName, setOwnDisplayName] = useState<string | null>(() => getCachedOwnDisplayName() ?? null);
@@ -252,6 +283,9 @@ export function GridPage() {
 
 	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 	const [isLocationOpen, setIsLocationOpen] = useState(false);
+	const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
+	const [switchingProfileId, setSwitchingProfileId] = useState<string | null>(null);
+	const accountSwitcherRef = useRef<HTMLDivElement>(null);
 
 	const {
 		tappingProfileId,
@@ -356,13 +390,38 @@ export function GridPage() {
 		}
 	}, [apiFunctions, isTogglingDistance, showDistance, t]);
 
+	useEffect(() => {
+		if (!isAccountSwitcherOpen) return;
+		const handler = (e: MouseEvent) => {
+			if (accountSwitcherRef.current && !accountSwitcherRef.current.contains(e.target as Node)) {
+				setIsAccountSwitcherOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [isAccountSwitcherOpen]);
+
+	const handleSwitchAccount = async (profileId: string) => {
+		setSwitchingProfileId(profileId);
+		try {
+			await switchAccount(profileId);
+			setIsAccountSwitcherOpen(false);
+			navigate("/");
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : "Failed to switch account.");
+		} finally {
+			setSwitchingProfileId(null);
+		}
+	};
+
 	const browseCacheKey = useMemo(() => {
 		if (!geohash) {
 			return "";
 		}
 		const filtersKey = JSON.stringify(browseRequestFilters);
-		return `${geohash}:${filtersKey}`;
-	}, [browseRequestFilters, geohash]);
+		const modeKey = exploreLocation ? `explore:${exploreLocation.geohash}` : "set";
+		return `${geohash}:${modeKey}:${filtersKey}`;
+	}, [browseRequestFilters, geohash, exploreLocation]);
 
 	const hasSavedScroll = useMemo(() => {
 		if (!browseCacheKey || typeof window === "undefined") {
@@ -372,21 +431,14 @@ export function GridPage() {
 		return !!saved && parseInt(saved, 10) > 0;
 	}, [browseCacheKey]);
 
-	const getBrowseCardsWithTimeout = useCallback(
-		async (args: Parameters<typeof apiFunctions.getBrowseCards>[0]) => {
-			return await new Promise<
-				Awaited<ReturnType<typeof apiFunctions.getBrowseCards>>
-			>((resolve, reject) => {
+	const withLoadTimeout = useCallback(
+		async <T,>(run: () => Promise<T>): Promise<T> => {
+			return await new Promise<T>((resolve, reject) => {
 				const timeout = window.setTimeout(() => {
-					reject(
-						new Error(
-							t("browse_page.errors.load_timeout"),
-						),
-					);
+					reject(new Error(t("browse_page.errors.load_timeout")));
 				}, BROWSE_LOAD_TIMEOUT_MS);
 
-				void apiFunctions
-					.getBrowseCards(args)
+				void run()
 					.then((result) => {
 						window.clearTimeout(timeout);
 						resolve(result);
@@ -397,7 +449,42 @@ export function GridPage() {
 					});
 			});
 		},
-		[apiFunctions, BROWSE_LOAD_TIMEOUT_MS],
+		[BROWSE_LOAD_TIMEOUT_MS, t],
+	);
+
+	const getBrowseCardsWithTimeout = useCallback(
+		(args: Parameters<typeof apiFunctions.getBrowseCards>[0]) =>
+			withLoadTimeout(() => apiFunctions.getBrowseCards(args)),
+		[apiFunctions, withLoadTimeout],
+	);
+
+	// /v4/cascade accepts exploreGeoHash alongside nearbyGeoHash (it's the
+	// same field cascade's own "🌎 Explore" widget uses), so explore mode
+	// just adds that param — nearbyGeoHash stays the real, reported location.
+	// (/v7/search's exploreGeoHash looked equivalent per docs but 500s in
+	// practice — see chat history — so cascade is the only mode this uses.)
+	const fetchGridCards = useCallback(
+		async ({
+			activeGeohash,
+			cursor,
+			explore,
+		}: {
+			activeGeohash: string;
+			cursor?: string | null;
+			explore: ExploreLocation;
+		}): Promise<{ cards: BrowseCard[]; nextPage: string | null }> => {
+			const parsed = await getBrowseCardsWithTimeout({
+				geohash: activeGeohash,
+				exploreGeohash: explore?.geohash,
+				page: cursor ? Number(cursor) : undefined,
+				filters: browseRequestFilters,
+			});
+			return {
+				cards: parsed.cards,
+				nextPage: parsed.nextPage != null ? String(parsed.nextPage) : null,
+			};
+		},
+		[browseRequestFilters, getBrowseCardsWithTimeout],
 	);
 
 	const refreshLocation = useCallback(async () => {
@@ -466,7 +553,7 @@ export function GridPage() {
 			showLoadingState = true,
 			overrideGeohash,
 		}: {
-			page?: number;
+			page?: string;
 			preferCache?: boolean;
 			showLoadingState?: boolean;
 			overrideGeohash?: string;
@@ -493,7 +580,7 @@ export function GridPage() {
 
 			// Use the correct cache key for the active geohash
 			const activeCacheKey = overrideGeohash
-				? `${overrideGeohash}:${JSON.stringify(browseRequestFilters)}`
+				? `${overrideGeohash}:${exploreLocation ? `explore:${exploreLocation.geohash}` : "set"}:${JSON.stringify(browseRequestFilters)}`
 				: browseCacheKey;
 
 			const cached = preferCache ? getCachedBrowseCards(activeCacheKey) : null;
@@ -511,7 +598,7 @@ export function GridPage() {
 				setDebugLoadSource("cache");
 				// If we have cached cards and we're on the first page, don't re-fetch from API immediately.
 				// This ensures the grid remains stable for 5 minutes as requested.
-				if (!page || page === 1) {
+				if (!page) {
 					return;
 				}
 			} else if (showLoadingState) {
@@ -519,10 +606,10 @@ export function GridPage() {
 			}
 
 			try {
-				const parsed = await getBrowseCardsWithTimeout({
-					geohash: activeGeohash,
-					page,
-					filters: browseRequestFilters,
+				const parsed = await fetchGridCards({
+					activeGeohash,
+					cursor: page,
+					explore: exploreLocation,
 				});
 				setDebugLoadSource("network");
 
@@ -574,7 +661,8 @@ export function GridPage() {
 			isLoadingPreferences,
 			browseCacheKey,
 			browseRequestFilters,
-			getBrowseCardsWithTimeout,
+			exploreLocation,
+			fetchGridCards,
 		],
 	);
 
@@ -751,10 +839,10 @@ export function GridPage() {
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
-			const parsed = await getBrowseCardsWithTimeout({
-				geohash,
-				page: nextPage,
-				filters: browseRequestFilters,
+			const parsed = await fetchGridCards({
+				activeGeohash: geohash,
+				cursor: nextPage,
+				explore: exploreLocation,
 			});
 			setDebugLoadSource("network");
 			void upsertChatContactIndexFromGrid(
@@ -1247,41 +1335,135 @@ export function GridPage() {
 					<div>
 						<div>
 							<div className="mb-1 flex items-center gap-2">
-								<button
-									type="button"
-									onClick={() => navigate("/settings")}
-									className="h-12 w-12 shrink-0 rounded-full transition-all active:scale-95"
-									aria-label={t("browse_page.open_settings")}
-									title={t("browse_page.settings")}
-								>
-									<Avatar
-										src={profilePhotoUrl}
-										alt={t("browse_page.your_profile_photo")}
-										className="h-full w-full"
-									/>
-								</button>
+								<div ref={accountSwitcherRef} className="relative shrink-0">
+									<button
+										type="button"
+										onClick={() => {
+											if (savedAccounts.length <= 1) {
+												navigate("/settings");
+											} else {
+												setIsAccountSwitcherOpen((v) => !v);
+											}
+										}}
+										className="h-12 w-12 shrink-0 rounded-full transition-all active:scale-95"
+										aria-label={t("browse_page.open_settings")}
+										aria-expanded={isAccountSwitcherOpen}
+										title={t("browse_page.settings")}
+									>
+										<Avatar
+											src={profilePhotoUrl}
+											alt={t("browse_page.your_profile_photo")}
+											className="h-full w-full"
+										/>
+									</button>
+									{isAccountSwitcherOpen && (
+									<div className="absolute left-0 top-full z-50 mt-2 w-max min-w-[14rem] max-w-[calc(100vw-2*var(--app-px))] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
+										<div className="flex flex-col gap-1">
+											{savedAccounts.map((account) => {
+												const isActive = userId != null && String(userId) === account.profileId;
+												const isSwitching = switchingProfileId === account.profileId;
+												const savedProfile = getSavedAccountProfile(account.profileId);
+												return (
+													<button
+														key={account.profileId}
+														type="button"
+														onClick={() => void handleSwitchAccount(account.profileId)}
+														disabled={isActive || isSwitching}
+														className="flex min-w-0 items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-default"
+													>
+														<div className="relative h-10 w-10 shrink-0">
+															<Avatar
+																src={savedProfile.photoHash ? getThumbImageUrl(savedProfile.photoHash, "75x75") : null}
+																alt=""
+																className="h-full w-full rounded-full border-0"
+															/>
+															{isSwitching && (
+																<div className="absolute inset-0 flex items-center justify-center rounded-full bg-[var(--surface)]/80">
+																	<Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
+																</div>
+															)}
+															{isActive && (
+																<div className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--accent)] text-white ring-2 ring-[var(--surface)]">
+																	<Check className="h-2.5 w-2.5" strokeWidth={3} />
+																</div>
+															)}
+														</div>
+														<div className="min-w-0 flex-1">
+															<p className="truncate text-sm font-semibold leading-snug text-[var(--text)]">
+																{savedProfile.displayName || t("settings.account_unnamed", { defaultValue: "Someone" })}
+															</p>
+															{account.email && (
+																<p className="truncate text-xs text-[var(--text-muted)] leading-snug mt-0.5">
+																	{account.email}
+																</p>
+															)}
+														</div>
+													</button>
+												);
+											})}
+										</div>
+										<div className="mt-2 border-t border-[var(--border)] pt-2">
+											<button
+												type="button"
+												onClick={() => { setIsAccountSwitcherOpen(false); navigate("/settings"); }}
+												className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+											>
+												<Settings className="h-3.5 w-3.5" />
+												{t("browse_page.settings")}
+											</button>
+										</div>
+									</div>
+								)}
+								</div>
 
 								<div
 									className="glass-pill inline-flex h-12 w-full items-center overflow-hidden"
-									style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									style={{ "--pill-color": exploreLocation ? EXPLORE_COLOR : "var(--accent)" } as React.CSSProperties}
 								>
 									<button
 										type="button"
 										onClick={() => setIsLocationOpen(true)}
 										className="flex min-w-0 flex-1 items-center gap-2.5 pl-2 pr-3 text-left active:scale-[0.99]"
 									>
-										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm shadow-[var(--accent)]/30">
-											{useAutoLocation ? <Navigation className="h-3.5 w-3.5" /> : <MapPin className="h-3.5 w-3.5" />}
+										<div
+											className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
+											style={{
+												backgroundColor: exploreLocation ? EXPLORE_COLOR : "var(--accent)",
+												boxShadow: `0 1px 8px 0 ${exploreLocation ? EXPLORE_COLOR : "var(--accent)"}4d`,
+											}}
+										>
+											{exploreLocation ? (
+												<Search className="h-3.5 w-3.5" />
+											) : useAutoLocation ? (
+												<Navigation className="h-3.5 w-3.5" />
+											) : (
+												<MapPin className="h-3.5 w-3.5" />
+											)}
 										</div>
 										<div className="min-w-0 flex-1">
 											<p className="text-sm font-semibold leading-tight text-[var(--text)]">
-												{useAutoLocation ? t("browse_location.mode_gps") : t("browse_location.mode_manual")}
+												{exploreLocation
+													? t("browse_location.exploring_badge")
+													: useAutoLocation
+														? t("browse_location.mode_gps")
+														: t("browse_location.mode_manual")}
 											</p>
 											<p className="truncate text-[10px] font-medium leading-tight text-[var(--text-muted)]">
-												{locationName || t("browse_page.current_location")}
+												{exploreLocation ? exploreLocation.label : locationName || t("browse_page.current_location")}
 											</p>
 										</div>
 									</button>
+									{exploreLocation && (
+										<button
+											type="button"
+											onClick={(e) => { e.stopPropagation(); setExploreLocation(null); }}
+											title={t("browse_location.stop_explore")}
+											className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
+											aria-label={t("browse_location.stop_explore")}
+										>
+											<X className="h-3.5 w-3.5" />
+										</button>
+									)}
 									<div className="mx-1 h-6 w-px bg-[var(--border)] opacity-40" />
 									<button
 										type="button"
@@ -1599,7 +1781,11 @@ export function GridPage() {
 			/>
 
 			{isLocationOpen && (
-				<LocationOverlay onClose={() => setIsLocationOpen(false)} />
+				<LocationOverlay
+					onClose={() => setIsLocationOpen(false)}
+					exploreLocation={exploreLocation}
+					onSetExploreLocation={setExploreLocation}
+				/>
 			)}
 
 			{isFiltersOpen && (

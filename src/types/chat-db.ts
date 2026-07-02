@@ -125,5 +125,8 @@ export type FullDbExport = {
 		albums: Record<string, unknown>[];
 		album_media: Record<string, unknown>[];
 		avatars: Record<string, unknown>[];
+		settings: Record<string, unknown>[];
+		saved_phrases: Record<string, unknown>[];
+		saved_locations: Record<string, unknown>[];
 	};
 };

@@ -403,7 +403,7 @@
                 "title": "Fotos",
                 "description": "Adicione e organize suas fotos",
                 "usage": "{{count}}/{{total}} fotos usadas",
-                "add": "Adicionar foto",
+                "add": "Adicionar",
                 "uploading": "Carregando…",
                 "saving": "Salvando alterações de fotos…",
                 "primary": "Primário",
@@ -425,7 +425,7 @@
                 "no_tags_added": "Nenhuma etiqueta adicionada ainda."
             },
             "states": {
-                "title": "Estados",
+                "title": "Stats",
                 "description": "Estatísticas visíveis e características do perfil",
                 "show_age": "Mostrar idade",
                 "show_age_desc": "Controle se a idade será exibida no perfil.",

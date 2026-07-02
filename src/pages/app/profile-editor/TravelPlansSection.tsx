@@ -78,7 +78,12 @@ export function TravelPlansSection({ profileId }: TravelPlansSectionProps) {
 					<Loader2 className="h-5 w-5 animate-spin" />
 				</div>
 			) : (travelPlans?.length ?? 0) === 0 ? (
-				<p className="py-2 text-sm text-[var(--text-muted)]">{t("travel_plans.empty")}</p>
+				<div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] py-8 text-center">
+					<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--text-muted)]">
+						<Plane className="h-4 w-4" />
+					</div>
+					<p className="text-sm text-[var(--text-muted)]">{t("travel_plans.empty")}</p>
+				</div>
 			) : (
 				<div className="overflow-hidden rounded-2xl border border-[var(--border)]">
 					{travelPlans!.map((plan, i) => (

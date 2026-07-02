@@ -8,7 +8,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ClipboardList,
-	Download,
+	DatabaseBackup,
 	GitBranch,
 	Images,
 	Info,
@@ -429,13 +429,6 @@ export function SettingsPage() {
 							t("settings.saved_phrases", { defaultValue: "Saved Phrases" }),
 							t("settings.saved_phrases_desc", { defaultValue: "Manage chat quick replies and import/export .txt" }),
 						)}
-						{navRow(
-							() => navigate("/settings/chat-data"),
-							<Download className="h-5 w-5" />,
-							"bg-teal-500/15 text-teal-400",
-							t("settings.chat_data", { defaultValue: "Chat Data" }),
-							t("settings.chat_data_desc", { defaultValue: "Downloaded media storage, and backup/restore your chat history" }),
-						)}
 					</div>
 				</div>
 
@@ -456,6 +449,22 @@ export function SettingsPage() {
 							"bg-sky-500/15 text-sky-400",
 							t("settings.privacy"),
 							t("settings.privacy_desc"),
+						)}
+					</div>
+				</div>
+
+				{/* Data */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("settings.data_section", { defaultValue: "Data" })}
+					</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/data"),
+							<DatabaseBackup className="h-5 w-5" />,
+							"bg-teal-500/15 text-teal-400",
+							t("settings.data", { defaultValue: "Data" }),
+							t("settings.data_desc", { defaultValue: "Downloaded media storage, and back up/restore your entire account" }),
 						)}
 					</div>
 				</div>

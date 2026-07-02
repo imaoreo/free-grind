@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Download, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ChevronDown, Copy, Download, RotateCcw, Search, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "../../components/ui/button";
 import { BackToSettings } from "../../components/BackToSettings";
@@ -68,18 +68,29 @@ export function ApiInspectorPage() {
 		});
 	}, [entries, kind, query]);
 
-	const selected =
-		filtered.find((entry) => entry.id === selectedId) ?? filtered[0] ?? null;
+	const selected = filtered.find((entry) => entry.id === selectedId) ?? null;
 
-	useEffect(() => {
-		if (!selected) {
+	const copyResponseBody = (entry: ApiTraceEntry) => {
+		if (entry.responseBody) {
+			navigator.clipboard.writeText(entry.responseBody).catch(() => {});
+			toast.success("Response body copied to clipboard", { id: "api-inspector-copy" });
+		}
+	};
+
+	const toggleEntry = (entry: ApiTraceEntry) => {
+		if (selectedId === entry.id) {
 			setSelectedId(null);
 			return;
 		}
-		if (!selectedId || !filtered.some((entry) => entry.id === selectedId)) {
-			setSelectedId(selected.id);
+		setSelectedId(entry.id);
+		copyResponseBody(entry);
+	};
+
+	useEffect(() => {
+		if (selectedId && !filtered.some((entry) => entry.id === selectedId)) {
+			setSelectedId(null);
 		}
-	}, [filtered, selected, selectedId]);
+	}, [filtered, selectedId]);
 
 	const handleCopy = async () => {
 		if (!selected) {
@@ -316,99 +327,89 @@ export function ApiInspectorPage() {
 					</div>
 				</Card>
 
-				<div className="grid gap-4 lg:grid-cols-[minmax(300px,420px)_1fr]">
-					<Card className="max-h-[70vh] overflow-y-auto p-2">
-						{filtered.length === 0 ? (
-							<div className="p-4 text-sm text-[var(--text-muted)]">
-								No entries yet. Perform actions in the app to capture requests.
-							</div>
-						) : (
-							<div className="grid gap-1">
-								{filtered.map((entry) => (
-									<button
+				<Card className="max-h-[70vh] overflow-y-auto p-2">
+					{filtered.length === 0 ? (
+						<div className="p-4 text-sm text-[var(--text-muted)]">
+							No entries yet. Perform actions in the app to capture requests.
+						</div>
+					) : (
+						<div className="grid gap-1">
+							{filtered.map((entry) => {
+								const isExpanded = selected?.id === entry.id;
+								return (
+									<div
 										key={entry.id}
-										type="button"
-										onClick={() => {
-											setSelectedId(entry.id);
-											if (entry.responseBody) {
-												navigator.clipboard.writeText(entry.responseBody).catch(() => {});
-												toast.success("Response body copied to clipboard", { id: "api-inspector-copy" });
-											}
-										}}
-										className={`rounded-lg border p-3 text-left transition ${
-											selected?.id === entry.id
+										className={`rounded-lg border transition ${
+											isExpanded
 												? "border-[var(--accent)] bg-[var(--surface-2)]"
 												: "border-transparent hover:border-[var(--border)]"
 										}`}
 									>
-										<div className="mb-1 flex items-center justify-between gap-2">
-											<p className="truncate text-sm font-semibold">
-												{entry.method} {entry.path}
+										<button
+											type="button"
+											onClick={() => toggleEntry(entry)}
+											className="w-full p-3 text-left"
+										>
+											<div className="mb-1 flex items-center justify-between gap-2">
+												<p className="truncate text-sm font-semibold">
+													{entry.method} {entry.path}
+												</p>
+												<div className="flex shrink-0 items-center gap-2">
+													<span
+														className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusClass(entry.status, entry.success)}`}
+													>
+														{entry.status ?? "ERR"}
+													</span>
+													<ChevronDown
+														className={`h-4 w-4 text-[var(--text-muted)] transition-transform ${
+															isExpanded ? "rotate-180" : ""
+														}`}
+													/>
+												</div>
+											</div>
+											<p className="text-xs text-[var(--text-muted)]">
+												{formatTimestamp(entry.timestamp)} · {entry.durationMs} ms · {entry.kind}
 											</p>
-											<span
-												className={`rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusClass(entry.status, entry.success)}`}
-											>
-												{entry.status ?? "ERR"}
-											</span>
-										</div>
-										<p className="text-xs text-[var(--text-muted)]">
-											{formatTimestamp(entry.timestamp)} · {entry.durationMs} ms · {entry.kind}
-										</p>
-									</button>
-								))}
-							</div>
-						)}
-					</Card>
+										</button>
 
-					<Card className="max-h-[70vh] overflow-y-auto p-4">
-						{selected ? (
-							<div className="grid gap-4">
-								<div>
-									<p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Request
-									</p>
-									<p className="mt-1 text-sm font-semibold">
-										{selected.method} {selected.path}
-									</p>
-									<p className="mt-1 text-xs text-[var(--text-muted)]">
-										{new Date(selected.timestamp).toLocaleString()} · {selected.durationMs} ms
-									</p>
-								</div>
+										{isExpanded ? (
+											<div className="grid gap-3 border-t border-[var(--border)] p-3">
+												<div>
+													<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+														Request Body
+													</p>
+													<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
+														{entry.requestBody ?? "(empty)"}
+													</pre>
+												</div>
 
-								<div>
-									<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Request Body
-									</p>
-									<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text)]">
-										{selected.requestBody ?? "(empty)"}
-									</pre>
-								</div>
+												<div>
+													<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+														Response Body
+													</p>
+													<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
+														{entry.responseBody ?? "(empty)"}
+													</pre>
+												</div>
 
-								<div>
-									<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-										Response Body
-									</p>
-									<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text)]">
-										{selected.responseBody ?? "(empty)"}
-									</pre>
-								</div>
-
-								{selected.error ? (
-									<div>
-										<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-											Error
-										</p>
-										<pre className="overflow-x-auto rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
-											{selected.error}
-										</pre>
+												{entry.error ? (
+													<div>
+														<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+															Error
+														</p>
+														<pre className="overflow-x-auto rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
+															{entry.error}
+														</pre>
+													</div>
+												) : null}
+											</div>
+										) : null}
 									</div>
-								) : null}
-							</div>
-						) : (
-							<div className="text-sm text-[var(--text-muted)]">Select an entry to inspect details.</div>
-						)}
-					</Card>
-				</div>
+								);
+							})}
+						</div>
+					)}
+				</Card>
 			</div>
 		</section>
 	);

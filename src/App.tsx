@@ -29,7 +29,7 @@ import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
-import { SettingsChatDataPage } from "./pages/app/SettingsChatDataPage.tsx";
+import { SettingsDataPage } from "./pages/app/SettingsDataPage.tsx";
 import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
 import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
@@ -192,7 +192,7 @@ export default function App() {
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
 								<Route path="/settings" element={<SettingsPage />} />
 								<Route path="/settings/automation" element={<SettingsAutomationPage />} />
-								<Route path="/settings/chat-data" element={<SettingsChatDataPage />} />
+								<Route path="/settings/data" element={<SettingsDataPage />} />
 								<Route path="/settings/privacy" element={<SettingsPrivacyPage />} />
 								<Route path="/settings/about" element={<AboutPage />} />
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />

@@ -11,6 +11,8 @@ type MapLocationPickerProps = {
 	className?: string;
 	defaultZoom?: number;
 	initialCenter?: [number, number];
+	/** Marker color override — defaults to --accent inside createPinMarkerElement. */
+	pinColor?: string;
 };
 
 export function MapLocationPicker({
@@ -26,6 +28,7 @@ export function MapLocationPicker({
 	// in on the middle of the ocean whenever the real center wasn't ready
 	// yet. Leaving it undefined when not passed keeps that distinction.
 	initialCenter,
+	pinColor,
 }: MapLocationPickerProps) {
 	const { t } = useTranslation();
 	const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -54,9 +57,26 @@ export function MapLocationPicker({
 	selectedLocationRef.current = selectedLocation;
 	const initialCenterRef = useRef(initialCenter);
 	initialCenterRef.current = initialCenter;
+	const pinColorRef = useRef(pinColor);
+	pinColorRef.current = pinColor;
 
 	useEffect(() => {
 		let mounted = true;
+
+		// This map always lives inside a scrollable overlay (LocationOverlay's
+		// content area). MapLibre's own scroll-zoom handler calls
+		// preventDefault() on wheel, but that races against the ancestor's
+		// native overflow scroll in this app's webview, which sometimes wins
+		// and scrolls the overlay instead of zooming the map. Belt-and-braces:
+		// block the page-scroll side ourselves so only the map ever reacts to
+		// wheel input here, regardless of that race. Attached directly (not
+		// inside initMap) so it's in place before the async maplibre import
+		// resolves, and removable via the same reference in cleanup below.
+		const blockWheelPropagation = (event: WheelEvent) => {
+			event.preventDefault();
+		};
+		const wheelTarget = mapContainerRef.current;
+		wheelTarget?.addEventListener("wheel", blockWheelPropagation, { passive: false });
 
 		// Waits for the browser to actually paint the current layout (two
 		// rAFs, since the first one just schedules a frame that hasn't been
@@ -94,6 +114,7 @@ export function MapLocationPicker({
 					// have nothing to go on.
 					zoom: startCenter ? defaultZoom : 2,
 					attributionControl: false,
+					scrollZoom: true,
 				});
 
 				map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -109,7 +130,7 @@ export function MapLocationPicker({
 				mapRef.current = map;
 
 				if (currentSelectedLocation) {
-					markerRef.current = new maplibregl.Marker({ element: createPinMarkerElement(), anchor: "bottom" })
+					markerRef.current = new maplibregl.Marker({ element: createPinMarkerElement(pinColorRef.current), anchor: "bottom" })
 						.setLngLat([currentSelectedLocation.lon, currentSelectedLocation.lat])
 						.addTo(map);
 				}
@@ -135,6 +156,7 @@ export function MapLocationPicker({
 
 		return () => {
 			mounted = false;
+			wheelTarget?.removeEventListener("wheel", blockWheelPropagation);
 			resizeObserverRef.current?.disconnect();
 			resizeObserverRef.current = null;
 			if (mapRef.current) {
@@ -160,17 +182,17 @@ export function MapLocationPicker({
 
 		const lngLat: [number, number] = [selectedLocation.lon, selectedLocation.lat];
 
-		if (markerRef.current) {
-			markerRef.current.setLngLat(lngLat);
-		} else {
-			markerRef.current = new maplibregl.Marker({ element: createPinMarkerElement(), anchor: "bottom" })
-				.setLngLat(lngLat)
-				.addTo(map);
-		}
+		// Recreated (not just repositioned) so a pinColor change — e.g.
+		// switching between the "set" and "explore" tabs while the map stays
+		// mounted — is reflected immediately instead of keeping the old color.
+		markerRef.current?.remove();
+		markerRef.current = new maplibregl.Marker({ element: createPinMarkerElement(pinColor), anchor: "bottom" })
+			.setLngLat(lngLat)
+			.addTo(map);
 
 		map.jumpTo({ center: lngLat, zoom: Math.max(defaultZoom, map.getZoom()) });
 		map.resize();
-	}, [defaultZoom, selectedLocation]);
+	}, [defaultZoom, selectedLocation, pinColor]);
 
 	return <div ref={mapContainerRef} className={className} />;
 }

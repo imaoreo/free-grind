@@ -12,7 +12,7 @@ const PUBLIC_OPTIONS_CACHE_TTL_MS = 30 * 60 * 1000;
 const profileCache = new Map<string, CacheEntry<ProfileDetail>>();
 const browseCache = new Map<
 	string,
-	CacheEntry<{ cards: BrowseCard[]; nextPage: number | null }>
+	CacheEntry<{ cards: BrowseCard[]; nextPage: string | null }>
 >();
 let genderOptionsCache: CacheEntry<ManagedOption[]> | null = null;
 let pronounOptionsCache: CacheEntry<ManagedOption[]> | null = null;
@@ -65,14 +65,14 @@ export function setCachedProfileDetail(
 
 export function getCachedBrowseCards(
 	cacheKey: string,
-): { cards: BrowseCard[]; nextPage: number | null } | null {
+): { cards: BrowseCard[]; nextPage: string | null } | null {
 	return getFromCache(browseCache, cacheKey);
 }
 
 export function setCachedBrowseCards(
 	cacheKey: string,
 	cards: BrowseCard[],
-	nextPage: number | null,
+	nextPage: string | null,
 ) {
 	setInCache(browseCache, cacheKey, { cards, nextPage }, BROWSE_CACHE_TTL_MS);
 }

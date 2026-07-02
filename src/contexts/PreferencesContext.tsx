@@ -6,12 +6,15 @@ import {
 	ReactNode,
 	useCallback,
 	useRef,
+	useState,
 } from "react";
 import z from "zod";
 import { appLog } from "../utils/logger";
 import { geohashSchema } from "../utils/geohash";
 import { UNIT_PRESETS, type UnitsPreset } from "../utils/units";
 import { REVEAL_STRENGTH_SUBTLE, REVEAL_STRENGTH_PRONOUNCED, type RevealStrength } from "../config/ui-constants";
+import { getSetting, setSetting } from "../services/chatDb";
+import { useAuth } from "./useAuth";
 
 export const COLOR_SCHEMES = ["system", "light", "dark"] as const;
 export type ColorScheme = (typeof COLOR_SCHEMES)[number];
@@ -140,8 +143,13 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 	{ name: "Teal", color: "#14b8a6", contrast: "#1a1a1a" },
 ];
 
+// geohash/locationName/useAutoLocation are per-profile (see the
+// settingsReady-gated load/save effect below, backed by chatDb) rather than
+// part of this shared localStorage blob, so they need safe defaults here —
+// old blobs still on disk may carry a stale geohash, and the local storage
+// write no longer includes any of the three going forward.
 const preferencesSchema = z.object({
-	geohash: geohashSchema.nullable(),
+	geohash: geohashSchema.nullable().default(null),
 	locationName: z.string().nullable().optional(),
 	colorScheme: z.enum(["system", "light", "dark"]).default("system"),
 	accentColor: z.string().default("#ffcc01"),
@@ -266,6 +274,17 @@ function applyTheme(colorScheme: ColorScheme, accentColor: string, accentContras
 
 const STORAGE_KEY = "app_preferences";
 
+// Per-profile location settings — backed by the active account's chatDb
+// (see chatDb.ts's generic settings key/value store), not this shared
+// localStorage blob, so switching accounts switches location too.
+const LOCATION_SETTINGS_KEY = "locationPreferences";
+
+interface StoredLocationPrefs {
+	geohash: string | null;
+	locationName: string | null;
+	useAutoLocation: boolean;
+}
+
 export function PreferencesProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(preferencesReducer, {
 		geohash: null,
@@ -305,15 +324,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					}
 
 					const parsed = preferencesSchema.parse(decoded);
-					dispatch({ type: "SET_GEOHASH", payload: parsed.geohash });
-					dispatch({ type: "SET_LOCATION_NAME", payload: parsed.locationName ?? null });
+					// geohash/locationName/useAutoLocation are intentionally not
+					// dispatched here — they're per-profile and loaded by the
+					// settingsReady-gated effect below instead.
 					dispatch({ type: "SET_COLOR_SCHEME", payload: parsed.colorScheme });
 					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
 					dispatch({ type: "SET_UNITS_PRESET", payload: parsed.unitsPreset });
 					dispatch({ type: "SET_BLUR_INCOMING_MEDIA", payload: parsed.blurIncomingMedia });
 					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
 					dispatch({ type: "SET_SHOW_DEBUG_INFO", payload: parsed.showDebugInfo });
-					dispatch({ type: "SET_AUTO_LOCATION", payload: parsed.useAutoLocation });
 					dispatch({ type: "SET_RIGHT_NOW_TEST_MODE", payload: parsed.rightNowTestMode });
 					dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: parsed.rightNowRemaining });
 					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
@@ -345,6 +364,35 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
 		loadPreferences();
 	}, []);
+
+	// Per-profile location — reload whenever the active account's chatDb is
+	// ready (settingsReady), so switching accounts also switches location
+	// instead of leaking the previous account's geohash/locationName. Kept
+	// out of `isLoading` until the first load resolves, otherwise consumers
+	// like GridPage's initial-auto-location effect would see the reducer's
+	// default useAutoLocation=false and skip auto-location before the real
+	// per-profile value has had a chance to arrive.
+	const { userId, settingsReady } = useAuth();
+	const [isLocationLoaded, setIsLocationLoaded] = useState(false);
+	useEffect(() => {
+		if (!settingsReady) {
+			return;
+		}
+		let cancelled = false;
+		void (async () => {
+			const stored = await getSetting<Partial<StoredLocationPrefs>>(LOCATION_SETTINGS_KEY);
+			if (cancelled) {
+				return;
+			}
+			dispatch({ type: "SET_GEOHASH", payload: stored?.geohash ?? null });
+			dispatch({ type: "SET_LOCATION_NAME", payload: stored?.locationName ?? null });
+			dispatch({ type: "SET_AUTO_LOCATION", payload: stored?.useAutoLocation ?? false });
+			setIsLocationLoaded(true);
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [userId, settingsReady]);
 
 	const stateRef = useRef(state);
 	stateRef.current = state;
@@ -458,8 +506,40 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				preferences.revealEffectStrength,
 			);
 
-			// Persist to localStorage
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+			// geohash/locationName/useAutoLocation are per-profile: persisted to
+			// the active account's chatDb instead of this shared blob.
+			if (
+				newValues.geohash !== undefined ||
+				newValues.locationName !== undefined ||
+				newValues.useAutoLocation !== undefined
+			) {
+				await setSetting(LOCATION_SETTINGS_KEY, {
+					geohash: preferences.geohash,
+					locationName: preferences.locationName ?? null,
+					useAutoLocation: preferences.useAutoLocation,
+				} satisfies StoredLocationPrefs);
+			}
+
+			// Persist the rest to localStorage (geohash/locationName/useAutoLocation excluded, see above)
+			localStorage.setItem(
+				STORAGE_KEY,
+				JSON.stringify({
+					colorScheme: preferences.colorScheme,
+					accentColor: preferences.accentColor,
+					accentContrast: preferences.accentContrast,
+					mobileGridColumns: preferences.mobileGridColumns,
+					unitsPreset: preferences.unitsPreset,
+					blurIncomingMedia: preferences.blurIncomingMedia,
+					developerMode: preferences.developerMode,
+					showDebugInfo: preferences.showDebugInfo,
+					rightNowTestMode: preferences.rightNowTestMode,
+					rightNowRemaining: preferences.rightNowRemaining,
+					revealEffectEnabled: preferences.revealEffectEnabled,
+					revealEffectStrength: preferences.revealEffectStrength,
+					activeRightNowId: preferences.activeRightNowId,
+					activeRightNowExpiresAt: preferences.activeRightNowExpiresAt,
+				}),
+			);
 		},
 		[dispatch],
 	);
@@ -483,7 +563,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: state.revealEffectEnabled,
 		revealEffectStrength: state.revealEffectStrength,
 		setPreferences,
-		isLoading: state.isLoading,
+		isLoading: state.isLoading || !isLocationLoaded,
 	};
 
 	return (

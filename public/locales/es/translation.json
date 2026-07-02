@@ -298,7 +298,7 @@
                 "title": "Imágenes",
                 "description": "Sube y organiza tus fotos",
                 "usage": "{{count}}/{{total}} fotos puestas",
-                "add": "Añadir foto",
+                "add": "Añadir",
                 "uploading": "Subiendo…",
                 "saving": "Guardando cambios de foto…",
                 "primary": "Principal",
@@ -340,7 +340,7 @@
                 }
             },
             "states": {
-                "title": "Estados",
+                "title": "Stats",
                 "description": "Estadísticas visibles y rasgos del perfil",
                 "show_age": "Mostrar edad",
                 "show_age_desc": "Controla si la edad es visible o no en el perfil.",

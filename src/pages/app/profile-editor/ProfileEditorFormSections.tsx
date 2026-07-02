@@ -14,6 +14,7 @@ import {
 	Ruler,
 	ShieldPlus,
 	Sparkles,
+	Tag,
 	Trash2,
 } from "lucide-react";
 import {
@@ -299,7 +300,6 @@ export function ProfileEditorFormSections({
 												: "cursor-pointer hover:border-[var(--text-muted)]",
 										].join(" ")}
 									>
-										<Plus className="h-4 w-4" />
 										{isUploadingPhoto
 											? t("profile_editor.sections.pictures.uploading")
 											: t("profile_editor.sections.pictures.add")}
@@ -441,9 +441,14 @@ export function ProfileEditorFormSections({
 									</span>
 								))
 							) : (
-								<p className="text-sm text-[var(--text-muted)]">
-									{t("profile_editor.sections.profile.no_tags_added")}
-								</p>
+								<div className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[var(--border)] py-6 text-center">
+									<div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--text-muted)]">
+										<Tag className="h-4 w-4" />
+									</div>
+									<p className="text-sm text-[var(--text-muted)]">
+										{t("profile_editor.sections.profile.no_tags_added")}
+									</p>
+								</div>
 							)}
 						</div>
 					</div>

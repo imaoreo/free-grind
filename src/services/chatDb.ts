@@ -1315,9 +1315,12 @@ export async function deleteDownloadedMediaEntries(identifiers: string[]): Promi
 }
 
 // ---------------------------------------------------------------------------
-// Full database export/import (portable chat data — conversations, messages,
-// media bytes, albums, avatars. Excludes downloaded_media, which is local
-// device bookkeeping with no meaning on another install.)
+// Full database export/import — every table in this profile's db that's
+// portable to another install: chat history and media, albums, avatars,
+// saved phrases/locations, and the generic settings key/value store
+// (automation rules, privacy toggles, browse filters, location, etc).
+// Excludes downloaded_media, which is local device bookkeeping (references
+// files on this device's filesystem) with no meaning on another install.
 // ---------------------------------------------------------------------------
 
 const FULL_EXPORT_TABLES: {
@@ -1380,11 +1383,27 @@ const FULL_EXPORT_TABLES: {
 		primaryKey: "media_hash",
 		columns: ["media_hash", "data_base64", "mime_type", "fetched_at"],
 	},
+	{
+		name: "settings",
+		primaryKey: "key",
+		columns: ["key", "value"],
+	},
+	{
+		name: "saved_phrases",
+		primaryKey: "phrase",
+		columns: ["phrase", "created_at"],
+	},
+	{
+		name: "saved_locations",
+		primaryKey: "id",
+		columns: ["id", "name", "geohash", "lat", "lon", "created_at"],
+	},
 ];
 
 /**
- * Dumps every portable chat-data table as raw rows, plus the exporting
- * user's id so a later import can refuse to load another account's data.
+ * Dumps every portable table in this profile's db as raw rows, plus the
+ * exporting user's id so a later import can refuse to load another
+ * account's data.
  */
 export async function exportFullDatabase(ownerUserId: number): Promise<FullDbExport> {
 	const db = await getDb();
@@ -1623,7 +1642,23 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 
 	try {
 		// Theme/UI preferences (app_preferences) intentionally stay in
-		// localStorage — they apply to the whole app, not per profile.
+		// localStorage — they apply to the whole app, not per profile. The
+		// location fields inside that same blob are the exception: they move
+		// into this profile's settings so whichever account is active right
+		// now (typically the one the user had open before this migration)
+		// keeps its current location instead of losing it.
+		const legacyAppPreferences = readLegacyJson<{
+			geohash?: string | null;
+			locationName?: string | null;
+			useAutoLocation?: boolean;
+		}>("app_preferences");
+		if (legacyAppPreferences && (legacyAppPreferences.geohash != null || legacyAppPreferences.useAutoLocation)) {
+			await setSetting("locationPreferences", {
+				geohash: legacyAppPreferences.geohash ?? null,
+				locationName: legacyAppPreferences.locationName ?? null,
+				useAutoLocation: legacyAppPreferences.useAutoLocation === true,
+			});
+		}
 
 		const legacyPhrases = readLegacyJson<unknown>("fg-saved-phrases");
 		if (Array.isArray(legacyPhrases)) {
