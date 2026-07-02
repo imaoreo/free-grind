@@ -7,6 +7,7 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useBlockedProfileIds, useUnblockProfile } from "../../hooks/queries/useProfileQueries";
+import { applySelfBlockAction } from "../../services/conversationArchive";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { ProfileImage } from "../../components/ui/profile-image";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
@@ -142,9 +143,13 @@ export function SettingsBlockedPage() {
 	const handleUnblockAll = async () => {
 		setIsUnblockingAll(true);
 		try {
+			const unblockedIds = blockedIdsData ?? [];
 			await apiFunctions.unblockAllProfiles();
 			toast.success(t("settings_blocked.unblock_all_success", { defaultValue: "All users unblocked." }));
 			void refetchIds();
+			// Doesn't go through useUnblockProfile, so take any archived
+			// conversations with these profiles out of archive here too.
+			void Promise.all(unblockedIds.map((profileId) => applySelfBlockAction(profileId, "unblock")));
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : t("settings_blocked.unblock_all_failed", { defaultValue: "Failed to unblock all profiles." }));
 		} finally {

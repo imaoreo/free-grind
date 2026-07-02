@@ -25,7 +25,6 @@ import {
 	Sparkles,
 	Syringe,
 	User,
-	Zap,
 } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -193,6 +192,8 @@ export function ProfileDetailsContent({
 		[travelPlans],
 	);
 	const hasTravelPlans = visibleTravelPlans.length > 0;
+	const rightNowTextTrimmed = activeProfile.rightNowText?.trim();
+	const hasRightNow = !shouldHideField(rightNowTextTrimmed);
 
 	const renderPhotoCreatedBadge = (_hash: string) => null;
 
@@ -455,8 +456,8 @@ export function ProfileDetailsContent({
 								</span>
 							)}
 							{activeProfile.isNew && (
-								<span className="flex items-center gap-1 rounded-full bg-[var(--accent)]/15 px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
-									<Sparkles className="h-3 w-3" />
+								<span className="flex items-center gap-1 font-semibold text-[var(--accent)]">
+									<Sparkles className="h-3.5 w-3.5" />
 									{t("profile_details.recently_joined")}
 								</span>
 							)}
@@ -538,10 +539,30 @@ export function ProfileDetailsContent({
 
 			{extraTopSection}
 
-			{(hasTagsContent || hasAboutContent || hasTravelPlans || hasExpectationsFields || hasHealthFields || hasStatsFields || hasSocialFields) && (
+			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNow || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
-				{(hasTagsContent || hasAboutContent || hasTravelPlans || hasExpectationsFields || hasHealthFields) && (
+				{(hasTagsContent || hasAboutContent || hasRightNow || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
+					{hasRightNow && (
+						<div>
+							<p
+								className="mb-2 text-xs font-semibold uppercase tracking-[0.1em]"
+								style={{ color: "var(--right-now)" }}
+							>
+								{t("profile_details.right_now")}
+							</p>
+							<div
+								className="rounded-xl px-4 py-3"
+								style={{
+									backgroundColor: "color-mix(in srgb, var(--right-now), transparent 88%)",
+									border: "1px solid color-mix(in srgb, var(--right-now), transparent 70%)",
+								}}
+							>
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">{rightNowTextTrimmed}</p>
+							</div>
+						</div>
+					)}
+
 					{hasTagsContent && (
 						<div>
 							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
@@ -578,19 +599,6 @@ export function ProfileDetailsContent({
 								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">
 									{activeProfile.aboutMe?.trim()}
 								</p>
-							</div>
-						</div>
-					)}
-
-					{hasTravelPlans && (
-						<div>
-							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-								{t("profile_details.travel_plans")}
-							</p>
-							<div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-								{visibleTravelPlans.map((plan) => (
-									<TravelPlanRow key={plan.travelPlanId} plan={plan} t={t} />
-								))}
 							</div>
 						</div>
 					)}
@@ -661,15 +669,6 @@ export function ProfileDetailsContent({
 										<p className="text-sm">
 											<span className="font-semibold text-[var(--text)]">{t("profile_details.pronouns")}:</span>{" "}
 											<span className="text-[var(--text-muted)]">{formattedActivePronouns}</span>
-										</p>
-									</div>
-								)}
-								{!shouldHideField(activeProfile.rightNowText?.trim()) && (
-									<div className="flex items-start gap-2.5">
-										<Zap className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-										<p className="text-sm">
-											<span className="font-semibold text-[var(--text)]">{t("profile_details.right_now")}:</span>{" "}
-											<span className="text-[var(--text-muted)]">{activeProfile.rightNowText?.trim()}</span>
 										</p>
 									</div>
 								)}
@@ -827,6 +826,19 @@ export function ProfileDetailsContent({
 				</div>
 				)}
 			</div>
+			)}
+
+			{hasTravelPlans && (
+				<div className="px-3">
+					<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+						{t("profile_details.travel_plans")}
+					</p>
+					<div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+						{visibleTravelPlans.map((plan) => (
+							<TravelPlanRow key={plan.travelPlanId} plan={plan} t={t} />
+						))}
+					</div>
+				</div>
 			)}
 
 			<div className="px-3">

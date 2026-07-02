@@ -27,9 +27,9 @@ import * as chatDb from "../../services/chatDb";
 import type { ArchivedReason } from "../../types/chat-db";
 import {
 	archiveConversation,
-	archiveConversations,
 	unarchiveConversation,
-	markConversationDeleteHandled,
+	CHAT_ARCHIVE_STATE_EVENT,
+	type ChatArchiveStateChangeDetail,
 } from "../../services/conversationArchive";
 import {
 	CHAT_REALTIME_EVENT,
@@ -2556,10 +2556,29 @@ export function ChatPage() {
 				}
 			}
 		};
+		// A conversation's archived flag changed somewhere that doesn't have
+		// this page's in-memory state (e.g. unblocking from Settings > Blocked
+		// or from the grid) — mirror it here so the chat list/thread reflect
+		// it immediately instead of only after the next inbox reload.
+		const onArchiveStateChange = (event: Event) => {
+			const detail = (event as CustomEvent<ChatArchiveStateChangeDetail>).detail;
+			if (!detail) return;
+			if (detail.archived) {
+				archiveConversationsLocally([detail.conversationId], detail.reason);
+			} else {
+				setArchivedConversations((previous) => {
+					if (!previous.has(detail.conversationId)) return previous;
+					const next = new Map(previous);
+					next.delete(detail.conversationId);
+					return next;
+				});
+			}
+		};
 		window.addEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 		window.addEventListener(CHAT_REALTIME_STATUS, onStatus as EventListener);
 		window.addEventListener(TYPING_STATUS_EVENT, onTyping as EventListener);
 		window.addEventListener(CHAT_SYSTEM_MESSAGE_EVENT, onSystemMessage as EventListener);
+		window.addEventListener(CHAT_ARCHIVE_STATE_EVENT, onArchiveStateChange as EventListener);
 		return () => {
 			window.removeEventListener(CHAT_REALTIME_EVENT, onEvent as EventListener);
 			window.removeEventListener(
@@ -2571,8 +2590,12 @@ export function ChatPage() {
 				CHAT_SYSTEM_MESSAGE_EVENT,
 				onSystemMessage as EventListener,
 			);
+			window.removeEventListener(
+				CHAT_ARCHIVE_STATE_EVENT,
+				onArchiveStateChange as EventListener,
+			);
 		};
-	}, [handleRealtimeEvent, handleRealtimeStatus]);
+	}, [handleRealtimeEvent, handleRealtimeStatus, archiveConversationsLocally]);
 
 	// Send typing status to API when draft changes
 	const selectedConversationIdForTyping = selectedConversation?.data.conversationId ?? null;
@@ -3254,44 +3277,15 @@ export function ChatPage() {
 			setIsBlockingProfileId(targetProfileId);
 
 			try {
+				// blockProfileMutation's onSuccess (useBlockProfile) already
+				// archives the conversation, leaves the "You blocked this
+				// person" marker, and suppresses the matching WS echo — this
+				// page picks that up live via the CHAT_ARCHIVE_STATE_EVENT /
+				// CHAT_SYSTEM_MESSAGE_EVENT listeners below, moving straight
+				// into the same read-only archived view used when someone
+				// else blocks us, instead of deleting it from the list.
 				await blockProfileMutation(targetProfileId);
 				removeProfileFromBrowseCache(targetProfileId);
-
-				// Move every conversation with this profile straight into
-				// archived mode — the same read-only view used when someone
-				// else blocks us — instead of deleting it from the list.
-				// Handled locally rather than waiting on the WS
-				// conversation.delete echo, and that echo is suppressed
-				// below so it can't flip this back to unarchived.
-				const affectedIds = conversationsRef.current
-					.filter((conversation) =>
-						conversation.data.participants.some(
-							(participant) => String(participant.profileId) === targetProfileId,
-						),
-					)
-					.map((conversation) => conversation.data.conversationId);
-
-				if (affectedIds.length > 0) {
-					await archiveConversations(affectedIds, "ws_delete");
-					archiveConversationsLocally(affectedIds, "ws_delete");
-					for (const conversationId of affectedIds) {
-						markConversationDeleteHandled(conversationId);
-					}
-					const inserted = await Promise.all(
-						affectedIds.map((conversationId) =>
-							chatDb
-								.insertSystemMessage(conversationId, "SystemBlockedBySelf")
-								.catch(() => null),
-						),
-					);
-					const valid = inserted.filter((m): m is Message => m !== null);
-					if (valid.length > 0) {
-						window.dispatchEvent(
-							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-						);
-					}
-				}
-
 				toast.success(t("profile_details.block_success"));
 			} catch (error) {
 				toast.error(
@@ -3303,7 +3297,7 @@ export function ChatPage() {
 				setIsBlockingProfileId(null);
 			}
 		},
-		[isBlockingProfileId, archiveConversationsLocally, blockProfileMutation, t],
+		[isBlockingProfileId, blockProfileMutation, t],
 	);
 
 	const unblockProfileFromChat = useCallback(
@@ -3316,54 +3310,13 @@ export function ChatPage() {
 			setIsUnblockingProfileId(targetProfileId);
 
 			try {
+				// unblockProfileMutation's onSuccess (useUnblockProfile) already
+				// takes the conversation out of archive, leaves the "You
+				// unblocked this person" marker, and suppresses the matching
+				// WS echo — this page picks that up live via the
+				// CHAT_ARCHIVE_STATE_EVENT / CHAT_SYSTEM_MESSAGE_EVENT
+				// listeners below.
 				await unblockProfileMutation(targetProfileId);
-
-				// Conversations with this profile can be archived either in the
-				// live list (still holds its own entry) or only in
-				// archivedConversations (entry sourced from chatDb) — check both.
-				const idsFromConversations = conversationsRef.current
-					.filter((conversation) =>
-						conversation.data.participants.some(
-							(participant) => String(participant.profileId) === targetProfileId,
-						),
-					)
-					.map((conversation) => conversation.data.conversationId);
-				const idsFromArchived = [...archivedConversationsRef.current.entries()]
-					.filter(([, info]) =>
-						info.entry.data.participants.some(
-							(participant) => String(participant.profileId) === targetProfileId,
-						),
-					)
-					.map(([conversationId]) => conversationId);
-				const affectedIds = [...new Set([...idsFromConversations, ...idsFromArchived])];
-
-				if (affectedIds.length > 0) {
-					await Promise.all(affectedIds.map((conversationId) => unarchiveConversation(conversationId)));
-					setArchivedConversations((previous) => {
-						const next = new Map(previous);
-						for (const conversationId of affectedIds) {
-							next.delete(conversationId);
-						}
-						return next;
-					});
-					for (const conversationId of affectedIds) {
-						markConversationDeleteHandled(conversationId);
-					}
-					const inserted = await Promise.all(
-						affectedIds.map((conversationId) =>
-							chatDb
-								.insertSystemMessage(conversationId, "SystemUnblockedBySelf")
-								.catch(() => null),
-						),
-					);
-					const valid = inserted.filter((m): m is Message => m !== null);
-					if (valid.length > 0) {
-						window.dispatchEvent(
-							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-						);
-					}
-				}
-
 				toast.success(t("profile_details.unblock_success"));
 			} catch (error) {
 				toast.error(

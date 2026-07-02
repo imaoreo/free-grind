@@ -3,6 +3,7 @@ import { useApiFunctions } from "../useApiFunctions";
 import type { TravelPlanPayload } from "../../types/travel";
 import { findConversationByProfileId } from "../../services/chatDb";
 import { markSelfBlockAction } from "../../utils/selfBlockActions";
+import { applySelfBlockAction } from "../../services/conversationArchive";
 
 // chat.v1.conversation.delete fires identically for "we blocked/unblocked
 // them" and "they blocked/unblocked us" — mark the conversation right after
@@ -52,6 +53,10 @@ export function useBlockProfile() {
 				if (old.includes(profileId)) return old;
 				return [...old, profileId];
 			});
+			// Archive any existing conversation with this profile right away
+			// instead of waiting on the WS round-trip — covers every entry
+			// point (grid, profile page, chat header), not just chat.
+			void applySelfBlockAction(profileId, "block");
 		},
 	});
 }
@@ -75,6 +80,10 @@ export function useUnblockProfile() {
 				if (!old) return [];
 				return old.filter((id) => id !== profileId);
 			});
+			// Take any existing conversation with this profile out of archive
+			// right away — covers every entry point (blocked-list settings,
+			// grid, profile page, chat header), not just chat.
+			void applySelfBlockAction(profileId, "unblock");
 		},
 	});
 }

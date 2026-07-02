@@ -500,13 +500,14 @@
         "sign_in": {
             "title": "Connexion",
             "subtitle": "Utilisez vos identifiants Grindr ou un token pour Google, Apple ou Facebook.",
-            "no_account": "Pas de compte ? Inscrivez-vous",
             "method_token": "Token",
             "method_password": "Email et mot de passe",
             "token_help": "Comment obtenir votre token d'authentification",
             "jwt_label": "Token JWT",
             "submit": "Se connecter",
-            "signing_in": "Connexion en cours..."
+            "signing_in": "Connexion en cours...",
+            "no_account_label": "Pas de compte?",
+            "no_account_action": "Inscrivez-vous"
         },
         "sign_up": {
             "title": "Inscription",

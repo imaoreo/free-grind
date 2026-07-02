@@ -268,12 +268,17 @@ export function formatTimeAgo(
 	return formatted || "Unknown";
 }
 
+// The "Not set" strings below are internal sentinels consumed by
+// shouldHideField, never shown to the user (every call site is gated by it),
+// so they must stay untranslated — translating them broke hiding for any
+// non-English locale, since shouldHideField only matched the English string.
+
 export function formatOptionalNumber(
 	value: number | null | undefined,
-	t?: (key: string, options?: any) => string,
+	_t?: (key: string, options?: any) => string,
 ): string {
 	if (value == null || !Number.isFinite(value)) {
-		return t ? t("browse_page.not_set") : "Not set";
+		return "Not set";
 	}
 
 	return String(value);
@@ -282,10 +287,10 @@ export function formatOptionalNumber(
 export function formatEnumValue(
 	value: number | null | undefined,
 	labels: Record<number, string>,
-	t?: (key: string, options?: any) => string,
+	_t?: (key: string, options?: any) => string,
 ): string {
 	if (value == null || !Number.isFinite(value)) {
-		return t ? t("browse_page.not_set") : "Not set";
+		return "Not set";
 	}
 
 	return labels[value] ?? String(value);
@@ -294,10 +299,10 @@ export function formatEnumValue(
 export function formatEnumArray(
 	values: number[],
 	labels: Record<number, string>,
-	t?: (key: string, options?: any) => string,
+	_t?: (key: string, options?: any) => string,
 ): string {
 	if (values.length === 0) {
-		return t ? t("browse_page.not_set") : "Not set";
+		return "Not set";
 	}
 
 	return values.map((value) => labels[value] ?? String(value)).join(", ");

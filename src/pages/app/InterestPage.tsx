@@ -137,15 +137,23 @@ export function InterestPage() {
 	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
 	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
 
+	// Tabs the user has just switched to: their badge is hidden immediately (in
+	// the same render as the switch) so the pill slide and the badge collapse
+	// animate together instead of as two staggered steps. Cleared once the
+	// delayed "mark as seen" below actually catches lastSeen up to match.
+	const [justSwitchedTabs, setJustSwitchedTabs] = useState<Set<InterestTab>>(() => new Set());
+
 	const newViewsCount = useMemo(() => {
 		if (demoMode !== 0) return demoViewsCount;
+		if (justSwitchedTabs.has("views")) return 0;
 		return views.filter(v => (v.timestamp ?? 0) > lastSeenViews).length;
-	}, [views, lastSeenViews, demoMode, demoViewsCount]);
+	}, [views, lastSeenViews, demoMode, demoViewsCount, justSwitchedTabs]);
 
 	const newTapsCount = useMemo(() => {
 		if (demoMode !== 0) return demoTapsCount;
+		if (justSwitchedTabs.has("taps")) return 0;
 		return taps.filter(t => (t.timestamp ?? 0) > lastSeenTaps).length;
-	}, [taps, lastSeenTaps, demoMode, demoTapsCount]);
+	}, [taps, lastSeenTaps, demoMode, demoTapsCount, justSwitchedTabs]);
 
 	// Mark active tab as seen
 	useEffect(() => {
@@ -154,8 +162,9 @@ export function InterestPage() {
 			const maxInItems = items.length > 0 ? Math.max(...items.map(i => i.timestamp ?? 0)) : 0;
 			const at = Math.max(Date.now(), maxInItems);
 
-			// Delay marking as seen to allow the tab transition to finish smoothly
-			// without the width of the tab changing mid-animation.
+			// Delay persisting "seen" so a quick tab switch-and-back doesn't
+			// immediately drop the badge; the badge itself is already hidden
+			// right away via justSwitchedTabs above.
 			const timer = setTimeout(() => {
 				if (demoMode !== 0) {
 					if (activeTab === "views") setDemoViewsCount(0);
@@ -168,6 +177,12 @@ export function InterestPage() {
 				} else {
 					setLastSeenTaps(at);
 				}
+				setJustSwitchedTabs((prev) => {
+					if (!prev.has(activeTab)) return prev;
+					const next = new Set(prev);
+					next.delete(activeTab);
+					return next;
+				});
 			}, 300);
 
 			return () => clearTimeout(timer);
@@ -487,6 +502,7 @@ export function InterestPage() {
 			// Always explicitly set the tab in the URL so our new default setting doesn't override it
 			nextParams.set("tab", nextTab);
 			setSearchParams(nextParams, { replace: true });
+			setJustSwitchedTabs((prev) => (prev.has(nextTab) ? prev : new Set(prev).add(nextTab)));
 		},
 		[searchParams, setSearchParams],
 	);
@@ -575,39 +591,28 @@ export function InterestPage() {
 
 							<div
 								className={cn(
-									"glass-pill neutral flex items-center overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
-									activeTab === "views" && "-mr-[3.5px]",
-									showCountLabel
-										? "justify-end h-10 pl-4 pr-0 max-w-[300px]"
-										: (activeTab === "views" ? "justify-center h-8 pl-[1.5px] pr-[1px] min-w-[53.5px]" : "justify-center h-12 pl-0 pr-0 max-w-[48px]")
+									"glass-pill neutral flex h-8 items-center justify-center overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
+									showCountLabel ? "pl-4 pr-4" : "px-3 min-w-[40px]"
 								)}
 							>
-								<div className={cn(
-									"flex items-center transition-all duration-500",
-									showCountLabel ? "justify-end" : "justify-center"
-								)}>
+								<div className="flex items-center justify-center">
 									<div
 										className={cn(
 											"flex transition-all duration-500 ease-in-out overflow-hidden",
-											showCountLabel ? "opacity-100 max-w-[200px] mr-0" : "opacity-0 max-w-0 mr-0 pointer-events-none"
+											showCountLabel ? "opacity-100 max-w-[200px]" : "opacity-0 max-w-0 pointer-events-none"
 										)}
 									>
-										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] leading-none whitespace-nowrap">
+										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] leading-none whitespace-nowrap mr-2">
 											{activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
 										</p>
 									</div>
 									<div className="relative flex items-center justify-center">
-										<div className={cn(
-											"flex items-center justify-center transition-all duration-500",
-											activeTab === "views" ? "w-[51px]" : "w-12"
+										<p className={cn(
+											"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
+											(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
 										)}>
-											<p className={cn(
-												"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
-												(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
-											)}>
-												{activeTab === "views" ? viewedCount : taps.length}
-											</p>
-										</div>
+											{activeTab === "views" ? viewedCount : taps.length}
+										</p>
 										{((isFetching && !isQueryLoading) || isDemoLoading) && (
 											<div className="absolute inset-0 flex items-center justify-center">
 												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />

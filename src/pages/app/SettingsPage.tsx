@@ -785,7 +785,7 @@ export function SettingsPage() {
 						})}
 						<button
 							type="button"
-							onClick={() => navigate("/auth/sign-in")}
+							onClick={() => navigate("/auth/sign-in?mode=add-profile")}
 							className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
 						>
 							<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">

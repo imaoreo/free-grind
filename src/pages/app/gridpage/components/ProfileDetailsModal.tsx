@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X } from "lucide-react";
+import { Ban, Check, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -55,6 +55,10 @@ import { SKIP_BLOCK_CONFIRM_KEY } from "../../../../utils/blockConfirm";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
+
+// Synthetic hash prepended to the photo carousel when the profile has an
+// active Right Now post with an image, so it shows as the first slide.
+const RIGHT_NOW_SLIDE_HASH = "__right_now_slide__";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -220,7 +224,7 @@ export function ProfileDetailsModal({
 
 	const formattedActiveGenders = useMemo(() => {
 		if (!activeProfile?.genders.length) {
-			return t("profile_editor.sections.states.not_set");
+			return "Not set";
 		}
 
 		return activeProfile.genders
@@ -230,7 +234,7 @@ export function ProfileDetailsModal({
 
 	const formattedActivePronouns = useMemo(() => {
 		if (!activeProfile?.pronouns.length) {
-			return t("profile_editor.sections.states.not_set");
+			return "Not set";
 		}
 
 		return activeProfile.pronouns
@@ -249,8 +253,7 @@ export function ProfileDetailsModal({
 				formatEnumArray(activeProfile.grindrTribes, tribeLabels, t),
 			) ||
 			!shouldHideField(formattedActiveGenders) ||
-			!shouldHideField(formattedActivePronouns) ||
-			!shouldHideField(activeProfile.rightNowText?.trim())
+			!shouldHideField(formattedActivePronouns)
 		);
 	}, [activeProfile, formattedActiveGenders, formattedActivePronouns, t]);
 
@@ -795,7 +798,6 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 
 	// Keep refs in sync so the wheel handler always sees current values
 	carouselIndexRef.current = mobileCarouselPhotoIndex;
-	carouselTotalRef.current = activeProfilePhotoHashes.length;
 
 	useEffect(() => {
 		const el = mobileCarouselRef.current;
@@ -836,15 +838,45 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 
 		return createdMap;
 	}, [activeProfile]);
+
+	const hasRightNowSlide = !!(
+		activeProfile &&
+		!shouldHideField(activeProfile.rightNowText?.trim()) &&
+		(activeProfile.rightNowFullImageUrl || activeProfile.rightNowThumbnailUrl)
+	);
+	const rightNowSlideUrl = activeProfile?.rightNowFullImageUrl || activeProfile?.rightNowThumbnailUrl || null;
+
+	// The photo set shown in both carousels and the full-screen viewer, with
+	// the Right Now post's image (if any) prepended as the first slide.
+	const carouselHashes = useMemo(
+		() => (hasRightNowSlide ? [RIGHT_NOW_SLIDE_HASH, ...activeProfilePhotoHashes] : activeProfilePhotoHashes),
+		[hasRightNowSlide, activeProfilePhotoHashes],
+	);
+	const getSlideImageUrl = (hash: string) =>
+		hash === RIGHT_NOW_SLIDE_HASH ? (rightNowSlideUrl ?? "") : getProfileImageUrl(hash, "1024x1024");
+	const isRightNowSlideActive = carouselHashes[mobileCarouselPhotoIndex] === RIGHT_NOW_SLIDE_HASH;
+	carouselTotalRef.current = carouselHashes.length;
+
 	const photoUrls = useMemo(() => {
-		return activeProfilePhotoHashes.map((hash) =>
-			getProfileImageUrl(hash, "1024x1024"),
-		);
-	}, [activeProfilePhotoHashes]);
+		return carouselHashes.map((hash) => getSlideImageUrl(hash));
+	}, [carouselHashes, rightNowSlideUrl]);
 
 	const renderPhotoExtraInfo = useCallback(
 		(index: number) => {
-			const hash = activeProfilePhotoHashes[index];
+			const hash = carouselHashes[index];
+
+			if (hash === RIGHT_NOW_SLIDE_HASH) {
+				return (
+					<p
+						className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold ring-1 ring-white/25"
+						style={{ color: "var(--right-now)" }}
+					>
+						<Zap className="h-3.5 w-3.5" />
+						<span>{t("profile_details.right_now")}</span>
+					</p>
+				);
+			}
+
 			const meta = photoCreatedAtByHash[hash];
 			if (!meta?.takenOnGrindr && !meta?.createdAt) return null;
 
@@ -867,7 +899,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				</p>
 			);
 		},
-		[activeProfilePhotoHashes, photoCreatedAtByHash, t],
+		[carouselHashes, photoCreatedAtByHash, t],
 	);
 
 	const openPhotoViewer = (index: number) => {
@@ -1005,15 +1037,22 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						className="relative overflow-hidden bg-black"
 						style={{ height: variant === "page" ? "min(78dvh, calc(100vw * 1.55))" : "min(55dvh, calc((100vw - 3rem) * 1.25))" }}
 					>
+						{isRightNowSlideActive && (
+							<div
+								className="pointer-events-none absolute inset-0 z-30"
+								style={{ boxShadow: "inset 0 0 34px -10px color-mix(in srgb, color-mix(in srgb, var(--right-now), black 25%), transparent 35%)" }}
+								aria-hidden="true"
+							/>
+						)}
 						<div
 							className="pointer-events-none absolute inset-x-0 top-0 z-10"
 							style={{ height: "6rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
 							aria-hidden="true"
 						/>
-						{activeProfilePhotoHashes.length === 0 && (
+						{carouselHashes.length === 0 && (
 							<ProfileImage alt={t("profile_details.default_profile")} className="h-full w-full object-cover" />
 						)}
-						{activeProfilePhotoHashes.map((hash, index) => (
+						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
 								className="absolute inset-0"
@@ -1029,27 +1068,51 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									aria-label={t("profile_details.open_photo", { index: index + 1 })}
 								/>
 								<img
-									src={getProfileImageUrl(hash, "1024x1024")}
+									src={getSlideImageUrl(hash)}
 									alt={t("profile_details.photo_alt", { name: activeProfileName })}
 									className="h-full w-full object-cover"
 								/>
 							</div>
 						))}
-						{activeProfile.lastReceivedTapTimestamp != null && (
-							<div className="pointer-events-none absolute bottom-3 left-3 z-20">
-								<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
-									<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
-									<span className="text-xs font-medium text-white">{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}</span>
-								</div>
+						{(activeProfile.lastReceivedTapTimestamp != null || hasRightNowSlide) && (
+							<div className="pointer-events-none absolute bottom-3 left-3 z-20 flex flex-row items-center gap-1.5">
+								{activeProfile.lastReceivedTapTimestamp != null && (
+									<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+										<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+										<span className="text-xs font-medium text-white">{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}</span>
+									</div>
+								)}
+								{hasRightNowSlide && (
+									<p
+										className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold ring-1 ring-white/25"
+										style={{ color: "var(--right-now)" }}
+									>
+										<Zap className="h-3.5 w-3.5" />
+										<span>{t("profile_details.right_now")}</span>
+									</p>
+								)}
 							</div>
 						)}
-						{activeProfilePhotoHashes.length > 1 && (
+						{carouselHashes.length > 1 && (
 							<div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
-									{activeProfilePhotoHashes.map((hash, index) => (
+									{carouselHashes.map((hash, index) => (
 										<span
 											key={`${hash}-dot`}
-											className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"}`}
+											className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${
+												hash === RIGHT_NOW_SLIDE_HASH
+													? (index === mobileCarouselPhotoIndex ? "h-3" : "h-1.5")
+													: (index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40")
+											}`}
+											style={
+												hash === RIGHT_NOW_SLIDE_HASH
+													? {
+															backgroundColor: index === mobileCarouselPhotoIndex
+																? "var(--right-now)"
+																: "color-mix(in srgb, var(--right-now), transparent 55%)",
+														}
+													: undefined
+											}
 											aria-hidden="true"
 										/>
 									))}
@@ -1066,7 +1129,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 					) : activeProfile ? (
 						<ProfileDetailsContent
 							activeProfile={activeProfile}
-							activeProfilePhotoHashes={activeProfilePhotoHashes}
+							activeProfilePhotoHashes={carouselHashes}
 							isDesktopLike={isDesktopLike}
 							showMobileCarousel={true}
 							mobileCarouselRef={mobileCarouselRef}
@@ -1321,17 +1384,24 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						style={{ width: "42%" }}
 						onWheel={(e) => {
 							e.preventDefault();
-							if (e.deltaY > 0) setMobileCarouselPhotoIndex((i) => Math.min(i + 1, activeProfilePhotoHashes.length - 1));
+							if (e.deltaY > 0) setMobileCarouselPhotoIndex((i) => Math.min(i + 1, carouselHashes.length - 1));
 							else if (e.deltaY < 0) setMobileCarouselPhotoIndex((i) => Math.max(i - 1, 0));
 						}}
 					>
-						{activeProfilePhotoHashes.length === 0 && (
+						{isRightNowSlideActive && (
+							<div
+								className="pointer-events-none absolute inset-0 z-30"
+								style={{ boxShadow: "inset 0 0 34px -10px color-mix(in srgb, color-mix(in srgb, var(--right-now), black 25%), transparent 35%)" }}
+								aria-hidden="true"
+							/>
+						)}
+						{carouselHashes.length === 0 && (
 							<ProfileImage
 								alt={t("profile_details.default_profile")}
 								className="h-full w-full object-cover brightness-50"
 							/>
 						)}
-						{activeProfilePhotoHashes.map((hash, index) => (
+						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
 								className="absolute inset-0"
@@ -1347,31 +1417,53 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									aria-label={t("profile_details.open_photo", { index: index + 1 })}
 								/>
 								<img
-									src={getProfileImageUrl(hash, "1024x1024")}
+									src={getSlideImageUrl(hash)}
 									alt={t("profile_details.photo_alt", { name: activeProfileName })}
 									className="h-full w-full object-cover"
 								/>
 							</div>
 						))}
-						{activeProfile.lastReceivedTapTimestamp != null && (
-							<div className="pointer-events-none absolute bottom-3 left-3 z-20">
-								<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
-									<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
-									<span className="text-xs font-medium text-white">
-										{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
-									</span>
-								</div>
+						{(activeProfile.lastReceivedTapTimestamp != null || hasRightNowSlide) && (
+							<div className="pointer-events-none absolute bottom-3 left-3 z-20 flex flex-row items-center gap-1.5">
+								{activeProfile.lastReceivedTapTimestamp != null && (
+									<div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1.5 backdrop-blur-sm">
+										<Flame className="h-3.5 w-3.5 shrink-0 text-orange-400" />
+										<span className="text-xs font-medium text-white">
+											{formatRelativeTime(activeProfile.lastReceivedTapTimestamp)}
+										</span>
+									</div>
+								)}
+								{hasRightNowSlide && (
+									<p
+										className="inline-flex items-center gap-1 rounded-full bg-black/65 px-3 py-1 text-xs font-semibold ring-1 ring-white/25"
+										style={{ color: "var(--right-now)" }}
+									>
+										<Zap className="h-3.5 w-3.5" />
+										<span>{t("profile_details.right_now")}</span>
+									</p>
+								)}
 							</div>
 						)}
-						{activeProfilePhotoHashes.length > 1 && (
+						{carouselHashes.length > 1 && (
 							<div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-2 rounded-full bg-black/30 px-[7px] py-[14px] backdrop-blur-sm">
-									{activeProfilePhotoHashes.map((hash, index) => (
+									{carouselHashes.map((hash, index) => (
 										<span
 											key={`${hash}-dot`}
 											className={`w-2 rounded-full transition-[height,background-color] duration-300 ease-out ${
-												index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40"
+												hash === RIGHT_NOW_SLIDE_HASH
+													? (index === mobileCarouselPhotoIndex ? "h-4" : "h-2")
+													: (index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40")
 											}`}
+											style={
+												hash === RIGHT_NOW_SLIDE_HASH
+													? {
+															backgroundColor: index === mobileCarouselPhotoIndex
+																? "var(--right-now)"
+																: "color-mix(in srgb, var(--right-now), transparent 55%)",
+														}
+													: undefined
+											}
 											aria-hidden="true"
 										/>
 									))}
@@ -1454,7 +1546,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									) : activeProfile ? (
 										<ProfileDetailsContent
 											activeProfile={activeProfile}
-											activeProfilePhotoHashes={activeProfilePhotoHashes}
+											activeProfilePhotoHashes={carouselHashes}
 											isDesktopLike={isDesktopLike}
 											showMobileCarousel={false}
 											mobileCarouselRef={mobileCarouselRef}

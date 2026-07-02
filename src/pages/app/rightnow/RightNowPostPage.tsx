@@ -1,9 +1,11 @@
-import { X, Plus, Home, Camera, Map, Loader2, CheckCircle2, AlertCircle, EyeOff, Droplet, Info, Lock, Hourglass } from "lucide-react";
+import { X, Home, Camera, Map, Loader2, CheckCircle2, AlertCircle, EyeOff, Droplet, Info, Lock, Hourglass } from "lucide-react";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { appLog } from "../../../utils/logger";
 import toast from "react-hot-toast";
 import { cn } from "../../../utils/cn";
+import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
+import { ToggleRow } from "../../../components/ui/toggle-row";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import { decodeGeohash } from "../../../utils/geohash";
 import { prepare1024SquareImage } from "../../../utils/media";
@@ -359,7 +361,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 
 	return (
 		<div
-			className={`fixed inset-0 z-40 flex flex-col no-touch-callout isolate ${
+			className={`fixed inset-0 z-[55] flex flex-col no-touch-callout isolate ${
 				isClosing ? "pointer-events-none" : ""
 			}`}
 		>
@@ -378,31 +380,38 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 				className={`relative mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden bg-[var(--bg)] shadow-2xl transform-gpu will-change-transform ${
 					isClosing ? "animate-modal-out" : "animate-modal-in"
 				} md:border-x md:border-[var(--border)]`}
-				style={{
-					paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 90px)",
-				}}
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}
-				<header className="relative z-10 flex items-center justify-between px-[var(--app-px)] py-4 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-					<h2 className="text-xl font-bold text-[var(--text)]">
-						{isEditMode
-							? t("right_now.edit_session_title")
-							: t("right_now.create_session_title")}
-					</h2>
-					<button
-						type="button"
-						onClick={handleClose}
-						className="rounded-full bg-[var(--surface-2)] p-2 text-[var(--text)] transition hover:opacity-90 shadow-sm"
-						aria-label={t("right_now.close_aria")}
-					>
-						<X className="h-5 w-5" />
-					</button>
+				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
+					<PageHeaderBackground color="var(--right-now)" />
+					<div className="flex items-center justify-between gap-3">
+						<div className="flex items-center gap-3">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
+								<Droplet className="h-5 w-5 fill-current" />
+							</div>
+							<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">
+								{isEditMode
+									? t("right_now.edit_session_title")
+									: t("right_now.create_session_title")}
+							</h2>
+						</div>
+						<button
+							type="button"
+							onClick={handleClose}
+							className="shrink-0 rounded-full bg-[var(--surface-2)] p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-3)] hover:text-[var(--text)] active:scale-90"
+							aria-label={t("right_now.close_aria")}
+						>
+							<X className="h-5 w-5" />
+						</button>
+					</div>
 				</header>
+
+				<div className="shrink-0 border-b border-[var(--border)]" />
 
 				{/* Progress Bar (Edit Mode) */}
 				{isEditMode && activeRightNowExpiresAt && (
-					<div className="relative z-10 px-[var(--app-px)] mx-1 pb-2">
+					<div className="relative z-10 px-[var(--app-px)] mx-1 pt-3 pb-2">
 						<style>
 							{`
 								@keyframes hourglass-rotate {
@@ -434,46 +443,40 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 				)}
 
 				{/* Top Status Bar: Credits (New) or Visibility Toggle (Edit) */}
-				<div className="relative z-10 px-[var(--app-px)] pb-2 space-y-3">
+				<div className="relative z-10 px-[var(--app-px)] pt-4 space-y-3">
 					{isEditMode ? (
-						<button
-							type="button"
-							onClick={() => setIsHidden(!isHidden)}
-							className={cn(
-								"flex w-full items-center justify-between rounded-2xl bg-[var(--surface-2)] p-3 border border-[var(--border)] shadow-sm active:scale-[0.99] transition-transform",
-								!isHidden ? "text-[var(--right-now)]" : "text-[var(--text)]"
-							)}
+						<div
+							className="overflow-hidden rounded-2xl shadow-sm"
+							style={{
+								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 96%)",
+								border: "1px solid color-mix(in srgb, var(--right-now), transparent 88%)",
+							}}
+						>
+							<ToggleRow
+								icon={<Droplet className="h-5 w-5 fill-current" />}
+								iconClass={cn(
+									"flex h-10 w-10 items-center justify-center shadow-sm transition-colors",
+									isHidden ? "bg-[var(--surface-3,var(--surface))] text-[var(--text-muted)]" : "bg-[var(--right-now)] text-white"
+								)}
+								label={t("right_now.visibility")}
+								description={isHidden ? t("right_now.status_hidden") : t("right_now.status_visible")}
+								checked={!isHidden}
+								onChange={(checked) => setIsHidden(!checked)}
+								dense
+								activeColor="var(--right-now)"
+								activeThumbColor="#fff"
+							/>
+						</div>
+					) : (
+						<div
+							className="flex items-center justify-between rounded-2xl p-3 shadow-sm"
+							style={{
+								backgroundColor: "color-mix(in srgb, var(--right-now), transparent 96%)",
+								border: "1px solid color-mix(in srgb, var(--right-now), transparent 88%)",
+							}}
 						>
 							<div className="flex items-center gap-4">
-								<div className={cn(
-									"flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-colors",
-									isHidden ? "bg-[var(--text-muted)]" : "bg-[var(--right-now)]"
-								)}>
-									<Droplet className="h-5 w-5 fill-current" />
-								</div>
-								<div className="text-left">
-									<div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] opacity-70">
-										{t("right_now.visibility")}
-									</div>
-									<div className="font-black text-[var(--text)]">
-										{isHidden ? t("right_now.status_hidden") : t("right_now.status_visible")}
-									</div>
-								</div>
-							</div>
-							<div className={cn(
-								"h-6 w-11 rounded-full p-1 transition-colors duration-200",
-								!isHidden ? "bg-[var(--right-now)]" : "bg-[var(--text-muted)]/20"
-							)}>
-								<div className={cn(
-									"h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-									!isHidden ? "translate-x-5" : "translate-x-0"
-								)} />
-							</div>
-						</button>
-					) : (
-						<div className="flex items-center justify-between rounded-2xl bg-[var(--surface-2)] p-3 border border-[var(--border)] shadow-sm">
-							<div className="flex items-center gap-4">
-								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--right-now)] text-white shadow-sm">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--right-now)] text-white shadow-sm">
 									<Droplet className="h-5 w-5 fill-current" />
 								</div>
 								<div>
@@ -516,7 +519,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					{/* Next Refresh Info */}
 					{!isEditMode && !canPost && (
 						<div className="flex items-center gap-4 rounded-2xl bg-[var(--surface-2)] p-3 border border-[var(--border)] shadow-sm animate-in fade-in slide-in-from-top-2">
-							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-500">
 								<AlertCircle className="h-5 w-5" />
 							</div>
 							<div>
@@ -538,7 +541,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 						canPost ? "overflow-y-auto" : "overflow-hidden"
 					)}
 				>
-					<div className={cn("space-y-4 py-4", !canPost && "h-full flex flex-col justify-center")}>
+					<div className={cn("py-4", !canPost && "h-full flex flex-col justify-center")}>
 						{!canPost ? (
 							/* State-of-the-art Empty/Locked State */
 							<div className="flex flex-col items-center justify-center px-4 text-center animate-in fade-in zoom-in-95 duration-500">
@@ -564,21 +567,25 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 						) : (
 							/* Regular Form */
 							<>
-								<div className="relative">
+								<div className="relative mb-2">
 									<textarea
 										autoFocus
 										value={text}
 										onChange={(e) => setText(e.target.value.slice(0, maxChars))}
 										placeholder={t("right_now.session_placeholder")}
-										className="w-full min-h-[100px] resize-none rounded-2xl border border-transparent bg-[var(--surface-2)] p-4 pb-8 text-[var(--text)] outline-none focus:border-[var(--right-now)] focus:ring-1 focus:ring-[var(--right-now)] transition-all"
+										className="w-full min-h-[76px] resize-none rounded-2xl p-3 pb-5 text-[var(--text)] outline-none focus:ring-1 focus:ring-[var(--right-now)] transition-all"
+										style={{
+											backgroundColor: "color-mix(in srgb, var(--right-now), transparent 96%)",
+											border: "1px solid color-mix(in srgb, var(--right-now), transparent 88%)",
+										}}
 									/>
-									<div className="absolute bottom-3 right-4 text-[10px] font-medium text-[var(--text-muted)] opacity-70">
+									<div className="absolute bottom-2.5 right-3 text-[10px] font-medium text-[var(--text-muted)] opacity-70">
 										{t("right_now.char_limit", { count: text.length })}
 									</div>
 								</div>
 
 								{/* Photo Selector */}
-								<div className="relative">
+								<div className="relative mb-4">
 									<input
 										type="file"
 										ref={fileInputRef}
@@ -609,97 +616,51 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 											type="button"
 											onClick={() => fileInputRef.current?.click()}
 											disabled={isUploading}
-											className="flex w-full items-center gap-3 rounded-2xl bg-[var(--surface)] p-4 text-[var(--text)] shadow-sm border border-[var(--border)] active:scale-[0.98] transition-transform disabled:opacity-50"
+											className="flex w-full items-center gap-4 rounded-2xl p-3 text-[var(--text)] shadow-sm active:scale-[0.99] transition-transform disabled:opacity-50"
+											style={{
+												backgroundColor: "color-mix(in srgb, var(--right-now), transparent 96%)",
+												border: "1px solid color-mix(in srgb, var(--right-now), transparent 88%)",
+											}}
 										>
-											<div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--surface-2)]">
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--right-now)] text-white shadow-sm">
 												{isUploading ? (
-													<Loader2 className="h-5 w-5 animate-spin text-[var(--text-muted)]" />
+													<Loader2 className="h-5 w-5 animate-spin" />
 												) : (
-													<Plus className="h-5 w-5 text-[var(--text-muted)]" />
+													<Camera className="h-5 w-5" />
 												)}
 											</div>
-											<div className="flex items-center gap-2 font-semibold">
-												<Camera className="h-4 w-4 text-[var(--text-muted)]" />
+											<span className="font-semibold">
 												{isUploading
 													? t("right_now.uploading")
 													: t("right_now.add_photo")}
-											</div>
+											</span>
 										</button>
 									)}
 								</div>
 
-								<div className="space-y-1">
-									{/* Hosting Toggle */}
-									<button
-										type="button"
-										onClick={() => setIsHosting(!isHosting)}
-										className={cn(
-											"flex w-full items-center justify-between p-4 transition-all duration-200",
-											isHosting ? "text-[var(--right-now)]" : "text-[var(--text)]"
+								<div
+									className="overflow-hidden rounded-2xl shadow-sm"
+									style={{
+										backgroundColor: "color-mix(in srgb, var(--right-now), transparent 96%)",
+										border: "1px solid color-mix(in srgb, var(--right-now), transparent 88%)",
+									}}
+								>
+									<ToggleRow
+										icon={<Home className="h-5 w-5" />}
+										iconClass={cn(
+											"flex h-10 w-10 items-center justify-center shadow-sm transition-colors",
+											isHosting ? "bg-[var(--right-now)] text-white" : "bg-[var(--surface-3,var(--surface))] text-[var(--text-muted)]"
 										)}
-									>
-										<div className="flex items-center gap-3">
-											<div className={cn(
-												"flex h-10 w-10 items-center justify-center rounded-full transition-colors",
-												isHosting ? "bg-[var(--right-now)] text-white" : "bg-[var(--surface-2)] text-[var(--text-muted)]"
-											)}>
-												<Home className="h-5 w-5" />
-											</div>
-											<span className="font-semibold">{t("right_now.i_am_hosting")}</span>
-										</div>
-										<div className={cn(
-											"h-6 w-11 rounded-full p-1 transition-colors duration-200",
-											isHosting ? "bg-[var(--right-now)]" : "bg-[var(--text-muted)]/20"
-										)}>
-											<div className={cn(
-												"h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-												isHosting ? "translate-x-5" : "translate-x-0"
-											)} />
-										</div>
-									</button>
+										label={t("right_now.i_am_hosting")}
+										description={t("right_now.i_am_hosting_desc")}
+										checked={isHosting}
+										onChange={setIsHosting}
+										dense
+										activeColor="var(--right-now)"
+										activeThumbColor="#fff"
+									/>
 								</div>
 							</>
-						)}
-
-						{canPost && (
-							<div className="pt-4">
-								<button
-									type="button"
-									onClick={handlePost}
-									disabled={isPosting}
-									className="group relative overflow-hidden w-full rounded-2xl bg-[var(--right-now)] py-4 text-center font-bold text-white shadow-lg shadow-[var(--right-now)]/20 active:scale-[0.98] transition-all hover:brightness-110 disabled:opacity-70 flex items-center justify-center gap-2"
-								>
-									<div className="relative z-10 flex items-center justify-center gap-2">
-										{isPosting && <Loader2 className="h-5 w-5 animate-spin" />}
-										{isPosting
-											? isEditMode
-												? t("right_now.updating")
-												: t("right_now.starting_session")
-											: isEditMode
-											? t("right_now.update_now")
-											: t("right_now.start_now")}
-									</div>
-									<div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
-								</button>
-
-								{isEditMode && rightNowTestMode && (
-									<button
-										type="button"
-										onClick={handleEndSession}
-										disabled={isEnding || isPosting}
-										className="mt-3 w-full rounded-2xl border border-red-500/30 bg-red-500/10 py-3 text-center font-semibold text-red-500 transition-all active:scale-[0.98] disabled:opacity-50"
-									>
-										{isEnding ? (
-											<div className="flex items-center justify-center gap-2">
-												<Loader2 className="h-4 w-4 animate-spin" />
-												{t("right_now.ending_session")}
-											</div>
-										) : (
-											t("right_now.end_session")
-										)}
-									</button>
-								)}
-							</div>
 						)}
 
 						{/* Debug Info Box - Visible when Developer Mode is on. Explicitly z-20 to stay above the background glow. */}
@@ -786,6 +747,51 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 						)}
 					</div>
 				</div>
+
+				{/* Bottom actions */}
+				{canPost && (
+					<div
+						className="relative z-10 shrink-0 border-t border-[var(--border)] px-[var(--app-px)] pt-3"
+						style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+					>
+						<button
+							type="button"
+							onClick={handlePost}
+							disabled={isPosting}
+							className="group relative overflow-hidden w-full rounded-2xl bg-[var(--right-now)] py-4 text-center font-bold text-white shadow-lg shadow-[var(--right-now)]/20 active:scale-[0.98] transition-all hover:brightness-110 disabled:opacity-70 flex items-center justify-center gap-2"
+						>
+							<div className="relative z-10 flex items-center justify-center gap-2">
+								{isPosting && <Loader2 className="h-5 w-5 animate-spin" />}
+								{isPosting
+									? isEditMode
+										? t("right_now.updating")
+										: t("right_now.starting_session")
+									: isEditMode
+									? t("right_now.update_now")
+									: t("right_now.start_now")}
+							</div>
+							<div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+						</button>
+
+						{isEditMode && rightNowTestMode && (
+							<button
+								type="button"
+								onClick={handleEndSession}
+								disabled={isEnding || isPosting}
+								className="mt-3 w-full rounded-2xl border border-red-500/30 bg-red-500/10 py-3 text-center font-semibold text-red-500 transition-all active:scale-[0.98] disabled:opacity-50"
+							>
+								{isEnding ? (
+									<div className="flex items-center justify-center gap-2">
+										<Loader2 className="h-4 w-4 animate-spin" />
+										{t("right_now.ending_session")}
+									</div>
+								) : (
+									t("right_now.end_session")
+								)}
+							</button>
+						)}
+					</div>
+				)}
 			</div>
 		</div>
 	);

@@ -5,6 +5,9 @@ export function ToggleRow({
 	description,
 	icon,
 	iconClass,
+	activeColor,
+	activeThumbColor,
+	dense,
 }: {
 	checked: boolean;
 	onChange: (checked: boolean) => void;
@@ -12,15 +15,19 @@ export function ToggleRow({
 	description?: string;
 	icon?: React.ReactNode;
 	iconClass?: string;
+	activeColor?: string;
+	activeThumbColor?: string;
+	dense?: boolean;
 }) {
 	const hasIcon = icon !== undefined;
+	const padding = dense ? "p-3" : "px-4 py-3.5";
 
 	return (
 		<label
 			className={
 				hasIcon
-					? "flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--surface-2)]"
-					: `flex min-h-14 cursor-pointer justify-between gap-4 px-4 py-3.5 ${description ? "items-start" : "items-center"}`
+					? `flex cursor-pointer items-start gap-3 ${padding} transition-colors hover:bg-[var(--surface-2)]`
+					: `flex min-h-14 cursor-pointer justify-between gap-4 ${padding} ${description ? "items-start" : "items-center"}`
 			}
 		>
 			{hasIcon && (
@@ -36,7 +43,13 @@ export function ToggleRow({
 					</span>
 				)}
 			</span>
-			<span className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer items-center ${!hasIcon && description ? "mt-1" : hasIcon ? "mt-0.5" : ""}`}>
+			<span
+				className={`relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer items-center ${!hasIcon && description ? "mt-1" : hasIcon ? "mt-0.5" : ""}`}
+				style={{
+					"--toggle-active": activeColor ?? "var(--accent)",
+					"--toggle-thumb-active": activeThumbColor ?? "var(--accent-contrast)",
+				} as React.CSSProperties}
+			>
 				<input
 					type="checkbox"
 					checked={checked}
@@ -44,8 +57,8 @@ export function ToggleRow({
 					onClick={(e) => e.stopPropagation()}
 					className="peer absolute inset-0 z-10 m-0 cursor-pointer opacity-0"
 				/>
-				<span className="absolute inset-0 rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors peer-checked:border-transparent peer-checked:bg-[var(--accent)]" />
-				<span className="absolute left-1 h-5 w-5 rounded-full bg-[var(--text)] transition-transform peer-checked:translate-x-5 peer-checked:bg-[var(--accent-contrast)]" />
+				<span className="absolute inset-0 rounded-full border border-[var(--border)] bg-[var(--surface)] transition-colors peer-checked:border-transparent peer-checked:bg-[var(--toggle-active)]" />
+				<span className="absolute left-1 h-5 w-5 rounded-full bg-[var(--text)] transition-transform peer-checked:translate-x-5 peer-checked:bg-[var(--toggle-thumb-active)]" />
 			</span>
 		</label>
 	);

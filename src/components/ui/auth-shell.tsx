@@ -15,7 +15,8 @@ export function AuthShell({
 		<div className="fs-card-outer">
 			<div className="fs-card-inner">
 				<div
-					className="auth-glow animate-morph-glow pointer-events-none absolute left-1/2 top-0 -z-0 h-72 w-72 -translate-x-1/2 -translate-y-1/3 rounded-full bg-[var(--accent)]/20 opacity-60 blur-3xl"
+					className="auth-glow animate-morph-glow pointer-events-none absolute left-1/2 top-0 -z-0 h-96 w-96 -translate-x-1/2 -translate-y-1/2"
+					style={{ background: "radial-gradient(circle, color-mix(in srgb, var(--accent) 28%, transparent) 0%, transparent 70%)" }}
 					aria-hidden="true"
 				/>
 

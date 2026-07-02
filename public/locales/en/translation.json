@@ -142,6 +142,7 @@
         "add_photo": "Add photo",
         "add_video": "Add video",
         "i_am_hosting": "Hosting",
+        "i_am_hosting_desc": "Let others know you have a place",
         "show_on_map": "Show me on map",
         "start_now": "Start Now",
         "update_now": "Update Now",
@@ -707,13 +708,16 @@
         "sign_in": {
             "title": "Sign In",
             "subtitle": "Use your Grindr credentials or a token for Google, Apple, or Facebook.",
-            "no_account": "Don't have an account? Sign up",
+            "no_account_label": "Don't have an account?",
+            "no_account_action": "Sign up",
             "method_token": "Token",
             "method_password": "Email & Password",
             "token_help": "How to get your authentication token",
             "jwt_label": "JWT Token",
             "signing_in": "Signing in...",
-            "submit": "Sign In"
+            "submit": "Sign In",
+            "add_profile_title": "Add Profile",
+            "add_profile_subtitle": "Sign in with the account you want to add."
         },
         "bug_report": {
             "button": "Report a bug"

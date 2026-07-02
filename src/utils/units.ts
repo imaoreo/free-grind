@@ -80,10 +80,13 @@ export function poundsToGrams(valuePounds: number): number {
 export function formatHeightForUnits(
 	valueCm: number | null | undefined,
 	unitsPreset: UnitsPreset,
-	t?: (key: string, options?: any) => string,
+	_t?: (key: string, options?: any) => string,
 ): string {
 	if (valueCm == null || !Number.isFinite(valueCm)) {
-		return t ? t("browse_page.not_set") : "Not set";
+		// Internal sentinel consumed by shouldHideField — never shown to the
+		// user, so it must not be translated (translating it breaks hiding
+		// for any non-English locale).
+		return "Not set";
 	}
 
 	if (unitsPreset === "world") {
@@ -97,10 +100,10 @@ export function formatHeightForUnits(
 export function formatWeightForUnits(
 	valueGrams: number | null | undefined,
 	unitsPreset: UnitsPreset,
-	t?: (key: string, options?: any) => string,
+	_t?: (key: string, options?: any) => string,
 ): string {
 	if (valueGrams == null || !Number.isFinite(valueGrams)) {
-		return t ? t("browse_page.not_set") : "Not set";
+		return "Not set";
 	}
 
 	if (unitsPreset === "american") {

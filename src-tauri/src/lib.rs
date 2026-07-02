@@ -109,7 +109,7 @@ pub fn run() {
                     use webview2_com::PermissionRequestedEventHandler;
                     if let Some(win) = app.get_webview_window("main") {
                         let _ = win.with_webview(|webview| {
-                            let Ok(core) = webview.controller().CoreWebView2() else {
+                            let Ok(core) = (unsafe { webview.controller().CoreWebView2() }) else {
                                 return;
                             };
                             let mut token = Default::default();

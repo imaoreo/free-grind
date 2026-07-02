@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, memo } from "react";
+import { useLayoutEffect, useRef, useState, memo, type CSSProperties } from "react";
 import { Eye, Lock, History, MoveHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
@@ -224,38 +224,31 @@ export const InterestRow = memo(function InterestRow({
 			{!isPrivate && (
 				<div className="shrink-0 flex items-center justify-center h-12 w-12">
 					{mode === "taps" ? (
-						<div
-							className="relative flex h-12 w-12 items-center justify-center rounded-full border"
-							style={{
-								backgroundColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.07)`,
-								borderColor: `rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.45)`,
-								boxShadow: `0 2px 8px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.05)`,
-								color: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})`
-							}}
-						>
-							<span className="text-2xl leading-none select-none">
+						<div className="relative flex h-12 w-12 items-center justify-center">
+							<span
+								className="text-2xl leading-none select-none"
+								style={{
+									filter: `drop-shadow(0 0 3px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.55)) drop-shadow(0 0 7px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.3))`,
+								}}
+							>
 								{getTapEmoji(item.tapType)}
 							</span>
 							{item.isMutual && (
-								<div
-									className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-lg ring-0 ring-[var(--surface)]"
+								<span
+									className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-md"
+									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})` }}
 									title={t("interest_page.mutual_tap_tooltip")}
 								>
-									<MoveHorizontal className="h-3 w-3" />
-								</div>
+									<MoveHorizontal className="h-2.5 w-2.5" />
+								</span>
 							)}
 						</div>
 					) : (
 						<div
-							className="flex items-center gap-1.5 h-8 px-3 rounded-full border"
-							style={{
-								backgroundColor: "color-mix(in srgb, var(--text-muted), transparent 94%)",
-								borderColor: "color-mix(in srgb, var(--text-muted), transparent 60%)",
-							}}
+							className="glass-pill flex h-8 items-center gap-1.5 px-3"
+							style={{ "--pill-color": "var(--text-muted)" } as CSSProperties}
 						>
-							<div className="flex items-center justify-center h-4 w-4">
-								<Eye className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-							</div>
+							<Eye className="h-3.5 w-3.5 text-[var(--text-muted)]" />
 							<span className="text-xs font-bold leading-none tabular-nums text-[var(--text)]">
 								{item.viewCount || 1}
 							</span>

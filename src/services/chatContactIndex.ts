@@ -5,6 +5,7 @@ import type {
 	InboxContactIndexInput,
 } from "../types/chat-contact-index";
 import { appLog } from "../utils/logger";
+import { guardAgainstClosedPool } from "./sqlitePoolGuard";
 
 const CHAT_INDEX_DB = "sqlite:chat_contact_index.sqlite3";
 const SQLITE_BUSY_TIMEOUT_MS = 5_000;
@@ -30,7 +31,7 @@ let writeQueue: Promise<void> = Promise.resolve();
 async function getDb(): Promise<Database> {
 	if (!dbPromise) {
 		dbPromise = (async () => {
-			const db = await Database.load(CHAT_INDEX_DB);
+			const db = guardAgainstClosedPool(await Database.load(CHAT_INDEX_DB), "chat-index");
 			// Enable WAL mode and a reasonable busy timeout to improve concurrency.
 			// Note: We avoid manual BEGIN transactions because the Tauri plugin uses a connection pool
 			// without session affinity, which makes manual transactions unreliable.
@@ -97,11 +98,6 @@ function isSqliteLockedError(error: unknown): boolean {
 	return /database is locked|\(code:\s*(5|517)\)/i.test(error);
 }
 
-function isClosedPoolError(error: unknown): boolean {
-	const msg = error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error);
-	return /closed pool|connection.*closed|pool.*closed/i.test(msg);
-}
-
 async function executeWithLockRetry(
 	_db: Database,
 	label: string,
@@ -121,11 +117,6 @@ async function executeWithLockRetry(
 				}
 				return;
 			} catch (error) {
-				if (isClosedPoolError(error)) {
-					appLog.warn("[chat-index] connection pool closed, resetting", { label });
-					dbPromise = null;
-					throw error;
-				}
 				const locked = isSqliteLockedError(error);
 				if (!locked || attempt >= maxAttempts) {
 					throw error;
@@ -265,29 +256,20 @@ export async function getChatContactIndexForProfiles(
 	}
 
 	const placeholders = ids.map((_, index) => `$${index + 1}`).join(", ");
-	let rows: ChatContactIndexRow[];
-	try {
-		rows = await db.select<ChatContactIndexRow[]>(
-			`
-			SELECT
-				profile_id,
-				conversation_id,
-				last_message_timestamp,
-				unread_count,
-				has_chatted,
-				updated_at
-			FROM chat_contact_index
-			WHERE profile_id IN (${placeholders})
-			`,
-			ids,
-		);
-	} catch (error) {
-		if (isClosedPoolError(error)) {
-			appLog.warn("[chat-index] connection pool closed during read, resetting");
-			dbPromise = null;
-		}
-		throw error;
-	}
+	const rows = await db.select<ChatContactIndexRow[]>(
+		`
+		SELECT
+			profile_id,
+			conversation_id,
+			last_message_timestamp,
+			unread_count,
+			has_chatted,
+			updated_at
+		FROM chat_contact_index
+		WHERE profile_id IN (${placeholders})
+		`,
+		ids,
+	);
 
 	return rows.map((row) => ({
 		profileId: row.profile_id,

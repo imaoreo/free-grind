@@ -37,6 +37,7 @@ import type {
 	StoredMessage,
 } from "../types/chat-db";
 import { appLog } from "../utils/logger";
+import { guardAgainstClosedPool } from "./sqlitePoolGuard";
 
 // Pre-multi-account file. Once a user is known, the active db switches to a
 // per-account file (see setActiveChatDbUser) — this name only stays in play
@@ -141,7 +142,7 @@ let writeQueue: Promise<void> = Promise.resolve();
 async function getDb(): Promise<Database> {
 	if (!dbPromise) {
 		dbPromise = (async () => {
-			const db = await Database.load(activeChatDbName);
+			const db = guardAgainstClosedPool(await Database.load(activeChatDbName), "chat-db");
 			try {
 				await db.execute("PRAGMA journal_mode = WAL");
 				await db.execute("PRAGMA synchronous = NORMAL");

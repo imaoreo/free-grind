@@ -1,5 +1,5 @@
 import { useState, type InputHTMLAttributes, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/useAuth";
 import { AuthShell } from "../../components/ui/auth-shell";
 import { Button } from "../../components/ui/button";
@@ -94,6 +94,8 @@ function AuthSubmitSection({
 
 export function SignInPage() {
 	const { t } = useTranslation();
+	const [searchParams] = useSearchParams();
+	const addProfileMode = searchParams.get("mode") === "add-profile";
 	const [method, setMethod] = useState<SignInMethod>("password");
 
 	const [email, setEmail] = useState("");
@@ -138,18 +140,33 @@ export function SignInPage() {
 
 	return (
 		<AuthShell
-			title={t("auth.sign_in.title")}
-			subtitle={t("auth.sign_in.subtitle")}
+			title={addProfileMode ? t("auth.sign_in.add_profile_title", { defaultValue: "Add Profile" }) : t("auth.sign_in.title")}
+			subtitle={addProfileMode ? t("auth.sign_in.add_profile_subtitle", { defaultValue: "Sign in with the account you want to add." }) : t("auth.sign_in.subtitle")}
 			footer={
-				<div className="flex flex-col items-center gap-3">
-					<Link
-						to="/auth/sign-up"
-						className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
-					>
-						{t("auth.sign_in.no_account")}
-					</Link>
-					<BugReportButton />
-				</div>
+				addProfileMode ? (
+					<div className="flex flex-col items-center gap-3">
+						<button
+							type="button"
+							onClick={() => navigate(-1)}
+							className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]"
+						>
+							{t("common.cancel", { defaultValue: "Cancel" })}
+						</button>
+					</div>
+				) : (
+					<div className="flex flex-col items-center gap-3">
+						<span className="text-sm text-[var(--text-muted)]">
+							{t("auth.sign_in.no_account_label")}{" "}
+							<Link
+								to="/auth/sign-up"
+								className="font-bold underline hover:text-[var(--text)]"
+							>
+								{t("auth.sign_in.no_account_action")}
+							</Link>
+						</span>
+						<BugReportButton />
+					</div>
+				)
 			}
 		>
 			{/* Method selector */}
@@ -190,7 +207,7 @@ export function SignInPage() {
 							<button
 								type="button"
 								onClick={() => setShowPassword((prev) => !prev)}
-								className="text-[var(--text-muted)] hover:text-[var(--text)]"
+								className="flex items-center p-0 text-[var(--text-muted)] hover:text-[var(--text)]"
 								tabIndex={-1}
 								aria-label={
 									showPassword
