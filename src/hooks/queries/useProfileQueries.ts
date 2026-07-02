@@ -1,6 +1,21 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiFunctions } from "../useApiFunctions";
 import type { TravelPlanPayload } from "../../types/travel";
+import { findConversationByProfileId } from "../../services/chatDb";
+import { markSelfBlockAction } from "../../utils/selfBlockActions";
+
+// chat.v1.conversation.delete fires identically for "we blocked/unblocked
+// them" and "they blocked/unblocked us" — mark the conversation right after
+// our own block/unblock call succeeds so that event can tell the two apart.
+function markConversationSelfAction(profileId: string, action: "block" | "unblock") {
+	void findConversationByProfileId(profileId)
+		.then((conversation) => {
+			if (conversation) {
+				markSelfBlockAction(conversation.conversationId, action);
+			}
+		})
+		.catch(() => {});
+}
 
 /**
  * Hook to fetch and manage blocked profile IDs.
@@ -24,6 +39,12 @@ export function useBlockProfile() {
 
 	return useMutation({
 		mutationFn: (profileId: string) => api.blockProfile(profileId),
+		// Mark before the request goes out, not in onSuccess — the resulting
+		// chat.v1.conversation.delete WS event can otherwise race ahead of an
+		// onSuccess-time mark and land unattributed as "You were blocked".
+		onMutate: (profileId) => {
+			markConversationSelfAction(profileId, "block");
+		},
 		onSuccess: (_, profileId) => {
 			// Manually update the cache for blocked IDs to keep UI in sync
 			queryClient.setQueryData<string[]>(["blocked-profile-ids"], (old) => {
@@ -45,6 +66,9 @@ export function useUnblockProfile() {
 
 	return useMutation({
 		mutationFn: (profileId: string) => api.unblockProfile(profileId),
+		onMutate: (profileId) => {
+			markConversationSelfAction(profileId, "unblock");
+		},
 		onSuccess: (_, profileId) => {
 			// Manually update the cache for blocked IDs to keep UI in sync
 			queryClient.setQueryData<string[]>(["blocked-profile-ids"], (old) => {

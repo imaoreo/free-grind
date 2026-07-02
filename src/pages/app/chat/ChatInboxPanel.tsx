@@ -105,9 +105,11 @@ function ChatConversationRow({
 				aria-label={displayName}
 				onClick={(e) => {
 					e.stopPropagation();
+					if (isArchived) return;
 					if (otherParticipant?.profileId) onViewProfile(otherParticipant.profileId);
 				}}
-				className="relative shrink-0"
+				disabled={isArchived}
+				className="relative shrink-0 disabled:cursor-default disabled:opacity-80"
 			>
 				<div className="h-14 w-14 squircle bg-[var(--surface-2)] drop-shadow-sm">
 					<ProfileImage

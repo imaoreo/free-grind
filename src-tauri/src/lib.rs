@@ -104,8 +104,9 @@ pub fn run() {
                     use tauri::Manager;
                     use webview2_com::Microsoft::Web::WebView2::Win32::{
                         COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
-                        COREWEBVIEW2_PERMISSION_STATE_ALLOW, PermissionRequestedEventHandler,
+                        COREWEBVIEW2_PERMISSION_STATE_ALLOW,
                     };
+                    use webview2_com::PermissionRequestedEventHandler;
                     if let Some(win) = app.get_webview_window("main") {
                         let _ = win.with_webview(|webview| {
                             let Ok(core) = webview.controller().CoreWebView2() else {

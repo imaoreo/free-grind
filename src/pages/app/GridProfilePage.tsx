@@ -33,6 +33,7 @@ import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { findConversationByProfileId, insertSystemMessage } from "../../services/chatDb";
 import { unarchiveConversation } from "../../services/conversationArchive";
 import { appLog } from "../../utils/logger";
+import { consumeSelfBlockAction } from "../../utils/selfBlockActions";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../utils/blockConfirm";
 
@@ -49,7 +50,11 @@ function unarchiveConversationIfArchived(profileId: string) {
 		.then((stored) => {
 			if (stored?.archived) {
 				void unarchiveConversation(stored.conversationId);
-				void insertSystemMessage(stored.conversationId, "SystemUnblocked").catch((error) => {
+				const isSelf = consumeSelfBlockAction(stored.conversationId, "unblock");
+				void insertSystemMessage(
+					stored.conversationId,
+					isSelf ? "SystemUnblockedBySelf" : "SystemUnblocked",
+				).catch((error) => {
 					appLog.error("[grid-profile] failed to insert system message", error);
 				});
 			}

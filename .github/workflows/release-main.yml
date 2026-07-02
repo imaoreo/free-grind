@@ -582,6 +582,13 @@ jobs:
 
       - name: Build iOS app without code signing
         id: ios_app
+        env:
+          # Xcode 26's bundled MetalToolchain shadows the Swift back-deployment
+          # compatibility libs (swiftCompatibility51/56/Concurrency), causing
+          # "undefined symbol __swift_FORCE_LOAD_$_swiftCompatibility*" link
+          # errors against the Rust-built libapp.a. Forcing the default
+          # toolchain restores those libs. See actions/runner-images#13135.
+          TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
         run: |
           IOS_PROJECT_DIR="src-tauri/gen/apple"
           WORKSPACE_PATH=$(find "$IOS_PROJECT_DIR" -maxdepth 2 -name '*.xcworkspace' | head -n 1)

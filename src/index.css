@@ -1050,6 +1050,7 @@
   }
   .fs-card-inner.fs-card-lg {
     max-width: 30rem;
+    min-height: 580px;
   }
   .fs-card-inner .top-dots-wrap {
     padding-bottom: 3.5rem;

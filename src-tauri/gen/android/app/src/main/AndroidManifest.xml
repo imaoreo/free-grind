@@ -39,6 +39,7 @@
             android:label="@string/main_activity_title"
             android:name=".MainActivity"
             android:theme="@style/Theme.free_grind.Starting"
+            android:screenOrientation="sensorPortrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Custom splash content shown after the system SplashScreen (theme-based,
+     icon + background only, see Theme.free_grind.Starting) hands off — the
+     system splash API has no slot for a spinner, so this is shown in its
+     own Dialog (see MainActivity.onCreate's splashDialog) on top of the
+     WebView and dismissed once JsBridge.notifyContentReady() (or the
+     fallback timeout) fires. Same background color as the system splash so
+     the handoff between the two is invisible. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/splash_background">
+
+    <!-- Spinner rings the logo (same center, larger diameter). Its built-in
+         indeterminate animation can't be slowed down, so it's drawn as a
+         static arc (indeterminate=false, a partial progress value) and
+         rotated ourselves via splashSpinnerAnimator in MainActivity. -->
+    <FrameLayout
+        android:layout_width="160dp"
+        android:layout_height="160dp">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/splash_spinner"
+            android:layout_width="160dp"
+            android:layout_height="160dp"
+            android:layout_gravity="center"
+            android:indeterminate="false"
+            android:progress="30"
+            android:max="100"
+            app:indicatorSize="160dp"
+            app:trackThickness="3dp"
+            app:indicatorColor="@color/splash_accent"
+            app:trackColor="@android:color/transparent" />
+
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:layout_gravity="center"
+            android:src="@mipmap/ic_launcher_foreground"
+            android:contentDescription="@string/app_name" />
+
+    </FrameLayout>
+
+</LinearLayout>

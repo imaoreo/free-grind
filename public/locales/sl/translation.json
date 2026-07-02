@@ -398,7 +398,6 @@
             "method_password": "",
             "token_help": "",
             "jwt_label": "",
-            "sign_in_with_token": "",
             "submit": ""
         },
         "sign_up": {

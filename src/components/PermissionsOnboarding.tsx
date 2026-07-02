@@ -22,7 +22,32 @@ import logo from "../images/freegrind-logo.webp";
 type PermissionStatus = "idle" | "granted" | "denied" | "unavailable";
 
 const MIN_LOADING_MS = 1100;
-const PERMISSION_TIMEOUT_MS = 20_000;
+const PERMISSION_TIMEOUT_MS = 8_000;
+const BRIDGE_POLL_INTERVAL_MS = 600;
+const BRIDGE_POLL_TIMEOUT_MS = 90_000;
+
+type AndroidBridge = {
+	checkMicrophonePermission?: () => boolean;
+	checkNotificationPermission?: () => boolean;
+	checkLocationPermission?: () => boolean;
+};
+
+function getAndroidBridge(): AndroidBridge | undefined {
+	return (window as unknown as Record<string, unknown>).FreeGrindBridge as AndroidBridge | undefined;
+}
+
+function pollBridgePermission(checkFn: () => boolean): Promise<boolean> {
+	return new Promise((resolve) => {
+		if (checkFn()) { resolve(true); return; }
+		const deadline = Date.now() + BRIDGE_POLL_TIMEOUT_MS;
+		const tick = () => {
+			if (checkFn()) { resolve(true); return; }
+			if (Date.now() >= deadline) { resolve(false); return; }
+			setTimeout(tick, BRIDGE_POLL_INTERVAL_MS);
+		};
+		setTimeout(tick, BRIDGE_POLL_INTERVAL_MS);
+	});
+}
 
 function withTimeout<T>(promise: Promise<T>, ms = PERMISSION_TIMEOUT_MS): Promise<T> {
 	return Promise.race([
@@ -87,7 +112,7 @@ function TopDots({ current }: { current: Step }) {
 	return (
 		<div
 			className="top-dots-wrap flex justify-center pb-3 pt-5"
-			style={{ paddingTop: "max(20px, env(safe-area-inset-top))" }}
+			style={{ paddingTop: "max(36px, env(safe-area-inset-top))" }}
 		>
 			<StepDots current={current} />
 		</div>
@@ -163,9 +188,7 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 			try {
 				const p = platform();
 				if (p === "android") {
-					const bridge = (window as unknown as Record<string, unknown>).FreeGrindBridge as
-						| { checkMicrophonePermission?: () => boolean }
-						| undefined;
+					const bridge = getAndroidBridge();
 					if (bridge?.checkMicrophonePermission?.()) setMicrophoneStatus("granted");
 				} else {
 					const status = await navigator.permissions?.query({ name: "microphone" });
@@ -188,11 +211,20 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 		if (!isTauriRuntime()) { setNotificationStatus("granted"); return; }
 		setIsRequesting(true);
 		try {
-			const result = await withTimeout(requestPermission());
-			setNotificationStatus(result === "granted" ? "granted" : "denied");
+			const bridge = getAndroidBridge();
+			if (bridge?.checkNotificationPermission) {
+				// Trigger the dialog, then poll the bridge for the real result
+				requestPermission().catch(() => {});
+				const granted = await pollBridgePermission(() => bridge.checkNotificationPermission!());
+				setNotificationStatus(granted ? "granted" : "denied");
+			} else {
+				const result = await withTimeout(requestPermission());
+				setNotificationStatus(result === "granted" ? "granted" : "denied");
+			}
 		} catch (error) {
 			appLog.warn("[Onboarding] Failed to request notification permission", error);
-			setNotificationStatus("denied");
+			const granted = await isPermissionGranted().catch(() => false);
+			setNotificationStatus(granted ? "granted" : "denied");
 		} finally {
 			setIsRequesting(false);
 		}
@@ -202,7 +234,12 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 		setIsRequesting(true);
 		try {
 			const p = platform();
-			if (p === "android" || p === "ios") {
+			const bridge = getAndroidBridge();
+			if (p === "android" && bridge?.checkLocationPermission) {
+				requestGeoPermissions(["location"]).catch(() => {});
+				const granted = await pollBridgePermission(() => bridge.checkLocationPermission!());
+				setLocationStatus(granted ? "granted" : "denied");
+			} else if (p === "android" || p === "ios") {
 				const perms = await withTimeout(requestGeoPermissions(["location"]));
 				setLocationStatus(perms.location === "granted" ? "granted" : "denied");
 			} else {
@@ -211,7 +248,18 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 			}
 		} catch (error) {
 			appLog.warn("[Onboarding] Failed to request location permission", error);
-			setLocationStatus("denied");
+			try {
+				const p = platform();
+				if (p === "android" || p === "ios") {
+					const perms = await checkGeoPermissions();
+					setLocationStatus(perms.location === "granted" ? "granted" : "denied");
+				} else {
+					const status = await navigator.permissions?.query({ name: "geolocation" });
+					setLocationStatus(status?.state === "granted" ? "granted" : "denied");
+				}
+			} catch {
+				setLocationStatus("denied");
+			}
 		} finally {
 			setIsRequesting(false);
 		}
@@ -220,10 +268,18 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 	const requestMicrophone = async () => {
 		setIsRequesting(true);
 		try {
-			const stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio: true }));
-			stream.getTracks().forEach((t) => t.stop());
-			setMicrophoneStatus("granted");
-			setMicrophoneDetail(null);
+			const bridge = getAndroidBridge();
+			if (bridge?.checkMicrophonePermission) {
+				navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+				const granted = await pollBridgePermission(() => bridge.checkMicrophonePermission!());
+				setMicrophoneStatus(granted ? "granted" : "denied");
+				setMicrophoneDetail(null);
+			} else {
+				const stream = await withTimeout(navigator.mediaDevices.getUserMedia({ audio: true }));
+				stream.getTracks().forEach((t) => t.stop());
+				setMicrophoneStatus("granted");
+				setMicrophoneDetail(null);
+			}
 		} catch (error) {
 			appLog.warn("[Onboarding] Failed to request microphone permission", error);
 			const { status, detail } = classifyMediaError(error);
@@ -267,8 +323,8 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 					</div>
 
 					<div
-						className="px-6 pt-14"
-						style={{ paddingBottom: "max(28px, env(safe-area-inset-bottom))" }}
+						className="flex h-28 shrink-0 flex-col justify-end gap-2 px-6"
+						style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 					>
 						<button
 							type="button"
@@ -346,8 +402,8 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 					</div>
 
 					<div
-						className="px-6 pt-14"
-						style={{ paddingBottom: "max(28px, env(safe-area-inset-bottom))" }}
+						className="flex h-28 shrink-0 flex-col justify-end gap-2 px-6"
+						style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 					>
 						<button
 							type="button"
@@ -375,14 +431,16 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 							<BarChart2 className="h-9 w-9 text-[var(--accent)]" />
 						</div>
 						<h2 className="text-xl font-bold text-[var(--text)]">Anonymous Analytics</h2>
-						<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
-							Help us improve Free Grind by sharing anonymous usage data. No personal information is ever collected.
-						</p>
+						<div className="flex h-24 flex-col items-center overflow-hidden">
+							<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
+								Help us improve Free Grind by sharing anonymous usage data. No personal information is ever collected.
+							</p>
+						</div>
 					</div>
 
 					<div
-						className="flex flex-col gap-2 px-6 pt-14"
-						style={{ paddingBottom: "max(28px, env(safe-area-inset-bottom))" }}
+						className="flex h-44 shrink-0 flex-col justify-end gap-2 px-6"
+						style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 					>
 						<button
 							type="button"
@@ -412,18 +470,20 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 					<TopDots current="scam" />
 
 					<div className="flex flex-1 flex-col items-center justify-center px-8 text-center">
-						<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-[var(--surface-2)] border border-[var(--border)]">
-							<AlertTriangle className="h-9 w-9 text-[var(--accent)]" />
+						<div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl border border-amber-400/40 bg-amber-400/10">
+							<AlertTriangle className="h-9 w-9 text-amber-500" />
 						</div>
-						<h2 className="text-xl font-bold text-[var(--text)]">Always Free</h2>
-						<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
-							Free Grind is free — and always will be. If someone sold you access or is asking you to pay, it's a scam. Don't pay, and report it.
-						</p>
+						<h2 className="text-xl font-bold text-[var(--text)]">Caution</h2>
+						<div className="flex h-24 flex-col items-center overflow-hidden">
+							<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
+								Free Grind is free — and always will be. If someone sold you access or is asking you to pay, it's a scam. Don't pay, and report it.
+							</p>
+						</div>
 					</div>
 
 					<div
-						className="px-6 pt-14"
-						style={{ paddingBottom: "max(28px, env(safe-area-inset-bottom))" }}
+						className="flex h-44 shrink-0 flex-col justify-end gap-2 px-6"
+						style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 					>
 						<button
 							type="button"
@@ -487,59 +547,49 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 					</div>
 
 					<h2 className="text-xl font-bold text-[var(--text)]">{cfg.title}</h2>
-					<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
-						{cfg.description}
-					</p>
-
-					{(status === "denied" || status === "unavailable") && detail && (
-						<p className="mt-3 text-xs text-[var(--text-muted)]">{detail}</p>
-					)}
-
-					{(status === "denied" || status === "unavailable") && (
-						<p className="mt-2 text-xs text-[var(--text-muted)]">
-							You can enable this in Settings later.
+					<div className="flex h-24 flex-col items-center overflow-hidden">
+						<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
+							{cfg.description}
 						</p>
-					)}
+
+						{(status === "denied" || status === "unavailable") && detail && (
+							<p className="mt-3 text-xs text-[var(--text-muted)]">{detail}</p>
+						)}
+
+						{(status === "denied" || status === "unavailable") && (
+							<p className="mt-2 text-xs text-[var(--text-muted)]">
+								You can enable this in Settings later.
+							</p>
+						)}
+					</div>
 				</div>
 
 				<div
-					className="flex flex-col gap-2 px-6 pt-14"
-					style={{ paddingBottom: "max(28px, env(safe-area-inset-bottom))" }}
+					className="flex h-44 shrink-0 flex-col justify-end gap-2 px-6"
+					style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 				>
-					{settled ? (
+					<button
+						type="button"
+						onClick={settled ? advance : cfg.onRequest}
+						disabled={isRequesting}
+						className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+					>
+						{settled ? (
+							<>Continue <ChevronRight className="h-4 w-4" /></>
+						) : isRequesting ? (
+							<><Loader2 className="h-4 w-4 animate-spin" /> Requesting…</>
+						) : (
+							<>Allow {cfg.title}</>
+						)}
+					</button>
+					{!settled && (
 						<button
 							type="button"
 							onClick={advance}
-							className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
+							className="w-full rounded-xl py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]"
 						>
-							Continue
-							<ChevronRight className="h-4 w-4" />
+							Skip for now
 						</button>
-					) : (
-						<>
-							<button
-								type="button"
-								onClick={cfg.onRequest}
-								disabled={isRequesting}
-								className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-3.5 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
-							>
-								{isRequesting ? (
-									<>
-										<Loader2 className="h-4 w-4 animate-spin" />
-										Requesting…
-									</>
-								) : (
-									<>Allow {cfg.title}</>
-								)}
-							</button>
-							<button
-								type="button"
-								onClick={advance}
-								className="w-full rounded-xl py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]"
-							>
-								Skip for now
-							</button>
-						</>
 					)}
 				</div>
 			</div>

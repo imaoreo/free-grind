@@ -27,6 +27,7 @@ import {
 	RotateCw,
 	SendHorizontal,
 	Share2,
+	ShieldCheck,
 	SquareCenterlineDashedHorizontal,
 	SquareStack,
 	Sticker,
@@ -83,7 +84,7 @@ import type { ArchivedReason } from "../../../types/chat-db";
 import { useAvatarCache } from "../../../hooks/useAvatarCache";
 import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
-import { SKIP_BLOCK_CONFIRM_KEY } from "../../../utils/blockConfirm";
+import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../../utils/blockConfirm";
 
 async function fixWebmDuration(blob: Blob, durationMs: number): Promise<Blob> {
 	if (!blob.type.includes("webm")) return blob;
@@ -124,6 +125,9 @@ type ChatThreadPanelProps = {
 	isDeletingConversation?: boolean;
 	onBlockProfile?: (profileId: number) => void | Promise<void>;
 	isBlockingProfile?: boolean;
+	onUnblockProfile?: (profileId: number) => void | Promise<void>;
+	isUnblockingProfile?: boolean;
+	isBlockedBySelf?: boolean;
 	onToggleFavorite?: (profileId: number, currentlyFavorite: boolean) => void | Promise<void>;
 	isFavorite?: boolean;
 	isTogglingFavorite?: boolean;
@@ -417,6 +421,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
 	});
+	const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
+	const [dontAskUnblockAgain, setDontAskUnblockAgain] = useState(false);
+	const [skipUnblockConfirm, setSkipUnblockConfirm] = useState(() => {
+		if (typeof window === "undefined") {
+			return false;
+		}
+		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
+	});
 
 	const {
 		navigate,
@@ -437,6 +449,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isDeletingConversation = false,
 		onBlockProfile,
 		isBlockingProfile = false,
+		onUnblockProfile,
+		isUnblockingProfile = false,
+		isBlockedBySelf = false,
 		onToggleFavorite,
 		isFavorite = false,
 		isArchived = false,
@@ -709,6 +724,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 	};
 
+	const closeUnblockConfirm = () => {
+		if (isUnblockingProfile) {
+			return;
+		}
+		setIsUnblockConfirmOpen(false);
+	};
+
 	const closeDeleteConversationConfirm = () => {
 		if (isDeletingConversation) {
 			return;
@@ -781,6 +803,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	});
 
 	useModalClose({
+		isOpen: isUnblockConfirmOpen,
+		onClose: closeUnblockConfirm,
+		escapeKey: !isUnblockingProfile,
+	});
+
+	useModalClose({
 		isOpen: isDeleteConversationConfirmOpen,
 		onClose: closeDeleteConversationConfirm,
 		escapeKey: !isDeletingConversation,
@@ -796,6 +824,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 		setIsDeleteConversationConfirmOpen(false);
 		setDontAskBlockAgain(false);
+		setIsUnblockConfirmOpen(false);
+		setDontAskUnblockAgain(false);
 	}, [selectedConversation?.data.conversationId]);
 
 	useEffect(() => {
@@ -888,6 +918,35 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					setIsBlockConfirmOpen(false);
 					void onBlockProfile(otherParticipant.profileId);
+				};
+
+				const requestUnblockProfile = () => {
+					if (!otherParticipant || isUnblockingProfile || !onUnblockProfile) {
+						return;
+					}
+
+					setIsHeaderActionsMenuOpen(false);
+					if (skipUnblockConfirm) {
+						void onUnblockProfile(otherParticipant.profileId);
+						return;
+					}
+
+					setDontAskUnblockAgain(false);
+					setIsUnblockConfirmOpen(true);
+				};
+
+				const confirmUnblockProfile = () => {
+					if (!otherParticipant || isUnblockingProfile || !onUnblockProfile) {
+						return;
+					}
+
+					if (dontAskUnblockAgain && typeof window !== "undefined") {
+						localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
+						setSkipUnblockConfirm(true);
+					}
+
+					setIsUnblockConfirmOpen(false);
+					void onUnblockProfile(otherParticipant.profileId);
 				};
 
 				const requestDeleteConversation = () => {
@@ -1038,6 +1097,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                         )}
                     </button>
                 </>
+            )}
+
+            {isDesktop && isArchived && isBlockedBySelf && (
+                <button
+                    type="button"
+                    onClick={requestUnblockProfile}
+                    disabled={isUnblockingProfile || !otherParticipant || !onUnblockProfile}
+                    title={isUnblockingProfile ? t("profile_details.unblock_in_progress") : t("profile_details.unblock")}
+                    className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-2 text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-60"
+                >
+                    {isUnblockingProfile ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                        <ShieldCheck className="h-4 w-4" />
+                    )}
+                </button>
             )}
 
 								{isDesktop && !isArchived && onOpenMediaSheet && (
@@ -1250,6 +1325,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{isBlockingProfile ? t("profile_details.block_in_progress") : t("profile_details.block")}
 												</button>
 											)}
+											{!isDesktop && isArchived && isBlockedBySelf && (
+												<button
+													type="button"
+													onClick={requestUnblockProfile}
+													disabled={isUnblockingProfile || !otherParticipant || !onUnblockProfile}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-emerald-400 transition hover:bg-emerald-500/10 disabled:opacity-60"
+												>
+													<ShieldCheck className="mr-2 h-4 w-4 opacity-70" />
+													{isUnblockingProfile ? t("profile_details.unblock_in_progress") : t("profile_details.unblock")}
+												</button>
+											)}
 											<button
 												type="button"
 												onClick={() => {
@@ -1289,6 +1375,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							dontAskAgainLabel={t("profile_details.dont_ask_again")}
 							dontAskAgainChecked={dontAskBlockAgain}
 							onDontAskAgainChange={setDontAskBlockAgain}
+						/>
+						<ConfirmDialog
+							isOpen={isUnblockConfirmOpen}
+							title={t("profile_details.unblock")}
+							message={t("profile_details.unblock_confirm")}
+							confirmLabel={t("profile_details.unblock")}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={confirmUnblockProfile}
+							onCancel={closeUnblockConfirm}
+							isProcessing={isUnblockingProfile}
+							confirmTone="default"
+							dontAskAgainLabel={t("profile_details.dont_ask_again")}
+							dontAskAgainChecked={dontAskUnblockAgain}
+							onDontAskAgainChange={setDontAskUnblockAgain}
 						/>
 						<ConfirmDialog
 							isOpen={isDeleteConversationConfirmOpen}
@@ -1415,7 +1515,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									: undefined
 							}
 						>
-							<div className="flex items-start gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-3">
+							<div className="flex items-start gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
 								<div className="shrink-0 rounded-xl bg-[var(--surface)] p-2.5">
 									<Archive className="h-4 w-4 text-[var(--text-muted)]" />
 								</div>

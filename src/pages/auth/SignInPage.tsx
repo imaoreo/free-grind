@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/button";
 import { BugReportButton } from "../../components/ui/BugReportButton";
 import type { SignInMethod } from "../../types/auth";
 import { useTranslation } from "react-i18next";
-import { Mail, Lock, KeyRound, AlertCircle, ExternalLink } from "lucide-react";
+import { Mail, Lock, KeyRound, AlertCircle, ExternalLink, Eye, EyeOff } from "lucide-react";
 import { cn } from "../../utils/cn";
 
 function AuthMethodTab({
@@ -40,14 +40,18 @@ function AuthMethodTab({
 function IconInput({
 	icon,
 	className,
+	rightSlot,
 	...inputProps
-}: { icon: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
+}: { icon: ReactNode; rightSlot?: ReactNode } & InputHTMLAttributes<HTMLInputElement>) {
 	return (
 		<div className="group relative">
 			<span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] transition-colors duration-150 group-focus-within:text-[var(--accent)]">
 				{icon}
 			</span>
-			<input {...inputProps} className={cn("input-field pl-9", className)} />
+			<input {...inputProps} className={cn("input-field pl-9", rightSlot && "pr-10", className)} />
+			{rightSlot ? (
+				<span className="absolute right-3 top-1/2 -translate-y-1/2">{rightSlot}</span>
+			) : null}
 		</div>
 	);
 }
@@ -94,6 +98,7 @@ export function SignInPage() {
 
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [showPassword, setShowPassword] = useState(false);
 	const [isPasswordLoading, setIsPasswordLoading] = useState(false);
 
 	const [jwtToken, setJwtToken] = useState("");
@@ -171,15 +176,35 @@ export function SignInPage() {
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
 						required
+						autoFocus
 						placeholder={t("auth.common.email")}
 					/>
 					<IconInput
 						icon={<Lock className="h-4 w-4" />}
-						type="password"
+						type={showPassword ? "text" : "password"}
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 						required
 						placeholder={t("auth.common.password")}
+						rightSlot={
+							<button
+								type="button"
+								onClick={() => setShowPassword((prev) => !prev)}
+								className="text-[var(--text-muted)] hover:text-[var(--text)]"
+								tabIndex={-1}
+								aria-label={
+									showPassword
+										? t("auth.common.hide_password")
+										: t("auth.common.show_password")
+								}
+							>
+								{showPassword ? (
+									<EyeOff className="h-4 w-4" />
+								) : (
+									<Eye className="h-4 w-4" />
+								)}
+							</button>
+						}
 					/>
 					<AuthSubmitSection
 						error={error}
@@ -196,10 +221,10 @@ export function SignInPage() {
 							href="https://freegrinddocs.imaoreo.dev/guide/login"
 							target="_blank"
 							rel="noreferrer"
-							className="mb-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-[var(--accent)] hover:underline"
+							className="mb-2 flex items-start gap-1.5 text-xs font-medium leading-relaxed text-[var(--accent)] hover:underline"
 						>
-							<ExternalLink className="h-3.5 w-3.5" />
-							{t("auth.sign_in.token_help")}
+							<ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+							<span>{t("auth.sign_in.token_help")}</span>
 						</a>
 						<IconInput
 							icon={<KeyRound className="h-4 w-4" />}
@@ -207,6 +232,7 @@ export function SignInPage() {
 							value={jwtToken}
 							onChange={(e) => setJwtToken(e.target.value)}
 							required
+							autoFocus
 							placeholder="eyJhbGciOi..."
 							autoComplete="off"
 						/>
@@ -216,7 +242,7 @@ export function SignInPage() {
 						loading={isTokenLoading}
 						disabled={!isTokenFormValid}
 						loadingLabel={t("auth.sign_in.signing_in")}
-						label={t("auth.sign_in.sign_in_with_token")}
+						label={t("auth.sign_in.submit")}
 					/>
 				</form>
 			)}

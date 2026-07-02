@@ -483,13 +483,12 @@
         "sign_in": {
             "signing_in": "Iniciando sesión...",
             "title": "Iniciar sesión",
-            "subtitle": "Bienvenido de nuevo a Free Grind.",
+            "subtitle": "Usa tus credenciales de Grindr o un token para Google, Apple o Facebook.",
             "no_account": "¿No tienes cuenta? Regístrate",
             "method_token": "Token",
             "method_password": "Correo y contraseña",
             "token_help": "Cómo conseguir tu token de autentificación",
             "jwt_label": "Token JWT",
-            "sign_in_with_token": "Iniciar sesión con Token",
             "submit": "Iniciar sesión"
         },
         "sign_up": {

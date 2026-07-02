@@ -433,7 +433,9 @@ export function ChatRealtimeBridge() {
 							)
 						: [];
 					if (ids.length > 0) {
-						const { systemMessages } = await toggleArchiveOnConversationDelete(ids);
+						const notificationId =
+							typeof envelope.notificationId === "string" ? envelope.notificationId : null;
+						const { systemMessages } = await toggleArchiveOnConversationDelete(ids, notificationId);
 						if (systemMessages.length > 0) {
 							window.dispatchEvent(
 								new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, {

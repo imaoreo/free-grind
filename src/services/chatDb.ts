@@ -763,7 +763,11 @@ export async function upsertMessages(
 	});
 }
 
-export type SystemMessageType = "SystemBlocked" | "SystemUnblocked";
+export type SystemMessageType =
+	| "SystemBlocked"
+	| "SystemUnblocked"
+	| "SystemBlockedBySelf"
+	| "SystemUnblockedBySelf";
 
 /**
  * Inserts a synthetic, locally-generated message marking a block/unblock

@@ -700,18 +700,19 @@
     "auth": {
         "common": {
             "email": "Email",
-            "password": "Password"
+            "password": "Password",
+            "show_password": "Show password",
+            "hide_password": "Hide password"
         },
         "sign_in": {
             "title": "Sign In",
-            "subtitle": "Welcome back to Free Grind.",
+            "subtitle": "Use your Grindr credentials or a token for Google, Apple, or Facebook.",
             "no_account": "Don't have an account? Sign up",
             "method_token": "Token",
             "method_password": "Email & Password",
             "token_help": "How to get your authentication token",
             "jwt_label": "JWT Token",
             "signing_in": "Signing in...",
-            "sign_in_with_token": "Sign In with Token",
             "submit": "Sign In"
         },
         "bug_report": {

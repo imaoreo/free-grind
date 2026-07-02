@@ -604,18 +604,19 @@
     "auth": {
         "common": {
             "email": "Email",
-            "password": "Senha"
+            "password": "Senha",
+            "show_password": "Mostrar senha",
+            "hide_password": "Ocultar senha"
         },
         "sign_in": {
             "title": "Entrar",
-            "subtitle": "Bem-vindo(a) de volta ao Free Grind.",
+            "subtitle": "Use suas credenciais do Grindr ou um token para Google, Apple ou Facebook.",
             "no_account": "Não tem uma conta? Cadastre-se",
             "method_token": "Token",
             "method_password": "E-mail e senha",
             "token_help": "Como obter seu token de autenticação",
             "jwt_label": "Token JWT",
             "signing_in": "Entrando...",
-            "sign_in_with_token": "Entrar com token",
             "submit": "Entrar"
         },
         "sign_up": {

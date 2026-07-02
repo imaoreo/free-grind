@@ -1,6 +1,8 @@
 package dev.estopia.free_grind
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.ObjectAnimator
 import android.app.Dialog
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,12 +17,14 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
-import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -119,9 +123,12 @@ class MainActivity : TauriActivity() {
   // stay well above that or it'll cut the splash early on every
   // normal-but-slow launch instead of only on a genuinely broken one.
   private var splashDialog: Dialog? = null
+  private var splashSpinnerAnimator: Animator? = null
 
   private fun dismissSplash() {
     runOnUiThread {
+      splashSpinnerAnimator?.cancel()
+      splashSpinnerAnimator = null
       splashDialog?.dismiss()
       splashDialog = null
     }
@@ -145,12 +152,15 @@ class MainActivity : TauriActivity() {
       window?.let { win ->
         win.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
         // The Dialog is its own Window, so it doesn't inherit the Activity's
-        // enableEdgeToEdge() status/nav bar styling — left alone, it shows
-        // the system default white status bar instead of matching the
-        // splash background.
-        val splashBackground = ContextCompat.getColor(this@MainActivity, R.color.splash_background)
-        win.statusBarColor = splashBackground
-        win.navigationBarColor = splashBackground
+        // enableEdgeToEdge() styling — left alone, it shows the system
+        // default white status/nav bars instead of the splash background.
+        // statusBarColor/navigationBarColor setters are deprecated on this
+        // project's targetSdk (36, enforced edge-to-edge) anyway — matching
+        // enableEdgeToEdge()'s own approach instead: make the dialog draw
+        // behind the (already-transparent-by-default) system bars so
+        // splash_overlay.xml's own full-bleed background shows through them,
+        // and only control the bar *icon* color via WindowInsetsControllerCompat.
+        WindowCompat.setDecorFitsSystemWindows(win, false)
         val isNightMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
           Configuration.UI_MODE_NIGHT_YES
         WindowInsetsControllerCompat(win, win.decorView).apply {
@@ -159,6 +169,14 @@ class MainActivity : TauriActivity() {
         }
       }
       show()
+      findViewById<View>(R.id.splash_spinner)?.let { spinner ->
+        splashSpinnerAnimator = ObjectAnimator.ofFloat(spinner, View.ROTATION, 0f, 360f).apply {
+          duration = 3000L
+          repeatCount = ObjectAnimator.INFINITE
+          interpolator = LinearInterpolator()
+          start()
+        }
+      }
     }
     mainHandler.postDelayed({ dismissSplash() }, 45000)
     activityRef = WeakReference(this)
@@ -263,6 +281,25 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun checkMicrophonePermission(): Boolean {
       return checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    @JavascriptInterface
+    fun checkNotificationPermission(): Boolean {
+      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+          android.content.pm.PackageManager.PERMISSION_GRANTED
+      } else {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.areNotificationsEnabled()
+      }
+    }
+
+    @JavascriptInterface
+    fun checkLocationPermission(): Boolean {
+      return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED ||
+        checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
         android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 

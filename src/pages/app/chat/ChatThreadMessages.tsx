@@ -538,8 +538,26 @@ export function ChatThreadMessages({
                     const isNewDay = currentHeader !== lastHeader;
                     lastHeader = currentHeader;
 
-                    if (message.type === "SystemBlocked" || message.type === "SystemUnblocked") {
-                        const isBlocked = message.type === "SystemBlocked";
+                    if (
+                        message.type === "SystemBlocked" ||
+                        message.type === "SystemUnblocked" ||
+                        message.type === "SystemBlockedBySelf" ||
+                        message.type === "SystemUnblockedBySelf"
+                    ) {
+                        const isBlocked =
+                            message.type === "SystemBlocked" || message.type === "SystemBlockedBySelf";
+                        const isSelf =
+                            message.type === "SystemBlockedBySelf" || message.type === "SystemUnblockedBySelf";
+                        let label: string;
+                        if (isBlocked && isSelf) {
+                            label = t("chat.system.blocked_by_self", { defaultValue: "You blocked this person" });
+                        } else if (isBlocked) {
+                            label = t("chat.system.blocked", { defaultValue: "You were blocked" });
+                        } else if (isSelf) {
+                            label = t("chat.system.unblocked_by_self", { defaultValue: "You unblocked this person" });
+                        } else {
+                            label = t("chat.system.unblocked", { defaultValue: "You were unblocked" });
+                        }
                         return (
                             <Fragment key={message.messageId}>
                                 {isNewDay && (
@@ -557,11 +575,7 @@ export function ChatThreadMessages({
                                     ) : (
                                         <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
                                     )}
-                                    <span>
-                                        {isBlocked
-                                            ? t("chat.system.blocked", { defaultValue: "You were blocked" })
-                                            : t("chat.system.unblocked", { defaultValue: "You were unblocked" })}
-                                    </span>
+                                    <span>{label}</span>
                                     <span className="text-[var(--text-muted)]/70">
                                         {formatDateTime24(message.timestamp)}
                                     </span>

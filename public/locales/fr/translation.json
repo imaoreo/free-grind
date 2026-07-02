@@ -493,17 +493,18 @@
     "auth": {
         "common": {
             "email": "Adresse e-mail",
-            "password": "Mot de passe"
+            "password": "Mot de passe",
+            "show_password": "Afficher le mot de passe",
+            "hide_password": "Masquer le mot de passe"
         },
         "sign_in": {
             "title": "Connexion",
-            "subtitle": "Bon retour sur Free Grind.",
+            "subtitle": "Utilisez vos identifiants Grindr ou un token pour Google, Apple ou Facebook.",
             "no_account": "Pas de compte ? Inscrivez-vous",
             "method_token": "Token",
             "method_password": "Email et mot de passe",
             "token_help": "Comment obtenir votre token d'authentification",
             "jwt_label": "Token JWT",
-            "sign_in_with_token": "Se connecter avec un Token",
             "submit": "Se connecter",
             "signing_in": "Connexion en cours..."
         },
