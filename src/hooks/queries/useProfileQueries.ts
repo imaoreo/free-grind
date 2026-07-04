@@ -3,16 +3,31 @@ import { useApiFunctions } from "../useApiFunctions";
 import type { TravelPlanPayload } from "../../types/travel";
 import { findConversationByProfileId } from "../../services/chatDb";
 import { markSelfBlockAction } from "../../utils/selfBlockActions";
-import { applySelfBlockAction } from "../../services/conversationArchive";
+import {
+	applySelfBlockAction,
+	markConversationDeleteHandled,
+} from "../../services/conversationArchive";
 
 // chat.v1.conversation.delete fires identically for "we blocked/unblocked
 // them" and "they blocked/unblocked us" — mark the conversation right after
 // our own block/unblock call succeeds so that event can tell the two apart.
+//
+// Also claim the WS-echo dedup lock (markConversationDeleteHandled) here,
+// not just in applySelfBlockAction's onSuccess — that's a purely local DB
+// read with no network round trip, so it's guaranteed to land before the
+// chat.v1.conversation.delete event even *could* arrive (which needs the
+// outgoing request to reach the server and a broadcast to come back).
+// Claiming it only in applySelfBlockAction (after the mutation's own HTTP
+// round trip) left a real window where the WS-triggered path could win the
+// race, archive, and insert its own system message before
+// applySelfBlockAction's local state check could see it — producing a
+// duplicate "You blocked/unblocked this person".
 function markConversationSelfAction(profileId: string, action: "block" | "unblock") {
 	void findConversationByProfileId(profileId)
 		.then((conversation) => {
 			if (conversation) {
 				markSelfBlockAction(conversation.conversationId, action);
+				markConversationDeleteHandled(conversation.conversationId);
 			}
 		})
 		.catch(() => {});

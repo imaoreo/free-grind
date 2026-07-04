@@ -49,6 +49,21 @@ class MainActivity : TauriActivity() {
     @Volatile var activeRoute: String? = null
     @Volatile var inForeground: Boolean = false
 
+    /**
+     * Mirrors the NotificationsPage settings, pushed down via
+     * `FreeGrindBridge.setNotificationPreferences(...)`. chat/tapNotificationsEnabled
+     * are the per-category master switches; foregroundNotificationsEnabled is
+     * one general switch (not per-category) for whether either kind shows
+     * while foregrounded, vs. only once backgrounded/closed via FCM. Lets the
+     * FCM service suppress a push notification accordingly, even when the
+     * user isn't on the exact matching screen (which isOnConversation/
+     * isOnTapsScreen already covers). All default to true so an install that
+     * hasn't synced these yet keeps today's always-on behavior.
+     */
+    @Volatile var chatNotificationsEnabled: Boolean = true
+    @Volatile var tapNotificationsEnabled: Boolean = true
+    @Volatile var foregroundNotificationsEnabled: Boolean = true
+
     fun isOnTapsScreen(): Boolean {
       if (!inForeground) return false
       val r = activeRoute ?: return false
@@ -243,6 +258,22 @@ class MainActivity : TauriActivity() {
     fun setActiveRoute(route: String?) {
       activeRoute = route
       Log.d("FCM", "JsBridge.setActiveRoute=$route foreground=$inForeground")
+    }
+
+    @JavascriptInterface
+    fun setNotificationPreferences(json: String) {
+      try {
+        val obj = JSONObject(json)
+        chatNotificationsEnabled = obj.optBoolean("chatEnabled", true)
+        tapNotificationsEnabled = obj.optBoolean("tapsEnabled", true)
+        foregroundNotificationsEnabled = obj.optBoolean("foregroundEnabled", true)
+        Log.d(
+          "FCM",
+          "JsBridge.setNotificationPreferences chat=$chatNotificationsEnabled taps=$tapNotificationsEnabled foreground=$foregroundNotificationsEnabled",
+        )
+      } catch (e: Exception) {
+        Log.e("FCM", "Failed to parse notification preferences", e)
+      }
     }
 
     /**

@@ -99,10 +99,14 @@ export type FetchAndStoreMediaParams = {
 	conversationId: string | null;
 	messageId: string | null;
 	viewOnce: boolean;
+	// Whether the signed-in user sent this message themselves — auto-download
+	// to the device's Downloads folder only ever mirrors media *received*
+	// from someone else, never the user's own outgoing photos/videos.
+	isOwnMessage: boolean;
 };
 
 async function downloadAndStore(params: FetchAndStoreMediaParams): Promise<void> {
-	const { mediaKey, kind, url, conversationId, messageId, viewOnce } = params;
+	const { mediaKey, kind, url, conversationId, messageId, viewOnce, isOwnMessage } = params;
 	const fetched = await fetchAndEncode(url);
 
 	if (!fetched) {
@@ -135,7 +139,7 @@ async function downloadAndStore(params: FetchAndStoreMediaParams): Promise<void>
 	});
 	setCachedMediaUri(mediaKey, toDataUri(fetched.mimeType, fetched.base64));
 
-	if (kind === "image" || kind === "video") {
+	if (!isOwnMessage && (kind === "image" || kind === "video")) {
 		void maybeAutoDownloadToDevice(fetched.base64, fetched.mimeType, kind);
 	}
 }

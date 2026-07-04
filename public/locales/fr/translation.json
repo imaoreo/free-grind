@@ -8,6 +8,8 @@
         "profile_editor_desc": "Modifiez les détails de votre profil, votre identité et vos préférences.",
         "customizability": "Personnalisation",
         "customizability_desc": "Modifiez le thème et la couleur d'accentuation.",
+        "behavior": "Comportement",
+        "behavior_desc": "Invites de confirmation pour bloquer et supprimer des discussions.",
         "about": "À propos de Free Grind",
         "about_desc": "Objectifs du projet, crédits, licences et liens vers la documentation.",
         "api_inspector": "Inspecteur d'API",
@@ -489,6 +491,9 @@
         },
         "preview_input": "Free Grind",
         "preview_badge": "NOUVEAU"
+    },
+    "behavior": {
+        "subtitle": "Gérez les invites de confirmation avant de bloquer des profils ou de supprimer des discussions."
     },
     "auth": {
         "common": {

@@ -8,6 +8,8 @@
         "profile_editor_desc": "Uredi podrobnosti profila, identiteto in izbire.",
         "customizability": "Prilagodljivost",
         "customizability_desc": "Spremeni barvno shemo in poudarjeno barvo.",
+        "behavior": "Vedenje",
+        "behavior_desc": "Potrditvena obvestila za blokiranje in brisanje klepetov.",
         "about": "O Free Grind",
         "about_desc": "Cilji projekta, zasluge, licenca in povezave do dokumentacije.",
         "api_inspector": "API pregledovalnik",
@@ -639,6 +641,9 @@
         "browse_grid_mobile": "",
         "preview": "",
         "preview_primary": ""
+    },
+    "behavior": {
+        "subtitle": "Upravljaj potrditvena obvestila pred blokiranjem profilov ali brisanjem klepetov."
     },
     "nav": {
         "browse": "",

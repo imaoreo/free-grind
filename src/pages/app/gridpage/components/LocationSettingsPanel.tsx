@@ -1,4 +1,4 @@
-import { Crosshair, Loader2 } from "lucide-react";
+import { Crosshair, Loader2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { GeocodeResult, SelectedLocation } from "../../GridPage.types";
@@ -7,6 +7,7 @@ import { MapLocationPicker } from "./MapLocationPicker";
 type LocationSettingsPanelProps = {
 	isVisible: boolean;
 	isDetectingLocation: boolean;
+	currentLocationError?: string | null;
 	onUseCurrentLocation: () => void;
 	locationQuery: string;
 	onLocationQueryChange: (value: string) => void;
@@ -26,6 +27,7 @@ type LocationSettingsPanelProps = {
 export function LocationSettingsPanel({
 	isVisible,
 	isDetectingLocation,
+	currentLocationError = null,
 	onUseCurrentLocation,
 	locationQuery,
 	onLocationQueryChange,
@@ -57,21 +59,32 @@ export function LocationSettingsPanel({
 			</div>
 
 			<div className="grid gap-3">
-				<button
-					type="button"
-					onClick={onUseCurrentLocation}
-					disabled={isDetectingLocation}
-					className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 md:hidden"
-				>
-					{isDetectingLocation ? (
-						<Loader2 className="h-4 w-4 animate-spin" />
-					) : (
-						<Crosshair className="h-4 w-4" />
-					)}
-					{isDetectingLocation
-						? t("browse_location.detecting_location")
-						: t("browse_location.use_current_location")}
-				</button>
+				<div className="grid gap-1.5 md:hidden">
+					<button
+						type="button"
+						onClick={onUseCurrentLocation}
+						disabled={isDetectingLocation}
+						className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+							currentLocationError
+								? "border-red-500/40 bg-red-500/10 text-red-500"
+								: "border-[var(--border)] bg-[var(--surface-2)]"
+						}`}
+					>
+						{isDetectingLocation ? (
+							<Loader2 className="h-4 w-4 animate-spin" />
+						) : currentLocationError ? (
+							<X className="h-4 w-4" />
+						) : (
+							<Crosshair className="h-4 w-4" />
+						)}
+						{isDetectingLocation
+							? t("browse_location.detecting_location")
+							: t("browse_location.use_current_location")}
+					</button>
+					{currentLocationError ? (
+						<p className="px-1 text-xs text-red-500">{currentLocationError}</p>
+					) : null}
+				</div>
 
 				<div className="grid gap-2">
 					<label className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">

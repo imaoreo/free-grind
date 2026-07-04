@@ -12,6 +12,7 @@ import {
 	Globe,
 	Hash,
 	Heart,
+	Home,
 	MapPin,
 	MessageCircle,
 	MessageSquare,
@@ -25,6 +26,7 @@ import {
 	Sparkles,
 	Syringe,
 	User,
+	Zap,
 } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -39,7 +41,7 @@ import {
 	formatWeightKg,
 	shouldHideField,
 } from "../utils";
-import { reverseGeocodeGeohash } from "../geocoding";
+import { reverseGeocodeCityDistrictForGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
@@ -56,7 +58,7 @@ function TravelPlanRow({ plan, t }: { plan: TravelPlan; t: ReturnType<typeof use
 
 	useEffect(() => {
 		let cancelled = false;
-		void reverseGeocodeGeohash(plan.geohash).then((label) => {
+		void reverseGeocodeCityDistrictForGeohash(plan.geohash).then((label) => {
 			if (!cancelled) {
 				setLocation(label);
 			}
@@ -194,6 +196,7 @@ export function ProfileDetailsContent({
 	const hasTravelPlans = visibleTravelPlans.length > 0;
 	const rightNowTextTrimmed = activeProfile.rightNowText?.trim();
 	const hasRightNow = !shouldHideField(rightNowTextTrimmed);
+	const isRightNowHosting = activeProfile.rightNow === "HOSTING";
 
 	const renderPhotoCreatedBadge = (_hash: string) => null;
 
@@ -449,6 +452,12 @@ export function ProfileDetailsContent({
 									{profileStatusLabel}
 								</span>
 							)}
+							{hasRightNow && (
+								<span className="flex items-center gap-1 font-semibold" style={{ color: "var(--right-now)" }}>
+									<Zap className="h-3.5 w-3.5" />
+									{t("profile_details.right_now")}
+								</span>
+							)}
 							{profileDistance !== undefined && profileDistance !== null && (
 								<span className="flex items-center gap-1">
 									<MapPin className="h-3.5 w-3.5" />
@@ -546,10 +555,16 @@ export function ProfileDetailsContent({
 					{hasRightNow && (
 						<div>
 							<p
-								className="mb-2 text-xs font-semibold uppercase tracking-[0.1em]"
+								className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em]"
 								style={{ color: "var(--right-now)" }}
 							>
 								{t("profile_details.right_now")}
+								{isRightNowHosting && (
+									<>
+										<span aria-hidden="true">·</span>
+										<Home className="h-3.5 w-3.5" aria-label={t("right_now.hosting")} />
+									</>
+								)}
 							</p>
 							<div
 								className="rounded-xl px-4 py-3"

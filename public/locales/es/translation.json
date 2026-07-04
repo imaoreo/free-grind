@@ -8,6 +8,8 @@
         "profile_editor_desc": "Edita detalles, identidad y preferencias del perfil.",
         "customizability": "Personalización",
         "customizability_desc": "Cambia el color del tema y el color de énfasis.",
+        "behavior": "Comportamiento",
+        "behavior_desc": "Avisos de confirmación para bloquear y eliminar chats.",
         "about": "Sobre Free Grind",
         "about_desc": "Objetivos de proyecto, créditos, licencias, y enlaces a documentación.",
         "api_inspector": "Inspector de API",
@@ -977,6 +979,9 @@
                 "pronounced": "Pronunciado"
             }
         }
+    },
+    "behavior": {
+        "subtitle": "Gestiona los avisos de confirmación antes de bloquear perfiles o eliminar chats."
     },
     "chat_filters": {
         "title": "Filtros de chat",

@@ -153,6 +153,25 @@ export function subscribeToAlbumCache(listener: () => void): () => void {
 }
 
 /**
+ * Clears every local trace of an album — chatDb rows plus every in-memory
+ * cache keyed by albumId — used when the user explicitly deletes a received
+ * album from the shared-albums page. Safe to call regardless of whether the
+ * share is still live server-side; the caller is responsible for revoking
+ * that separately (removeAlbumShare) before/alongside calling this.
+ */
+export async function deleteLocalAlbum(albumId: number): Promise<void> {
+	await chatDb.deleteAlbum(String(albumId)).catch((error) => {
+		appLog.warn(`[album-store] failed to delete local album ${albumId}`, error);
+	});
+	capturedAlbumIds.delete(albumId);
+	albumCoverCache.delete(albumId);
+	knownGoneAlbumIds.delete(albumId);
+	for (const listener of albumCacheListeners) {
+		listener();
+	}
+}
+
+/**
  * Checks chatDb for a previously-captured album once per session (e.g. on
  * first render after an app restart, when the in-memory set above starts
  * empty, or simply re-opening an already-loaded thread before the next

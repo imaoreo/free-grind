@@ -12,7 +12,7 @@
 import { decodeGeohash } from "../../../utils/geohash";
 import { appLog } from "../../../utils/logger";
 
-const cache = new Map<string, Promise<{ label: string | null; city: string | null }>>();
+const cache = new Map<string, Promise<{ label: string | null; city: string | null; cityDistrictLabel: string | null }>>();
 
 export type NominatimAddress = {
 	road?: string;
@@ -62,10 +62,27 @@ export function formatNominatimAddress(address: NominatimAddress, fallback: stri
 	return address.country ?? fallback;
 }
 
+/**
+ * "City, District" — no street or house number. Used for travel plan
+ * display, where building-level precision isn't relevant.
+ */
+export function formatCityDistrictAddress(address: NominatimAddress, fallback: string | null): string | null {
+	const cityName = getCityFromAddress(address);
+	const district = address.neighbourhood ?? address.suburb ?? address.borough ?? address.city_district ?? null;
+
+	const parts = [cityName, district].filter(
+		(part, index, all): part is string => !!part && all.indexOf(part) === index,
+	);
+	if (parts.length > 0) {
+		return parts.join(", ");
+	}
+	return address.country ?? fallback;
+}
+
 async function fetchReverseGeocode(
 	lat: number,
 	lon: number,
-): Promise<{ label: string | null; city: string | null }> {
+): Promise<{ label: string | null; city: string | null; cityDistrictLabel: string | null }> {
 	try {
 		// zoom=18 (building/street level) — anything coarser collapses picks
 		// that are a few streets apart into the same neighbourhood/suburb
@@ -77,23 +94,24 @@ async function fetchReverseGeocode(
 			{ headers: { "User-Agent": "Mozilla/5.0 (compatible)" } },
 		);
 		if (!response.ok) {
-			return { label: null, city: null };
+			return { label: null, city: null, cityDistrictLabel: null };
 		}
 		const data = (await response.json()) as NominatimReverseResponse;
 		if (!data.address) {
-			return { label: data.display_name ?? null, city: null };
+			return { label: data.display_name ?? null, city: null, cityDistrictLabel: data.display_name ?? null };
 		}
 		return {
 			label: formatNominatimAddress(data.address, data.display_name ?? null),
 			city: getCityFromAddress(data.address),
+			cityDistrictLabel: formatCityDistrictAddress(data.address, data.display_name ?? null),
 		};
 	} catch (error) {
 		appLog.warn("[geocoding] reverse lookup failed", error);
-		return { label: null, city: null };
+		return { label: null, city: null, cityDistrictLabel: null };
 	}
 }
 
-function resolveGeohash(geohash: string): Promise<{ label: string | null; city: string | null }> {
+function resolveGeohash(geohash: string): Promise<{ label: string | null; city: string | null; cityDistrictLabel: string | null }> {
 	const cached = cache.get(geohash);
 	if (cached) {
 		return cached;
@@ -107,7 +125,7 @@ function resolveGeohash(geohash: string): Promise<{ label: string | null; city: 
 			return await fetchReverseGeocode(lat, lon);
 		} catch (error) {
 			appLog.warn(`[geocoding] failed to decode geohash ${geohash}`, error);
-			return { label: null, city: null };
+			return { label: null, city: null, cityDistrictLabel: null };
 		}
 	})();
 
@@ -125,4 +143,10 @@ export async function reverseGeocodeGeohash(geohash: string): Promise<string | n
 export async function reverseGeocodeCityForGeohash(geohash: string): Promise<string | null> {
 	const { city } = await resolveGeohash(geohash);
 	return city;
+}
+
+/** Resolves a geohash to a "City, District"-style label (no street/house number), or null if it can't be resolved. Shares the reverse-geocode cache. */
+export async function reverseGeocodeCityDistrictForGeohash(geohash: string): Promise<string | null> {
+	const { cityDistrictLabel } = await resolveGeohash(geohash);
+	return cityDistrictLabel;
 }

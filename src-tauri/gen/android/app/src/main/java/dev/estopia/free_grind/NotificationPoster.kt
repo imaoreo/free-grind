@@ -69,6 +69,22 @@ object NotificationPoster {
             return
         }
 
+        // Per-category master switch (NotificationsPage) — this kind of
+        // notification is turned off entirely, foreground or not.
+        val categoryEnabled = if (isTap) MainActivity.tapNotificationsEnabled else MainActivity.chatNotificationsEnabled
+        if (!categoryEnabled) {
+            Log.d("FCM", "Suppressing notification (category disabled)")
+            return
+        }
+
+        // Suppress while foregrounded if the user turned off "Notifications
+        // While App Is Open" (a general switch, not per-category) — they only
+        // want FCM delivery once the app is backgrounded/closed.
+        if (MainActivity.inForeground && !MainActivity.foregroundNotificationsEnabled) {
+            Log.d("FCM", "Suppressing notification (foreground notifications disabled)")
+            return
+        }
+
         // Suppress when the user is already looking at the relevant screen
         // (taps tab for tap notifications; the matching conversation for chat
         // notifications). The frontend keeps MainActivity informed via the

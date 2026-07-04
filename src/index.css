@@ -27,6 +27,7 @@
 	--animate-fade-in: fade-in 0.4s ease-out forwards;
 	--animate-fade-in-subtle: fade-in-subtle 0.4s ease-out both;
 	--animate-reveal-row: reveal-row 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+	--animate-progress-indeterminate: progress-indeterminate 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 
 	@keyframes morph-glow {
 		0%, 100% {
@@ -88,6 +89,10 @@
 	@keyframes fade-in-subtle {
 		from { opacity: 0; }
 		to { opacity: 0.4; }
+	}
+	@keyframes progress-indeterminate {
+		0% { transform: translateX(-100%); }
+		100% { transform: translateX(350%); }
 	}
 	@keyframes reveal-row {
 		from {

@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import {
-	BadgeInfo,
+	AlertCircle,
 	Bell,
 	Bookmark,
 	Bug,
-	Check,
+	CheckCircle2,
 	ChevronLeft,
 	ChevronRight,
 	ClipboardList,
@@ -19,18 +19,21 @@ import {
 	Radar,
 	RefreshCcw,
 	Shield,
+	SlidersHorizontal,
     Workflow,
-	Trash2,
 	UserPlus,
 	UserX,
 } from "lucide-react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { appLog } from "../../utils/logger";
 import { useAuth } from "../../contexts/useAuth";
 import { useApi } from "../../hooks/useApi";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useInboxSyncStatus } from "../../hooks/useInboxSyncStatus";
+import type { InboxSyncStatus } from "../../services/inboxSync";
 import {
 	checkForHotswapUpdate,
 	getCurrentHotswapChannel,
@@ -44,6 +47,7 @@ import {
 	type HotswapChannel,
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { FingerprintCheckButton } from "../../components/FingerprintCheckButton";
 import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
@@ -71,12 +75,113 @@ function getErrorMessage(error: unknown, fallback: string): string {
 	return fallback;
 }
 
+function describeInboxSyncStatus(status: InboxSyncStatus, t: TFunction) {
+	switch (status.phase) {
+		case "syncing_list":
+			return {
+				title: t("settings.chat_sync_syncing_list", { defaultValue: "Checking for new chats…" }),
+				description:
+					status.changedSoFar > 0
+						? t("settings.chat_sync_syncing_list_desc_changed", {
+								defaultValue: "{{checked}} checked, {{changed}} new or updated",
+								checked: status.conversationsSoFar,
+								changed: status.changedSoFar,
+							})
+						: t("settings.chat_sync_syncing_list_desc", {
+								defaultValue: "{{count}} checked so far",
+								count: status.conversationsSoFar,
+							}),
+				badgeIcon: <Loader2 className="h-3 w-3 animate-spin" />,
+				badgeClass: "",
+				badgeStyle: {
+					backgroundColor: "var(--accent)",
+					color: "var(--accent-contrast)",
+				} as CSSProperties | undefined,
+				progressPercent: null as number | null,
+				active: true,
+			};
+		case "syncing_messages": {
+			const progressPercent =
+				status.total > 0 ? Math.round((status.completed / status.total) * 100) : null;
+			return {
+				title: t("settings.chat_sync_syncing_messages", {
+					defaultValue: "Syncing latest messages…",
+				}),
+				description: t("settings.chat_sync_syncing_messages_desc", {
+					defaultValue: "{{completed}} / {{total}} conversations",
+					completed: status.completed,
+					total: status.total,
+				}),
+				badgeIcon: <Loader2 className="h-3 w-3 animate-spin" />,
+				badgeClass: "",
+				badgeStyle: {
+					backgroundColor: "var(--accent)",
+					color: "var(--accent-contrast)",
+				} as CSSProperties | undefined,
+				progressPercent,
+				active: true,
+			};
+		}
+		case "done":
+			return {
+				title: t("settings.chat_sync_done", { defaultValue: "Chats up to date" }),
+				description:
+					status.changed > 0
+						? t("settings.chat_sync_done_desc_changed", {
+								defaultValue: "{{count}} conversations total, {{changed}} just updated",
+								count: status.conversations,
+								changed: status.changed,
+							})
+						: t("settings.chat_sync_done_desc", {
+								defaultValue: "{{count}} conversations synced",
+								count: status.conversations,
+							}),
+				badgeIcon: <CheckCircle2 className="h-3 w-3" />,
+				badgeClass: "bg-emerald-500 text-white",
+				badgeStyle: undefined as CSSProperties | undefined,
+				progressPercent: null,
+				active: false,
+			};
+		case "error":
+			return {
+				title: t("settings.chat_sync_error", { defaultValue: "Chat sync failed" }),
+				description: status.message,
+				badgeIcon: <AlertCircle className="h-3 w-3" />,
+				badgeClass: "bg-red-500 text-white",
+				badgeStyle: undefined as CSSProperties | undefined,
+				progressPercent: null,
+				active: false,
+			};
+		default:
+			return {
+				title: t("settings.chat_sync_preparing", { defaultValue: "Preparing chat sync…" }),
+				description: t("settings.chat_sync_preparing_desc", {
+					defaultValue: "Runs in the background and won't slow down the app.",
+				}),
+				badgeIcon: <Loader2 className="h-3 w-3 animate-spin" />,
+				badgeClass: "",
+				badgeStyle: {
+					backgroundColor: "var(--accent)",
+					color: "var(--accent-contrast)",
+				} as CSSProperties | undefined,
+				progressPercent: null,
+				active: true,
+			};
+	}
+}
+
 export function SettingsPage() {
 	const { t } = useTranslation();
 	const { userId, logout, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
+	const inboxSyncStatus = useInboxSyncStatus(userId);
+	const inboxSyncDisplay = describeInboxSyncStatus(inboxSyncStatus, t);
 	const [switchingProfileId, setSwitchingProfileId] = useState<string | null>(null);
 	const [removingProfileId, setRemovingProfileId] = useState<string | null>(null);
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
+	// "active" = end the current session; a profile id = forget that saved
+	// (non-active) account — both are presented the same way (logout icon +
+	// confirmation) even though only the active one is a "real" logout.
+	const [logoutConfirmTarget, setLogoutConfirmTarget] = useState<"active" | string | null>(null);
 	const navigate = useNavigate();
 	const { callMethod, asAppError } = useApi();
 	const { developerMode, showDebugInfo, setPreferences } = usePreferences();
@@ -158,6 +263,7 @@ export function SettingsPage() {
 			toast.error(message);
 		} finally {
 			setIsLoggingOut(false);
+			setLogoutConfirmTarget(null);
 		}
 	};
 
@@ -184,6 +290,7 @@ export function SettingsPage() {
 			toast.error(message);
 		} finally {
 			setRemovingProfileId(null);
+			setLogoutConfirmTarget(null);
 		}
 	};
 
@@ -383,30 +490,145 @@ export function SettingsPage() {
 
 			<div className="grid gap-6">
 
-				{/* Profile */}
+				{/* Profile — the active profile is the primary focus (tap it to edit
+				    your profile), with the account switcher folded in below it for
+				    the other saved accounts you can tap between without
+				    re-entering a password. Each saved account keeps its own chat
+				    history and caches fully separate (see chatDb.ts/cache.ts), so
+				    switching never shows a leftover account's data. */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Profile</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						{navRow(
-							() => navigate("/settings/profile-editor"),
-							<BadgeInfo className="h-5 w-5" />,
-							"bg-blue-500/15 text-blue-400",
-							t("settings.profile_editor"),
-							t("settings.profile_editor_desc"),
-						)}
-						{navRow(
-							() => navigate("/settings/albums"),
-							<Images className="h-5 w-5" />,
-							"bg-pink-500/15 text-pink-400",
-							t("settings.my_albums"),
-							t("settings.my_albums_desc"),
-						)}
+						{(() => {
+							const activeAccount = userId != null
+								? savedAccounts.find((account) => String(userId) === account.profileId)
+								: undefined;
+							const activeProfile = userId != null ? getSavedAccountProfile(String(userId)) : null;
+							return (
+								<div className="flex items-center gap-1">
+									<button
+										type="button"
+										onClick={() => navigate("/settings/profile-editor")}
+										className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
+									>
+										<Avatar
+											src={activeProfile?.photoHash ? getThumbImageUrl(activeProfile.photoHash, "75x75") : null}
+											alt=""
+											className="h-10 w-10 shrink-0 rounded-2xl border-0"
+										/>
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-sm font-semibold leading-snug">
+												{activeProfile?.displayName || activeAccount?.email || t("settings.profile_editor")}
+											</p>
+											<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
+												{t("settings.profile_editor_desc")}
+											</p>
+										</div>
+									</button>
+									<button
+										type="button"
+										onClick={() => setLogoutConfirmTarget("active")}
+										aria-label={t("settings.logout")}
+										className="mr-2 shrink-0 rounded-xl p-2.5 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+									>
+										<LogOut className="h-4 w-4" />
+									</button>
+								</div>
+							);
+						})()}
+
+						{savedAccounts
+							.filter((account) => !(userId != null && String(userId) === account.profileId))
+							.map((account) => {
+								const isSwitching = switchingProfileId === account.profileId;
+								const isRemoving = removingProfileId === account.profileId;
+								const savedProfile = getSavedAccountProfile(account.profileId);
+								return (
+									<div key={account.profileId} className="flex items-center gap-1">
+										<button
+											type="button"
+											onClick={() => void handleSwitchAccount(account.profileId)}
+											disabled={isSwitching || isRemoving}
+											className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-not-allowed"
+										>
+											<div className="relative h-10 w-10 shrink-0">
+												<Avatar
+													src={savedProfile.photoHash ? getThumbImageUrl(savedProfile.photoHash, "75x75") : null}
+													alt=""
+													className="h-full w-full rounded-2xl border-0"
+												/>
+												{isSwitching && (
+													<div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[var(--surface)]/80">
+														<Loader2 className="h-5 w-5 animate-spin text-[var(--accent)]" />
+													</div>
+												)}
+											</div>
+											<div className="min-w-0 flex-1">
+												<p className="truncate text-sm font-semibold leading-snug">
+													{savedProfile.displayName || account.email || account.profileId}
+												</p>
+												<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
+													{t("settings.account_tap_to_switch", { defaultValue: "Tap to switch" })}
+												</p>
+											</div>
+										</button>
+										<button
+											type="button"
+											onClick={() => setLogoutConfirmTarget(account.profileId)}
+											disabled={isSwitching || isRemoving}
+											aria-label={t("settings.logout")}
+											className="mr-2 shrink-0 rounded-xl p-2.5 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-60"
+										>
+											{isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+										</button>
+									</div>
+								);
+							})}
+						<button
+							type="button"
+							onClick={() => navigate("/auth/sign-in?mode=add-profile")}
+							className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
+						>
+							<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
+								<UserPlus className="h-5 w-5" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<p className="text-sm font-semibold leading-snug">
+									{t("settings.add_account", { defaultValue: "Add account" })}
+								</p>
+								<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
+									{t("settings.add_account_desc", { defaultValue: "Sign in with another account" })}
+								</p>
+							</div>
+							<ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+						</button>
+					</div>
+				</div>
+
+				{/* Customizability */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Customizability</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						{navRow(
 							() => navigate("/settings/customizability"),
 							<Palette className="h-5 w-5" />,
 							"bg-violet-500/15 text-violet-400",
 							t("settings.customizability"),
 							t("settings.customizability_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/behavior"),
+							<SlidersHorizontal className="h-5 w-5" />,
+							"bg-slate-500/15 text-slate-400",
+							t("settings.behavior"),
+							t("settings.behavior_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/notifications"),
+							<Bell className="h-5 w-5" />,
+							"bg-blue-500/15 text-blue-400",
+							t("settings.notifications"),
+							t("settings.notifications_desc"),
 						)}
 					</div>
 				</div>
@@ -415,6 +637,48 @@ export function SettingsPage() {
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Chat</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<div className="flex items-center gap-3 px-4 py-3.5">
+							<div className="relative shrink-0">
+								<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
+									<DatabaseBackup className="h-5 w-5" />
+								</div>
+								<div
+									className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-[var(--surface)] ${inboxSyncDisplay.badgeClass}`}
+									style={inboxSyncDisplay.badgeStyle}
+								>
+									{inboxSyncDisplay.badgeIcon}
+								</div>
+							</div>
+							<div className="min-w-0 flex-1">
+								<div className="flex items-center justify-between gap-2">
+									<p className="text-sm font-semibold leading-snug">{inboxSyncDisplay.title}</p>
+									{inboxSyncDisplay.progressPercent != null && (
+										<p className="shrink-0 text-xs font-semibold tabular-nums text-[var(--accent)]">
+											{inboxSyncDisplay.progressPercent}%
+										</p>
+									)}
+								</div>
+								<p className="mt-0.5 text-xs leading-snug tabular-nums text-[var(--text-muted)]">
+									{inboxSyncDisplay.description}
+								</p>
+								{inboxSyncDisplay.active && (
+									<div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+										<div
+											className={
+												inboxSyncDisplay.progressPercent == null
+													? "h-full w-2/5 animate-progress-indeterminate rounded-full bg-[var(--accent)]"
+													: "h-full rounded-full bg-[var(--accent)] transition-all duration-300"
+											}
+											style={
+												inboxSyncDisplay.progressPercent != null
+													? { width: `${inboxSyncDisplay.progressPercent}%` }
+													: undefined
+											}
+										/>
+									</div>
+								)}
+							</div>
+						</div>
 						{navRow(
 							() => navigate("/settings/automation"),
 							<Workflow className="h-5 w-5" />,
@@ -428,6 +692,13 @@ export function SettingsPage() {
 							"bg-emerald-500/15 text-emerald-400",
 							t("settings.saved_phrases", { defaultValue: "Saved Phrases" }),
 							t("settings.saved_phrases_desc", { defaultValue: "Manage chat quick replies and import/export .txt" }),
+						)}
+						{navRow(
+							() => navigate("/settings/albums"),
+							<Images className="h-5 w-5" />,
+							"bg-pink-500/15 text-pink-400",
+							t("settings.my_albums"),
+							t("settings.my_albums_desc"),
 						)}
 					</div>
 				</div>
@@ -716,125 +987,31 @@ export function SettingsPage() {
 					</div>
 				</div>
 
-				{/* Account switcher — saved accounts you can tap between without
-				    re-entering a password. Each one keeps its own chat history
-				    and caches fully separate (see chatDb.ts/cache.ts), so
-				    switching never shows a leftover account's data. */}
-				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("settings.account_section", { defaultValue: "Account" })}
-					</p>
-					<div className="surface-card divide-y divide-[var(--border)] overflow-hidden">
-						{savedAccounts.map((account) => {
-							const isActive = userId != null && String(userId) === account.profileId;
-							const isSwitching = switchingProfileId === account.profileId;
-							const isRemoving = removingProfileId === account.profileId;
-							const savedProfile = getSavedAccountProfile(account.profileId);
-							return (
-								<div key={account.profileId} className="flex items-center gap-1">
-									<button
-										type="button"
-										onClick={() => void handleSwitchAccount(account.profileId)}
-										disabled={isActive || isSwitching || isRemoving}
-										className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-not-allowed"
-									>
-										<div className="relative h-10 w-10 shrink-0">
-											<Avatar
-												src={savedProfile.photoHash ? getThumbImageUrl(savedProfile.photoHash, "75x75") : null}
-												alt=""
-												fallback={savedProfile.displayName ?? undefined}
-												className="h-full w-full rounded-2xl border-0"
-											/>
-											{isSwitching && (
-												<div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-[var(--surface)]/80">
-													<Loader2 className="h-5 w-5 animate-spin text-[var(--accent)]" />
-												</div>
-											)}
-										</div>
-										<div className="min-w-0 flex-1">
-											<p className="truncate text-sm font-semibold leading-snug">
-												{savedProfile.displayName || account.email || account.profileId}
-											</p>
-											<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
-												{isActive
-													? t("settings.account_active", { defaultValue: "Currently active" })
-													: t("settings.account_tap_to_switch", { defaultValue: "Tap to switch" })}
-											</p>
-										</div>
-										{isActive && (
-											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
-												<Check className="h-3.5 w-3.5 shrink-0" />
-												{t("browse_location.badge_active", { defaultValue: "Active" })}
-											</div>
-										)}
-									</button>
-									{isActive ? (
-										<button
-											type="button"
-											onClick={() => void handleLogout()}
-											disabled={isLoggingOut}
-											aria-label={t("settings.logout")}
-											className="mr-2 shrink-0 rounded-xl p-2.5 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-60"
-										>
-											{isLoggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-										</button>
-									) : (
-										<button
-											type="button"
-											onClick={() => void handleRemoveSavedAccount(account.profileId)}
-											disabled={isSwitching || isRemoving}
-											aria-label={t("settings.account_remove", { defaultValue: "Remove saved account" })}
-											className="mr-2 shrink-0 rounded-xl p-2.5 text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-60"
-										>
-											{isRemoving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-										</button>
-									)}
-								</div>
-							);
-						})}
-						<button
-							type="button"
-							onClick={() => navigate("/auth/sign-in?mode=add-profile")}
-							className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
-						>
-							<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
-								<UserPlus className="h-5 w-5" />
-							</div>
-							<div className="min-w-0 flex-1">
-								<p className="text-sm font-semibold leading-snug">
-									{t("settings.add_account", { defaultValue: "Add account" })}
-								</p>
-								<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
-									{t("settings.add_account_desc", { defaultValue: "Sign in with another account" })}
-								</p>
-							</div>
-							<ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
-						</button>
-						{/* Fallback while savedAccounts is still loading (briefly empty
-						    right after mount) — never leaves the user without any way
-						    to log out. */}
-						{savedAccounts.length === 0 && (
-							<button
-								type="button"
-								onClick={() => void handleLogout()}
-								disabled={isLoggingOut}
-								className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:opacity-60"
-							>
-								<div className="rounded-2xl bg-red-500/15 p-2.5 shrink-0 text-red-400">
-									{isLoggingOut ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="text-sm font-semibold leading-snug">{t("settings.logout")}</p>
-									<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5">
-										{t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })}
-									</p>
-								</div>
-							</button>
-						)}
-					</div>
-				</div>
-
 			</div>
+
+			<ConfirmDialog
+				isOpen={logoutConfirmTarget != null}
+				title={t("settings.logout_confirm_title", { defaultValue: "Log out?" })}
+				message={
+					logoutConfirmTarget === "active"
+						? t("profile_editor.logout_description", { defaultValue: "You will be signed out of your account on this device." })
+						: t("settings.logout_other_description", { defaultValue: "You'll need to sign in again to use this account on this device." })
+				}
+				confirmLabel={t("settings.logout")}
+				cancelLabel={t("common.cancel", { defaultValue: "Cancel" })}
+				confirmTone="danger"
+				isProcessing={
+					logoutConfirmTarget === "active" ? isLoggingOut : removingProfileId === logoutConfirmTarget
+				}
+				onConfirm={() => {
+					if (logoutConfirmTarget === "active") {
+						void handleLogout();
+					} else if (logoutConfirmTarget != null) {
+						void handleRemoveSavedAccount(logoutConfirmTarget);
+					}
+				}}
+				onCancel={() => setLogoutConfirmTarget(null)}
+			/>
 		</section>
 	);
 }

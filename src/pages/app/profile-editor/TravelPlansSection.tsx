@@ -4,7 +4,7 @@ import { Loader2, Pencil, Plane, Plus } from "lucide-react";
 import { CategoryHeader } from "./ProfileEditorComponents";
 import { TravelPlanEditorSheet } from "./TravelPlanEditorSheet";
 import { useTravelPlans } from "../../../hooks/queries/useProfileQueries";
-import { reverseGeocodeGeohash } from "../gridpage/geocoding";
+import { reverseGeocodeCityDistrictForGeohash } from "../gridpage/geocoding";
 import { formatTravelDateRange } from "../gridpage/utils";
 import type { TravelPlan } from "../../../types/travel";
 
@@ -14,7 +14,7 @@ function TravelPlanSummary({ plan }: { plan: TravelPlan }) {
 
 	useEffect(() => {
 		let cancelled = false;
-		void reverseGeocodeGeohash(plan.geohash).then((label) => {
+		void reverseGeocodeCityDistrictForGeohash(plan.geohash).then((label) => {
 			if (!cancelled) {
 				setLocation(label);
 			}

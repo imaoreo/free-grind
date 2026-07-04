@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, memo, type CSSProperties } from "react";
-import { Eye, Lock, History, MoveHorizontal } from "lucide-react";
+import { Eye, Lock, Ban, History, MoveHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -145,18 +145,21 @@ export const InterestRow = memo(function InterestRow({
 	onOpenProfile,
 	now,
 	isFirst,
+	isBlocked = false,
 }: {
 	item: InterestItem;
 	mode: InterestTab;
 	onOpenProfile: (profileId: string) => void;
 	now: number;
 	isFirst?: boolean;
+	isBlocked?: boolean;
 }) {
 	const { t } = useTranslation();
 	const { ref, revealClass } = useRevealOnScroll();
 	const imageSrc = item.imageHash ? getThumbImageUrl(item.imageHash, "320x320") : null;
 
 	const isPrivate = !item.canOpenProfile;
+	const isLocked = isPrivate || isBlocked;
 	const isRecovered = !!item.isFromCache && !isPrivate && !item.profileId.startsWith(PREVIEW_ID_PREFIX);
 	const isOnline = typeof item.onlineUntil === "number" && item.onlineUntil > now;
 
@@ -171,15 +174,15 @@ export const InterestRow = memo(function InterestRow({
 			ref={ref}
 			className={cn(
 				"relative flex items-center gap-4 pl-5 pr-6 py-4 transition-colors",
-				isPrivate ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40",
+				isLocked ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40",
 				revealClass
 			)}
 		>
 			{/* Avatar */}
 			<button
 				type="button"
-				onClick={() => !isPrivate && onOpenProfile(item.profileId)}
-				disabled={isPrivate}
+				onClick={() => !isLocked && onOpenProfile(item.profileId)}
+				disabled={isLocked}
 				className="relative shrink-0"
 			>
 				<div className="h-15 w-15 squircle drop-shadow-sm bg-[var(--surface-2)]">
@@ -191,9 +194,9 @@ export const InterestRow = memo(function InterestRow({
 				{isOnline && (
 					<span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-[1.5px] border-[var(--bg)] bg-green-500 shadow-sm z-10" />
 				)}
-				{isPrivate && (
+				{isLocked && (
 					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)] z-10">
-						<Lock className="h-3 w-3" />
+						{isPrivate ? <Lock className="h-3 w-3" /> : <Ban className="h-3 w-3" title={t("interest_page.blocked_profile")} />}
 					</div>
 				)}
 			</button>
@@ -202,12 +205,12 @@ export const InterestRow = memo(function InterestRow({
 			<div className="min-w-0 flex-1">
 				<button
 					type="button"
-					onClick={() => !isPrivate && onOpenProfile(item.profileId)}
-					disabled={isPrivate}
+					onClick={() => !isLocked && onOpenProfile(item.profileId)}
+					disabled={isLocked}
 					className="w-full text-left"
 				>
 					<div className="flex items-center gap-1.5">
-						<p className={`truncate text-sm font-bold ${isPrivate ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
+						<p className={`truncate text-sm font-bold ${isLocked ? "text-[var(--text-muted)]" : "text-[var(--text)]"}`}>
 							{displayName}
 						</p>
 						{isRecovered && (

@@ -23,6 +23,7 @@ import { loadAutomationCache } from "../utils/autoblock";
 import { loadMediaSettingsCache } from "../utils/mediaSettings";
 import { loadPrivacyCache } from "../utils/privacy";
 import { loadSeenCache } from "../services/seenStore";
+import { runInboxSync } from "../services/inboxSync";
 
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
@@ -88,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	// clear, just point the chat db at whatever account is already logged
 	// in) from an actual account change (switch/logout) afterwards.
 	const previousUserIdRef = useRef<number | null | undefined>(undefined);
+	// Live mirror of state.userId for the background inbox sync's staleness
+	// check below — a plain closure over state.userId would only ever see
+	// the value from the render that kicked the sync off.
+	const currentUserIdRef = useRef<number | null>(state.userId);
+	useEffect(() => {
+		currentUserIdRef.current = state.userId;
+	}, [state.userId]);
 
 	const refreshSavedAccounts = async () => {
 		try {
@@ -272,6 +280,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			if (state.userId != null) {
 				await migrateLegacySettingsIfNeeded(state.userId);
 			}
+
+			// Fire-and-forget: throttled background sync of the chat list and
+			// each changed conversation's latest messages, run on every profile
+			// load. Deliberately started only *after* setActiveChatDbUser has
+			// fully resolved above — that call both migrates the legacy db file
+			// (a rename) and opens the actual per-profile connection, so kicking
+			// the sync off any earlier races it against that migration/open and
+			// can leave it stuck waiting on a half-migrated db. Kicked off here
+			// rather than after the cache loads below on purpose: it has no
+			// dependency on automation/media/privacy/seen settings, and
+			// chaining it behind them would mean any slowness (or a stuck
+			// chatDb connection) in loading those silently delays the sync
+			// starting too, even though the two are otherwise unrelated. Not
+			// awaited itself, so it never gates the UI. Only the first-ever
+			// run per profile walks the whole inbox — every run after that
+			// stops as soon as it hits unchanged conversations (see
+			// inboxSync.ts).
+			if (state.userId != null) {
+				const userId = state.userId;
+				void runInboxSync(apiFunctions, userId, () => currentUserIdRef.current === userId);
+			}
+
 			await Promise.all([
 				loadAutomationCache(),
 				loadMediaSettingsCache(),
@@ -280,7 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			]);
 			dispatch({ type: "SET_SETTINGS_READY", payload: true });
 		})();
-	}, [state.userId, state.isLoading, queryClient]);
+	}, [state.userId, state.isLoading, queryClient, apiFunctions]);
 
 	// Register presence with Free Grind backend when a logged-in session is active.
 	// This must not depend only on `state.userId`, because consent/discovery settings can

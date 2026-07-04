@@ -5,6 +5,8 @@ import {
 	Check,
 	CheckCheck,
 	ChevronLeft,
+	Copy,
+	Download,
 	Ellipsis,
 	Star,
 	Hourglass,
@@ -20,6 +22,7 @@ import {
 	BookMarked,
 	MessageCircleOff,
 	MessageCircleX,
+	MessageSquarePlus,
 	MessageSquareQuote,
 	PencilLine,
 	Pin,
@@ -33,6 +36,7 @@ import {
 	Sticker,
 	TimerOff,
 	Trash2,
+	Undo2,
 	User,
 	Volume2,
 	X,
@@ -84,7 +88,14 @@ import type { ArchivedReason } from "../../../types/chat-db";
 import { useAvatarCache } from "../../../hooks/useAvatarCache";
 import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
-import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../../utils/blockConfirm";
+import {
+	SKIP_BLOCK_CONFIRM_KEY,
+	SKIP_UNBLOCK_CONFIRM_KEY,
+	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
+	isBlockConfirmSkipped,
+	isUnblockConfirmSkipped,
+	isDeleteConversationConfirmSkipped,
+} from "../../../utils/blockConfirm";
 
 async function fixWebmDuration(blob: Blob, durationMs: number): Promise<Blob> {
 	if (!blob.type.includes("webm")) return blob;
@@ -411,24 +422,35 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [isDraggingAttachmentCrop, setIsDraggingAttachmentCrop] = useState(false);
 	const attachmentImgRef = useRef<HTMLImageElement | null>(null);
 	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
+	const [composerHeight, setComposerHeight] = useState(88);
+	const composerHeightObserverRef = useRef<ResizeObserver | null>(null);
+	// Callback ref rather than a plain useRef: the composer bar and the
+	// archived-conversation banner occupy the same slot and never render
+	// together, so the underlying node is swapped/unmounted whenever
+	// isArchived flips — reconnecting the observer here (instead of in an
+	// effect keyed on a ref) keeps it attached to whichever one is current.
+	const composerRef = useCallback((node: HTMLElement | null) => {
+		composerHeightObserverRef.current?.disconnect();
+		composerHeightObserverRef.current = null;
+		if (!node) {
+			return;
+		}
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (entry) {
+				setComposerHeight(entry.target.getBoundingClientRect().height);
+			}
+		});
+		observer.observe(node);
+		composerHeightObserverRef.current = observer;
+	}, []);
 	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
 	const [isDeleteConversationConfirmOpen, setIsDeleteConversationConfirmOpen] =
 		useState(false);
+	const [dontAskDeleteConversationAgain, setDontAskDeleteConversationAgain] = useState(false);
 	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
-	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
-		if (typeof window === "undefined") {
-			return false;
-		}
-		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
-	});
 	const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
 	const [dontAskUnblockAgain, setDontAskUnblockAgain] = useState(false);
-	const [skipUnblockConfirm, setSkipUnblockConfirm] = useState(() => {
-		if (typeof window === "undefined") {
-			return false;
-		}
-		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
-	});
 
 	const {
 		navigate,
@@ -790,6 +812,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setOpenMessageActionId(null);
 	};
 
+	const handleAddMessageToSavedPhrases = async (text: string) => {
+		const trimmed = text.trim();
+		if (!trimmed) return;
+		const updated = await saveSavedPhrases([...savedPhrases, trimmed]);
+		setSavedPhrases(updated);
+		toast.success(t("chat.actions.added_to_saved_phrases", { defaultValue: "Added to saved phrases" }));
+	};
+
 	useModalClose({
 		isOpen: pendingAlbumShare !== null,
 		onClose: closePendingAlbumShare,
@@ -897,7 +927,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					}
 
 					setIsHeaderActionsMenuOpen(false);
-					if (skipBlockConfirm) {
+					if (isBlockConfirmSkipped()) {
 						void onBlockProfile(otherParticipant.profileId);
 						return;
 					}
@@ -913,7 +943,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					if (dontAskBlockAgain && typeof window !== "undefined") {
 						localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
-						setSkipBlockConfirm(true);
 					}
 
 					setIsBlockConfirmOpen(false);
@@ -926,7 +955,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					}
 
 					setIsHeaderActionsMenuOpen(false);
-					if (skipUnblockConfirm) {
+					if (isUnblockConfirmSkipped()) {
 						void onUnblockProfile(otherParticipant.profileId);
 						return;
 					}
@@ -942,7 +971,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					if (dontAskUnblockAgain && typeof window !== "undefined") {
 						localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
-						setSkipUnblockConfirm(true);
 					}
 
 					setIsUnblockConfirmOpen(false);
@@ -954,12 +982,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						return;
 					}
 					setIsHeaderActionsMenuOpen(false);
+					if (isDeleteConversationConfirmSkipped()) {
+						void onDeleteConversation(selectedConversation.data.conversationId);
+						return;
+					}
+					setDontAskDeleteConversationAgain(false);
 					setIsDeleteConversationConfirmOpen(true);
 				};
 
 				const confirmDeleteConversation = () => {
 					if (!onDeleteConversation || isDeletingConversation) {
 						return;
+					}
+					if (dontAskDeleteConversationAgain && typeof window !== "undefined") {
+						localStorage.setItem(SKIP_DELETE_CONVERSATION_CONFIRM_KEY, "true");
 					}
 					setIsDeleteConversationConfirmOpen(false);
 					void onDeleteConversation(selectedConversation.data.conversationId);
@@ -1023,6 +1059,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											getParticipantAvatarUrl(otherParticipant?.primaryMediaHash),
 										)}
 										alt={displayName}
+										className={isArchived ? "grayscale" : undefined}
 									/>
 								</button>
 								<div className="min-w-0">
@@ -1115,7 +1152,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
                 </button>
             )}
 
-								{isDesktop && !isArchived && onOpenMediaSheet && (
+								{isDesktop && onOpenMediaSheet && (
 									<button
 										type="button"
 										onClick={onOpenMediaSheet}
@@ -1400,6 +1437,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							onCancel={closeDeleteConversationConfirm}
 							isProcessing={isDeletingConversation}
 							confirmTone="danger"
+							dontAskAgainLabel={t("profile_details.dont_ask_again")}
+							dontAskAgainChecked={dontAskDeleteConversationAgain}
+							onDontAskAgainChange={setDontAskDeleteConversationAgain}
 						/>
 					</>
 				);
@@ -1492,6 +1532,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
+						composerHeight={composerHeight}
 				/>
 				)
 			) : (
@@ -1508,6 +1549,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 					{isArchived ? (
 						<div
+							ref={composerRef}
 							className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} bg-[var(--surface)]`}
 							style={
 								!isDesktop
@@ -1537,6 +1579,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</div>
 					) : (
 					<form
+						ref={composerRef}
 						onSubmit={onFormSubmit}
 						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
 						style={
@@ -2181,90 +2224,85 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					) : null}
 
 					{!isDesktop && selectedActionMessage && !isAlbumSheetOpen ? (
-						<div
-							className="fixed inset-0 z-40 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm no-touch-callout"
-							onClick={() => setOpenMessageActionId(null)}
+						<BottomSheet
+							isDesktop={false}
+							onClose={() => setOpenMessageActionId(null)}
+							bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
 						>
-							<div
-								className="w-full max-w-xs rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-3 shadow-2xl"
-								onClick={(event) => event.stopPropagation()}
-							>
-								<p className="px-1 pb-2 text-center text-xs font-medium tracking-wide text-[var(--text-muted)]">
+							<div className="flex items-center justify-between px-4 pb-2">
+								<p className="text-sm font-semibold text-[var(--text)]">
 									{t("chat.actions.title")}
 								</p>
-								<div className="grid gap-2">
-									{(() => {
-    const loc = getMessageLocation(selectedActionMessage);
-    const body = selectedActionMessage.body as any;
-    const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
-    if (!loc && !hasText) return null;
+								<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+									<X className="h-4 w-4" />
+								</SheetClose>
+							</div>
+							<div className="border-t border-[var(--border)]" />
+							<div className="divide-y divide-[var(--border)] pb-1">
+								{(() => {
+									const message = selectedActionMessage;
+									const mine = selectedActionMessageMine;
+									const isMutating = isMutatingMessageId === message.messageId;
+									const loc = getMessageLocation(message);
+									const body = message.body as any;
+									const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+									const imageUrl = getMessageImageUrl(message);
+									const videoUrl = getMessageVideoUrl(message);
+									const audioUrl = getMessageAudioUrl(message);
+									const mediaUrl = imageUrl || videoUrl;
+									const albumId = getMessageAlbumId(message);
+									const isViewable = (message.body as any)?.isViewable;
 
-    return (
-        <>
-            <button
-                type="button"
-                onClick={() => void handleCopy(selectedActionMessage)}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
-            >
-                {t("chat.actions.copy", { defaultValue: "Copy" })}
-            </button>
+									type ActionRow = {
+										key: string;
+										icon: React.ReactNode;
+										label: string;
+										onClick: () => void;
+										danger?: boolean;
+										disabled?: boolean;
+									};
+									const rows: ActionRow[] = [];
 
-            {hasText && !selectedActionMessageMine ? (
-                <button
-                    type="button"
-                    onClick={() => {
-                        const body = selectedActionMessage.body as any;
-                        const wordToBan = window.prompt("Trim this message down to the specific keyword you want to ban:", body?.text || "");
-                        if (wordToBan && wordToBan.trim()) {
-                            const currentList = getForbiddenWords();
-                            const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-                            void setForbiddenWords(newList);
-                            toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
-                            setOpenMessageActionId(null);
-                        }
-                    }}
-                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
-                >
-                    <Ban className="mr-2 h-4 w-4 inline opacity-70" /> Add to Forbidden Keywords
-                </button>
-            ) : null}
-        </>
-    );
-})()}
+									rows.push({
+										key: "reply",
+										icon: <Reply className="h-3.5 w-3.5" />,
+										label: t("chat.actions.reply", { defaultValue: "Reply" }),
+										onClick: () => void handleReply(message),
+										disabled: isMutating,
+									});
 
-                                    {/* --- DOWNLOAD / OPEN MEDIA BUTTON (MOBILE) --- */}
-									{(() => {
-										const imageUrl = getMessageImageUrl(selectedActionMessage);
-										const videoUrl = getMessageVideoUrl(selectedActionMessage);
-										const audioUrl = getMessageAudioUrl(selectedActionMessage);
-										const mediaUrl = imageUrl || videoUrl;
+									if (hasText || loc) {
+										rows.push({
+											key: "copy",
+											icon: <Copy className="h-3.5 w-3.5" />,
+											label: t("chat.actions.copy", { defaultValue: "Copy" }),
+											onClick: () => void handleCopy(message),
+										});
+									}
 
-										if (!mediaUrl && !audioUrl) return null;
+									if (hasText) {
+										rows.push({
+											key: "saved-phrase",
+											icon: <MessageSquarePlus className="h-3.5 w-3.5" />,
+											label: t("chat.actions.add_to_saved_phrases", { defaultValue: "Add to saved phrases" }),
+											onClick: () => void handleAddMessageToSavedPhrases(body.text),
+										});
+									}
 
+									if (mediaUrl || audioUrl) {
 										if (mediaUrl && (isIos() || isAndroid())) {
-											return (
-												<button
-													type="button"
-													onClick={(event) => {
-														event.preventDefault();
-														event.stopPropagation();
-														setOpenMessageActionId(null);
-														openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image");
-													}}
-													className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
-												>
-													Open Media
-												</button>
-											);
-										}
-
-										return (
-											<button
-												type="button"
-												onClick={(event) => {
-													event.preventDefault();
-													event.stopPropagation();
-													setOpenMessageActionId(null);
+											rows.push({
+												key: "open-media",
+												icon: <Download className="h-3.5 w-3.5" />,
+												label: t("chat.actions.open_media", { defaultValue: "Open Media" }),
+												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image"),
+											});
+										} else {
+											rows.push({
+												key: "download-media",
+												icon: <Download className="h-3.5 w-3.5" />,
+												label: t("chat.actions.download_media", { defaultValue: "Download Media" }),
+												onClick: () => {
 													if (mediaUrl) {
 														void (async () => {
 															try {
@@ -2290,70 +2328,89 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														a.click();
 														document.body.removeChild(a);
 													}
-												}}
-												className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)]"
-											>
-												Download Media
-											</button>
-										);
-									})()}
-									{/* -------------------------------- */}
-
-									<button
-										type="button"
-										onClick={() => void handleReply(selectedActionMessage)}
-										disabled={isMutatingMessageId === selectedActionMessage.messageId}
-										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
-									>
-										{t("chat.actions.reply", { defaultValue: "Reply" })}
-									</button>
-									{selectedActionMessageMine && !selectedActionMessage.unsent ? (
-										<button
-											type="button"
-											onClick={() => void handleUnsend(selectedActionMessage)}
-											disabled={
-												isMutatingMessageId === selectedActionMessage.messageId
-											}
-											className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm font-medium transition hover:border-[var(--accent)] disabled:opacity-60"
-										>
-											{t("chat.actions.unsend")}
-										</button>
-									) : null}
-									{(() => {
-										const albumId = getMessageAlbumId(selectedActionMessage);
-										const isViewable = (selectedActionMessage.body as any)?.isViewable;
-										if (!selectedActionMessageMine || !albumId || !isViewable) return null;
-										return (
-											<button
-												type="button"
-												onClick={() => void handleStopAlbumShare(albumId)}
-												disabled={isMutatingMessageId === selectedActionMessage.messageId}
-												className="w-full rounded-xl border border-orange-500/35 bg-orange-500/10 px-3 py-3 text-left text-sm font-medium text-orange-300 transition hover:bg-orange-500/15 disabled:opacity-60"
-											>
-												{t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}
-											</button>
-										);
-									})()}
-									<button
-										type="button"
-										onClick={() => void handleDelete(selectedActionMessage)}
-										disabled={
-											isMutatingMessageId === selectedActionMessage.messageId
+												},
+											});
 										}
-										className="w-full rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-3 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/15 disabled:opacity-60"
-									>
-										{t("chat.actions.delete")}
-									</button>
-									<button
-										type="button"
-										onClick={() => setOpenMessageActionId(null)}
-										className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-left text-sm text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
-									>
-										{t("chat.actions.cancel")}
-									</button>
-								</div>
+									}
+
+									if (hasText && !mine) {
+										rows.push({
+											key: "ban-word",
+											icon: <Ban className="h-3.5 w-3.5" />,
+											label: t("chat.actions.ban_word", { defaultValue: "Ban word" }),
+											onClick: () => {
+												const wordToBan = window.prompt(
+													t("chat.actions.ban_word_prompt", {
+														defaultValue: "Trim this message down to the specific keyword you want to ban:",
+													}),
+													body?.text || "",
+												);
+												if (wordToBan && wordToBan.trim()) {
+													const currentList = getForbiddenWords();
+													const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+													void setForbiddenWords(newList);
+													toast.success(
+														t("chat.actions.ban_word_added", {
+															defaultValue: "Added \"{{word}}\" to forbidden keywords!",
+															word: wordToBan.trim(),
+														}),
+													);
+												}
+											},
+										});
+									}
+
+									if (mine && !message.unsent) {
+										rows.push({
+											key: "unsend",
+											icon: <Undo2 className="h-3.5 w-3.5" />,
+											label: t("chat.actions.unsend"),
+											onClick: () => void handleUnsend(message),
+											disabled: isMutating,
+										});
+									}
+
+									if (mine && albumId && isViewable) {
+										rows.push({
+											key: "stop-sharing",
+											icon: <Album className="h-3.5 w-3.5" />,
+											label: t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" }),
+											onClick: () => void handleStopAlbumShare(albumId),
+											disabled: isMutating,
+										});
+									}
+
+									rows.push({
+										key: "delete",
+										icon: <Trash2 className="h-3.5 w-3.5" />,
+										label: t("chat.actions.delete"),
+										onClick: () => void handleDelete(message),
+										disabled: isMutating,
+										danger: true,
+									});
+
+									return rows.map((row) => (
+										<SheetClose
+											key={row.key}
+											disabled={row.disabled}
+											onClick={row.onClick}
+											className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium transition disabled:opacity-50 ${
+												row.danger ? "text-red-400" : "text-[var(--text)]"
+											}`}
+										>
+											<div
+												className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${
+													row.danger ? "bg-red-500/10 text-red-400" : "bg-[var(--surface-2)] text-[var(--accent)]"
+												}`}
+											>
+												{row.icon}
+											</div>
+											{row.label}
+										</SheetClose>
+									));
+								})()}
 							</div>
-						</div>
+						</BottomSheet>
 					) : null}
 
 

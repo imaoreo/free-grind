@@ -15,7 +15,6 @@ import { RightNowPage } from "./pages/app/RightNowPage";
 import { InterestPage } from "./pages/app/InterestPage";
 import { ChatPage } from "./pages/app/ChatPage";
 import { ChatFiltersPage } from "./pages/app/ChatFiltersPage";
-import { ChatSearchPage } from "./pages/app/ChatSearchPage";
 import { SettingsPage } from "./pages/app/SettingsPage.tsx";
 import { ProfileEditorPage } from "./pages/app/ProfileEditorPage.tsx";
 import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
@@ -26,6 +25,8 @@ import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
 import { CustomizabilityPage } from "./pages/app/CustomizabilityPage.tsx";
+import { BehaviorPage } from "./pages/app/BehaviorPage.tsx";
+import { NotificationsPage } from "./pages/app/NotificationsPage.tsx";
 import { ReportIssuePage } from "./pages/app/ReportIssuePage.tsx";
 import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
@@ -186,7 +187,6 @@ export default function App() {
 								<Route path="/interest" element={<InterestPage />} />
 								<Route path="/chat" element={<ChatPage />} />
 								<Route path="/chat/filters" element={<ChatFiltersPage />} />
-								<Route path="/chat/search" element={<ChatSearchPage />} />
 								<Route path="/chat/albums" element={<SharedAlbumsPage />} />
 								<Route path="/chat/:conversationId" element={<ChatPage />} />
 								<Route path="/profile/:profileId" element={<GridProfilePage />} />
@@ -217,6 +217,14 @@ export default function App() {
 								<Route
 									path="/settings/customizability"
 									element={<CustomizabilityPage />}
+								/>
+								<Route
+									path="/settings/behavior"
+									element={<BehaviorPage />}
+								/>
+								<Route
+									path="/settings/notifications"
+									element={<NotificationsPage />}
 								/>
 								<Route
 									path="/settings/report-issue"

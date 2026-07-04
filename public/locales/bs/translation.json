@@ -8,6 +8,8 @@
         "profile_editor_desc": "",
         "customizability": "",
         "customizability_desc": "",
+        "behavior": "Ponašanje",
+        "behavior_desc": "Potvrde prije blokiranja i brisanja razgovora.",
         "about": "",
         "about_desc": "",
         "api_inspector": "",
@@ -632,6 +634,9 @@
         "subtitle": "",
         "color_scheme": "",
         "accent_color": ""
+    },
+    "behavior": {
+        "subtitle": "Upravljaj potvrdama prije blokiranja profila ili brisanja razgovora."
     },
     "nav": {
         "browse": "",

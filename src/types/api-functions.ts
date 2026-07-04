@@ -28,6 +28,7 @@ export type ApiFunctionName =
 	| "getSharedAlbums"
 	| "getSharedAlbumsForProfile"
 	| "openSharedAlbum"
+	| "removeAlbumShare"
 	| "getViews"
 	| "getTaps"
 	| "tap"
@@ -84,6 +85,17 @@ export interface OpenSharedAlbumResult {
 	status: number;
 }
 
+// Recipient-initiated: removes *our own* share of someone else's album (the
+// "delete" action on the shared-albums page). Distinct from unshareAlbum,
+// which is owner-initiated (stop sharing *my* album with specific people).
+export interface RemoveAlbumShareInput {
+	albumId: number;
+}
+
+export interface RemoveAlbumShareResult {
+	status: number;
+}
+
 export interface TapResult {
 	isMutual: boolean;
 }
@@ -105,6 +117,7 @@ export interface ApiFunctionResultMap {
 	getSharedAlbums: SharedAlbumView;
 	getSharedAlbumsForProfile: SharedAlbum[];
 	openSharedAlbum: OpenSharedAlbumResult;
+	removeAlbumShare: RemoveAlbumShareResult;
 	getViews: InterestViewsResponse;
 	getTaps: InterestTapsResponse;
 	tap: TapResult;

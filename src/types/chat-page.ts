@@ -1,5 +1,4 @@
 import type { Message } from "./messages";
-import type { SearchProfileResult } from "./chat-service";
 
 export type UiMessage = Message & {
 	clientState?: "pending" | "failed";
@@ -29,13 +28,9 @@ export type AlbumViewerState = {
 	content: AlbumContentItem[];
 };
 
-export type SearchMode = "conversations" | "messages" | "profiles";
-
 export type InboxFilterKey =
 	| "unreadOnly"
 	| "favoritesOnly"
 	| "chemistryOnly"
 	| "rightNowOnly"
 	| "onlineNowOnly";
-
-export type ProfileSearchResult = SearchProfileResult;

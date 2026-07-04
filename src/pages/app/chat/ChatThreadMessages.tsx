@@ -1,13 +1,15 @@
-import { Album, Ban, Ellipsis, Eye, Hourglass, Lock, MessageCircleQuestion, Mic, Play, Repeat2, Reply, ShieldCheck, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, VideoOff, ImageOff } from "lucide-react";
+import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef } from "react";
+import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from "react";
 
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
 import { saveMediaToDevice } from "../../../services/saveMedia";
+import { loadSavedPhrases, saveSavedPhrases } from "../../../services/savedPhrases";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -78,6 +80,7 @@ type ChatThreadMessagesProps = {
 	threadBottomRef: { current: HTMLDivElement | null };
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
+	composerHeight?: number;
 };
 
 const getReactionEmoji = (type: number): string => {
@@ -166,6 +169,93 @@ function renderTextWithLinks(
     );
 }
 
+type MessageContextMenuAction = {
+	key: string;
+	label: string;
+	icon: React.ReactNode;
+	onClick: () => void;
+	danger?: boolean;
+	disabled?: boolean;
+};
+
+// Same fixed+portal+viewport-clamp+outside-click pattern as
+// ConversationContextMenu in ChatInboxPanel.tsx — portaled to <body> because
+// the thread scroll container sits inside layout that can end up with a
+// transformed ancestor, which would otherwise hijack `position: fixed`.
+function MessageContextMenu({
+	x,
+	y,
+	actions,
+	onClose,
+}: {
+	x: number;
+	y: number;
+	actions: MessageContextMenuAction[];
+	onClose: () => void;
+}) {
+	const menuRef = useRef<HTMLDivElement | null>(null);
+	const [position, setPosition] = useState({ top: y, left: x });
+
+	useLayoutEffect(() => {
+		const menu = menuRef.current;
+		if (!menu) return;
+		const rect = menu.getBoundingClientRect();
+		const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+		const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+		setPosition({ left: Math.min(x, maxLeft), top: Math.min(y, maxTop) });
+	}, [x, y]);
+
+	useEffect(() => {
+		const handlePointerDown = (event: MouseEvent) => {
+			if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+				onClose();
+			}
+		};
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") onClose();
+		};
+		window.addEventListener("mousedown", handlePointerDown, true);
+		window.addEventListener("keydown", handleKeyDown);
+		window.addEventListener("scroll", onClose, true);
+		window.addEventListener("resize", onClose);
+		return () => {
+			window.removeEventListener("mousedown", handlePointerDown, true);
+			window.removeEventListener("keydown", handleKeyDown);
+			window.removeEventListener("scroll", onClose, true);
+			window.removeEventListener("resize", onClose);
+		};
+	}, [onClose]);
+
+	return createPortal(
+		<div
+			ref={menuRef}
+			style={{ top: position.top, left: position.left }}
+			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+		>
+			{actions.map((action) => (
+				<button
+					key={action.key}
+					type="button"
+					disabled={action.disabled}
+					onClick={() => {
+						onClose();
+						action.onClick();
+					}}
+					className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
+						action.danger
+							? "text-red-500 hover:bg-red-500/10"
+							: "text-[var(--text)] hover:bg-[var(--surface-2)]"
+					}`}
+				>
+					{action.icon}
+					{action.label}
+				</button>
+			))}
+		</div>,
+		document.body,
+	);
+}
+
 export function ChatThreadMessages({
 	isDesktop,
 	selectedConversation,
@@ -187,8 +277,6 @@ export function ChatThreadMessages({
 	openAlbumViewerById,
 	selectedThreadMessageMatches,
 	activeThreadSearchIndex,
-	openMessageActionId,
-	setOpenMessageActionId,
 	isMutatingMessageId,
 	reactionBurstMessageId,
 	handleReact,
@@ -200,6 +288,7 @@ export function ChatThreadMessages({
 	threadBottomRef,
 	isPartnerTyping = false,
 	isArchived = false,
+	composerHeight = 88,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	useLocalMediaCache();
@@ -210,6 +299,7 @@ export function ChatThreadMessages({
 		() => new Set(),
 	);
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
+	const [contextMenuState, setContextMenuState] = useState<{ messageId: string; x: number; y: number } | null>(null);
 
 	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
 	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
@@ -276,7 +366,6 @@ export function ChatThreadMessages({
 		}
 
 		if (!content) {
-			setOpenMessageActionId(null);
 			return;
 		}
 
@@ -286,8 +375,21 @@ export function ChatThreadMessages({
 		} catch (error) {
 			appLog.error("Copy failed", error);
 		}
-		setOpenMessageActionId(null);
-	}, [t, setOpenMessageActionId]);
+	}, [t]);
+
+	const handleAddToSavedPhrases = useCallback(async (text: string) => {
+		const trimmed = text.trim();
+		if (!trimmed) return;
+		try {
+			const current = await loadSavedPhrases();
+			await saveSavedPhrases([...current, trimmed]);
+			toast.success(
+				t("chat.actions.added_to_saved_phrases", { defaultValue: "Added to saved phrases" }),
+			);
+		} catch (error) {
+			appLog.error("Failed to add saved phrase", error);
+		}
+	}, [t]);
 
 	useEffect(() => {
 		setRevealedMediaMessageIds(new Set());
@@ -502,12 +604,166 @@ export function ChatThreadMessages({
 		};
 	}, []);
 
+	const contextMenuTarget = useMemo(() => {
+		if (!contextMenuState) return null;
+		return threadMessages.find((m) => m.messageId === contextMenuState.messageId) ?? null;
+	}, [contextMenuState, threadMessages]);
+
+	const contextMenuActions = useMemo<MessageContextMenuAction[]>(() => {
+		if (!contextMenuTarget) return [];
+		const message = contextMenuTarget;
+		const mine = userId != null && Number(message.senderId) === Number(userId);
+		const body = message.body as any;
+		const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
+		const location = getMessageLocation(message);
+		const imageUrl = getMessageImageUrl(message);
+		const videoUrl = getMessageVideoUrl(message);
+		const audioUrl = getMessageAudioUrl(message);
+		const isAlbumMessage =
+			message.type === "Album" || message.type === "ExpiringAlbum" || message.type === "ExpiringAlbumV2";
+		const albumId = getMessageAlbumId(message);
+		const isMutating = isMutatingMessageId === message.messageId;
+
+		const actions: MessageContextMenuAction[] = [];
+
+		actions.push({
+			key: "reply",
+			label: t("chat.actions.reply"),
+			icon: <Reply className="h-4 w-4" />,
+			onClick: () => void handleReply(message),
+		});
+
+		if (hasText || location) {
+			actions.push({
+				key: "copy",
+				label: t("chat.actions.copy", { defaultValue: "Copy" }),
+				icon: <Copy className="h-4 w-4" />,
+				onClick: () => void handleCopy(message),
+			});
+		}
+
+		if (hasText) {
+			actions.push({
+				key: "saved-phrase",
+				label: t("chat.actions.add_to_saved_phrases", { defaultValue: "Add to saved phrases" }),
+				icon: <MessageSquarePlus className="h-4 w-4" />,
+				onClick: () => void handleAddToSavedPhrases(body.text),
+			});
+		}
+
+		if (imageUrl || videoUrl || audioUrl) {
+			actions.push({
+				key: "download",
+				label: t("chat.actions.download", { defaultValue: "Download" }),
+				icon: <Download className="h-4 w-4" />,
+				onClick: () => {
+					const mediaUrl = imageUrl || videoUrl;
+					if (mediaUrl) {
+						void (async () => {
+							try {
+								const saved = await saveMediaToDevice(mediaUrl, videoUrl ? "video" : "image");
+								if (saved) {
+									toast.success(t("profile_details.save_to_gallery_success"));
+								} else {
+									toast.error(t("profile_details.save_to_gallery_unsupported"));
+								}
+							} catch (e) {
+								appLog.error("Failed to save media to gallery", e);
+								toast.error(t("profile_details.save_to_gallery_error"));
+							}
+						})();
+						return;
+					}
+					if (audioUrl) {
+						const a = document.createElement("a");
+						a.href = audioUrl;
+						a.download = `media-${Date.now()}`;
+						a.target = "_blank";
+						document.body.appendChild(a);
+						a.click();
+						document.body.removeChild(a);
+					}
+				},
+			});
+		}
+
+		if (!mine && hasText) {
+			actions.push({
+				key: "ban-word",
+				label: t("chat.actions.ban_word", { defaultValue: "Ban word" }),
+				icon: <Ban className="h-4 w-4" />,
+				onClick: () => {
+					const wordToBan = window.prompt(
+						t("chat.actions.ban_word_prompt", {
+							defaultValue: "Trim this message down to the specific keyword you want to ban:",
+						}),
+						hasText ? body.text : "",
+					);
+					if (wordToBan && wordToBan.trim()) {
+						const currentList = getForbiddenWords();
+						const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+						void setForbiddenWords(newList);
+						toast.success(
+							t("chat.actions.ban_word_added", {
+								defaultValue: "Added \"{{word}}\" to forbidden keywords!",
+								word: wordToBan.trim(),
+							}),
+						);
+					}
+				},
+			});
+		}
+
+		if (mine && !message.unsent) {
+			actions.push({
+				key: "unsend",
+				label: t("chat.actions.unsend"),
+				icon: <Undo2 className="h-4 w-4" />,
+				onClick: () => void handleUnsend(message),
+				disabled: isMutating,
+			});
+		}
+
+		if (mine && isAlbumMessage && albumId && body?.isViewable) {
+			actions.push({
+				key: "stop-sharing",
+				label: t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" }),
+				icon: <Album className="h-4 w-4" />,
+				onClick: () => void handleStopAlbumShare(albumId),
+				disabled: isMutating,
+			});
+		}
+
+		actions.push({
+			key: "delete",
+			label: t("chat.actions.delete"),
+			icon: <Trash2 className="h-4 w-4" />,
+			onClick: () => void handleDelete(message),
+			disabled: isMutating,
+			danger: true,
+		});
+
+		return actions;
+	}, [
+		contextMenuTarget,
+		userId,
+		isMutatingMessageId,
+		t,
+		handleReply,
+		handleCopy,
+		handleAddToSavedPhrases,
+		handleUnsend,
+		handleStopAlbumShare,
+		handleDelete,
+	]);
+
 	return (
 		<div
 			ref={threadScrollContainerRef}
 			onScroll={handleThreadScroll}
 			data-lenis-prevent
-			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pb-[160px] pt-[140px]" : ""}`}
+			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pt-[140px]" : ""}`}
+			style={!isDesktop ? { paddingBottom: composerHeight + 16 } : undefined}
 		>
             {messagePageKey ? (
                 <button
@@ -913,7 +1169,11 @@ export function ChatThreadMessages({
                                         if ((e.target as HTMLElement).closest("button,video")) return;
                                         scheduleMobileTap(message, null);
                                     } : undefined}
-                                    onContextMenu={(event) => event.preventDefault()}
+                                    onContextMenu={(event) => {
+                                        event.preventDefault();
+                                        if (!isDesktop || pending || isLocalClientMessageId(message.messageId)) return;
+                                        setContextMenuState({ messageId: message.messageId, x: event.clientX, y: event.clientY });
+                                    }}
                                     className={`relative group/bubble w-full rounded-2xl text-base no-touch-callout ${
                                         isMediaOnlyBubble && hasReply
                                             ? `p-0 ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}`
@@ -1077,23 +1337,7 @@ export function ChatThreadMessages({
                                                                     >
                                                                         <Reply className="h-3.5 w-3.5" />
                                                                     </button>
-                                                                ) : null}
-                                                                {isDesktop &&
-                                                                !pending &&
-                                                                !isLocalClientMessageId(message.messageId) ? (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(event) => {
-                                                                            event.stopPropagation();
-                                                                            setOpenMessageActionId((current) =>
-                                                                                current === message.messageId ? null : message.messageId,
-                                                                            );
-                                                                        }}
-                                                                        className="rounded-md p-1 hover:bg-white/10"
-                                                                    >
-                                                                        <Ellipsis className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                ) : null}
+                                                ) : null}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1182,22 +1426,6 @@ export function ChatThreadMessages({
                                                             <span>
                                                                 {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                                             </span>
-                                                            {isDesktop &&
-                                                            !pending &&
-                                                            !isLocalClientMessageId(message.messageId) ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation();
-                                                                        setOpenMessageActionId((current) =>
-                                                                            current === message.messageId ? null : message.messageId,
-                                                                        );
-                                                                    }}
-                                                                    className="rounded-md p-1 hover:bg-white/10"
-                                                                >
-                                                                    <Ellipsis className="h-3.5 w-3.5" />
-                                                                </button>
-                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1329,20 +1557,6 @@ export function ChatThreadMessages({
                                                                             <Reply className="h-3.5 w-3.5" />
                                                                         </button>
                                                                     ) : null}
-                                                                    {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                setOpenMessageActionId((current) =>
-                                                                                    current === message.messageId ? null : message.messageId,
-                                                                                );
-                                                                            }}
-                                                                            className="rounded-md p-1 hover:bg-white/10"
-                                                                        >
-                                                                            <Ellipsis className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1404,14 +1618,9 @@ export function ChatThreadMessages({
                                                             <div className="flex items-center gap-2">
                                                                 <span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
                                                                 {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
-                                                                    <>
-                                                                        <button type="button" onClick={(e) => { e.stopPropagation(); void handleReply(message); }} className="rounded-md p-1 hover:bg-white/10">
-                                                                            <Reply className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                        <button type="button" onClick={(e) => { e.stopPropagation(); setOpenMessageActionId(c => c === message.messageId ? null : message.messageId); }} className="rounded-md p-1 hover:bg-white/10">
-                                                                            <Ellipsis className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                    </>
+                                                                    <button type="button" onClick={(e) => { e.stopPropagation(); void handleReply(message); }} className="rounded-md p-1 hover:bg-white/10">
+                                                                        <Reply className="h-3.5 w-3.5" />
+                                                                    </button>
                                                                 ) : null}
                                                             </div>
                                                         </div>
@@ -1472,18 +1681,6 @@ export function ChatThreadMessages({
                                                                             className="rounded-md p-1 hover:bg-white/10"
                                                                         >
                                                                             <Reply className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(event) => {
-                                                                                event.stopPropagation();
-                                                                                setOpenMessageActionId((current) =>
-                                                                                    current === message.messageId ? null : message.messageId,
-                                                                                );
-                                                                            }}
-                                                                            className="rounded-md p-1 hover:bg-white/10"
-                                                                        >
-                                                                            <Ellipsis className="h-3.5 w-3.5" />
                                                                         </button>
                                                                     </>
                                                                 ) : null}
@@ -1642,156 +1839,8 @@ export function ChatThreadMessages({
                                                     <Reply className="h-3.5 w-3.5" />
                                                 </button>
                                             ) : null}
-                                            {isDesktop &&
-                                            !pending &&
-                                            !isLocalClientMessageId(message.messageId) ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setOpenMessageActionId((current) =>
-                                                            current === message.messageId
-                                                                ? null
-                                                                : message.messageId,
-                                                        )
-                                                    }
-                                                    className="rounded-md p-1 hover:bg-black/10"
-                                                >
-                                                    <Ellipsis className="h-3.5 w-3.5" />
-                                                </button>
-                                            ) : null}
                                         </div>
                                     </div>
-                                    ) : null}
-
-                                    {isDesktop && openMessageActionId === message.messageId ? (
-                                        <div className="mt-1 flex flex-wrap items-center gap-2 rounded-lg bg-black/10 p-2 text-[11px]">
-                                            {(() => {
-                                                const loc = getMessageLocation(message);
-                                                const body = message.body as any;
-                                                const hasText = body && typeof body.text === "string" && body.text.trim().length > 0;
-                                                if (!loc && !hasText) return null;
-
-                                                return (
-                                                    <>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => void handleCopy(message)}
-                                                            className="rounded-md border border-black/20 px-2 py-1 transition hover:bg-black/10"
-                                                        >
-                                                            {t("chat.actions.copy", { defaultValue: "Copy" })}
-                                                        </button>
-                                                        
-                                                        {!mine ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => {
-                                                                    const wordToBan = window.prompt(
-                                                                        t("chat.actions.ban_word_prompt", {
-                                                                            defaultValue:
-                                                                                "Trim this message down to the specific keyword you want to ban:",
-                                                                        }),
-                                                                        hasText ? body.text : "",
-                                                                    );
-                                                                    if (wordToBan && wordToBan.trim()) {
-                                                                        const currentList = getForbiddenWords();
-                                                                        const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-                                                                        void setForbiddenWords(newList);
-                                                                        toast.success(
-                                                                            t("chat.actions.ban_word_added", {
-                                                                                defaultValue:
-                                                                                    "Added \"{{word}}\" to forbidden keywords!",
-                                                                                word: wordToBan.trim(),
-                                                                            }),
-                                                                        );
-                                                                        setOpenMessageActionId(null);
-                                                                    }
-                                                                }}
-                                                                className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-1 text-red-500 transition hover:bg-red-500/20"
-                                                            >
-                                                                {t("chat.actions.ban_word", { defaultValue: "Ban word" })}
-                                                            </button>
-                                                        ) : null}
-                                                    </>
-                                                );
-                                            })()}
-                                            
-
-                                                        {/* --- DOWNLOAD BUTTON (DESKTOP) --- */}
-																	{imageUrl || videoUrl || audioUrl ? (
-																		<button
-																			type="button"
-																			onClick={() => {
-																				setOpenMessageActionId(null);
-																				const mediaUrl = imageUrl || videoUrl;
-
-																				if (mediaUrl) {
-																					void (async () => {
-																						try {
-																							const saved = await saveMediaToDevice(
-																								mediaUrl,
-																								videoUrl ? "video" : "image",
-																							);
-																							if (saved) {
-																								toast.success(t("profile_details.save_to_gallery_success"));
-																							} else {
-																								toast.error(t("profile_details.save_to_gallery_unsupported"));
-																							}
-																						} catch (e) {
-																							appLog.error("Failed to save media to gallery", e);
-																							toast.error(t("profile_details.save_to_gallery_error"));
-																						}
-																					})();
-																					return;
-																				}
-
-																				if (audioUrl) {
-																					const a = document.createElement("a");
-																					a.href = audioUrl;
-																					a.download = `media-${Date.now()}`;
-																					a.target = "_blank";
-																					document.body.appendChild(a);
-																					a.click();
-																					document.body.removeChild(a);
-																				}
-																			}}
-																			className="rounded-md border border-black/20 px-2 py-1 transition hover:bg-black/10"
-																		>
-																			{t("chat.actions.download", { defaultValue: "Download" })}
-																		</button>
-																	) : null}
-																	{/* --------------------------------- */}
-
-                                            {mine && !message.unsent ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void handleUnsend(message)}
-                                                    disabled={
-                                                        isMutatingMessageId === message.messageId
-                                                    }
-                                                    className="rounded-md border border-black/20 px-2 py-1"
-                                                >
-                                                    {t("chat.actions.unsend")}
-                                                </button>
-                                            ) : null}
-                                            {mine && isAlbumMessage && albumId && (message.body as any)?.isViewable ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void handleStopAlbumShare(albumId)}
-                                                    disabled={isMutatingMessageId === message.messageId}
-                                                    className="rounded-md border border-orange-500/40 bg-orange-500/10 px-2 py-1 text-orange-400 transition hover:bg-orange-500/20"
-                                                >
-                                                    {t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" })}
-                                                </button>
-                                            ) : null}
-                                            <button
-                                                type="button"
-                                                onClick={() => void handleDelete(message)}
-                                                disabled={isMutatingMessageId === message.messageId}
-                                                className="rounded-md border border-black/20 px-2 py-1"
-                                            >
-                                                {t("chat.actions.delete")}
-                                            </button>
-                                        </div>
                                     ) : null}
 
                                     {failed ? (
@@ -1830,7 +1879,7 @@ export function ChatThreadMessages({
                     </div>
                 </div>
             )}
-            <div ref={threadBottomRef} className="h-24 shrink-0" />
+            <div ref={threadBottomRef} className="h-3 shrink-0" />
 			{reactionParticles && reactionParticles.items.map((p, i) => p.emoji ? (
 				<span
 					key={`rp-${reactionParticles.key}-${i}`}
@@ -1844,6 +1893,14 @@ export function ChatThreadMessages({
 					style={{left: reactionParticles.x, top: reactionParticles.y, opacity: 0, width: p.size, height: p.size, background: "rgba(249,115,22,0.9)", boxShadow: `0 0 ${p.size * 3}px ${p.size}px rgba(249,115,22,0.6)`, zIndex: 9999, "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--dur": `${p.dur}s`, "--delay": `${p.delay}s`} as React.CSSProperties}
 				/>
 			))}
+			{contextMenuState && contextMenuTarget ? (
+				<MessageContextMenu
+					x={contextMenuState.x}
+					y={contextMenuState.y}
+					actions={contextMenuActions}
+					onClose={() => setContextMenuState(null)}
+				/>
+			) : null}
 		</div>
 	);
 }

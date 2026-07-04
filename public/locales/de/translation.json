@@ -6,8 +6,12 @@
         "language_description": "Wähle deine bevorzugte Sprache.",
         "profile_editor": "Profil-Editor",
         "profile_editor_desc": "Bearbeite Profildetails, Identität und Einstellungen.",
-        "customizability": "Personalisierung",
+        "customizability": "Erscheinungsbild",
         "customizability_desc": "Farbschema und Akzentfarbe ändern.",
+        "behavior": "Verhalten",
+        "behavior_desc": "Bestätigungsabfragen zum Blockieren und Löschen von Chats.",
+        "notifications": "Benachrichtigungen",
+        "notifications_desc": "Wähle, welche Benachrichtigungen du erhältst und ob sie bei geöffneter App angezeigt werden.",
         "privacy": "Privatsphäre & Analytics",
         "privacy_desc": "Lesebestätigungen, Profilaufrufe, Medien-Blur und Analytics.",
         "automation": "Automation",
@@ -98,7 +102,19 @@
         "media_unavailable": "Dieses Medium ist nicht verfügbar.",
         "content_alt": "Albuminhalt {{index}}",
         "previous": "Zurück",
-        "next": "Weiter"
+        "next": "Weiter",
+        "cached_section_title": "Nicht mehr geteilt",
+        "video_label": "Enthält Video",
+        "delete": "Löschen",
+        "deleting": "Wird gelöscht…",
+        "cancel": "Abbrechen",
+        "confirm_delete_title": "Album löschen?",
+        "confirm_delete_message": "Das Album wird aus deiner Liste entfernt. Falls es noch mit dir geteilt wird, wird die Freigabe ebenfalls aufgehoben.",
+        "toast_deleted": "Album entfernt",
+        "error_delete_fallback": "Album konnte nicht entfernt werden",
+        "filter_favorites": "Favoriten",
+        "filter_online": "Online",
+        "filter_video": "Mit Video"
     },
     "right_now": {
         "title": "Right Now",
@@ -210,6 +226,10 @@
         "back_aria": "Zurück zur Übersicht",
         "error_geolocation": "Geolocation ist auf diesem Gerät nicht verfügbar.",
         "error_access": "Zugriff auf Standort fehlgeschlagen. Überprüfe die Berechtigungen und versuche es erneut.",
+        "error_permission_denied": "Standortzugriff ist für diese App deaktiviert. Aktiviere ihn in den Systemeinstellungen deines Geräts und versuche es erneut.",
+        "error_timeout": "Zeitüberschreitung bei der Standortabfrage. Versuche es an einem Ort mit besserem GPS- oder Netzempfang erneut.",
+        "error_unavailable": "Dein Standort konnte nicht ermittelt werden. Stelle sicher, dass die Standortdienste für dieses Gerät aktiviert sind.",
+        "error_network": "Standortdienste nicht erreichbar. Überprüfe deine Internetverbindung und versuche es erneut.",
         "error_search_failed": "Standortsuche fehlgeschlagen. Versuche es gleich noch einmal.",
         "error_search_failed_general": "Standortsuche fehlgeschlagen",
         "current_location_label": "Aktueller Standort",
@@ -586,6 +606,10 @@
         "behavior": "Verhalten",
         "confirm_before_block": "Vor dem Blockieren bestätigen",
         "confirm_before_block_desc": "Vor dem Blockieren eines Profils nachfragen. Schalte dies aus, um sofort ohne Nachfrage zu blockieren.",
+        "confirm_before_unblock": "Vor dem Entblocken bestätigen",
+        "confirm_before_unblock_desc": "Vor dem Entblocken eines Profils nachfragen. Schalte dies aus, um sofort ohne Nachfrage zu entblocken.",
+        "confirm_before_delete_conversation": "Vor dem Löschen von Chats bestätigen",
+        "confirm_before_delete_conversation_desc": "Vor dem Löschen einer Unterhaltung nachfragen. Schalte dies aus, um sofort ohne Nachfrage zu löschen.",
         "browse_grid_mobile": "Übersichts-Raster (Mobil)",
         "browse_grid_mobile_desc": "Anzahl der Profile pro Reihe auf dem Handy anpassen.",
         "color_scheme": "Farbschema",
@@ -629,6 +653,18 @@
         },
         "blur_incoming_media": "Chat-Medien unscharf",
         "blur_incoming_media_description": "Blendet Bilder und Videos in Chats automatisch unscharf ein. Am Desktop: Hover oder Klick zum Anzeigen. Im Chat wird die Anzeige beim Verlassen wieder zurückgesetzt."
+    },
+    "behavior": {
+        "subtitle": "Verwalte Bestätigungsabfragen vor dem Blockieren von Profilen oder dem Löschen von Chats."
+    },
+    "notifications_page": {
+        "subtitle": "Wähle, welche Benachrichtigungen du erhältst und ob sie bei geöffneter App angezeigt werden.",
+        "chat_enabled": "Nachrichten-Benachrichtigungen",
+        "chat_enabled_desc": "Benachrichtigt werden, wenn dir jemand eine Nachricht schickt.",
+        "taps_enabled": "Tap-Benachrichtigungen",
+        "taps_enabled_desc": "Benachrichtigt werden, wenn dich jemand tappt.",
+        "foreground": "Benachrichtigungen bei geöffneter App",
+        "foreground_desc": "Zeigt Benachrichtigungen (für die oben aktivierten Typen) an, während die App geöffnet ist. Schalte dies aus, um nur benachrichtigt zu werden, wenn die App im Hintergrund oder geschlossen ist."
     },
     "issues_form": {
         "title": "Fehler melden oder Feature vorschlagen",
@@ -795,6 +831,11 @@
             "sent_message": "Hat eine Nachricht gesendet",
             "replied_profile_photo": "Hat auf ein Profilbild geantwortet"
         },
+        "notifications": {
+            "someone": "Jemand",
+            "tapped_you": "Hat dich angetippt",
+            "tapped_you_back": "Hat dich zurückgetippt"
+        },
         "thread": {
             "unsent": "Diese Nachricht wurde zurückgezogen",
             "image_placeholder": "[Bild]",
@@ -824,7 +865,11 @@
             "reply": "Antworten",
             "unsend": "Zurückziehen",
             "delete": "Löschen",
-            "cancel": "Abbrechen"
+            "cancel": "Abbrechen",
+            "add_to_saved_phrases": "Zu gespeicherten Sätzen hinzufügen",
+            "added_to_saved_phrases": "Zu gespeicherten Sätzen hinzugefügt",
+            "open_media": "Medien öffnen",
+            "download_media": "Medien herunterladen"
         },
         "realtime": {
             "connected": "Verbunden",
@@ -1170,6 +1215,7 @@
             "button": "Verstanden"
         },
         "unknown_profile": "Unbekanntes Profil",
+        "blocked_profile": "Blockiert",
         "unknown_time": "Unbekannte Zeit",
         "tap_labels": {
             "friendly": "Freundlich",
@@ -1198,6 +1244,7 @@
             "load_shared_albums": "Geteilte Alben konnten nicht geladen werden",
             "load_shared_albums_profile": "Geteilte Alben für das Profil konnten nicht geladen werden",
             "open_shared_album": "Geteiltes Album konnte nicht geöffnet werden",
+            "remove_album_share": "Teilen des Albums konnte nicht aufgehoben werden",
             "load_genders": "Geschlechter konnten nicht geladen werden",
             "invalid_genders_response": "Ungültige Antwort für Geschlechter",
             "load_pronouns": "Pronomen konnten nicht geladen werden",
@@ -1232,36 +1279,10 @@
         "action_home": "Zur Übersicht"
     },
     "chat_search": {
-        "title": "Suche",
-        "subtitle": "Konversationen, Nachrichten und Profile finden",
-        "back_to_inbox": "Zurück zum Posteingang",
-        "placeholder": "Konversationen, Nachrichten, Profile suchen",
-        "mode_label": "Suchmodus",
-        "quick_start_label": "Schnellstart",
-        "quick_start_placeholder": "Schnellstart per Profil-ID",
-        "view": "Ansehen",
-        "message": "Nachricht",
-        "modes": {
-            "messages": "Nachrichten",
-            "conversations": "Konversationen",
-            "profiles": "Profile"
-        },
+        "placeholder": "In lokal gespeicherten Nachrichten suchen",
         "loading": "Suchindex wird geladen...",
         "min_chars": "Gib mindestens 2 Zeichen ein, um zu suchen.",
-        "no_preview": "Keine Vorschau",
-        "start_chat_with": "Chat mit Profil #{{profileId}} starten",
-        "use_searched_id": "Gesuchte Profil-ID verwenden",
-        "start": "Start",
-        "profile_alt": "Profil",
-        "distance_unavailable": "Entfernung nicht verfügbar",
-        "searching": "Suche...",
-        "refresh": "Aktualisieren",
-        "load_more": "Mehr Profile laden",
-        "no_conversations_found": "Keine passenden Konversationen gefunden.",
-        "no_messages_found": "Keine passenden Nachrichten im Index gefunden.",
-        "no_profiles_found": "Keine passenden Profile gefunden.",
-        "error_valid_id": "Gib eine gültige Profil-ID ein",
-        "error_search_profiles": "Suche nach Profilen fehlgeschlagen",
+        "no_messages_found": "Keine passenden Nachrichten gefunden.",
         "error_load_inbox": "Laden des Posteingangs fehlgeschlagen"
     },
     "pull_to_refresh": {

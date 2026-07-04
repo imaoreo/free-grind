@@ -4,6 +4,7 @@ import type {
 	IndexedMessage,
 	ScoredResult,
 } from "../../../types/chat-cache";
+import { getMessageText } from "../../../utils/messageText";
 
 const conversationIndex = new Map<string, IndexedConversation>();
 const messageIndex = new Map<string, IndexedMessage>();
@@ -20,30 +21,6 @@ function scoreMatch(haystack: string, needle: string): number {
 	}
 	const proximity = Math.max(0, 40 - index);
 	return startsWith + proximity;
-}
-
-function getMessageText(message: Message): string {
-	if (!message.body || typeof message.body !== "object") {
-		if (message.unsent) {
-			return "This message was unsent";
-		}
-		return "";
-	}
-
-	const body = message.body as Record<string, unknown>;
-	if (typeof body.text === "string") {
-		return body.text;
-	}
-
-	if (message.type === "Album") {
-		return "Shared an album";
-	}
-
-	if (message.type === "Image") {
-		return "Shared an image";
-	}
-
-	return "";
 }
 
 export function indexConversations(entries: ConversationEntry[]) {

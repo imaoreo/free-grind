@@ -8,6 +8,8 @@
         "profile_editor_desc": "",
         "customizability": "",
         "customizability_desc": "",
+        "behavior": "Gedrag",
+        "behavior_desc": "Bevestigingsmeldingen voor het blokkeren en verwijderen van chats.",
         "about": "",
         "about_desc": "",
         "api_inspector": "",
@@ -631,6 +633,9 @@
         "subtitle": "",
         "apply_hex": "",
         "hex_error": ""
+    },
+    "behavior": {
+        "subtitle": "Beheer bevestigingsmeldingen voordat je profielen blokkeert of chats verwijdert."
     },
     "nav": {
         "browse": "",

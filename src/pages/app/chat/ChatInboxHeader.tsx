@@ -1,4 +1,4 @@
-import { Archive, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Archive, ArchiveX, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,6 @@ import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackgroun
 import { buildChatFiltersDraft, type ChatFiltersDraft } from "./chatUtils";
 import { cn } from "../../../utils/cn";
 import type { InboxFilters } from "../../../types/messages";
-import type { SearchMode } from "../../../types/chat-page";
 
 type RealtimeStatusMeta = { className: string; symbol: string; label: string };
 
@@ -19,17 +18,15 @@ export type ChatInboxHeaderProps = {
 	activeFilterCount: number;
 	isSearchOpen: boolean;
 	searchQuery: string;
-	searchMode: SearchMode;
 	onSetIsSearchOpen: (v: boolean) => void;
 	onSetSearchQuery: (v: string) => void;
-	onSetSearchMode: (v: SearchMode) => void;
 	onSetIsFiltersOpen: (v: boolean) => void;
 	onSetFiltersDraft: (v: ChatFiltersDraft) => void;
 	onToggleFavoritesOnly: () => void;
 	onToggleHidePinned: () => void;
-	showArchivedOnly: boolean;
+	hideArchived: boolean;
 	archivedCount: number;
-	onToggleShowArchivedOnly: () => void;
+	onToggleHideArchived: () => void;
 };
 
 export function ChatInboxHeader({
@@ -41,17 +38,15 @@ export function ChatInboxHeader({
 	activeFilterCount,
 	isSearchOpen,
 	searchQuery,
-	searchMode,
 	onSetIsSearchOpen,
 	onSetSearchQuery,
-	onSetSearchMode,
 	onSetIsFiltersOpen,
 	onSetFiltersDraft,
 	onToggleFavoritesOnly,
 	onToggleHidePinned,
-	showArchivedOnly,
+	hideArchived,
 	archivedCount,
-	onToggleShowArchivedOnly,
+	onToggleHideArchived,
 }: ChatInboxHeaderProps) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -140,21 +135,21 @@ export function ChatInboxHeader({
 							{archivedCount > 0 && (
 								<button
 									type="button"
-									onClick={onToggleShowArchivedOnly}
+									onClick={onToggleHideArchived}
 									className={cn(
 										"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
-										showArchivedOnly
+										hideArchived
 											? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
 											: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
 									)}
-									style={!showArchivedOnly ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+									style={!hideArchived ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
 								>
-									<Archive className="h-3.5 w-3.5" />
+									{hideArchived ? <ArchiveX className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
 									{t("chat.archived.filter_label", { defaultValue: "Archived" })}
 									<span className={cn(
 										"ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold",
-										showArchivedOnly
-											? "bg-white/30"
+										hideArchived
+											? "bg-[var(--accent-contrast)] text-[var(--accent)]"
 											: "bg-[var(--accent)] text-[var(--accent-contrast)]",
 									)}>
 										{archivedCount}
@@ -176,7 +171,7 @@ export function ChatInboxHeader({
 								<SlidersHorizontal className="h-3.5 w-3.5" />
 								{t("right_now.filters")}
 								{hasActiveInboxFilters && activeFilterCount > 0 && (
-									<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white/25 px-1 text-[9px] font-bold">
+									<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent-contrast)] px-1 text-[9px] font-bold text-[var(--accent)]">
 										{activeFilterCount}
 									</span>
 								)}
@@ -205,23 +200,6 @@ export function ChatInboxHeader({
 										<X className="h-3.5 w-3.5" />
 									</button>
 								)}
-							</div>
-							<div className="flex gap-1.5">
-								{(["messages", "conversations", "profiles"] as const).map((mode) => (
-									<button
-										key={mode}
-										type="button"
-										onClick={() => onSetSearchMode(mode)}
-										className={cn(
-											"rounded-full border px-3 py-1 text-xs font-bold transition",
-											searchMode === mode
-												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
-												: "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)]",
-										)}
-									>
-										{t(`chat_search.modes.${mode}`)}
-									</button>
-								))}
 							</div>
 						</div>
 					)}

@@ -5,7 +5,7 @@ import z from "zod";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { appLog } from "../../utils/logger";
-import { getCurrentLocation } from "../../services/currentLocation";
+import { getCurrentLocation, getLocationErrorMessageKey } from "../../services/currentLocation";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { type GeocodeResult, type SelectedLocation, geocodeResultSchema } from "./GridPage.types";
 import { MapLocationPicker } from "./gridpage/components/MapLocationPicker";
@@ -130,6 +130,7 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 	const [lastSearchedQuery, setLastSearchedQuery] = useState("");
 	const [selectedLocation, setSelectedLocation] = useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
+	const [currentLocationError, setCurrentLocationError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [savedLocations, setSavedLocations] = useState<SavedLocation[]>([]);
 
@@ -286,14 +287,14 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 
 	const handleUseCurrentLocation = async () => {
 		setIsDetectingLocation(true);
-		setLocationError(null);
+		setCurrentLocationError(null);
 		try {
 			const { lat, lon } = await getCurrentLocation();
 			const label = await resolveGpsLabel(lat, lon);
 			await saveAndClose(lat, lon, label, true);
 		} catch (e) {
 			appLog.error("Geolocation failed", e);
-			setLocationError(t("browse_location.error_access"));
+			setCurrentLocationError(t(getLocationErrorMessageKey(e)));
 		} finally {
 			setIsDetectingLocation(false);
 		}
@@ -560,20 +561,36 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 										disabled={isDetectingLocation || isSaving}
 										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
 									>
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
-											{isDetectingLocation ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
+										<div
+											className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] ${
+												currentLocationError ? "text-red-500" : "text-[var(--accent)]"
+											}`}
+										>
+											{isDetectingLocation ? (
+												<Loader2 className="h-4 w-4 animate-spin" />
+											) : currentLocationError ? (
+												<X className="h-4 w-4" />
+											) : (
+												<Navigation className="h-4 w-4" />
+											)}
 										</div>
 										<div className="min-w-0 flex-1">
 											<p className="truncate font-semibold text-[var(--text)]">
 												{isDetectingLocation ? t("browse_location.detecting_location") : t("browse_location.use_current_location")}
 											</p>
-											<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">
-												{useAutoLocation && locationName
-													? locationName
-													: t("browse_location.panel_subtitle")}
+											<p
+												className={`mt-0.5 text-xs ${
+													currentLocationError ? "text-red-500" : "truncate text-[var(--text-muted)]"
+												}`}
+											>
+												{currentLocationError
+													? currentLocationError
+													: useAutoLocation && locationName
+														? locationName
+														: t("browse_location.panel_subtitle")}
 											</p>
 										</div>
-										{useAutoLocation && !isDetectingLocation && (
+										{useAutoLocation && !isDetectingLocation && !currentLocationError && (
 											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
 												<Check className="h-3.5 w-3.5 shrink-0" />
 												{t("browse_location.badge_active")}

@@ -23,6 +23,8 @@ import type {
 	GetSharedAlbumsForProfileInput,
 	OpenSharedAlbumInput,
 	OpenSharedAlbumResult,
+	RemoveAlbumShareInput,
+	RemoveAlbumShareResult,
 	ReorderOwnAlbumContentInput,
 	RenameOwnAlbumInput,
 	UnshareAlbumInput,
@@ -193,6 +195,24 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 				(response.status < 200 || response.status >= 300)
 			) {
 				await assertSuccess(response, t("api.errors.open_shared_album"));
+			}
+			return { status: response.status };
+		},
+
+		// Recipient-initiated removal of *our own* share of someone else's
+		// album — used by the "delete" action on the shared-albums page.
+		// 403 is tolerated the same way openSharedAlbum does: it's the observed
+		// response for a share that's already gone, not a real failure, and the
+		// caller cleans up the local cache regardless of which status comes back.
+		async removeAlbumShare(input: RemoveAlbumShareInput): Promise<RemoveAlbumShareResult> {
+			const response = await fetchRest(`/v1/albums/${input.albumId}/shares/remove`, {
+				method: "POST",
+			});
+			if (
+				response.status !== 403 &&
+				(response.status < 200 || response.status >= 300)
+			) {
+				await assertSuccess(response, t("api.errors.remove_album_share"));
 			}
 			return { status: response.status };
 		},

@@ -181,10 +181,14 @@ export function getOnlineStatusMeta(
 	onlineUntil: number | null | undefined,
 	nowTimestamp: number = Date.now(),
 ): OnlineStatusMeta {
+	// lastOnline/onlineUntil of 0 is the server's "unknown/hidden" sentinel
+	// (seen e.g. from Explore mode's privacy mask on cascade responses), not
+	// a real epoch timestamp — treat it the same as null/undefined, otherwise
+	// it renders as tens of thousands of days ago.
 	const hasLastOnline =
-		typeof lastOnline === "number" && Number.isFinite(lastOnline);
+		typeof lastOnline === "number" && Number.isFinite(lastOnline) && lastOnline > 0;
 	const hasOnlineUntil =
-		typeof onlineUntil === "number" && Number.isFinite(onlineUntil);
+		typeof onlineUntil === "number" && Number.isFinite(onlineUntil) && onlineUntil > 0;
 	const minuteMs = 60 * 1000;
 	const hourMs = 60 * minuteMs;
 	const dayMs = 24 * hourMs;

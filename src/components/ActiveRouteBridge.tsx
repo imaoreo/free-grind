@@ -12,6 +12,7 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { appLog } from "../utils/logger";
+import { syncNotificationSettingsToNative } from "../utils/notificationSettings";
 
 declare global {
 	interface Window {
@@ -32,6 +33,10 @@ function pushRoute(route: string | null): void {
 
 export function ActiveRouteBridge() {
 	const location = useLocation();
+
+	useEffect(() => {
+		syncNotificationSettingsToNative();
+	}, []);
 
 	useEffect(() => {
 		const focused =

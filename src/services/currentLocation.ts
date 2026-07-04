@@ -3,7 +3,18 @@ import { platform } from "@tauri-apps/plugin-os";
 import { isTauriRuntime } from "./tauriWebSocket";
 import { appLog } from "../utils/logger";
 
-export class LocationAccessError extends Error {}
+// Distinguishes *why* a location fetch failed so callers can show a message
+// that actually tells the user what to do, instead of one generic "check
+// your permissions" catch-all for every possible failure.
+export type LocationErrorReason = "permission_denied" | "timeout" | "unavailable" | "network";
+
+export class LocationAccessError extends Error {
+	reason: LocationErrorReason;
+	constructor(message: string, reason: LocationErrorReason) {
+		super(message);
+		this.reason = reason;
+	}
+}
 
 export type CurrentLocationResult = {
 	lat: number;
@@ -11,6 +22,18 @@ export type CurrentLocationResult = {
 	// false when resolved via IP-based approximation rather than a real GPS/network fix
 	isPrecise: boolean;
 };
+
+// Maps a raw GeolocationPositionError (or the Tauri plugin's equivalent) to
+// our reason enum. code 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE,
+// 3 = TIMEOUT (see MDN GeolocationPositionError).
+function geolocationErrorReason(error: unknown): LocationErrorReason {
+	const code = error && typeof error === "object" && "code" in error
+		? (error as { code: unknown }).code
+		: null;
+	if (code === 1) return "permission_denied";
+	if (code === 3) return "timeout";
+	return "unavailable";
+}
 
 const ipGeolocationSchema = z.object({
 	latitude: z.number(),
@@ -20,7 +43,7 @@ const ipGeolocationSchema = z.object({
 async function getIpBasedLocation(): Promise<CurrentLocationResult> {
 	const response = await fetch("https://ipapi.co/json/");
 	if (!response.ok) {
-		throw new LocationAccessError("IP-based location lookup failed");
+		throw new LocationAccessError("IP-based location lookup failed", "network");
 	}
 
 	const data = ipGeolocationSchema.parse(await response.json());
@@ -73,15 +96,19 @@ export async function getCurrentLocation(): Promise<CurrentLocationResult> {
 				permissions = await tauriGeo.requestPermissions(["location"]);
 			}
 			if (permissions.location !== "granted") {
-				throw new LocationAccessError("Location permission denied");
+				throw new LocationAccessError("Location permission denied", "permission_denied");
 			}
 
-			const position = await tauriGeo.getCurrentPosition({
-				enableHighAccuracy: true,
-				timeout: 12000,
-				maximumAge: 20000,
-			});
-			return { lat: position.coords.latitude, lon: position.coords.longitude, isPrecise: true };
+			try {
+				const position = await tauriGeo.getCurrentPosition({
+					enableHighAccuracy: true,
+					timeout: 12000,
+					maximumAge: 20000,
+				});
+				return { lat: position.coords.latitude, lon: position.coords.longitude, isPrecise: true };
+			} catch (error) {
+				throw new LocationAccessError("Location request failed", geolocationErrorReason(error));
+			}
 		}
 
 		try {
@@ -94,13 +121,41 @@ export async function getCurrentLocation(): Promise<CurrentLocationResult> {
 				"[current-location] navigator.geolocation unavailable, falling back to IP-based location",
 				error,
 			);
-			return getIpBasedLocation();
+			try {
+				return await getIpBasedLocation();
+			} catch {
+				// Both GPS and the IP fallback failed — the GPS error's reason is
+				// the actionable one (e.g. permission denied), so surface that
+				// rather than the IP lookup's generic network failure.
+				throw new LocationAccessError("Location unavailable", geolocationErrorReason(error));
+			}
 		}
 	}
 
 	if ("geolocation" in navigator) {
-		return getBrowserLocation();
+		try {
+			return await getBrowserLocation();
+		} catch (error) {
+			throw new LocationAccessError("Location request failed", geolocationErrorReason(error));
+		}
 	}
 
 	return getIpBasedLocation();
+}
+
+// Maps a getCurrentLocation() failure to a translation key with an
+// actionable, reason-specific message — callers just need t(key).
+export function getLocationErrorMessageKey(error: unknown): string {
+	const reason = error instanceof LocationAccessError ? error.reason : "unavailable";
+	switch (reason) {
+		case "permission_denied":
+			return "browse_location.error_permission_denied";
+		case "timeout":
+			return "browse_location.error_timeout";
+		case "network":
+			return "browse_location.error_network";
+		case "unavailable":
+		default:
+			return "browse_location.error_unavailable";
+	}
 }

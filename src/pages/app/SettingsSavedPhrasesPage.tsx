@@ -230,14 +230,14 @@ export function SettingsSavedPhrasesPage() {
 								<Upload className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
 							)}
 						</button>
-						<input
-							type="file"
-							ref={importInputRef}
-							onChange={(e) => void handleImportFile(e)}
-							accept=".txt,text/plain"
-							className="hidden"
-						/>
 					</div>
+					<input
+						type="file"
+						ref={importInputRef}
+						onChange={(e) => void handleImportFile(e)}
+						accept=".txt,text/plain"
+						className="hidden"
+					/>
 				</div>
 			</div>
 		</section>

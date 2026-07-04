@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Download, FileDown, FileUp, Loader2, ShieldCheck, Trash2, Upload } from "lucide-react";
+import {
+	Download,
+	FileDown,
+	FileUp,
+	Loader2,
+	ShieldCheck,
+	Trash2,
+	Upload,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";

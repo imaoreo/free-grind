@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useInterestData } from "../../hooks/queries/useInterestQueries";
+import { useBlockedProfileIds } from "../../hooks/queries/useProfileQueries";
+import { getBlockStatesByProfileIds } from "../../services/chatDb";
 import { markInterestSeen, getInterestTabLastSeen, markInterestTabSeen } from "../../services/seenStore";
 import { EmptyState, ErrorState } from "../../components/ui/states";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
@@ -18,6 +20,7 @@ import {
 	toStoredView,
 	toNumber,
 	asObject,
+	PREVIEW_ID_PREFIX,
 	normalizeViews,
 	normalizeTaps,
 } from "./interest/interestUtils";
@@ -133,6 +136,50 @@ export function InterestPage() {
 	}, [data?.taps, demoAddedTaps, demoMode]);
 
 	const viewedCount = demoMode !== 0 ? demoAddedViews.length : (data?.viewedCount ?? 0);
+
+	// Profiles we've blocked — same list ChatPage/GridPage use to gate their
+	// own block-aware UI.
+	const { data: blockedProfileIdsData } = useBlockedProfileIds();
+	const blockedByMeProfileIds = useMemo(
+		() => new Set(blockedProfileIdsData ?? []),
+		[blockedProfileIdsData],
+	);
+
+	// Profiles that blocked us. There's no server list for this direction —
+	// it's only knowable locally, from a conversation's block_state (set by
+	// ChatPage/GridProfilePage when a 403/WS event reveals it). Mirrors how
+	// chat itself gates profile navigation off conversation state instead of
+	// a dedicated "blocked by" check.
+	const [blockedByOtherProfileIds, setBlockedByOtherProfileIds] = useState<Set<string>>(new Set());
+	useEffect(() => {
+		const profileIds = [...new Set([...views, ...taps].map((item) => item.profileId))].filter(
+			(id) => !id.startsWith(PREVIEW_ID_PREFIX),
+		);
+		if (profileIds.length === 0) {
+			setBlockedByOtherProfileIds(new Set());
+			return;
+		}
+		let cancelled = false;
+		void getBlockStatesByProfileIds(profileIds)
+			.then((blockStates) => {
+				if (cancelled) return;
+				const blockedByOther = new Set(
+					[...blockStates.entries()]
+						.filter(([, state]) => state === "blocked_by_other")
+						.map(([profileId]) => profileId),
+				);
+				setBlockedByOtherProfileIds(blockedByOther);
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [views, taps]);
+
+	const isProfileBlocked = useCallback(
+		(profileId: string) => blockedByMeProfileIds.has(profileId) || blockedByOtherProfileIds.has(profileId),
+		[blockedByMeProfileIds, blockedByOtherProfileIds],
+	);
 
 	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
 	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
@@ -509,11 +556,14 @@ export function InterestPage() {
 
 	const handleOpenProfile = useCallback(
 		(profileId: string) => {
+			if (isProfileBlocked(profileId)) {
+				return;
+			}
 			navigate(`/profile/${profileId}`, {
 				state: { returnTo: `${location.pathname}${location.search}` },
 			});
 		},
-		[navigate, location.pathname, location.search],
+		[navigate, location.pathname, location.search, isProfileBlocked],
 	);
 
 	const handleTouchStart = useCallback((event: TouchEvent<HTMLDivElement>) => {
@@ -670,6 +720,7 @@ export function InterestPage() {
 											onOpenProfile={handleOpenProfile}
 											now={nowTimestamp}
 											isFirst={index === 0}
+											isBlocked={isProfileBlocked(item.profileId)}
 										/>
 									))}
 

@@ -6,8 +6,12 @@
         "language_description": "Choose your preferred language.",
         "profile_editor": "Profile Editor",
         "profile_editor_desc": "Edit profile details, identity, and preferences.",
-        "customizability": "Customizability",
+        "customizability": "Appearance",
         "customizability_desc": "Change color scheme and accent color.",
+        "behavior": "Behavior",
+        "behavior_desc": "Confirmation prompts for blocking and deleting chats.",
+        "notifications": "Notifications",
+        "notifications_desc": "Choose which notifications you get, and whether they show up while the app is open.",
         "privacy": "Privacy & Analytics",
         "privacy_desc": "Read receipts, profile view tracking, media blur, and analytics.",
         "automation": "Automation",
@@ -115,7 +119,19 @@
         "media_unavailable": "This media is unavailable.",
         "content_alt": "Album content {{index}}",
         "previous": "Previous",
-        "next": "Next"
+        "next": "Next",
+        "cached_section_title": "No longer shared",
+        "video_label": "Contains video",
+        "delete": "Delete",
+        "deleting": "Deleting…",
+        "cancel": "Cancel",
+        "confirm_delete_title": "Delete album?",
+        "confirm_delete_message": "This removes the album from your shared list. If it's still shared with you, the share will also be removed.",
+        "toast_deleted": "Album removed",
+        "error_delete_fallback": "Failed to remove album",
+        "filter_favorites": "Favorites",
+        "filter_online": "Online",
+        "filter_video": "Has videos"
     },
     "right_now": {
         "title": "Right Now",
@@ -227,6 +243,10 @@
         "back_aria": "Back to browse",
         "error_geolocation": "Geolocation is unavailable on this device.",
         "error_access": "Could not access your location. Check location permissions and try again.",
+        "error_permission_denied": "Location access is off for this app. Enable it in your device's system settings, then try again.",
+        "error_timeout": "Location request timed out. Move somewhere with a clearer GPS or network signal and try again.",
+        "error_unavailable": "Your location couldn't be determined. Make sure location services are turned on for this device.",
+        "error_network": "Couldn't reach location services. Check your internet connection and try again.",
         "error_search_failed": "Location search failed. Try again in a moment.",
         "error_search_failed_general": "Failed to search location",
         "current_location_label": "Current location",
@@ -603,6 +623,10 @@
         "behavior": "Behavior",
         "confirm_before_block": "Confirm Before Blocking",
         "confirm_before_block_desc": "Ask for confirmation before blocking a profile. Turn this off to block immediately, without a prompt.",
+        "confirm_before_unblock": "Confirm Before Unblocking",
+        "confirm_before_unblock_desc": "Ask for confirmation before unblocking a profile. Turn this off to unblock immediately, without a prompt.",
+        "confirm_before_delete_conversation": "Confirm Before Deleting Chats",
+        "confirm_before_delete_conversation_desc": "Ask for confirmation before deleting a conversation. Turn this off to delete immediately, without a prompt.",
         "units": "Units",
         "units_description": "Choose how distance and height are displayed.",
         "units_world": "World (meters + cm)",
@@ -651,6 +675,18 @@
             "current": "Current",
             "not_selected": "Not selected yet"
         }
+    },
+    "behavior": {
+        "subtitle": "Manage confirmation prompts before blocking profiles or deleting chats."
+    },
+    "notifications_page": {
+        "subtitle": "Choose which notifications you get, and whether they show up while the app is open.",
+        "chat_enabled": "Message Notifications",
+        "chat_enabled_desc": "Get notified when someone sends you a message.",
+        "taps_enabled": "Tap Notifications",
+        "taps_enabled_desc": "Get notified when someone taps you.",
+        "foreground": "Notifications While App Is Open",
+        "foreground_desc": "Show notifications (for the types enabled above) while you have the app open. Turn this off to only be notified once the app is in the background or closed."
     },
     "issue_search": {
         "title": "Issues & Feature Requests",
@@ -840,6 +876,11 @@
             "sent_message": "Sent a message",
             "replied_profile_photo": "Replied to a profile photo"
         },
+        "notifications": {
+            "someone": "Someone",
+            "tapped_you": "Tapped you",
+            "tapped_you_back": "Tapped you back"
+        },
         "thread": {
             "unsent": "This message was unsent",
             "image_placeholder": "[image]",
@@ -871,7 +912,11 @@
             "reply": "Reply",
             "unsend": "Unsend",
             "delete": "Delete",
-            "cancel": "Cancel"
+            "cancel": "Cancel",
+            "add_to_saved_phrases": "Add to saved phrases",
+            "added_to_saved_phrases": "Added to saved phrases",
+            "open_media": "Open Media",
+            "download_media": "Download Media"
         },
         "realtime": {
             "connected": "Connected",
@@ -1228,6 +1273,7 @@
             "button": "Got it"
         },
         "unknown_profile": "Unknown Profile",
+        "blocked_profile": "Blocked",
         "unknown_time": "Unknown time",
         "tap_labels": {
             "friendly": "Friendly",
@@ -1256,6 +1302,7 @@
             "load_shared_albums": "Failed to load shared albums",
             "load_shared_albums_profile": "Failed to load shared albums for profile",
             "open_shared_album": "Failed to open shared album",
+            "remove_album_share": "Failed to remove album share",
             "load_genders": "Failed to load genders",
             "invalid_genders_response": "Invalid genders response",
             "load_pronouns": "Failed to load pronouns",
@@ -1290,36 +1337,10 @@
         "action_home": "Go to Browse"
     },
     "chat_search": {
-        "title": "Search",
-        "subtitle": "Find conversations, messages, and profiles",
-        "back_to_inbox": "Back to Inbox",
-        "placeholder": "Search conversations, messages, profiles",
-        "mode_label": "Search mode",
-        "quick_start_label": "Quick start",
-        "quick_start_placeholder": "Quick start by profile ID",
-        "view": "View",
-        "message": "Message",
-        "modes": {
-            "messages": "messages",
-            "conversations": "conversations",
-            "profiles": "profiles"
-        },
+        "placeholder": "Search your locally stored messages",
         "loading": "Loading search index...",
         "min_chars": "Type at least 2 characters to search.",
-        "no_preview": "No preview",
-        "start_chat_with": "Start chat with profile #{{profileId}}",
-        "use_searched_id": "Use searched profile ID",
-        "start": "Start",
-        "profile_alt": "Profile",
-        "distance_unavailable": "Distance unavailable",
-        "searching": "Searching...",
-        "refresh": "Refresh",
-        "load_more": "Load more profiles",
-        "no_conversations_found": "No conversation matches found.",
-        "no_messages_found": "No message matches found in indexed cache.",
-        "no_profiles_found": "No profile matches found.",
-        "error_valid_id": "Enter a valid profile ID",
-        "error_search_profiles": "Failed to search profiles",
+        "no_messages_found": "No message matches found.",
         "error_load_inbox": "Failed to load inbox"
     },
     "pull_to_refresh": {

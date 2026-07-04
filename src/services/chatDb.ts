@@ -26,6 +26,7 @@ import type {
 	AlbumMediaUpsertInput,
 	AlbumUpsertInput,
 	ArchivedReason,
+	BlockState,
 	DownloadedMediaEntry,
 	FullDbExport,
 	MediaFileUpsertInput,
@@ -36,7 +37,9 @@ import type {
 	StoredMediaFile,
 	StoredMessage,
 } from "../types/chat-db";
+import type { IndexedMessage } from "../types/chat-cache";
 import { appLog } from "../utils/logger";
+import { getMessageText } from "../utils/messageText";
 import { guardAgainstClosedPool } from "./sqlitePoolGuard";
 
 // Pre-multi-account file. Once a user is known, the active db switches to a
@@ -63,6 +66,7 @@ type ConversationRow = {
 	archived: number;
 	archived_reason: string | null;
 	archived_at: number | null;
+	block_state: string | null;
 	last_seen_in_inbox_at: number | null;
 	created_at: number;
 	updated_at: number;
@@ -178,6 +182,15 @@ async function getDb(): Promise<Database> {
 				await db.execute(
 					"CREATE INDEX IF NOT EXISTS idx_conversations_archived ON conversations(archived)",
 				);
+				// Added later: explicit, durable "who blocked whom" state — the
+				// source of truth for archive/system-message decisions instead of
+				// inferring direction from toggling `archived` on an ambiguous
+				// chat.v1.conversation.delete event. NULL = not blocked either way.
+				try {
+					await db.execute("ALTER TABLE conversations ADD COLUMN block_state TEXT");
+				} catch {
+					// already migrated
+				}
 
 				await db.execute(`
 					CREATE TABLE IF NOT EXISTS conversation_meta (
@@ -476,6 +489,7 @@ function rowToStoredConversation(row: ConversationRow): StoredConversation {
 		archived: Boolean(row.archived),
 		archivedReason: (row.archived_reason as ArchivedReason | null) ?? null,
 		archivedAt: row.archived_at,
+		blockState: (row.block_state as BlockState | null) ?? null,
 		lastSeenInInboxAt: row.last_seen_in_inbox_at,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
@@ -553,6 +567,27 @@ export async function listConversations(options?: {
 	return rows.map(rowToStoredConversation);
 }
 
+/**
+ * Unarchived conversations recent (or pinned) enough that they'd belong on
+ * the same inbox page as `sinceTimestamp` — used to recover a conversation
+ * the server has permanently stopped listing (e.g. it was blocked and
+ * deleted there; the server only relists it once someone messages that
+ * profile afresh) without falling back to the *entire* local history, which
+ * would defeat pagination. `sinceTimestamp` should be the least-recent
+ * lastActivityTimestamp actually present in the current live response — a
+ * locally-known conversation newer than that would have to appear on this
+ * same page too, so its absence means the server can no longer produce it at
+ * all, not that it merely fell further down the pagination.
+ */
+export async function listConversationsSince(sinceTimestamp: number): Promise<StoredConversation[]> {
+	const db = await getDb();
+	const rows = await db.select<ConversationRow[]>(
+		"SELECT * FROM conversations WHERE archived = 0 AND (pinned = 1 OR last_activity_timestamp >= $1) ORDER BY pinned DESC, last_activity_timestamp DESC",
+		[sinceTimestamp],
+	);
+	return rows.map(rowToStoredConversation);
+}
+
 export async function findConversationByProfileId(
 	profileId: string,
 ): Promise<StoredConversation | null> {
@@ -563,6 +598,50 @@ export async function findConversationByProfileId(
 	);
 	const row = rows[0];
 	return row ? rowToStoredConversation(row) : null;
+}
+
+/**
+ * Bulk lookup of the local block_state for a set of profiles — used to gate
+ * profile navigation outside of chat (e.g. Interest/Taps) the same way
+ * ChatThreadPanel/ChatInboxPanel gate it via a conversation's archived
+ * state, without one DB round trip per row.
+ */
+export async function getBlockStatesByProfileIds(
+	profileIds: string[],
+): Promise<Map<string, BlockState>> {
+	if (profileIds.length === 0) {
+		return new Map();
+	}
+	const db = await getDb();
+	const placeholders = profileIds.map((_, i) => `$${i + 1}`).join(", ");
+	const rows = await db.select<{ other_profile_id: string; block_state: string }[]>(
+		`SELECT other_profile_id, block_state FROM conversations WHERE other_profile_id IN (${placeholders}) AND block_state IS NOT NULL`,
+		profileIds,
+	);
+	return new Map(rows.map((row) => [row.other_profile_id, row.block_state as BlockState]));
+}
+
+/**
+ * Backfills other_profile_id for a conversation whose row already exists
+ * but was created without it resolved (e.g. a chat.v1.conversation.delete
+ * arriving for a conversation started moments earlier, before it's ever been
+ * through a normal /v4/inbox sync — upsertConversation is what normally
+ * keeps this current, but that requires the participant list from a live
+ * inbox entry). Never overwrites a value that's already set.
+ */
+export async function backfillOtherProfileId(
+	conversationId: string,
+	otherProfileId: string,
+): Promise<void> {
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "backfill-other-profile-id", async () => {
+		await db.execute(
+			"UPDATE conversations SET other_profile_id = $2, updated_at = $3 WHERE conversation_id = $1 AND other_profile_id IS NULL",
+			[conversationId, otherProfileId, now],
+		);
+	});
 }
 
 export async function setConversationArchived(
@@ -581,6 +660,27 @@ export async function setConversationArchived(
 			WHERE conversation_id = $1
 			`,
 			[conversationId, archived ? 1 : 0, archived ? reason : null, archived ? now : null, now],
+		);
+	});
+}
+
+/**
+ * Sets (or clears, with null) the explicit "who blocked whom" state for a
+ * conversation — the source of truth conversationArchive.ts uses to decide
+ * archiving/system messages, instead of inferring direction from toggling
+ * `archived` on an ambiguous chat.v1.conversation.delete event.
+ */
+export async function setBlockState(
+	conversationId: string,
+	blockState: BlockState | null,
+): Promise<void> {
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "set-block-state", async () => {
+		await db.execute(
+			"UPDATE conversations SET block_state = $2, updated_at = $3 WHERE conversation_id = $1",
+			[conversationId, blockState, now],
 		);
 	});
 }
@@ -830,6 +930,79 @@ export async function getMessagesPage(
 					[conversationId, options.limit],
 				);
 	return rows.map(rowToStoredMessage).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function escapeLikePattern(value: string): string {
+	return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Full-database message text search — unlike the in-memory index in
+ * pages/app/chat/cache.ts (which only ever sees messages from conversations
+ * opened during this session), this scans every conversation's persisted
+ * history via chatDb.
+ *
+ * `body_json` has no dedicated text column, so matching is a raw LIKE over
+ * the JSON blob (cheap, no FTS table to maintain) — that can false-positive
+ * on a hit inside a non-text field (e.g. a media URL), so rows are
+ * re-checked against the same rendered text (getMessageText) used for
+ * display before being returned. Over-fetches by 3x to absorb rows dropped
+ * by that re-check while still hitting the requested limit when possible.
+ */
+export async function searchMessages(
+	query: string,
+	options?: { conversationId?: string; limit?: number },
+): Promise<IndexedMessage[]> {
+	const needle = query.trim();
+	if (!needle) {
+		return [];
+	}
+
+	const db = await getDb();
+	const limit = options?.limit ?? 40;
+	const pattern = `%${escapeLikePattern(needle)}%`;
+
+	const rows = options?.conversationId
+		? await db.select<MessageRow[]>(
+				`
+				SELECT * FROM messages
+				WHERE conversation_id = $1 AND unsent = 0 AND body_json LIKE $2 ESCAPE '\\'
+				ORDER BY timestamp DESC LIMIT $3
+				`,
+				[options.conversationId, pattern, limit * 3],
+			)
+		: await db.select<MessageRow[]>(
+				`
+				SELECT * FROM messages
+				WHERE unsent = 0 AND body_json LIKE $1 ESCAPE '\\'
+				ORDER BY timestamp DESC LIMIT $2
+				`,
+				[pattern, limit * 3],
+			);
+
+	const needleLower = needle.toLowerCase();
+	const results: IndexedMessage[] = [];
+	for (const row of rows) {
+		const message = rowToStoredMessage(row);
+		const text = getMessageText(message);
+		const searchText = text.toLowerCase();
+		if (!text || !searchText.includes(needleLower)) {
+			continue;
+		}
+		results.push({
+			messageId: message.messageId,
+			conversationId: message.conversationId,
+			senderId: message.senderId,
+			timestamp: message.timestamp,
+			text,
+			searchText,
+		});
+		if (results.length >= limit) {
+			break;
+		}
+	}
+
+	return results;
 }
 
 export async function setMessageLocalHistory(
@@ -1116,6 +1289,20 @@ export async function getAlbum(albumId: string): Promise<StoredAlbum | null> {
 	);
 	const row = rows[0];
 	return row ? rowToStoredAlbum(row) : null;
+}
+
+/**
+ * Deletes a single album and its cached media — used when the user removes
+ * a received album from the shared-albums page, whether or not the share
+ * itself is still live server-side.
+ */
+export async function deleteAlbum(albumId: string): Promise<void> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "delete-album", async () => {
+		await db.execute("DELETE FROM album_media WHERE album_id = $1", [albumId]);
+		await db.execute("DELETE FROM albums WHERE album_id = $1", [albumId]);
+	});
 }
 
 /** All albums ever shared within this conversation, eagerly captured and durable. */

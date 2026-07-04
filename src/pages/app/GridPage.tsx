@@ -58,7 +58,12 @@ import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoDat
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
 import { LocationOverlay, type ExploreLocation, EXPLORE_COLOR } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
-import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY } from "../../utils/blockConfirm";
+import {
+	SKIP_BLOCK_CONFIRM_KEY,
+	SKIP_UNBLOCK_CONFIRM_KEY,
+	isBlockConfirmSkipped,
+	isUnblockConfirmSkipped,
+} from "../../utils/blockConfirm";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 
@@ -67,7 +72,7 @@ export function GridPage() {
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-	const { userId, savedAccounts, switchAccount } = useAuth();
+	const { userId, savedAccounts, switchAccount, settingsReady } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const {
 		geohash,
@@ -167,18 +172,6 @@ export function GridPage() {
 		profileId: string;
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
-	const [skipBlockConfirm, setSkipBlockConfirm] = useState(() => {
-		if (typeof window === "undefined") {
-			return false;
-		}
-		return localStorage.getItem(SKIP_BLOCK_CONFIRM_KEY) === "true";
-	});
-	const [skipUnblockConfirm, setSkipUnblockConfirm] = useState(() => {
-		if (typeof window === "undefined") {
-			return false;
-		}
-		return localStorage.getItem(SKIP_UNBLOCK_CONFIRM_KEY) === "true";
-	});
 	const isMountedRef = useRef(true);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
 	const headerRef = useRef<HTMLElement | null>(null);
@@ -276,10 +269,18 @@ export function GridPage() {
 		applyDraft,
 	} = useBrowseFilters(getDefaultBrowseFiltersDraft());
 
+	// Reload whenever the active account's chatDb is ready (settingsReady),
+	// so switching accounts from GridPage's own account switcher also
+	// switches filters instead of leaking the previous account's browse
+	// filters into the newly active one (mirrors the per-profile location
+	// reload in PreferencesContext.tsx).
 	useEffect(() => {
+		if (!settingsReady) {
+			return;
+		}
 		void loadBrowseFiltersDraft().then(applyDraft);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
+	}, [userId, settingsReady]);
 
 	const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 	const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -1170,7 +1171,7 @@ export function GridPage() {
 				return;
 			}
 
-			if (skipBlockConfirm) {
+			if (isBlockConfirmSkipped()) {
 				await performBlockProfile(targetProfileId);
 				return;
 			}
@@ -1178,7 +1179,7 @@ export function GridPage() {
 			setDontAskAgainChecked(false);
 			setPendingProfileConfirm({ action: "block", profileId: targetProfileId });
 		},
-		[isBlockingProfile, isUnblockingProfile, performBlockProfile, skipBlockConfirm],
+		[isBlockingProfile, isUnblockingProfile, performBlockProfile],
 	);
 
 	const handleUnblockProfile = useCallback(
@@ -1187,7 +1188,7 @@ export function GridPage() {
 				return;
 			}
 
-			if (skipUnblockConfirm) {
+			if (isUnblockConfirmSkipped()) {
 				await performUnblockProfile(targetProfileId);
 				return;
 			}
@@ -1195,7 +1196,7 @@ export function GridPage() {
 			setDontAskAgainChecked(false);
 			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
 		},
-		[isBlockingProfile, isUnblockingProfile, performUnblockProfile, skipUnblockConfirm],
+		[isBlockingProfile, isUnblockingProfile, performUnblockProfile],
 	);
 
 	const handleToggleFavoriteProfile = useCallback(
@@ -1266,13 +1267,10 @@ export function GridPage() {
 
 		const { action, profileId } = pendingProfileConfirm;
 		if (dontAskAgainChecked && typeof window !== "undefined") {
-			if (action === "block") {
-				localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
-				setSkipBlockConfirm(true);
-			} else {
-				localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
-				setSkipUnblockConfirm(true);
-			}
+			localStorage.setItem(
+				action === "block" ? SKIP_BLOCK_CONFIRM_KEY : SKIP_UNBLOCK_CONFIRM_KEY,
+				"true",
+			);
 		}
 
 		setPendingProfileConfirm(null);

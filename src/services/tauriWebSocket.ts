@@ -52,13 +52,23 @@ export class TauriWebSocket {
 		this.url = url;
 		appLog.debug("[chat-ws:tauri] new TauriWebSocket", { url });
 
-		// Only allow one bridge connection at a time; the Rust side enforces this
-		// too, but tearing the previous instance down here keeps callbacks tidy.
+		// Only allow one bridge connection at a time. Tear down the previous
+		// instance's *local* JS state only — do not also invoke ws_disconnect
+		// here. The Rust side keeps a single global connection slot and this
+		// new instance's own ws_connect (below, via bootstrap) already tears
+		// down whatever is currently active before opening the new socket.
+		// Issuing a second, separate ws_disconnect for the old instance races
+		// that in-flight ws_connect with no ordering guarantee: if the old
+		// disconnect's task runs after the new connection is already stored,
+		// it silently kills the *new* socket instead of the old one (the
+		// pump's channel-closed path never emits a close event), leaving
+		// readyState stuck at OPEN with no way to detect the dead connection
+		// until the next send fails.
 		if (activeInstance && activeInstance !== this) {
 			appLog.debug(
 				"[chat-ws:tauri] superseding previous TauriWebSocket instance",
 			);
-			activeInstance.close(1000, "superseded");
+			activeInstance.closeLocal(1000, "superseded");
 		}
 		activeInstance = this;
 
@@ -67,9 +77,19 @@ export class TauriWebSocket {
 
 	private async bootstrap() {
 		try {
-			this.unlisten = await listen<WsEvent>(WS_EVENT_NAME, (event) => {
+			const unlisten = await listen<WsEvent>(WS_EVENT_NAME, (event) => {
 				this.handleEvent(event.payload);
 			});
+
+			if (this.closed) {
+				// Closed while the listener registration was still in flight —
+				// unregister immediately instead of leaking it for the rest of
+				// the app's lifetime. dispatchClose already ran once and won't
+				// run again, so cleanupListener() would never call this.
+				unlisten();
+				return;
+			}
+			this.unlisten = unlisten;
 
 			appLog.debug("[chat-ws:tauri] invoking ws_connect");
 			await invoke("ws_connect", { url: this.url });
@@ -175,6 +195,13 @@ export class TauriWebSocket {
 		void invoke("ws_send", { payload: data }).catch((error) => {
 			appLog.warn("[chat-ws:tauri] ws_send failed", error);
 			this.dispatchError(error);
+			// The Rust side reports "not connected" when its connection slot has
+			// already been torn down (e.g. by a lost race between a superseding
+			// ws_connect and a stale ws_disconnect). No close event is coming in
+			// that case, so treat the send failure itself as proof of death and
+			// fire close locally — otherwise readyState stays stuck at OPEN and
+			// ChatRealtimeManager never reconnects.
+			this.dispatchClose(1006, String(error));
 		});
 	}
 
@@ -186,6 +213,17 @@ export class TauriWebSocket {
 		});
 		// Fire close locally so the manager's reconnect logic engages even if the
 		// Rust side never emits a close event back.
+		this.dispatchClose(code, reason);
+	}
+
+	/**
+	 * Tear down local JS-side state only, without telling the Rust side to
+	 * disconnect. Used when this instance is being superseded by a new one
+	 * whose own ws_connect will already replace the shared connection slot.
+	 */
+	private closeLocal(code: number, reason: string): void {
+		appLog.debug("[chat-ws:tauri] close (local only)", { code, reason });
+		this.readyState = TauriWebSocket.CLOSING;
 		this.dispatchClose(code, reason);
 	}
 }

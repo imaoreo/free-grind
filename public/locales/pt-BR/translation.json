@@ -8,6 +8,8 @@
         "profile_editor_desc": "Editar detalhes do perfil, identidade e preferências.",
         "customizability": "Personalização",
         "customizability_desc": "Alterar o esquema de cores e a cor de destaque.",
+        "behavior": "Comportamento",
+        "behavior_desc": "Avisos de confirmação para bloquear e excluir conversas.",
         "report_issue": "Reportar um bug ou uma funcionalidade",
         "report_issue_desc": "Envie relatórios de erros e solicitações de recursos para a equipe.",
         "about": "Sobre o Free Grind",
@@ -568,6 +570,9 @@
         "units_american": "Americano (milhas + pés/polegadas)",
         "blur_incoming_media": "Desfocar mídia do chat",
         "blur_incoming_media_description": "Desfoca automaticamente imagens e vídeos em chats. No computador, passe o cursor ou clique para revelar. Em chats, a mídia revelada é redefinida ao sair e retornar."
+    },
+    "behavior": {
+        "subtitle": "Gerencie os avisos de confirmação antes de bloquear perfis ou excluir conversas."
     },
     "issues_form": {
         "title": "Reportar um erro ou sugerir uma funcionalidade",

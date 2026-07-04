@@ -4,7 +4,7 @@ import z from "zod";
 import { ChevronLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { appLog } from "../../utils/logger";
-import { getCurrentLocation } from "../../services/currentLocation";
+import { getCurrentLocation, getLocationErrorMessageKey } from "../../services/currentLocation";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { encodeGeohash, decodeGeohash } from "../../utils/geohash";
 import {
@@ -28,6 +28,7 @@ export function BrowseLocationPage() {
 	const [selectedLocation, setSelectedLocation] =
 		useState<SelectedLocation | null>(null);
 	const [locationError, setLocationError] = useState<string | null>(null);
+	const [currentLocationError, setCurrentLocationError] = useState<string | null>(null);
 
 	const initialCenter = (() => {
 		if (geohash) {
@@ -86,6 +87,7 @@ export function BrowseLocationPage() {
 
 	const handleUseCurrentLocation = async () => {
 		setIsDetectingLocation(true);
+		setCurrentLocationError(null);
 
 		try {
 			const { lat, lon } = await getCurrentLocation();
@@ -97,7 +99,7 @@ export function BrowseLocationPage() {
 			);
 		} catch (e) {
 			appLog.error("Geolocation failed", e);
-			setLocationError(t("browse_location.error_access"));
+			setCurrentLocationError(t(getLocationErrorMessageKey(e)));
 		} finally {
 			setIsDetectingLocation(false);
 		}
@@ -190,6 +192,7 @@ export function BrowseLocationPage() {
 				<LocationSettingsPanel
 					isVisible={true}
 					isDetectingLocation={isDetectingLocation}
+					currentLocationError={currentLocationError}
 					onUseCurrentLocation={() => {
 						void handleUseCurrentLocation();
 					}}

@@ -2,6 +2,12 @@ import type { ConversationEntry, Message } from "./messages";
 
 export type ArchivedReason = "not_found" | "ws_delete";
 
+// Explicit, durable record of who blocked whom for this conversation — the
+// source of truth for archiving/system-message decisions instead of
+// inferring direction from toggling `archived` on an ambiguous
+// chat.v1.conversation.delete event (see conversationArchive.ts).
+export type BlockState = "blocked_by_me" | "blocked_by_other";
+
 export type StoredConversation = {
 	conversationId: string;
 	otherProfileId: string | null;
@@ -9,6 +15,7 @@ export type StoredConversation = {
 	archived: boolean;
 	archivedReason: ArchivedReason | null;
 	archivedAt: number | null;
+	blockState: BlockState | null;
 	lastSeenInInboxAt: number | null;
 	createdAt: number;
 	updatedAt: number;
