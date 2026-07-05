@@ -2714,9 +2714,16 @@ export function ChatPage() {
 		const container = threadScrollContainerRef.current;
 		if (container) {
 			container.scrollTop = container.scrollHeight;
+		} else {
+			// No scroll container yet (still mounting) — scrollIntoView is a
+			// reasonable fallback here. Once the container exists, prefer
+			// scrollTop = scrollHeight exclusively: threadBottomRef sits right
+			// after the messages, before the scroll container's own trailing
+			// paddingBottom (composer clearance), so scrollIntoView'ing it
+			// stops short of that padding and undoes the line above, landing
+			// the view a composer's-height short of the true bottom.
+			threadBottomRef.current?.scrollIntoView({ block: "end" });
 		}
-		// Also try scrollIntoView as a fallback
-		threadBottomRef.current?.scrollIntoView({ block: "end" });
 
 		if (attempts <= 1) {
 			return;
@@ -3079,8 +3086,15 @@ export function ChatPage() {
 
 		const iSentLastMessage = userId != null && Number(lastMessage.senderId) === Number(userId);
 
-		// Always scroll on new conversation OR if a new message arrived at the end
-		if (isNewConversation || isNewMessageArrival) {
+		// Always scroll on a new conversation. For a new message at the end,
+		// only force it if it's mine (I just hit send — I should always see
+		// it, even mid-navigation like the targetProfileId -> real
+		// conversationId swap right after sending a brand-new chat's first
+		// message, which can otherwise eat the "new" signal above before the
+		// real thread lands) or if I was already near the bottom (so an
+		// incoming message from the other side doesn't yank someone reading
+		// older history back down).
+		if (isNewConversation || (isNewMessageArrival && (iSentLastMessage || isNearBottom))) {
 			scrollThreadToBottom();
 		}
 

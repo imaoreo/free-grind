@@ -58,7 +58,7 @@ function ChatSyncProgressRow({ userId }: { userId: number | null }) {
 			: null;
 
 	return (
-		<div className="shrink-0 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
+		<div className="relative z-30 mx-3 mb-2 mt-1 flex shrink-0 items-center gap-2 rounded-2xl border border-[var(--border)]/70 bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] px-4 py-2.5 shadow-lg backdrop-blur-xl">
 			<Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--accent)]" />
 			<div className="min-w-0 flex-1">
 				<p className="truncate text-[11px] font-medium text-[var(--text-muted)]">{label}</p>

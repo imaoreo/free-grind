@@ -17,6 +17,13 @@ export type StoredConversation = {
 	archivedAt: number | null;
 	blockState: BlockState | null;
 	lastSeenInInboxAt: number | null;
+	// The conversation's lastActivityTimestamp as of the last time its messages
+	// were successfully fetched — not just when the conversation row itself
+	// was upserted. Lets inboxSync tell "metadata is current" apart from
+	// "messages are current", so an interrupted first sync resumes by
+	// re-fetching only conversations whose messages never actually landed,
+	// instead of restarting the whole message fetch from scratch.
+	messagesSyncedActivityTimestamp: number | null;
 	createdAt: number;
 	updatedAt: number;
 };

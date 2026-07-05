@@ -85,6 +85,7 @@ type ChatThreadMessagesProps = {
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
 	composerHeight?: number;
+	mobileKeyboardInset?: number;
 };
 
 const getReactionEmoji = (type: number): string => {
@@ -293,6 +294,7 @@ export function ChatThreadMessages({
 	isPartnerTyping = false,
 	isArchived = false,
 	composerHeight = 88,
+	mobileKeyboardInset = 0,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	useLocalMediaCache();
@@ -767,8 +769,13 @@ export function ChatThreadMessages({
 			onScroll={handleThreadScroll}
 			data-lenis-prevent
 			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pt-[140px]" : ""}`}
-			style={!isDesktop ? { paddingBottom: composerHeight + 16 } : undefined}
+			style={!isDesktop ? { paddingBottom: composerHeight + mobileKeyboardInset } : undefined}
 		>
+            {/* Grows to push a short thread's messages down against the composer
+                instead of leaving them stranded under the header; shrinks to 0
+                (rather than using justify-end, which WebKit can fail to let you
+                scroll past) once real content overflows the container. */}
+            <div className="flex-1" />
             {messagePageKey ? (
                 <button
                     type="button"

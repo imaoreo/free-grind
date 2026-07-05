@@ -68,6 +68,7 @@ type ConversationRow = {
 	archived_at: number | null;
 	block_state: string | null;
 	last_seen_in_inbox_at: number | null;
+	messages_synced_activity_timestamp: number | null;
 	created_at: number;
 	updated_at: number;
 };
@@ -188,6 +189,17 @@ async function getDb(): Promise<Database> {
 				// chat.v1.conversation.delete event. NULL = not blocked either way.
 				try {
 					await db.execute("ALTER TABLE conversations ADD COLUMN block_state TEXT");
+				} catch {
+					// already migrated
+				}
+				// Added later: tracks message-fetch progress separately from
+				// conversation-metadata freshness so inboxSync can resume an
+				// interrupted first sync without re-walking conversations whose
+				// messages already landed (see StoredConversation.messagesSyncedActivityTimestamp).
+				try {
+					await db.execute(
+						"ALTER TABLE conversations ADD COLUMN messages_synced_activity_timestamp INTEGER",
+					);
 				} catch {
 					// already migrated
 				}
@@ -491,6 +503,7 @@ function rowToStoredConversation(row: ConversationRow): StoredConversation {
 		archivedAt: row.archived_at,
 		blockState: (row.block_state as BlockState | null) ?? null,
 		lastSeenInInboxAt: row.last_seen_in_inbox_at,
+		messagesSyncedActivityTimestamp: row.messages_synced_activity_timestamp,
 		createdAt: row.created_at,
 		updatedAt: row.updated_at,
 	};
@@ -537,6 +550,26 @@ export async function upsertConversation(
 				entry.data.preview ? JSON.stringify(entry.data.preview) : null,
 				now,
 			],
+		);
+	});
+}
+
+/**
+ * Records that this conversation's messages are up to date as of
+ * `activityTimestamp` (its lastActivityTimestamp at fetch time) — lets
+ * inboxSync distinguish "conversation metadata is current" from "messages
+ * are current" so a resumed sync only re-fetches conversations that never
+ * actually got their messages, instead of every conversation seen so far.
+ */
+export async function markConversationMessagesSynced(
+	conversationId: string,
+	activityTimestamp: number | null,
+): Promise<void> {
+	const db = await getDb();
+	await executeWithLockRetry(db, "mark-conversation-messages-synced", async () => {
+		await db.execute(
+			"UPDATE conversations SET messages_synced_activity_timestamp = $1 WHERE conversation_id = $2",
+			[activityTimestamp, conversationId],
 		);
 	});
 }

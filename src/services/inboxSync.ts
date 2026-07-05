@@ -17,9 +17,20 @@
  * between, so it never competes with the foreground chat UI (or the
  * server's rate limits) while the user is actively using the app. All
  * writes go through chatDb's normal idempotent upserts, so if the app
- * closes mid-sync nothing is corrupted — an interrupted first-ever run
- * simply retries in full next launch, since only a completed one persists
- * the "done" flag.
+ * closes mid-sync nothing is corrupted.
+ *
+ * The "done" flag only covers the conversation-list walk, not individual
+ * message fetches — each conversation row also tracks the
+ * lastActivityTimestamp it last had its messages fetched at
+ * (messagesSyncedActivityTimestamp, set via chatDb.markConversationMessagesSynced
+ * only on a successful fetch). A conversation is re-enqueued for message
+ * fetching whenever that doesn't match its current lastActivityTimestamp —
+ * whether because it's genuinely new/updated, or because a prior run was
+ * interrupted before ever fetching its messages. So an interrupted
+ * first-ever run (e.g. the app closed partway through 1800 conversations)
+ * resumes on next launch by skipping every conversation already fetched and
+ * picking up only where it left off, rather than restarting the multi-hour
+ * message-fetch pass from scratch.
  */
 
 import type { createApiFunctions } from "./apiFunctions";
@@ -150,7 +161,7 @@ async function doSync(
 		setStatus(userId, { phase: "syncing_list", conversationsSoFar: 0, changedSoFar: 0 });
 
 		let conversationsSeen = 0;
-		const changedConversationIds: string[] = [];
+		const changedConversations: { conversationId: string; lastActivityTimestamp: number | null }[] = [];
 
 		let page: number | null = 1;
 		while (page != null) {
@@ -189,8 +200,15 @@ async function doSync(
 				}
 
 				const existing = await chatDb.getConversation(entry.data.conversationId).catch(() => null);
+				// "Changed" means either the metadata moved, or messages were never
+				// actually fetched for the conversation's current state — the
+				// latter is what makes a sync interrupted mid-message-fetch resume
+				// correctly instead of silently skipping conversations whose row
+				// got upserted but whose messages never landed.
 				const isNewOrChanged =
-					!existing || existing.entry.data.lastActivityTimestamp !== entry.data.lastActivityTimestamp;
+					!existing ||
+					existing.entry.data.lastActivityTimestamp !== entry.data.lastActivityTimestamp ||
+					existing.messagesSyncedActivityTimestamp !== entry.data.lastActivityTimestamp;
 
 				const other = getOtherParticipant(entry, userId);
 				await chatDb
@@ -221,7 +239,10 @@ async function doSync(
 				conversationsSeen += 1;
 				if (isNewOrChanged) {
 					pageHadChange = true;
-					changedConversationIds.push(entry.data.conversationId);
+					changedConversations.push({
+						conversationId: entry.data.conversationId,
+						lastActivityTimestamp: entry.data.lastActivityTimestamp ?? null,
+					});
 				}
 			}
 			if (reappearedMessages.length > 0 && typeof window !== "undefined") {
@@ -232,7 +253,7 @@ async function doSync(
 			setStatus(userId, {
 				phase: "syncing_list",
 				conversationsSoFar: conversationsSeen,
-				changedSoFar: changedConversationIds.length,
+				changedSoFar: changedConversations.length,
 			});
 
 			if (response.entries.length === 0) {
@@ -257,20 +278,25 @@ async function doSync(
 		appLog.info("[inbox-sync] chat list sync complete, fetching latest messages", {
 			userId,
 			conversationsSeen,
-			changed: changedConversationIds.length,
+			changed: changedConversations.length,
 		});
-		setStatus(userId, { phase: "syncing_messages", completed: 0, total: changedConversationIds.length });
+		setStatus(userId, { phase: "syncing_messages", completed: 0, total: changedConversations.length });
 
-		for (let i = 0; i < changedConversationIds.length; i += 1) {
+		for (let i = 0; i < changedConversations.length; i += 1) {
 			if (isStale()) {
 				return;
 			}
-			const conversationId = changedConversationIds[i];
+			const { conversationId, lastActivityTimestamp } = changedConversations[i];
 			try {
 				const response = await apiFunctions.listMessages({ conversationId });
 				if (response.messages.length > 0) {
 					await chatDb.upsertMessages(conversationId, response.messages);
 				}
+				// Only recorded on success — a failed fetch leaves this
+				// conversation looking "not yet synced" so the next run (whether
+				// that's a retry moments later or after the app was closed and
+				// reopened) picks it back up instead of silently giving up on it.
+				await chatDb.markConversationMessagesSynced(conversationId, lastActivityTimestamp);
 			} catch (error) {
 				appLog.warn("[inbox-sync] failed to fetch/persist latest messages", {
 					conversationId,
@@ -280,7 +306,7 @@ async function doSync(
 			setStatus(userId, {
 				phase: "syncing_messages",
 				completed: i + 1,
-				total: changedConversationIds.length,
+				total: changedConversations.length,
 			});
 			await sleep(MESSAGE_FETCH_DELAY_MS);
 		}
@@ -296,12 +322,12 @@ async function doSync(
 			setStatus(userId, {
 				phase: "done",
 				conversations: totalConversations,
-				changed: changedConversationIds.length,
+				changed: changedConversations.length,
 			});
 			appLog.info("[inbox-sync] sync finished", {
 				userId,
 				conversations: totalConversations,
-				changed: changedConversationIds.length,
+				changed: changedConversations.length,
 			});
 		}
 	} catch (error) {
