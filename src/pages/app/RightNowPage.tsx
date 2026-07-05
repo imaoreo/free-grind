@@ -239,7 +239,7 @@ function RightNowRow({
 		<div
 			ref={ref}
 			className={cn(
-				"flex items-center gap-4 pl-5 pr-6 py-4 border-b border-[var(--surface-2)]",
+				"flex items-center gap-4 pl-4 pr-4 py-3 border-b border-[var(--surface-2)]",
 				isFirst && "border-t",
 				revealClass
 			)}
@@ -325,7 +325,7 @@ function RightNowRow({
 
 function RightNowSkeleton() {
 	return (
-		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-5 pr-6">
+		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
 			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
 			<div className="flex flex-1 flex-col gap-2">
 				<div className="flex items-center justify-between gap-3">

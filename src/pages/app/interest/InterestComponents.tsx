@@ -173,7 +173,7 @@ export const InterestRow = memo(function InterestRow({
 		<div
 			ref={ref}
 			className={cn(
-				"relative flex items-center gap-4 pl-5 pr-6 py-4 transition-colors",
+				"relative flex items-center gap-4 pl-4 pr-4 py-3 transition-colors",
 				isLocked ? "opacity-75 grayscale-[0.3]" : "hover:bg-[var(--surface-2)]/40",
 				revealClass
 			)}
