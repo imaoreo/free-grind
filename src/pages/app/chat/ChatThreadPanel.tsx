@@ -905,13 +905,24 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		}
 
 		const viewport = window.visualViewport;
+		// window.innerHeight vs. visualViewport can differ at rest (e.g. a
+		// permanent 3-button nav bar on Android isn't included in one but is
+		// in the other), so an absolute comparison misreads that fixed offset
+		// as "keyboard open" on every load. Track the smallest overlap seen
+		// as the resting baseline and only treat overlap beyond it as the
+		// keyboard actually covering the composer.
+		let restingOverlap: number | null = null;
 
 		const updateKeyboardInset = () => {
 			const layoutHeight = window.innerHeight;
 			const visibleBottom = viewport.height + viewport.offsetTop;
 			const overlap = Math.max(0, Math.round(layoutHeight - visibleBottom));
+			if (restingOverlap === null || overlap < restingOverlap) {
+				restingOverlap = overlap;
+			}
+			const keyboardOverlap = overlap - restingOverlap;
 			// Ignore tiny viewport shifts from browser chrome changes.
-			setMobileKeyboardInset(overlap >= 60 ? overlap : 0);
+			setMobileKeyboardInset(keyboardOverlap >= 60 ? keyboardOverlap : 0);
 		};
 
 		updateKeyboardInset();
@@ -922,6 +933,26 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			viewport.removeEventListener("resize", updateKeyboardInset);
 			viewport.removeEventListener("scroll", updateKeyboardInset);
 		};
+	}, [isDesktop]);
+
+	// Android's edge-to-edge window (required for this project's targetSdk)
+	// means the OS never resizes the window/WebView for the soft keyboard —
+	// the visualViewport-based effect above simply never sees a change there
+	// (it's kept for iOS/WebKit, which does resize the visual viewport). The
+	// native side (MainActivity.setupImeInsetsListener) reads the real IME
+	// inset from window insets instead and forwards it here as the one
+	// source that reliably tracks the keyboard on Android.
+	useEffect(() => {
+		if (isDesktop) return;
+		const onKeyboardInset = (event: Event) => {
+			const detail = (event as CustomEvent<{ height?: number }>).detail;
+			const height = detail?.height;
+			if (typeof height === "number" && Number.isFinite(height)) {
+				setMobileKeyboardInset(Math.max(0, Math.round(height)));
+			}
+		};
+		window.addEventListener("fg:keyboard-inset", onKeyboardInset);
+		return () => window.removeEventListener("fg:keyboard-inset", onKeyboardInset);
 	}, [isDesktop]);
 
 	// On mobile the thread's header/composer are position:fixed against the
@@ -954,8 +985,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			style={
 				!isDesktop
 					? {
-						height:
-							"calc(100dvh - (env(safe-area-inset-top, 0px) + 16px) - (env(safe-area-inset-bottom, 0px) + 92px))",
+						// No top or bottom term here: the header and composer are
+						// both position:fixed (out of flow), so this wrapper — whose
+						// only in-flow child is the scrollable message list — doesn't
+						// need to carve out room for either. Clearance is already
+						// handled inside the scrollable content itself: pt-[140px]
+						// (header) and paddingBottom = composerHeight +
+						// mobileKeyboardInset (composer), both in ChatThreadMessages.
+						// Subtracting a second, hardcoded estimate here on top of
+						// that left a permanent empty gap at the bottom — the
+						// wrapper simply ended short of the real screen edge.
+						height: "100dvh",
 					}
 					: undefined
 			}
@@ -1576,6 +1616,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
 						composerHeight={composerHeight}
+						mobileKeyboardInset={mobileKeyboardInset}
 				/>
 				)
 			) : (
@@ -1624,7 +1665,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					<form
 						ref={composerRef}
 						onSubmit={onFormSubmit}
-                        className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "relative mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
+						className={`${!isDesktop ? "fixed bottom-0 left-0 right-0 z-30 px-[var(--app-px)] py-3" : "relative mt-3 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4"} border-t border-[var(--border)] bg-[var(--surface)]`}
 						style={
 							!isDesktop
 								? {

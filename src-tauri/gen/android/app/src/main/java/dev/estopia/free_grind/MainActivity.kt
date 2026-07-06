@@ -24,7 +24,9 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -221,6 +223,43 @@ class MainActivity : TauriActivity() {
     }
     dispatchPendingPushNotifications()
     handleNotificationIntent(intent)
+    setupImeInsetsListener(webView)
+  }
+
+  private var lastDispatchedImeInsetPx = -1
+
+  /**
+   * enableEdgeToEdge() (required for this project's targetSdk) means the
+   * system never resizes the window/WebView for the soft keyboard the old
+   * android:windowSoftInputMode="adjustResize" way, so window.innerHeight /
+   * visualViewport never change when it opens — the frontend's own resize
+   * listener has nothing to react to. This reads the real IME inset from the
+   * window insets (the one source that does update as the keyboard
+   * animates) and pushes it into the WebView as a DOM event, in CSS px so it
+   * lines up with the values the frontend already works in.
+   */
+  private fun setupImeInsetsListener(webView: WebView) {
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+      val imeHeightPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+      if (imeHeightPx != lastDispatchedImeInsetPx) {
+        lastDispatchedImeInsetPx = imeHeightPx
+        val density = resources.displayMetrics.density
+        val imeHeightCss = if (density > 0f) imeHeightPx / density else imeHeightPx.toFloat()
+        dispatchKeyboardInsetToWebview(imeHeightCss)
+      }
+      insets
+    }
+    ViewCompat.requestApplyInsets(webView)
+  }
+
+  private fun dispatchKeyboardInsetToWebview(heightCss: Float) {
+    val script =
+      "(function(){" +
+      "window.dispatchEvent(new CustomEvent('fg:keyboard-inset', { detail: { height: $heightCss } }));" +
+      "})();"
+    runOnUiThread {
+      webViewRef?.evaluateJavascript(script, null)
+    }
   }
 
   override fun onResume() {
