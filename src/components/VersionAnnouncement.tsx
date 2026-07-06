@@ -62,6 +62,7 @@ export function VersionAnnouncement({
 		setStep((s) => s + 1);
 	};
 
+	const isFinalPage = isIntro ? items.length === 0 : isLastItem;
 	const Icon = item?.icon;
 
 	return (
@@ -89,14 +90,16 @@ export function VersionAnnouncement({
 							{Icon && <Icon className="h-9 w-9 text-[var(--accent)]" />}
 						</div>
 						<h2 className="text-xl font-bold text-[var(--text)]">{item?.title}</h2>
-						<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
-							{item?.description}
-						</p>
+						<div className="flex h-24 flex-col items-center overflow-hidden">
+							<p className="mt-2 max-w-xs text-sm leading-relaxed text-[var(--text-muted)]">
+								{item?.description}
+							</p>
+						</div>
 					</div>
 				)}
 
 				<div
-					className="flex h-28 shrink-0 flex-col justify-end gap-2 px-6"
+					className="flex h-44 shrink-0 flex-col justify-end gap-2 px-6"
 					style={{ paddingBottom: "max(28px, calc(env(safe-area-inset-bottom) + 12px))" }}
 				>
 					<button
@@ -107,6 +110,15 @@ export function VersionAnnouncement({
 						{!isIntro && isLastItem ? buttonLabel : "Continue"}
 						<ChevronRight className="h-4 w-4" />
 					</button>
+					{!isFinalPage && (
+						<button
+							type="button"
+							onClick={onClose}
+							className="w-full rounded-xl py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]"
+						>
+							Skip
+						</button>
+					)}
 				</div>
 			</div>
 		</div>
