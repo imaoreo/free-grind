@@ -307,6 +307,54 @@ export function ChatThreadMessages({
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
 	const [contextMenuState, setContextMenuState] = useState<{ messageId: string; x: number; y: number } | null>(null);
 
+	const spacerRef = useRef<HTMLDivElement | null>(null);
+	const previousSpacerHeightRef = useRef<number | null>(null);
+
+	// Resync (without compensating) whenever the open conversation changes —
+	// a different conversation's spacer reflects its own message count, not
+	// a shift of content whose reading position we need to preserve.
+	useLayoutEffect(() => {
+		previousSpacerHeightRef.current = spacerRef.current?.getBoundingClientRect().height ?? null;
+	}, [selectedConversation.data.conversationId]);
+
+	// The bottom-anchoring spacer above resizes whenever anything above the
+	// message list changes size for reasons unrelated to the messages
+	// themselves — composer clearance changing on mobile (keyboard,
+	// quick-phrase pills, draft cleared after send...), a window resize, etc.
+	// When it grows, everything below it — the whole message list — shifts
+	// down by the same amount; scrollTop doesn't move on its own, so a reader
+	// scrolled up into history would otherwise see the view silently jump to
+	// reveal older messages. If they're near the live end instead, snap
+	// fully to the new bottom (this is also what makes the mobile thread
+	// follow the keyboard up). Observes the spacer's actual rendered size
+	// directly rather than guessing at every possible trigger via state
+	// dependencies — ResizeObserver fires after layout but before paint, so
+	// the correction lands before the shifted frame is ever shown.
+	useEffect(() => {
+		const spacer = spacerRef.current;
+		if (!spacer) return;
+		const observer = new ResizeObserver((entries) => {
+			const entry = entries[0];
+			if (!entry) return;
+			const container = threadScrollContainerRef.current;
+			const newHeight = entry.target.getBoundingClientRect().height;
+			const previous = previousSpacerHeightRef.current;
+			previousSpacerHeightRef.current = newHeight;
+			if (previous === null || !container) return;
+			const shiftDown = newHeight - previous;
+			if (shiftDown === 0) return;
+			const wasNearBottom =
+				container.scrollHeight - container.scrollTop - container.clientHeight < 250;
+			if (wasNearBottom) {
+				container.scrollTop = container.scrollHeight;
+			} else {
+				container.scrollTop = Math.max(0, container.scrollTop + shiftDown);
+			}
+		});
+		observer.observe(spacer);
+		return () => observer.disconnect();
+	}, [threadScrollContainerRef]);
+
 	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
 	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
 	const particleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -769,13 +817,19 @@ export function ChatThreadMessages({
 			onScroll={handleThreadScroll}
 			data-lenis-prevent
 			className={`flex flex-1 flex-col overflow-x-hidden overflow-y-auto ${!isDesktop ? "pt-[140px]" : ""}`}
-			style={!isDesktop ? { paddingBottom: composerHeight + mobileKeyboardInset } : undefined}
+			// The +16 is a small safety margin for the last own-message's tiny
+			// READ/UNREAD caption: rapid, back-to-back clearance changes (e.g.
+			// a quick-phrase pill appearing, then sending, then the keyboard
+			// closing) can leave the scroll position a couple of px short of
+			// the true bottom, which is enough to clip a ~14px caption even
+			// though the bubble itself stays fully visible.
+			style={!isDesktop ? { paddingBottom: composerHeight + mobileKeyboardInset + 16 } : undefined}
 		>
             {/* Grows to push a short thread's messages down against the composer
                 instead of leaving them stranded under the header; shrinks to 0
                 (rather than using justify-end, which WebKit can fail to let you
                 scroll past) once real content overflows the container. */}
-            <div className="flex-1" />
+            <div ref={spacerRef} className="flex-1" />
             {messagePageKey ? (
                 <button
                     type="button"

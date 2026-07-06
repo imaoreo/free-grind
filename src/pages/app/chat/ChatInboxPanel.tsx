@@ -30,10 +30,16 @@ import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { useInboxSyncStatus } from "../../../hooks/useInboxSyncStatus";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../../config/design-config";
 
-/** Fixed row pinned to the very top of the chat list (the list scrolls
- * underneath it) — only rendered while a sync is actually in flight;
- * idle/done/error states show nothing here (Settings > Data has those). */
-function ChatSyncProgressRow({ userId }: { userId: number | null }) {
+/** Footer bar below the chat list's scroll area (not inside it) — reads as
+ * part of the list (same border/background as a conversation row) rather
+ * than a floating pill, and lives outside the scrolling region entirely so
+ * conversation rows never scroll behind/through it. Desktop-only: there's no
+ * fixed bottom nav to clear here, so a plain footer row works; on mobile the
+ * fixed bottom nav bar leaves no clean spot for it, so that gets a minimal
+ * caption in the header instead (ChatSyncHeaderCaption in ChatInboxHeader).
+ * Only rendered while a sync is actually in flight; idle/done/error states
+ * show nothing here (Settings > Data has those). */
+function ChatSyncFooterRow({ userId }: { userId: number | null }) {
 	const { t } = useTranslation();
 	const status = useInboxSyncStatus(userId);
 
@@ -41,28 +47,28 @@ function ChatSyncProgressRow({ userId }: { userId: number | null }) {
 		return null;
 	}
 
+	const progressPercent =
+		status.phase === "syncing_messages" && status.total > 0
+			? Math.round((status.completed / status.total) * 100)
+			: null;
+
 	const label =
 		status.phase === "syncing_list"
 			? t("chat.sync_progress.syncing_list", {
 					defaultValue: "Syncing chats… {{count}} checked",
 					count: status.conversationsSoFar,
 				})
-			: t("chat.sync_progress.syncing_messages", {
-					defaultValue: "Syncing messages… {{completed}}/{{total}}",
-					completed: status.completed,
-					total: status.total,
+			: t("chat.sync_progress.syncing_messages_percent", {
+					defaultValue: "Syncing messages… {{percent}}%",
+					percent: progressPercent ?? 0,
 				});
-	const progressPercent =
-		status.phase === "syncing_messages" && status.total > 0
-			? Math.round((status.completed / status.total) * 100)
-			: null;
 
 	return (
-		<div className="relative z-30 mx-3 mb-2 mt-1 flex shrink-0 items-center gap-2 rounded-2xl border border-[var(--border)]/70 bg-[color-mix(in_srgb,var(--surface)_70%,transparent)] px-4 py-2.5 shadow-lg backdrop-blur-xl">
-			<Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--accent)]" />
+		<div className="z-20 flex shrink-0 items-center gap-3 border-t border-[var(--surface-2)] bg-[var(--surface)] px-4 py-3">
+			<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--accent)]" />
 			<div className="min-w-0 flex-1">
-				<p className="truncate text-[11px] font-medium text-[var(--text-muted)]">{label}</p>
-				<div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+				<p className="truncate text-xs font-medium text-[var(--text-muted)]">{label}</p>
+				<div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
 					<div
 						className={
 							progressPercent == null
@@ -652,6 +658,7 @@ export function ChatInboxPanel({
 			{showHeader && (
 				<ChatInboxHeader
 					isDesktop={isDesktop}
+					userId={userId}
 					realtimeStatusMeta={realtimeStatusMeta}
 					inboxFilters={inboxFilters}
 					hidePinned={hidePinned}
@@ -670,8 +677,6 @@ export function ChatInboxPanel({
 					onToggleHideArchived={onToggleHideArchived}
 				/>
 			)}
-
-			{!isSearchOpen && <ChatSyncProgressRow userId={userId} />}
 
 			{isSearchOpen ? (
 				<ChatSearchPanel
@@ -794,6 +799,8 @@ export function ChatInboxPanel({
 					</div>
 				</div>
 			)}
+
+			{isDesktop && !isSearchOpen && <ChatSyncFooterRow userId={userId} />}
 
 			{contextMenuState ? (
 				<ConversationContextMenu

@@ -949,36 +949,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		return () => window.removeEventListener("fg:keyboard-inset", onKeyboardInset);
 	}, [isDesktop]);
 
-	// The message list's own height doesn't shrink when its reserved bottom
-	// clearance grows — composerHeight settling from its ResizeObserver's
-	// initial placeholder to the composer's real (taller) rendered size,
-	// quick-phrase pills appearing, or the on-screen keyboard raising the
-	// composer — only its padding grows to match (see ChatThreadMessages'
-	// composerHeight/mobileKeyboardInset paddingBottom). That keeps the last
-	// bubble from being covered, but doesn't by itself bring it back into
-	// view: a reader who was already at the bottom needs re-scrolling past
-	// that new padding, same as when a new message arrives. In particular,
-	// composerHeight's real value can land after scrollThreadToBottom()'s
-	// initial retries (on opening a thread) give up, which used to leave the
-	// view a little short of the true bottom, covering the last message(s).
-	// Skipped for anyone scrolled up into history so this doesn't yank their
-	// place.
-	const previousComposerClearanceRef = useRef(0);
-	useEffect(() => {
-		const container = threadScrollContainerRef.current;
-		const clearance = composerHeight + mobileKeyboardInset;
-		const grew = clearance > previousComposerClearanceRef.current;
-		previousComposerClearanceRef.current = clearance;
-		if (isDesktop || !grew || !container) {
-			return;
-		}
-		const wasNearBottom =
-			container.scrollHeight - container.scrollTop - container.clientHeight < 250;
-		if (wasNearBottom) {
-			container.scrollTop = container.scrollHeight;
-		}
-	}, [isDesktop, composerHeight, mobileKeyboardInset, threadScrollContainerRef]);
-
 	// On mobile the thread's header/composer are position:fixed against the
 	// document viewport, which native WebViews (Android/iOS) can misplace
 	// whenever the document itself is tall/short enough to rubber-band or
@@ -1009,14 +979,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 			style={
 				!isDesktop
 					? {
-						// No bottom term here: the composer is position:fixed (out of
-						// flow) and the scrollable message list's own paddingBottom
-						// (composerHeight + 16 + mobileKeyboardInset, in
-						// ChatThreadMessages) already reserves exactly its real,
-						// measured clearance. A second, hardcoded estimate here on
-						// top of that double-reserved space left a permanent empty
-						// gap you could still scroll into.
-						height: "calc(100dvh - (env(safe-area-inset-top, 0px) + 16px))",
+						// No top or bottom term here: the header and composer are
+						// both position:fixed (out of flow), so this wrapper — whose
+						// only in-flow child is the scrollable message list — doesn't
+						// need to carve out room for either. Clearance is already
+						// handled inside the scrollable content itself: pt-[140px]
+						// (header) and paddingBottom = composerHeight +
+						// mobileKeyboardInset (composer), both in ChatThreadMessages.
+						// Subtracting a second, hardcoded estimate here on top of
+						// that left a permanent empty gap at the bottom — the
+						// wrapper simply ended short of the real screen edge.
+						height: "100dvh",
 					}
 					: undefined
 			}

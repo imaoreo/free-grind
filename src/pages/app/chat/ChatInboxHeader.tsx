@@ -1,4 +1,4 @@
-import { Archive, ArchiveX, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Archive, ArchiveX, Images, Loader2, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -6,11 +6,13 @@ import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackgroun
 import { buildChatFiltersDraft, type ChatFiltersDraft } from "./chatUtils";
 import { cn } from "../../../utils/cn";
 import type { InboxFilters } from "../../../types/messages";
+import { useInboxSyncStatus } from "../../../hooks/useInboxSyncStatus";
 
 type RealtimeStatusMeta = { className: string; symbol: string; label: string };
 
 export type ChatInboxHeaderProps = {
 	isDesktop: boolean;
+	userId: number | null;
 	realtimeStatusMeta: RealtimeStatusMeta;
 	inboxFilters: InboxFilters;
 	hidePinned: boolean;
@@ -29,8 +31,41 @@ export type ChatInboxHeaderProps = {
 	onToggleHideArchived: () => void;
 };
 
+/** Small "Inbox · Syncing 42%" caption under the title — the mobile-only,
+ * minimal home for background sync status. Desktop instead gets a proper
+ * footer row under the list (ChatSyncFooterRow in ChatInboxPanel); mobile's
+ * fixed bottom nav bar leaves no clean spot for a footer, so this reuses
+ * space the header already owns instead of adding a new floating element. */
+function ChatSyncHeaderCaption({ userId }: { userId: number | null }) {
+	const { t } = useTranslation();
+	const status = useInboxSyncStatus(userId);
+
+	if (status.phase !== "syncing_list" && status.phase !== "syncing_messages") {
+		return null;
+	}
+
+	const label =
+		status.phase === "syncing_list"
+			? t("chat.sync_progress.syncing_list", {
+					defaultValue: "Syncing chats… {{count}} checked",
+					count: status.conversationsSoFar,
+				})
+			: t("chat.sync_progress.syncing_messages_percent", {
+					defaultValue: "Syncing messages… {{percent}}%",
+					percent: status.total > 0 ? Math.round((status.completed / status.total) * 100) : 0,
+				});
+
+	return (
+		<p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)]">
+			<Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-[var(--accent)]" />
+			<span className="truncate">{label}</span>
+		</p>
+	);
+}
+
 export function ChatInboxHeader({
 	isDesktop,
+	userId,
 	realtimeStatusMeta,
 	inboxFilters,
 	hidePinned,
@@ -59,20 +94,23 @@ export function ChatInboxHeader({
 
 					{/* Row 1: title + icon buttons */}
 					<div className="flex items-center justify-between gap-2">
-						<h1 className="app-title relative">
-							{t("nav.inbox")}
-							<span
-								className="absolute -top-0.5 -right-2.5 h-2 w-2 rounded-full transition-colors duration-500"
-								style={{
-									backgroundColor:
-										realtimeStatusMeta.symbol === "✓"
-											? "oklch(0.72 0.18 142)"
-											: realtimeStatusMeta.className.includes("red")
-												? "oklch(0.65 0.22 25)"
-												: "oklch(0.75 0.17 75)",
-								}}
-							/>
-						</h1>
+						<div className="min-w-0">
+							<h1 className="app-title relative w-fit">
+								{t("nav.inbox")}
+								<span
+									className="absolute -top-0.5 -right-2.5 h-2 w-2 rounded-full transition-colors duration-500"
+									style={{
+										backgroundColor:
+											realtimeStatusMeta.symbol === "✓"
+												? "oklch(0.72 0.18 142)"
+												: realtimeStatusMeta.className.includes("red")
+													? "oklch(0.65 0.22 25)"
+													: "oklch(0.75 0.17 75)",
+									}}
+								/>
+							</h1>
+							{!isDesktop && !isSearchOpen && <ChatSyncHeaderCaption userId={userId} />}
+						</div>
 
 						<div className="flex shrink-0 items-center gap-0.5">
 							{!isSearchOpen && (

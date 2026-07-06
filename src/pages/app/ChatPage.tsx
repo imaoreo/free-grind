@@ -5213,6 +5213,7 @@ export function ChatPage() {
 	}, [fullScreenImageUrl]);
 
 	const sharedInboxHeaderProps = {
+		userId,
 		realtimeStatusMeta,
 		inboxFilters,
 		hidePinned,
