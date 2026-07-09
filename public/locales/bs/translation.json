@@ -501,6 +501,7 @@
             "album_share": "",
             "album_image": "",
             "replied_to_photo": "",
+            "replied_to_photo_theirs": "",
             "reacted_to_image": ""
         },
         "actions": {

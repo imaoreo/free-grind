@@ -1003,6 +1003,7 @@
             "album_share": "Album-Freigabe",
             "album_image": "Album-Bild",
             "replied_to_photo": "Auf dein Profilbild geantwortet",
+            "replied_to_photo_theirs": "Du hast auf ihr Profilbild geantwortet",
             "reacted_to_image": "Auf dein Album-Bild reagiert",
             "audio_label": "Audio",
             "unsupported_message": "Nicht unterstützte Nachricht",

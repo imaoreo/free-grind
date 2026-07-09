@@ -751,6 +751,7 @@
             "album_share": "Compartilhar álbum",
             "album_image": "Imagem de álbum",
             "replied_to_photo": "Respondeu à sua foto de perfil",
+            "replied_to_photo_theirs": "Você respondeu à foto de perfil deles",
             "reacted_to_image": "Reagiu à sua imagem do álbum"
         },
         "actions": {

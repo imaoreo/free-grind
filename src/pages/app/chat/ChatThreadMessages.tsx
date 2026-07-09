@@ -946,6 +946,11 @@ export function ChatThreadMessages({
                         || replyToMsgRef?.type === "Giphy" || replyToMsg?.type === "Giphy";
                     const replyIsAudio = replyPreviewRaw?.type === "Audio" || replyPreviewRaw?.chat1Type === "audio"
                         || replyToMsgRef?.type === "Audio" || replyToMsg?.type === "Audio";
+                    const isVideoType = (type: string | undefined) =>
+                        type === "Video" || type === "PrivateVideo" || type === "NonExpiringVideo";
+                    const replyIsVideo = isVideoType(replyPreviewRaw?.type)
+                        || replyPreviewRaw?.chat1Type === "video" || replyPreviewRaw?.chat1Type === "privatevideo" || replyPreviewRaw?.chat1Type === "nonexpiringvideo"
+                        || isVideoType(replyToMsgRef?.type) || isVideoType(replyToMsg?.type);
                     // Prefer whatever's already durably cached (survives the referenced
                     // content outliving its signed URL / hash-thumb endpoint / album
                     // share) over resolving straight from live message data — same
@@ -955,6 +960,12 @@ export function ChatThreadMessages({
                         ? getCachedMediaUri(replyToMsgCaptureTarget.mediaKey)
                         : null;
                     const replyImageUrl = cachedReplyImageUri ?? (replyToMsg ? getMessageImageUrl(replyToMsg) : null);
+                    const cachedReplyVideoUri = replyToMsgCaptureTarget?.kind === "video"
+                        ? getCachedMediaUri(replyToMsgCaptureTarget.mediaKey)
+                        : null;
+                    const replyVideoUrl = replyIsVideo
+                        ? (cachedReplyVideoUri ?? (replyToMsg ? getMessageVideoUrl(replyToMsg) : null))
+                        : null;
                     const replyImageHash = typeof replyPreviewRaw?.imageHash === "string" ? replyPreviewRaw.imageHash : null;
                     const replyHashTarget = getReplyImageHashTarget(message);
                     const cachedReplyHashUri = replyHashTarget ? getCachedMediaUri(replyHashTarget.mediaKey) : null;
@@ -1017,7 +1028,7 @@ export function ChatThreadMessages({
                         const s = totalSec % 60;
                         return `${m}:${s.toString().padStart(2, "0")}`;
                     })();
-                    const replyLabel = (replyText || replyThumbUrl || replyIsAudio || hasReply)
+                    const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
                             ? mine ? "Reply to myself" : "Reply to you"
                             : `Reply to "${selectedConversation.data.name || ""}"`
@@ -1044,6 +1055,13 @@ export function ChatThreadMessages({
                     const isUnsupportedMessage =
                         messageText === t("chat.thread.unsupported_placeholder") ||
                         messageText === `[${message.type}]`;
+                    // Genuinely gone — unsent server-side and no local copy was
+                    // preserved (getMessageText only falls back to the "unsent"
+                    // placeholder when body is empty; if a local copy existed,
+                    // mergeMessagePreservingUnsendWipe would have restored the
+                    // real content and messageText/localHistory would reflect that).
+                    const isTrulyUnsentMessage =
+                        message.unsent === true && messageText === t("chat.thread.unsent");
                     const isImageOnlyBubble =
                         (Boolean(imageUrl) || isExpiredImage) && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif"));
                     const isVideoOnlyBubble =
@@ -1234,7 +1252,7 @@ export function ChatThreadMessages({
                                         </span>
                                     ) : null}
 
-                                    {(replyText || replyThumbUrl || replyIsAudio || hasReply) ? (
+                                    {message.type !== "ProfilePhotoReply" && (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply) ? (
                                         <div className={isMediaOnlyBubble && hasReply
                                             ? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
                                             : "contents"
@@ -1260,6 +1278,19 @@ export function ChatThreadMessages({
                                                         alt=""
                                                         className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia && (replyToMsg?.type ?? replyToMsgRef?.type) !== "Giphy" ? " blur-md transition" : ""}`}
                                                     />
+                                                </div>
+                                            ) : replyVideoUrl ? (
+                                                <div className="relative w-14 shrink-0 self-stretch overflow-hidden bg-black">
+                                                    <video
+                                                        muted
+                                                        preload="metadata"
+                                                        src={replyVideoUrl}
+                                                        onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+                                                        className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+                                                    />
+                                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
+                                                    </div>
                                                 </div>
                                             ) : replyIsAudio ? (
                                                 <div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "opacity-80" : "opacity-60"}`}>
@@ -1804,7 +1835,7 @@ export function ChatThreadMessages({
                                             <div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
                                                 <div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
                                                 <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
-                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{t("chat.thread.replied_to_photo")}</p>
+                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{mine ? t("chat.thread.replied_to_photo_theirs") : t("chat.thread.replied_to_photo")}</p>
                                                     <p className="opacity-60">{t("chat.thread.shared_image")}</p>
                                                 </div>
                                                 {photoUrl && (
@@ -1838,6 +1869,11 @@ export function ChatThreadMessages({
                                                         })}
                                                     </p>
                                                 </div>
+                                            </div>
+                                        ) : isTrulyUnsentMessage ? (
+                                            <div className="flex items-center gap-1.5 italic opacity-60">
+                                                <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                <p className="whitespace-pre-wrap break-words">{displayText}</p>
                                             </div>
                                         ) : (
                                             <p className="whitespace-pre-wrap break-words">

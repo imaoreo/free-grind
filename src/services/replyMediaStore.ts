@@ -35,7 +35,15 @@ export function captureReplyPreviewsForMessages(
 				kind: "image",
 				url: hashTarget.url,
 				conversationId,
-				messageId: message.messageId,
+				// Not this message's own media — it's what this message is
+				// *quoting* (a reply-to-picture/ProfilePhotoReply preview).
+				// Associating it with this message's id here would make
+				// getMediaFileByMessageId's own-media fallback (see
+				// mediaStore.ts) resolve the quoted photo as if it were this
+				// message's own attached image, rendering it full-size above
+				// the reply-quote bar, and would also leak it into the
+				// conversation's "shared media" gallery.
+				messageId: null,
 				viewOnce: false,
 				isOwnMessage: false,
 				skipAutoDownload: true,

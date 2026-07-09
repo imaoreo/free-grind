@@ -160,6 +160,32 @@ const SYSTEM_MESSAGE_TYPES = new Set<string>([
  * point a message's URL gets resolved (initial load, hydration fallbacks,
  * realtime arrival) so content survives signed-URL expiry / view-once limits.
  */
+// Types that can carry their own image/video/audio content — mirrors the
+// type checks inside getMessageImageUrl/getMessageVideoUrl/getMessageAudioUrl.
+// Anything outside this set (ProfilePhotoReply, AlbumContentReply/Reaction,
+// Text, Location, ...) never has "own" media, only a reply-quote/reaction
+// preview thumbnail — falling back to hydrateMediaByMessageId for those would
+// incorrectly resolve that quoted preview (cached under the *replying*
+// message's id by captureReplyPreviewsForMessages) as if it were the
+// message's own attached image, rendering it full-size in the bubble.
+function canHaveOwnMedia(message: UiMessage): boolean {
+	const chat1Type = message.chat1Type?.toLowerCase();
+	return (
+		message.type === "Image" ||
+		message.type === "ExpiringImage" ||
+		message.type === "Video" ||
+		message.type === "PrivateVideo" ||
+		message.type === "NonExpiringVideo" ||
+		message.type === "Audio" ||
+		chat1Type === "image" ||
+		chat1Type === "expiring_image" ||
+		chat1Type === "video" ||
+		chat1Type === "privatevideo" ||
+		chat1Type === "nonexpiringvideo" ||
+		chat1Type === "audio"
+	);
+}
+
 function captureMediaForMessages(
 	messages: UiMessage[],
 	conversationId: string,
@@ -177,7 +203,7 @@ function captureMediaForMessages(
 				viewOnce: target.viewOnce,
 				isOwnMessage: userId != null && message.senderId === userId,
 			});
-		} else if (message.type !== "Giphy") {
+		} else if (canHaveOwnMedia(message)) {
 			// No live URL on this message anymore (expired, archived
 			// conversation, server stopped refreshing it) — fall back to
 			// whatever's already cached for it by message id instead.

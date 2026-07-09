@@ -1068,6 +1068,7 @@
             "album_share": "Album share",
             "album_image": "Album image",
             "replied_to_photo": "Replied to your profile photo",
+            "replied_to_photo_theirs": "Replied to their profile photo",
             "reacted_to_image": "Reacted to your album image",
             "audio_label": "Audio",
             "unsupported_message": "Unsupported message",
