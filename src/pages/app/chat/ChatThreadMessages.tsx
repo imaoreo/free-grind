@@ -86,6 +86,12 @@ type ChatThreadMessagesProps = {
 	isArchived?: boolean;
 };
 
+const KNOWN_REPLY_TYPES = new Set([
+    "Image", "ExpiringImage", "Giphy", "Video", "PrivateVideo", "NonExpiringVideo",
+    "Audio", "Location", "AlbumContentReply", "AlbumContentReaction",
+    "Album", "ExpiringAlbum", "ExpiringAlbumV2", "ProfilePhotoReply", "Text", "Gaymoji",
+]);
+
 const getReactionEmoji = (type: number): string => {
     switch (type) {
         case 0: return "👋";
@@ -1028,6 +1034,32 @@ export function ChatThreadMessages({
                         const s = totalSec % 60;
                         return `${m}:${s.toString().padStart(2, "0")}`;
                     })();
+                    // Fallback label for the reply-quote bar when there's no quoted text
+                    // (replyText) to show verbatim — describes what kind of message was
+                    // replied to. Falls back to "shared_image" only for a genuinely
+                    // unrecognized/missing type (legacy previews that never carried a
+                    // type at all) — an unrecognized-but-known type string (a message
+                    // kind this app version doesn't handle) must say so explicitly
+                    // instead of silently lying that it was an image.
+                    const replyTargetType = replyToMsg?.type ?? replyToMsgRef?.type;
+                    const isReplyTargetUnsupported =
+                        replyTargetType != null && !KNOWN_REPLY_TYPES.has(replyTargetType);
+                    const replyDescription =
+                        message.type === "AlbumContentReply" || replyTargetType === "AlbumContentReply"
+                            ? t("chat.thread.album_image")
+                            : replyTargetType === "AlbumContentReaction"
+                                ? t("chat.thread.reacted_to_image")
+                                : replyIsAudio
+                                    ? t("chat.thread.audio_label")
+                                    : replyTargetType === "Location"
+                                        ? t("chat.preview.sent_location")
+                                        : replyIsVideo
+                                            ? t("chat.thread.shared_video")
+                                            : replyTargetType === "Giphy"
+                                                ? t("chat.thread.shared_gif")
+                                                : isReplyTargetUnsupported
+                                                    ? t("chat.thread.unsupported_message", { defaultValue: "Unsupported message" })
+                                                    : t("chat.thread.shared_image");
                     const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
                             ? mine ? "Reply to myself" : "Reply to you"
@@ -1269,7 +1301,7 @@ export function ChatThreadMessages({
                                             }`} />
                                             <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
                                                 <p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-                                                <p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Giphy" ? t("chat.thread.shared_gif") : t("chat.thread.shared_image"))}</p>
+                                                <p className="line-clamp-2 break-words opacity-80">{replyText ?? replyDescription}</p>
                                             </div>
                                             {replyThumbUrl ? (
                                                 <div className="relative w-14 shrink-0 self-stretch overflow-hidden">

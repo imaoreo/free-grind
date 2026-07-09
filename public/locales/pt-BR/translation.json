@@ -480,7 +480,9 @@
                 "last_tested": "Último teste realizado",
                 "health_practices": "Exames",
                 "vaccinations": "Vacinação",
-                "test_reminder": "Já se passaram mais de 3 meses desde o seu último teste — considere fazer outro."
+                "test_reminder": "Já se passaram mais de 3 meses desde o seu último teste — considere fazer outro.",
+                "test_reminder_toggle": "Lembrete de teste",
+                "test_reminder_toggle_desc": "Mostra um lembrete para fazer um teste quando já faz um tempo desde o último."
             },
             "social": {
                 "title": "Social",

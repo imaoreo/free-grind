@@ -634,7 +634,9 @@
                 "last_tested": "Zuletzt getestet",
                 "health_practices": "Gesundheitspraktiken",
                 "vaccinations": "Impfungen",
-                "test_reminder": "Dein letzter Test liegt über 3 Monate zurück — Zeit für einen neuen Test."
+                "test_reminder": "Dein letzter Test liegt über 3 Monate zurück — Zeit für einen neuen Test.",
+                "test_reminder_toggle": "Test-Erinnerung",
+                "test_reminder_toggle_desc": "Zeigt eine Erinnerung an, wenn dein letzter Test schon eine Weile zurückliegt."
             },
             "social": {
                 "title": "Soziales",

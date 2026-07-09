@@ -395,7 +395,9 @@
                 "last_tested": "Dernier test",
                 "health_practices": "Pratiques de prévention",
                 "vaccinations": "Vaccins",
-                "test_reminder": "Cela fait plus de 3 mois depuis votre dernier test — pensez à en refaire un."
+                "test_reminder": "Cela fait plus de 3 mois depuis votre dernier test — pensez à en refaire un.",
+                "test_reminder_toggle": "Rappel de dépistage",
+                "test_reminder_toggle_desc": "Affiche un rappel pour faire un dépistage lorsque cela fait un moment depuis le dernier."
             },
             "social": {
                 "title": "Réseaux sociaux",

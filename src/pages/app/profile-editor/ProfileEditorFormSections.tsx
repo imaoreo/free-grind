@@ -36,6 +36,7 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { usePreferences } from "../../../contexts/PreferencesContext";
 import {
 	getVisitingModeTranslationKey,
 	type VisitingMode,
@@ -250,6 +251,7 @@ export function ProfileEditorFormSections({
 	vaccineOptions,
 }: ProfileEditorFormSectionsProps) {
 	const { t } = useTranslation();
+	const { testReminderDisabled, setPreferences } = usePreferences();
 	const isImperialHeight = unitsPreset === "uk" || unitsPreset === "american";
 	const isImperialWeight = unitsPreset === "american";
 	const visitingModeDisabled = isLoadingVisitingMode || Boolean(visitingModeError);
@@ -942,6 +944,15 @@ export function ProfileEditorFormSections({
 							</p>
 						</div>
 					)}
+
+					<ToggleRow
+						checked={!testReminderDisabled}
+						onChange={(checked) => void setPreferences({ testReminderDisabled: !checked })}
+						label={t("profile_editor.sections.health.test_reminder_toggle")}
+						description={t("profile_editor.sections.health.test_reminder_toggle_desc")}
+						labelClassName="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]"
+						padding=""
+					/>
 
 					<div>
 						<p className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">

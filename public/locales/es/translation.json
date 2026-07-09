@@ -395,7 +395,9 @@
                 "last_tested": "Último análisis",
                 "health_practices": "Prácticas saludables",
                 "vaccinations": "Vacunas",
-                "test_reminder": "Han pasado más de 3 meses desde tu última prueba — considera hacerte otra."
+                "test_reminder": "Han pasado más de 3 meses desde tu última prueba — considera hacerte otra.",
+                "test_reminder_toggle": "Recordatorio de prueba",
+                "test_reminder_toggle_desc": "Muestra un recordatorio para hacerte una prueba cuando haya pasado un tiempo desde la última."
             },
             "social": {
                 "title": "Redes sociales",

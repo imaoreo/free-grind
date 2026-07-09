@@ -665,7 +665,9 @@
                 "last_tested": "Last Tested",
                 "health_practices": "Health Practices",
                 "vaccinations": "Vaccinations",
-                "test_reminder": "It's been over 3 months since your last test — consider getting tested again."
+                "test_reminder": "It's been over 3 months since your last test — consider getting tested again.",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "Social",
