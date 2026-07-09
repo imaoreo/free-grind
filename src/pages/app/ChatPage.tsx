@@ -2103,16 +2103,28 @@ export function ChatPage() {
 							);
 						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load or poll: seed from the full local history (chatDb)
+						// Fresh load or poll: seed from recent local history (chatDb)
 						// first, not just whatever's already in memory — otherwise a
 						// conversation that just came back from being archived (e.g.
 						// unblocked, partner messaged again) would lose everything
 						// older than the live API's response, which can be as narrow
 						// as that one brand-new message. Hybrid: old local history,
 						// then the fresh data layered on top.
+						//
+						// Capped to one page's worth (not the entire lifetime log) —
+						// dumping unlimited history here used to bury the actual
+						// scroll-to-load-more boundary under a wall of already-loaded,
+						// unverified local content, so "load older" kept looking like
+						// a no-op (it was just re-fetching a range that was already on
+						// screen) until the user scrolled past all of it. Capping keeps
+						// the recovery behavior for the realistic case while letting
+						// the older-page reconciliation below pull in the rest,
+						// page by page, verified against the server each time.
 						const localById = new Map(
 							localMessages
 								.filter((m) => m.conversationId === conversationId)
+								.sort((a, b) => b.timestamp - a.timestamp)
+								.slice(0, ARCHIVED_THREAD_PAGE_SIZE)
 								.map((m) => [m.messageId, m] as const),
 						);
 						for (const [id, message] of localById) {
@@ -2140,7 +2152,10 @@ export function ChatPage() {
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
-				if (!older && response.messages.length > 0) {
+				// Runs for "older" pages too — every load step should check local
+				// alongside the server and prefer local when the server doesn't have it,
+				// not just the very first load.
+				if (response.messages.length > 0) {
 					const windowStart = response.messages[0].timestamp;
 					const windowEnd =
 						response.messages[response.messages.length - 1].timestamp;
