@@ -13,7 +13,7 @@ export interface ApiTraceEntry {
 }
 
 const MAX_ENTRIES = 250;
-const MAX_PREVIEW_LENGTH = 3000;
+const MAX_PREVIEW_LENGTH = 20000;
 
 let entries: ApiTraceEntry[] = [];
 const listeners = new Set<(value: ApiTraceEntry[]) => void>();
