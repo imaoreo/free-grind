@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, memo, type CSSProperties } from "react";
-import { Eye, Lock, Ban, History, MoveHorizontal } from "lucide-react";
+import { Eye, Lock, Ban, History, MoveHorizontal, Home, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -215,6 +215,16 @@ export const InterestRow = memo(function InterestRow({
 						</p>
 						{isRecovered && (
 							<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+						)}
+						{item.rightNow === "HOSTING" && (
+							<span title={t("right_now.hosting")}>
+								<Home className="h-3.5 w-3.5 shrink-0 text-[var(--right-now)]" />
+							</span>
+						)}
+						{item.rightNow === "NOT_HOSTING" && (
+							<span title={t("right_now.not_hosting", { defaultValue: "Right Now" })}>
+								<Zap className="h-3.5 w-3.5 shrink-0 text-[var(--right-now)]" />
+							</span>
 						)}
 					</div>
 					<p className="mt-0.5 truncate text-xs text-[var(--text-muted)] font-medium">

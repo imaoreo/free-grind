@@ -10,6 +10,7 @@ import {
 	MessageSquare,
 	Navigation,
 	SlidersHorizontal,
+	Star,
 } from "lucide-react";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useRightNowFeed } from "../../hooks/queries/useRightNowQueries";
@@ -290,9 +291,16 @@ function RightNowRow({
 					</div>
 
 					<div className="mt-1 flex items-center justify-between gap-2">
-						<p className="truncate text-xs text-[var(--text-muted)] font-medium">
-							{name}
-						</p>
+						<div className="flex min-w-0 items-center gap-1">
+							<p className="truncate text-xs text-[var(--text-muted)] font-medium">
+								{name}
+							</p>
+							{item.isFavorite && (
+								<span title={t("chat.favorite")}>
+									<Star className="h-3 w-3 shrink-0 fill-current text-[var(--accent)]" />
+								</span>
+							)}
+						</div>
 						{item.premiumType && item.premiumType !== "locked" && (
 							<span className="shrink-0 text-[10px] font-medium text-[var(--text-muted)] opacity-50 uppercase tracking-wider">
 								{item.premiumType.split("_")[0]}
