@@ -20,7 +20,7 @@
  *   message/tap so it never shows twice.
  */
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { platform } from "@tauri-apps/plugin-os";
@@ -249,6 +249,25 @@ export function ChatRealtimeBridge() {
 	useEffect(() => {
 		userIdRef.current = userId;
 	}, [userId]);
+
+	// tap.v1.tap_sent and tap.v2.tap_sent can both fire for the same real tap
+	// during the server's version rollout — dedupe by sender within a short
+	// window so we don't double-toast/double-notify for one tap.
+	const recentTapSendersRef = useRef<Map<string, number>>(new Map());
+	const shouldProcessIncomingTap = useCallback((profileId: string) => {
+		const now = Date.now();
+		const seen = recentTapSendersRef.current;
+		for (const [key, seenAt] of seen) {
+			if (now - seenAt > 10_000) {
+				seen.delete(key);
+			}
+		}
+		if (seen.has(profileId)) {
+			return false;
+		}
+		seen.set(profileId, now);
+		return true;
+	}, []);
 
 	// A profile still existing (isProfileFound) doesn't mean a conversation
 	// archived by *our own* block should reopen — we chose that, and merely
@@ -548,15 +567,18 @@ export function ChatRealtimeBridge() {
 				// Dispatch event AFTER potential DB updates if we want consistency,
 				// or BEFORE if we want speed. Let's do DB updates first for critical stuff.
 
-				// tap.v1.tap_sent — fires on both sender + recipient. We only
-				// surface incoming taps (where we are the recipient).
-				if (envelope.type === "tap.v1.tap_sent") {
+				// tap.v1.tap_sent / tap.v2.tap_sent — fire on both sender + recipient.
+				// We only surface incoming taps (where we are the recipient). v2
+				// carries isMutual in its payload; v1 does not, so isMutual only
+				// resolves reliably once a v2 event (or its own REST response) arrives.
+				if (envelope.type === "tap.v1.tap_sent" || envelope.type === "tap.v2.tap_sent") {
 					const tap = parseTapPayload(envelope.payload);
 					const currentUserId = userIdRef.current;
 					if (
 						tap &&
 						currentUserId != null &&
-						Number(tap.profileId) !== Number(currentUserId)
+						Number(tap.profileId) !== Number(currentUserId) &&
+						shouldProcessIncomingTap(tap.profileId)
 					) {
 						appLog.debug(`[chat-ws:bridge] Incoming tap received from profileId: ${tap.profileId}`);
 						window.dispatchEvent(
