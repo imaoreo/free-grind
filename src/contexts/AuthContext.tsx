@@ -364,15 +364,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			}
 
 			appLog.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
-			void callMethod("sync_push_token", { token }).catch((error) => {
-				const appError = asAppError(error);
-				appLog.warn(
-					"[PUSH_SYNC] Failed to sync push token",
-					appError?.prettyMessage || error,
-				);
-			}).then(() => {
-				appLog.debug("[PUSH_SYNC] Push token sync succeeded");
-			});
+			void callMethod("sync_push_token", { token })
+				.then(() => {
+					window.localStorage.setItem(
+						PUSH_TOKEN_SYNCED_STORAGE_KEY,
+						`${token}::${state.userId}`,
+					);
+					appLog.debug("[PUSH_SYNC] Push token sync succeeded");
+				})
+				.catch((error) => {
+					const appError = asAppError(error);
+					appLog.warn(
+						"[PUSH_SYNC] Failed to sync push token",
+						appError?.prettyMessage || error,
+					);
+				});
 		};
 
 		window.addEventListener("fg:fcm-token", onFcmToken as EventListener);
