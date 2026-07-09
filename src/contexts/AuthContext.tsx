@@ -304,10 +304,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				const userId = state.userId;
 				void runInboxSync(apiFunctions, userId, () => currentUserIdRef.current === userId);
 				// Fire-and-forget: pulls this account's saved phrases from Grindr and
-				// unions them into the local list. Guarded by the same "still the
-				// active profile" check as the inbox sync above, since chatDb (and so
-				// where the merged list gets written) already points at whichever
-				// profile is active by the time this resolves.
+				// unions them into the local list, but only the very first time this
+				// runs for this profile (see syncSavedPhrasesFromServer) — otherwise a
+				// phrase deleted locally would just get re-added from the server on the
+				// next load. Guarded by the same "still the active profile" check as the
+				// inbox sync above, since chatDb (and so where the merged list gets
+				// written) already points at whichever profile is active by the time
+				// this resolves.
 				void syncSavedPhrasesFromServer(
 					apiFunctions.getSavedPhrases,
 					() => currentUserIdRef.current === userId,
