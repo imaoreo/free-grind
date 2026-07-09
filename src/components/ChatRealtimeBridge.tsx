@@ -255,7 +255,7 @@ export function ChatRealtimeBridge() {
 	// receiving a stray/in-flight WS event for them (e.g. a read receipt
 	// that was already in transit when the block landed) shouldn't undo it.
 	// Only reconcile activity for profiles we haven't blocked ourselves.
-	const { data: blockedProfileIdsData } = useBlockedProfileIds();
+	const { data: blockedProfileIdsData } = useBlockedProfileIds(userId != null);
 	const blockedProfileIdsRef = useRef<Set<string>>(new Set());
 	useEffect(() => {
 		blockedProfileIdsRef.current = new Set(blockedProfileIdsData ?? []);

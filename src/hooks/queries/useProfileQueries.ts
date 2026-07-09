@@ -37,12 +37,13 @@ function markConversationSelfAction(profileId: string, action: "block" | "unbloc
 /**
  * Hook to fetch and manage blocked profile IDs.
  */
-export function useBlockedProfileIds() {
+export function useBlockedProfileIds(enabled = true) {
 	const api = useApiFunctions();
 	return useQuery({
 		queryKey: ["blocked-profile-ids"],
 		queryFn: () => api.getBlockedProfileIds(),
 		staleTime: 1000 * 60 * 10, // Consider data fresh for 10 minutes
+		enabled,
 	});
 }
 
