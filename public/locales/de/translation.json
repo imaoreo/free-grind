@@ -1197,6 +1197,8 @@
         "save_to_gallery_success": "In deiner Fotobibliothek gespeichert",
         "save_to_gallery_error": "Speichern in der Fotobibliothek fehlgeschlagen",
         "save_to_gallery_unsupported": "Speichern in Fotos wird auf diesem Gerät nicht unterstützt",
+        "save_to_downloads_success": "Im Downloads-Ordner gespeichert",
+        "save_to_downloads_error": "Speichern im Downloads-Ordner fehlgeschlagen",
         "previous_photo": "Vorheriges Foto",
         "next_photo": "Nächstes Foto",
         "photo_alt": "Foto von {{name}}",

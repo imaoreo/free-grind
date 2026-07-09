@@ -8,7 +8,7 @@ import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef, use
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
-import { saveMediaToDevice } from "../../../services/saveMedia";
+import { isIos, saveMediaToDevice } from "../../../services/saveMedia";
 import { loadSavedPhrases, saveSavedPhrases } from "../../../services/savedPhrases";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
@@ -675,13 +675,17 @@ export function ChatThreadMessages({
 									selectedConversation.data.conversationId,
 								);
 								if (saved) {
-									toast.success(t("profile_details.save_to_gallery_success"));
+									toast.success(
+										t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
+									);
 								} else {
 									toast.error(t("profile_details.save_to_gallery_unsupported"));
 								}
 							} catch (e) {
 								appLog.error("Failed to save media to gallery", e);
-								toast.error(t("profile_details.save_to_gallery_error"));
+								toast.error(
+									t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+								);
 							}
 						})();
 						return;

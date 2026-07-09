@@ -2444,13 +2444,17 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 																selectedConversation?.data.conversationId ?? null,
 															);
 																if (saved) {
-																	toast.success(t("profile_details.save_to_gallery_success"));
+																	toast.success(
+																		t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
+																	);
 																} else {
 																	toast.error(t("profile_details.save_to_gallery_unsupported"));
 																}
 															} catch (e) {
 																appLog.error("Failed to save media to gallery", e);
-																toast.error(t("profile_details.save_to_gallery_error"));
+																toast.error(
+																	t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+																);
 															}
 														})();
 														return;
