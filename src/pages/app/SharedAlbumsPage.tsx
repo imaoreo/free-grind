@@ -12,7 +12,7 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { ProfileImage } from "../../components/ui/profile-image";
 import type { ConversationEntry } from "../../types/chat";
-import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
+import { albumViewerFolderKey, type AlbumViewer, type SharedAlbumItem } from "../../types/shared-albums";
 import type { GetSharedAlbumsInput } from "../../types/api-functions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { cn } from "../../utils/cn";
@@ -871,7 +871,7 @@ export function SharedAlbumsPage() {
 					photos={viewerPhotos}
 					initialIndex={fullScreenIndex}
 					onIndexChange={handleIndexChange}
-					conversationId={viewer.conversationId}
+					conversationId={albumViewerFolderKey(viewer)}
 					renderFooter={(idx) => {
 						const item = viewer.content[idx];
 						if (!item || viewer.profileId === userId) return null;

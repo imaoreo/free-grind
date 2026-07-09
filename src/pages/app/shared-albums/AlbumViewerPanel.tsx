@@ -7,7 +7,7 @@ import { EmptyState } from "../../../components/ui/states";
 import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
 import { saveMediaBatch } from "../../../services/saveMedia";
 import { appLog } from "../../../utils/logger";
-import type { AlbumViewer } from "../../../types/shared-albums";
+import { albumViewerFolderKey, type AlbumViewer } from "../../../types/shared-albums";
 
 type AlbumContent = AlbumViewer["content"][number];
 
@@ -66,7 +66,7 @@ export function AlbumViewerPanel({
 		try {
 			const result = await saveMediaBatch(items, (done, total) => {
 				toast.loading(t("profile_details.save_all_progress", { done, total }), { id: toastId });
-			}, viewer.conversationId);
+			}, albumViewerFolderKey(viewer));
 
 			if (result.failed === 0) {
 				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
