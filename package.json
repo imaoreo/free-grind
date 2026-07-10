@@ -44,6 +44,7 @@
         "@tauri-apps/plugin-opener": "^2.5.4",
         "@tauri-apps/plugin-os": "~2",
         "@tauri-apps/plugin-sql": "^2",
+        "agora-rtc-sdk-ng": "^4.23.1",
         "copy-to-clipboard": "^3.3.3",
         "i18next": "^26.0.8",
         "i18next-browser-languagedetector": "^8.2.1",

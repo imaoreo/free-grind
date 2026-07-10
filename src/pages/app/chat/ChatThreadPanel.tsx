@@ -7,7 +7,7 @@ import {
 	ChevronLeft,
 	Copy,
 	Download,
-	Ellipsis,
+	EllipsisVertical,
 	Eye,
 	EyeOff,
 	Star,
@@ -38,6 +38,8 @@ import {
 	Sticker,
 	TimerOff,
 	Trash2,
+	Video,
+	VideoOff,
 	Undo2,
 	User,
 	Volume2,
@@ -51,6 +53,9 @@ import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
 import { isIos, isAndroid, saveMediaToDevice } from "../../../services/saveMedia";
+import { startOutgoingCall, previewCallUi } from "../../../components/VideoCallManager";
+import { useVideoCallRemainingSeconds } from "../../../hooks/queries/useVideoCallQueries";
+import { isWebRtcSupported } from "../../../services/agoraCall";
 import {
 	useModalClose,
 } from "../../../hooks/useModalClose";
@@ -266,7 +271,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
 	useAvatarCache();
     const apiFunctions = useApiFunctions();
-	const { unitsPreset, geohash } = usePreferences();
+	const { unitsPreset, geohash, developerMode } = usePreferences();
+	// Feature-detected once (doesn't change during the app's lifetime) —
+	// hides every video-call entry point entirely on WebView builds without
+	// RTCPeerConnection (confirmed missing on some Linux WebKitGTK builds)
+	// instead of showing a menu item that would only fail after tapping it.
+	const [webRtcSupported] = useState(() => isWebRtcSupported());
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
@@ -558,6 +568,13 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	} = props;
 
     const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
+
+	// Account-wide (not per-conversation) video-call allowance — read from the
+	// shared cache VideoCallManager already keeps populated (fetched once at
+	// app start, refreshed after each call), so opening a conversation never
+	// triggers its own network request here.
+	const { data: videoCallRemainingSecondsData } = useVideoCallRemainingSeconds(true);
+	const videoCallRemainingSeconds = videoCallRemainingSecondsData ?? null;
 
 	useEffect(() => {
 		void loadSavedPhrases().then(setSavedPhrases);
@@ -1245,7 +1262,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										aria-label="Open conversation actions"
 										aria-expanded={isHeaderActionsMenuOpen}
 									>
-										<Ellipsis className="h-4 w-4" />
+										<EllipsisVertical className="h-4 w-4" />
 									</button>
 									{isHeaderActionsMenuOpen ? (
 										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
@@ -1266,6 +1283,74 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<User className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.view_profile")}
 											</button>
+											)}
+											{!isArchived && profileId != null && (() => {
+												const videoCallExhausted =
+													webRtcSupported && videoCallRemainingSeconds != null && videoCallRemainingSeconds <= 0;
+												const videoCallDisabled = !webRtcSupported || videoCallExhausted;
+												const remainingMinutes = videoCallRemainingSeconds != null ? Math.floor(videoCallRemainingSeconds / 60) : null;
+												return (
+												<button
+													type="button"
+													onClick={() => {
+														if (videoCallDisabled) return;
+														setIsHeaderActionsMenuOpen(false);
+														startOutgoingCall(String(profileId), displayName, avatarHash ?? null);
+													}}
+													disabled={videoCallDisabled}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+												>
+													{videoCallDisabled ? (
+														<VideoOff className="mr-2 h-4 w-4 opacity-70" />
+													) : (
+														<Video className="mr-2 h-4 w-4 opacity-70" />
+													)}
+													<span className="flex flex-col">
+														<span>{t("chat.start_video_call")}</span>
+														{!webRtcSupported ? (
+															<span className="text-xs text-[var(--text-muted)]">{t("chat.video_call_platform_unsupported")}</span>
+														) : videoCallExhausted ? (
+															<span className="text-xs text-[var(--text-muted)]">{t("chat.video_call_limit_reached")}</span>
+														) : remainingMinutes != null ? (
+															<span className="text-xs text-[var(--text-muted)]">
+																{remainingMinutes >= 1 ? t("chat.video_call_minutes_left", { count: remainingMinutes }) : t("chat.video_call_lt1_min_left")}
+															</span>
+														) : null}
+													</span>
+												</button>
+												);
+											})()}
+											{developerMode && !isArchived && profileId != null && (
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														previewCallUi("incoming", displayName, avatarHash ?? null);
+													}}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+												>
+													<Video className="mr-2 h-4 w-4 opacity-70" />
+													<span className="flex flex-col">
+														<span>{t("chat.preview_call_ui_incoming")}</span>
+														<span className="text-xs text-[var(--text-muted)]">{t("chat.preview_call_ui_subtext")}</span>
+													</span>
+												</button>
+											)}
+											{developerMode && !isArchived && profileId != null && (
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														previewCallUi("outgoing", displayName, avatarHash ?? null);
+													}}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+												>
+													<Video className="mr-2 h-4 w-4 opacity-70" />
+													<span className="flex flex-col">
+														<span>{t("chat.preview_call_ui_outgoing")}</span>
+														<span className="text-xs text-[var(--text-muted)]">{t("chat.preview_call_ui_subtext")}</span>
+													</span>
+												</button>
 											)}
 											{!isDesktop && onOpenMediaSheet && (
 												<button
@@ -1299,12 +1384,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on for this chat.");
 													}}
 													disabled={!selectedConversation}
-													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${
-														readReceiptsHidden ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
-													}`}
+													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
 												>
 													{readReceiptsHidden ? <Check className="mr-2 h-4 w-4 opacity-70" /> : <CheckCheck className="mr-2 h-4 w-4 opacity-70" />}
-													{readReceiptsHidden ? "Read Receipts Off" : "Read Receipts On"}
+													<span className="flex flex-col">
+														<span>{t("chat.read_receipts_label")}</span>
+														<span className="text-xs text-[var(--text-muted)]">
+															{readReceiptsHidden ? t("chat.read_receipts_off") : t("chat.read_receipts_on")}
+														</span>
+													</span>
 												</button>
 											)}
 											<button

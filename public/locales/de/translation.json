@@ -481,7 +481,7 @@
         "limit_reached": "Du hast dein Albenlimit für den aktuellen Tarif erreicht.",
         "limit_reached_toast": "Du hast dein aktuelles Albenlimit erreicht. Upgrade dein Konto, um mehr Alben zu erstellen.",
         "your_albums": "Deine Alben",
-        "untitled": "Unbenanntes Album",
+        "untitled": "Mein Album",
         "album_id": "Album-ID: {{id}}",
         "loading": "Lade Alben",
         "loading_desc": "Lade deine Albensammlung und Tariflimits.",

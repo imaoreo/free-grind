@@ -82,10 +82,24 @@ pub fn run() {
                 #[cfg(target_os = "linux")]
                 {
                     use tauri::Manager;
-                    use webkit2gtk::{PermissionRequestExt, WebViewExt};
+                    use webkit2gtk::{PermissionRequestExt, SettingsExt, WebViewExt};
                     if let Some(win) = app.get_webview_window("main") {
                         let _ = win.with_webview(|webview| {
-                            webview.inner().connect_permission_request(|_view, request| {
+                            let view = webview.inner();
+                            // WebKitGTK gates RTCPeerConnection/getUserMedia behind this
+                            // flag on distros where it's actually compiled in. Harmless
+                            // to set unconditionally, but not sufficient on its own —
+                            // confirmed on Fedora 44's webkit2gtk4.1 (2.52.3) that
+                            // RTCPeerConnection is undefined even with this enabled and
+                            // even in GNOME Web (Epiphany, same engine), and even after
+                            // forcing a full WebProcess respawn. That build appears to
+                            // ship without the WebRTC DOM bindings at all, which no
+                            // runtime setting from this app can work around — video
+                            // calls are simply unsupported on such Linux builds.
+                            if let Some(settings) = view.settings() {
+                                settings.set_enable_webrtc(true);
+                            }
+                            view.connect_permission_request(|_view, request| {
                                 request.allow();
                                 true
                             });
@@ -103,8 +117,8 @@ pub fn run() {
                 {
                     use tauri::Manager;
                     use webview2_com::Microsoft::Web::WebView2::Win32::{
-                        COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION, COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,
-                        COREWEBVIEW2_PERMISSION_STATE_ALLOW,
+                        COREWEBVIEW2_PERMISSION_KIND_CAMERA, COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION,
+                        COREWEBVIEW2_PERMISSION_KIND_MICROPHONE, COREWEBVIEW2_PERMISSION_STATE_ALLOW,
                     };
                     use webview2_com::PermissionRequestedEventHandler;
                     if let Some(win) = app.get_webview_window("main") {
@@ -122,6 +136,7 @@ pub fn run() {
                                             args.PermissionKind(&mut kind)?;
                                             if kind == COREWEBVIEW2_PERMISSION_KIND_GEOLOCATION
                                                 || kind == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE
+                                                || kind == COREWEBVIEW2_PERMISSION_KIND_CAMERA
                                             {
                                                 args.SetState(COREWEBVIEW2_PERMISSION_STATE_ALLOW)?;
                                             }

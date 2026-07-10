@@ -311,6 +311,8 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
+		case "VideoCall":
+			return t("chat.preview.video_call");
 		default:
 			return t("chat.preview.sent_message");
 	}
@@ -345,9 +347,45 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
+		case "VideoCall":
+			return getVideoCallStatusLabel(message, t);
 		default:
 			return t("chat.preview.sent_message");
 	}
+}
+
+// Normalizes the various casings/spellings seen in real traffic for
+// VideoCallMessageBody.result (e.g. "Busy" vs "BUSY", "No_Answer" vs
+// "UNANSWERED") into one of a fixed set of outcome keys under
+// chat.video_call_status.*.
+const VIDEO_CALL_RESULT_KEYS: Record<string, string> = {
+	SUCCESSFUL: "successful",
+	BUSY: "busy",
+	CANCELLED: "cancelled",
+	DECLINED: "declined",
+	MISSED: "missed",
+	AB_UNSUPPORTED: "unsupported",
+	NO_ANSWER: "no_answer",
+	UNANSWERED: "no_answer",
+	LITE_UNSUPPORT: "unsupported",
+};
+
+export function formatCallDuration(totalSeconds: number): string {
+	const clamped = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
+	const m = Math.floor(clamped / 60);
+	const s = Math.floor(clamped % 60);
+	return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Body shape per VideoCallMessageBody (WIP, status-only): { result, videoCallDuration }.
+export function getVideoCallStatusLabel(message: Message, t: TranslateFn): string {
+	const body = message.body as Record<string, unknown> | null;
+	const rawResult = typeof body?.result === "string" ? body.result : "";
+	const duration = typeof body?.videoCallDuration === "number" ? body.videoCallDuration : 0;
+	const normalized = rawResult.toUpperCase().replace(/[^A-Z]/g, "_");
+	const outcome = VIDEO_CALL_RESULT_KEYS[normalized] ?? (duration > 0 ? "successful" : "generic");
+	const label = t(`chat.video_call_status.${outcome}`);
+	return outcome === "successful" && duration > 0 ? `${label} · ${formatCallDuration(duration)}` : label;
 }
 
 // Types getPreviewText/getMessagePreviewLabel can render a specific label

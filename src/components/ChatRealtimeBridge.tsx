@@ -91,6 +91,8 @@ export const CHAT_REALTIME_STATUS = "fg:chat-realtime-status";
 export const TAP_RECEIVED_EVENT = "fg:tap-received";
 export const VIEW_RECEIVED_EVENT = "fg:view-received";
 export const TYPING_STATUS_EVENT = "fg:typing-status";
+export const VIDEO_CALL_INCOMING_EVENT = "fg:video-call-incoming";
+export const VIDEO_CALL_ENDED_EVENT = "fg:video-call-ended";
 // Re-exported so existing importers (e.g. ChatPage.tsx) don't need to change
 // where they pull this from — conversationArchive.ts is now the source of
 // truth since it also dispatches this event from applySelfBlockAction.
@@ -101,6 +103,48 @@ export type TypingStatusDetail = {
 	profileId: string;
 	status: "Typing" | "Cleared" | "Sent";
 };
+
+export type VideoCallIncomingDetail = {
+	channelId: string;
+	senderId: string;
+};
+
+function parseIncomingCallPayload(payload: unknown): VideoCallIncomingDetail | null {
+	if (!payload || typeof payload !== "object") return null;
+	const r = payload as Record<string, unknown>;
+	const channelId = typeof r.channelId === "string" ? r.channelId : null;
+	const sender = r.senderId;
+	const senderId =
+		typeof sender === "string" ? sender : typeof sender === "number" ? String(sender) : null;
+	if (!channelId || !senderId) return null;
+	return { channelId, senderId };
+}
+
+export type VideoCallEndedDetail = {
+	channelId: string;
+	senderId: string;
+	recipientId: string;
+	result: string;
+	duration: number;
+};
+
+function parseCallEndedPayload(payload: unknown): VideoCallEndedDetail | null {
+	if (!payload || typeof payload !== "object") return null;
+	const r = payload as Record<string, unknown>;
+	const channelId = typeof r.channelId === "string" ? r.channelId : null;
+	if (!channelId) return null;
+	const toId = (v: unknown): string =>
+		typeof v === "string" ? v : typeof v === "number" ? String(v) : "";
+	const duration = typeof r.duration === "number" ? r.duration : Number(r.duration) || 0;
+	const result = typeof r.result === "string" ? r.result : "UNKNOWN";
+	return {
+		channelId,
+		senderId: toId(r.senderId),
+		recipientId: toId(r.recipientId),
+		result,
+		duration,
+	};
+}
 
 // Global cache to allow late-mounting components (like ChatPage) to see the
 // current connection status immediately.
@@ -602,6 +646,30 @@ export function ChatRealtimeBridge() {
 							}),
 						);
 						maybeUnarchiveOnActivity(view.profileId);
+					}
+				}
+
+				if (envelope.type === "videocall.v1.incoming_call") {
+					const call = parseIncomingCallPayload(envelope.payload);
+					if (call) {
+						appLog.debug(`[chat-ws:bridge] Incoming video call from profileId: ${call.senderId}`);
+						window.dispatchEvent(
+							new CustomEvent<VideoCallIncomingDetail>(VIDEO_CALL_INCOMING_EVENT, {
+								detail: call,
+							}),
+						);
+					}
+				}
+
+				if (envelope.type === "videocall.v1.call_ended") {
+					const ended = parseCallEndedPayload(envelope.payload);
+					if (ended) {
+						appLog.debug(`[chat-ws:bridge] Video call ended: ${JSON.stringify(ended)}`);
+						window.dispatchEvent(
+							new CustomEvent<VideoCallEndedDetail>(VIDEO_CALL_ENDED_EVENT, {
+								detail: ended,
+							}),
+						);
 					}
 				}
 

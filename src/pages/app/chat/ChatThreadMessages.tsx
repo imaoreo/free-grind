@@ -1,4 +1,4 @@
-import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
@@ -47,6 +47,7 @@ import {
 	getMessageTakenOnGrindr,
 	getMessageText,
 	getMessageVideoUrl,
+	getVideoCallStatusLabel,
 	isLocalClientMessageId,
 } from "./chatUtils";
 
@@ -845,6 +846,37 @@ export function ChatThreadMessages({
                                         <Ban className="h-3.5 w-3.5 shrink-0" />
                                     ) : (
                                         <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                                    )}
+                                    <span>{label}</span>
+                                    <span className="text-[var(--text-muted)]/70">
+                                        {formatDateTime24(message.timestamp)}
+                                    </span>
+                                </div>
+                            </Fragment>
+                        );
+                    }
+
+                    if (message.type === "VideoCall") {
+                        const body = message.body as Record<string, unknown> | null;
+                        const isSuccessful =
+                            typeof body?.result === "string" && body.result.toUpperCase() === "SUCCESSFUL";
+                        const label = getVideoCallStatusLabel(message, t);
+                        return (
+                            <Fragment key={message.messageId}>
+                                {isNewDay && (
+                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                                            {currentHeader}
+                                        </span>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                    </div>
+                                )}
+                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                                    {isSuccessful ? (
+                                        <Video className="h-3.5 w-3.5 shrink-0" />
+                                    ) : (
+                                        <PhoneOff className="h-3.5 w-3.5 shrink-0" />
                                     )}
                                     <span>{label}</span>
                                     <span className="text-[var(--text-muted)]/70">
