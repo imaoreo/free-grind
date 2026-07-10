@@ -4,7 +4,6 @@ import type { ConversationEntry, InboxFilters, Message } from "../../../types/me
 import type { InboxVisibilityFilter, UiMessage } from "../../../types/chat-page";
 import type { MediaKind } from "../../../types/chat-db";
 import {
-	getProfileImageUrl,
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../../utils/media";
@@ -1057,7 +1056,7 @@ export function getParticipantAvatarUrl(hash: string | null | undefined): string
 		return null;
 	}
 
-	return getProfileImageUrl(hash);
+	return getThumbImageUrl(hash, "320x320");
 }
 
 export function isLocalClientMessageId(messageId: string): boolean {
