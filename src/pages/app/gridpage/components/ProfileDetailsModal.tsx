@@ -177,10 +177,13 @@ export function ProfileDetailsModal({
 		return t("profile_details.anonymous", "Someone");
 	}, [activeProfile, t]);
 
+	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
 	const profileDistance =
 		activeProfile?.distance ?? selectedBrowseCard?.distanceMeters ?? null;
-	const profileOnlineUntil =
-		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
+	const profileOnlineUntil = isOwnProfile
+		? Date.now() + 60 * 60 * 1000
+		: (activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null);
 	const profileLastSeen = activeProfile?.seen ?? selectedBrowseCard?.lastOnline ?? null;
 	const profileStatusMeta = getOnlineStatusMeta(
 		profileLastSeen,
@@ -200,9 +203,7 @@ export function ProfileDetailsModal({
 		: profileStatusMeta.labelKey === "browse_page.status_minutes_ago" && (profileStatusMeta.count ?? 99) <= 10 ? "recent"
 		: "offline";
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
-	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const { data: travelPlans } = useTravelPlans(activeProfile?.profileId);
-	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
 	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;

@@ -1265,7 +1265,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<EllipsisVertical className="h-4 w-4" />
 									</button>
 									{isHeaderActionsMenuOpen ? (
-										<div className="absolute right-0 top-full z-30 mt-2 flex min-w-[210px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+											<div className="flex shrink-0 flex-col gap-1 px-2">
 											{!isArchived && (
 											<button
 												type="button"
@@ -1475,10 +1476,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{selectedConversation?.data.muted ? t("chat.unmute") : t("chat.mute")}
 												</button>
 											)}
+											</div>
 											{/* — Keyword banning — */}
 											{!isArchived && (
 												<>
-													<div className="my-1 h-px bg-[var(--border)]" />
+													<div className="h-px shrink-0 bg-[var(--border)]" />
+													<div className="flex shrink-0 flex-col gap-1 px-2">
 													<button
 														type="button"
 														onClick={() => {
@@ -1521,10 +1524,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														<Ban className="mr-2 h-4 w-4 opacity-50" />
 														Ban Bio Phrase
 													</button>
+													</div>
 												</>
 											)}
 											{/* — Destructive — */}
-											<div className="my-1 h-px bg-[var(--border)]" />
+											<div className="h-px shrink-0 bg-[var(--border)]" />
+											<div className="flex shrink-0 flex-col gap-1 px-2">
 											{!isDesktop && showBlockGroup && (
 												<button
 													type="button"
@@ -1556,6 +1561,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												<MessageCircleX className="mr-2 h-4 w-4 opacity-70" />
 												{isDeletingConversation ? t("chat.delete_conversation_in_progress") : t("chat.delete_conversation")}
 											</button>
+											</div>
 										</div>
 									) : null}
 								</div>
