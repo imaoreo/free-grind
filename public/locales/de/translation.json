@@ -355,7 +355,11 @@
         "start_explore": "Explore starten",
         "stop_explore": "Explore beenden",
         "exploring_badge": "Exploring",
-        "exploring_label": "Exploring: {{label}}"
+        "exploring_label": "Exploring: {{label}}",
+        "set_as_home": "Als Zuhause festlegen",
+        "home_location_label": "Zuhause",
+        "home_updated_toast": "Heimatort aktualisiert",
+        "home_update_failed": "Heimatort konnte nicht aktualisiert werden"
     },
     "nav": {
         "browse": "Durchsuchen",
@@ -1444,6 +1448,8 @@
             "load_visiting_mode": "Profilmodus konnte nicht geladen werden",
             "invalid_visiting_mode_response": "Ungültige Antwort für Profilmodus",
             "save_visiting_mode": "Profilmodus konnte nicht gespeichert werden",
+            "load_home_location": "Heimatort konnte nicht geladen werden",
+            "save_home_location": "Heimatort konnte nicht gespeichert werden",
             "load_travel_plans": "Reisepläne konnten nicht geladen werden",
             "save_travel_plan": "Reiseplan konnte nicht gespeichert werden",
             "delete_travel_plan": "Reiseplan konnte nicht gelöscht werden",

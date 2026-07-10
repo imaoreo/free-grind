@@ -1,6 +1,7 @@
-import { Bookmark, Check, Loader2, MapPin, Navigation, Search, Trash2, X } from "lucide-react";
+import { Bookmark, Check, Compass, Home, Loader2, MapPin, Navigation, Search, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import toast from "react-hot-toast";
 import z from "zod";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -21,6 +22,13 @@ import {
 	loadSavedLocations,
 	type SavedLocation,
 } from "../../services/savedLocations";
+import {
+	useHomeLocation,
+	useUpdateHomeLocation,
+	useUpdateVisitingMode,
+	useVisitingMode,
+} from "../../hooks/queries/useProfileQueries";
+import { VISITING_MODES, getVisitingModeTranslationKey, type VisitingMode } from "../../types/visiting";
 
 export type ExploreLocation = { geohash: string; label: string } | null;
 
@@ -140,6 +148,37 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 	const [isNamingLocation, setIsNamingLocation] = useState(false);
 	const [newLocationName, setNewLocationName] = useState("");
 	const searchInputRef = useRef<HTMLInputElement>(null);
+
+	// Home location + visiting mode are account-wide profile settings (not
+	// grid-browsing preferences like geohash above), but they're both about
+	// "where/how your profile shows up" so they live in this same overlay
+	// rather than the profile editor — see LocationOverlay's set/explore tabs
+	// for the parallel: everything here saves immediately, no separate "Save"
+	// step.
+	const { data: homeLocation } = useHomeLocation();
+	const updateHomeLocation = useUpdateHomeLocation();
+	const { data: visitingMode, isLoading: isLoadingVisitingMode, isError: isVisitingModeError } = useVisitingMode();
+	const updateVisitingModeMutation = useUpdateVisitingMode();
+	const visitingModeDisabled = isLoadingVisitingMode || isVisitingModeError || updateVisitingModeMutation.isPending;
+	const visitingModeIcons: Record<VisitingMode, typeof MapPin> = { AUTO: Compass, OFF: Home, ON: MapPin };
+
+	const handleSetAsHome = async (lat: number, lon: number) => {
+		try {
+			await updateHomeLocation.mutateAsync({ lat, lon });
+			toast.success(t("browse_location.home_updated_toast"));
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("browse_location.home_update_failed"));
+		}
+	};
+
+	const handleVisitingModeChange = async (mode: VisitingMode) => {
+		if (mode === visitingMode) return;
+		try {
+			await updateVisitingModeMutation.mutateAsync(mode);
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("api.errors.save_visiting_mode"));
+		}
+	};
 
 	// Derived directly from geohash (not one-time state) so it can never go
 	// stale — re-mounting isn't the only way this can change; geohash itself
@@ -554,6 +593,25 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 									</button>
 								)}
 
+								{!isExploreTab && homeLocation && (
+									<button
+										type="button"
+										onClick={() => void saveAndClose(homeLocation.lat, homeLocation.lon, homeLocation.name)}
+										disabled={isSaving}
+										className="flex w-full items-center gap-4 bg-[var(--surface-2)] p-4 text-left transition hover:bg-[var(--surface-3,var(--surface))] disabled:opacity-60"
+									>
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface)] text-[var(--accent)]">
+											<Home className="h-4 w-4" />
+										</div>
+										<div className="min-w-0 flex-1">
+											<p className="truncate font-semibold text-[var(--text)]">
+												{t("browse_location.home_location_label")}
+											</p>
+											<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{homeLocation.name}</p>
+										</div>
+									</button>
+								)}
+
 								{!isExploreTab && (
 									<button
 										type="button"
@@ -717,6 +775,21 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 												</p>
 												<p className="mt-0.5 truncate text-sm font-semibold text-[var(--text)]">{selectedLocation.label}</p>
 											</div>
+											{!isExploreTab && (
+												<button
+													type="button"
+													onClick={() => void handleSetAsHome(selectedLocation.lat, selectedLocation.lon)}
+													disabled={updateHomeLocation.isPending}
+													aria-label={t("browse_location.set_as_home")}
+													className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
+												>
+													{updateHomeLocation.isPending ? (
+														<Loader2 className="h-4 w-4 animate-spin" />
+													) : (
+														<Home className="h-4 w-4" />
+													)}
+												</button>
+											)}
 											<button
 												type="button"
 												onClick={() => {
@@ -798,6 +871,87 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 							</div>
 						)}
 						</div>
+
+						{/* Profile mode: Auto/Home/Visiting — secondary, low-frequency
+						    setting, kept at the very bottom out of the way of the
+						    location-picking flow above. Only applies to your real
+						    location, not the explore tab's local-only browsing. Saves
+						    immediately on tap, same as everything else in this overlay. */}
+						{!isExploreTab && (
+							<div>
+								<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+									{t("profile_editor.sections.visiting_mode.title")}
+								</p>
+								<div
+									role="radiogroup"
+									aria-label={t("profile_editor.sections.visiting_mode.title")}
+									className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]"
+								>
+									{VISITING_MODES.map((mode) => {
+										const active = mode === visitingMode;
+										const Icon = visitingModeIcons[mode];
+										const modeKey = getVisitingModeTranslationKey(mode);
+										return (
+											<button
+												key={mode}
+												type="button"
+												role="radio"
+												aria-checked={active}
+												disabled={visitingModeDisabled}
+												onClick={() => void handleVisitingModeChange(mode)}
+												className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 ${
+													active
+														? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+														: "hover:bg-[var(--surface-2)]"
+												}`}
+											>
+												<span
+													className={`shrink-0 rounded-2xl p-2.5 ${
+														active
+															? "bg-[var(--surface)] text-[var(--accent)]"
+															: "bg-[var(--surface-2)] text-[var(--text-muted)]"
+													}`}
+												>
+													<Icon className="h-5 w-5" strokeWidth={2.1} />
+												</span>
+												<span className="min-w-0 flex-1">
+													<span className="block text-sm font-semibold leading-snug">
+														{t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`)}
+													</span>
+													<span
+														className={`mt-0.5 block text-xs leading-relaxed ${
+															active ? "text-[var(--accent-contrast)]/75" : "text-[var(--text-muted)]"
+														}`}
+													>
+														{t(`profile_editor.sections.visiting_mode.options.${modeKey}.description`)}
+													</span>
+												</span>
+												<span
+													className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+														active
+															? "border-[var(--accent-contrast)] bg-[var(--accent-contrast)]"
+															: "border-[var(--border)]"
+													}`}
+												>
+													{active && <span className="h-2 w-2 rounded-full bg-[var(--accent)]" />}
+												</span>
+											</button>
+										);
+									})}
+								</div>
+								{isLoadingVisitingMode || isVisitingModeError ? (
+									<p
+										className={`mt-2 px-1 text-xs leading-relaxed ${
+											isVisitingModeError ? "text-red-300" : "text-[var(--text-muted)]"
+										}`}
+									>
+										{isVisitingModeError
+											? t("profile_editor.sections.visiting_mode.error")
+											: t("profile_editor.sections.visiting_mode.loading")}
+									</p>
+								) : null}
+							</div>
+						)}
 					</div>
 				</div>
 			</div>

@@ -15,6 +15,7 @@ import type { RestFetcher } from "../../types/chat-service";
 import type { VisitingMode } from "../../types/visiting";
 import { isVisitingMode } from "../../types/visiting";
 import { travelPlansResponseSchema, type TravelPlan, type TravelPlanPayload } from "../../types/travel";
+import { homeLocationSchema, type HomeLocation } from "../../types/home-location";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 import { isRecordProfileViewsEnabled } from "../../utils/privacy";
 import { appLog } from "../../utils/logger";
@@ -346,6 +347,21 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) =>
 				body: { setting },
 			});
 			await assertSuccess(response, t("api.errors.save_visiting_mode"));
+			return { ok: true };
+		},
+
+		async getHomeLocation(): Promise<HomeLocation> {
+			const response = await fetchRest("/v1/visiting/home");
+			await assertSuccess(response, t("api.errors.load_home_location"));
+			return homeLocationSchema.parse(await parseJsonSafe(response));
+		},
+
+		async updateHomeLocation(location: { lat: number; lon: number }): Promise<{ ok: true }> {
+			const response = await fetchRest("/v1/visiting/home", {
+				method: "PUT",
+				body: { lat: location.lat, lon: location.lon },
+			});
+			await assertSuccess(response, t("api.errors.save_home_location"));
 			return { ok: true };
 		},
 

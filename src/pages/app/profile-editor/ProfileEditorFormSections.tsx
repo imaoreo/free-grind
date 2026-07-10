@@ -6,10 +6,7 @@ import {
 	BadgeInfo,
 	Camera,
 	Clock,
-	Compass,
 	GripVertical,
-	Home,
-	MapPin,
 	Plus,
 	Ruler,
 	ShieldPlus,
@@ -37,10 +34,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { usePreferences } from "../../../contexts/PreferencesContext";
-import {
-	getVisitingModeTranslationKey,
-	type VisitingMode,
-} from "../../../types/visiting";
 import { getThumbImageUrl } from "../../../utils/media";
 import { type UnitsPreset } from "../../../utils/units";
 import { Chip } from "../../../components/ui/chip";
@@ -192,10 +185,6 @@ type ProfileEditorFormSectionsProps = {
 	onUploadPhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
 	onRemovePhoto: (hash: string) => void;
 	onReorderPhotos: (newHashes: string[]) => void;
-	visitingMode: VisitingMode;
-	isLoadingVisitingMode: boolean;
-	visitingModeError: string | null;
-	onVisitingModeChange: (value: VisitingMode) => void;
 	profileId?: string | number | null;
 	ethnicityOptions: Option[];
 	bodyTypeOptions: Option[];
@@ -230,10 +219,6 @@ export function ProfileEditorFormSections({
 	onUploadPhoto,
 	onRemovePhoto,
 	onReorderPhotos,
-	visitingMode,
-	isLoadingVisitingMode,
-	visitingModeError,
-	onVisitingModeChange,
 	profileId,
 	ethnicityOptions,
 	bodyTypeOptions,
@@ -254,7 +239,6 @@ export function ProfileEditorFormSections({
 	const { testReminderDisabled, setPreferences } = usePreferences();
 	const isImperialHeight = unitsPreset === "uk" || unitsPreset === "american";
 	const isImperialWeight = unitsPreset === "american";
-	const visitingModeDisabled = isLoadingVisitingMode || Boolean(visitingModeError);
 	const [activeId, setActiveId] = useState<string | null>(null);
 	const [overId, setOverId] = useState<string | null>(null);
 	const [isTagsDialogOpen, setIsTagsDialogOpen] = useState(false);
@@ -290,15 +274,6 @@ export function ProfileEditorFormSections({
 		if (from === -1 || to === -1) return;
 		onReorderPhotos(arrayMove(profilePhotoHashes, from, to));
 	};
-
-	const visitingModeOptions: Array<{
-		value: VisitingMode;
-		icon: typeof MapPin;
-	}> = [
-		{ value: "AUTO", icon: Compass },
-		{ value: "OFF", icon: Home },
-		{ value: "ON", icon: MapPin },
-	];
 
 	const TEST_REMINDER_THRESHOLD_MONTHS = 3;
 
@@ -703,87 +678,6 @@ export function ProfileEditorFormSections({
 			</div>
 
 			<TravelPlansSection profileId={profileId} />
-
-			{/* Visiting Mode */}
-			<div className="surface-card p-4 sm:p-5">
-				<CategoryHeader
-					title={t("profile_editor.sections.visiting_mode.title")}
-					description={t("profile_editor.sections.visiting_mode.description")}
-					icon={MapPin}
-				/>
-				<div
-					role="radiogroup"
-					aria-label={t("profile_editor.sections.visiting_mode.title")}
-					className="divide-y divide-[var(--border)] overflow-hidden rounded-2xl border border-[var(--border)]"
-				>
-					{visitingModeOptions.map((option) => {
-						const active = option.value === visitingMode;
-						const Icon = option.icon;
-						const modeKey = getVisitingModeTranslationKey(option.value);
-
-						return (
-							<button
-								key={option.value}
-								type="button"
-								role="radio"
-								aria-checked={active}
-								disabled={visitingModeDisabled}
-								onClick={() => onVisitingModeChange(option.value)}
-								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60 ${
-									active
-										? "bg-[var(--accent)] text-[var(--accent-contrast)]"
-										: "hover:bg-[var(--surface-2)]"
-								}`}
-							>
-								<span
-									className={`shrink-0 rounded-2xl p-2.5 ${
-										active
-											? "bg-[var(--surface)] text-[var(--accent)]"
-											: "bg-[var(--surface-2)] text-[var(--text-muted)]"
-									}`}
-								>
-									<Icon className="h-5 w-5" strokeWidth={2.1} />
-								</span>
-								<span className="min-w-0 flex-1">
-									<span className="block text-sm font-semibold leading-snug">
-										{t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`)}
-									</span>
-									<span
-										className={`mt-0.5 block text-xs leading-relaxed ${
-											active
-												? "text-[var(--accent-contrast)]/75"
-												: "text-[var(--text-muted)]"
-										}`}
-									>
-										{t(`profile_editor.sections.visiting_mode.options.${modeKey}.description`)}
-									</span>
-								</span>
-								<span
-									className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-										active
-											? "border-[var(--accent-contrast)] bg-[var(--accent-contrast)]"
-											: "border-[var(--border)]"
-									}`}
-								>
-									{active && (
-										<span className="h-2 w-2 rounded-full bg-[var(--accent)]" />
-									)}
-								</span>
-							</button>
-						);
-					})}
-				</div>
-				{isLoadingVisitingMode || visitingModeError ? (
-					<p
-						className={`mt-3 text-xs leading-relaxed ${
-							visitingModeError ? "text-red-300" : "text-[var(--text-muted)]"
-						}`}
-					>
-						{visitingModeError ??
-							t("profile_editor.sections.visiting_mode.loading")}
-					</p>
-				) : null}
-			</div>
 
 			{/* Expectations */}
 			<div className="surface-card p-4 sm:p-5">
