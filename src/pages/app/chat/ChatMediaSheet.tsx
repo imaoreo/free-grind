@@ -7,7 +7,7 @@ import { ProfileImage } from "../../../components/ui/profile-image";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { PhotoViewer, type PhotoViewerMedia } from "../../../components/PhotoViewer";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
-import { saveMediaBytesBatch } from "../../../services/saveMedia";
+import { isIos, saveMediaBytesBatch } from "../../../services/saveMedia";
 import { fetchAndEncode, toDataUri } from "../../../services/mediaStore";
 import { captureAlbum, getLocalAlbum } from "../../../services/albumStore";
 import * as chatDb from "../../../services/chatDb";
@@ -102,9 +102,13 @@ export function ChatMediaSheet({
 			);
 
 			if (result.failed === 0) {
-				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
-					id: toastId,
-				});
+				toast.success(
+					t(
+						isIos() ? "profile_details.save_all_success" : "profile_details.save_all_success_downloads",
+						{ count: result.succeeded },
+					),
+					{ id: toastId },
+				);
 			} else {
 				toast.error(
 					t("profile_details.save_all_partial", {
@@ -117,7 +121,10 @@ export function ChatMediaSheet({
 			}
 		} catch (error) {
 			appLog.error("[ChatMediaSheet] Save all failed", error);
-			toast.error(t("profile_details.save_all_error"), { id: toastId });
+			toast.error(
+				t(isIos() ? "profile_details.save_all_error" : "profile_details.save_all_error_downloads"),
+				{ id: toastId },
+			);
 		} finally {
 			setIsSavingAll(false);
 		}

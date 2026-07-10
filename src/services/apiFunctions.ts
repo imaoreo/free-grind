@@ -15,6 +15,7 @@ import { createPresenceMethods } from "./api/presenceMethods";
 import { createFavoritesMethods } from "./api/favoritesMethods";
 import { createPhrasesMethods } from "./api/phrasesMethods";
 import { createTagMethods } from "./api/tagMethods";
+import { createVideoCallMethods } from "./api/videoCallMethods";
 import type { RightNowFeedItem, RightNowCreatePostRequest, RightNowCreatePostMedia, RightNowUpdatePostRequest } from "../types/right-now";
 
 export {
@@ -40,6 +41,7 @@ export function createApiFunctions(fetchRest: RestFetcher, t: (key: string) => s
 		...createFavoritesMethods(fetchRest, t),
 		...createPhrasesMethods(fetchRest),
 		...createTagMethods(fetchRest, t),
+		...createVideoCallMethods(fetchRest, t),
 
 		async request(
 			path: string,

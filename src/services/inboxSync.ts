@@ -19,6 +19,14 @@
  * writes go through chatDb's normal idempotent upserts, so if the app
  * closes mid-sync nothing is corrupted.
  *
+ * The initial full walk itself is resumable too: after each page is fully
+ * processed, the next page number is checkpointed (inboxSyncResumePageV1),
+ * so an app restart partway through page 40 of 100 continues at page 40
+ * next launch instead of re-walking 1..40 again. The checkpoint is only
+ * meaningful before the "done" flag is set — it's reset once the full walk
+ * completes, since incremental runs already stop early on their own (see
+ * pageHadChange below).
+ *
  * The "done" flag only covers the conversation-list walk, not individual
  * message fetches — each conversation row also tracks the
  * lastActivityTimestamp it last had its messages fetched at
@@ -47,6 +55,12 @@ import type { Message } from "../types/messages";
 type ApiFunctions = ReturnType<typeof createApiFunctions>;
 
 const INBOX_SYNC_DONE_SETTING_KEY = "inboxSyncCompletedV1";
+// Only meaningful while the initial full walk (hasCompletedFullSync === false)
+// hasn't finished yet — the page to resume the list-walk from next time,
+// so an app restart partway through page 40 of 100 continues at 40 instead
+// of re-walking 1..40 again. Irrelevant once hasCompletedFullSync is true,
+// since incremental runs already stop early via the pageHadChange check.
+const INBOX_SYNC_RESUME_PAGE_SETTING_KEY = "inboxSyncResumePageV1";
 const PAGE_DELAY_MS = 400;
 const MESSAGE_FETCH_DELAY_MS = 2_500;
 
@@ -139,13 +153,20 @@ async function doSync(
 			return;
 		}
 
-		appLog.info("[inbox-sync] starting sync", { userId, hasCompletedFullSync });
+		const resumePage = hasCompletedFullSync
+			? null
+			: await chatDb.getSetting<number>(INBOX_SYNC_RESUME_PAGE_SETTING_KEY);
+		if (isStale()) {
+			return;
+		}
+
+		appLog.info("[inbox-sync] starting sync", { userId, hasCompletedFullSync, resumePage });
 		setStatus(userId, { phase: "syncing_list", conversationsSoFar: 0, changedSoFar: 0 });
 
 		let conversationsSeen = 0;
 		const changedConversations: { conversationId: string; lastActivityTimestamp: number | null }[] = [];
 
-		let page: number | null = 1;
+		let page: number | null = resumePage ?? 1;
 		while (page != null) {
 			if (isStale()) {
 				return;
@@ -254,6 +275,9 @@ async function doSync(
 			if (page == null) {
 				break;
 			}
+			if (!hasCompletedFullSync) {
+				await chatDb.setSetting(INBOX_SYNC_RESUME_PAGE_SETTING_KEY, page);
+			}
 			await sleep(PAGE_DELAY_MS);
 		}
 
@@ -296,6 +320,7 @@ async function doSync(
 		if (!isStale()) {
 			if (!hasCompletedFullSync) {
 				await chatDb.setSetting(INBOX_SYNC_DONE_SETTING_KEY, true);
+				await chatDb.setSetting(INBOX_SYNC_RESUME_PAGE_SETTING_KEY, 1);
 			}
 			const totalConversations = await chatDb
 				.listConversations({ includeArchived: true })

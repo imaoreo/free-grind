@@ -42,6 +42,10 @@ import { sendViaRealtime } from "./chatRealtime";
 
 export { ApiFunctionError as ChatApiError };
 
+// The official app's own fixed page size for GET .../message (it hardcodes
+// this too — not something the server picks on its own).
+const MESSAGE_PAGE_LIMIT = 20;
+
 function sortConversations(entries: ConversationEntry[]): ConversationEntry[] {
 	return [...entries].sort((a, b) => {
 		if (a.data.pinned && !b.data.pinned) {
@@ -270,6 +274,10 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 			if (params.includeProfile) {
 				query.set("profile", "true");
 			}
+			// Matches the official app's fixed page size for this endpoint — it was
+			// never sent here before, leaving the server's own (unknown, possibly
+			// inconsistent) default in charge of the actual page size.
+			query.set("limit", String(MESSAGE_PAGE_LIMIT));
 
 			const suffix = query.toString() ? `?${query.toString()}` : "";
 			const response = await fetchRest(

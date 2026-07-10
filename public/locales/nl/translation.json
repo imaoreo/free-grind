@@ -333,7 +333,9 @@
                 "last_tested": "",
                 "health_practices": "",
                 "vaccinations": "",
-                "test_reminder": ""
+                "test_reminder": "",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "",
@@ -500,6 +502,7 @@
             "album_share": "",
             "album_image": "",
             "replied_to_photo": "",
+            "replied_to_photo_theirs": "",
             "reacted_to_image": "",
             "shared_alt": ""
         },

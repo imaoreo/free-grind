@@ -4,11 +4,18 @@ import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { ShieldPlus } from "lucide-react";
 import { useAuth } from "../contexts/useAuth";
+import { usePreferences } from "../contexts/PreferencesContext";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useMyOwnProfile } from "../hooks/queries/useProfileQueries";
 import { LastTestedMonthPicker } from "./LastTestedMonthPicker";
+import { processDismissCountdown, writeDismissedFlag } from "../utils/appStartDismissCountdown";
 
 const TEST_REMINDER_THRESHOLD_MONTHS = 3;
+const TEST_REMINDER_DISMISS_KEY = "test-reminder-dismissed";
+// "Skip" only suppresses the reminder for this many subsequent app starts —
+// same mechanism as OutdatedVersionGate — rather than dismissing forever, so
+// an overdue test doesn't get permanently forgotten.
+const TEST_REMINDER_REOPEN_COUNT = 10;
 
 function monthsSince(timestamp: number): number {
 	return (Date.now() - timestamp) / (1000 * 60 * 60 * 24 * 30.44);
@@ -25,20 +32,26 @@ function currentMonthValue(): string {
  * overlay on top of the grid. Shown once the last test is 3+ months old.
  * Lets the user patch lastTestedDate directly (same optimistic-PATCH pattern
  * as the grid header's "show distance" toggle) instead of routing to the
- * full profile editor. "Skip" only dismisses for this session — no
- * persisted flag — so it resurfaces on the next cold start if still overdue.
+ * full profile editor. "Skip" suppresses the reminder for the next
+ * TEST_REMINDER_REOPEN_COUNT app starts (same countdown mechanism as
+ * OutdatedVersionGate) rather than showing it every cold start; it can also
+ * be turned off entirely from the profile editor's Health section.
  */
 export function TestReminderGate({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const { userId, isLoading: isAuthLoading } = useAuth();
+	const { testReminderDisabled } = usePreferences();
 	const apiFunctions = useApiFunctions();
 	const queryClient = useQueryClient();
 	const { data: profile } = useMyOwnProfile(Boolean(userId) && !isAuthLoading);
-	const [isDismissed, setIsDismissed] = useState(false);
+	const [isDismissed, setIsDismissed] = useState(() =>
+		processDismissCountdown(TEST_REMINDER_DISMISS_KEY),
+	);
 	const [monthValue, setMonthValue] = useState(currentMonthValue);
 	const [isSaving, setIsSaving] = useState(false);
 
 	const isOverdue =
+		!testReminderDisabled &&
 		profile?.lastTestedDate != null &&
 		monthsSince(profile.lastTestedDate) >= TEST_REMINDER_THRESHOLD_MONTHS;
 
@@ -111,7 +124,10 @@ export function TestReminderGate({ children }: { children: ReactNode }) {
 					</button>
 					<button
 						type="button"
-						onClick={() => setIsDismissed(true)}
+						onClick={() => {
+							writeDismissedFlag(TEST_REMINDER_DISMISS_KEY, TEST_REMINDER_REOPEN_COUNT);
+							setIsDismissed(true);
+						}}
 						disabled={isSaving}
 						className="w-full rounded-xl py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-60"
 					>

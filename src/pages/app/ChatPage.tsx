@@ -130,6 +130,9 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 // page through it ourselves) — a "pageKey" here is this prefix + a cursor
 // timestamp, never sent anywhere, just round-tripped through the same
 // messagePageKeyRef the live API path already uses.
+// Also reused by the live (non-archived) path once the server confirms it has
+// no more history before the current cursor — see the "server exhausted"
+// handling in loadThread further down.
 const LOCAL_PAGE_KEY_PREFIX = "local:";
 const ARCHIVED_THREAD_PAGE_SIZE = 30;
 // Cap for the fully-offline inbox fallback below — chatDb's background sync
@@ -160,6 +163,32 @@ const SYSTEM_MESSAGE_TYPES = new Set<string>([
  * point a message's URL gets resolved (initial load, hydration fallbacks,
  * realtime arrival) so content survives signed-URL expiry / view-once limits.
  */
+// Types that can carry their own image/video/audio content — mirrors the
+// type checks inside getMessageImageUrl/getMessageVideoUrl/getMessageAudioUrl.
+// Anything outside this set (ProfilePhotoReply, AlbumContentReply/Reaction,
+// Text, Location, ...) never has "own" media, only a reply-quote/reaction
+// preview thumbnail — falling back to hydrateMediaByMessageId for those would
+// incorrectly resolve that quoted preview (cached under the *replying*
+// message's id by captureReplyPreviewsForMessages) as if it were the
+// message's own attached image, rendering it full-size in the bubble.
+function canHaveOwnMedia(message: UiMessage): boolean {
+	const chat1Type = message.chat1Type?.toLowerCase();
+	return (
+		message.type === "Image" ||
+		message.type === "ExpiringImage" ||
+		message.type === "Video" ||
+		message.type === "PrivateVideo" ||
+		message.type === "NonExpiringVideo" ||
+		message.type === "Audio" ||
+		chat1Type === "image" ||
+		chat1Type === "expiring_image" ||
+		chat1Type === "video" ||
+		chat1Type === "privatevideo" ||
+		chat1Type === "nonexpiringvideo" ||
+		chat1Type === "audio"
+	);
+}
+
 function captureMediaForMessages(
 	messages: UiMessage[],
 	conversationId: string,
@@ -177,7 +206,7 @@ function captureMediaForMessages(
 				viewOnce: target.viewOnce,
 				isOwnMessage: userId != null && message.senderId === userId,
 			});
-		} else if (message.type !== "Giphy") {
+		} else if (canHaveOwnMedia(message)) {
 			// No live URL on this message anymore (expired, archived
 			// conversation, server stopped refreshing it) — fall back to
 			// whatever's already cached for it by message id instead.
@@ -1719,6 +1748,43 @@ export function ChatPage() {
 				}
 				isLoadingOlderMessagesRef.current = true;
 				setIsLoadingOlderMessages(true);
+
+				// Already past what the server has for this conversation (see the
+				// "server exhausted" pageKey handling further down) — keep paging
+				// purely through chatDb from here, the same way the archived branch
+				// does, rather than sending the API a synthetic cursor it was never
+				// meant to understand.
+				if (messagePageKeyRef.current.startsWith(LOCAL_PAGE_KEY_PREFIX)) {
+					try {
+						const beforeTimestamp = Number(
+							messagePageKeyRef.current.slice(LOCAL_PAGE_KEY_PREFIX.length),
+						);
+						const olderMessages = await chatDb.getMessagesPage(conversationId, {
+							beforeTimestamp,
+							limit: ARCHIVED_THREAD_PAGE_SIZE,
+						});
+						const nextPageKey =
+							olderMessages.length > 0
+								? `${LOCAL_PAGE_KEY_PREFIX}${olderMessages[0].timestamp}`
+								: null;
+						setMessagePageKey(nextPageKey);
+						messagePageKeyRef.current = nextPageKey;
+						if (selectedConversationIdRef.current === conversationId) {
+							setThreadMessages((previous) => {
+								const map = new Map<string, UiMessage>();
+								for (const m of olderMessages) {
+									map.set(m.messageId, { ...m, _localOnly: true } as UiMessage);
+								}
+								for (const m of previous) map.set(m.messageId, m);
+								return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+							});
+						}
+					} finally {
+						setIsLoadingOlderMessages(false);
+						isLoadingOlderMessagesRef.current = false;
+					}
+					return;
+				}
 			} else {
 				if (!silent) {
 					setIsLoadingThread(true);
@@ -2091,36 +2157,42 @@ export function ChatPage() {
 				}
 				// --------------------------------------------------
 
+				// Captured from inside the updater below (where the merged, up-to-date
+				// message set is available) — used after it for the "server exhausted"
+				// pageKey handling, so that a subsequent local-only page picks up right
+				// where the merged view actually leaves off, not from some earlier,
+				// possibly-stale snapshot.
+				let oldestDisplayedTimestamp: number | null = null;
+
 				setThreadMessages((previous) => {
 					const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					if (older) {
-						// Older messages prepended; keep existing (including any local-only).
+						// Older messages prepended; keep existing (including any local-only,
+						// e.g. from a prior "server exhausted" local-only page) as the base,
+						// but let this fetch's freshly-confirmed server page win over
+						// whatever was already on screen for the same message id — otherwise a
+						// message that happened to already be displayed would keep showing as
+						// unverified local history forever, even though this fetch just
+						// re-confirmed it against the server. mergeMessagePreservingUnsendWipe
+						// still protects the one case where the old version should win anyway:
+						// a local copy surviving an unsend wipe.
+						for (const message of previous) map.set(message.messageId, message);
 						for (const message of responseMessages)
 							map.set(
 								message.messageId,
 								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
 							);
-						for (const message of previous) map.set(message.messageId, message);
 					} else {
-						// Fresh load or poll: seed from the full local history (chatDb)
-						// first, not just whatever's already in memory — otherwise a
-						// conversation that just came back from being archived (e.g.
-						// unblocked, partner messaged again) would lose everything
-						// older than the live API's response, which can be as narrow
-						// as that one brand-new message. Hybrid: old local history,
-						// then the fresh data layered on top.
-						const localById = new Map(
-							localMessages
-								.filter((m) => m.conversationId === conversationId)
-								.map((m) => [m.messageId, m] as const),
-						);
-						for (const [id, message] of localById) {
-							// Flagged local-only since they're no longer on the server
-							// (the live response below didn't include them) — anything
-							// that *is* still live gets this overwritten further down.
-							map.set(id, { ...message, _localOnly: true } as UiMessage);
-						}
+						// Fresh load or poll: keep whatever's already in memory for this
+						// conversation as the base (e.g. from an earlier session-load, or
+						// carried over from the archived branch when a conversation just
+						// came back live) — that alone already gives continuity across
+						// re-loads without needing a separate chatDb seed here. No local
+						// history gets padded in on top of it (see the "server exhausted"
+						// pageKey handling further down for how older, server-forgotten
+						// history is still reachable, without the padding-induced gap that
+						// used to cause messages to get stuck flagged local-only forever).
 						for (const message of previous) {
 							if (message.conversationId === conversationId) {
 								map.set(message.messageId, message);
@@ -2129,25 +2201,36 @@ export function ChatPage() {
 						for (const message of responseMessages)
 							map.set(
 								message.messageId,
-								mergeMessagePreservingUnsendWipe(
-									previousById.get(message.messageId) ?? localById.get(message.messageId),
-									message,
-								),
+								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
 							);
 					}
-					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+					const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+					const oldestForConversation = sorted.find((m) => m.conversationId === conversationId);
+					oldestDisplayedTimestamp = oldestForConversation?.timestamp ?? null;
+					return sorted;
 				});
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
-				if (!older && response.messages.length > 0) {
+				// Runs for "older" pages too — every load step should check local
+				// alongside the server and prefer local when the server doesn't have it,
+				// not just the very first load.
+				//
+				// No per-message getMessage() re-verification here (there used to be
+				// one) — a message already came from this same conversation's local
+				// log, which only ever gets written from prior real API responses, so
+				// firing an extra individual GET per candidate just to double-check
+				// something already confirmed once is pure overhead (and, worse, an
+				// unbounded burst of them per page). Simply not being part of *this*
+				// page's response is enough to show it flagged local-only; it stops
+				// being flagged the moment some future page's response does include it.
+				if (response.messages.length > 0) {
 					const windowStart = response.messages[0].timestamp;
 					const windowEnd =
 						response.messages[response.messages.length - 1].timestamp;
 					const apiIds = new Set(response.messages.map((m) => m.messageId));
-					void chatLog.readLog(conversationId).then(async (localData) => {
-						const localMessages = localData.messages;
-						const localCandidates = localMessages.filter(
+					void chatLog.readLog(conversationId).then((localData) => {
+						const localCandidates = localData.messages.filter(
 							(m) =>
 								!apiIds.has(m.messageId) &&
 								m.timestamp >= windowStart &&
@@ -2155,28 +2238,9 @@ export function ChatPage() {
 						);
 						if (!localCandidates.length) return;
 
-						// Verify candidates are truly absent from API before surfacing
-						// them as local-history messages.
-						const checks = await Promise.allSettled(
-							localCandidates.map((candidate) =>
-								service.getMessage({
-									conversationId,
-									messageId: candidate.messageId,
-								}),
-							),
+						const localOnly: UiMessage[] = localCandidates.map(
+							(m) => ({ ...m, _localOnly: true }) as UiMessage,
 						);
-
-						const localOnly: UiMessage[] = [];
-						for (let i = 0; i < localCandidates.length; i += 1) {
-							const check = checks[i];
-							if (check.status === "fulfilled") {
-								continue;
-							}
-							localOnly.push({
-								...localCandidates[i],
-								_localOnly: true,
-							} as UiMessage);
-						}
 
 				if (localOnly.length > 0) {
 					if (selectedConversationIdRef.current !== conversationId) return;
@@ -2202,10 +2266,42 @@ export function ChatPage() {
 				}
 
 				const firstMessage = response.messages[0];
-				setMessagePageKey(firstMessage ? firstMessage.messageId : null);
-				messagePageKeyRef.current = firstMessage
-					? firstMessage.messageId
-					: null;
+				if (firstMessage) {
+					setMessagePageKey(firstMessage.messageId);
+					messagePageKeyRef.current = firstMessage.messageId;
+				} else {
+					// The server has nothing more before this cursor (or, for a fresh
+					// load, nothing at all) — this doesn't necessarily mean there's no
+					// more history, just that the server doesn't have it anymore (e.g.
+					// retention limits, or a conversation that reappeared after being
+					// unblocked with a truncated server history). chatDb may still have
+					// it. Switch to paging purely through chatDb from here — same
+					// LOCAL_PAGE_KEY_PREFIX scheme and getMessagesPage the archived
+					// branch already uses — starting from the oldest message actually
+					// displayed so far (captured above), or "now" if nothing's shown yet,
+					// so nothing in between gets skipped.
+					const beforeTimestamp = oldestDisplayedTimestamp ?? Date.now();
+					const localOlder = await chatDb.getMessagesPage(conversationId, {
+						beforeTimestamp,
+						limit: ARCHIVED_THREAD_PAGE_SIZE,
+					});
+					const nextPageKey =
+						localOlder.length > 0
+							? `${LOCAL_PAGE_KEY_PREFIX}${localOlder[0].timestamp}`
+							: null;
+					setMessagePageKey(nextPageKey);
+					messagePageKeyRef.current = nextPageKey;
+					if (localOlder.length > 0 && selectedConversationIdRef.current === conversationId) {
+						setThreadMessages((previous) => {
+							const map = new Map<string, UiMessage>();
+							for (const m of localOlder) {
+								map.set(m.messageId, { ...m, _localOnly: true } as UiMessage);
+							}
+							for (const m of previous) map.set(m.messageId, m);
+							return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+						});
+					}
+				}
 
 				if (!older) {
 					// Same idea as loadInbox's fallback: don't just take the live

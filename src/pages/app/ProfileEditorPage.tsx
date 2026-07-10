@@ -17,10 +17,6 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
-import {
-	getVisitingModeTranslationKey,
-	type VisitingMode,
-} from "../../types/visiting";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { BackToSettings } from "../../components/BackToSettings";
 import { BottomDrawer } from "../../components/ui/bottom-drawer";
@@ -92,12 +88,6 @@ export function ProfileEditorPage() {
 	const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 	const [profileError, setProfileError] = useState<string | null>(null);
 	const [draft, setDraft] = useState<ProfileDraft>(emptyDraft);
-	const [savedVisitingMode, setSavedVisitingMode] =
-		useState<VisitingMode>("AUTO");
-	const [draftVisitingMode, setDraftVisitingMode] =
-		useState<VisitingMode>("AUTO");
-	const [isLoadingVisitingMode, setIsLoadingVisitingMode] = useState(false);
-	const [visitingModeError, setVisitingModeError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -288,36 +278,9 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
-	const loadVisitingMode = useCallback(async (options?: { silent?: boolean }) => {
-		if (!userId) {
-			setSavedVisitingMode("AUTO");
-			setDraftVisitingMode("AUTO");
-			setIsLoadingVisitingMode(false);
-			setVisitingModeError(null);
-			return;
-		}
-
-		try {
-			if (!options?.silent) {
-				setIsLoadingVisitingMode(true);
-			}
-			setVisitingModeError(null);
-			setSavedVisitingMode(await apiFunctions.getVisitingMode());
-		} catch (error) {
-			setVisitingModeError(
-				error instanceof Error
-					? error.message
-					: t("profile_editor.sections.visiting_mode.error"),
-			);
-		} finally {
-			setIsLoadingVisitingMode(false);
-		}
-	}, [apiFunctions, userId, t]);
-
 	useEffect(() => {
 		void loadProfile();
-		void loadVisitingMode();
-	}, [loadProfile, loadVisitingMode]);
+	}, [loadProfile]);
 
 	const hasPendingPhotoModeration = useMemo(
 		() => (profile?.medias ?? []).some((item) => item.state === MEDIA_MODERATION_STATE.PENDING),
@@ -344,10 +307,6 @@ export function ProfileEditorPage() {
 		setDraft(profileToDraft(profile, unitsPreset));
 	}, [profile, unitsPreset]);
 
-	useEffect(() => {
-		setDraftVisitingMode(savedVisitingMode);
-	}, [savedVisitingMode]);
-
 	const displayName = useMemo(() => {
 		if (profile?.displayName?.trim()) {
 			return profile.displayName.trim();
@@ -372,8 +331,7 @@ export function ProfileEditorPage() {
 		[draft, savedDraft],
 	);
 
-	const hasVisitingModeChanges = draftVisitingMode !== savedVisitingMode;
-	const hasChanges = hasProfileChanges || hasVisitingModeChanges;
+	const hasChanges = hasProfileChanges;
 
 	const tagList = useMemo(
 		() => normalizeTagList(draft.profileTagsText),
@@ -439,11 +397,6 @@ export function ProfileEditorPage() {
 
 		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
 	}, [draft.bodyType, bodyTypeLabels, t]);
-
-	const selectedVisitingModeLabel = useMemo(() => {
-		const modeKey = getVisitingModeTranslationKey(draftVisitingMode);
-		return t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`);
-	}, [draftVisitingMode, t]);
 
 	const completionChecklist = useMemo(
 		() => [
@@ -624,11 +577,6 @@ export function ProfileEditorPage() {
 						};
 					});
 				}
-			}
-
-			if (hasVisitingModeChanges) {
-				await apiFunctions.updateVisitingMode(draftVisitingMode);
-				setSavedVisitingMode(draftVisitingMode);
 			}
 
 			// Keeps the grid/chat header avatar, account switcher, and the HIV
@@ -892,7 +840,6 @@ export function ProfileEditorPage() {
 
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
-		setDraftVisitingMode(savedVisitingMode);
 	};
 
 	return (
@@ -957,9 +904,6 @@ export function ProfileEditorPage() {
 													})
 												: t("profile_editor.no_tags")}
 										</span>
-										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-											{selectedVisitingModeLabel}
-										</span>
 									</div>
 								</div>
 							</div>
@@ -1001,10 +945,6 @@ export function ProfileEditorPage() {
 								onUploadPhoto={handleUploadPhoto}
 								onRemovePhoto={handleRemovePhoto}
 								onReorderPhotos={handleReorderPhotos}
-								visitingMode={draftVisitingMode}
-								isLoadingVisitingMode={isLoadingVisitingMode}
-								visitingModeError={visitingModeError}
-								onVisitingModeChange={setDraftVisitingMode}
 								profileId={profile?.profileId ?? userId}
 								ethnicityOptions={ethnicityOptions}
 								bodyTypeOptions={bodyTypeOptions}

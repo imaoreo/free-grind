@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart2, Bell, Check, ChevronRight, Loader2, MapPin, Mic, Monitor, Moon, Sun, X } from "lucide-react";
+import { AlertTriangle, BarChart2, Bell, Camera, Check, ChevronRight, Loader2, MapPin, Mic, Monitor, Moon, Sun, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
 	isPermissionGranted,
@@ -28,6 +28,7 @@ const BRIDGE_POLL_TIMEOUT_MS = 90_000;
 
 type AndroidBridge = {
 	checkMicrophonePermission?: () => boolean;
+	checkCameraPermission?: () => boolean;
 	checkNotificationPermission?: () => boolean;
 	checkLocationPermission?: () => boolean;
 };
@@ -58,7 +59,10 @@ function withTimeout<T>(promise: Promise<T>, ms = PERMISSION_TIMEOUT_MS): Promis
 	]);
 }
 
-function classifyMediaError(error: unknown): { status: PermissionStatus; detail: string } {
+function classifyMediaError(
+	error: unknown,
+	kind: "microphone" | "camera",
+): { status: PermissionStatus; detail: string } {
 	const name = error instanceof DOMException ? error.name : null;
 	const message = error instanceof Error ? error.message : String(error);
 	const lowerMessage = message.toLowerCase();
@@ -70,24 +74,24 @@ function classifyMediaError(error: unknown): { status: PermissionStatus; detail:
 		lowerMessage.includes("constraint") ||
 		lowerMessage.includes("no device")
 	) {
-		return { status: "unavailable", detail: "No microphone found on this device." };
+		return { status: "unavailable", detail: `No ${kind} found on this device.` };
 	}
 	if (name === "NotReadableError") {
-		return { status: "unavailable", detail: "Microphone is in use by another app." };
+		return { status: "unavailable", detail: `${kind === "microphone" ? "Microphone" : "Camera"} is in use by another app.` };
 	}
 	if (name === "NotAllowedError" || name === "SecurityError") {
 		return { status: "denied", detail: "Access was denied." };
 	}
-	return { status: "denied", detail: message || "Couldn't access the microphone." };
+	return { status: "denied", detail: message || `Couldn't access the ${kind}.` };
 }
 
-const PERM_STEPS = ["notifications", "location", "microphone"] as const;
+const PERM_STEPS = ["notifications", "location", "microphone", "camera"] as const;
 type PermStep = typeof PERM_STEPS[number];
 type Step = "loading" | "welcome" | "theme" | PermStep | "analytics" | "scam";
 
-const STEP_ORDER: Step[] = ["welcome", "theme", "notifications", "location", "microphone", "analytics", "scam"];
+const STEP_ORDER: Step[] = ["welcome", "theme", "notifications", "location", "microphone", "camera", "analytics", "scam"];
 
-const DOT_STEPS: Step[] = ["theme", "notifications", "location", "microphone", "analytics", "scam"];
+const DOT_STEPS: Step[] = ["theme", "notifications", "location", "microphone", "camera", "analytics", "scam"];
 
 function StepDots({ current }: { current: Step }) {
 	const currentIdx = DOT_STEPS.indexOf(current);
@@ -152,6 +156,8 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 	const [locationStatus, setLocationStatus] = useState<PermissionStatus>("idle");
 	const [microphoneStatus, setMicrophoneStatus] = useState<PermissionStatus>("idle");
 	const [microphoneDetail, setMicrophoneDetail] = useState<string | null>(null);
+	const [cameraStatus, setCameraStatus] = useState<PermissionStatus>("idle");
+	const [cameraDetail, setCameraDetail] = useState<string | null>(null);
 
 	const [isRequesting, setIsRequesting] = useState(false);
 
@@ -196,6 +202,19 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 				}
 			} catch (error) {
 				appLog.warn("[Onboarding] Failed to read microphone permission", error);
+			}
+
+			try {
+				const p = platform();
+				if (p === "android") {
+					const bridge = getAndroidBridge();
+					if (bridge?.checkCameraPermission?.()) setCameraStatus("granted");
+				} else {
+					const status = await navigator.permissions?.query({ name: "camera" });
+					if (status?.state === "granted") setCameraStatus("granted");
+				}
+			} catch (error) {
+				appLog.warn("[Onboarding] Failed to read camera permission", error);
 			}
 		})();
 	}, [step]);
@@ -282,9 +301,34 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 			}
 		} catch (error) {
 			appLog.warn("[Onboarding] Failed to request microphone permission", error);
-			const { status, detail } = classifyMediaError(error);
+			const { status, detail } = classifyMediaError(error, "microphone");
 			setMicrophoneStatus(status);
 			setMicrophoneDetail(detail);
+		} finally {
+			setIsRequesting(false);
+		}
+	};
+
+	const requestCamera = async () => {
+		setIsRequesting(true);
+		try {
+			const bridge = getAndroidBridge();
+			if (bridge?.checkCameraPermission) {
+				navigator.mediaDevices.getUserMedia({ video: true }).catch(() => {});
+				const granted = await pollBridgePermission(() => bridge.checkCameraPermission!());
+				setCameraStatus(granted ? "granted" : "denied");
+				setCameraDetail(null);
+			} else {
+				const stream = await withTimeout(navigator.mediaDevices.getUserMedia({ video: true }));
+				stream.getTracks().forEach((t) => t.stop());
+				setCameraStatus("granted");
+				setCameraDetail(null);
+			}
+		} catch (error) {
+			appLog.warn("[Onboarding] Failed to request camera permission", error);
+			const { status, detail } = classifyMediaError(error, "camera");
+			setCameraStatus(status);
+			setCameraDetail(detail);
 		} finally {
 			setIsRequesting(false);
 		}
@@ -522,6 +566,14 @@ export function PermissionsOnboarding({ onComplete }: { onComplete: () => void }
 			status: microphoneStatus,
 			detail: microphoneDetail,
 			onRequest: requestMicrophone,
+		},
+		camera: {
+			icon: Camera,
+			title: "Camera",
+			description: "Take photos and videos to share, and use video calls.",
+			status: cameraStatus,
+			detail: cameraDetail,
+			onRequest: requestCamera,
 		},
 	} as const;
 

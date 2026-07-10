@@ -345,6 +345,12 @@ class MainActivity : TauriActivity() {
     }
 
     @JavascriptInterface
+    fun checkCameraPermission(): Boolean {
+      return checkSelfPermission(Manifest.permission.CAMERA) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    @JavascriptInterface
     fun checkNotificationPermission(): Boolean {
       return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==

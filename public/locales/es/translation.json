@@ -395,7 +395,9 @@
                 "last_tested": "Último análisis",
                 "health_practices": "Prácticas saludables",
                 "vaccinations": "Vacunas",
-                "test_reminder": "Han pasado más de 3 meses desde tu última prueba — considera hacerte otra."
+                "test_reminder": "Han pasado más de 3 meses desde tu última prueba — considera hacerte otra.",
+                "test_reminder_toggle": "Recordatorio de prueba",
+                "test_reminder_toggle_desc": "Muestra un recordatorio para hacerte una prueba cuando haya pasado un tiempo desde la última."
             },
             "social": {
                 "title": "Redes sociales",
@@ -616,6 +618,7 @@
             "album_share": "Compartir álbum",
             "album_image": "Imagen de álbum",
             "replied_to_photo": "Respondió a tu foto de perfil",
+            "replied_to_photo_theirs": "Respondiste a su foto de perfil",
             "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
             "location_shared": "Ubicación compartida",

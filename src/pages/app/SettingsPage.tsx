@@ -257,8 +257,11 @@ export function SettingsPage() {
 		setIsSyncingFcm(true);
 		try {
 			await callMethod("sync_push_token", { token: tokenToSync });
-			window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, tokenToSync);
-			setFcmSyncedToken(tokenToSync);
+			// Marker must match AuthContext's `${token}::${userId}` format — the same
+			// FCM token is shared across saved accounts, but sync is per-account.
+			const syncMarker = `${tokenToSync}::${userId}`;
+			window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, syncMarker);
+			setFcmSyncedToken(syncMarker);
 			toast.success("FCM token synced to Grindr.");
 		} catch (error) {
 			const appError = asAppError(error);
@@ -266,7 +269,7 @@ export function SettingsPage() {
 		} finally {
 			setIsSyncingFcm(false);
 		}
-	}, [fcmToken, callMethod, asAppError]);
+	}, [fcmToken, userId, callMethod, asAppError]);
 
 	const handleLogout = async () => {
 		setIsLoggingOut(true);
@@ -908,11 +911,16 @@ export function SettingsPage() {
 									<div className="grid gap-3 min-w-0 flex-1">
 										<div className="flex items-center gap-2 flex-wrap">
 											<p className="text-sm font-semibold">Push Token (FCM)</p>
-											{fcmToken && (
-												<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fcmSyncedToken === fcmToken ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-													{fcmSyncedToken === fcmToken ? "✓ Synced" : "⚠ Not synced"}
-												</span>
-											)}
+											{fcmToken && (() => {
+												// Sync marker is `${token}::${userId}` (see AuthContext) since the
+												// device token is shared across saved accounts but sync is per-account.
+												const isSynced = fcmSyncedToken === `${fcmToken}::${userId}`;
+												return (
+													<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${isSynced ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+														{isSynced ? "✓ Synced" : "⚠ Not synced"}
+													</span>
+												);
+											})()}
 										</div>
 										{fcmToken ? (
 											<div className="grid gap-2">

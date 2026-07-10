@@ -59,6 +59,11 @@ export interface ReorderOwnAlbumContentInput {
 	contentIds: number[];
 }
 
+export interface AddOwnAlbumContentByIdsInput {
+	albumId: string;
+	ids: number[];
+}
+
 export interface DeleteOwnAlbumContentInput {
 	albumId: string;
 	contentId: string;

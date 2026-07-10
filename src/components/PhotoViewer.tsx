@@ -3,7 +3,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { saveMediaToDevice } from "../services/saveMedia";
+import { isIos, saveMediaToDevice } from "../services/saveMedia";
 import { appLog } from "../utils/logger";
 
 export type PhotoViewerMedia = {
@@ -312,13 +312,17 @@ export function PhotoViewer({
 		try {
 			const saved = await saveMediaToDevice(url, type, conversationId);
 			if (saved) {
-				toast.success(t("profile_details.save_to_gallery_success"));
+				toast.success(
+					t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
+				);
 			} else {
 				toast.error(t("profile_details.save_to_gallery_unsupported"));
 			}
 		} catch (e) {
 			appLog.error("Failed to save media to gallery", e);
-			toast.error(t("profile_details.save_to_gallery_error"));
+			toast.error(
+				t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -435,6 +439,11 @@ export function PhotoViewer({
 							<div
 								key={slotIndex}
 								className="flex h-full w-screen flex-shrink-0 items-center justify-center p-3 sm:p-8"
+								style={
+									renderFooter
+										? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }
+										: undefined
+								}
 								onClick={onClose}
 							>
 								<div

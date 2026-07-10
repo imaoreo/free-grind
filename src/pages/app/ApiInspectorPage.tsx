@@ -172,7 +172,7 @@ export function ApiInspectorPage() {
 
 	return (
 		<section className="app-screen">
-			<div className="mx-auto grid w-full max-w-7xl gap-4">
+			<div className="mx-auto grid w-full min-w-0 max-w-4xl gap-4">
 				<header className="grid gap-3 sm:flex sm:items-end sm:justify-between">
 					<div className="grid gap-2">
 					<BackToSettings />
@@ -265,13 +265,13 @@ export function ApiInspectorPage() {
 					</div>
 
 					{composerError ? (
-						<pre className="mt-3 overflow-x-auto rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
+						<pre className="mt-3 min-w-0 max-h-64 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
 							{composerError}
 						</pre>
 					) : null}
 
 					{composerResponse ? (
-						<pre className="mt-3 overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text)]">
+						<pre className="mt-3 min-w-0 max-h-64 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs text-[var(--text)]">
 							{composerResponse}
 						</pre>
 					) : null}
@@ -327,19 +327,19 @@ export function ApiInspectorPage() {
 					</div>
 				</Card>
 
-				<Card className="max-h-[70vh] overflow-y-auto p-2">
+				<Card className="max-h-[70vh] min-w-0 overflow-y-auto p-2">
 					{filtered.length === 0 ? (
 						<div className="p-4 text-sm text-[var(--text-muted)]">
 							No entries yet. Perform actions in the app to capture requests.
 						</div>
 					) : (
-						<div className="grid gap-1">
+						<div className="grid min-w-0 gap-1">
 							{filtered.map((entry) => {
 								const isExpanded = selected?.id === entry.id;
 								return (
 									<div
 										key={entry.id}
-										className={`rounded-lg border transition ${
+										className={`min-w-0 rounded-lg border transition ${
 											isExpanded
 												? "border-[var(--accent)] bg-[var(--surface-2)]"
 												: "border-transparent hover:border-[var(--border)]"
@@ -348,7 +348,7 @@ export function ApiInspectorPage() {
 										<button
 											type="button"
 											onClick={() => toggleEntry(entry)}
-											className="w-full p-3 text-left"
+											className="w-full min-w-0 p-3 text-left"
 										>
 											<div className="mb-1 flex items-center justify-between gap-2">
 												<p className="truncate text-sm font-semibold">
@@ -373,31 +373,31 @@ export function ApiInspectorPage() {
 										</button>
 
 										{isExpanded ? (
-											<div className="grid gap-3 border-t border-[var(--border)] p-3">
-												<div>
+											<div className="grid min-w-0 gap-3 border-t border-[var(--border)] p-3">
+												<div className="min-w-0">
 													<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 														Request Body
 													</p>
-													<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
+													<pre className="min-w-0 max-h-64 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
 														{entry.requestBody ?? "(empty)"}
 													</pre>
 												</div>
 
-												<div>
+												<div className="min-w-0">
 													<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 														Response Body
 													</p>
-													<pre className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
+													<pre className="min-w-0 max-h-64 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 text-xs text-[var(--text)]">
 														{entry.responseBody ?? "(empty)"}
 													</pre>
 												</div>
 
 												{entry.error ? (
-													<div>
+													<div className="min-w-0">
 														<p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
 															Error
 														</p>
-														<pre className="overflow-x-auto rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
+														<pre className="min-w-0 max-h-64 overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-lg border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
 															{entry.error}
 														</pre>
 													</div>

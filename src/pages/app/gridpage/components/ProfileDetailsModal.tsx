@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Ban, Check, ChevronLeft, EllipsisVertical, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -1020,7 +1020,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									aria-label="More actions"
 									aria-expanded={isActionsMenuOpen}
 								>
-									<Ellipsis className="h-4 w-4" />
+									<EllipsisVertical className="h-4 w-4" />
 								</button>
 								{isActionsMenuOpen && (
 									<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
@@ -1506,7 +1506,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 												<button type="button" onClick={() => setIsActionsMenuOpen((v) => !v)}
 													className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)] transition-colors"
 													aria-label="More actions" aria-expanded={isActionsMenuOpen}>
-													<Ellipsis className="h-4 w-4" />
+													<EllipsisVertical className="h-4 w-4" />
 												</button>
 												{isActionsMenuOpen && (
 													<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">

@@ -304,10 +304,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 				const userId = state.userId;
 				void runInboxSync(apiFunctions, userId, () => currentUserIdRef.current === userId);
 				// Fire-and-forget: pulls this account's saved phrases from Grindr and
-				// unions them into the local list. Guarded by the same "still the
-				// active profile" check as the inbox sync above, since chatDb (and so
-				// where the merged list gets written) already points at whichever
-				// profile is active by the time this resolves.
+				// unions them into the local list, but only the very first time this
+				// runs for this profile (see syncSavedPhrasesFromServer) — otherwise a
+				// phrase deleted locally would just get re-added from the server on the
+				// next load. Guarded by the same "still the active profile" check as the
+				// inbox sync above, since chatDb (and so where the merged list gets
+				// written) already points at whichever profile is active by the time
+				// this resolves.
 				void syncSavedPhrasesFromServer(
 					apiFunctions.getSavedPhrases,
 					() => currentUserIdRef.current === userId,
@@ -364,15 +367,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			}
 
 			appLog.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
-			void callMethod("sync_push_token", { token }).catch((error) => {
-				const appError = asAppError(error);
-				appLog.warn(
-					"[PUSH_SYNC] Failed to sync push token",
-					appError?.prettyMessage || error,
-				);
-			}).then(() => {
-				appLog.debug("[PUSH_SYNC] Push token sync succeeded");
-			});
+			void callMethod("sync_push_token", { token })
+				.then(() => {
+					window.localStorage.setItem(
+						PUSH_TOKEN_SYNCED_STORAGE_KEY,
+						`${token}::${state.userId}`,
+					);
+					appLog.debug("[PUSH_SYNC] Push token sync succeeded");
+				})
+				.catch((error) => {
+					const appError = asAppError(error);
+					appLog.warn(
+						"[PUSH_SYNC] Failed to sync push token",
+						appError?.prettyMessage || error,
+					);
+				});
 		};
 
 		window.addEventListener("fg:fcm-token", onFcmToken as EventListener);

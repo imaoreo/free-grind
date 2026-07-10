@@ -1,9 +1,11 @@
 import { ChevronRight, Download } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { processDismissCountdown, writeDismissedFlag } from "../utils/appStartDismissCountdown";
 
 const DEFAULT_RELEASES_URL = "https://github.com/imaoreo/free-grind/releases";
 const DEFAULT_LATEST_VERSION = "0.5.3";
 const TARGET_OUTDATED_VERSIONS = new Set(["0.5.0", "0.5.1", "5.0.0", "5.1.0"]);
+const OUTDATED_VERSION_REOPEN_COUNT = 5;
 
 export type ReleaseInfo = {
     latestVersion: string;
@@ -43,47 +45,6 @@ function isTargetOutdatedVersion(value: string, releaseInfo: ReleaseInfo): boole
 
 function buildDismissStorageKey(appVersion: string): string {
     return `outdated-version-dismissed-${normalizeVersion(appVersion)}`;
-}
-
-function processDismissCountdown(key: string): boolean {
-    if (typeof window === "undefined") {
-        return false;
-    }
-
-    const storedValue = window.localStorage.getItem(key);
-    
-    if (!storedValue) {
-        return false; 
-    }
-
-    let reopensRemaining = parseInt(storedValue, 10);
-    if (isNaN(reopensRemaining)) {
-        return false;
-    }
-
-    reopensRemaining -= 1;
-
-    if (reopensRemaining <= 0) {
-        // Countdown finished! Remove the flag so the prompt shows again.
-        window.localStorage.removeItem(key);
-        return false; 
-    } else {
-        // Save the new countdown number
-        window.localStorage.setItem(key, reopensRemaining.toString());
-    }
-
-    // If we have reopens remaining, it is still considered "dismissed"
-    return reopensRemaining > 0;
-}
-
-function writeDismissedFlag(key: string, reopens: number = 5): void {
-    try {
-        if (typeof window !== "undefined") {
-            window.localStorage.setItem(key, reopens.toString());
-        }
-    } catch (error) {
-        console.warn("Failed to write to localStorage:", error);
-    }
 }
 
 async function fetchLatestRelease(signal: AbortSignal): Promise<ReleaseInfo> {
@@ -241,7 +202,7 @@ export function OutdatedVersionGate({ children }: { children: ReactNode }) {
 				appVersion={normalizedAppVersion}
 				releaseInfo={releaseInfo}
 				onDismiss={() => {
-					writeDismissedFlag(dismissStorageKey, 5);
+					writeDismissedFlag(dismissStorageKey, OUTDATED_VERSION_REOPEN_COUNT);
 					setIsDismissed(true);
 				}}
 			/>

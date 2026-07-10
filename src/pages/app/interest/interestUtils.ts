@@ -16,6 +16,7 @@ export type InterestItem = {
 	isFromCache?: boolean;
 	isMutual?: boolean;
 	onlineUntil?: number | null;
+	rightNow?: string | null;
 };
 
 export const PREVIEW_ID_PREFIX = "preview:";
@@ -78,6 +79,7 @@ function mergeViewItem(
 		isFromCache: incoming.isFromCache ?? cached.isFromCache,
 		isMutual: incoming.isMutual ?? cached.isMutual,
 		onlineUntil: incoming.onlineUntil ?? cached.onlineUntil,
+		rightNow: incoming.rightNow ?? cached.rightNow,
 	};
 }
 
@@ -127,6 +129,10 @@ function getItemImageHash(entry: Record<string, unknown>): string | null {
 		}
 	}
 	return null;
+}
+
+function getItemRightNow(entry: Record<string, unknown>): string | null {
+	return typeof entry.rightNow === "string" ? entry.rightNow : null;
 }
 
 function getItemTimestamp(entry: Record<string, unknown>): number | null {
@@ -217,6 +223,7 @@ export function normalizeViews(
 			canOpenProfile: true,
 			isFromCache: false,
 			onlineUntil: toNumber(obj.onlineUntil),
+			rightNow: getItemRightNow(obj),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -240,6 +247,7 @@ export function normalizeViews(
 			canOpenProfile: recoveredMatch ? true : (getViewProfileId(obj) !== null),
 			isFromCache: !!recoveredMatch,
 			onlineUntil: recoveredMatch ? recoveredMatch.onlineUntil : toNumber(obj.onlineUntil),
+			rightNow: recoveredMatch ? recoveredMatch.rightNow : getItemRightNow(obj),
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
@@ -282,6 +290,7 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 			canOpenProfile: true,
 			isMutual: obj.isMutual === true || obj.mutual === true,
 			onlineUntil: toNumber(obj.onlineUntil),
+			rightNow: getItemRightNow(obj),
 		};
 
 		const existing = mergedMap.get(profileId);

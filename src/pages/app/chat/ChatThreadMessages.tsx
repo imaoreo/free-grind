@@ -1,4 +1,4 @@
-import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
@@ -8,7 +8,7 @@ import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef, use
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
-import { saveMediaToDevice } from "../../../services/saveMedia";
+import { isIos, saveMediaToDevice } from "../../../services/saveMedia";
 import { loadSavedPhrases, saveSavedPhrases } from "../../../services/savedPhrases";
 import type { ConversationEntry, Message } from "../../../types/messages";
 import type { UiMessage } from "../../../types/chat-page";
@@ -47,6 +47,7 @@ import {
 	getMessageTakenOnGrindr,
 	getMessageText,
 	getMessageVideoUrl,
+	getVideoCallStatusLabel,
 	isLocalClientMessageId,
 } from "./chatUtils";
 
@@ -85,6 +86,12 @@ type ChatThreadMessagesProps = {
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
 };
+
+const KNOWN_REPLY_TYPES = new Set([
+    "Image", "ExpiringImage", "Giphy", "Video", "PrivateVideo", "NonExpiringVideo",
+    "Audio", "Location", "AlbumContentReply", "AlbumContentReaction",
+    "Album", "ExpiringAlbum", "ExpiringAlbumV2", "ProfilePhotoReply", "Text", "Gaymoji",
+]);
 
 const getReactionEmoji = (type: number): string => {
     switch (type) {
@@ -669,13 +676,17 @@ export function ChatThreadMessages({
 									selectedConversation.data.conversationId,
 								);
 								if (saved) {
-									toast.success(t("profile_details.save_to_gallery_success"));
+									toast.success(
+										t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
+									);
 								} else {
 									toast.error(t("profile_details.save_to_gallery_unsupported"));
 								}
 							} catch (e) {
 								appLog.error("Failed to save media to gallery", e);
-								toast.error(t("profile_details.save_to_gallery_error"));
+								toast.error(
+									t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+								);
 							}
 						})();
 						return;
@@ -845,6 +856,37 @@ export function ChatThreadMessages({
                         );
                     }
 
+                    if (message.type === "VideoCall") {
+                        const body = message.body as Record<string, unknown> | null;
+                        const isSuccessful =
+                            typeof body?.result === "string" && body.result.toUpperCase() === "SUCCESSFUL";
+                        const label = getVideoCallStatusLabel(message, t);
+                        return (
+                            <Fragment key={message.messageId}>
+                                {isNewDay && (
+                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                                            {currentHeader}
+                                        </span>
+                                        <div className="h-px flex-1 bg-[var(--border)]" />
+                                    </div>
+                                )}
+                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
+                                    {isSuccessful ? (
+                                        <Video className="h-3.5 w-3.5 shrink-0" />
+                                    ) : (
+                                        <PhoneOff className="h-3.5 w-3.5 shrink-0" />
+                                    )}
+                                    <span>{label}</span>
+                                    <span className="text-[var(--text-muted)]/70">
+                                        {formatDateTime24(message.timestamp)}
+                                    </span>
+                                </div>
+                            </Fragment>
+                        );
+                    }
+
                     const mine =
                         userId != null && Number(message.senderId) === Number(userId);
                     const failed = message.clientState === "failed";
@@ -946,6 +988,11 @@ export function ChatThreadMessages({
                         || replyToMsgRef?.type === "Giphy" || replyToMsg?.type === "Giphy";
                     const replyIsAudio = replyPreviewRaw?.type === "Audio" || replyPreviewRaw?.chat1Type === "audio"
                         || replyToMsgRef?.type === "Audio" || replyToMsg?.type === "Audio";
+                    const isVideoType = (type: string | undefined) =>
+                        type === "Video" || type === "PrivateVideo" || type === "NonExpiringVideo";
+                    const replyIsVideo = isVideoType(replyPreviewRaw?.type)
+                        || replyPreviewRaw?.chat1Type === "video" || replyPreviewRaw?.chat1Type === "privatevideo" || replyPreviewRaw?.chat1Type === "nonexpiringvideo"
+                        || isVideoType(replyToMsgRef?.type) || isVideoType(replyToMsg?.type);
                     // Prefer whatever's already durably cached (survives the referenced
                     // content outliving its signed URL / hash-thumb endpoint / album
                     // share) over resolving straight from live message data — same
@@ -955,6 +1002,12 @@ export function ChatThreadMessages({
                         ? getCachedMediaUri(replyToMsgCaptureTarget.mediaKey)
                         : null;
                     const replyImageUrl = cachedReplyImageUri ?? (replyToMsg ? getMessageImageUrl(replyToMsg) : null);
+                    const cachedReplyVideoUri = replyToMsgCaptureTarget?.kind === "video"
+                        ? getCachedMediaUri(replyToMsgCaptureTarget.mediaKey)
+                        : null;
+                    const replyVideoUrl = replyIsVideo
+                        ? (cachedReplyVideoUri ?? (replyToMsg ? getMessageVideoUrl(replyToMsg) : null))
+                        : null;
                     const replyImageHash = typeof replyPreviewRaw?.imageHash === "string" ? replyPreviewRaw.imageHash : null;
                     const replyHashTarget = getReplyImageHashTarget(message);
                     const cachedReplyHashUri = replyHashTarget ? getCachedMediaUri(replyHashTarget.mediaKey) : null;
@@ -1017,7 +1070,33 @@ export function ChatThreadMessages({
                         const s = totalSec % 60;
                         return `${m}:${s.toString().padStart(2, "0")}`;
                     })();
-                    const replyLabel = (replyText || replyThumbUrl || replyIsAudio || hasReply)
+                    // Fallback label for the reply-quote bar when there's no quoted text
+                    // (replyText) to show verbatim — describes what kind of message was
+                    // replied to. Falls back to "shared_image" only for a genuinely
+                    // unrecognized/missing type (legacy previews that never carried a
+                    // type at all) — an unrecognized-but-known type string (a message
+                    // kind this app version doesn't handle) must say so explicitly
+                    // instead of silently lying that it was an image.
+                    const replyTargetType = replyToMsg?.type ?? replyToMsgRef?.type;
+                    const isReplyTargetUnsupported =
+                        replyTargetType != null && !KNOWN_REPLY_TYPES.has(replyTargetType);
+                    const replyDescription =
+                        message.type === "AlbumContentReply" || replyTargetType === "AlbumContentReply"
+                            ? t("chat.thread.album_image")
+                            : replyTargetType === "AlbumContentReaction"
+                                ? t("chat.thread.reacted_to_image")
+                                : replyIsAudio
+                                    ? t("chat.thread.audio_label")
+                                    : replyTargetType === "Location"
+                                        ? t("chat.preview.sent_location")
+                                        : replyIsVideo
+                                            ? t("chat.thread.shared_video")
+                                            : replyTargetType === "Giphy"
+                                                ? t("chat.thread.shared_gif")
+                                                : isReplyTargetUnsupported
+                                                    ? t("chat.thread.unsupported_message", { defaultValue: "Unsupported message" })
+                                                    : t("chat.thread.shared_image");
+                    const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
                             ? mine ? "Reply to myself" : "Reply to you"
                             : `Reply to "${selectedConversation.data.name || ""}"`
@@ -1044,6 +1123,13 @@ export function ChatThreadMessages({
                     const isUnsupportedMessage =
                         messageText === t("chat.thread.unsupported_placeholder") ||
                         messageText === `[${message.type}]`;
+                    // Genuinely gone — unsent server-side and no local copy was
+                    // preserved (getMessageText only falls back to the "unsent"
+                    // placeholder when body is empty; if a local copy existed,
+                    // mergeMessagePreservingUnsendWipe would have restored the
+                    // real content and messageText/localHistory would reflect that).
+                    const isTrulyUnsentMessage =
+                        message.unsent === true && messageText === t("chat.thread.unsent");
                     const isImageOnlyBubble =
                         (Boolean(imageUrl) || isExpiredImage) && (messageText === t("chat.thread.shared_image") || messageText === t("chat.thread.shared_gif"));
                     const isVideoOnlyBubble =
@@ -1234,7 +1320,7 @@ export function ChatThreadMessages({
                                         </span>
                                     ) : null}
 
-                                    {(replyText || replyThumbUrl || replyIsAudio || hasReply) ? (
+                                    {message.type !== "ProfilePhotoReply" && (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply) ? (
                                         <div className={isMediaOnlyBubble && hasReply
                                             ? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
                                             : "contents"
@@ -1251,7 +1337,7 @@ export function ChatThreadMessages({
                                             }`} />
                                             <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
                                                 <p className="mb-0.5 font-semibold opacity-60 truncate">{replyLabel}</p>
-                                                <p className="line-clamp-2 break-words opacity-80">{replyText ?? (message.type === "AlbumContentReply" || replyToMsgRef?.type === "AlbumContentReply" ? t("chat.thread.album_image") : replyToMsgRef?.type === "AlbumContentReaction" ? t("chat.thread.reacted_to_image") : replyIsAudio ? t("chat.thread.audio_label") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Location" ? t("chat.preview.sent_location") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Video" || (replyToMsg?.type ?? replyToMsgRef?.type) === "NonExpiringVideo" ? t("chat.thread.shared_video") : (replyToMsg?.type ?? replyToMsgRef?.type) === "Giphy" ? t("chat.thread.shared_gif") : t("chat.thread.shared_image"))}</p>
+                                                <p className="line-clamp-2 break-words opacity-80">{replyText ?? replyDescription}</p>
                                             </div>
                                             {replyThumbUrl ? (
                                                 <div className="relative w-14 shrink-0 self-stretch overflow-hidden">
@@ -1260,6 +1346,19 @@ export function ChatThreadMessages({
                                                         alt=""
                                                         className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia && (replyToMsg?.type ?? replyToMsgRef?.type) !== "Giphy" ? " blur-md transition" : ""}`}
                                                     />
+                                                </div>
+                                            ) : replyVideoUrl ? (
+                                                <div className="relative w-14 shrink-0 self-stretch overflow-hidden bg-black">
+                                                    <video
+                                                        muted
+                                                        preload="metadata"
+                                                        src={replyVideoUrl}
+                                                        onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+                                                        className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+                                                    />
+                                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
+                                                    </div>
                                                 </div>
                                             ) : replyIsAudio ? (
                                                 <div className={`flex w-14 shrink-0 items-center justify-end py-2.5 pr-3 ${mine ? "opacity-80" : "opacity-60"}`}>
@@ -1804,7 +1903,7 @@ export function ChatThreadMessages({
                                             <div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
                                                 <div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
                                                 <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
-                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{t("chat.thread.replied_to_photo")}</p>
+                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{mine ? t("chat.thread.replied_to_photo_theirs") : t("chat.thread.replied_to_photo")}</p>
                                                     <p className="opacity-60">{t("chat.thread.shared_image")}</p>
                                                 </div>
                                                 {photoUrl && (
@@ -1838,6 +1937,11 @@ export function ChatThreadMessages({
                                                         })}
                                                     </p>
                                                 </div>
+                                            </div>
+                                        ) : isTrulyUnsentMessage ? (
+                                            <div className="flex items-center gap-1.5 italic opacity-60">
+                                                <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                                                <p className="whitespace-pre-wrap break-words">{displayText}</p>
                                             </div>
                                         ) : (
                                             <p className="whitespace-pre-wrap break-words">
