@@ -14,6 +14,7 @@ import {
 	type SharedAlbum,
 } from "../../types/albums";
 import type {
+	AddOwnAlbumContentByIdsInput,
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
 	DeleteOwnAlbumInput,
@@ -139,6 +140,25 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 				},
 			);
 			await assertSuccess(response, t("api.errors.reorder_content"));
+			return { ok: true };
+		},
+
+		async addOwnAlbumContentByIds(
+			input: AddOwnAlbumContentByIdsInput,
+		): Promise<{ ok: true }> {
+			const response = await fetchRest(
+				`/v1/albums/${input.albumId}/content/chat/list-by-id?isFresh=true`,
+				{
+					method: "POST",
+					body: { ids: input.ids },
+				},
+			);
+			await assertSuccess(
+				response,
+				t("api.errors.add_album_content_by_ids", {
+					defaultValue: "Failed to add media to album.",
+				}),
+			);
 			return { ok: true };
 		},
 

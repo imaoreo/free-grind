@@ -16,7 +16,12 @@ import { albumViewerFolderKey, type AlbumViewer, type SharedAlbumItem } from "..
 import type { GetSharedAlbumsInput } from "../../types/api-functions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { cn } from "../../utils/cn";
-import { captureAlbum, deleteLocalAlbum, getCachedAlbumCoverUri, getLocalAlbum } from "../../services/albumStore";
+import {
+	captureAlbum,
+	deleteLocalAlbum,
+	getCachedAlbumCoverUri,
+	getLocalAlbum,
+} from "../../services/albumStore";
 import { getAllAlbums, getConversation } from "../../services/chatDb";
 import { toDataUri } from "../../services/mediaStore";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
@@ -87,7 +92,7 @@ function AlbumCard({
 								<img
 									src={previewUrl}
 									alt={item.album.albumName ?? t("shared_albums.preview_alt")}
-									className="h-full w-full scale-110 object-cover blur-xl"
+									className="h-full w-full scale-110 object-cover"
 								/>
 								<div className="absolute inset-0 bg-black/25" />
 							</>
@@ -397,32 +402,63 @@ export function SharedAlbumsPage() {
 			}
 
 			setOpenAlbumError(null);
+
+			// Also visible as a toast, not just the inline banner at the top of
+			// the grid — that banner is scrolled out of view as soon as the
+			// user has scrolled past the first row, which otherwise makes a
+			// failed open look like the tap did nothing at all.
+			const reportOpenError = (message: string) => {
+				setOpenAlbumError(message);
+				toast.error(message);
+			};
+
+			const albumId = item.album.albumId;
+
+			// Opens straight from chatDb's cached content — used both for
+			// localOnly items (album dropped out of the live feed entirely)
+			// and as a fallback for "hybrid" items that are still live on the
+			// server but were already captured locally (e.g. previously
+			// opened, or captured from a chat share of the same album): the
+			// server can revoke/expire its share independently of what we
+			// already have bytes for, and we shouldn't lock the user out of
+			// content we're already holding just because of that.
+			const openFromLocalCache = async (): Promise<boolean> => {
+				const local = await getLocalAlbum(albumId);
+				if (!local || local.content.length === 0) {
+					return false;
+				}
+				setViewer({
+					albumId: local.albumId,
+					albumName: local.albumName ?? item.album.albumName ?? null,
+					profileId: item.profileId,
+					profileName: item.profileName,
+					conversationId: item.conversationId,
+					content: local.content,
+				});
+				setViewerIndex(0);
+				if (!viewerHistoryPushedRef.current) {
+					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+					viewerHistoryPushedRef.current = true;
+				}
+				return true;
+			};
+
+			// The album has dropped out of the live feed entirely, so local
+			// cache is the only source.
+			if (item.localOnly) {
+				setIsOpeningAlbum(true);
+				try {
+					if (!(await openFromLocalCache())) {
+						reportOpenError(t("shared_albums.error_open_fallback"));
+					}
+				} finally {
+					setIsOpeningAlbum(false);
+				}
+				return;
+			}
+
 			setIsOpeningAlbum(true);
 			try {
-				const albumId = item.album.albumId;
-
-				if (item.localOnly) {
-					const local = await getLocalAlbum(albumId);
-					if (!local || local.content.length === 0) {
-						setOpenAlbumError(t("shared_albums.error_open_fallback"));
-						return;
-					}
-					setViewer({
-						albumId: local.albumId,
-						albumName: local.albumName ?? item.album.albumName ?? null,
-						profileId: item.profileId,
-						profileName: item.profileName,
-						conversationId: item.conversationId,
-						content: local.content,
-					});
-					setViewerIndex(0);
-					if (!viewerHistoryPushedRef.current) {
-						window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-						viewerHistoryPushedRef.current = true;
-					}
-					return;
-				}
-
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
@@ -453,7 +489,14 @@ export function SharedAlbumsPage() {
 					isViewable: true,
 				});
 			} catch (openError) {
-				setOpenAlbumError(
+				// Live open failed (share revoked/expired since the feed was
+				// loaded, network hiccup, etc.) — before surfacing an error,
+				// fall back to whatever we already have cached for this album
+				// rather than blocking access to content we're already holding.
+				if (await openFromLocalCache().catch(() => false)) {
+					return;
+				}
+				reportOpenError(
 					openError instanceof Error
 						? openError.message
 						: t("shared_albums.error_open_fallback"),
@@ -462,7 +505,7 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum],
+		[apiFunctions, isOpeningAlbum, t],
 	);
 
 	const handleMessageProfile = useCallback(
