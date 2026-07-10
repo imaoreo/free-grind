@@ -125,7 +125,7 @@ function PostMediaGrid({
 						onClick={() => onOpenPhoto(0)}
 					>
 						<img
-							src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+							src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 							className="h-full w-full object-cover transition-transform active:scale-105"
 							alt=""
 						/>
@@ -140,7 +140,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(0)}
 						>
 							<img
-								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -151,7 +151,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(1)}
 						>
 							<img
-								src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+								src={items[1].data?.thumbnailUrl ?? items[1].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -167,7 +167,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(0)}
 						>
 							<img
-								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -179,7 +179,7 @@ function PostMediaGrid({
 								onClick={() => onOpenPhoto(1)}
 							>
 								<img
-									src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+									src={items[1].data?.thumbnailUrl ?? items[1].data?.fullImageUrl ?? ""}
 									className="h-full w-full object-cover transition-transform active:scale-105"
 									alt=""
 								/>
@@ -190,7 +190,7 @@ function PostMediaGrid({
 								onClick={() => onOpenPhoto(2)}
 							>
 								<img
-									src={items[2].data?.fullImageUrl ?? items[2].data?.thumbnailUrl ?? ""}
+									src={items[2].data?.thumbnailUrl ?? items[2].data?.fullImageUrl ?? ""}
 									className="h-full w-full object-cover transition-transform active:scale-105"
 									alt=""
 								/>

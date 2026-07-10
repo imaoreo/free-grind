@@ -10,7 +10,7 @@
 
 import * as chatDb from "./chatDb";
 import { fetchAndEncode, toDataUri } from "./mediaStore";
-import { getProfileImageUrl, validateMediaHash } from "../utils/media";
+import { getThumbImageUrl, validateMediaHash } from "../utils/media";
 import { appLog } from "../utils/logger";
 import { limitChatDbBlobRead } from "../utils/chatDbBlobLimiter";
 
@@ -56,7 +56,7 @@ export async function fetchAndStoreAvatar(
 				return;
 			}
 
-			const fetched = await fetchAndEncode(getProfileImageUrl(mediaHash));
+			const fetched = await fetchAndEncode(getThumbImageUrl(mediaHash, "320x320"));
 			if (!fetched) {
 				return;
 			}
