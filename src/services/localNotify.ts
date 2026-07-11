@@ -11,7 +11,9 @@
  */
 
 import {
+	active,
 	isPermissionGranted,
+	removeActive,
 	requestPermission,
 	sendNotification,
 } from "@tauri-apps/plugin-notification";
@@ -111,5 +113,41 @@ export async function notifyLocal(options: LocalNotifyOptions): Promise<void> {
 		});
 	} catch (error) {
 		appLog.warn("[notify] sendNotification failed", error);
+	}
+}
+
+/**
+ * Dismisses any already-shown system notification for a conversation once
+ * its messages have been read, instead of leaving it in the shade until the
+ * user taps it. Android goes through its native FreeGrindBridge pipeline
+ * (see localNotify's module doc); everywhere else this filters the Tauri
+ * plugin's active notifications by the same `group` id notifyLocal() posted
+ * them with.
+ */
+export async function clearChatNotifications(conversationId: string): Promise<void> {
+	if (!conversationId) return;
+
+	const bridge = (
+		window as unknown as {
+			FreeGrindBridge?: { clearConversationNotifications?: (conversationId: string) => void };
+		}
+	).FreeGrindBridge;
+	if (bridge?.clearConversationNotifications) {
+		try {
+			bridge.clearConversationNotifications(conversationId);
+		} catch (error) {
+			appLog.warn("[notify] clearConversationNotifications (native) failed", error);
+		}
+		return;
+	}
+
+	if (!detectLocalNotifySupported()) return;
+	try {
+		const activeNotifications = await active();
+		const matches = activeNotifications.filter((n) => n.group === conversationId);
+		if (matches.length === 0) return;
+		await removeActive(matches.map((n) => ({ id: n.id, tag: n.tag })));
+	} catch (error) {
+		appLog.warn("[notify] clearing active notifications failed", error);
 	}
 }
