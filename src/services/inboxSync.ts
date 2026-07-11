@@ -43,6 +43,7 @@
 
 import type { createApiFunctions } from "./apiFunctions";
 import * as chatDb from "./chatDb";
+import * as chatLog from "./chatLog";
 import { upsertChatContactIndexFromInbox } from "./chatContactIndex";
 import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { appLog } from "../utils/logger";
@@ -296,7 +297,15 @@ async function doSync(
 			try {
 				const response = await apiFunctions.listMessages({ conversationId });
 				if (response.messages.length > 0) {
-					await chatDb.upsertMessages(conversationId, response.messages);
+					// chatLog.appendMessages (not chatDb.upsertMessages directly) —
+					// it merges against whatever's already stored instead of blindly
+					// overwriting, which matters a lot here: if a message was unsent
+					// after we last cached it, the server now reports it with an
+					// empty body, and upsertMessages' unconditional
+					// body_json = excluded.body_json would permanently null out the
+					// real content we'd preserved. appendMessages keeps the cached
+					// body and just flags the row unsent/local_history instead.
+					await chatLog.appendMessages(conversationId, response.messages);
 				}
 				// Only recorded on success — a failed fetch leaves this
 				// conversation looking "not yet synced" so the next run (whether

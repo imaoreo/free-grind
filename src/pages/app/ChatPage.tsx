@@ -2545,8 +2545,15 @@ export function ChatPage() {
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
-		// Hydrate real-time image messages that arrive without a URL.
+		// Hydrate real-time image messages that arrive without a URL — but never
+		// for one that's already unsent. Unsending is permanent, so there's no
+		// fresher URL to ever fetch for it; treating a realtime echo of our own
+		// (or anyone's) unsend as "needs a refetch" would race the wipe-
+		// preservation merge above and, once the refetch also comes back with
+		// no body, flip the message to "expired" instead of the local-history
+		// content that merge just correctly restored.
 		const incomingImagesWithoutUrl = messages.filter((m) => {
+			if (m.unsent) return false;
 			const imageType = (m as UiMessage).chat1Type?.toLowerCase();
 			const isImageLike = m.type === "Image" || m.type === "ExpiringImage" || imageType === "image" || imageType === "expiring_image";
 			if (!isImageLike) return false;
@@ -2585,16 +2592,27 @@ export function ChatPage() {
 					userId,
 				);
 				setThreadMessages((prev) => {
+					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
-					for (const m of updates) map.set(m.messageId, m);
+					for (const m of updates) {
+						map.set(
+							m.messageId,
+							mergeMessagePreservingUnsendWipe(previousById.get(m.messageId), m),
+						);
+					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 			});
 		}
 
-		// Hydrate real-time video messages that arrive without a URL.
+		// Hydrate real-time video messages that arrive without a URL — same
+		// unsent exclusion as the image pass above, for the same reason: an
+		// unsent message will never have a fresher URL to fetch, and treating
+		// its realtime echo as "needs refetch" would race the wipe-preservation
+		// merge and flip it to "expired" instead of local-history content.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
+			if (m.unsent) return false;
 			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
@@ -2631,9 +2649,15 @@ export function ChatPage() {
 					);
 				}
 				setThreadMessages((prev) => {
+					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
-					for (const m of updates) map.set(m.messageId, m);
+					for (const m of updates) {
+						map.set(
+							m.messageId,
+							mergeMessagePreservingUnsendWipe(previousById.get(m.messageId), m),
+						);
+					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 			});
