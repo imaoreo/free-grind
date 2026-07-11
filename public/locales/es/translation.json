@@ -47,6 +47,7 @@
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
+        "name_fallback": "Alguien",
         "albums_count_one": "{{count}} álbum",
         "albums_count_many": "{{count}} álbumes",
         "albums_count_other": "{{count}} álbumes",

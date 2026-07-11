@@ -58,6 +58,7 @@
     "shared_albums": {
         "title": "Álbuns Compartilhados",
         "subtitle": "Veja todos os álbuns compartilhados pelas pessoas nos seus chats.",
+        "name_fallback": "Alguém",
         "albums_count_one": "{{count}} álbum",
         "albums_count_many": "{{count}} álbuns",
         "albums_count_other": "{{count}} álbum",

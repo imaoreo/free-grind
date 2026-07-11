@@ -197,6 +197,7 @@
     "shared_albums": {
         "title": "Shared Albums",
         "subtitle": "Browse all albums shared by people in your chats.",
+        "name_fallback": "Someone",
         "albums_count_one": "{{count}} album",
         "albums_count_other": "{{count}} albums",
         "people_count_one": "{{count}} person",
