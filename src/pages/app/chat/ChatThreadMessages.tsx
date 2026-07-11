@@ -93,6 +93,13 @@ const KNOWN_REPLY_TYPES = new Set([
     "Album", "ExpiringAlbum", "ExpiringAlbumV2", "ProfilePhotoReply", "Text", "Gaymoji",
 ]);
 
+// Same flags that drive the "from local history" badge — a message that
+// only exists locally (never confirmed on the server, or confirmed-gone) has
+// nothing server-side for a reply to actually reference, so replying to it
+// isn't offered.
+const isLocalHistoryMessage = (message: UiMessage): boolean =>
+    message._localOnly === true || message.localHistory === true;
+
 const getReactionEmoji = (type: number): string => {
     switch (type) {
         case 0: return "👋";
@@ -497,7 +504,12 @@ export function ChatThreadMessages({
 	const handleMobileTouchStart = useCallback(
 		(event: React.TouchEvent<HTMLDivElement>, message: UiMessage) => {
 			startMessageLongPress(message.messageId);
-			if (isDesktop || event.touches.length !== 1 || isLocalClientMessageId(message.messageId)) {
+			if (
+				isDesktop ||
+				event.touches.length !== 1 ||
+				isLocalClientMessageId(message.messageId) ||
+				isLocalHistoryMessage(message)
+			) {
 				swipeStateRef.current = null;
 				return;
 			}
@@ -635,12 +647,14 @@ export function ChatThreadMessages({
 
 		const actions: MessageContextMenuAction[] = [];
 
-		actions.push({
-			key: "reply",
-			label: t("chat.actions.reply"),
-			icon: <Reply className="h-4 w-4" />,
-			onClick: () => void handleReply(message),
-		});
+		if (!isLocalHistoryMessage(message)) {
+			actions.push({
+				key: "reply",
+				label: t("chat.actions.reply"),
+				icon: <Reply className="h-4 w-4" />,
+				onClick: () => void handleReply(message),
+			});
+		}
 
 		if (hasText || location) {
 			actions.push({
