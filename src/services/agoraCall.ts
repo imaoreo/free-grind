@@ -52,6 +52,7 @@ export class AgoraCallSession {
 	private client: IAgoraRTCClient;
 	private micTrack: IMicrophoneAudioTrack | null = null;
 	private camTrack: ICameraVideoTrack | null = null;
+	private facingMode: "user" | "environment" = "user";
 
 	constructor(private readonly handlers: AgoraCallHandlers) {
 		// The real app calls setChannelProfile(1) (LIVE_BROADCASTING) rather than
@@ -113,6 +114,19 @@ export class AgoraCallSession {
 
 	setCameraMuted(muted: boolean): void {
 		this.camTrack?.setMuted(muted);
+	}
+
+	// Toggles front/back camera in place — setDevice({facingMode}) (Web SDK
+	// 4.19+) swaps the underlying capture device without re-publishing, so the
+	// remote side sees a brief freeze rather than the track disappearing.
+	// Throws if the device has no matching camera (e.g. a desktop webcam has
+	// no "environment" facing mode) — callers should show that as an error
+	// rather than silently failing.
+	async switchCamera(): Promise<void> {
+		if (!this.camTrack) return;
+		const next = this.facingMode === "user" ? "environment" : "user";
+		await this.camTrack.setDevice({ facingMode: next });
+		this.facingMode = next;
 	}
 
 	async leave(): Promise<void> {

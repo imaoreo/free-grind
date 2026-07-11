@@ -173,6 +173,7 @@ pub fn run() {
                 api::websocket::ws_send,
                 api::websocket::ws_disconnect,
                 api::websocket::ws_status,
+                api::websocket::ws_log_event,
                 commands::fingerprint::check_fingerprint,
             ])
             .build(context)
@@ -252,6 +253,7 @@ pub fn run() {
                 api::websocket::ws_send,
                 api::websocket::ws_disconnect,
                 api::websocket::ws_status,
+                api::websocket::ws_log_event,
                 commands::fingerprint::check_fingerprint,
             ])
             .run(context)

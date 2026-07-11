@@ -1317,7 +1317,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 															<span className="text-xs text-[var(--text-muted)]">{t("chat.video_call_limit_reached")}</span>
 														) : remainingMinutes != null ? (
 															<span className="text-xs text-[var(--text-muted)]">
-																{remainingMinutes >= 1 ? t("chat.video_call_minutes_left", { count: remainingMinutes }) : t("chat.video_call_lt1_min_left")}
+																{remainingMinutes >= 1
+																	? t("chat.video_call_minutes_left", { count: remainingMinutes })
+																	: t("chat.video_call_seconds_left", { count: videoCallRemainingSeconds! })}
 															</span>
 														) : null}
 													</span>

@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { Mic, MicOff, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, PhoneOff, SwitchCamera, Video, VideoOff } from "lucide-react";
 import { useAuth } from "../contexts/useAuth";
 import { usePreferences } from "../contexts/PreferencesContext";
 import { useApiFunctions } from "../hooks/useApiFunctions";
@@ -33,8 +33,37 @@ import {
 import { AgoraCallSession, WebRtcUnsupportedError, isWebRtcSupported } from "../services/agoraCall";
 import { getProfileImageUrl } from "../utils/media";
 import { appLog } from "../utils/logger";
+import { isAndroid, isIos } from "../services/saveMedia";
+import { ApiFunctionError } from "../services/apiHelpers";
 
 type CallPhase = "idle" | "outgoing-ringing" | "incoming-ringing" | "active";
+
+// Maps the video-call result code — however it arrives (a 2xx body whose
+// `result` field isn't "SUCCESS", the payload of a non-2xx ApiFunctionError,
+// or the videocall.v1.call_ended WS event) — to the right toast copy.
+// TARGET_PROFILE_UNAVAILABLE is the confirmed "target is on another call"
+// code (there's no separate "BUSY" value despite what it sounds like).
+function getVideoCallResultMessage(
+	rawResult: string | null | undefined,
+	fallbackKey: string,
+	t: (key: string) => string,
+): string {
+	const normalized = rawResult?.toUpperCase();
+	if (normalized === "EXCEED_LENGTH_LIMIT") return t("video_call.limit_reached");
+	if (normalized === "TARGET_PROFILE_UNAVAILABLE") return t("video_call.busy");
+	return t(fallbackKey);
+}
+
+// startVideoCall's soft-failure result code, if this error actually came
+// from assertSuccess() rejecting a non-2xx response whose JSON body still
+// carried one (confirmed: the server sometimes returns these as real HTTP
+// errors rather than a 2xx body with result !== "SUCCESS").
+function extractResultFromApiError(error: unknown): string | null {
+	if (!(error instanceof ApiFunctionError)) return null;
+	if (!error.payload || typeof error.payload !== "object") return null;
+	const result = (error.payload as Record<string, unknown>).result;
+	return typeof result === "string" ? result : null;
+}
 
 interface CallInfo {
 	channelId: string;
@@ -103,6 +132,9 @@ export function VideoCallManager() {
 	const apiFunctions = useApiFunctions();
 	const { t } = useTranslation();
 	const { data: ownProfile } = useMyOwnProfile(true);
+	// Front/back camera switching only makes sense on phones — desktop
+	// webcams have no "environment"-facing device for setDevice() to find.
+	const [isMobilePlatform] = useState(() => isAndroid() || isIos());
 	// Fetched once (after auth/profile is ready) and cached — refreshed only
 	// after a call ends, not on every screen/conversation.
 	useVideoCallRemainingSeconds(true);
@@ -357,15 +389,14 @@ export function VideoCallManager() {
 				setPhase("outgoing-ringing");
 				try {
 					const result = await apiFunctionsRef.current.startVideoCall(Number(targetProfileId));
-					// A limit hit comes back as an HTTP 2xx with result !==
-					// "SUCCESS" and channelId/token/maxSeconds all null — not an
-					// HTTP error, so assertSuccess() lets it through. Catch it
-					// here rather than crashing joinAgoraSession on a null token.
-					if (result.result !== "SUCCESS" || !result.channelId || !result.token) {
+					// A limit hit / busy target comes back as an HTTP 2xx with
+					// result !== "SUCCESS" and channelId/token/maxSeconds all
+					// null — not an HTTP error, so assertSuccess() lets it
+					// through. Catch it here rather than crashing
+					// joinAgoraSession on a null token.
+					if (result.result?.toUpperCase() !== "SUCCESS" || !result.channelId || !result.token) {
 						toast.error(
-							result.result === "EXCEED_LENGTH_LIMIT"
-								? tRef.current("video_call.limit_reached")
-								: tRef.current("video_call.start_failed"),
+							getVideoCallResultMessage(result.result, "video_call.start_failed", tRef.current),
 							{ duration: 6000 },
 						);
 						await endCallRef.current();
@@ -382,7 +413,14 @@ export function VideoCallManager() {
 					await joinAgoraSession(result.channelId, result.token, true);
 				} catch (error) {
 					appLog.warn("[video-call] startVideoCall failed", error);
-					toast.error(tRef.current("video_call.start_failed"));
+					// TARGET_PROFILE_UNAVAILABLE/EXCEED_LENGTH_LIMIT sometimes arrive
+					// as a real HTTP error (assertSuccess throws) rather than a 2xx
+					// body with result !== "SUCCESS" — check the error payload too
+					// instead of always falling back to the generic message.
+					toast.error(
+						getVideoCallResultMessage(extractResultFromApiError(error), "video_call.start_failed", tRef.current),
+						{ duration: 6000 },
+					);
 					await endCallRef.current();
 				}
 			})();
@@ -467,13 +505,15 @@ export function VideoCallManager() {
 			if (!detail || phaseRef.current === "idle") return;
 			if (callInfoRef.current?.channelId && callInfoRef.current.channelId !== detail.channelId) return;
 			// Confirmed result values: UNANSWERED (no pickup), DECLINED (other side
-			// rejected), SUCCESSFUL (a normal call that was answered and ended).
+			// rejected), SUCCESSFUL (a normal call that was answered and ended),
+			// TARGET_PROFILE_UNAVAILABLE (target already on another call).
+			const normalizedResult = detail.result?.toUpperCase();
 			const message =
-				detail.result === "UNANSWERED"
+				normalizedResult === "UNANSWERED"
 					? tRef.current("video_call.call_ended_unanswered")
-					: detail.result === "DECLINED"
+					: normalizedResult === "DECLINED"
 						? tRef.current("video_call.call_declined")
-						: tRef.current("video_call.call_ended_generic");
+						: getVideoCallResultMessage(detail.result, "video_call.call_ended_generic", tRef.current);
 			toast(message);
 			void endCallRef.current();
 		};
@@ -558,6 +598,15 @@ export function VideoCallManager() {
 		});
 	}, []);
 
+	const handleSwitchCamera = useCallback(async () => {
+		try {
+			await sessionRef.current?.switchCamera();
+		} catch (error) {
+			appLog.warn("[video-call] switchCamera failed", error);
+			toast.error(tRef.current("video_call.switch_camera_failed"));
+		}
+	}, []);
+
 	// PiP tile drag-to-dock. A plain onClick would double-fire alongside the
 	// drag gesture (a tap is just a pointerdown+pointerup with no movement),
 	// so tap-to-swap is handled here too, only when the pointer never moved
@@ -626,6 +675,7 @@ export function VideoCallManager() {
 	const PIP_HEIGHT = 160;
 	const PIP_MARGIN = 16;
 	const PIP_BOTTOM_CLEARANCE = 128; // clears the active-call control row
+	const PIP_TOP_LEFT_CLEARANCE = 88; // clears the top-left switch-camera button (mobile only)
 
 	function getPipCornerStyle(corner: typeof pipCorner): React.CSSProperties {
 		const left =
@@ -633,9 +683,11 @@ export function VideoCallManager() {
 				? `${PIP_MARGIN}px`
 				: `calc(100% - ${PIP_WIDTH + PIP_MARGIN}px)`;
 		const top =
-			corner === "top-left" || corner === "top-right"
-				? `calc(env(safe-area-inset-top, 0px) + ${PIP_MARGIN}px)`
-				: `calc(100% - ${PIP_HEIGHT}px - env(safe-area-inset-bottom, 0px) - ${PIP_BOTTOM_CLEARANCE}px)`;
+			corner === "bottom-left" || corner === "bottom-right"
+				? `calc(100% - ${PIP_HEIGHT}px - env(safe-area-inset-bottom, 0px) - ${PIP_BOTTOM_CLEARANCE}px)`
+				: corner === "top-left" && isMobilePlatform
+					? `calc(env(safe-area-inset-top, 0px) + ${PIP_TOP_LEFT_CLEARANCE}px)`
+					: `calc(env(safe-area-inset-top, 0px) + ${PIP_MARGIN}px)`;
 		return { left, top };
 	}
 
@@ -697,6 +749,17 @@ export function VideoCallManager() {
 					>
 						{formatElapsed(elapsedSeconds)}
 					</div>
+					{isMobilePlatform && (
+						<button
+							type="button"
+							onClick={() => void handleSwitchCamera()}
+							aria-label={t("video_call.switch_camera")}
+							className={`absolute z-10 ${controlButtonClass}`}
+							style={{ top: "calc(env(safe-area-inset-top, 0px) + 1rem)", left: "1rem" }}
+						>
+							<SwitchCamera className="h-6 w-6" />
+						</button>
+					)}
 					<div
 						className="relative z-10 mt-auto flex w-full items-center justify-center gap-6"
 						style={{ paddingBottom: "max(40px, calc(env(safe-area-inset-bottom) + 24px))" }}
