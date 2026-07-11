@@ -929,19 +929,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	}, [isDesktop]);
 
 	useEffect(() => {
-		if (isDesktop) return;
-		const onKeyboardInset = (event: Event) => {
-			const detail = (event as CustomEvent<{ height?: number }>).detail;
-			const height = detail?.height;
-			if (typeof height === "number" && Number.isFinite(height)) {
-				setMobileKeyboardInset(Math.max(0, Math.round(height)));
-			}
-		};
-		window.addEventListener("fg:keyboard-inset", onKeyboardInset);
-		return () => window.removeEventListener("fg:keyboard-inset", onKeyboardInset);
-	}, [isDesktop]);
-
-	useEffect(() => {
 		if (isDesktop || !(selectedConversation || targetProfileId)) {
 			return;
 		}
