@@ -121,6 +121,7 @@ import { SCROLL_RESTORATION_TIMEOUT_MS } from "../../config/ui-constants";
 import { clearAutomationSeenHistoryForSender, runAutomationRulesForSender } from "../../utils/automationRules";
 import { consumeSelfBlockAction } from "../../utils/selfBlockActions";
 import { isReadReceiptsHidden } from "../../utils/privacy";
+import { clearChatNotifications } from "../../services/localNotify";
 import freegrindLogo from "../../images/freegrind-logo.webp";
 import { removeProfileFromBrowseCache, getCachedProfileDetail, setCachedProfileDetail } from "./gridpage/cache";
 import type { ProfileDetail } from "../../types/grid";
@@ -2409,6 +2410,7 @@ export function ChatPage() {
 						void service
 							.markRead(conversationId, newest.messageId)
 							.then(() => {
+								void clearChatNotifications(conversationId).catch(() => {});
 								syncConversation((conversation) => {
  								// Hiding read receipts only suppresses telling the *server*
  								// (handled inside service.markRead itself) — our own local
@@ -2840,6 +2842,7 @@ export function ChatPage() {
  				void service
  					.markRead(conversation.data.conversationId, latestMessage.messageId)
  					.catch(() => {});
+ 				void clearChatNotifications(conversation.data.conversationId).catch(() => {});
 
  				// Hiding read receipts only suppresses telling the *server*
  				// (handled inside service.markRead itself) — our own local

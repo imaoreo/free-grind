@@ -338,6 +338,18 @@ class MainActivity : TauriActivity() {
       }
     }
 
+    /**
+     * Called once the frontend has marked a conversation read (locally, or
+     * echoed back from the server via the chat.v1.conversation_read realtime
+     * event) so any already-shown system notification for it disappears
+     * instead of lingering until it's tapped.
+     */
+    @JavascriptInterface
+    fun clearConversationNotifications(conversationId: String?) {
+      val id = NotificationPoster.normalizeNullableString(conversationId) ?: return
+      cancelChatNotification(id)
+    }
+
     @JavascriptInterface
     fun checkMicrophonePermission(): Boolean {
       return checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
@@ -619,8 +631,18 @@ class MainActivity : TauriActivity() {
       return
     }
 
+    cancelChatNotification(conversationId)
+  }
+
+  // Cancels using the exact (tag, id) pair NotificationPoster.postNotification
+  // used to post — notify()/cancel() only match a notification when both
+  // agree, so this must stay in sync with resolveNotificationKey there.
+  private fun cancelChatNotification(conversationId: String) {
     val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.cancel(conversationId.hashCode())
+    notificationManager.cancel(
+      NotificationPoster.chatNotificationTag(conversationId),
+      NotificationPoster.NOTIFICATION_INSTANCE_ID,
+    )
   }
 
   private fun toOpenedPushPayload(payloadJson: String): String {

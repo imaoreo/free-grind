@@ -83,7 +83,8 @@ public class NotificationHandler: NSObject, NotificationHandlerProtocol {
       body: request.content.body,
       sound: notificationRequest.sound ?? "",
       actionTypeId: request.content.categoryIdentifier,
-      attachments: notificationRequest.attachments
+      attachments: notificationRequest.attachments,
+      group: notificationRequest.group
     )
   }
 
@@ -109,6 +110,11 @@ struct ActiveNotification: Encodable {
   let sound: String
   let actionTypeId: String
   let attachments: [NotificationAttachment]?
+  // Mirrors the JS-side ActiveNotification.group (Options.group ->
+  // content.threadIdentifier in makeNotificationContent) — needed so
+  // clearChatNotifications() in localNotify.ts can find notifications for a
+  // given conversation without already knowing their numeric id.
+  let group: String?
 }
 
 struct ReceivedNotification: Encodable {
