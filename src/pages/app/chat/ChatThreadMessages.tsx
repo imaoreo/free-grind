@@ -68,7 +68,7 @@ type ChatThreadMessagesProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video") => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -1384,7 +1384,7 @@ export function ChatThreadMessages({
                                                         takenOnGrindr: messageTakenOnGrindr,
                                                         createdAtLabel: imageCreatedAtLabel,
                                                         timestamp: message.timestamp,
-                                                    });
+                                                    }, "image", message.messageId, Number(message.senderId));
                                                     return;
                                                 }
                                                 if (messageLongPressTriggeredRef.current) {
@@ -1401,7 +1401,7 @@ export function ChatThreadMessages({
                                                         takenOnGrindr: messageTakenOnGrindr,
                                                         createdAtLabel: imageCreatedAtLabel,
                                                         timestamp: message.timestamp,
-                                                    });
+                                                    }, "image", message.messageId, Number(message.senderId));
                                                 });
                                             }}
                                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
@@ -1637,7 +1637,7 @@ export function ChatThreadMessages({
                                                             return;
                                                         }
                                                         if (isDesktop) {
-                                                            openFullScreenImage(videoUrl, undefined, "video");
+                                                            openFullScreenImage(videoUrl, undefined, "video", message.messageId, Number(message.senderId));
                                                             return;
                                                         }
                                                         if (messageLongPressTriggeredRef.current) {
@@ -1645,7 +1645,7 @@ export function ChatThreadMessages({
                                                             return;
                                                         }
                                                         scheduleMobileTap(message, () => {
-                                                            openFullScreenImage(videoUrl, undefined, "video");
+                                                            openFullScreenImage(videoUrl, undefined, "video", message.messageId, Number(message.senderId));
                                                         });
                                                     }}
                                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}

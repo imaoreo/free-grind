@@ -37,6 +37,7 @@ import type {
 	StoredBlockEvent,
 	StoredConversation,
 	StoredMediaFile,
+	StoredMediaFileWithSender,
 	StoredMessage,
 } from "../types/chat-db";
 import type { IndexedMessage } from "../types/chat-cache";
@@ -1332,15 +1333,20 @@ export async function getMediaFileByMessageId(
  * All successfully-cached image/video media for a conversation, newest
  * first — the local, always-available backing for the "received media"
  * panel (chatDb is the single source there, not the live API, since the
- * whole point is staying viewable after the server no longer serves it).
+ * whole point is staying viewable after the server no longer serves it) and
+ * for the in-chat full-screen media carousel, which sources from this same
+ * query rather than whatever's currently paged into the thread view so it
+ * always has the conversation's complete media, split into sent/received via
+ * senderId. senderId is null for media with no messageId to join against
+ * (e.g. live-merged items) — treat that as sender-unknown.
  */
 export async function getMediaFilesForConversation(
 	conversationId: string,
-): Promise<StoredMediaFile[]> {
+): Promise<StoredMediaFileWithSender[]> {
 	const db = await getDb();
-	const rows = await db.select<MediaFileRow[]>(
+	const rows = await db.select<(MediaFileRow & { sender_id: number | null })[]>(
 		`
-		SELECT mf.* FROM media_files mf
+		SELECT mf.*, m.sender_id FROM media_files mf
 		LEFT JOIN messages m ON m.message_id = mf.message_id
 		WHERE mf.conversation_id = $1
 			AND mf.fetch_status = 'ok'
@@ -1349,7 +1355,7 @@ export async function getMediaFilesForConversation(
 		`,
 		[conversationId],
 	);
-	return rows.map(rowToStoredMediaFile);
+	return rows.map((row) => ({ ...rowToStoredMediaFile(row), senderId: row.sender_id }));
 }
 
 // ---------------------------------------------------------------------------

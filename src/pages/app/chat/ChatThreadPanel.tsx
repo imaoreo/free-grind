@@ -172,7 +172,7 @@ type ChatThreadPanelProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video") => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -2521,7 +2521,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												key: "open-media",
 												icon: <Download className="h-3.5 w-3.5" />,
 												label: t("chat.actions.open_media", { defaultValue: "Open Media" }),
-												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image"),
+												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image", message.messageId, Number(message.senderId)),
 											});
 										} else {
 											rows.push({

@@ -1132,13 +1132,16 @@
             "send_first_message_hint": "Sende eine Nachricht um den Chat zu starten."
         },
         "media_sheet": {
-            "title": "Empfangene Medien",
+            "title": "Medien",
             "tab_albums": "Alben",
-            "tab_media": "Medien",
+            "tab_received": "Empfangen",
+            "tab_sent": "Gesendet",
             "albums_empty_title": "Noch keine Alben geteilt",
             "albums_empty_desc": "Mit dir geteilte Alben erscheinen hier",
-            "media_empty_title": "Noch keine Medien empfangen",
-            "media_empty_desc": "Dir gesendete Fotos erscheinen hier"
+            "received_empty_title": "Noch keine Medien empfangen",
+            "received_empty_desc": "Dir gesendete Fotos erscheinen hier",
+            "sent_empty_title": "Noch keine Medien gesendet",
+            "sent_empty_desc": "Von dir gesendete Fotos erscheinen hier"
         },
         "filter": {
             "state_all": "Alle anzeigen",

@@ -100,7 +100,7 @@ import {
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
-import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired } from "../../services/mediaStore";
+import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
 import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
 import { useAvatarCache } from "../../hooks/useAvatarCache";
@@ -5445,36 +5445,69 @@ export function ChatPage() {
 		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
-		const list: ThreadMediaItem[] = [];
-		for (const msg of threadMessages) {
-			const imgUrl = getMessageImageUrl(msg);
-			if (imgUrl) {
-				const createdAt = getMessageImageCreatedAt(msg);
-				list.push({
-					url: imgUrl,
-					type: "image",
-					meta: {
-						takenOnGrindr: getMessageTakenOnGrindr(msg),
-						createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
-						timestamp: msg.timestamp,
-					},
+	/**
+	 * Opens the full-screen carousel for a tapped message's media. Shows just
+	 * the tapped item immediately, then — when messageId/senderId are given —
+	 * expands it to every image/video the same sender (me vs. the other
+	 * participant) has in this conversation, sourced from the same chatDb
+	 * cache as the "received media" sheet rather than whatever's currently
+	 * paged into threadMessages — that in-memory window is only a fraction of
+	 * the conversation for any chat with real history, which is why the
+	 * carousel used to silently miss older media once pagination was added.
+	 */
+	const openFullScreenImage = useCallback((
+		imageUrl: string,
+		meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number },
+		mediaType: "image" | "video" = "image",
+		messageId?: string,
+		senderId?: number,
+	) => {
+		setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
+		setFullScreenMediaIndex(0);
+
+		const conversationId = selectedConversation?.data.conversationId;
+		if (!conversationId || messageId == null || senderId == null) {
+			return;
+		}
+
+		void (async () => {
+			try {
+				const files = await chatDb.getMediaFilesForConversation(conversationId);
+				const mine = userId != null && Number(senderId) === Number(userId);
+				const matching = files
+					.filter((f) => (f.senderId != null && userId != null && Number(f.senderId) === Number(userId)) === mine)
+					// newest-first from the query — reverse to chronological order,
+					// matching the old threadMessages-order carousel.
+					.reverse();
+				const idx = matching.findIndex((f) => f.messageId === messageId);
+				if (idx === -1) {
+					return;
+				}
+
+				const messagesById = new Map(threadMessages.map((m) => [m.messageId, m] as const));
+				const list: ThreadMediaItem[] = matching.map((f) => {
+					const msg = f.messageId ? messagesById.get(f.messageId) : undefined;
+					const createdAt = msg && f.kind === "image" ? getMessageImageCreatedAt(msg) : null;
+					return {
+						url: toDataUri(f.mimeType, f.dataBase64),
+						type: f.kind === "video" ? "video" : "image",
+						meta:
+							msg && f.kind === "image"
+								? {
+										takenOnGrindr: getMessageTakenOnGrindr(msg),
+										createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
+										timestamp: msg.timestamp,
+									}
+								: undefined,
+					};
 				});
-				continue;
+				setFullScreenMediaList(list);
+				setFullScreenMediaIndex(idx);
+			} catch (error) {
+				appLog.warn("[ChatPage] failed to build full-screen media carousel", error);
 			}
-			const vidUrl = getMessageVideoUrl(msg);
-			if (vidUrl) list.push({ url: vidUrl, type: "video" });
-		}
-		const idx = list.findIndex((item) => item.url === imageUrl);
-		if (idx === -1 || list.length === 0) {
-			// Fallback: single item
-			setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
-			setFullScreenMediaIndex(0);
-		} else {
-			setFullScreenMediaList(list);
-			setFullScreenMediaIndex(idx);
-		}
-	}, [threadMessages]);
+		})();
+	}, [selectedConversation, userId, threadMessages]);
 
 	const closeFullScreenImage = useCallback(() => {
 		if (fullScreenMediaList.length === 0) {
