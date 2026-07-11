@@ -43,8 +43,10 @@ import { sendViaRealtime } from "./chatRealtime";
 export { ApiFunctionError as ChatApiError };
 
 // The official app's own fixed page size for GET .../message (it hardcodes
-// this too — not something the server picks on its own).
-const MESSAGE_PAGE_LIMIT = 20;
+// this too — not something the server picks on its own). Exported so local
+// (chatDb-backed) pagination — archived conversations, and the "server
+// exhausted" fallthrough for live ones — can match it instead of drifting.
+export const MESSAGE_PAGE_LIMIT = 20;
 
 function sortConversations(entries: ConversationEntry[]): ConversationEntry[] {
 	return [...entries].sort((a, b) => {

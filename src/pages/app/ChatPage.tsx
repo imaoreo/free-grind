@@ -22,7 +22,7 @@ import { useBlockProfile, useUnblockProfile, useBlockedProfileIds, useMyOwnProfi
 import { getProfilePhotoHash } from "./profile-editor/profileEditorUtils";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
-import { ChatApiError } from "../../services/chatService";
+import { ChatApiError, MESSAGE_PAGE_LIMIT } from "../../services/chatService";
 import { setConversationDirectory } from "../../services/conversationDirectory";
 import * as chatDb from "../../services/chatDb";
 import type { ArchivedReason } from "../../types/chat-db";
@@ -134,7 +134,6 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 // no more history before the current cursor — see the "server exhausted"
 // handling in loadThread further down.
 const LOCAL_PAGE_KEY_PREFIX = "local:";
-const ARCHIVED_THREAD_PAGE_SIZE = 30;
 // Cap for the fully-offline inbox fallback below — chatDb's background sync
 // (inboxSync.ts) can hold the user's entire chat history locally, far more
 // than a single screen should ever render at once, and there's no server to
@@ -1672,7 +1671,7 @@ export function ChatPage() {
 						);
 						const olderMessages = await chatDb.getMessagesPage(conversationId, {
 							beforeTimestamp,
-							limit: ARCHIVED_THREAD_PAGE_SIZE,
+							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
 							olderMessages.length > 0
@@ -1698,7 +1697,7 @@ export function ChatPage() {
 				setThreadError(null);
 				setThreadConversationId(conversationId);
 				const [initialMessages, lastRead] = await Promise.all([
-					chatDb.getMessagesPage(conversationId, { limit: ARCHIVED_THREAD_PAGE_SIZE }),
+					chatDb.getMessagesPage(conversationId, { limit: MESSAGE_PAGE_LIMIT }),
 					chatDb.getLastReadTimestamp(conversationId),
 				]);
 				const nextPageKey =
@@ -1777,7 +1776,7 @@ export function ChatPage() {
 						);
 						const olderMessages = await chatDb.getMessagesPage(conversationId, {
 							beforeTimestamp,
-							limit: ARCHIVED_THREAD_PAGE_SIZE,
+							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
 							olderMessages.length > 0
@@ -2173,58 +2172,79 @@ export function ChatPage() {
 				}
 				// --------------------------------------------------
 
-				// Captured from inside the updater below (where the merged, up-to-date
-				// message set is available) — used after it for the "server exhausted"
-				// pageKey handling, so that a subsequent local-only page picks up right
-				// where the merged view actually leaves off, not from some earlier,
-				// possibly-stale snapshot.
+				// Captured either from inside the updater below (where the merged,
+				// up-to-date message set is available) or, when that updater is
+				// skipped entirely (see the no-op case below), read directly from
+				// threadMessagesRef — used after it for the "server exhausted"
+				// pageKey handling, so that a subsequent local-only page picks up
+				// right where the merged view actually leaves off, not from some
+				// earlier, possibly-stale snapshot.
 				let oldestDisplayedTimestamp: number | null = null;
 
-				setThreadMessages((previous) => {
-					const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
-					const map = new Map<string, UiMessage>();
-					if (older) {
-						// Older messages prepended; keep existing (including any local-only,
-						// e.g. from a prior "server exhausted" local-only page) as the base,
-						// but let this fetch's freshly-confirmed server page win over
-						// whatever was already on screen for the same message id — otherwise a
-						// message that happened to already be displayed would keep showing as
-						// unverified local history forever, even though this fetch just
-						// re-confirmed it against the server. mergeMessagePreservingUnsendWipe
-						// still protects the one case where the old version should win anyway:
-						// a local copy surviving an unsend wipe.
-						for (const message of previous) map.set(message.messageId, message);
-						for (const message of responseMessages)
-							map.set(
-								message.messageId,
-								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
-							);
-					} else {
-						// Fresh load or poll: keep whatever's already in memory for this
-						// conversation as the base (e.g. from an earlier session-load, or
-						// carried over from the archived branch when a conversation just
-						// came back live) — that alone already gives continuity across
-						// re-loads without needing a separate chatDb seed here. No local
-						// history gets padded in on top of it (see the "server exhausted"
-						// pageKey handling further down for how older, server-forgotten
-						// history is still reachable, without the padding-induced gap that
-						// used to cause messages to get stuck flagged local-only forever).
-						for (const message of previous) {
-							if (message.conversationId === conversationId) {
-								map.set(message.messageId, message);
+				if (older && responseMessages.length === 0) {
+					// Nothing to merge — skip the update entirely instead of pushing a
+					// content-identical (but reference-different) array through
+					// setThreadMessages. A no-op update here used to still trigger the
+					// scroll-preservation effect (which fires on any threadMessages
+					// change), "spending" its one-shot restore before the "server
+					// exhausted → local pagination" step further down — which actually
+					// adds content — got a chance to (re-)arm it. So a genuinely new
+					// local-only page would land without the scroll position
+					// compensating for it, making "load older" look like it silently
+					// did nothing, repeatedly, until local history was also exhausted.
+					const current = threadMessagesRef.current.filter(
+						(m) => m.conversationId === conversationId,
+					);
+					oldestDisplayedTimestamp = current.length > 0
+						? current.reduce((oldest, m) => Math.min(oldest, m.timestamp), current[0].timestamp)
+						: null;
+				} else {
+					setThreadMessages((previous) => {
+						const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
+						const map = new Map<string, UiMessage>();
+						if (older) {
+							// Older messages prepended; keep existing (including any local-only,
+							// e.g. from a prior "server exhausted" local-only page) as the base,
+							// but let this fetch's freshly-confirmed server page win over
+							// whatever was already on screen for the same message id — otherwise a
+							// message that happened to already be displayed would keep showing as
+							// unverified local history forever, even though this fetch just
+							// re-confirmed it against the server. mergeMessagePreservingUnsendWipe
+							// still protects the one case where the old version should win anyway:
+							// a local copy surviving an unsend wipe.
+							for (const message of previous) map.set(message.messageId, message);
+							for (const message of responseMessages)
+								map.set(
+									message.messageId,
+									mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
+								);
+						} else {
+							// Fresh load or poll: keep whatever's already in memory for this
+							// conversation as the base (e.g. from an earlier session-load, or
+							// carried over from the archived branch when a conversation just
+							// came back live) — that alone already gives continuity across
+							// re-loads without needing a separate chatDb seed here. No local
+							// history gets padded in on top of it (see the "server exhausted"
+							// pageKey handling further down for how older, server-forgotten
+							// history is still reachable, without the padding-induced gap that
+							// used to cause messages to get stuck flagged local-only forever).
+							for (const message of previous) {
+								if (message.conversationId === conversationId) {
+									map.set(message.messageId, message);
+								}
 							}
+							for (const message of responseMessages)
+								map.set(
+									message.messageId,
+									mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
+								);
 						}
-						for (const message of responseMessages)
-							map.set(
-								message.messageId,
-								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
-							);
-					}
-					const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-					const oldestForConversation = sorted.find((m) => m.conversationId === conversationId);
-					oldestDisplayedTimestamp = oldestForConversation?.timestamp ?? null;
-					return sorted;
-				});
+						const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+						const oldestForConversation = sorted.find((m) => m.conversationId === conversationId);
+						oldestDisplayedTimestamp = oldestForConversation?.timestamp ?? null;
+						return sorted;
+					});
+				}
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
@@ -2299,7 +2319,7 @@ export function ChatPage() {
 					const beforeTimestamp = oldestDisplayedTimestamp ?? Date.now();
 					const localOlder = await chatDb.getMessagesPage(conversationId, {
 						beforeTimestamp,
-						limit: ARCHIVED_THREAD_PAGE_SIZE,
+						limit: MESSAGE_PAGE_LIMIT,
 					});
 					const nextPageKey =
 						localOlder.length > 0
