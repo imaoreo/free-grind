@@ -4,17 +4,20 @@ import {
 	albumPosterSchema,
 	albumSharesResponseSchema,
 	albumsResponseSchema,
+	profileAlbumShareStatusSchema,
 	sharedAlbumViewSchema,
 	sharedAlbumsResponseSchema,
 	type Album,
 	type AlbumDetail,
 	type AlbumLimits,
 	type AlbumPoster,
+	type ProfileAlbumShareStatus,
 	type SharedAlbumView,
 	type SharedAlbum,
 } from "../../types/albums";
 import type {
 	AddOwnAlbumContentByIdsInput,
+	CheckProfileAlbumShareInput,
 	CreateOwnAlbumInput,
 	DeleteOwnAlbumContentInput,
 	DeleteOwnAlbumInput,
@@ -204,6 +207,22 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 			await assertSuccess(response, t("api.errors.load_shared_albums_profile"));
 			const payload = sharedAlbumsResponseSchema.parse(await parseJsonSafe(response));
 			return payload.albums;
+		},
+
+		async checkProfileAlbumShare(
+			input: CheckProfileAlbumShareInput,
+		): Promise<ProfileAlbumShareStatus> {
+			const response = await fetchRest("/v2/albums/shares", {
+				method: "POST",
+				body: { profileId: String(input.profileId) },
+			});
+			await assertSuccess(
+				response,
+				t("api.errors.check_profile_album_share", {
+					defaultValue: "Failed to check album status.",
+				}),
+			);
+			return profileAlbumShareStatusSchema.parse(await parseJsonSafe(response));
 		},
 
 		async openSharedAlbum(

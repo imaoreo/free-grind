@@ -1492,6 +1492,18 @@ export async function getAlbumsForConversation(
 	return rows.map(rowToStoredAlbum);
 }
 
+/** All albums ever captured locally for this owner profile, regardless of current share status. */
+export async function getAlbumsForOwnerProfile(
+	profileId: string,
+): Promise<StoredAlbum[]> {
+	const db = await getDb();
+	const rows = await db.select<AlbumRow[]>(
+		"SELECT * FROM albums WHERE owner_profile_id = $1 ORDER BY updated_at DESC",
+		[profileId],
+	);
+	return rows.map(rowToStoredAlbum);
+}
+
 function rowToStoredAlbumMedia(row: AlbumMediaRow): StoredAlbumMedia {
 	return {
 		contentId: row.content_id,

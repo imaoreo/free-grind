@@ -1276,6 +1276,8 @@
         "message_placeholder": "Nachricht senden…",
         "default_profile": "Standardprofil",
         "open_photo": "Foto {{index}} öffnen",
+        "album_locked": "Album nicht mit dir geteilt",
+        "open_shared_album": "Geteiltes Album öffnen",
         "tags": "Tags",
         "expectations": "Erwartungen",
         "looking_for": "Ich suche",

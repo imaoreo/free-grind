@@ -628,6 +628,8 @@
         "message_placeholder": "Pošlji sporočilo…",
         "default_profile": "",
         "open_photo": "",
+        "album_locked": "",
+        "open_shared_album": "",
         "next_photo": "",
         "photo_alt": "",
         "previous_profile": "",

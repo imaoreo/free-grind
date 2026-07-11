@@ -804,6 +804,8 @@
         "message_placeholder": "Envoyer un message…",
         "default_profile": "Profil par défaut",
         "open_photo": "Ouvrir la photo {{index}}",
+        "album_locked": "Album non partagé avec vous",
+        "open_shared_album": "Ouvrir l'album partagé",
         "uses_free_grind": "Utilise Free Grind",
         "loading": "Chargement des détails du profil...",
         "chat_history": "Historique des discussions",

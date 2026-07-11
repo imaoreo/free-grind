@@ -953,6 +953,8 @@
         "message_placeholder": "Enviar uma mensagem…",
         "default_profile": "Perfil padrão",
         "open_photo": "Abrir foto {{index}}",
+        "album_locked": "Álbum não compartilhado com você",
+        "open_shared_album": "Abrir álbum compartilhado",
         "tags": "Etiquetas",
         "expectations": "Expectativas",
         "looking_for": "Procurando por",

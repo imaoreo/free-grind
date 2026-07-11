@@ -1401,6 +1401,8 @@
         "message_placeholder": "Send a message…",
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}",
+        "album_locked": "Album not shared with you",
+        "open_shared_album": "Open shared album",
         "tags": "Tags",
         "expectations": "Expectations",
         "looking_for": "Looking for",

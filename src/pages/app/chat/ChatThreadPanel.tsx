@@ -1651,6 +1651,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
+						ownProfilePhotoUrl={ownProfilePhotoUrl}
 				/>
 				)
 			) : (
