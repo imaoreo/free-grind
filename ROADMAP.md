@@ -9,7 +9,7 @@
   - [x] Location self-reporting
   - [x] Manual location picker (map + search)
   - [x] Current device location detection (mobile)
-- [x] Messaging
+- [ ] Messaging
   - [x] Text messages
   - [x] Read indicators
   - [x] Media
@@ -18,7 +18,7 @@
     - [x] Audio messages (receive/playback)
     - [x] Audio message recording
     - [x] Albums (view, share, manage)
-    - [ ] GIF / Gaymoji
+    - [x] GIF / Gaymoji
   - [x] Location messages
   - [x] Saved phrases
   - [x] Reactions (send & receive)
@@ -29,15 +29,16 @@
   - [x] Inbox filters (unread, favorites, chemistry, right now, online)
   - [x] Conversation search (local)
   - [x] Message search (local)
-  - [x] Profile search from chat
   - [x] Replies (UI)
-- [x] Profiles
+  - [ ] Reports
+- [ ] Profiles
   - [x] Fetching & viewing
   - [x] Full profile detail modal (stats, health, tribes, tags, photos)
   - [x] Favoriting/unfavoriting
   - [x] Blocking/unblocking
   - [x] Taps
   - [ ] Reports
+- [x] Video Calls
 - [x] Grid
   - [x] Cascade profile grid
   - [x] Profile detail from grid
@@ -51,15 +52,16 @@
   - [x] Delete album content
   - [x] Delete albums
   - [x] Share albums in chat
-- [ ] Interest section
+- [x] Interest section
   - [x] Views history
-  - [ ] Profile view self-reporting
+  - [x] Profile view self-reporting
   - [x] Taps history
 - [ ] "Right now"
   - [x] Fetching
   - [x] Filtering
   - [x] Sorting
   - [x] Posting
+  - [ ] Reports
 - [x] Account
   - [x] Profile editing (bio, stats, health, tribes, tags, social links)
   - [x] Manage profile photos (upload, reorder, delete)
