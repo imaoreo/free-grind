@@ -263,7 +263,7 @@
                 "about_me": "",
                 "about_me_placeholder": "",
                 "my_tags": "",
-                "my_tags_placeholder": "",
+                "my_tags_manage": "",
                 "no_tags_added": ""
             },
             "visiting_mode": {
@@ -324,6 +324,10 @@
                 "description": "",
                 "gender": "",
                 "gender_unavailable": "",
+                "gender_more": "",
+                "gender_dialog_title": "",
+                "gender_search_placeholder": "",
+                "gender_no_matches": "",
                 "pronouns": "",
                 "pronouns_unavailable": ""
             },
@@ -333,7 +337,10 @@
                 "hiv_status": "",
                 "last_tested": "",
                 "health_practices": "",
-                "vaccinations": ""
+                "vaccinations": "",
+                "test_reminder": "",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "",
@@ -370,7 +377,15 @@
         },
         "errors": {
             "display_name_length": "",
-            "about_me_length": ""
+            "about_me_length": "",
+            "max_selection": ""
+        },
+        "tags_dialog": {
+            "title": "",
+            "unavailable": "",
+            "see_more": "",
+            "search_placeholder": "",
+            "no_matches": ""
         }
     },
     "auth": {
@@ -407,13 +422,16 @@
             "subtitle": ""
         },
         "media_sheet": {
-            "title": "Received Media",
+            "title": "Media",
             "tab_albums": "Albums",
-            "tab_media": "Media",
+            "tab_received": "Received",
+            "tab_sent": "Sent",
             "albums_empty_title": "No albums shared yet",
             "albums_empty_desc": "Albums shared with you will appear here",
-            "media_empty_title": "No media received yet",
-            "media_empty_desc": "Photos sent to you will appear here"
+            "received_empty_title": "No media received yet",
+            "received_empty_desc": "Photos sent to you will appear here",
+            "sent_empty_title": "No media sent yet",
+            "sent_empty_desc": "Photos you send will appear here"
         },
         "loading_inbox": "",
         "refreshing_inbox": "",
@@ -488,6 +506,7 @@
             "album_share": "",
             "album_image": "",
             "replied_to_photo": "",
+            "replied_to_photo_theirs": "",
             "reacted_to_image": ""
         },
         "actions": {
@@ -558,6 +577,17 @@
             "recent_empty": "Nema nedavno poslanih GIF-ova.",
             "recent_empty_hint": "GIF-ovi koje pošalješ će se prikazati ovdje.",
             "send_confirm": "Pošalji GIF?"
+        },
+        "filter": {
+            "state_all": "Prikaži sve",
+            "state_hide": "Sakrij",
+            "state_only": "Samo"
+        },
+        "hidden": {
+            "filter_label": "Skriveno"
+        },
+        "archived": {
+            "filter_label": "Arhivirano"
         }
     },
     "profile_details": {
@@ -652,7 +682,8 @@
         "options": {
             "unread": "",
             "chemistry": ""
-        }
+        },
+        "visibility": "Vidljivost"
     },
     "interest_page": {
         "empty_views": "No views yet",
@@ -676,5 +707,20 @@
         "cancel": "Otkaži",
         "save": "Sačuvaj",
         "edit": "Uredi"
+    },
+    "privacy": {
+        "read_receipts_grid_unread_note": "Ako su potvrde o čitanju isključene, server ne može znati da ste pročitali poruku — razgovor se stoga na Gridu i dalje može prikazivati kao nepročitan, čak i nakon što ste ga pročitali ili obrisali."
+    },
+    "grid": {
+        "open_profile_by_id": "Otvori profil putem ID-a"
+    },
+    "test_reminder": {
+        "title": "",
+        "description": "",
+        "save": "",
+        "saving": "",
+        "skip": "",
+        "saved": "",
+        "save_failed": ""
     }
 }

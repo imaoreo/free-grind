@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { RangeSlider } from "../../components/ui/range-slider";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
 import { cn } from "../../utils/cn";
 import { type ManagedOption } from "./GridPage.types";
 import {
@@ -44,8 +45,9 @@ interface BrowseFiltersOverlayProps {
 }
 
 export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseFiltersOverlayProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { unitsPreset } = usePreferences();
+	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
 
@@ -128,6 +130,25 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 	const meetAtFilterOptions = useMemo<ManagedOption[]>(() => getMeetAtOptions(t), [t]);
 	const nsfwFilterOptions = useMemo<ManagedOption[]>(() => getNsfwOptions(t), [t]);
 
+	// Flat list of every managed tag across all categories — the filter only
+	// ever needs to search/add individual tags, never browse by category.
+	const allManagedTags = useMemo(
+		() => (managedTagCategories ?? []).flatMap((category) => category.tags),
+		[managedTagCategories],
+	);
+
+	const tagSearchResults = useMemo(() => {
+		const query = tagDraft.trim().toLowerCase();
+		if (!query) return [];
+		return allManagedTags
+			.filter(
+				(tag) =>
+					tag.text.toLowerCase().includes(query) &&
+					!tags.includes(tag.text.toLowerCase()),
+			)
+			.slice(0, 8);
+	}, [tagDraft, allManagedTags, tags]);
+
 	const toggleBrowseFilter = (key: keyof BrowseFilters) => {
 		setBrowseFilters((prev) => ({ ...prev, [key]: !prev[key] }));
 	};
@@ -136,8 +157,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		setter((prev) => prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]);
 	};
 
-	const addTag = () => {
-		const norm = tagDraft.trim().toLowerCase();
+	const addTag = (value: string = tagDraft) => {
+		const norm = value.trim().toLowerCase();
 		if (!norm) return;
 		setTags((prev) => prev.includes(norm) ? prev : [...prev, norm]);
 		setTagDraft("");
@@ -407,12 +428,26 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 								/>
 								<button
 									type="button"
-									onClick={addTag}
+									onClick={() => addTag()}
 									className="h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 								>
 									{t("browse_filters.add")}
 								</button>
 							</div>
+							{tagSearchResults.length > 0 && (
+								<div className="mt-2 flex flex-wrap gap-2">
+									{tagSearchResults.map((tag) => (
+										<button
+											key={tag.tagId}
+											type="button"
+											onClick={() => addTag(tag.text)}
+											className="rounded-full border border-[var(--accent)]/60 bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
+										>
+											+ {tag.text}
+										</button>
+									))}
+								</div>
+							)}
 							{tags.length > 0 && (
 								<div className="mt-2 flex flex-wrap gap-2">
 									{tags.map((tag) => (

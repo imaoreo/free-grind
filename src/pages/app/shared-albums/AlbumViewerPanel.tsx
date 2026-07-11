@@ -5,9 +5,9 @@ import toast from "react-hot-toast";
 import { Button } from "../../../components/ui/button";
 import { EmptyState } from "../../../components/ui/states";
 import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
-import { saveMediaBatch } from "../../../services/saveMedia";
+import { isIos, saveMediaBatch } from "../../../services/saveMedia";
 import { appLog } from "../../../utils/logger";
-import type { AlbumViewer } from "../../../types/shared-albums";
+import { albumViewerFolderKey, type AlbumViewer } from "../../../types/shared-albums";
 
 type AlbumContent = AlbumViewer["content"][number];
 
@@ -66,12 +66,16 @@ export function AlbumViewerPanel({
 		try {
 			const result = await saveMediaBatch(items, (done, total) => {
 				toast.loading(t("profile_details.save_all_progress", { done, total }), { id: toastId });
-			});
+			}, albumViewerFolderKey(viewer));
 
 			if (result.failed === 0) {
-				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
-					id: toastId,
-				});
+				toast.success(
+					t(
+						isIos() ? "profile_details.save_all_success" : "profile_details.save_all_success_downloads",
+						{ count: result.succeeded },
+					),
+					{ id: toastId },
+				);
 			} else {
 				toast.error(
 					t("profile_details.save_all_partial", {
@@ -84,7 +88,10 @@ export function AlbumViewerPanel({
 			}
 		} catch (error) {
 			appLog.error("[AlbumViewerPanel] Save all failed", error);
-			toast.error(t("profile_details.save_all_error"), { id: toastId });
+			toast.error(
+				t(isIos() ? "profile_details.save_all_error" : "profile_details.save_all_error_downloads"),
+				{ id: toastId },
+			);
 		} finally {
 			setIsSavingAll(false);
 		}

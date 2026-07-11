@@ -1,10 +1,9 @@
 import i18n from "../../../i18n";
 import { useEffect, useState } from "react";
 import type { ConversationEntry, InboxFilters, Message } from "../../../types/messages";
-import type { UiMessage } from "../../../types/chat-page";
+import type { InboxVisibilityFilter, UiMessage } from "../../../types/chat-page";
 import type { MediaKind } from "../../../types/chat-db";
 import {
-	getProfileImageUrl,
 	getThumbImageUrl,
 	validateMediaHash,
 } from "../../../utils/media";
@@ -18,6 +17,25 @@ export type ChatFiltersDraft = {
 	onlineNowOnly: boolean;
 	distanceMeters: string;
 	positions: number[];
+	// Not part of InboxFilters (they never touch the server request) — these
+	// three ride along in the same draft/apply/clear cycle purely so the
+	// filter overlay can offer one unified "apply"/"clear all" experience.
+	pinnedFilter: InboxVisibilityFilter;
+	archivedFilter: InboxVisibilityFilter;
+	hiddenFilter: InboxVisibilityFilter;
+};
+
+export type ChatFiltersVisibilityState = {
+	pinnedFilter: InboxVisibilityFilter;
+	archivedFilter: InboxVisibilityFilter;
+	hiddenFilter: InboxVisibilityFilter;
+};
+
+export const defaultChatFiltersVisibilityState: ChatFiltersVisibilityState = {
+	pinnedFilter: "all",
+	archivedFilter: "all",
+	// Hidden chats default to actually being hidden — that's the point of the feature.
+	hiddenFilter: "hide",
 };
 
 export type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
@@ -26,7 +44,10 @@ export function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
 }
 
-export function buildChatFiltersDraft(filters: InboxFilters): ChatFiltersDraft {
+export function buildChatFiltersDraft(
+	filters: InboxFilters,
+	visibility: ChatFiltersVisibilityState = defaultChatFiltersVisibilityState,
+): ChatFiltersDraft {
 	return {
 		unreadOnly: filters.unreadOnly === true,
 		chemistryOnly: filters.chemistryOnly === true,
@@ -38,6 +59,9 @@ export function buildChatFiltersDraft(filters: InboxFilters): ChatFiltersDraft {
 				? String(filters.distanceMeters)
 				: "",
 		positions: filters.positions ?? [],
+		pinnedFilter: visibility.pinnedFilter,
+		archivedFilter: visibility.archivedFilter,
+		hiddenFilter: visibility.hiddenFilter,
 	};
 }
 
@@ -155,6 +179,49 @@ export function formatMessageTime(
 	});
 }
 
+export function formatTakenOnGrindrTime(
+	timestamp: number,
+	now: number,
+	t: TranslateFn,
+): string {
+	const diffMs = now - timestamp;
+	const minuteMs = 60 * 1000;
+
+	if (diffMs < minuteMs) {
+		return t("chat.time.now");
+	}
+
+	const msgDate = new Date(timestamp);
+	const nowDate = new Date(now);
+
+	const isSameDay = (d1: Date, d2: Date) =>
+		d1.getFullYear() === d2.getFullYear() &&
+		d1.getMonth() === d2.getMonth() &&
+		d1.getDate() === d2.getDate();
+
+	if (isSameDay(msgDate, nowDate)) {
+		return t("chat.today");
+	}
+
+	const yesterday = new Date(now);
+	yesterday.setDate(yesterday.getDate() - 1);
+	if (isSameDay(msgDate, yesterday)) {
+		return t("chat.yesterday");
+	}
+
+	const oneWeekAgo = new Date(now);
+	oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+	if (msgDate > oneWeekAgo) {
+		return t("chat.time.last_week");
+	}
+
+	const formatter = getDateTimeFormatter(i18n.language, {
+		month: "short",
+		year: "numeric",
+	});
+	return formatter.format(msgDate);
+}
+
 export function formatDateTime24(timestamp: number): string {
 	const date = new Date(timestamp);
 	const day = String(date.getDate()).padStart(2, "0");
@@ -243,6 +310,8 @@ export function getPreviewText(conversation: ConversationEntry, t: TranslateFn):
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
+		case "VideoCall":
+			return t("chat.preview.video_call");
 		default:
 			return t("chat.preview.sent_message");
 	}
@@ -277,9 +346,45 @@ export function getMessagePreviewLabel(message: Message, t: TranslateFn): string
 			return t("chat.preview.sent_video");
 		case "Location":
 			return t("chat.preview.sent_location");
+		case "VideoCall":
+			return getVideoCallStatusLabel(message, t);
 		default:
 			return t("chat.preview.sent_message");
 	}
+}
+
+// Normalizes the various casings/spellings seen in real traffic for
+// VideoCallMessageBody.result (e.g. "Busy" vs "BUSY", "No_Answer" vs
+// "UNANSWERED") into one of a fixed set of outcome keys under
+// chat.video_call_status.*.
+const VIDEO_CALL_RESULT_KEYS: Record<string, string> = {
+	SUCCESSFUL: "successful",
+	BUSY: "busy",
+	CANCELLED: "cancelled",
+	DECLINED: "declined",
+	MISSED: "missed",
+	AB_UNSUPPORTED: "unsupported",
+	NO_ANSWER: "no_answer",
+	UNANSWERED: "no_answer",
+	LITE_UNSUPPORT: "unsupported",
+};
+
+export function formatCallDuration(totalSeconds: number): string {
+	const clamped = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
+	const m = Math.floor(clamped / 60);
+	const s = Math.floor(clamped % 60);
+	return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+// Body shape per VideoCallMessageBody (WIP, status-only): { result, videoCallDuration }.
+export function getVideoCallStatusLabel(message: Message, t: TranslateFn): string {
+	const body = message.body as Record<string, unknown> | null;
+	const rawResult = typeof body?.result === "string" ? body.result : "";
+	const duration = typeof body?.videoCallDuration === "number" ? body.videoCallDuration : 0;
+	const normalized = rawResult.toUpperCase().replace(/[^A-Z]/g, "_");
+	const outcome = VIDEO_CALL_RESULT_KEYS[normalized] ?? (duration > 0 ? "successful" : "generic");
+	const label = t(`chat.video_call_status.${outcome}`);
+	return outcome === "successful" && duration > 0 ? `${label} · ${formatCallDuration(duration)}` : label;
 }
 
 // Types getPreviewText/getMessagePreviewLabel can render a specific label
@@ -857,6 +962,71 @@ export function getMediaCaptureTarget(message: UiMessage): MediaCaptureTarget | 
 	return null;
 }
 
+export type ReplyImageHashTarget = { mediaKey: string; url: string };
+
+/**
+ * Stable cache key + fetch URL for a reply-quote thumbnail (or a
+ * ProfilePhotoReply's own photo), when identified by a content hash. Uses
+ * the exact same `image:<hash>` key scheme as getMediaKeyForMessage("image")
+ * so it transparently shares mediaStore's cache with the original message,
+ * if that was ever captured too. Returns null for any message that isn't
+ * actually a reply-to-picture or ProfilePhotoReply — a plain Image message's
+ * own hash is already covered by getMediaCaptureTarget.
+ */
+export function getReplyImageHashTarget(message: UiMessage): ReplyImageHashTarget | null {
+	const preview = message.replyPreview as Record<string, unknown> | null | undefined;
+	const previewHash = typeof preview?.imageHash === "string" ? preview.imageHash : null;
+
+	let hash: string | null = null;
+	if (previewHash && validateMediaHash(previewHash)) {
+		hash = previewHash;
+	} else if (message.type === "ProfilePhotoReply") {
+		const body = message.body as Record<string, unknown> | null | undefined;
+		const bodyHash = typeof body?.imageHash === "string" ? body.imageHash : null;
+		if (bodyHash && validateMediaHash(bodyHash)) {
+			hash = bodyHash;
+		}
+	}
+
+	if (!hash) {
+		return null;
+	}
+	return { mediaKey: `image:${hash}`, url: getThumbImageUrl(hash, "320x320") };
+}
+
+export type AlbumContentReplyTarget = {
+	albumId: number;
+	contentId: number;
+	contentType: string | null;
+	previewUrl: string | null;
+};
+
+/**
+ * Extracts the specific album content item an AlbumContentReply/Reaction
+ * message references, plus its live (but expiring) previewUrl — used to
+ * durably capture that one item's thumbnail into album_media (see
+ * albumStore.ts's captureAlbumContentThumbFromMessage), independent of
+ * whether the album's full share was ever captured in this thread.
+ */
+export function getAlbumContentReplyTarget(message: UiMessage): AlbumContentReplyTarget | null {
+	if (message.type !== "AlbumContentReply" && message.type !== "AlbumContentReaction") {
+		return null;
+	}
+	const body = message.body as Record<string, unknown> | null | undefined;
+	const albumId = typeof body?.albumId === "number" ? body.albumId : Number(body?.albumId);
+	const contentId =
+		typeof body?.albumContentId === "number" ? body.albumContentId : Number(body?.albumContentId);
+	if (!Number.isFinite(albumId) || !Number.isFinite(contentId)) {
+		return null;
+	}
+	return {
+		albumId,
+		contentId,
+		contentType: typeof body?.contentType === "string" ? body.contentType : null,
+		previewUrl: typeof body?.previewUrl === "string" ? body.previewUrl : null,
+	};
+}
+
 export function getMessageLocation(
 	message: UiMessage,
 ): { lat: number; lon: number } | null {
@@ -886,7 +1056,7 @@ export function getParticipantAvatarUrl(hash: string | null | undefined): string
 		return null;
 	}
 
-	return getProfileImageUrl(hash);
+	return getThumbImageUrl(hash, "320x320");
 }
 
 export function isLocalClientMessageId(messageId: string): boolean {

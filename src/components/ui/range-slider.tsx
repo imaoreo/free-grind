@@ -23,6 +23,7 @@ interface SliderProps {
 	label: string;
 	displayValue: string;
 	activeColor?: string;
+	trackColor?: string;
 	hideHeader?: boolean;
 	onChange: (value: number) => void;
 }
@@ -105,7 +106,7 @@ const sliderStyles = `
 	}
 
 	.slider__track {
-		background-color: var(--surface-2);
+		background-color: var(--track-color, var(--surface-2));
 		width: 100%;
 		z-index: 1;
 		border: 1px solid var(--border);
@@ -254,12 +255,16 @@ export function Slider({
 	label,
 	displayValue,
 	activeColor,
+	trackColor,
 	hideHeader = false,
 	onChange,
 }: SliderProps) {
 	const [value, setValue] = useState(defaultValue);
 
-	const style = activeColor ? { "--slider-color": activeColor } as React.CSSProperties : {};
+	const style = {
+		...(activeColor ? { "--slider-color": activeColor } : {}),
+		...(trackColor ? { "--track-color": trackColor } : {}),
+	} as React.CSSProperties;
 
 	useEffect(() => {
 		setValue(defaultValue);

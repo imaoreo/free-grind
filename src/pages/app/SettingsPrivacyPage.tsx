@@ -63,6 +63,14 @@ export function SettingsPrivacyPage() {
 								void persistShowReadReceiptToggle(checked);
 							}}
 						/>
+						<div className="border-t border-[var(--border)] px-4 py-3">
+							<p className="text-xs text-[var(--text-muted)] leading-relaxed">
+								{t("privacy.read_receipts_grid_unread_note", {
+									defaultValue:
+										"With read receipts off, there's no way to tell the server you've read a message — so a chat can still show up as unread on the Grid even after you've read or deleted it.",
+								})}
+							</p>
+						</div>
 					</div>
 				</div>
 

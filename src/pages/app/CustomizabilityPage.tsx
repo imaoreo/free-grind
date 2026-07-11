@@ -504,6 +504,7 @@ export function CustomizabilityPage() {
 								onChange={(val) => {
 									setDefaultInterestTab(val);
 									window.localStorage.setItem("fg-interest-default-tab", val);
+									window.localStorage.setItem("fg-interest-last-tab", val);
 								}}
 								options={[
 									{ value: "taps", label: t("customizability.interest_show_taps") },

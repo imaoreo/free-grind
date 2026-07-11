@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApiFunctions } from "../useApiFunctions";
 import type { TravelPlanPayload } from "../../types/travel";
+import type { VisitingMode } from "../../types/visiting";
 import { findConversationByProfileId } from "../../services/chatDb";
 import { markSelfBlockAction } from "../../utils/selfBlockActions";
 import {
 	applySelfBlockAction,
 	markConversationDeleteHandled,
 } from "../../services/conversationArchive";
+import { profileSchema } from "../../pages/app/profile-editor/profileEditorUtils";
 
 // chat.v1.conversation.delete fires identically for "we blocked/unblocked
 // them" and "they blocked/unblocked us" — mark the conversation right after
@@ -36,12 +38,13 @@ function markConversationSelfAction(profileId: string, action: "block" | "unbloc
 /**
  * Hook to fetch and manage blocked profile IDs.
  */
-export function useBlockedProfileIds() {
+export function useBlockedProfileIds(enabled = true) {
 	const api = useApiFunctions();
 	return useQuery({
 		queryKey: ["blocked-profile-ids"],
 		queryFn: () => api.getBlockedProfileIds(),
 		staleTime: 1000 * 60 * 10, // Consider data fresh for 10 minutes
+		enabled,
 	});
 }
 
@@ -106,24 +109,116 @@ export function useUnblockProfile() {
 /**
  * Hook to fetch managed genders.
  */
-export function useManagedGenders() {
+export function useManagedGenders(enabled: boolean = true) {
 	const api = useApiFunctions();
 	return useQuery({
 		queryKey: ["managed-genders"],
 		queryFn: () => api.getManagedGenders(),
 		staleTime: Infinity, // These rarely change
+		enabled,
 	});
 }
 
 /**
  * Hook to fetch managed pronouns.
  */
-export function useManagedPronouns() {
+export function useManagedPronouns(enabled: boolean = true) {
 	const api = useApiFunctions();
 	return useQuery({
 		queryKey: ["managed-pronouns"],
 		queryFn: () => api.getManagedPronouns(),
 		staleTime: Infinity, // These rarely change
+		enabled,
+	});
+}
+
+/**
+ * Hook to fetch the managed tag catalog (categories + selectable tags), used
+ * both by the profile editor's tag picker and the grid tag-search filter.
+ */
+export function useManagedTagCategories(locale: string, enabled: boolean = true) {
+	const api = useApiFunctions();
+	return useQuery({
+		queryKey: ["managed-tag-categories", locale],
+		queryFn: () => api.getManagedTagCategories(locale),
+		staleTime: Infinity, // These rarely change
+		enabled,
+	});
+}
+
+/**
+ * Hook to fetch the current user's own profile (read through /v4/me/profile,
+ * same endpoint the profile editor uses) — used by app-level checks like the
+ * HIV test reminder that need a profile field without opening the editor.
+ */
+export function useMyOwnProfile(enabled: boolean = true) {
+	const api = useApiFunctions();
+	return useQuery({
+		queryKey: ["my-own-profile"],
+		queryFn: async () => {
+			const raw = await api.getMyOwnProfile();
+			const rawProfileObject =
+				raw && typeof raw === "object" && Array.isArray((raw as { profiles?: unknown }).profiles)
+					? ((raw as { profiles: Record<string, unknown>[] }).profiles[0] ?? null)
+					: (raw as Record<string, unknown> | null);
+			return profileSchema.parse(rawProfileObject);
+		},
+		enabled,
+		staleTime: 1000 * 60 * 5,
+	});
+}
+
+/**
+ * Hook to fetch the current account's visiting mode (Auto/Home/Visiting).
+ */
+export function useVisitingMode(enabled = true) {
+	const api = useApiFunctions();
+	return useQuery({
+		queryKey: ["visiting-mode"],
+		queryFn: () => api.getVisitingMode(),
+		enabled,
+		staleTime: 1000 * 60 * 5,
+	});
+}
+
+/**
+ * Mutation to update the account's visiting mode. Invalidates the cached value on success.
+ */
+export function useUpdateVisitingMode() {
+	const api = useApiFunctions();
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (setting: VisitingMode) => api.updateVisitingMode(setting),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["visiting-mode"] });
+		},
+	});
+}
+
+/**
+ * Hook to fetch the current account's home location.
+ */
+export function useHomeLocation(enabled = true) {
+	const api = useApiFunctions();
+	return useQuery({
+		queryKey: ["home-location"],
+		queryFn: () => api.getHomeLocation(),
+		enabled,
+		staleTime: 1000 * 60 * 5,
+	});
+}
+
+/**
+ * Mutation to update the account's home location. Invalidates the cached value on success.
+ */
+export function useUpdateHomeLocation() {
+	const api = useApiFunctions();
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (location: { lat: number; lon: number }) => api.updateHomeLocation(location),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["home-location"] });
+		},
 	});
 }
 

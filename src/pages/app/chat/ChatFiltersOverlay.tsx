@@ -2,19 +2,28 @@ import { RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChatFiltersPanel } from "./ChatFiltersPanel";
-import { buildChatFiltersDraft, draftToFilters, type ChatFiltersDraft } from "./chatUtils";
+import { buildChatFiltersDraft, type ChatFiltersDraft } from "./chatUtils";
 import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
-import type { InboxFilters } from "../../../types/messages";
 
 type Props = {
 	isDesktop: boolean;
 	draft: ChatFiltersDraft;
 	onChangeDraft: (draft: ChatFiltersDraft) => void;
 	onClose: () => void;
-	onApply: (filters: InboxFilters) => void;
+	onApply: (draft: ChatFiltersDraft) => void;
+	archivedCount: number;
+	hiddenCount: number;
 };
 
-export function ChatFiltersOverlay({ isDesktop, draft, onChangeDraft, onClose, onApply }: Props) {
+export function ChatFiltersOverlay({
+	isDesktop,
+	draft,
+	onChangeDraft,
+	onClose,
+	onApply,
+	archivedCount,
+	hiddenCount,
+}: Props) {
 	const { t } = useTranslation();
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
@@ -61,12 +70,12 @@ export function ChatFiltersOverlay({ isDesktop, draft, onChangeDraft, onClose, o
 	}, [handleClose]);
 
 	const handleApply = () => {
-		onApply(draftToFilters(draft));
+		onApply(draft);
 		handleClose();
 	};
 
 	const handleClear = () => {
-		onApply(draftToFilters(buildChatFiltersDraft({})));
+		onApply(buildChatFiltersDraft({}));
 		handleClose();
 	};
 
@@ -120,7 +129,13 @@ export function ChatFiltersOverlay({ isDesktop, draft, onChangeDraft, onClose, o
 
 				{/* Filter content */}
 				<div className="relative z-10 flex-1 overflow-y-auto">
-					<ChatFiltersPanel isDesktop={isDesktop} draft={draft} onChangeDraft={onChangeDraft} />
+					<ChatFiltersPanel
+						isDesktop={isDesktop}
+						draft={draft}
+						onChangeDraft={onChangeDraft}
+						archivedCount={archivedCount}
+						hiddenCount={hiddenCount}
+					/>
 				</div>
 
 				{/* Bottom actions */}

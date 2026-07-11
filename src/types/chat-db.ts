@@ -15,14 +15,44 @@ export type StoredConversation = {
 	archived: boolean;
 	archivedReason: ArchivedReason | null;
 	archivedAt: number | null;
+	// Manual, local-only "hide from inbox" flag — unlike `archived`, a hidden
+	// conversation still round-trips through /v4/inbox normally; this only
+	// gates the client-side filteredConversations view.
+	hidden: boolean;
 	blockState: BlockState | null;
 	lastSeenInInboxAt: number | null;
+	// The conversation's lastActivityTimestamp as of the last time its messages
+	// were successfully fetched — not just when the conversation row itself
+	// was upserted. Lets inboxSync tell "metadata is current" apart from
+	// "messages are current", so an interrupted first sync resumes by
+	// re-fetching only conversations whose messages never actually landed,
+	// instead of restarting the whole message fetch from scratch.
+	messagesSyncedActivityTimestamp: number | null;
 	createdAt: number;
 	updatedAt: number;
 };
 
 export type StoredMessage = Message & {
 	localHistory: boolean;
+};
+
+// A durable, standalone record of a block/unblock initiated by the *other*
+// side — kept separate from the messages table (rather than derived from
+// SystemBlocked/SystemUnblocked messages on read) so the profile's name and
+// avatar are captured at the moment it happens and survive even if the
+// conversation itself later becomes unresolvable (e.g. the other profile is
+// deleted/banned, or the conversation ages out of the live inbox entirely).
+export type BlockEventType = "blocked" | "unblocked";
+
+export type StoredBlockEvent = {
+	id: string;
+	profileId: string | null;
+	conversationId: string;
+	eventType: BlockEventType;
+	timestamp: number;
+	displayName: string | null;
+	avatarMediaHash: string | null;
+	createdAt: number;
 };
 
 export type MediaKind = "image" | "video" | "audio";
@@ -51,6 +81,17 @@ export type StoredMediaFile = {
 	sizeBytes: number | null;
 	fetchStatus: MediaFetchStatus;
 	fetchedAt: number;
+};
+
+/**
+ * StoredMediaFile plus the sender of the message it's attached to — only
+ * available where the query joins against `messages` (getMediaFilesForConversation),
+ * so it's a distinct type rather than a field on StoredMediaFile itself.
+ * Null for media with no messageId (e.g. live-merged items with no local
+ * message to join against) — treat as "sender unknown".
+ */
+export type StoredMediaFileWithSender = StoredMediaFile & {
+	senderId: number | null;
 };
 
 export type AlbumUpsertInput = {

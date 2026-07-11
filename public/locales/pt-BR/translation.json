@@ -279,7 +279,8 @@
             "tap_limit": "Você já interagiu com este perfil nas últimas 24 horas",
             "tap_mutual": "Toque enviado. É recíproco.",
             "tap_sent": "Toque enviado",
-            "tap_failed": "Falha ao enviar toque"
+            "tap_failed": "Falha ao enviar toque",
+            "tag_filter_applied": "Filtrado pela tag \"{{tag}}\""
         },
         "chatted": "Conversamos"
     },
@@ -291,7 +292,8 @@
         "options": {
             "unread": "Não lido",
             "chemistry": "Química"
-        }
+        },
+        "visibility": "Visibilidade"
     },
     "about_page": {
         "badge": "Sobre o Free Grind",
@@ -423,8 +425,8 @@
                 "about_me": "Sobre mim",
                 "about_me_placeholder": "Até 255 caracteres",
                 "my_tags": "Minhas etiquetas",
-                "my_tags_placeholder": "Etiquetas de palavras-chave, separadas por vírgulas",
-                "no_tags_added": "Nenhuma etiqueta adicionada ainda."
+                "my_tags_manage": "Gerenciar etiquetas",
+                "no_tags_added": "Adicionar etiquetas"
             },
             "states": {
                 "title": "Stats",
@@ -461,9 +463,13 @@
             },
             "identity": {
                 "title": "Identidade",
-                "description": "Campos de identidade gerenciados",
+                "description": "Gênero e pronomes",
                 "gender": "Gênero",
                 "gender_unavailable": "As opções de gênero não estão disponíveis no momento.",
+                "gender_more": "Mais gêneros",
+                "gender_dialog_title": "Escolher gêneros",
+                "gender_search_placeholder": "Pesquisar gêneros...",
+                "gender_no_matches": "Nenhum gênero corresponde à sua pesquisa.",
                 "pronouns": "Pronomes",
                 "pronouns_unavailable": "As opções de pronomes não estão disponíveis no momento."
             },
@@ -473,7 +479,10 @@
                 "hiv_status": "Estado de HIV",
                 "last_tested": "Último teste realizado",
                 "health_practices": "Exames",
-                "vaccinations": "Vacinação"
+                "vaccinations": "Vacinação",
+                "test_reminder": "Já se passaram mais de 3 meses desde o seu último teste — considere fazer outro.",
+                "test_reminder_toggle": "Lembrete de teste",
+                "test_reminder_toggle_desc": "Mostra um lembrete para fazer um teste quando já faz um tempo desde o último."
             },
             "social": {
                 "title": "Social",
@@ -530,7 +539,15 @@
         },
         "errors": {
             "display_name_length": "O nome de exibição deve ter no máximo 15 caracteres.",
-            "about_me_length": "A seção \"Sobre mim\" deve ter no máximo 255 caracteres."
+            "about_me_length": "A seção \"Sobre mim\" deve ter no máximo 255 caracteres.",
+            "max_selection": "Você pode selecionar até {{count}}."
+        },
+        "tags_dialog": {
+            "title": "Escolher etiquetas",
+            "unavailable": "As etiquetas não estão disponíveis no momento.",
+            "see_more": "Ver mais {{count}}",
+            "search_placeholder": "Pesquisar etiquetas...",
+            "no_matches": "Nenhuma etiqueta corresponde à sua pesquisa."
         }
     },
     "customizability": {
@@ -736,6 +753,7 @@
             "album_share": "Compartilhar álbum",
             "album_image": "Imagem de álbum",
             "replied_to_photo": "Respondeu à sua foto de perfil",
+            "replied_to_photo_theirs": "Você respondeu à foto de perfil deles",
             "reacted_to_image": "Reagiu à sua imagem do álbum"
         },
         "actions": {
@@ -818,13 +836,16 @@
             "send_first_message_hint": "Envie uma mensagem abaixo para iniciar a conversa."
         },
         "media_sheet": {
-            "title": "Mídia recebida",
+            "title": "Mídia",
             "tab_albums": "Álbuns",
-            "tab_media": "Mídia",
+            "tab_received": "Recebidas",
+            "tab_sent": "Enviadas",
             "albums_empty_title": "Nenhum álbum compartilhado ainda",
             "albums_empty_desc": "Álbuns compartilhados com você aparecerão aqui",
-            "media_empty_title": "Nenhuma mídia recebida ainda",
-            "media_empty_desc": "Fotos enviadas para você aparecerão aqui"
+            "received_empty_title": "Nenhuma mídia recebida ainda",
+            "received_empty_desc": "Fotos enviadas para você aparecerão aqui",
+            "sent_empty_title": "Nenhuma mídia enviada ainda",
+            "sent_empty_desc": "Fotos que você enviar aparecerão aqui"
         },
         "delete_conversation": "Apagar conversa",
         "delete_conversation_in_progress": "Apagando conversa...",
@@ -860,7 +881,18 @@
         },
         "drawer_unavailable": "Envie uma mensagem primeiro para usar o menu",
         "share_location_label": "Compartilhar localização",
-        "share_location_confirm": "Compartilhar este local?"
+        "share_location_confirm": "Compartilhar este local?",
+        "filter": {
+            "state_all": "Mostrar todos",
+            "state_hide": "Ocultar",
+            "state_only": "Somente"
+        },
+        "hidden": {
+            "filter_label": "Ocultas"
+        },
+        "archived": {
+            "filter_label": "Arquivadas"
+        }
     },
     "profile_details": {
         "title": "Detalhes do perfil",
@@ -1117,7 +1149,9 @@
             "load_visiting_mode": "Falha ao carregar o modo de perfil",
             "invalid_visiting_mode_response": "Resposta do modo de perfil inválida",
             "save_visiting_mode": "Falha ao salvar o modo de perfil",
-            "session_right_now": "Falha ao iniciar a sessão"
+            "session_right_now": "Falha ao iniciar a sessão",
+            "load_tags": "Falha ao carregar as etiquetas",
+            "invalid_tags_response": "Resposta de etiquetas inválida"
         }
     },
     "errors": {
@@ -1263,5 +1297,20 @@
         "cancel": "Cancelar",
         "save": "Salvar",
         "edit": "Editar"
+    },
+    "privacy": {
+        "read_receipts_grid_unread_note": "Com as confirmações de leitura desativadas, não há como informar ao servidor que você leu uma mensagem — então uma conversa ainda pode aparecer como não lida no Grid, mesmo depois de você tê-la lido ou excluído."
+    },
+    "grid": {
+        "open_profile_by_id": "Abrir perfil por ID"
+    },
+    "test_reminder": {
+        "title": "Hora de um teste?",
+        "description": "Já se passaram mais de 3 meses desde o seu último teste. Escolha quando foi seu último teste, ou atualize depois no seu perfil.",
+        "save": "Salvar",
+        "saving": "Salvando...",
+        "skip": "Pular por agora",
+        "saved": "Data do teste atualizada",
+        "save_failed": "Não foi possível atualizar a data do teste."
     }
 }

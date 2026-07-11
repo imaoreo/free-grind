@@ -1504,6 +1504,7 @@ dependencies = [
  "tauri-plugin-geolocation",
  "tauri-plugin-hotswap",
  "tauri-plugin-http",
+ "tauri-plugin-ios-keyboard-fix",
  "tauri-plugin-ios-photos",
  "tauri-plugin-notification",
  "tauri-plugin-opener",
@@ -5729,6 +5730,15 @@ dependencies = [
  "tokio",
  "url",
  "urlpattern",
+]
+
+[[package]]
+name = "tauri-plugin-ios-keyboard-fix"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

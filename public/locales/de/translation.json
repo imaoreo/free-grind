@@ -15,7 +15,7 @@
         "privacy": "Privatsphäre & Analytics",
         "privacy_desc": "Lesebestätigungen, Profilaufrufe, Medien-Blur und Analytics.",
         "automation": "Automation",
-        "automation_desc": "Konfiguriere automatische Blockierregeln und Grid-Aktualisierungen.",
+        "automation_desc": "Baue eigene Chat-Automatisierungsregeln, verwalte deine Forbidden-Keywords-Liste und konfiguriere die automatische Grid-Aktualisierung.",
         "report_issue": "Fehler oder Feature melden",
         "report_issue_desc": "Sende Fehlermeldungen und Feature-Wünsche an das Team.",
         "about": "Über Free Grind",
@@ -47,7 +47,7 @@
         "apply_to_inbox": "Auf Posteingang anwenden",
         "apply_to_inbox_desc": "Blockiert sofort neue Chats, die deinen Kriterien entsprechen.",
         "forbidden_keywords_title": "Verbotene Schlüsselwörter",
-        "forbidden_keywords_desc": "Blockiere Profile oder Nachrichten, die diese Wörter enthalten. Trenne sie mit Kommas (z.B. Snapchat, Krypto, Bot).",
+        "forbidden_keywords_desc": "Eine gemeinsame Wortliste — mit Kommas trennen (z.B. Snapchat, Krypto, Bot). Sie blockiert für sich genommen nichts; nutze sie als Keyword-Quelle (\"Forbidden Keywords\") in einer Automatisierungs-Bedingung, um eine Regel zu bauen, die Bio, Nachrichten oder Anzeigenamen dagegen prüft.",
         "keywords_placeholder": "Schlüsselwörter hier eingeben...",
         "export_txt": "Exportieren (.txt)",
         "import_txt": "Importieren (.txt)",
@@ -55,8 +55,8 @@
         "keywords_exported": "Schlüsselwörter exportiert!",
         "age_limits_title": "Altersgrenzen",
         "age_limits_desc": "Blockiere jeden außerhalb dieses Altersbereichs.",
-        "update_block_rules": "Blockierregeln aktualisieren",
-        "block_rules_updated": "Auto-Block-Regeln aktualisiert!",
+        "update_block_rules": "Keyword-Liste speichern",
+        "block_rules_updated": "Keyword-Liste aktualisiert!",
         "auto_refresh_title": "Automatische Grid-Aktualisierung",
         "auto_refresh_desc": "Halte deine Sitzung aktiv und deinen Standort aktuell, indem das Grid automatisch aktualisiert wird. Du musst dich dafür am Grid befinden.",
         "enable_refresh": "Aktualisierung aktivieren",
@@ -69,7 +69,99 @@
         "chat_block_enabled": "Posteingang Auto-Block aktiviert",
         "chat_block_disabled": "Posteingang Auto-Block deaktiviert",
         "auto_refresh_enabled": "Auto-Refresh aktiviert",
-        "auto_refresh_disabled": "Auto-Refresh deaktiviert"
+        "auto_refresh_disabled": "Auto-Refresh deaktiviert",
+        "custom_rules_title": "Automatisierungsregeln",
+        "custom_rules_desc": "Erstelle eigene „Wenn X dann Y“-Regeln für die erste Nachricht eines neuen Kontakts – prüfe den Absender und blockiere, antworte oder teile automatisch ein Album. Jede Regel läuft einmalig pro neuem Chat.",
+        "add_rule": "Regel hinzufügen",
+        "no_rules_yet": "Noch keine eigenen Automatisierungen. Füge eine hinzu, um loszulegen.",
+        "unnamed_rule": "Unbenannte Regel",
+        "rule_when": "Wenn: ",
+        "edit_rule": "Regel bearbeiten",
+        "delete_rule": "Regel löschen",
+        "delete_rule_confirm": "Diese Automatisierung wird endgültig gelöscht.",
+        "rule_saved": "Automatisierung gespeichert!",
+        "rule_deleted": "Automatisierung gelöscht.",
+        "rule_needs_action": "Füge mindestens eine Aktion hinzu, bevor du speicherst.",
+        "action_needs_message_text": "Gib eine zu sendende Nachricht ein, bevor du speicherst.",
+        "rule_name_placeholder": "Name für diese Automatisierung",
+        "trigger_label": "Wenn (Auslöser)",
+        "conditions_label": "Falls (Bedingungen)",
+        "rule_no_conditions": "immer",
+        "add_condition": "Bedingung hinzufügen...",
+        "condition_no_profile_picture": "Absender hat kein Profilbild",
+        "condition_has_profile_picture": "Absender hat ein Profilbild",
+        "condition_age_above": "Absender ist älter als",
+        "condition_age_below": "Absender ist jünger als",
+        "actions_label": "Dann (Aktionen)",
+        "add_action": "Aktion hinzufügen...",
+        "action_block": "Absender blockieren",
+        "action_send_message": "Nachricht senden",
+        "action_send_message_placeholder": "Nachrichtentext eingeben...",
+        "action_share_album": "Album teilen",
+        "no_albums_hint": "Du hast noch keine Alben.",
+        "save_rule": "Regel speichern",
+        "cancel": "Abbrechen",
+        "loading_rules": "Automatisierungen werden geladen…",
+        "condition_profile_picture": "Profilbild",
+        "rule_trigger_new_chat": "Neuer Chat gestartet",
+        "rule_when_label": "Wenn ein beliebiger Trigger",
+        "rule_then_label": "Dann",
+        "rule_and_label": "und",
+        "rule_trigger_tap_received": "Tap erhalten",
+        "rule_trigger_message_received": "Nachricht erhalten",
+        "condition_bio_contains_keyword": "Bio enthält Keyword",
+        "condition_bio_not_contains_keyword": "Bio enthält Keyword nicht",
+        "condition_message_contains_keyword": "Nachricht enthält Keyword",
+        "condition_message_not_contains_keyword": "Nachricht enthält Keyword nicht",
+        "condition_keywords_placeholder": "Keywords, mit Komma getrennt...",
+        "match_mode_all": "Alle",
+        "match_mode_any": "Eine",
+        "rule_or_label": "oder",
+        "locked_rule": "Fest",
+        "locked_rule_hint": "Diese Automatisierung ersetzt eine feste App-Funktion und kann nicht gelöscht, nur bearbeitet oder deaktiviert werden.",
+        "default_age_rule_name": "Altersbegrenzung",
+        "keyword_source_custom": "Eigene",
+        "keyword_source_forbidden": "Forbidden Keywords",
+        "keyword_source_forbidden_hint": "Nutzt die Keyword-Liste aus dem Forbidden-Keywords-Bereich in Einstellungen > Automatisierungen.",
+        "default_keywords_rule_name": "Verbotene Keywords",
+        "condition_display_name_contains_keyword": "Anzeigename enthält Keyword",
+        "condition_display_name_not_contains_keyword": "Anzeigename enthält Keyword nicht",
+        "condition_short_bio_contains_keyword": "Bio enthält",
+        "condition_short_message_contains_keyword": "Nachricht enthält",
+        "condition_short_display_name_contains_keyword": "Anzeigename enthält",
+        "experimental_badge": "Experimentell",
+        "conditions_label_all": "Falls jede Bedingung",
+        "conditions_label_any": "Falls eine Bedingung",
+        "rule_trigger_noun": "Trigger",
+        "rule_condition_noun": "Bedingung",
+        "rule_action_noun": "Aktion",
+        "rule_needs_name": "Gib der Automatisierung einen Namen, bevor du speicherst.",
+        "phrase_when": "Wenn",
+        "phrase_then": "dann",
+        "trigger_phrase_new_chat": "ein neuer Chat startet",
+        "trigger_phrase_tap_received": "ein Tap eingeht",
+        "trigger_phrase_message_received": "eine Nachricht eingeht",
+        "phrase_has_profile_picture": "der Absender ein Profilbild hat",
+        "phrase_no_profile_picture": "der Absender kein Profilbild hat",
+        "phrase_age_above": "der Absender älter als {{value}} ist",
+        "phrase_age_below": "der Absender jünger als {{value}} ist",
+        "action_phrase_block": "den Absender blockieren",
+        "action_phrase_send_message": "dem Absender eine Nachricht senden",
+        "action_phrase_share_album": "ein Album mit dem Absender teilen",
+        "rule_type_builtin": "Feste Regel",
+        "rule_type_custom": "Eigene Regel",
+        "phrase_bio_prefix": "die Bio",
+        "phrase_bio_suffix": "enthält",
+        "phrase_bio_prefix_not": "die Bio",
+        "phrase_bio_suffix_not": "nicht enthält",
+        "phrase_message_prefix": "die Nachricht",
+        "phrase_message_suffix": "enthält",
+        "phrase_message_prefix_not": "die Nachricht",
+        "phrase_message_suffix_not": "nicht enthält",
+        "phrase_display_name_prefix": "der Anzeigename",
+        "phrase_display_name_suffix": "enthält",
+        "phrase_display_name_prefix_not": "der Anzeigename",
+        "phrase_display_name_suffix_not": "nicht enthält"
     },
     "shared_albums": {
         "title": "Geteilte Alben",
@@ -263,7 +355,11 @@
         "start_explore": "Explore starten",
         "stop_explore": "Explore beenden",
         "exploring_badge": "Exploring",
-        "exploring_label": "Exploring: {{label}}"
+        "exploring_label": "Exploring: {{label}}",
+        "set_as_home": "Als Zuhause festlegen",
+        "home_location_label": "Zuhause",
+        "home_updated_toast": "Heimatort aktualisiert",
+        "home_update_failed": "Heimatort konnte nicht aktualisiert werden"
     },
     "nav": {
         "browse": "Durchsuchen",
@@ -318,7 +414,8 @@
             "tap_limit": "Du hast dieses Profil in den letzten 24 Stunden bereits angetippt",
             "tap_mutual": "Tap gesendet. Es beruht auf Gegenseitigkeit.",
             "tap_sent": "Tap gesendet",
-            "tap_failed": "Fehler beim Senden des Taps"
+            "tap_failed": "Fehler beim Senden des Taps",
+            "tag_filter_applied": "Nach Tag „{{tag}}“ gefiltert"
         },
         "chatted": "Chatted"
     },
@@ -330,7 +427,8 @@
         "options": {
             "unread": "Ungelesen",
             "chemistry": "Chemie"
-        }
+        },
+        "visibility": "Sichtbarkeit"
     },
     "about_page": {
         "badge": "Über Free Grind",
@@ -383,7 +481,7 @@
         "limit_reached": "Du hast dein Albenlimit für den aktuellen Tarif erreicht.",
         "limit_reached_toast": "Du hast dein aktuelles Albenlimit erreicht. Upgrade dein Konto, um mehr Alben zu erstellen.",
         "your_albums": "Deine Alben",
-        "untitled": "Unbenanntes Album",
+        "untitled": "Mein Album",
         "album_id": "Album-ID: {{id}}",
         "loading": "Lade Alben",
         "loading_desc": "Lade deine Albensammlung und Tariflimits.",
@@ -410,12 +508,18 @@
         "no_media": "Noch keine Medien in diesem Album.",
         "media_alt": "Albummedium {{index}}",
         "cancel_delete_content": "Löschen abbrechen",
+        "add_from_drawer": "Aus Ablage hinzufügen",
+        "drawer_picker_title": "Medien auswählen",
+        "drawer_empty": "Noch keine Medien in deiner Ablage.",
+        "add_to_album_button": "Zum Album hinzufügen",
         "toast_created": "Album erstellt",
         "toast_renamed": "Album umbenannt",
         "toast_deleted": "Album gelöscht",
         "toast_picture_added_one": "Bild hinzugefügt",
         "toast_picture_added_other": "Bilder hinzugefügt",
         "toast_picture_removed": "Bild entfernt",
+        "toast_added_from_drawer_one": "Medium hinzugefügt",
+        "toast_added_from_drawer_other": "{{count}} Medien hinzugefügt",
         "error_load_fallback": "Alben konnten nicht geladen werden",
         "error_create_fallback": "Album konnte nicht erstellt werden",
         "error_rename_fallback": "Album konnte nicht umbenannt werden",
@@ -463,8 +567,8 @@
                 "about_me": "Über mich",
                 "about_me_placeholder": "Bis zu 255 Zeichen",
                 "my_tags": "Meine Tags",
-                "my_tags_placeholder": "Schlüsselwörter, durch Kommas getrennt",
-                "no_tags_added": "Noch keine Tags hinzugefügt."
+                "my_tags_manage": "Tags verwalten",
+                "no_tags_added": "Tags hinzufügen"
             },
             "visiting_mode": {
                 "title": "Modus",
@@ -523,9 +627,13 @@
             },
             "identity": {
                 "title": "Identität",
-                "description": "Verwaltete Identitätsfelder",
+                "description": "Geschlecht und Pronomen",
                 "gender": "Geschlecht",
                 "gender_unavailable": "Geschlechtsoptionen sind momentan nicht verfügbar.",
+                "gender_more": "Weitere Geschlechter",
+                "gender_dialog_title": "Geschlechter auswählen",
+                "gender_search_placeholder": "Geschlechter suchen...",
+                "gender_no_matches": "Keine Geschlechter gefunden.",
                 "pronouns": "Pronomen",
                 "pronouns_unavailable": "Pronomenoptionen sind momentan nicht verfügbar."
             },
@@ -535,7 +643,10 @@
                 "hiv_status": "HIV-Status",
                 "last_tested": "Zuletzt getestet",
                 "health_practices": "Gesundheitspraktiken",
-                "vaccinations": "Impfungen"
+                "vaccinations": "Impfungen",
+                "test_reminder": "Dein letzter Test liegt über 3 Monate zurück — Zeit für einen neuen Test.",
+                "test_reminder_toggle": "Test-Erinnerung",
+                "test_reminder_toggle_desc": "Zeigt eine Erinnerung an, wenn dein letzter Test schon eine Weile zurückliegt."
             },
             "social": {
                 "title": "Soziales",
@@ -575,7 +686,15 @@
         },
         "errors": {
             "display_name_length": "Der Anzeigename darf nicht länger als 15 Zeichen sein.",
-            "about_me_length": "Über mich muss unter 255 Zeichen bleiben."
+            "about_me_length": "Über mich muss unter 255 Zeichen bleiben.",
+            "max_selection": "Du kannst maximal {{count}} auswählen."
+        },
+        "tags_dialog": {
+            "title": "Tags auswählen",
+            "unavailable": "Tags sind gerade nicht verfügbar.",
+            "see_more": "{{count}} weitere anzeigen",
+            "search_placeholder": "Tags suchen...",
+            "no_matches": "Keine Tags gefunden."
         }
     },
     "privacy": {
@@ -588,7 +707,8 @@
         "read_receipts_hidden_badge": "Lesebestätigungen für diesen Chat versteckt",
         "profile_views": "Profilaufrufe",
         "record_profile_views": "Profilaufrufe aufzeichnen",
-        "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern."
+        "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern.",
+        "read_receipts_grid_unread_note": "Wenn Lesebestätigungen deaktiviert sind, kann der Server nicht wissen, dass du eine Nachricht gelesen hast — ein Chat kann daher im Grid weiterhin als ungelesen angezeigt werden, selbst nachdem du ihn gelesen oder gelöscht hast."
     },
     "customizability": {
         "subtitle": "Personalisiere das Aussehen der App.",
@@ -730,6 +850,41 @@
             "inbox": "Posteingang",
             "albums": "Alben"
         },
+        "slash_commands": {
+            "block": {
+                "description": "Blockiert ein Profil. Nutzt den aktuellen Chat, falls keine ID angegeben ist."
+            },
+            "unblock": {
+                "description": "Entblockiert ein Profil. Nutzt den aktuellen Chat, falls keine ID angegeben ist."
+            },
+            "open": {
+                "description": "Öffnet ein Profil. Nutzt den aktuellen Chat, falls keine ID angegeben ist."
+            },
+            "chat": {
+                "description": "Öffnet einen Chat mit der angegebenen ID."
+            },
+            "clear": {
+                "description": "Leert diesen Chat, indem das Profil blockiert und wieder entblockiert wird."
+            },
+            "mute": {
+                "description": "Schaltet den Stummschaltungs-Status um."
+            },
+            "pin": {
+                "description": "Schaltet den Pin-Status um."
+            },
+            "favourite": {
+                "description": "Schaltet den Favoriten-Status um."
+            },
+            "id": {
+                "description": "Zeigt die interne ID des aktuellen Chatpartners an.",
+                "result": "Profil-ID: {{id}}"
+            },
+            "errors": {
+                "no_target": "Öffne einen Chat oder gib eine ID an",
+                "no_chat_id": "Gib eine Chat-ID an",
+                "no_conversation": "Öffne zuerst einen Chat"
+            }
+        },
         "your_conversations": "Deine Konversationen",
         "pinned": "Angepinnt",
         "muted": "Stummgeschaltet",
@@ -815,7 +970,9 @@
         "loading_album": "Album wird geladen...",
         "time": {
             "one_min_ago": "vor 1 Min",
-            "mins_ago": "vor {{count}} Min"
+            "mins_ago": "vor {{count}} Min",
+            "now": "Jetzt",
+            "last_week": "Letzte Woche"
         },
         "preview": {
             "sent_image": "Hat ein Bild gesendet",
@@ -846,6 +1003,7 @@
             "shared_image": "Hat ein Bild geteilt",
             "shared_gif": "Hat ein GIF geteilt",
             "shared_video": "Hat ein Video geteilt",
+            "image_expired": "Abgelaufen",
             "video_expired": "Abgelaufen",
             "shared_audio": "Hat eine Sprachnachricht geteilt",
             "location_shared": "Standort geteilt",
@@ -857,7 +1015,11 @@
             "album_share": "Album-Freigabe",
             "album_image": "Album-Bild",
             "replied_to_photo": "Auf dein Profilbild geantwortet",
-            "reacted_to_image": "Auf dein Album-Bild reagiert"
+            "replied_to_photo_theirs": "Du hast auf ihr Profilbild geantwortet",
+            "reacted_to_image": "Auf dein Album-Bild reagiert",
+            "audio_label": "Audio",
+            "unsupported_message": "Nicht unterstützte Nachricht",
+            "unsupported_message_description": "Dieser Nachrichtentyp wird in dieser App-Version noch nicht unterstützt."
         },
         "actions": {
             "title": "Nachrichten-Aktionen",
@@ -869,7 +1031,22 @@
             "add_to_saved_phrases": "Zu gespeicherten Sätzen hinzufügen",
             "added_to_saved_phrases": "Zu gespeicherten Sätzen hinzugefügt",
             "open_media": "Medien öffnen",
-            "download_media": "Medien herunterladen"
+            "download_media": "Medien herunterladen",
+            "download": "Herunterladen",
+            "stop_sharing": "Freigabe beenden",
+            "ban_word": "Wort verbannen",
+            "ban_word_prompt": "Kürze diese Nachricht auf das konkrete Schlüsselwort, das du verbannen möchtest:",
+            "ban_word_added": "\"{{word}}\" zu den verbotenen Schlüsselwörtern hinzugefügt!"
+        },
+        "system": {
+            "blocked_by_self": "Du hast diese Person blockiert",
+            "blocked": "Du wurdest blockiert",
+            "unblocked_by_self": "Du hast diese Person entblockiert",
+            "unblocked": "Du wurdest entblockiert"
+        },
+        "block_toast": {
+            "blocked_by_other": "{{name}} hat dich blockiert",
+            "unblocked_by_other": "{{name}} hat dich entblockiert"
         },
         "realtime": {
             "connected": "Verbunden",
@@ -916,6 +1093,7 @@
             "rate_limited": "Zu schnelles Senden. Bitte kurz warten.",
             "attachment_upload_send_failed": "Hochladen/Senden des Anhangs fehlgeschlagen",
             "reupload_image": "Bitte lade dieses Bild erneut hoch.",
+            "reupload_video": "Bitte lade dieses Video erneut hoch.",
             "react_failed": "Reaktion fehlgeschlagen",
             "unsend_failed": "Zurückziehen fehlgeschlagen",
             "delete_failed": "Löschen fehlgeschlagen",
@@ -941,7 +1119,10 @@
             "copied": "In die Zwischenablage kopiert",
             "album_shared": "Album geteilt",
             "media_sent": "Medien gesendet",
-            "conversation_deleted": "Konversation gelöscht"
+            "conversation_deleted": "Konversation gelöscht",
+            "album_reaction_sent": "Reaktion gesendet",
+            "album_reply_sent": "Antwort gesendet",
+            "album_share_stopped": "Album-Freigabe beendet."
         },
         "new_conversation": {
             "title": "Neue Konversation",
@@ -951,13 +1132,27 @@
             "send_first_message_hint": "Sende eine Nachricht um den Chat zu starten."
         },
         "media_sheet": {
-            "title": "Empfangene Medien",
+            "title": "Medien",
             "tab_albums": "Alben",
-            "tab_media": "Medien",
+            "tab_received": "Empfangen",
+            "tab_sent": "Gesendet",
             "albums_empty_title": "Noch keine Alben geteilt",
             "albums_empty_desc": "Mit dir geteilte Alben erscheinen hier",
-            "media_empty_title": "Noch keine Medien empfangen",
-            "media_empty_desc": "Dir gesendete Fotos erscheinen hier"
+            "received_empty_title": "Noch keine Medien empfangen",
+            "received_empty_desc": "Dir gesendete Fotos erscheinen hier",
+            "sent_empty_title": "Noch keine Medien gesendet",
+            "sent_empty_desc": "Von dir gesendete Fotos erscheinen hier"
+        },
+        "filter": {
+            "state_all": "Alle anzeigen",
+            "state_hide": "Ausblenden",
+            "state_only": "Nur"
+        },
+        "hidden": {
+            "filter_label": "Versteckt"
+        },
+        "archived": {
+            "filter_label": "Archiviert"
         }
     },
     "chat_drawer": {
@@ -1011,6 +1206,12 @@
         "profile_fallback": "Profil {{id}}",
         "last_online": "zuletzt online {{value}}",
         "close_photo_viewer": "Fotobetrachter schließen",
+        "save_to_gallery": "In Fotos speichern",
+        "save_to_gallery_success": "In deiner Fotobibliothek gespeichert",
+        "save_to_gallery_error": "Speichern in der Fotobibliothek fehlgeschlagen",
+        "save_to_gallery_unsupported": "Speichern in Fotos wird auf diesem Gerät nicht unterstützt",
+        "save_to_downloads_success": "Im Downloads-Ordner gespeichert",
+        "save_to_downloads_error": "Speichern im Downloads-Ordner fehlgeschlagen",
         "previous_photo": "Vorheriges Foto",
         "next_photo": "Nächstes Foto",
         "photo_alt": "Foto von {{name}}",
@@ -1256,6 +1457,8 @@
             "load_visiting_mode": "Profilmodus konnte nicht geladen werden",
             "invalid_visiting_mode_response": "Ungültige Antwort für Profilmodus",
             "save_visiting_mode": "Profilmodus konnte nicht gespeichert werden",
+            "load_home_location": "Heimatort konnte nicht geladen werden",
+            "save_home_location": "Heimatort konnte nicht gespeichert werden",
             "load_travel_plans": "Reisepläne konnten nicht geladen werden",
             "save_travel_plan": "Reiseplan konnte nicht gespeichert werden",
             "delete_travel_plan": "Reiseplan konnte nicht gelöscht werden",
@@ -1270,7 +1473,9 @@
             "enrollment_failed": "Registrierung fehlgeschlagen",
             "document_failed": "Dokumentenprüfung fehlgeschlagen",
             "load_right_now": "Right Now Feed konnte nicht geladen werden",
-            "session_right_now": "Session konnte nicht gestartet werden"
+            "session_right_now": "Session konnte nicht gestartet werden",
+            "load_tags": "Tags konnten nicht geladen werden",
+            "invalid_tags_response": "Ungültige Antwort für Tags"
         }
     },
     "errors": {
@@ -1328,5 +1533,17 @@
         "cancel": "Abbrechen",
         "save": "Speichern",
         "edit": "Bearbeiten"
+    },
+    "grid": {
+        "open_profile_by_id": "Profil per ID öffnen"
+    },
+    "test_reminder": {
+        "title": "Zeit für einen Test?",
+        "description": "Dein letzter Test liegt über 3 Monate zurück. Wähle, wann du zuletzt getestet wurdest, oder aktualisiere es später im Profil.",
+        "save": "Speichern",
+        "saving": "Wird gespeichert...",
+        "skip": "Erstmal überspringen",
+        "saved": "Testdatum aktualisiert",
+        "save_failed": "Testdatum konnte nicht aktualisiert werden."
     }
 }

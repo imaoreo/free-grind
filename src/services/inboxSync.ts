@@ -17,13 +17,33 @@
  * between, so it never competes with the foreground chat UI (or the
  * server's rate limits) while the user is actively using the app. All
  * writes go through chatDb's normal idempotent upserts, so if the app
- * closes mid-sync nothing is corrupted — an interrupted first-ever run
- * simply retries in full next launch, since only a completed one persists
- * the "done" flag.
+ * closes mid-sync nothing is corrupted.
+ *
+ * The initial full walk itself is resumable too: after each page is fully
+ * processed, the next page number is checkpointed (inboxSyncResumePageV1),
+ * so an app restart partway through page 40 of 100 continues at page 40
+ * next launch instead of re-walking 1..40 again. The checkpoint is only
+ * meaningful before the "done" flag is set — it's reset once the full walk
+ * completes, since incremental runs already stop early on their own (see
+ * pageHadChange below).
+ *
+ * The "done" flag only covers the conversation-list walk, not individual
+ * message fetches — each conversation row also tracks the
+ * lastActivityTimestamp it last had its messages fetched at
+ * (messagesSyncedActivityTimestamp, set via chatDb.markConversationMessagesSynced
+ * only on a successful fetch). A conversation is re-enqueued for message
+ * fetching whenever that doesn't match its current lastActivityTimestamp —
+ * whether because it's genuinely new/updated, or because a prior run was
+ * interrupted before ever fetching its messages. So an interrupted
+ * first-ever run (e.g. the app closed partway through 1800 conversations)
+ * resumes on next launch by skipping every conversation already fetched and
+ * picking up only where it left off, rather than restarting the multi-hour
+ * message-fetch pass from scratch.
  */
 
 import type { createApiFunctions } from "./apiFunctions";
 import * as chatDb from "./chatDb";
+import * as chatLog from "./chatLog";
 import { upsertChatContactIndexFromInbox } from "./chatContactIndex";
 import { getOtherParticipant } from "../pages/app/chat/chatUtils";
 import { appLog } from "../utils/logger";
@@ -36,6 +56,12 @@ import type { Message } from "../types/messages";
 type ApiFunctions = ReturnType<typeof createApiFunctions>;
 
 const INBOX_SYNC_DONE_SETTING_KEY = "inboxSyncCompletedV1";
+// Only meaningful while the initial full walk (hasCompletedFullSync === false)
+// hasn't finished yet — the page to resume the list-walk from next time,
+// so an app restart partway through page 40 of 100 continues at 40 instead
+// of re-walking 1..40 again. Irrelevant once hasCompletedFullSync is true,
+// since incremental runs already stop early via the pageHadChange check.
+const INBOX_SYNC_RESUME_PAGE_SETTING_KEY = "inboxSyncResumePageV1";
 const PAGE_DELAY_MS = 400;
 const MESSAGE_FETCH_DELAY_MS = 2_500;
 
@@ -84,24 +110,6 @@ export function subscribeInboxSyncStatus(listener: () => void): () => void {
 	};
 }
 
-/**
- * Whether it's currently safe to page further through chatDb instead of the
- * live `/v4/inbox` endpoint (e.g. ChatPage's "load more" pagination).
- *
- * Deliberately checks the *live* in-memory status, not just "has this
- * profile ever finished a full sync" — a profile can be fully synced from a
- * prior session and still be mid-catch-up right now (e.g. the app sat
- * closed long enough that several pages' worth of new/changed conversations
- * piled up server-side; runInboxSync walks through all of them before
- * settling, not just the first page). Scrolling to load more *during* that
- * catch-up would otherwise serve an incomplete batch straight from a chatDb
- * that hasn't caught up yet. Only once this session's run has actually
- * settled to "done" is chatDb guaranteed current.
- */
-export function isSafeToPageInboxLocally(userId: number | null): boolean {
-	return getInboxSyncStatus(userId).phase === "done";
-}
-
 // Bumped every time a new sync starts, invalidating whatever run came before
 // it — guards against a still-running sync from a previous profile writing
 // into the newly active one after a fast account switch (chatDb always
@@ -146,13 +154,20 @@ async function doSync(
 			return;
 		}
 
-		appLog.info("[inbox-sync] starting sync", { userId, hasCompletedFullSync });
+		const resumePage = hasCompletedFullSync
+			? null
+			: await chatDb.getSetting<number>(INBOX_SYNC_RESUME_PAGE_SETTING_KEY);
+		if (isStale()) {
+			return;
+		}
+
+		appLog.info("[inbox-sync] starting sync", { userId, hasCompletedFullSync, resumePage });
 		setStatus(userId, { phase: "syncing_list", conversationsSoFar: 0, changedSoFar: 0 });
 
 		let conversationsSeen = 0;
-		const changedConversationIds: string[] = [];
+		const changedConversations: { conversationId: string; lastActivityTimestamp: number | null }[] = [];
 
-		let page: number | null = 1;
+		let page: number | null = resumePage ?? 1;
 		while (page != null) {
 			if (isStale()) {
 				return;
@@ -189,8 +204,15 @@ async function doSync(
 				}
 
 				const existing = await chatDb.getConversation(entry.data.conversationId).catch(() => null);
+				// "Changed" means either the metadata moved, or messages were never
+				// actually fetched for the conversation's current state — the
+				// latter is what makes a sync interrupted mid-message-fetch resume
+				// correctly instead of silently skipping conversations whose row
+				// got upserted but whose messages never landed.
 				const isNewOrChanged =
-					!existing || existing.entry.data.lastActivityTimestamp !== entry.data.lastActivityTimestamp;
+					!existing ||
+					existing.entry.data.lastActivityTimestamp !== entry.data.lastActivityTimestamp ||
+					existing.messagesSyncedActivityTimestamp !== entry.data.lastActivityTimestamp;
 
 				const other = getOtherParticipant(entry, userId);
 				await chatDb
@@ -221,7 +243,10 @@ async function doSync(
 				conversationsSeen += 1;
 				if (isNewOrChanged) {
 					pageHadChange = true;
-					changedConversationIds.push(entry.data.conversationId);
+					changedConversations.push({
+						conversationId: entry.data.conversationId,
+						lastActivityTimestamp: entry.data.lastActivityTimestamp ?? null,
+					});
 				}
 			}
 			if (reappearedMessages.length > 0 && typeof window !== "undefined") {
@@ -232,7 +257,7 @@ async function doSync(
 			setStatus(userId, {
 				phase: "syncing_list",
 				conversationsSoFar: conversationsSeen,
-				changedSoFar: changedConversationIds.length,
+				changedSoFar: changedConversations.length,
 			});
 
 			if (response.entries.length === 0) {
@@ -251,26 +276,42 @@ async function doSync(
 			if (page == null) {
 				break;
 			}
+			if (!hasCompletedFullSync) {
+				await chatDb.setSetting(INBOX_SYNC_RESUME_PAGE_SETTING_KEY, page);
+			}
 			await sleep(PAGE_DELAY_MS);
 		}
 
 		appLog.info("[inbox-sync] chat list sync complete, fetching latest messages", {
 			userId,
 			conversationsSeen,
-			changed: changedConversationIds.length,
+			changed: changedConversations.length,
 		});
-		setStatus(userId, { phase: "syncing_messages", completed: 0, total: changedConversationIds.length });
+		setStatus(userId, { phase: "syncing_messages", completed: 0, total: changedConversations.length });
 
-		for (let i = 0; i < changedConversationIds.length; i += 1) {
+		for (let i = 0; i < changedConversations.length; i += 1) {
 			if (isStale()) {
 				return;
 			}
-			const conversationId = changedConversationIds[i];
+			const { conversationId, lastActivityTimestamp } = changedConversations[i];
 			try {
 				const response = await apiFunctions.listMessages({ conversationId });
 				if (response.messages.length > 0) {
-					await chatDb.upsertMessages(conversationId, response.messages);
+					// chatLog.appendMessages (not chatDb.upsertMessages directly) —
+					// it merges against whatever's already stored instead of blindly
+					// overwriting, which matters a lot here: if a message was unsent
+					// after we last cached it, the server now reports it with an
+					// empty body, and upsertMessages' unconditional
+					// body_json = excluded.body_json would permanently null out the
+					// real content we'd preserved. appendMessages keeps the cached
+					// body and just flags the row unsent/local_history instead.
+					await chatLog.appendMessages(conversationId, response.messages);
 				}
+				// Only recorded on success — a failed fetch leaves this
+				// conversation looking "not yet synced" so the next run (whether
+				// that's a retry moments later or after the app was closed and
+				// reopened) picks it back up instead of silently giving up on it.
+				await chatDb.markConversationMessagesSynced(conversationId, lastActivityTimestamp);
 			} catch (error) {
 				appLog.warn("[inbox-sync] failed to fetch/persist latest messages", {
 					conversationId,
@@ -280,7 +321,7 @@ async function doSync(
 			setStatus(userId, {
 				phase: "syncing_messages",
 				completed: i + 1,
-				total: changedConversationIds.length,
+				total: changedConversations.length,
 			});
 			await sleep(MESSAGE_FETCH_DELAY_MS);
 		}
@@ -288,6 +329,7 @@ async function doSync(
 		if (!isStale()) {
 			if (!hasCompletedFullSync) {
 				await chatDb.setSetting(INBOX_SYNC_DONE_SETTING_KEY, true);
+				await chatDb.setSetting(INBOX_SYNC_RESUME_PAGE_SETTING_KEY, 1);
 			}
 			const totalConversations = await chatDb
 				.listConversations({ includeArchived: true })
@@ -296,12 +338,12 @@ async function doSync(
 			setStatus(userId, {
 				phase: "done",
 				conversations: totalConversations,
-				changed: changedConversationIds.length,
+				changed: changedConversations.length,
 			});
 			appLog.info("[inbox-sync] sync finished", {
 				userId,
 				conversations: totalConversations,
-				changed: changedConversationIds.length,
+				changed: changedConversations.length,
 			});
 		}
 	} catch (error) {

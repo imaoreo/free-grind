@@ -122,19 +122,6 @@ export async function exportAllLogs(): Promise<Record<string, Message[]>> {
 }
 
 /**
- * Remove local history for one conversation (messages + last-read marker).
- * This is a manual, user-initiated wipe (e.g. "Clear local history") — the
- * conversation row itself (archive state, pinned/favorite, etc.) is untouched.
- */
-export async function clearLog(conversationId: string): Promise<void> {
-	try {
-		await chatDb.clearMessagesForConversation(conversationId);
-	} catch (error) {
-		appLog.error(`[chatLog] clearLog failed for ${conversationId}`, error);
-	}
-}
-
-/**
  * Remove a single message from local storage (e.g. after a successful
  * "delete message" — without this, the message would resurface on the next
  * load since the API merge treats anything missing from the response but

@@ -15,17 +15,13 @@ import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { validateMediaHash } from "../../utils/media";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
+import { loadBrowseFiltersDraft } from "./browse-filters-storage";
 import {
-	getCachedGenderOptions,
 	getCachedProfileDetail,
-	getCachedPronounOptions,
 	removeProfileFromBrowseCache,
-	setCachedGenderOptions,
 	setCachedProfileDetail,
-	setCachedPronounOptions,
 } from "./gridpage/cache";
 import {
-	type ManagedOption,
 	type ProfileDetail,
 } from "./GridPage.types";
 import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
@@ -304,6 +300,19 @@ export function GridProfilePage() {
 	const handleSendQuickMessage = async (targetProfileId: string, text: string) => {
 		try {
 			await apiFunctions.sendText({ targetProfileId: Number(targetProfileId), text });
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+		}
+	};
+
+	const handleSendProfilePhotoReply = async (targetProfileId: string, imageHash: string, text: string) => {
+		try {
+			await apiFunctions.sendMessage({
+				type: "ProfilePhotoReply",
+				target: { type: "Direct", targetId: Number(targetProfileId) },
+				body: { imageHash, photoContentReply: text },
+			});
+			toast.success(t("chat.toasts.photo_reply_sent", { defaultValue: "Reply sent" }));
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
 		}
@@ -618,6 +627,14 @@ export function GridProfilePage() {
         }
     };
 
+	const handleTagClick = async (tag: string) => {
+		const persistedDraft = await loadBrowseFiltersDraft();
+		navigate("/", {
+			state: { browseFiltersDraft: { ...persistedDraft, tags: [tag] } },
+		});
+		toast.success(t("browse_page.toasts.tag_filter_applied", { tag }));
+	};
+
 	return (
 		<>
 			<ProfileDetailsModal
@@ -629,7 +646,9 @@ export function GridProfilePage() {
 				onPrevProfile={handlePrevProfile}
 				onNextProfile={handleNextProfile}
 				onMessageProfile={handleMessageProfile}
+				onTagClick={handleTagClick}
 				onSendQuickMessage={handleSendQuickMessage}
+				onSendProfilePhotoReply={handleSendProfilePhotoReply}
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}

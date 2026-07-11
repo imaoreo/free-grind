@@ -258,7 +258,7 @@
                 "about_me": "",
                 "about_me_placeholder": "",
                 "my_tags": "",
-                "my_tags_placeholder": "",
+                "my_tags_manage": "",
                 "no_tags_added": ""
             },
             "visiting_mode": {
@@ -319,6 +319,10 @@
                 "description": "",
                 "gender": "",
                 "gender_unavailable": "",
+                "gender_more": "",
+                "gender_dialog_title": "",
+                "gender_search_placeholder": "",
+                "gender_no_matches": "",
                 "pronouns": "",
                 "pronouns_unavailable": ""
             },
@@ -328,7 +332,10 @@
                 "hiv_status": "",
                 "last_tested": "",
                 "health_practices": "",
-                "vaccinations": ""
+                "vaccinations": "",
+                "test_reminder": "",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "",
@@ -365,7 +372,15 @@
         },
         "errors": {
             "display_name_length": "",
-            "about_me_length": ""
+            "about_me_length": "",
+            "max_selection": ""
+        },
+        "tags_dialog": {
+            "title": "",
+            "unavailable": "",
+            "see_more": "",
+            "search_placeholder": "",
+            "no_matches": ""
         }
     },
     "browse_page": {
@@ -390,13 +405,16 @@
             "send_first_message_hint": ""
         },
         "media_sheet": {
-            "title": "Ontvangen media",
+            "title": "Media",
             "tab_albums": "Albums",
-            "tab_media": "Media",
+            "tab_received": "Ontvangen",
+            "tab_sent": "Verzonden",
             "albums_empty_title": "Nog geen albums gedeeld",
             "albums_empty_desc": "Albums die met jou zijn gedeeld verschijnen hier",
-            "media_empty_title": "Nog geen media ontvangen",
-            "media_empty_desc": "Foto's die naar jou zijn gestuurd verschijnen hier"
+            "received_empty_title": "Nog geen media ontvangen",
+            "received_empty_desc": "Foto's die naar jou zijn gestuurd verschijnen hier",
+            "sent_empty_title": "Nog geen media verzonden",
+            "sent_empty_desc": "Foto's die je verstuurt verschijnen hier"
         },
         "loading_albums": "",
         "loading_inbox": "",
@@ -487,6 +505,7 @@
             "album_share": "",
             "album_image": "",
             "replied_to_photo": "",
+            "replied_to_photo_theirs": "",
             "reacted_to_image": "",
             "shared_alt": ""
         },
@@ -544,7 +563,18 @@
             "cleared_local_history": "",
             "album_shared": ""
         },
-        "load_more": ""
+        "load_more": "",
+        "filter": {
+            "state_all": "Alles tonen",
+            "state_hide": "Verbergen",
+            "state_only": "Alleen"
+        },
+        "hidden": {
+            "filter_label": "Verborgen"
+        },
+        "archived": {
+            "filter_label": "Gearchiveerd"
+        }
     },
     "profile_details": {
         "loading": "",
@@ -651,7 +681,8 @@
         "options": {
             "unread": "",
             "chemistry": ""
-        }
+        },
+        "visibility": "Zichtbaarheid"
     },
     "interest_page": {
         "empty_views": "No views yet",
@@ -675,5 +706,20 @@
         "cancel": "Annuleren",
         "save": "Opslaan",
         "edit": "Bewerken"
+    },
+    "privacy": {
+        "read_receipts_grid_unread_note": "Als leesbevestigingen zijn uitgeschakeld, kan de server niet weten dat je een bericht hebt gelezen — een chat kan daardoor in het Grid nog steeds als ongelezen worden weergegeven, zelfs nadat je hem hebt gelezen of verwijderd."
+    },
+    "grid": {
+        "open_profile_by_id": "Profiel openen via ID"
+    },
+    "test_reminder": {
+        "title": "",
+        "description": "",
+        "save": "",
+        "saving": "",
+        "skip": "",
+        "saved": "",
+        "save_failed": ""
     }
 }

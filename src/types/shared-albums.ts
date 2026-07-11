@@ -16,6 +16,7 @@ export type AlbumViewer = {
 	albumName: string | null;
 	profileId: number;
 	profileName: string;
+	conversationId: string | null;
 	content: Array<{
 		contentId: number;
 		contentType: string | null;
@@ -25,3 +26,14 @@ export type AlbumViewer = {
 		processing: boolean;
 	}>;
 };
+
+/**
+ * Folder key for saved media: prefers conversationId, but that's only
+ * resolved by matching against the locally-cached conversation list (see
+ * SharedAlbumsPage.tsx/SharedAlbumsPanel.tsx), which can miss older/archived
+ * chats — falling back to profileId (always known) keeps saves out of a
+ * flat, unsplit folder in that case.
+ */
+export function albumViewerFolderKey(viewer: AlbumViewer): string {
+	return viewer.conversationId ?? `profile-${viewer.profileId}`;
+}

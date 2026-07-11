@@ -8,7 +8,7 @@ import {
 } from "../utils";
 import { cn } from "../../../../utils/cn";
 import { ProfileImage } from "../../../../components/ui/profile-image";
-import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
 import { usePresenceCheck } from "../../../../hooks/usePresenceCheck";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
@@ -152,11 +152,7 @@ export function BrowseCardTile({
 						)}
 
 						{usesFreegrind && !isFavorite && (
-							<img
-								src={freegrindLogo}
-								alt="FreeGrind"
-								className="h-5 w-5 rounded-full border-2 border-black/50 shadow-lg"
-							/>
+							<FreeGrindBadge size="md" variant="onDark" title={t("profile_details.uses_free_grind")} />
 						)}
 
 						{unreadCount > 0 ? (

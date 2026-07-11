@@ -24,7 +24,9 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
@@ -221,6 +223,33 @@ class MainActivity : TauriActivity() {
     }
     dispatchPendingPushNotifications()
     handleNotificationIntent(intent)
+    setupImeInsetsListener(webView)
+  }
+
+  private var lastDispatchedImeInsetPx = -1
+
+  private fun setupImeInsetsListener(webView: WebView) {
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+      val imeHeightPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+      if (imeHeightPx != lastDispatchedImeInsetPx) {
+        lastDispatchedImeInsetPx = imeHeightPx
+        val density = resources.displayMetrics.density
+        val imeHeightCss = if (density > 0f) imeHeightPx / density else imeHeightPx.toFloat()
+        dispatchKeyboardInsetToWebview(imeHeightCss)
+      }
+      insets
+    }
+    ViewCompat.requestApplyInsets(webView)
+  }
+
+  private fun dispatchKeyboardInsetToWebview(heightCss: Float) {
+    val script =
+      "(function(){" +
+      "window.dispatchEvent(new CustomEvent('fg:keyboard-inset', { detail: { height: $heightCss } }));" +
+      "})();"
+    runOnUiThread {
+      webViewRef?.evaluateJavascript(script, null)
+    }
   }
 
   override fun onResume() {
@@ -312,6 +341,12 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun checkMicrophonePermission(): Boolean {
       return checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+        android.content.pm.PackageManager.PERMISSION_GRANTED
+    }
+
+    @JavascriptInterface
+    fun checkCameraPermission(): Boolean {
+      return checkSelfPermission(Manifest.permission.CAMERA) ==
         android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 

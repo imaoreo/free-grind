@@ -4,8 +4,53 @@ import { Slider } from "../../../components/ui/range-slider";
 import { usePreferences } from "../../../contexts/PreferencesContext";
 import { formatDistanceForUnits } from "../../../utils/units";
 import { getSexualPositionOptions } from "../profile-option-builders";
-import type { InboxFilterKey } from "../../../types/chat-page";
+import type { InboxFilterKey, InboxVisibilityFilter } from "../../../types/chat-page";
 import type { ChatFiltersDraft } from "../chat/chatUtils";
+
+/** One "Pinned"/"Archived"/"Hidden" row: a label plus a 3-way chip group
+ * (Show all/Hide/Only) — same chip styling as the other filter sections so
+ * these read as part of the same system instead of a bolted-on control. */
+function VisibilityFilterRow({
+	label,
+	value,
+	onChange,
+}: {
+	label: string;
+	value: InboxVisibilityFilter;
+	onChange: (v: InboxVisibilityFilter) => void;
+}) {
+	const { t } = useTranslation();
+	const options: { value: InboxVisibilityFilter; label: string }[] = [
+		{ value: "all", label: t("chat.filter.state_all", { defaultValue: "Show all" }) },
+		{ value: "hide", label: t("chat.filter.state_hide", { defaultValue: "Hide" }) },
+		{ value: "only", label: t("chat.filter.state_only", { defaultValue: "Only" }) },
+	];
+
+	return (
+		<div className="flex flex-wrap items-center justify-between gap-2">
+			<span className="text-sm font-semibold text-[var(--text)]">{label}</span>
+			<div className="flex flex-wrap gap-1.5">
+				{options.map((option) => {
+					const active = value === option.value;
+					return (
+						<button
+							key={option.value}
+							type="button"
+							onClick={() => onChange(option.value)}
+							className={`rounded-full border px-3 py-1 text-xs font-semibold transition active:scale-95 ${
+								active
+									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm shadow-[var(--accent)]/30"
+									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]"
+							}`}
+						>
+							{option.label}
+						</button>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
 
 const distanceSteps = [
 	100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400,
@@ -19,9 +64,11 @@ type Props = {
 	isDesktop: boolean;
 	draft: ChatFiltersDraft;
 	onChangeDraft: (draft: ChatFiltersDraft) => void;
+	archivedCount: number;
+	hiddenCount: number;
 };
 
-export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft }: Props) {
+export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, archivedCount, hiddenCount }: Props) {
 	const { t } = useTranslation();
 	const { unitsPreset } = usePreferences();
 
@@ -86,6 +133,35 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft }
 						);
 					})}
 				</div>
+			</section>
+
+			{/* Pinned/Archived/Hidden visibility */}
+			<section
+				className="space-y-3 rounded-2xl p-4"
+				style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)", border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)" }}
+			>
+				<p className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+					{t("chat_filters.visibility", { defaultValue: "Visibility" })}
+				</p>
+				<VisibilityFilterRow
+					label={t("chat.pinned")}
+					value={draft.pinnedFilter}
+					onChange={(pinnedFilter) => onChangeDraft({ ...draft, pinnedFilter })}
+				/>
+				{archivedCount > 0 && (
+					<VisibilityFilterRow
+						label={t("chat.archived.filter_label", { defaultValue: "Archived" })}
+						value={draft.archivedFilter}
+						onChange={(archivedFilter) => onChangeDraft({ ...draft, archivedFilter })}
+					/>
+				)}
+				{hiddenCount > 0 && (
+					<VisibilityFilterRow
+						label={t("chat.hidden.filter_label", { defaultValue: "Hidden" })}
+						value={draft.hiddenFilter}
+						onChange={(hiddenFilter) => onChangeDraft({ ...draft, hiddenFilter })}
+					/>
+				)}
 			</section>
 
 			{/* Distance slider */}

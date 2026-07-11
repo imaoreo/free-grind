@@ -14,7 +14,7 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
             const permission = await requestPermission();
             permissionGranted = permission === "granted";
         }
-        
+
         if (permissionGranted) {
             sendNotification({
                 title: "Free Grind Auto-Blocker",
@@ -28,27 +28,20 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
 
 // ---------------------------------------------------------------------------
 // Automation settings — backed by the active profile's db (chatDb), kept in
-// an in-memory cache so the hot-path checkers below (called per-message
-// during chat/grid filtering) can stay synchronous instead of awaiting a db
-// round-trip on every check.
+// an in-memory cache. The forbidden-words list here is now the shared
+// keyword source for custom automation rules (see automationRules.ts's
+// useForbiddenList conditions) — the keyword *matching* itself (auto-block
+// on chat/grid) moved into the automation rule engine.
 // ---------------------------------------------------------------------------
 
 export interface AutomationSettings {
-    blockOnChat: boolean;
-    blockGrid: boolean;
     forbiddenWords: string;
-    minAge: string;
-    maxAge: string;
     refreshEnabled: boolean;
     refreshInterval: string;
 }
 
 const DEFAULT_AUTOMATION_SETTINGS: AutomationSettings = {
-    blockOnChat: false,
-    blockGrid: false,
     forbiddenWords: "",
-    minAge: "18",
-    maxAge: "99",
     refreshEnabled: false,
     refreshInterval: "5",
 };
@@ -71,7 +64,6 @@ export async function loadAutomationCache(): Promise<void> {
         appLog.error("[AutoBlock] failed to load automation settings", error);
         automationCache = DEFAULT_AUTOMATION_SETTINGS;
     }
-    lastSavedWords = null;
 }
 
 export function getAutomationSettings(): AutomationSettings {
@@ -83,7 +75,6 @@ export async function setAutomationSettings(
 ): Promise<AutomationSettings> {
     automationCache = { ...automationCache, ...patch };
     await setSetting(AUTOMATION_SETTINGS_KEY, automationCache);
-    lastSavedWords = null;
     return automationCache;
 }
 
@@ -97,79 +88,4 @@ export async function setForbiddenWords(value: string): Promise<void> {
 
 export function getAutoRefreshSettings(): { enabled: boolean; intervalMinutes: string } {
     return { enabled: automationCache.refreshEnabled, intervalMinutes: automationCache.refreshInterval };
-}
-
-let cachedKeywords: string[] = [];
-let cachedRegex: RegExp | null = null;
-let lastSavedWords: string | null = null;
-
-// NEW: Returns the exact word that triggered the block
-export function getMatchedForbiddenWord(text: string | null | undefined, context: "grid" | "chat"): string | null {
-    if (!text) return null;
-    const isGridEnabled = automationCache.blockGrid;
-    const isChatEnabled = automationCache.blockOnChat;
-
-    if (context === "grid" && !isGridEnabled) return null;
-    if (context === "chat" && !isChatEnabled) return null;
-
-    const savedWords = automationCache.forbiddenWords;
-
-    // Cache logic: only re-compile regex if keywords changed
-    if (savedWords !== lastSavedWords) {
-        lastSavedWords = savedWords;
-        cachedKeywords = savedWords.split(',')
-            .map(word => word.trim().toLowerCase())
-            .filter(word => word.length > 0);
-        
-        if (cachedKeywords.length > 0) {
-            // Sort by length descending to ensure "Snapchat" matches before "Snap"
-            const sortedKeywords = [...cachedKeywords].sort((a, b) => b.length - a.length);
-            const pattern = sortedKeywords
-                .map(keyword => keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-                .join('|');
-            // Using a capturing group for the keywords and non-capturing groups for boundaries
-            cachedRegex = new RegExp(`(?:^|\\W)(${pattern})(?:$|\\W)`, 'i');
-        } else {
-            cachedRegex = null;
-        }
-    }
-
-    if (!cachedRegex) return null;
-
-    const lowerText = text.toLowerCase();
-    const match = lowerText.match(cachedRegex);
-    if (match) {
-        // Return the first captured group (the actual keyword)
-        return match[1];
-    }
-
-    return null;
-}
-
-// Keep this for the Grid/Inbox where we only need true/false
-export function shouldAutoBlock(text: string | null | undefined, context: "grid" | "chat"): boolean {
-    return getMatchedForbiddenWord(text, context) !== null;
-}
-
-export function isOutsideAgeLimits(age: number | null | undefined, context: "grid" | "chat"): boolean {
-    if (age == null) return false;
-    const isGridEnabled = automationCache.blockGrid;
-    const isChatEnabled = automationCache.blockOnChat;
-
-    if (context === "grid" && !isGridEnabled) return false;
-    if (context === "chat" && !isChatEnabled) return false;
-
-    const rawMin = automationCache.minAge;
-    const rawMax = automationCache.maxAge;
-
-    if (rawMin && rawMin.trim() !== "") {
-        const minAge = parseInt(rawMin.trim(), 10);
-        if (!isNaN(minAge) && age < minAge) return true;
-    }
-    if (rawMax && rawMax.trim() !== "") {
-        const maxAge = parseInt(rawMax.trim(), 10);
-        if (!isNaN(maxAge) && age > maxAge) return true;
-    }
-
-    return false;
 }

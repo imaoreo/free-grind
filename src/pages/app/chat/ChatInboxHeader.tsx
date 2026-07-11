@@ -1,19 +1,28 @@
-import { Archive, ArchiveX, Images, Pin, PinOff, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Droplet, Images, Loader2, Mail, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { PageHeaderBackground } from "../../../components/ui/PageHeaderBackground";
+import { FilterPill } from "../../../components/ui/FilterPill";
 import { buildChatFiltersDraft, type ChatFiltersDraft } from "./chatUtils";
 import { cn } from "../../../utils/cn";
 import type { InboxFilters } from "../../../types/messages";
+import type { InboxVisibilityFilter } from "../../../types/chat-page";
+import { useInboxSyncStatus } from "../../../hooks/useInboxSyncStatus";
 
 type RealtimeStatusMeta = { className: string; symbol: string; label: string };
 
 export type ChatInboxHeaderProps = {
 	isDesktop: boolean;
+	userId: number | null;
 	realtimeStatusMeta: RealtimeStatusMeta;
 	inboxFilters: InboxFilters;
-	hidePinned: boolean;
+	// Pinned/Archived/Hidden are edited in the general filter overlay now
+	// (ChatFiltersPanel), not as separate header pills — these read-only
+	// values are only needed here to seed that overlay's draft when it opens.
+	pinnedFilter: InboxVisibilityFilter;
+	archivedFilter: InboxVisibilityFilter;
+	hiddenFilter: InboxVisibilityFilter;
 	hasActiveInboxFilters: boolean;
 	activeFilterCount: number;
 	isSearchOpen: boolean;
@@ -23,17 +32,52 @@ export type ChatInboxHeaderProps = {
 	onSetIsFiltersOpen: (v: boolean) => void;
 	onSetFiltersDraft: (v: ChatFiltersDraft) => void;
 	onToggleFavoritesOnly: () => void;
-	onToggleHidePinned: () => void;
-	hideArchived: boolean;
-	archivedCount: number;
-	onToggleHideArchived: () => void;
+	onToggleUnreadOnly: () => void;
+	onToggleRightNowOnly: () => void;
+	onToggleOnlineNowOnly: () => void;
+	onClearInboxFilters: () => void;
 };
+
+/** Small "Inbox · Syncing 42%" caption under the title — the mobile-only,
+ * minimal home for background sync status. Desktop instead gets a proper
+ * footer row under the list (ChatSyncFooterRow in ChatInboxPanel); mobile's
+ * fixed bottom nav bar leaves no clean spot for a footer, so this reuses
+ * space the header already owns instead of adding a new floating element. */
+function ChatSyncHeaderCaption({ userId }: { userId: number | null }) {
+	const { t } = useTranslation();
+	const status = useInboxSyncStatus(userId);
+
+	if (status.phase !== "syncing_list" && status.phase !== "syncing_messages") {
+		return null;
+	}
+
+	const label =
+		status.phase === "syncing_list"
+			? t("chat.sync_progress.syncing_list", {
+					defaultValue: "Syncing chats… {{count}} checked",
+					count: status.conversationsSoFar,
+				})
+			: t("chat.sync_progress.syncing_messages_percent", {
+					defaultValue: "Syncing messages… {{percent}}%",
+					percent: status.total > 0 ? Math.round((status.completed / status.total) * 100) : 0,
+				});
+
+	return (
+		<p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-[var(--text-muted)]">
+			<Loader2 className="h-2.5 w-2.5 shrink-0 animate-spin text-[var(--accent)]" />
+			<span className="truncate">{label}</span>
+		</p>
+	);
+}
 
 export function ChatInboxHeader({
 	isDesktop,
+	userId,
 	realtimeStatusMeta,
 	inboxFilters,
-	hidePinned,
+	pinnedFilter,
+	archivedFilter,
+	hiddenFilter,
 	hasActiveInboxFilters,
 	activeFilterCount,
 	isSearchOpen,
@@ -43,10 +87,10 @@ export function ChatInboxHeader({
 	onSetIsFiltersOpen,
 	onSetFiltersDraft,
 	onToggleFavoritesOnly,
-	onToggleHidePinned,
-	hideArchived,
-	archivedCount,
-	onToggleHideArchived,
+	onToggleUnreadOnly,
+	onToggleRightNowOnly,
+	onToggleOnlineNowOnly,
+	onClearInboxFilters,
 }: ChatInboxHeaderProps) {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -59,20 +103,23 @@ export function ChatInboxHeader({
 
 					{/* Row 1: title + icon buttons */}
 					<div className="flex items-center justify-between gap-2">
-						<h1 className="app-title relative">
-							{t("nav.inbox")}
-							<span
-								className="absolute -top-0.5 -right-2.5 h-2 w-2 rounded-full transition-colors duration-500"
-								style={{
-									backgroundColor:
-										realtimeStatusMeta.symbol === "✓"
-											? "oklch(0.72 0.18 142)"
-											: realtimeStatusMeta.className.includes("red")
-												? "oklch(0.65 0.22 25)"
-												: "oklch(0.75 0.17 75)",
-								}}
-							/>
-						</h1>
+						<div className="min-w-0">
+							<h1 className="app-title relative w-fit">
+								{t("nav.inbox")}
+								<span
+									className="absolute -top-0.5 -right-2.5 h-2 w-2 rounded-full transition-colors duration-500"
+									style={{
+										backgroundColor:
+											realtimeStatusMeta.symbol === "✓"
+												? "oklch(0.72 0.18 142)"
+												: realtimeStatusMeta.className.includes("red")
+													? "oklch(0.65 0.22 25)"
+													: "oklch(0.75 0.17 75)",
+									}}
+								/>
+							</h1>
+							{!isDesktop && !isSearchOpen && <ChatSyncHeaderCaption userId={userId} />}
+						</div>
 
 						<div className="flex shrink-0 items-center gap-0.5">
 							{!isSearchOpen && (
@@ -101,81 +148,68 @@ export function ChatInboxHeader({
 
 					{/* Row 2: filter pills */}
 					{!isSearchOpen && (
-						<div className="flex flex-wrap items-center gap-2 pb-4">
-							<button
-								type="button"
-								onClick={onToggleFavoritesOnly}
-								className={cn(
-									"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
-									inboxFilters.favoritesOnly
-										? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-										: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
-								)}
-								style={!inboxFilters.favoritesOnly ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
-							>
-								<Star className="h-3.5 w-3.5" />
-								{t("browse_filters.options.favorites")}
-							</button>
-
-							<button
-								type="button"
-								onClick={onToggleHidePinned}
-								className={cn(
-									"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
-									hidePinned
-										? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-										: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
-								)}
-								style={!hidePinned ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
-							>
-								{hidePinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-								{t("chat.pinned")}
-							</button>
-
-							{archivedCount > 0 && (
+						<div className="-mx-[var(--app-px)] overflow-x-auto pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							<div className="flex min-w-max items-center gap-2 px-[var(--app-px)]">
 								<button
 									type="button"
-									onClick={onToggleHideArchived}
+									onClick={() => {
+										onSetFiltersDraft(buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }));
+										onSetIsFiltersOpen(true);
+									}}
 									className={cn(
 										"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
-										hideArchived
+										hasActiveInboxFilters
 											? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
 											: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
 									)}
-									style={!hideArchived ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
+									style={!hasActiveInboxFilters ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
 								>
-									{hideArchived ? <ArchiveX className="h-3.5 w-3.5" /> : <Archive className="h-3.5 w-3.5" />}
-									{t("chat.archived.filter_label", { defaultValue: "Archived" })}
-									<span className={cn(
-										"ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold",
-										hideArchived
-											? "bg-[var(--accent-contrast)] text-[var(--accent)]"
-											: "bg-[var(--accent)] text-[var(--accent-contrast)]",
-									)}>
-										{archivedCount}
-									</span>
+									<SlidersHorizontal className="h-3.5 w-3.5" />
+									{t("right_now.filters")}
+									{hasActiveInboxFilters && activeFilterCount > 0 && (
+										<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent-contrast)] px-1 text-[9px] font-bold text-[var(--accent)]">
+											{activeFilterCount}
+										</span>
+									)}
 								</button>
-							)}
 
-							<button
-								type="button"
-								onClick={() => { onSetFiltersDraft(buildChatFiltersDraft(inboxFilters)); onSetIsFiltersOpen(true); }}
-								className={cn(
-									"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
-									hasActiveInboxFilters
-										? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-										: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+								<FilterPill
+									icon={<Mail className="h-3.5 w-3.5" />}
+									label={t("chat_filters.options.unread")}
+									active={Boolean(inboxFilters.unreadOnly)}
+									onClick={onToggleUnreadOnly}
+								/>
+								<FilterPill
+									icon={<Star className={`h-3.5 w-3.5 ${inboxFilters.favoritesOnly ? "fill-current" : ""}`} />}
+									label={t("browse_filters.options.favorites")}
+									active={Boolean(inboxFilters.favoritesOnly)}
+									onClick={onToggleFavoritesOnly}
+								/>
+								<FilterPill
+									icon={<span className="h-2.5 w-2.5 shrink-0 rounded-full bg-green-500 shadow-sm" />}
+									label={t("browse_filters.options.online")}
+									active={Boolean(inboxFilters.onlineNowOnly)}
+									onClick={onToggleOnlineNowOnly}
+								/>
+								<FilterPill
+									icon={<Droplet className={`h-3.5 w-3.5 ${inboxFilters.rightNowOnly ? "fill-current" : ""}`} />}
+									label={t("browse_filters.options.right_now")}
+									active={Boolean(inboxFilters.rightNowOnly)}
+									onClick={onToggleRightNowOnly}
+									color="right-now"
+								/>
+
+								{hasActiveInboxFilters && (
+									<button
+										type="button"
+										onClick={onClearInboxFilters}
+										className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] transition-all active:scale-95"
+										style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+									>
+										{t("browse_filters.clear_all")}
+									</button>
 								)}
-								style={!hasActiveInboxFilters ? { "--pill-color": "var(--accent)" } as CSSProperties : undefined}
-							>
-								<SlidersHorizontal className="h-3.5 w-3.5" />
-								{t("right_now.filters")}
-								{hasActiveInboxFilters && activeFilterCount > 0 && (
-									<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent-contrast)] px-1 text-[9px] font-bold text-[var(--accent)]">
-										{activeFilterCount}
-									</span>
-								)}
-							</button>
+							</div>
 						</div>
 					)}
 

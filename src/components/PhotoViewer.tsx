@@ -1,9 +1,9 @@
-import { ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { saveMediaToDevice } from "../services/saveMedia";
+import { isIos, saveMediaToDevice } from "../services/saveMedia";
 import { appLog } from "../utils/logger";
 
 export type PhotoViewerMedia = {
@@ -19,6 +19,10 @@ export type PhotoViewerProps = {
 	initialIndex?: number;
 	onIndexChange?: (index: number) => void;
 	renderExtraInfo?: (index: number) => React.ReactNode;
+	/** Full-width bar anchored to the bottom (e.g. a reply/react bar) — pushes the page-count pill and renderExtraInfo up out of its way when present. */
+	renderFooter?: (index: number) => React.ReactNode;
+	/** Chat conversation this media belongs to, if any — saved media is filed under a matching device subfolder instead of a flat Downloads folder. */
+	conversationId?: string | null;
 };
 
 function getMediaInfo(photo: string | PhotoViewerMedia) {
@@ -33,6 +37,8 @@ export function PhotoViewer({
 	initialIndex = 0,
 	onIndexChange,
 	renderExtraInfo,
+	renderFooter,
+	conversationId,
 }: PhotoViewerProps) {
 	const { t } = useTranslation();
 	const N = photos.length;
@@ -304,15 +310,19 @@ export function PhotoViewer({
 
 		setIsSaving(true);
 		try {
-			const saved = await saveMediaToDevice(url, type);
+			const saved = await saveMediaToDevice(url, type, conversationId);
 			if (saved) {
-				toast.success(t("profile_details.save_to_gallery_success"));
+				toast.success(
+					t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
+				);
 			} else {
 				toast.error(t("profile_details.save_to_gallery_unsupported"));
 			}
 		} catch (e) {
 			appLog.error("Failed to save media to gallery", e);
-			toast.error(t("profile_details.save_to_gallery_error"));
+			toast.error(
+				t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+			);
 		} finally {
 			setIsSaving(false);
 		}
@@ -339,10 +349,10 @@ export function PhotoViewer({
 				onClick={(e) => { e.stopPropagation(); onClose(); }}
 				onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 				onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
-				className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-5 sm:top-5"
+				className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md transition active:scale-90 sm:left-5 sm:top-5"
 				aria-label={t("profile_details.close_photo_viewer")}
 			>
-				<X className="h-5 w-5" />
+				<ChevronLeft className="h-5 w-5" />
 			</button>
 
 			<button
@@ -350,7 +360,7 @@ export function PhotoViewer({
 				onClick={(e) => { e.stopPropagation(); void handleSave(); }}
 				onTouchEnd={(e) => handleButtonTouchEnd(e, () => void handleSave())}
 				disabled={isSaving}
-				className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white disabled:opacity-50 sm:left-5 sm:top-5"
+				className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5 sm:top-5"
 				aria-label={t("profile_details.save_to_gallery")}
 			>
 				<Download className="h-5 w-5" />
@@ -363,7 +373,7 @@ export function PhotoViewer({
 						onClick={(e) => { e.stopPropagation(); showPrev(); }}
 						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, showPrev)}
-						className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:left-4 sm:h-11 sm:w-11"
+						className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90 sm:left-4 sm:h-11 sm:w-11"
 						aria-label={t("profile_details.previous_photo")}
 					>
 						<ChevronLeft className="h-5 w-5" />
@@ -373,7 +383,7 @@ export function PhotoViewer({
 						onClick={(e) => { e.stopPropagation(); showNext(); }}
 						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, showNext)}
-						className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/30 bg-black/50 text-white sm:right-4 sm:h-11 sm:w-11"
+						className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90 sm:right-4 sm:h-11 sm:w-11"
 						aria-label={t("profile_details.next_photo")}
 					>
 						<ChevronRight className="h-5 w-5" />
@@ -382,7 +392,13 @@ export function PhotoViewer({
 			)}
 
 			{N > 1 && (
-				<p className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] left-1/2 z-[83] -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-xs text-white">
+				<p
+					className={`absolute left-1/2 z-[83] -translate-x-1/2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md ${
+						renderFooter
+							? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
+							: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+					}`}
+				>
 					{centerIdx + 1} / {N}
 				</p>
 			)}
@@ -423,6 +439,11 @@ export function PhotoViewer({
 							<div
 								key={slotIndex}
 								className="flex h-full w-screen flex-shrink-0 items-center justify-center p-3 sm:p-8"
+								style={
+									renderFooter
+										? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }
+										: undefined
+								}
 								onClick={onClose}
 							>
 								<div
@@ -449,17 +470,34 @@ export function PhotoViewer({
 											style={zoomStyle}
 										/>
 									)}
-									{isCurrent && renderExtraInfo && (
-										<div className="absolute bottom-3 left-3 flex items-center gap-2">
-											{renderExtraInfo(centerIdx)}
-										</div>
-									)}
 								</div>
 							</div>
 						);
 					})}
 				</div>
 			</div>
+
+			{renderExtraInfo && (
+				// Positioned against the viewer's full-width root rather than nested inside
+				// the per-slide image box — that box shrinks to the rendered image's width,
+				// which for narrow/portrait images is often narrower than this pill's natural
+				// width and was forcing the text to wrap.
+				<div
+					className="absolute left-1/2 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] flex -translate-x-1/2 items-center gap-2"
+					onClick={(e) => e.stopPropagation()}
+				>
+					{renderExtraInfo(centerIdx)}
+				</div>
+			)}
+
+			{renderFooter && (
+				<div
+					className="absolute inset-x-0 bottom-0 z-[83]"
+					onClick={(e) => e.stopPropagation()}
+				>
+					{renderFooter(centerIdx)}
+				</div>
+			)}
 		</div>,
 		document.body,
 	);

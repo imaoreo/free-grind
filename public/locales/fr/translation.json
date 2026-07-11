@@ -318,8 +318,8 @@
                 "about_me": "À propos de moi",
                 "about_me_placeholder": "Jusqu'à 255 caractères",
                 "my_tags": "Mes tags",
-                "my_tags_placeholder": "Mots-clés, séparés par des virgules",
-                "no_tags_added": "Aucun tag ajouté pour le moment."
+                "my_tags_manage": "Gérer les tags",
+                "no_tags_added": "Ajouter des tags"
             },
             "visiting_mode": {
                 "title": "Mode",
@@ -378,9 +378,13 @@
             },
             "identity": {
                 "title": "Identité",
-                "description": "Gérer les champs d'identité",
+                "description": "Genre et pronoms",
                 "gender": "Genre",
                 "gender_unavailable": "Les options de genre ne sont pas disponibles pour le moment.",
+                "gender_more": "Plus de genres",
+                "gender_dialog_title": "Choisir des genres",
+                "gender_search_placeholder": "Rechercher des genres...",
+                "gender_no_matches": "Aucun genre ne correspond à votre recherche.",
                 "pronouns": "Pronoms",
                 "pronouns_unavailable": "Les options de pronoms ne sont pas disponibles pour le moment."
             },
@@ -390,7 +394,10 @@
                 "hiv_status": "Statut VIH",
                 "last_tested": "Dernier test",
                 "health_practices": "Pratiques de prévention",
-                "vaccinations": "Vaccins"
+                "vaccinations": "Vaccins",
+                "test_reminder": "Cela fait plus de 3 mois depuis votre dernier test — pensez à en refaire un.",
+                "test_reminder_toggle": "Rappel de dépistage",
+                "test_reminder_toggle_desc": "Affiche un rappel pour faire un dépistage lorsque cela fait un moment depuis le dernier."
             },
             "social": {
                 "title": "Réseaux sociaux",
@@ -427,7 +434,15 @@
         },
         "errors": {
             "display_name_length": "Le nom d'affichage ne peut pas dépasser 15 caractères.",
-            "about_me_length": "La description doit comporter moins de 255 caractères."
+            "about_me_length": "La description doit comporter moins de 255 caractères.",
+            "max_selection": "Vous pouvez sélectionner jusqu'à {{count}}."
+        },
+        "tags_dialog": {
+            "title": "Choisir des tags",
+            "unavailable": "Les tags ne sont pas disponibles pour le moment.",
+            "see_more": "Voir {{count}} de plus",
+            "search_placeholder": "Rechercher des tags...",
+            "no_matches": "Aucun tag ne correspond à votre recherche."
         }
     },
     "customizability": {
@@ -595,6 +610,7 @@
             "album_share": "Album partagé",
             "album_image": "Image d'album",
             "replied_to_photo": "A répondu à votre photo de profil",
+            "replied_to_photo_theirs": "Vous avez répondu à sa photo de profil",
             "reacted_to_image": "A réagi à votre image d'album",
             "location_placeholder": "[Position]",
             "location_shared": "Position partagée"
@@ -677,13 +693,16 @@
             "send_first_message_hint": ""
         },
         "media_sheet": {
-            "title": "Médias reçus",
+            "title": "Médias",
             "tab_albums": "Albums",
-            "tab_media": "Médias",
+            "tab_received": "Reçus",
+            "tab_sent": "Envoyés",
             "albums_empty_title": "Aucun album partagé pour l'instant",
             "albums_empty_desc": "Les albums partagés avec vous apparaîtront ici",
-            "media_empty_title": "Aucun média reçu pour l'instant",
-            "media_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici"
+            "received_empty_title": "Aucun média reçu pour l'instant",
+            "received_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici",
+            "sent_empty_title": "Aucun média envoyé pour l'instant",
+            "sent_empty_desc": "Les photos que vous envoyez apparaîtront ici"
         },
         "tabs": {
             "inbox": "Messagerie",
@@ -746,7 +765,18 @@
         "favorite": "Favori",
         "share_album_label": "Partager l'album",
         "share_location_label": "Partager la localisation",
-        "share_location_confirm": "Partager cette localisation ?"
+        "share_location_confirm": "Partager cette localisation ?",
+        "filter": {
+            "state_all": "Tout afficher",
+            "state_hide": "Masquer",
+            "state_only": "Uniquement"
+        },
+        "hidden": {
+            "filter_label": "Masqué"
+        },
+        "archived": {
+            "filter_label": "Archivé"
+        }
     },
     "profile_details": {
         "title": "Détails du profil",
@@ -974,7 +1004,8 @@
             "tap_limit": "Vous avez déjà envoyé un Tap à ce profil au cours des dernières 24h",
             "tap_mutual": "Tap envoyé. C'est mutuel.",
             "tap_sent": "Tap envoyé",
-            "tap_failed": "Erreur lors de l'envoi du Tap"
+            "tap_failed": "Erreur lors de l'envoi du Tap",
+            "tag_filter_applied": "Filtré par tag « {{tag}} »"
         }
     },
     "chat_filters": {
@@ -985,7 +1016,8 @@
         "options": {
             "unread": "Non lus",
             "chemistry": "Alchimie"
-        }
+        },
+        "visibility": "Visibilité"
     },
     "interest_page": {
         "empty_views": "Aucune vue pour l'instant",
@@ -1128,7 +1160,9 @@
             "liveness_failed": "Échec de la vérification Liveness3d",
             "enrollment_failed": "Échec de l'inscription à la vérification",
             "document_failed": "Échec de la vérification du document",
-            "load_right_now": "Erreur lors du chargement de la page Right Now"
+            "load_right_now": "Erreur lors du chargement de la page Right Now",
+            "load_tags": "Échec du chargement des tags",
+            "invalid_tags_response": "Réponse de tags invalide"
         }
     },
     "errors": {
@@ -1272,6 +1306,19 @@
         "read_receipts_hidden_badge": "Accusés de lecture masqués pour cette conversation",
         "profile_views": "Visites de profil",
         "record_profile_views": "Enregistrer les visites de profil",
-        "record_profile_views_desc": "Permet aux autres de voir que vous avez consulté leur profil. Désactivez ceci pour parcourir les profils sans laisser de trace."
+        "record_profile_views_desc": "Permet aux autres de voir que vous avez consulté leur profil. Désactivez ceci pour parcourir les profils sans laisser de trace.",
+        "read_receipts_grid_unread_note": "Si les accusés de lecture sont désactivés, le serveur ne peut pas savoir que vous avez lu un message — une conversation peut donc encore apparaître comme non lue sur Grid, même après l'avoir lue ou supprimée."
+    },
+    "grid": {
+        "open_profile_by_id": "Ouvrir le profil par ID"
+    },
+    "test_reminder": {
+        "title": "L'heure d'un test ?",
+        "description": "Cela fait plus de 3 mois depuis votre dernier test. Indiquez quand vous avez été testé pour la dernière fois, ou mettez-le à jour plus tard dans votre profil.",
+        "save": "Enregistrer",
+        "saving": "Enregistrement...",
+        "skip": "Ignorer pour l'instant",
+        "saved": "Date du test mise à jour",
+        "save_failed": "Impossible de mettre à jour la date du test."
     }
 }

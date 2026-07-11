@@ -15,6 +15,8 @@ export const inboxFiltersSchema = z.object({
 export const participantSchema = z.object({
 	profileId: z.coerce.number().int(),
 	primaryMediaHash: z.string().nullable().optional(),
+	age: z.number().nullable().optional(),
+	aboutMe: z.string().nullable().optional(),
 	lastOnline: z.coerce.number().nullable().optional(),
 	onlineUntil: z.coerce.number().nullable().optional(),
 	distanceMetres: z.coerce.number().nullable().optional(),

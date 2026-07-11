@@ -32,6 +32,7 @@ async function maybeAutoDownloadToDevice(
 	base64: string,
 	mimeType: string | null,
 	contentType: string | null,
+	conversationId: string | null,
 ): Promise<void> {
 	if (!isAutoDownloadMediaEnabled()) {
 		return;
@@ -39,7 +40,7 @@ async function maybeAutoDownloadToDevice(
 	const isVideo = (contentType ?? mimeType ?? "").toLowerCase().startsWith("video/");
 	try {
 		const { saveMediaBytesToDeviceSilent } = await import("./saveMedia");
-		await saveMediaBytesToDeviceSilent(base64, mimeType ?? contentType, isVideo ? "video" : "image");
+		await saveMediaBytesToDeviceSilent(base64, mimeType ?? contentType, isVideo ? "video" : "image", conversationId);
 	} catch (error) {
 		appLog.warn("[album-store] auto-download to device failed", error);
 	}
@@ -78,6 +79,25 @@ const albumCheckInFlight = new Map<number, Promise<void>>();
 // in-memory pattern as mediaStore.ts's per-key cache.
 const albumCoverCache = new Map<number, string>();
 
+// Per-content-item thumbnail cache, keyed the same way as album_media's PK
+// (`${albumId}:${contentId}`) — backs reply-quote thumbnails and "tapped
+// photo" reaction bubbles for a *specific* item inside an album, as opposed
+// to albumCoverCache above which only ever tracks item 0. Populated both by
+// a full album capture (updateAlbumCacheState) and, when that never
+// happened, by captureAlbumContentThumbFromMessage below.
+const albumContentThumbCache = new Map<string, string>();
+// De-dupes concurrent captureAlbumContentThumbFromMessage calls for the same item.
+const contentThumbCaptureInFlight = new Set<string>();
+
+function albumContentKey(albumId: number, contentId: number): string {
+	return `${albumId}:${contentId}`;
+}
+
+/** Synchronous read of a single album content item's cached thumbnail, or null if not cached (yet). */
+export function getCachedAlbumContentThumbUri(albumId: number, contentId: number): string | null {
+	return albumContentThumbCache.get(albumContentKey(albumId, contentId)) ?? null;
+}
+
 function deriveCoverUri(media: StoredAlbumMedia[]): string | null {
 	const first = media[0];
 	if (!first) {
@@ -104,6 +124,13 @@ function updateAlbumCacheState(albumId: number, media: StoredAlbumMedia[]): void
 		const cover = deriveCoverUri(media);
 		if (cover) {
 			albumCoverCache.set(albumId, cover);
+		}
+	}
+
+	for (const item of media) {
+		const base64 = item.thumbDataBase64 ?? item.dataBase64;
+		if (base64) {
+			albumContentThumbCache.set(item.contentId, toDataUri(item.contentType, base64));
 		}
 	}
 
@@ -241,6 +268,66 @@ async function captureAlbumPreviewFromMessage(
 	}
 }
 
+/**
+ * Seeds a single album content item's thumbnail from a reply/reaction
+ * message's own `previewUrl` — for AlbumContentReply/AlbumContentReaction
+ * messages, which reference one specific item inside an album that may
+ * never have been captured as a whole (e.g. the sharing message isn't in
+ * the loaded history). Without this, that thumbnail is only ever resolved
+ * from the live signed preview URL, which the item can outlive.
+ *
+ * If the item was already captured via a full album share (album_media
+ * already has bytes for it), this reuses those instead of re-downloading.
+ * Fire-and-forget; safe to call repeatedly for the same item.
+ */
+export function captureAlbumContentThumbFromMessage(
+	albumId: number,
+	contentId: number,
+	contentType: string | null,
+	previewUrl: string | null,
+): void {
+	const key = albumContentKey(albumId, contentId);
+	if (albumContentThumbCache.has(key) || contentThumbCaptureInFlight.has(key)) {
+		return;
+	}
+	contentThumbCaptureInFlight.add(key);
+	void (async () => {
+		try {
+			const existing = await limitChatDbBlobRead(() => chatDb.getAlbumMedia(String(albumId)));
+			const row = existing.find((m) => m.contentId === key);
+			const existingBase64 = row?.thumbDataBase64 ?? row?.dataBase64;
+			if (existingBase64) {
+				albumContentThumbCache.set(key, toDataUri(row?.contentType ?? contentType, existingBase64));
+				for (const listener of albumCacheListeners) listener();
+				return;
+			}
+
+			if (!previewUrl) {
+				return;
+			}
+			const fetched = await fetchAndEncode(previewUrl);
+			if (!fetched) {
+				return;
+			}
+			await chatDb.upsertAlbumMedia({
+				contentId: key,
+				albumId: String(albumId),
+				contentType: row?.contentType ?? contentType ?? fetched.mimeType,
+				dataBase64: row?.dataBase64 ?? null,
+				thumbDataBase64: fetched.base64,
+				remainingViews: row?.remainingViews ?? null,
+				isViewable: row?.isViewable ?? null,
+			});
+			albumContentThumbCache.set(key, toDataUri(fetched.mimeType, fetched.base64));
+			for (const listener of albumCacheListeners) listener();
+		} catch (error) {
+			appLog.warn(`[album-store] failed to capture content thumb ${key}`, error);
+		} finally {
+			contentThumbCaptureInFlight.delete(key);
+		}
+	})();
+}
+
 export type CaptureAlbumParams = {
 	albumId: number;
 	albumName: string | null;
@@ -258,6 +345,7 @@ async function captureAlbumContent(
 	existing: StoredAlbumMedia | undefined,
 	remainingViews: number | null,
 	isViewable: boolean | null,
+	folderKey: string | null,
 ): Promise<void> {
 	const compositeId = `${albumId}:${item.contentId}`;
 	try {
@@ -294,7 +382,7 @@ async function captureAlbumContent(
 		});
 
 		if (main?.base64) {
-			void maybeAutoDownloadToDevice(main.base64, main.mimeType, item.contentType);
+			void maybeAutoDownloadToDevice(main.base64, main.mimeType, item.contentType, folderKey);
 		}
 	} catch (error) {
 		appLog.warn(`[album-store] failed to capture album content ${compositeId}`, error);
@@ -325,6 +413,13 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 	const existing = await chatDb.getAlbumMedia(String(albumId));
 	const existingById = new Map(existing.map((m) => [m.contentId, m] as const));
 
+	// conversationId is only resolved by matching against a locally-cached
+	// conversation list (see SharedAlbumsPage.tsx/SharedAlbumsPanel.tsx),
+	// which can miss older/archived chats — fall back to ownerProfileId
+	// (always known) so auto-downloaded album content still lands in a
+	// per-profile folder instead of a flat, unsplit one.
+	const folderKey = conversationId ?? (ownerProfileId ? `profile-${ownerProfileId}` : null);
+
 	await Promise.all(
 		content.map((item) =>
 			captureAlbumContent(
@@ -333,6 +428,7 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 				existingById.get(`${albumId}:${item.contentId}`),
 				remainingViews,
 				isViewable,
+				folderKey,
 			),
 		),
 	);

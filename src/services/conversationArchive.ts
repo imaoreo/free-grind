@@ -496,6 +496,12 @@ export async function applySelfBlockAction(
 
 	if (action === "block") {
 		await archiveConversation(conversationId, "ws_delete");
+		// This conversation is done for good — no live path will ever mark it
+		// read again (see ChatPage's clearUnreadForArchivedEntry, which only
+		// helps while a chat page happens to be mounted), so a stale unread
+		// count would otherwise stick around forever after blocking from
+		// somewhere that isn't chat (grid, profile page, blocked-list settings).
+		await chatDb.setConversationUnreadCount(conversationId, 0).catch(() => {});
 	} else {
 		await unarchiveConversation(conversationId);
 	}

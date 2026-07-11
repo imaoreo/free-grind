@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
+import freeGrindLogo from "../../images/freegrind-logo.webp";
 import { BackToSettings } from "../../components/BackToSettings";
 import { submitIssueReport } from "../../services/apiFunctions";
 import { useTranslation } from "react-i18next";
@@ -159,7 +160,7 @@ export function ReportIssuePage() {
             style={{ paddingTop: "max(32px, 2rem)" }}
           >
             <img
-              src="/newLogo.webp"
+              src={freeGrindLogo}
               alt="Free Grind"
               className="mb-7 h-16 w-16 rounded-2xl object-cover"
             />

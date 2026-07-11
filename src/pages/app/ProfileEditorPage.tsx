@@ -2,22 +2,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	RefreshCw,
+	RotateCw,
 	Save,
+	SquareCenterlineDashedHorizontal,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import z from "zod";
+import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
-import {
-	getVisitingModeTranslationKey,
-	type VisitingMode,
-} from "../../types/visiting";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
-import { setCachedOwnProfilePhotoHash } from "./gridpage/cache";
 import { BackToSettings } from "../../components/BackToSettings";
+import { BottomDrawer } from "../../components/ui/bottom-drawer";
+import { ToggleRow } from "../../components/ui/toggle-row";
+import freegrindLogo from "../../images/freegrind-logo.webp";
 import {
 	getBodyTypeLabelMap,
 	getBodyTypeOptions,
@@ -33,14 +37,16 @@ import {
 	getTribeOptions,
 	getVaccineOptions,
 } from "./profile-option-builders";
-import { ProfileEditorFormSections } from "./profile-editor/ProfileEditorFormSections";
+import { ProfileEditorFormSections, type ToggleMultiValueKey } from "./profile-editor/ProfileEditorFormSections";
 import {
+	MAX_GENDERS,
 	MAX_PROFILE_PHOTOS,
+	MAX_PROFILE_TAGS,
 	MEDIA_MODERATION_STATE,
 	type ProfileDraft,
 	buildSquareThumbCoords,
 	emptyDraft,
-	parseDateInput,
+	parseMonthInput,
 	parseNullableInteger,
 	parseNullableHeightToCm,
 	parseNullableWeightToGrams,
@@ -49,10 +55,25 @@ import {
 	profileToDraft,
 } from "./profile-editor/profileEditorUtils";
 
+// Grindr caps how many of each of these a profile can carry — enforced
+// client-side here since the multi-select toggle is the only way to add one.
+const MULTI_VALUE_MAX: Partial<Record<ToggleMultiValueKey, number>> = {
+	genders: MAX_GENDERS,
+	pronouns: 3,
+	grindrTribes: 3,
+	tribesImInto: 3,
+};
+
+// The curated inline quick-pick order (man, cis man, trans man, woman, cis
+// woman, trans woman, non-binary) — genderId is stable across the API, unlike
+// displayGroup ordering, which the server doesn't otherwise rank.
+const DEFAULT_GENDER_ORDER = [1, 4, 5, 2, 6, 7, 3];
+
 export function ProfileEditorPage() {
 	const { t } = useTranslation();
 	const { userId, logout } = useAuth();
 	const apiFunctions = useApiFunctions();
+	const queryClient = useQueryClient();
 	const navigate = useNavigate();
 	const { unitsPreset } = usePreferences();
 	const [profile, setProfile] = useState<z.infer<typeof profileSchema> | null>(
@@ -67,15 +88,37 @@ export function ProfileEditorPage() {
 	const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 	const [profileError, setProfileError] = useState<string | null>(null);
 	const [draft, setDraft] = useState<ProfileDraft>(emptyDraft);
-	const [savedVisitingMode, setSavedVisitingMode] =
-		useState<VisitingMode>("AUTO");
-	const [draftVisitingMode, setDraftVisitingMode] =
-		useState<VisitingMode>("AUTO");
-	const [isLoadingVisitingMode, setIsLoadingVisitingMode] = useState(false);
-	const [visitingModeError, setVisitingModeError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+	const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
+	const [pendingPhotoTakenOnGrindr, setPendingPhotoTakenOnGrindr] = useState(false);
+	const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+	const [photoCrop, setPhotoCrop] = useState<Crop | undefined>(undefined);
+	const [photoCompletedCrop, setPhotoCompletedCrop] = useState<PixelCrop | undefined>(undefined);
+	const [isDraggingPhotoCrop, setIsDraggingPhotoCrop] = useState(false);
+	const photoImgRef = useRef<HTMLImageElement | null>(null);
+	const isDesktop = useDesktopBreakpoint();
+
+	useEffect(() => {
+		if (!pendingPhotoFile) {
+			setPhotoPreviewUrl(null);
+			setPhotoCrop(undefined);
+			setPhotoCompletedCrop(undefined);
+			return;
+		}
+		const url = URL.createObjectURL(pendingPhotoFile);
+		setPhotoPreviewUrl(url);
+		setPhotoCrop(undefined);
+		setPhotoCompletedCrop(undefined);
+		return () => URL.revokeObjectURL(url);
+	}, [pendingPhotoFile]);
+
+	useEffect(() => {
+		if (!photoPreviewUrl) return;
+		setPhotoCrop({ unit: "%", x: 0, y: 0, width: 100, height: 100 });
+	}, [photoPreviewUrl]);
+
 	// Tracks each photo's last-seen moderation state across reloads, so a
 	// background poll can toast when one changes (e.g. pending -> approved)
 	// instead of just silently updating the UI. Null until the first load.
@@ -84,8 +127,26 @@ export function ProfileEditorPage() {
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
 
+	// sortFilter ranks most genders (ascending = intended order); the rest
+	// (sortFilter === null) just sort to the end, no special grouping.
 	const genderOptions = useMemo(() => {
-		return managedGenders?.map((item) => ({ value: item.genderId, label: item.gender })) ?? [];
+		const sorted = [...(managedGenders ?? [])].sort((a, b) => {
+			const left = a.sortFilter ?? Number.POSITIVE_INFINITY;
+			const right = b.sortFilter ?? Number.POSITIVE_INFINITY;
+			return left - right;
+		});
+		return sorted.map((item) => ({ value: item.genderId, label: item.gender }));
+	}, [managedGenders]);
+
+	const defaultGenderIds = useMemo(() => {
+		const groupOneIds = new Set(
+			(managedGenders ?? [])
+				.filter((item) => item.displayGroup === 1)
+				.map((item) => item.genderId),
+		);
+		const ordered = DEFAULT_GENDER_ORDER.filter((id) => groupOneIds.has(id));
+		const extra = [...groupOneIds].filter((id) => !DEFAULT_GENDER_ORDER.includes(id));
+		return [...ordered, ...extra];
 	}, [managedGenders]);
 
 	const pronounOptions = useMemo(() => {
@@ -217,36 +278,9 @@ export function ProfileEditorPage() {
 		}
 	}, [apiFunctions, userId, t]);
 
-	const loadVisitingMode = useCallback(async (options?: { silent?: boolean }) => {
-		if (!userId) {
-			setSavedVisitingMode("AUTO");
-			setDraftVisitingMode("AUTO");
-			setIsLoadingVisitingMode(false);
-			setVisitingModeError(null);
-			return;
-		}
-
-		try {
-			if (!options?.silent) {
-				setIsLoadingVisitingMode(true);
-			}
-			setVisitingModeError(null);
-			setSavedVisitingMode(await apiFunctions.getVisitingMode());
-		} catch (error) {
-			setVisitingModeError(
-				error instanceof Error
-					? error.message
-					: t("profile_editor.sections.visiting_mode.error"),
-			);
-		} finally {
-			setIsLoadingVisitingMode(false);
-		}
-	}, [apiFunctions, userId, t]);
-
 	useEffect(() => {
 		void loadProfile();
-		void loadVisitingMode();
-	}, [loadProfile, loadVisitingMode]);
+	}, [loadProfile]);
 
 	const hasPendingPhotoModeration = useMemo(
 		() => (profile?.medias ?? []).some((item) => item.state === MEDIA_MODERATION_STATE.PENDING),
@@ -273,10 +307,6 @@ export function ProfileEditorPage() {
 		setDraft(profileToDraft(profile, unitsPreset));
 	}, [profile, unitsPreset]);
 
-	useEffect(() => {
-		setDraftVisitingMode(savedVisitingMode);
-	}, [savedVisitingMode]);
-
 	const displayName = useMemo(() => {
 		if (profile?.displayName?.trim()) {
 			return profile.displayName.trim();
@@ -301,13 +331,19 @@ export function ProfileEditorPage() {
 		[draft, savedDraft],
 	);
 
-	const hasVisitingModeChanges = draftVisitingMode !== savedVisitingMode;
-	const hasChanges = hasProfileChanges || hasVisitingModeChanges;
+	const hasChanges = hasProfileChanges;
 
 	const tagList = useMemo(
 		() => normalizeTagList(draft.profileTagsText),
 		[draft.profileTagsText],
 	);
+
+	const tagsError = useMemo(() => {
+		if (tagList.length > MAX_PROFILE_TAGS) {
+			return t("profile_editor.errors.max_selection", { count: MAX_PROFILE_TAGS });
+		}
+		return null;
+	}, [tagList, t]);
 
 	const profilePhotoHashes = useMemo(() => {
 		const fromMedias = (profile?.medias ?? [])
@@ -361,11 +397,6 @@ export function ProfileEditorPage() {
 
 		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
 	}, [draft.bodyType, bodyTypeLabels, t]);
-
-	const selectedVisitingModeLabel = useMemo(() => {
-		const modeKey = getVisitingModeTranslationKey(draftVisitingMode);
-		return t(`profile_editor.sections.visiting_mode.options.${modeKey}.label`);
-	}, [draftVisitingMode, t]);
 
 	const completionChecklist = useMemo(
 		() => [
@@ -423,7 +454,7 @@ export function ProfileEditorPage() {
 		return null;
 	}, [draft.aboutMe, t]);
 
-	const canSave = hasChanges && !isSaving && !displayNameError && !aboutMeError;
+	const canSave = hasChanges && !isSaving && !displayNameError && !aboutMeError && !tagsError;
 
 	const handleDraftChange = <K extends keyof ProfileDraft>(
 		key: K,
@@ -432,24 +463,22 @@ export function ProfileEditorPage() {
 		setDraft((current) => ({ ...current, [key]: value }));
 	};
 
-	const toggleMultiValue = (
-		key:
-			| "lookingFor"
-			| "meetAt"
-			| "grindrTribes"
-			| "tribesImInto"
-			| "genders"
-			| "pronouns"
-			| "sexualHealth"
-			| "vaccines",
-		value: number,
-	) => {
-		setDraft((current) => ({
-			...current,
-			[key]: (current[key] as number[]).includes(value)
-				? (current[key] as number[]).filter((item) => item !== value)
-				: [...(current[key] as number[]), value].sort((left, right) => left - right),
-		}));
+	const toggleMultiValue = (key: ToggleMultiValueKey, value: number) => {
+		setDraft((current) => {
+			const currentValues = current[key] as number[];
+			const isSelected = currentValues.includes(value);
+			const max = MULTI_VALUE_MAX[key];
+			if (!isSelected && max != null && currentValues.length >= max) {
+				toast.error(t("profile_editor.errors.max_selection", { count: max }));
+				return current;
+			}
+			return {
+				...current,
+				[key]: isSelected
+					? currentValues.filter((item) => item !== value)
+					: [...currentValues, value].sort((left, right) => left - right),
+			};
+		});
 	};
 
 	const handleSaveProfile = async () => {
@@ -493,7 +522,7 @@ export function ProfileEditorPage() {
 				addIfChanged("genders", "genders");
 				addIfChanged("pronouns", "pronouns");
 				addIfChanged("hivStatus", "hivStatus", parseNullableInteger);
-				addIfChanged("lastTestedDate", "lastTestedDate", parseDateInput);
+				addIfChanged("lastTestedDate", "lastTestedDate", parseMonthInput);
 				addIfChanged("sexualHealth", "sexualHealth");
 				addIfChanged("vaccines", "vaccines");
 
@@ -550,10 +579,10 @@ export function ProfileEditorPage() {
 				}
 			}
 
-			if (hasVisitingModeChanges) {
-				await apiFunctions.updateVisitingMode(draftVisitingMode);
-				setSavedVisitingMode(draftVisitingMode);
-			}
+			// Keeps the grid/chat header avatar, account switcher, and the HIV
+			// test reminder in sync with whatever just changed here, instead of
+			// waiting out useMyOwnProfile's 5-minute staleTime.
+			void queryClient.invalidateQueries({ queryKey: ["my-own-profile"] });
 
 			toast.success(t("profile_editor.toasts.updated"));
 		} catch (error) {
@@ -601,10 +630,11 @@ export function ProfileEditorPage() {
 					await apiFunctions.deleteMyProfileImages(deletedHashes);
 				}
 
-				// The grid/chat header avatar reads this session-lifetime cache
-				// instead of re-fetching on every render — without updating it
-				// here it would keep showing a deleted/old photo until app restart.
-				setCachedOwnProfilePhotoHash(primaryImageHash ?? null);
+				// The grid/chat header avatar and account switcher read
+				// useMyOwnProfile's shared cache — without invalidating it here
+				// they'd keep showing a deleted/old photo until its 5-minute
+				// staleTime lapses.
+				void queryClient.invalidateQueries({ queryKey: ["my-own-profile"] });
 
 				await loadProfile();
 				toast.success(
@@ -623,7 +653,7 @@ export function ProfileEditorPage() {
 		[apiFunctions, loadProfile, userId, t],
 	);
 
-	const handleUploadPhoto = async (
+	const handleUploadPhoto = (
 		event: React.ChangeEvent<HTMLInputElement>,
 	) => {
 		const file = event.currentTarget.files?.[0];
@@ -643,6 +673,42 @@ export function ProfileEditorPage() {
 			return;
 		}
 
+		setPendingPhotoTakenOnGrindr(false);
+		setPendingPhotoFile(file);
+	};
+
+	const cancelPendingPhotoUpload = () => {
+		if (isUploadingPhoto) {
+			return;
+		}
+		setPendingPhotoFile(null);
+	};
+
+	const applyPhotoTransform = useCallback(async (type: "flipH" | "rotateCw") => {
+		const img = photoImgRef.current;
+		if (!img || !img.complete || img.naturalWidth === 0) return;
+		const sw = img.naturalWidth;
+		const sh = img.naturalHeight;
+		const canvas = document.createElement("canvas");
+		canvas.width = type === "rotateCw" ? sh : sw;
+		canvas.height = type === "rotateCw" ? sw : sh;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return;
+		ctx.translate(canvas.width / 2, canvas.height / 2);
+		if (type === "flipH") ctx.scale(-1, 1);
+		if (type === "rotateCw") ctx.rotate(Math.PI / 2);
+		ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+		const blob = await new Promise<Blob | null>((resolve) =>
+			canvas.toBlob(resolve, "image/jpeg", 0.95),
+		);
+		if (!blob) return;
+		setPhotoPreviewUrl((prev) => {
+			if (prev) URL.revokeObjectURL(prev);
+			return URL.createObjectURL(blob);
+		});
+	}, []);
+
+	const uploadPhotoFile = async (file: File) => {
 		setIsUploadingPhoto(true);
 
 		try {
@@ -650,7 +716,7 @@ export function ProfileEditorPage() {
 			const thumbCoords = await buildSquareThumbCoords(file);
 
 			const uploadPaths = [
-				`/v4/media/upload?thumbCoords=${encodeURIComponent(thumbCoords)}&takenOnGrindr=false`,
+				`/v4/media/upload?thumbCoords=${encodeURIComponent(thumbCoords)}&takenOnGrindr=${pendingPhotoTakenOnGrindr}`,
 				"/v3/me/profile/images",
 			];
 
@@ -694,6 +760,7 @@ export function ProfileEditorPage() {
 			await persistProfilePhotos([...profilePhotoHashes, uploadedHash], {
 				successMessage: t("profile_editor.toasts.photo_uploaded"),
 			});
+			setPendingPhotoFile(null);
 		} catch (error) {
 			const message =
 				error instanceof Error
@@ -703,6 +770,51 @@ export function ProfileEditorPage() {
 		} finally {
 			setIsUploadingPhoto(false);
 		}
+	};
+
+	const confirmPendingPhotoUpload = async () => {
+		if (!pendingPhotoFile) return;
+		let fileToUpload: File = pendingPhotoFile;
+		const isFullImage =
+			!photoCompletedCrop ||
+			!photoImgRef.current ||
+			(photoCompletedCrop.x <= 1 &&
+				photoCompletedCrop.y <= 1 &&
+				Math.abs(photoCompletedCrop.width - photoImgRef.current.width) <= 2 &&
+				Math.abs(photoCompletedCrop.height - photoImgRef.current.height) <= 2);
+		if (!isFullImage && photoCompletedCrop?.width && photoCompletedCrop.height && photoImgRef.current) {
+			const img = photoImgRef.current;
+			const scaleX = img.naturalWidth / img.width;
+			const scaleY = img.naturalHeight / img.height;
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.round(photoCompletedCrop.width * scaleX);
+			canvas.height = Math.round(photoCompletedCrop.height * scaleY);
+			const ctx = canvas.getContext("2d");
+			if (ctx) {
+				ctx.drawImage(
+					img,
+					photoCompletedCrop.x * scaleX,
+					photoCompletedCrop.y * scaleY,
+					photoCompletedCrop.width * scaleX,
+					photoCompletedCrop.height * scaleY,
+					0,
+					0,
+					canvas.width,
+					canvas.height,
+				);
+				fileToUpload = await new Promise<File>((resolve) => {
+					canvas.toBlob(
+						(blob) => {
+							if (!blob) { resolve(pendingPhotoFile); return; }
+							resolve(new File([blob], pendingPhotoFile.name, { type: pendingPhotoFile.type || "image/jpeg" }));
+						},
+						pendingPhotoFile.type || "image/jpeg",
+						0.92,
+					);
+				});
+			}
+		}
+		await uploadPhotoFile(fileToUpload);
 	};
 
 	const handleRemovePhoto = async (hash: string) => {
@@ -728,7 +840,6 @@ export function ProfileEditorPage() {
 
 	const handleResetDraft = () => {
 		setDraft(savedDraft);
-		setDraftVisitingMode(savedVisitingMode);
 	};
 
 	return (
@@ -793,9 +904,6 @@ export function ProfileEditorPage() {
 													})
 												: t("profile_editor.no_tags")}
 										</span>
-										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-											{selectedVisitingModeLabel}
-										</span>
 									</div>
 								</div>
 							</div>
@@ -827,18 +935,16 @@ export function ProfileEditorPage() {
 								onToggleMultiValue={toggleMultiValue}
 								displayNameError={displayNameError}
 								aboutMeError={aboutMeError}
+								tagsError={tagsError}
 								tagList={tagList}
 								profilePhotoHashes={profilePhotoHashes}
 								photoModerationByHash={photoModerationByHash}
 								isSavingPhotos={isSavingPhotos}
 								isUploadingPhoto={isUploadingPhoto}
+								isDesktop={isDesktop}
 								onUploadPhoto={handleUploadPhoto}
 								onRemovePhoto={handleRemovePhoto}
 								onReorderPhotos={handleReorderPhotos}
-								visitingMode={draftVisitingMode}
-								isLoadingVisitingMode={isLoadingVisitingMode}
-								visitingModeError={visitingModeError}
-								onVisitingModeChange={setDraftVisitingMode}
 								profileId={profile?.profileId ?? userId}
 								ethnicityOptions={ethnicityOptions}
 								bodyTypeOptions={bodyTypeOptions}
@@ -849,6 +955,7 @@ export function ProfileEditorPage() {
 								meetAtOptions={meetAtOptions}
 								nsfwOptions={nsfwOptions}
 								genderOptions={genderOptions}
+								defaultGenderIds={defaultGenderIds}
 								pronounOptions={pronounOptions}
 								hivStatusOptions={hivStatusOptions}
 								sexualHealthOptions={sexualHealthOptions}
@@ -893,6 +1000,85 @@ export function ProfileEditorPage() {
 					</div>
 				)}
 			</div>
+			{pendingPhotoFile ? (
+				<BottomDrawer
+					title={t("profile_editor.photo_upload.title")}
+					onClose={cancelPendingPhotoUpload}
+					onConfirm={() => void confirmPendingPhotoUpload()}
+					confirmLabel={t("profile_editor.photo_upload.confirm")}
+					isProcessing={isUploadingPhoto}
+					isDesktop={isDesktop}
+				>
+					<div className="flex min-h-0 flex-1 flex-col">
+						<div className="min-h-0 flex-1 overflow-y-auto">
+							{photoPreviewUrl && (
+								<div className="px-3 pb-3">
+									<div className="flex justify-center">
+										<style>{`
+											@keyframes photo-logo-shine { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255,140,0,0.3)) brightness(1); } 50% { filter: drop-shadow(0 0 7px rgba(255,140,0,0.95)) brightness(1.25); } }
+											.photo-logo-shine { animation: photo-logo-shine 2.8s ease-in-out infinite; }
+											.photo-crop .ReactCrop__crop-mask { display: none !important; } .photo-crop .ReactCrop__crop-selection { background-image: none !important; animation: none !important; outline: none !important; border: 3px solid rgba(255,255,255,0.6) !important; border-radius: 11px !important; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5) !important; }
+											.photo-crop .ord-n, .photo-crop .ord-s, .photo-crop .ord-e, .photo-crop .ord-w { display: none !important; }
+											.photo-crop .ReactCrop__drag-handle { background: transparent !important; border: none !important; width: 15px !important; height: 15px !important; }
+											.photo-crop .ord-nw { transform: translate(4px, 4px) !important; border-top: 2px solid white !important; border-left: 2px solid white !important; border-top-left-radius: 4px !important; }
+											.photo-crop .ord-ne { transform: translate(-4px, 4px) !important; border-top: 2px solid white !important; border-right: 2px solid white !important; border-top-right-radius: 4px !important; }
+											.photo-crop .ord-sw { transform: translate(4px, -4px) !important; border-bottom: 2px solid white !important; border-left: 2px solid white !important; border-bottom-left-radius: 4px !important; }
+											.photo-crop .ord-se { transform: translate(-4px, -4px) !important; border-bottom: 2px solid white !important; border-right: 2px solid white !important; border-bottom-right-radius: 4px !important; }
+										`}</style>
+										<div className="relative rounded-xl border border-[var(--border)] overflow-hidden">
+											<ReactCrop
+												crop={photoCrop}
+												onChange={(c) => { setIsDraggingPhotoCrop(true); setPhotoCrop(c); }}
+												onComplete={(c) => { setIsDraggingPhotoCrop(false); setPhotoCompletedCrop(c); }}
+												ruleOfThirds={isDraggingPhotoCrop}
+												minWidth={150}
+												minHeight={150}
+												className="photo-crop ReactCrop--no-animate"
+												style={{ maxHeight: "45dvh", display: "block" }}
+											>
+												<img ref={photoImgRef} src={photoPreviewUrl} alt="Preview" className="block" style={{ maxHeight: "45dvh" }} />
+											</ReactCrop>
+											{pendingPhotoTakenOnGrindr && photoCrop && (
+												<div
+													className="absolute inline-flex items-center gap-1.5 pointer-events-none"
+													style={{
+														left: `calc(${photoCrop.unit === "%" ? photoCrop.x + "%" : photoCrop.x + "px"} + 10px)`,
+														top: `calc(${photoCrop.unit === "%" ? (photoCrop.y + photoCrop.height) + "%" : (photoCrop.y + photoCrop.height) + "px"} - 10px)`,
+														transform: "translateY(-100%)",
+													}}
+												>
+													<img src={freegrindLogo} alt="" className="h-5 w-5 rounded-full photo-logo-shine" />
+													<span className="inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-1 text-[10px] font-semibold text-white">
+														<span>{t("chat.time.just_now", { defaultValue: "just now" })}</span>
+													</span>
+												</div>
+											)}
+										</div>
+									</div>
+									<div className="mt-3 flex items-center justify-center gap-8">
+										<button type="button" onClick={() => void applyPhotoTransform("flipH")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Flip horizontal">
+											<SquareCenterlineDashedHorizontal className="h-6 w-6" />
+										</button>
+										<button type="button" onClick={() => void applyPhotoTransform("rotateCw")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Rotate clockwise">
+											<RotateCw className="h-6 w-6" />
+										</button>
+									</div>
+								</div>
+							)}
+						</div>
+						<div className="shrink-0 px-3 pb-3 pt-2">
+							<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<ToggleRow
+									checked={pendingPhotoTakenOnGrindr}
+									onChange={setPendingPhotoTakenOnGrindr}
+									label={t("profile_editor.photo_upload.taken_on_grindr")}
+									description={t("profile_editor.photo_upload.taken_on_grindr_description")}
+								/>
+							</div>
+						</div>
+					</div>
+				</BottomDrawer>
+			) : null}
 		</section>
 	);
 }

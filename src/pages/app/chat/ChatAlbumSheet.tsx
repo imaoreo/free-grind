@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { EmptyState } from "../../../components/ui/states";
-import { saveMediaBatch } from "../../../services/saveMedia";
+import { isIos, saveMediaBatch } from "../../../services/saveMedia";
 import { appLog } from "../../../utils/logger";
 import type { AlbumViewerState } from "../../../types/chat-page";
 
@@ -15,6 +15,7 @@ type ChatAlbumSheetProps = {
 	onClose: () => void;
 	onOpenFullScreen: (index: number) => void;
 	isDesktop: boolean;
+	conversationId: string | null;
 };
 
 export function ChatAlbumSheet({
@@ -24,6 +25,7 @@ export function ChatAlbumSheet({
 	onClose,
 	onOpenFullScreen,
 	isDesktop,
+	conversationId,
 }: ChatAlbumSheetProps) {
 	const { t } = useTranslation();
 	const [isSavingAll, setIsSavingAll] = useState(false);
@@ -48,12 +50,16 @@ export function ChatAlbumSheet({
 		try {
 			const result = await saveMediaBatch(items, (done, total) => {
 				toast.loading(t("profile_details.save_all_progress", { done, total }), { id: toastId });
-			});
+			}, conversationId);
 
 			if (result.failed === 0) {
-				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
-					id: toastId,
-				});
+				toast.success(
+					t(
+						isIos() ? "profile_details.save_all_success" : "profile_details.save_all_success_downloads",
+						{ count: result.succeeded },
+					),
+					{ id: toastId },
+				);
 			} else {
 				toast.error(
 					t("profile_details.save_all_partial", {
@@ -66,7 +72,10 @@ export function ChatAlbumSheet({
 			}
 		} catch (error) {
 			appLog.error("[ChatAlbumSheet] Save all failed", error);
-			toast.error(t("profile_details.save_all_error"), { id: toastId });
+			toast.error(
+				t(isIos() ? "profile_details.save_all_error" : "profile_details.save_all_error_downloads"),
+				{ id: toastId },
+			);
 		} finally {
 			setIsSavingAll(false);
 		}

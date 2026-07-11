@@ -21,6 +21,7 @@ import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 import { AboutPage } from "./pages/app/AboutPage.tsx";
 import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
 import { SettingsBlockedPage } from "./pages/app/SettingsBlockedPage.tsx";
+import { SettingsBlockHistoryPage } from "./pages/app/SettingsBlockHistoryPage.tsx";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
 import { ApiInspectorPage } from "./pages/app/ApiInspectorPage.tsx";
@@ -34,17 +35,23 @@ import { SettingsDataPage } from "./pages/app/SettingsDataPage.tsx";
 import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
 import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
-import { OutdatedVersionPrompt } from "./components/OutdatedVersionPrompt";
+import { VersionAnnouncement } from "./components/VersionAnnouncement";
+import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
+import { TestReminderGate } from "./components/TestReminderPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
+import { VideoCallManager } from "./components/VideoCallManager";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 import { EntitlementsBridge } from "./components/EntitlementsBridge";
+import { ManagedOptionsCacheBridge } from "./components/ManagedOptionsCacheBridge";
 import { SplashReadyBridge } from "./components/SplashReadyBridge";
 import { SmoothScroll } from "./components/SmoothScroll";
 import { usePreferences } from "./contexts/PreferencesContext";
 import ManagerApp from "./ManagerApp";
 import { getRuntimeContext } from "./services/runtimeContext";
 import { hasCompletedOnboarding } from "./utils/onboardingStorage";
+import { getLastSeenAnnouncementVersion, markAnnouncementSeen } from "./utils/announcementStorage";
+import { VERSION_ANNOUNCEMENTS } from "./data/versionAnnouncements";
 import { useRenderPhase } from "./hooks/useRenderPhase";
 
 function ErrorPage() {
@@ -132,14 +139,32 @@ function ManagerRoutePage() {
 	return <ManagerApp currentLabel={currentLabel} />;
 }
 
+const CURRENT_APP_VERSION = import.meta.env.VITE_APP_VERSION;
+const PENDING_ANNOUNCEMENT = VERSION_ANNOUNCEMENTS.find((a) => a.version === CURRENT_APP_VERSION) ?? null;
+
 export default function App() {
 	const [showOnboarding, setShowOnboarding] = useState(() => !hasCompletedOnboarding());
+	const [showAnnouncement, setShowAnnouncement] = useState(
+		() => !showOnboarding && !!PENDING_ANNOUNCEMENT && getLastSeenAnnouncementVersion() !== CURRENT_APP_VERSION,
+	);
 	// The routed page itself (below) always mounts on the first frame — only
 	// these non-visual startup bridges are staggered one per frame, so their
 	// setup (websocket connect, native push-notification registration, route
 	// tracking, entitlements fetch) doesn't all land in the same first commit
 	// as the initial route.
 	const renderPhase = useRenderPhase(5);
+
+	const handleOnboardingComplete = () => {
+		// A fresh install is already on the current version — it shouldn't
+		// immediately see a "what's new" screen for the version it just installed.
+		markAnnouncementSeen(CURRENT_APP_VERSION);
+		setShowOnboarding(false);
+	};
+
+	const handleAnnouncementClose = () => {
+		markAnnouncementSeen(CURRENT_APP_VERSION);
+		setShowAnnouncement(false);
+	};
 
 	return (
 		<AuthProvider>
@@ -148,17 +173,22 @@ export default function App() {
 				<SmoothScroll>
 					{showOnboarding ? (
 						<div className="app-shell">
-							<PermissionsOnboarding onComplete={() => setShowOnboarding(false)} />
+							<PermissionsOnboarding onComplete={handleOnboardingComplete} />
 						</div>
-					) : (<>
+					) : showAnnouncement && PENDING_ANNOUNCEMENT ? (
+						<div className="app-shell">
+							<VersionAnnouncement announcement={PENDING_ANNOUNCEMENT} onClose={handleAnnouncementClose} />
+						</div>
+					) : (<OutdatedVersionGate><TestReminderGate>
 					{renderPhase >= 1 && <ManagerModeRedirect />}
 					{renderPhase >= 2 && <PushNotificationBridge />}
+					{renderPhase >= 2 && <ManagedOptionsCacheBridge />}
 					{renderPhase >= 3 && <ChatRealtimeBridge />}
+					{renderPhase >= 3 && <VideoCallManager />}
 					{renderPhase >= 4 && <ActiveRouteBridge />}
 					{renderPhase >= 5 && (
 						<>
 							<EntitlementsBridge />
-							<OutdatedVersionPrompt />
 						</>
 					)}
 					<Routes>
@@ -197,6 +227,7 @@ export default function App() {
 								<Route path="/settings/about" element={<AboutPage />} />
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
+								<Route path="/settings/block-history" element={<SettingsBlockHistoryPage />} />
 								<Route path="/settings/saved-phrases" element={<SettingsSavedPhrasesPage />} />
 								<Route
 									path="/settings/api-inspector"
@@ -244,7 +275,7 @@ export default function App() {
 							<Route path="*" element={<ErrorPage />} />
 						</Route>
 					</Routes>
-					</>)}
+					</TestReminderGate></OutdatedVersionGate>)}
 				</SmoothScroll>
 			</PreferencesProvider>
 		</AuthProvider>

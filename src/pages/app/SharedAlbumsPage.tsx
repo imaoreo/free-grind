@@ -12,16 +12,22 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { ProfileImage } from "../../components/ui/profile-image";
 import type { ConversationEntry } from "../../types/chat";
-import type { AlbumViewer, SharedAlbumItem } from "../../types/shared-albums";
+import { albumViewerFolderKey, type AlbumViewer, type SharedAlbumItem } from "../../types/shared-albums";
 import type { GetSharedAlbumsInput } from "../../types/api-functions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { cn } from "../../utils/cn";
-import { captureAlbum, deleteLocalAlbum, getCachedAlbumCoverUri, getLocalAlbum } from "../../services/albumStore";
+import {
+	captureAlbum,
+	deleteLocalAlbum,
+	getCachedAlbumCoverUri,
+	getLocalAlbum,
+} from "../../services/albumStore";
 import { getAllAlbums, getConversation } from "../../services/chatDb";
 import { toDataUri } from "../../services/mediaStore";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { AlbumViewerPanel } from "./shared-albums/AlbumViewerPanel";
 import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
+import { PhotoActionBar } from "../../components/PhotoActionBar";
 import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 
 function getCounterparty(
@@ -54,14 +60,12 @@ function AlbumCard({
 	onClick,
 	onDelete,
 	isDeleting,
-	showAlbumCounter,
 	t,
 }: {
 	item: SharedAlbumItem;
 	onClick: () => void;
 	onDelete: () => void;
 	isDeleting: boolean;
-	showAlbumCounter: boolean;
 	t: (key: string) => string;
 }) {
 	const { ref, revealClass } = useRevealOnScroll();
@@ -88,7 +92,7 @@ function AlbumCard({
 								<img
 									src={previewUrl}
 									alt={item.album.albumName ?? t("shared_albums.preview_alt")}
-									className="h-full w-full scale-110 object-cover blur-xl"
+									className="h-full w-full scale-110 object-cover"
 								/>
 								<div className="absolute inset-0 bg-black/25" />
 							</>
@@ -108,7 +112,7 @@ function AlbumCard({
 								</div>
 							) : null}
 						</div>
-						{showAlbumCounter && !item.localOnly && item.totalAlbumsShared != null ? (
+						{!item.localOnly && item.totalAlbumsShared != null && item.totalAlbumsShared > 1 ? (
 							<div className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-semibold tabular-nums text-white/85 backdrop-blur-sm">
 								<Layers className="h-3 w-3" />
 								{item.albumNumber}/{item.totalAlbumsShared}
@@ -212,7 +216,7 @@ export function SharedAlbumsPage() {
 				...(filters.onlyVideo ? { onlyVideo: true } : {}),
 			};
 			const feed = await apiFunctions.getSharedAlbums(feedFilters);
-			const nextItems: SharedAlbumItem[] = feed.sharedAlbums.map((sharedAlbum) => {
+			const rawItems: SharedAlbumItem[] = feed.sharedAlbums.map((sharedAlbum) => {
 				const profileMeta = profileMap.get(sharedAlbum.ownerProfileId);
 				const profileName =
 					profileMeta?.profileName ||
@@ -241,14 +245,38 @@ export function SharedAlbumsPage() {
 							videoCount: sharedAlbum.videoCount,
 						},
 					},
-                    albumNumber: sharedAlbum.albumNumber,
-					totalAlbumsShared: sharedAlbum.totalAlbumsShared,
+					// Placeholder — overwritten below. The server's own
+					// albumNumber/totalAlbumsShared have been observed to be
+					// wrong (duplicated numbers, counts that don't match the
+					// actual number of albums a profile shared), so they
+					// can't be trusted for the "x/total" indicator.
+					albumNumber: 0,
+					totalAlbumsShared: 0,
 				};
 			});
 
-			nextItems.sort((a, b) => {
-				return a.albumNumber - b.albumNumber;
-			});
+			// Group by owner and derive a reliable position/total per group
+			// ourselves instead of trusting the server's numbering (see
+			// comment above). albumId is the one field here that's an actual
+			// stable identifier, so it's what orders albums within a group.
+			const itemsByOwner = new Map<number, SharedAlbumItem[]>();
+			for (const item of rawItems) {
+				const group = itemsByOwner.get(item.profileId);
+				if (group) {
+					group.push(item);
+				} else {
+					itemsByOwner.set(item.profileId, [item]);
+				}
+			}
+			const nextItems: SharedAlbumItem[] = [];
+			for (const group of itemsByOwner.values()) {
+				group.sort((a, b) => a.album.albumId - b.album.albumId);
+				group.forEach((item, index) => {
+					item.albumNumber = index + 1;
+					item.totalAlbumsShared = group.length;
+				});
+				nextItems.push(...group);
+			}
 
 			// Albums we've cached locally but that are no longer in the live
 			// share feed (e.g. the owner removed the share) still get listed,
@@ -327,10 +355,6 @@ export function SharedAlbumsPage() {
 	const liveItems = useMemo(() => items.filter((item) => !item.localOnly), [items]);
 	const cachedItems = useMemo(() => items.filter((item) => item.localOnly), [items]);
 
-	// The counter pill is only worth showing on the larger mobile tile size —
-	// at the denser "100px" setting the corner badges already crowd the tile.
-	const showAlbumCounter = mobileGridColumns === "2";
-
 	const profileCount = useMemo(
 		() => new Set(items.map((item) => item.profileId)).size,
 		[items],
@@ -378,31 +402,63 @@ export function SharedAlbumsPage() {
 			}
 
 			setOpenAlbumError(null);
+
+			// Also visible as a toast, not just the inline banner at the top of
+			// the grid — that banner is scrolled out of view as soon as the
+			// user has scrolled past the first row, which otherwise makes a
+			// failed open look like the tap did nothing at all.
+			const reportOpenError = (message: string) => {
+				setOpenAlbumError(message);
+				toast.error(message);
+			};
+
+			const albumId = item.album.albumId;
+
+			// Opens straight from chatDb's cached content — used both for
+			// localOnly items (album dropped out of the live feed entirely)
+			// and as a fallback for "hybrid" items that are still live on the
+			// server but were already captured locally (e.g. previously
+			// opened, or captured from a chat share of the same album): the
+			// server can revoke/expire its share independently of what we
+			// already have bytes for, and we shouldn't lock the user out of
+			// content we're already holding just because of that.
+			const openFromLocalCache = async (): Promise<boolean> => {
+				const local = await getLocalAlbum(albumId);
+				if (!local || local.content.length === 0) {
+					return false;
+				}
+				setViewer({
+					albumId: local.albumId,
+					albumName: local.albumName ?? item.album.albumName ?? null,
+					profileId: item.profileId,
+					profileName: item.profileName,
+					conversationId: item.conversationId,
+					content: local.content,
+				});
+				setViewerIndex(0);
+				if (!viewerHistoryPushedRef.current) {
+					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+					viewerHistoryPushedRef.current = true;
+				}
+				return true;
+			};
+
+			// The album has dropped out of the live feed entirely, so local
+			// cache is the only source.
+			if (item.localOnly) {
+				setIsOpeningAlbum(true);
+				try {
+					if (!(await openFromLocalCache())) {
+						reportOpenError(t("shared_albums.error_open_fallback"));
+					}
+				} finally {
+					setIsOpeningAlbum(false);
+				}
+				return;
+			}
+
 			setIsOpeningAlbum(true);
 			try {
-				const albumId = item.album.albumId;
-
-				if (item.localOnly) {
-					const local = await getLocalAlbum(albumId);
-					if (!local || local.content.length === 0) {
-						setOpenAlbumError(t("shared_albums.error_open_fallback"));
-						return;
-					}
-					setViewer({
-						albumId: local.albumId,
-						albumName: local.albumName ?? item.album.albumName ?? null,
-						profileId: item.profileId,
-						profileName: item.profileName,
-						content: local.content,
-					});
-					setViewerIndex(0);
-					if (!viewerHistoryPushedRef.current) {
-						window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-						viewerHistoryPushedRef.current = true;
-					}
-					return;
-				}
-
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
@@ -411,6 +467,7 @@ export function SharedAlbumsPage() {
 					albumName: details.albumName,
 					profileId: item.profileId,
 					profileName: item.profileName,
+					conversationId: item.conversationId,
 					content: details.content,
 				});
 				setViewerIndex(0);
@@ -432,7 +489,14 @@ export function SharedAlbumsPage() {
 					isViewable: true,
 				});
 			} catch (openError) {
-				setOpenAlbumError(
+				// Live open failed (share revoked/expired since the feed was
+				// loaded, network hiccup, etc.) — before surfacing an error,
+				// fall back to whatever we already have cached for this album
+				// rather than blocking access to content we're already holding.
+				if (await openFromLocalCache().catch(() => false)) {
+					return;
+				}
+				reportOpenError(
 					openError instanceof Error
 						? openError.message
 						: t("shared_albums.error_open_fallback"),
@@ -441,7 +505,7 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum],
+		[apiFunctions, isOpeningAlbum, t],
 	);
 
 	const handleMessageProfile = useCallback(
@@ -461,6 +525,44 @@ export function SharedAlbumsPage() {
 			});
 		},
 		[navigate],
+	);
+
+	const sendAlbumContentReaction = useCallback(
+		async (albumId: number, albumContentId: number, targetProfileId: number) => {
+			try {
+				await apiFunctions.sendMessage({
+					type: "AlbumContentReaction",
+					target: { type: "Direct", targetId: targetProfileId },
+					body: { albumId, albumContentId },
+				});
+				toast.success(t("chat.toasts.album_reaction_sent", { defaultValue: "Reaction sent" }));
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			}
+		},
+		[apiFunctions, t],
+	);
+
+	const sendAlbumContentReply = useCallback(
+		async (
+			albumId: number,
+			albumContentId: number,
+			contentType: string | null | undefined,
+			targetProfileId: number,
+			text: string,
+		) => {
+			try {
+				await apiFunctions.sendMessage({
+					type: "AlbumContentReply",
+					target: { type: "Direct", targetId: targetProfileId },
+					body: { albumId, albumContentId, albumContentReply: text, contentType: contentType ?? "image/jpeg" },
+				});
+				toast.success(t("chat.toasts.album_reply_sent", { defaultValue: "Reply sent" }));
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			}
+		},
+		[apiFunctions, t],
 	);
 
 	const viewerPhotos = useMemo<PhotoViewerMedia[]>(() => {
@@ -735,7 +837,6 @@ export function SharedAlbumsPage() {
 												onClick={() => void openViewer(item)}
 												onDelete={() => setConfirmDeleteItem(item)}
 												isDeleting={deletingAlbumId === item.album.albumId}
-												showAlbumCounter={showAlbumCounter}
 												t={t}
 											/>
 										))}
@@ -765,7 +866,6 @@ export function SharedAlbumsPage() {
 													onClick={() => void openViewer(item)}
 													onDelete={() => setConfirmDeleteItem(item)}
 													isDeleting={deletingAlbumId === item.album.albumId}
-													showAlbumCounter={showAlbumCounter}
 													t={t}
 												/>
 											))}
@@ -814,6 +914,19 @@ export function SharedAlbumsPage() {
 					photos={viewerPhotos}
 					initialIndex={fullScreenIndex}
 					onIndexChange={handleIndexChange}
+					conversationId={albumViewerFolderKey(viewer)}
+					renderFooter={(idx) => {
+						const item = viewer.content[idx];
+						if (!item || viewer.profileId === userId) return null;
+						return (
+							<PhotoActionBar
+								onSendText={(text) =>
+									sendAlbumContentReply(viewer.albumId, item.contentId, item.contentType, viewer.profileId, text)
+								}
+								onReact={() => sendAlbumContentReaction(viewer.albumId, item.contentId, viewer.profileId)}
+							/>
+						);
+					}}
 				/>
 			)}
 

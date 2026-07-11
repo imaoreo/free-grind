@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronLeft, Ellipsis, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Ban, Check, ChevronLeft, EllipsisVertical, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -31,8 +31,10 @@ import {
 	getVaccineLabelMap,
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
+import { getForbiddenWords, setForbiddenWords } from "../../../../utils/autoblock";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { formatDateTime24 } from "../../chat/chatUtils";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
@@ -50,6 +52,7 @@ import {
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
+import { PhotoActionBar } from "../../../../components/PhotoActionBar";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -63,6 +66,7 @@ type ProfileDetailsModalProps = {
 	onClose: () => void;
 	onMessageProfile?: (profileId: string) => void;
 	onSendQuickMessage?: (profileId: string, text: string) => void;
+	onSendProfilePhotoReply?: (profileId: string, imageHash: string, text: string) => void | Promise<void>;
 	onTriangleProfile?: (profileId: string) => void;
 	onBlockProfile?: (profileId: string) => void;
 	onUnblockProfile?: (profileId: string) => void;
@@ -79,6 +83,7 @@ type ProfileDetailsModalProps = {
 	isTappingProfile?: boolean;
 	isTapBlocked?: boolean;
 	tapVisualState?: { state: "none" | "single" | "mutual"; tapId: number };
+	onTagClick?: (tag: string) => void;
 	activeProfile: ProfileDetail | null;
 	selectedBrowseCard: BrowseCard | null;
 	isLoadingActiveProfile: boolean;
@@ -111,6 +116,7 @@ export function ProfileDetailsModal({
 	onClose,
 	onMessageProfile,
 	onSendQuickMessage,
+	onSendProfilePhotoReply,
 	onTriangleProfile,
 	onBlockProfile,
 	onUnblockProfile,
@@ -124,6 +130,7 @@ export function ProfileDetailsModal({
 	isTappingProfile = false,
 	isTapBlocked = false,
 	tapVisualState = { state: "none", tapId: 1 },
+	onTagClick,
 	activeProfile,
 	selectedBrowseCard,
 	isLoadingActiveProfile,
@@ -171,10 +178,13 @@ export function ProfileDetailsModal({
 		return t("profile_details.anonymous", "Someone");
 	}, [activeProfile, t]);
 
+	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
+	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
 	const profileDistance =
 		activeProfile?.distance ?? selectedBrowseCard?.distanceMeters ?? null;
-	const profileOnlineUntil =
-		activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null;
+	const profileOnlineUntil = isOwnProfile
+		? Date.now() + 60 * 60 * 1000
+		: (activeProfile?.onlineUntil ?? selectedBrowseCard?.onlineUntil ?? null);
 	const profileLastSeen = activeProfile?.seen ?? selectedBrowseCard?.lastOnline ?? null;
 	const profileStatusMeta = getOnlineStatusMeta(
 		profileLastSeen,
@@ -194,9 +204,7 @@ export function ProfileDetailsModal({
 		: profileStatusMeta.labelKey === "browse_page.status_minutes_ago" && (profileStatusMeta.count ?? 99) <= 10 ? "recent"
 		: "offline";
 	const estimatedCreatedAt = formatEstimatedAccountCreation(activeProfile?.profileId, t);
-	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const { data: travelPlans } = useTravelPlans(activeProfile?.profileId);
-	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
 	const usesFreegrind = usePresenceCheck(messageProfileId);
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
@@ -423,6 +431,19 @@ export function ProfileDetailsModal({
 			toast.error(t("favorites.delete_note_failed"));
 		} finally {
 			setIsSavingNote(false);
+		}
+	};
+
+	const handleBanBioPhrase = () => {
+		setIsActionsMenuOpen(false);
+		const bio = activeProfile?.aboutMe || "";
+		if (!bio.trim()) { toast.error("This user has no bio!"); return; }
+		const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
+		if (wordToBan && wordToBan.trim()) {
+			const currentList = getForbiddenWords();
+			const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+			void setForbiddenWords(newList);
+			toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
 		}
 	};
 
@@ -892,6 +913,21 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		[carouselHashes, photoCreatedAtByHash, t],
 	);
 
+	const renderPhotoFooter = useCallback(
+		(index: number) => {
+			const hash = carouselHashes[index];
+			if (hash === RIGHT_NOW_SLIDE_HASH || !onSendProfilePhotoReply || !messageProfileId || isOwnProfile) {
+				return null;
+			}
+			return (
+				<PhotoActionBar
+					onSendText={(text) => onSendProfilePhotoReply(String(messageProfileId), hash, text)}
+				/>
+			);
+		},
+		[carouselHashes, onSendProfilePhotoReply, messageProfileId, isOwnProfile],
+	);
+
 	const openPhotoViewer = (index: number) => {
 		setSelectedPhotoIndex(index);
 	};
@@ -907,6 +943,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			photos={photoUrls}
 			initialIndex={selectedPhotoIndex}
 			renderExtraInfo={renderPhotoExtraInfo}
+			renderFooter={renderPhotoFooter}
 		/>
 	);
 
@@ -938,7 +975,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						<div className="flex items-center gap-1.5 min-w-0">
 							<p className={`truncate text-base font-semibold leading-tight${inlineScrolled ? "" : " text-white"}`}>{activeProfileName}</p>
 							{usesFreegrind && (
-								<img src={freegrindLogo} alt="Free Grind user" title={t("profile_details.uses_free_grind")} className="h-4 w-4 shrink-0 rounded-full border border-[var(--border)]" />
+								<FreeGrindBadge size="sm" title={t("profile_details.uses_free_grind")} />
 							)}
 							{activeProfile?.age != null && Number.isFinite(activeProfile.age) && (
 								<span className={`shrink-0 text-sm${inlineScrolled ? " text-[var(--text-muted)]" : " text-white/70"}`}>{activeProfile.age}</span>
@@ -998,7 +1035,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									aria-label="More actions"
 									aria-expanded={isActionsMenuOpen}
 								>
-									<Ellipsis className="h-4 w-4" />
+									<EllipsisVertical className="h-4 w-4" />
 								</button>
 								{isActionsMenuOpen && (
 									<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
@@ -1010,6 +1047,17 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										>
 											<Triangle className="mr-2 h-4 w-4 opacity-70" />
 											{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
+										</button>
+										<button
+											type="button"
+											onClick={handleBanBioPhrase}
+											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+										>
+											<Ban className="mr-2 h-4 w-4 opacity-50" />
+											<span className="flex flex-col">
+												<span>Add forbidden Keyword</span>
+												<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+											</span>
 										</button>
 									</div>
 								)}
@@ -1130,6 +1178,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							usesFreegrind={usesFreegrind ?? false}
 							onMessageProfile={variant === "page" && !isOwnProfile ? onMessageProfile : undefined}
 							onTapProfile={variant === "page" && !isOwnProfile ? onTapProfile : undefined}
+							onTagClick={onTagClick}
 							onPhotoIndexChange={setMobileCarouselPhotoIndex}
 							onDragDeltaChange={setCarouselDragDelta}
 							isTapDisabled={isTapDisabled}
@@ -1255,7 +1304,14 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								}}
 								className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-none bg-transparent text-[var(--accent)] transition hover:brightness-110"
 							>
-								<MessageCircle className="h-5 w-5" strokeWidth={1.8} />
+								<span className="relative inline-flex">
+									<MessageCircle className="h-5 w-5" strokeWidth={1.8} />
+									{(chatContactStatus?.unreadCount ?? 0) > 0 && (
+										<span className="absolute -top-1.5 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)] shadow-sm">
+											{chatContactStatus?.unreadCount}
+										</span>
+									)}
+								</span>
 							</button>
 						)}
 					</div>
@@ -1476,7 +1532,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 												<button type="button" onClick={() => setIsActionsMenuOpen((v) => !v)}
 													className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--text)] transition-colors"
 													aria-label="More actions" aria-expanded={isActionsMenuOpen}>
-													<Ellipsis className="h-4 w-4" />
+													<EllipsisVertical className="h-4 w-4" />
 												</button>
 												{isActionsMenuOpen && (
 													<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
@@ -1485,6 +1541,17 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-50">
 															<Triangle className="mr-2 h-4 w-4 opacity-70" />
 															{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
+														</button>
+														<button
+															type="button"
+															onClick={handleBanBioPhrase}
+															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+														>
+															<Ban className="mr-2 h-4 w-4 opacity-50" />
+															<span className="flex flex-col">
+																<span>Add forbidden Keyword</span>
+																<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+															</span>
 														</button>
 													</div>
 												)}
@@ -1521,6 +1588,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											usesFreegrind={usesFreegrind ?? false}
 											onMessageProfile={undefined}
 											onTapProfile={undefined}
+											onTagClick={onTagClick}
 											isTapDisabled={isTapDisabled}
 											isTapBlocked={isTapBlocked}
 											isTapActive={isTapActive}
@@ -1584,7 +1652,14 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										{(onMessageProfile || onSendQuickMessage) && (
 											<button type="button" onClick={() => { if (quickMessageDraft.trim()) { onSendQuickMessage?.(String(messageProfileId), quickMessageDraft.trim()); setQuickMessageDraft(""); } else { onMessageProfile?.(String(messageProfileId)); } }}
 												className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-none bg-transparent text-[var(--accent)] transition hover:brightness-110">
-												<MessageCircle className="h-5 w-5" strokeWidth={1.8} />
+												<span className="relative inline-flex">
+													<MessageCircle className="h-5 w-5" strokeWidth={1.8} />
+													{(chatContactStatus?.unreadCount ?? 0) > 0 && (
+														<span className="absolute -top-1.5 -right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[9px] font-bold text-[var(--accent-contrast)] shadow-sm">
+															{chatContactStatus?.unreadCount}
+														</span>
+													)}
+												</span>
 											</button>
 										)}
 									</div>

@@ -26,6 +26,8 @@ export type AlbumViewerState = {
 	albumId: number;
 	albumName: string | null;
 	content: AlbumContentItem[];
+	/** Whether the message that opened this album belongs to the current user — reacting/replying to your own album doesn't make sense, so callers use this to hide those controls. */
+	isOwn?: boolean;
 };
 
 export type InboxFilterKey =
@@ -34,3 +36,7 @@ export type InboxFilterKey =
 	| "chemistryOnly"
 	| "rightNowOnly"
 	| "onlineNowOnly";
+
+/** Three-way visibility filter for a conversation category (pinned/archived/hidden):
+ * "all" mixes it into the normal list, "hide" excludes it, "only" shows exclusively it. */
+export type InboxVisibilityFilter = "all" | "hide" | "only";

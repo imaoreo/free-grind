@@ -46,7 +46,7 @@ let globalHasShownCount = false;
 
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
-		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-5 pr-6">
+		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
 			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
 			<div className="flex flex-1 flex-col gap-2">
 				<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
@@ -69,9 +69,17 @@ export function InterestPage() {
 	const isDesktop = useDesktopBreakpoint();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
+	const lastActiveTab = window.localStorage.getItem("fg-interest-last-tab");
+	// Falls back to the last tab the user actually looked at (not just their configured default),
+	// since navigating back to /interest (e.g. via the bottom nav) drops the ?tab= param entirely.
+	const fallbackTab: InterestTab = lastActiveTab === "taps" || lastActiveTab === "views" ? lastActiveTab : defaultSetting;
 	const activeTab: InterestTab = searchParams.get("tab") === "taps" || searchParams.get("tab") === "views"
 		? (searchParams.get("tab") as InterestTab)
-		: defaultSetting;
+		: fallbackTab;
+
+	useEffect(() => {
+		window.localStorage.setItem("fg-interest-last-tab", activeTab);
+	}, [activeTab]);
 
 	const { data, isLoading: isQueryLoading, isFetching, error: queryError, refetch } = useInterestData();
 	const [isDemoLoading, setIsDemoLoading] = useState(false);

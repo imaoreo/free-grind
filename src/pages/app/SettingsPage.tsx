@@ -9,12 +9,15 @@ import {
 	ChevronRight,
 	ClipboardList,
 	DatabaseBackup,
+	Download,
 	GitBranch,
 	Images,
 	Info,
 	Loader2,
 	LogOut,
+	Megaphone,
 	MessageSquareWarning,
+	History,
 	Palette,
 	Radar,
 	RefreshCcw,
@@ -49,6 +52,9 @@ import {
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { FingerprintCheckButton } from "../../components/FingerprintCheckButton";
+import { VersionAnnouncement } from "../../components/VersionAnnouncement";
+import { VERSION_ANNOUNCEMENTS } from "../../data/versionAnnouncements";
+import { OutdatedVersionPromptView } from "../../components/OutdatedVersionPrompt";
 import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
 import { getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
@@ -56,6 +62,13 @@ import { getAutomationSettings } from "../../utils/autoblock";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
+// Always previews whichever entry was added/edited most recently, regardless
+// of whether it matches the app's current running version yet.
+const LATEST_ANNOUNCEMENT = VERSION_ANNOUNCEMENTS[VERSION_ANNOUNCEMENTS.length - 1] ?? null;
+const PREVIEW_RELEASE_INFO = {
+	latestVersion: "9.9.9",
+	releasesUrl: "https://github.com/imaoreo/free-grind/releases",
+};
 
 function getErrorMessage(error: unknown, fallback: string): string {
 	if (error instanceof Error && error.message) {
@@ -185,6 +198,8 @@ export function SettingsPage() {
 	const navigate = useNavigate();
 	const { callMethod, asAppError } = useApi();
 	const { developerMode, showDebugInfo, setPreferences } = usePreferences();
+	const [previewAnnouncement, setPreviewAnnouncement] = useState(false);
+	const [previewOutdatedPrompt, setPreviewOutdatedPrompt] = useState(false);
 	const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 	const [isSwitchingChannel, setIsSwitchingChannel] = useState(false);
 	const [isSyncingFcm, setIsSyncingFcm] = useState(false);
@@ -242,8 +257,11 @@ export function SettingsPage() {
 		setIsSyncingFcm(true);
 		try {
 			await callMethod("sync_push_token", { token: tokenToSync });
-			window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, tokenToSync);
-			setFcmSyncedToken(tokenToSync);
+			// Marker must match AuthContext's `${token}::${userId}` format — the same
+			// FCM token is shared across saved accounts, but sync is per-account.
+			const syncMarker = `${tokenToSync}::${userId}`;
+			window.localStorage.setItem(PUSH_TOKEN_SYNCED_STORAGE_KEY, syncMarker);
+			setFcmSyncedToken(syncMarker);
 			toast.success("FCM token synced to Grindr.");
 		} catch (error) {
 			const appError = asAppError(error);
@@ -251,7 +269,7 @@ export function SettingsPage() {
 		} finally {
 			setIsSyncingFcm(false);
 		}
-	}, [fcmToken, callMethod, asAppError]);
+	}, [fcmToken, userId, callMethod, asAppError]);
 
 	const handleLogout = async () => {
 		setIsLoggingOut(true);
@@ -715,6 +733,15 @@ export function SettingsPage() {
 							t("settings.blocked_accounts_desc"),
 						)}
 						{navRow(
+							() => navigate("/settings/block-history"),
+							<History className="h-5 w-5" />,
+							"bg-orange-500/15 text-orange-400",
+							t("settings.block_history", { defaultValue: "Block Activity" }),
+							t("settings.block_history_desc", {
+								defaultValue: "See who has blocked or unblocked you, and when.",
+							}),
+						)}
+						{navRow(
 							() => navigate("/settings/privacy"),
 							<Shield className="h-5 w-5" />,
 							"bg-sky-500/15 text-sky-400",
@@ -884,11 +911,16 @@ export function SettingsPage() {
 									<div className="grid gap-3 min-w-0 flex-1">
 										<div className="flex items-center gap-2 flex-wrap">
 											<p className="text-sm font-semibold">Push Token (FCM)</p>
-											{fcmToken && (
-												<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fcmSyncedToken === fcmToken ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
-													{fcmSyncedToken === fcmToken ? "✓ Synced" : "⚠ Not synced"}
-												</span>
-											)}
+											{fcmToken && (() => {
+												// Sync marker is `${token}::${userId}` (see AuthContext) since the
+												// device token is shared across saved accounts but sync is per-account.
+												const isSynced = fcmSyncedToken === `${fcmToken}::${userId}`;
+												return (
+													<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${isSynced ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+														{isSynced ? "✓ Synced" : "⚠ Not synced"}
+													</span>
+												);
+											})()}
 										</div>
 										{fcmToken ? (
 											<div className="grid gap-2">
@@ -955,9 +987,43 @@ export function SettingsPage() {
 									</div>
 								</div>
 							</div>
+							{navRow(
+								() => setPreviewAnnouncement(true),
+								<Megaphone className="h-5 w-5" />,
+								"bg-[var(--surface-2)] text-[var(--text-muted)]",
+								"Preview Version Announcement",
+								LATEST_ANNOUNCEMENT
+									? `View the "${LATEST_ANNOUNCEMENT.headline}" screen (v${LATEST_ANNOUNCEMENT.version}).`
+									: "No version announcement configured yet.",
+								undefined,
+								!LATEST_ANNOUNCEMENT,
+							)}
+							{navRow(
+								() => setPreviewOutdatedPrompt(true),
+								<Download className="h-5 w-5" />,
+								"bg-[var(--surface-2)] text-[var(--text-muted)]",
+								"Preview Outdated Update Prompt",
+								"View the \"Update Available\" screen shown when the app is out of date.",
+							)}
 						</div>
 					</div>
 				) : null}
+
+				{previewAnnouncement && LATEST_ANNOUNCEMENT && (
+					<VersionAnnouncement
+						announcement={LATEST_ANNOUNCEMENT}
+						buttonLabel="Close"
+						onClose={() => setPreviewAnnouncement(false)}
+					/>
+				)}
+
+				{previewOutdatedPrompt && (
+					<OutdatedVersionPromptView
+						appVersion={import.meta.env.VITE_APP_VERSION}
+						releaseInfo={PREVIEW_RELEASE_INFO}
+						onDismiss={() => setPreviewOutdatedPrompt(false)}
+					/>
+				)}
 
 				{/* About */}
 				<div>

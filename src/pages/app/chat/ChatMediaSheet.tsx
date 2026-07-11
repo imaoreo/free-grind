@@ -7,7 +7,7 @@ import { ProfileImage } from "../../../components/ui/profile-image";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { PhotoViewer, type PhotoViewerMedia } from "../../../components/PhotoViewer";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
-import { saveMediaBytesBatch } from "../../../services/saveMedia";
+import { isIos, saveMediaBytesBatch } from "../../../services/saveMedia";
 import { fetchAndEncode, toDataUri } from "../../../services/mediaStore";
 import { captureAlbum, getLocalAlbum } from "../../../services/albumStore";
 import * as chatDb from "../../../services/chatDb";
@@ -31,7 +31,7 @@ async function hashBase64(base64: string): Promise<string> {
 		.join("");
 }
 
-type Tab = "albums" | "media";
+type Tab = "albums" | "received" | "sent";
 
 type SharedAlbum = {
 	albumId: number;
@@ -46,6 +46,11 @@ type LocalMediaItem = {
 	dataUri: string;
 	mimeType: string | null;
 	base64: string;
+	// Null for media with no local message to join against (e.g. the
+	// getSharedConversationImages live-merge below) — those are always
+	// received (that endpoint only ever returns images shared *with* the
+	// signed-in user), so treating null as "not mine" here is correct.
+	senderId: number | null;
 };
 
 type Props = {
@@ -71,7 +76,7 @@ export function ChatMediaSheet({
 }: Props) {
 	const { t } = useTranslation();
 	const service = useApiFunctions();
-	const [tab, setTab] = useState<Tab>("media");
+	const [tab, setTab] = useState<Tab>("received");
 	const [albums, setAlbums] = useState<SharedAlbum[]>([]);
 	const [albumsLoading, setAlbumsLoading] = useState(true);
 	const [media, setMedia] = useState<LocalMediaItem[]>([]);
@@ -80,30 +85,40 @@ export function ChatMediaSheet({
 	const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 	const [isSavingAll, setIsSavingAll] = useState(false);
 
+	const isMine = (senderId: number | null) => senderId != null && userId != null && Number(senderId) === Number(userId);
+	const sentMedia = media.filter((m) => isMine(m.senderId));
+	const receivedMedia = media.filter((m) => !isMine(m.senderId));
+	const activeMedia = tab === "sent" ? sentMedia : receivedMedia;
+
 	const handleSaveAll = async () => {
-		if (media.length === 0) {
+		if (activeMedia.length === 0) {
 			toast.error(t("profile_details.save_all_empty"));
 			return;
 		}
 
 		setIsSavingAll(true);
 		const toastId = toast.loading(
-			t("profile_details.save_all_progress", { done: 0, total: media.length }),
+			t("profile_details.save_all_progress", { done: 0, total: activeMedia.length }),
 		);
 		try {
 			const result = await saveMediaBytesBatch(
-				media.map((m) => ({ base64: m.base64, mimeType: m.mimeType, type: m.kind })),
+				activeMedia.map((m) => ({ base64: m.base64, mimeType: m.mimeType, type: m.kind })),
 				(done, total) => {
 					toast.loading(t("profile_details.save_all_progress", { done, total }), {
 						id: toastId,
 					});
 				},
+				conversationId,
 			);
 
 			if (result.failed === 0) {
-				toast.success(t("profile_details.save_all_success", { count: result.succeeded }), {
-					id: toastId,
-				});
+				toast.success(
+					t(
+						isIos() ? "profile_details.save_all_success" : "profile_details.save_all_success_downloads",
+						{ count: result.succeeded },
+					),
+					{ id: toastId },
+				);
 			} else {
 				toast.error(
 					t("profile_details.save_all_partial", {
@@ -116,7 +131,10 @@ export function ChatMediaSheet({
 			}
 		} catch (error) {
 			appLog.error("[ChatMediaSheet] Save all failed", error);
-			toast.error(t("profile_details.save_all_error"), { id: toastId });
+			toast.error(
+				t(isIos() ? "profile_details.save_all_error" : "profile_details.save_all_error_downloads"),
+				{ id: toastId },
+			);
 		} finally {
 			setIsSavingAll(false);
 		}
@@ -245,6 +263,7 @@ export function ChatMediaSheet({
 						dataUri: toDataUri(f.mimeType, f.dataBase64),
 						mimeType: f.mimeType,
 						base64: f.dataBase64,
+						senderId: f.senderId,
 					})),
 				);
 				knownUrlHashes = new Set(
@@ -321,6 +340,9 @@ export function ChatMediaSheet({
 									dataUri: toDataUri(fetched.mimeType, fetched.base64),
 									mimeType: fetched.mimeType,
 									base64: fetched.base64,
+									// getSharedConversationImages only ever returns images shared
+									// with the signed-in user, so this is always received.
+									senderId: null,
 								},
 							];
 						});
@@ -338,10 +360,17 @@ export function ChatMediaSheet({
 
 	const tabs: { id: Tab; label: string; icon: React.ReactNode; count: number; loading: boolean }[] = [
 		{
-			id: "media",
-			label: t("chat.media_sheet.tab_media"),
+			id: "received",
+			label: t("chat.media_sheet.tab_received"),
 			icon: <Images className="h-4 w-4" />,
-			count: media.length,
+			count: receivedMedia.length,
+			loading: mediaLoading,
+		},
+		{
+			id: "sent",
+			label: t("chat.media_sheet.tab_sent"),
+			icon: <Images className="h-4 w-4" />,
+			count: sentMedia.length,
 			loading: mediaLoading,
 		},
 		{
@@ -353,7 +382,7 @@ export function ChatMediaSheet({
 		},
 	];
 
-	const viewerPhotos: PhotoViewerMedia[] = media.map((m) => ({ url: m.dataUri, type: m.kind }));
+	const viewerPhotos: PhotoViewerMedia[] = activeMedia.map((m) => ({ url: m.dataUri, type: m.kind }));
 
 	return (
 		<>
@@ -363,7 +392,7 @@ export function ChatMediaSheet({
 				<div className="flex items-center justify-between px-4 pb-3">
 					<p className="text-sm font-semibold text-[var(--text)]">{t("chat.media_sheet.title")}</p>
 					<div className="flex items-center gap-2">
-						{tab === "media" && media.length > 0 && (
+						{tab !== "albums" && activeMedia.length > 0 && (
 							<button
 								type="button"
 								onClick={() => void handleSaveAll()}
@@ -463,15 +492,19 @@ export function ChatMediaSheet({
 						<div className="flex items-center justify-center py-16">
 							<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
 						</div>
-					) : media.length === 0 ? (
+					) : activeMedia.length === 0 ? (
 						<div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
 							<Images className="h-10 w-10 opacity-30" />
-							<p className="text-sm font-medium">{t("chat.media_sheet.media_empty_title")}</p>
-							<p className="text-xs opacity-60">{t("chat.media_sheet.media_empty_desc")}</p>
+							<p className="text-sm font-medium">
+								{t(tab === "sent" ? "chat.media_sheet.sent_empty_title" : "chat.media_sheet.received_empty_title")}
+							</p>
+							<p className="text-xs opacity-60">
+								{t(tab === "sent" ? "chat.media_sheet.sent_empty_desc" : "chat.media_sheet.received_empty_desc")}
+							</p>
 						</div>
 					) : (
 						<div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-							{media.map((item, idx) => (
+							{activeMedia.map((item, idx) => (
 								<button
 									key={item.mediaKey}
 									type="button"
@@ -512,6 +545,7 @@ export function ChatMediaSheet({
 				onClose={() => setViewerIndex(null)}
 				photos={viewerPhotos}
 				initialIndex={viewerIndex}
+				conversationId={conversationId}
 			/>,
 			document.body,
 		)}

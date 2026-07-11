@@ -268,7 +268,7 @@
                 "about_me": "",
                 "about_me_placeholder": "",
                 "my_tags": "",
-                "my_tags_placeholder": "",
+                "my_tags_manage": "",
                 "no_tags_added": ""
             },
             "visiting_mode": {
@@ -329,6 +329,10 @@
                 "description": "",
                 "gender": "",
                 "gender_unavailable": "",
+                "gender_more": "",
+                "gender_dialog_title": "",
+                "gender_search_placeholder": "",
+                "gender_no_matches": "",
                 "pronouns": "",
                 "pronouns_unavailable": ""
             },
@@ -338,7 +342,10 @@
                 "hiv_status": "",
                 "last_tested": "",
                 "health_practices": "",
-                "vaccinations": ""
+                "vaccinations": "",
+                "test_reminder": "",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "",
@@ -375,7 +382,15 @@
         },
         "errors": {
             "display_name_length": "",
-            "about_me_length": ""
+            "about_me_length": "",
+            "max_selection": ""
+        },
+        "tags_dialog": {
+            "title": "",
+            "unavailable": "",
+            "see_more": "",
+            "search_placeholder": "",
+            "no_matches": ""
         }
     },
     "browse_page": {
@@ -422,13 +437,16 @@
             "subtitle": ""
         },
         "media_sheet": {
-            "title": "Received Media",
+            "title": "Media",
             "tab_albums": "Albums",
-            "tab_media": "Media",
+            "tab_received": "Received",
+            "tab_sent": "Sent",
             "albums_empty_title": "No albums shared yet",
             "albums_empty_desc": "Albums shared with you will appear here",
-            "media_empty_title": "No media received yet",
-            "media_empty_desc": "Photos sent to you will appear here"
+            "received_empty_title": "No media received yet",
+            "received_empty_desc": "Photos sent to you will appear here",
+            "sent_empty_title": "No media sent yet",
+            "sent_empty_desc": "Photos you send will appear here"
         },
         "loading_albums": "",
         "loading": "",
@@ -522,6 +540,7 @@
             "album_image": "",
             "album_cover": "",
             "replied_to_photo": "",
+            "replied_to_photo_theirs": "",
             "reacted_to_image": ""
         },
         "actions": {
@@ -577,6 +596,17 @@
         "toasts": {
             "cleared_local_history": "",
             "album_shared": ""
+        },
+        "filter": {
+            "state_all": "Prikaži vse",
+            "state_hide": "Skrij",
+            "state_only": "Samo"
+        },
+        "hidden": {
+            "filter_label": "Skrito"
+        },
+        "archived": {
+            "filter_label": "Arhivirano"
         }
     },
     "profile_details": {
@@ -659,7 +689,8 @@
         "options": {
             "unread": "",
             "chemistry": ""
-        }
+        },
+        "visibility": "Vidnost"
     },
     "interest_page": {
         "empty_views": "No views yet",
@@ -683,5 +714,20 @@
         "cancel": "Prekliči",
         "save": "Shrani",
         "edit": "Uredi"
+    },
+    "privacy": {
+        "read_receipts_grid_unread_note": "Če so potrdila o prebranju izklopljena, strežnik ne more vedeti, da ste prebrali sporočilo — pogovor lahko zato na Gridu še vedno prikazuje kot neprebran, tudi potem, ko ste ga prebrali ali izbrisali."
+    },
+    "grid": {
+        "open_profile_by_id": "Odpri profil po ID-ju"
+    },
+    "test_reminder": {
+        "title": "",
+        "description": "",
+        "save": "",
+        "saving": "",
+        "skip": "",
+        "saved": "",
+        "save_failed": ""
     }
 }

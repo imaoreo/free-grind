@@ -44,7 +44,7 @@ import {
 import { reverseGeocodeCityDistrictForGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
-import freegrindLogo from "../../../../images/freegrind-logo.webp";
+import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
@@ -107,6 +107,7 @@ type ProfileDetailsContentProps = {
 	usesFreegrind: boolean;
 	onMessageProfile?: (profileId: string) => void;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
+	onTagClick?: (tag: string) => void;
 	isTapDisabled: boolean;
 	isTapBlocked: boolean;
 	isTapActive: boolean;
@@ -157,6 +158,7 @@ export function ProfileDetailsContent({
 	usesFreegrind,
 	onMessageProfile,
 	onTapProfile,
+	onTagClick,
 	isTapDisabled,
 	isTapBlocked,
 	isTapActive,
@@ -195,7 +197,19 @@ export function ProfileDetailsContent({
 	);
 	const hasTravelPlans = visibleTravelPlans.length > 0;
 	const rightNowTextTrimmed = activeProfile.rightNowText?.trim();
-	const hasRightNow = !shouldHideField(rightNowTextTrimmed);
+	// rightNowText disappears from the live profile response once the person
+	// goes offline, but rightNowPosted (the post's own timestamp) stays put
+	// as long as the post itself hasn't expired — that's the actual signal
+	// for "does this profile currently have an active Right Now", independent
+	// of online/offline status.
+	const hasRightNow =
+		typeof activeProfile.rightNowPosted === "number" &&
+		Number.isFinite(activeProfile.rightNowPosted) &&
+		activeProfile.rightNowPosted > 0;
+	// The detail block below (header + text box) needs actual text to show —
+	// unlike the compact badge next to the name, which only needs an active
+	// post (rightNowPosted) and would otherwise render an empty box.
+	const hasRightNowDetail = hasRightNow && Boolean(rightNowTextTrimmed);
 	const isRightNowHosting = activeProfile.rightNow === "HOSTING";
 
 	const renderPhotoCreatedBadge = (_hash: string) => null;
@@ -501,12 +515,7 @@ export function ProfileDetailsContent({
 						)}
 					</div>
 					{usesFreegrind && (
-						<img
-							src={freegrindLogo}
-							alt="Free Grind user"
-							title={t("profile_details.uses_free_grind")}
-							className="mt-1 h-6 w-6 shrink-0 rounded-full border border-[var(--border)]"
-						/>
+						<FreeGrindBadge size="lg" title={t("profile_details.uses_free_grind")} className="mt-1" />
 					)}
 				</div>
 				{hasChatHistory && (
@@ -548,11 +557,11 @@ export function ProfileDetailsContent({
 
 			{extraTopSection}
 
-			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNow || hasStatsFields || hasSocialFields) && (
+			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNowDetail || hasStatsFields || hasSocialFields) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
-				{(hasTagsContent || hasAboutContent || hasRightNow || hasExpectationsFields || hasHealthFields) && (
+				{(hasTagsContent || hasAboutContent || hasRightNowDetail || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
-					{hasRightNow && (
+					{hasRightNowDetail && (
 						<div>
 							<p
 								className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.1em]"
@@ -589,16 +598,20 @@ export function ProfileDetailsContent({
 										(own) => own.toLowerCase() === tag.toLowerCase(),
 									);
 									return (
-                                        <span
-                                            key={tag}
-                                            className={`rounded-full border px-3 py-1.5 text-sm ${
-                                                isMatch
-                                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold"
-                                                : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]"
-                                            }`}
-                                            >
-                                            {tag}
-                                        </span>
+										<button
+											key={tag}
+											type="button"
+											onClick={() => onTagClick?.(tag)}
+											className={`rounded-full border px-3 py-1.5 text-sm transition-opacity ${
+												onTagClick ? "cursor-pointer hover:opacity-80" : ""
+											} ${
+												isMatch
+												? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] font-semibold"
+												: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)]"
+											}`}
+										>
+											{tag}
+										</button>
 									);
 								})}
 							</div>

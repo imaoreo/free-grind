@@ -8,6 +8,8 @@ export function ToggleRow({
 	activeColor,
 	activeThumbColor,
 	dense,
+	labelClassName,
+	padding: paddingProp,
 }: {
 	checked: boolean;
 	onChange: (checked: boolean) => void;
@@ -18,9 +20,13 @@ export function ToggleRow({
 	activeColor?: string;
 	activeThumbColor?: string;
 	dense?: boolean;
+	/** Overrides the label's default sentence-style typography — used for plain, borderless rows that should match the small-caps field-label style used elsewhere on the page. */
+	labelClassName?: string;
+	/** Overrides the row's default padding — pass "" for a borderless row that shouldn't add its own inset. */
+	padding?: string;
 }) {
 	const hasIcon = icon !== undefined;
-	const padding = dense ? "p-3" : "px-4 py-3.5";
+	const padding = paddingProp ?? (dense ? "p-3" : "px-4 py-3.5");
 
 	return (
 		<label
@@ -34,7 +40,7 @@ export function ToggleRow({
 				<div className={`shrink-0 rounded-2xl p-2.5 ${iconClass ?? ""}`}>{icon}</div>
 			)}
 			<span className={hasIcon ? "min-w-0 flex-1" : ""}>
-				<span className={`block text-sm ${hasIcon ? "font-semibold leading-snug" : "font-medium"}`}>
+				<span className={labelClassName ?? `block text-sm ${hasIcon ? "font-semibold leading-snug" : "font-medium"}`}>
 					{label}
 				</span>
 				{description && (

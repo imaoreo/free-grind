@@ -59,6 +59,11 @@ export interface ReorderOwnAlbumContentInput {
 	contentIds: number[];
 }
 
+export interface AddOwnAlbumContentByIdsInput {
+	albumId: string;
+	ids: number[];
+}
+
 export interface DeleteOwnAlbumContentInput {
 	albumId: string;
 	contentId: string;
@@ -135,11 +140,26 @@ export interface ApiFunctionDefinition {
 export interface ManagedGender {
 	genderId: number;
 	gender: string;
+	/** Groups genders into tiers (1 = common, 2/3 = broader/regional identities) — used to show a curated default set inline with a "more" expander rather than every option at once. */
+	displayGroup: number;
+	sortFilter: number | null;
 }
 
 export interface ManagedPronoun {
 	pronounId: number;
 	pronoun: string;
+}
+
+export interface ManagedTag {
+	tagId: number;
+	text: string;
+	key: string;
+}
+
+export interface ManagedTagCategory {
+	text: string;
+	possessiveText: string | null;
+	tags: ManagedTag[];
 }
 
 export interface ProfileImageUploadResult {

@@ -1,4 +1,4 @@
-import { Archive, EyeOff, Loader2, MessageCircle, Pin, PinOff, Trash2 } from "lucide-react";
+import { Archive, BellOff, Eye, EyeOff, Home, Loader2, MessageCircle, Pin, PinOff, Star, Trash2, Zap } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -10,7 +10,7 @@ import { ProfileImage } from "../../../components/ui/profile-image";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import type { ConversationEntry } from "../../../types/messages";
 import type { ChatContactIndexRecord } from "../../../types/chat-contact-index";
-import freegrindLogo from "../../../images/freegrind-logo.webp";
+import { FreeGrindBadge } from "../../../components/FreeGrindBadge";
 import { PullToRefreshContainer } from "../components/PullToRefreshContainer";
 import {
 	formatConversationTime,
@@ -30,10 +30,16 @@ import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { useInboxSyncStatus } from "../../../hooks/useInboxSyncStatus";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../../config/design-config";
 
-/** Fixed row pinned to the very top of the chat list (the list scrolls
- * underneath it) — only rendered while a sync is actually in flight;
- * idle/done/error states show nothing here (Settings > Data has those). */
-function ChatSyncProgressRow({ userId }: { userId: number | null }) {
+/** Footer bar below the chat list's scroll area (not inside it) — reads as
+ * part of the list (same border/background as a conversation row) rather
+ * than a floating pill, and lives outside the scrolling region entirely so
+ * conversation rows never scroll behind/through it. Desktop-only: there's no
+ * fixed bottom nav to clear here, so a plain footer row works; on mobile the
+ * fixed bottom nav bar leaves no clean spot for it, so that gets a minimal
+ * caption in the header instead (ChatSyncHeaderCaption in ChatInboxHeader).
+ * Only rendered while a sync is actually in flight; idle/done/error states
+ * show nothing here (Settings > Data has those). */
+function ChatSyncFooterRow({ userId }: { userId: number | null }) {
 	const { t } = useTranslation();
 	const status = useInboxSyncStatus(userId);
 
@@ -41,28 +47,28 @@ function ChatSyncProgressRow({ userId }: { userId: number | null }) {
 		return null;
 	}
 
+	const progressPercent =
+		status.phase === "syncing_messages" && status.total > 0
+			? Math.round((status.completed / status.total) * 100)
+			: null;
+
 	const label =
 		status.phase === "syncing_list"
 			? t("chat.sync_progress.syncing_list", {
 					defaultValue: "Syncing chats… {{count}} checked",
 					count: status.conversationsSoFar,
 				})
-			: t("chat.sync_progress.syncing_messages", {
-					defaultValue: "Syncing messages… {{completed}}/{{total}}",
-					completed: status.completed,
-					total: status.total,
+			: t("chat.sync_progress.syncing_messages_percent", {
+					defaultValue: "Syncing messages… {{percent}}%",
+					percent: progressPercent ?? 0,
 				});
-	const progressPercent =
-		status.phase === "syncing_messages" && status.total > 0
-			? Math.round((status.completed / status.total) * 100)
-			: null;
 
 	return (
-		<div className="shrink-0 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-2.5">
-			<Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--accent)]" />
+		<div className="z-20 flex shrink-0 items-center gap-3 border-t border-[var(--surface-2)] bg-[var(--surface)] px-4 py-3">
+			<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--accent)]" />
 			<div className="min-w-0 flex-1">
-				<p className="truncate text-[11px] font-medium text-[var(--text-muted)]">{label}</p>
-				<div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
+				<p className="truncate text-xs font-medium text-[var(--text-muted)]">{label}</p>
+				<div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
 					<div
 						className={
 							progressPercent == null
@@ -97,9 +103,10 @@ type ChatInboxPanelProps = ChatInboxHeaderProps & {
 	onSelectConversation: (conversation: ConversationEntry) => void;
 	onOpenConversationById: (conversationId: string) => void;
 	onViewProfile: (profileId: number) => void;
-	onClearInboxFilters: () => void;
 	typingConversationIds?: Set<string>;
 	onTogglePinConversation: (conversationId: string, isPinned: boolean) => void | Promise<void>;
+	hiddenConversationIds: Set<string>;
+	onToggleHideConversation: (conversationId: string, isHidden: boolean) => void;
 	onDeleteConversation: (conversationId: string) => void | Promise<void>;
 	onDeleteConversationLocal: (conversationId: string) => void | Promise<void>;
 	isDeletingConversationId: string | null;
@@ -129,18 +136,22 @@ type ChatConversationRowProps = {
 function ConversationContextMenu({
 	conversation,
 	isArchived,
+	isHidden,
 	x,
 	y,
 	onClose,
 	onTogglePin,
+	onToggleHide,
 	onDelete,
 }: {
 	conversation: ConversationEntry;
 	isArchived: boolean;
+	isHidden: boolean;
 	x: number;
 	y: number;
 	onClose: () => void;
 	onTogglePin: () => void;
+	onToggleHide: () => void;
 	onDelete: () => void;
 }) {
 	const { t } = useTranslation();
@@ -200,6 +211,16 @@ function ConversationContextMenu({
 					{isPinned ? t("chat.unpin") : t("chat.pin")}
 				</button>
 			)}
+			<button
+				type="button"
+				onClick={onToggleHide}
+				className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+			>
+				{isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+				{isHidden
+					? t("chat.unhide_conversation", { defaultValue: "Unhide" })
+					: t("chat.hide_conversation", { defaultValue: "Hide" })}
+			</button>
 			<button
 				type="button"
 				onClick={onDelete}
@@ -459,18 +480,33 @@ function ChatConversationRow({
 								<p className="truncate text-sm font-semibold text-[var(--text)]">
 									{displayName}
 								</p>
+								{conversation.data.muted && (
+									<span title={t("chat.muted")}>
+										<BellOff className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+									</span>
+								)}
+								{conversation.data.favorite && (
+									<span title={t("chat.favorite")}>
+										<Star className="h-3.5 w-3.5 shrink-0 fill-current text-[var(--accent)]" />
+									</span>
+								)}
+								{conversation.data.rightNow === "HOSTING" && (
+									<span title={t("right_now.hosting")}>
+										<Home className="h-3.5 w-3.5 shrink-0 text-[var(--right-now)]" />
+									</span>
+								)}
+								{conversation.data.rightNow === "NOT_HOSTING" && (
+									<span title={t("right_now.not_hosting", { defaultValue: "Right Now" })}>
+										<Zap className="h-3.5 w-3.5 shrink-0 text-[var(--right-now)]" />
+									</span>
+								)}
 								{readReceiptsHidden && (
 									<span title={t("privacy.read_receipts_hidden_badge")}>
 										<EyeOff className="h-3.5 w-3.5 shrink-0 text-purple-400" />
 									</span>
 								)}
 								{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
-									<img
-										src={freegrindLogo}
-										alt="Free Grind user"
-										title={t("profile_details.uses_free_grind")}
-										className="h-3.5 w-3.5 shrink-0 rounded-full border border-[var(--border)]"
-									/>
+									<FreeGrindBadge size="xs" title={t("profile_details.uses_free_grind")} />
 								) : null}
 							</div>
 							<span className="shrink-0 text-xs text-[var(--text-muted)]">
@@ -499,12 +535,6 @@ function ChatConversationRow({
 								</span>
 							) : null}
 						</div>
-
-						{conversation.data.muted ? (
-							<span className="mt-1 inline-block rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[10px] text-[var(--text-muted)]">
-								{t("chat.muted")}
-							</span>
-						) : null}
 					</div>
 				</div>
 			</div>
@@ -517,7 +547,7 @@ export function ChatInboxPanel({
 	isLoadingMoreInbox,
 	inboxError,
 	inboxFilters,
-	hidePinned,
+	pinnedFilter,
 	hasActiveInboxFilters,
 	activeFilterCount,
 	filteredConversations,
@@ -543,14 +573,17 @@ export function ChatInboxPanel({
 	onSelectConversation,
 	onOpenConversationById,
 	onViewProfile,
-	onClearInboxFilters: _onClearInboxFilters,
-	onToggleHidePinned,
+	onClearInboxFilters,
 	onToggleFavoritesOnly,
-	hideArchived,
-	archivedCount,
-	onToggleHideArchived,
+	onToggleUnreadOnly,
+	onToggleRightNowOnly,
+	onToggleOnlineNowOnly,
+	archivedFilter,
+	hiddenFilter,
 	typingConversationIds,
 	onTogglePinConversation,
+	hiddenConversationIds,
+	onToggleHideConversation,
 	onDeleteConversation,
 	onDeleteConversationLocal,
 	isDeletingConversationId,
@@ -657,9 +690,10 @@ export function ChatInboxPanel({
 			{showHeader && (
 				<ChatInboxHeader
 					isDesktop={isDesktop}
+					userId={userId}
 					realtimeStatusMeta={realtimeStatusMeta}
 					inboxFilters={inboxFilters}
-					hidePinned={hidePinned}
+					pinnedFilter={pinnedFilter}
 					hasActiveInboxFilters={hasActiveInboxFilters}
 					activeFilterCount={activeFilterCount}
 					isSearchOpen={isSearchOpen}
@@ -669,14 +703,14 @@ export function ChatInboxPanel({
 					onSetIsFiltersOpen={onSetIsFiltersOpen}
 					onSetFiltersDraft={onSetFiltersDraft}
 					onToggleFavoritesOnly={onToggleFavoritesOnly}
-					onToggleHidePinned={onToggleHidePinned}
-					hideArchived={hideArchived}
-					archivedCount={archivedCount}
-					onToggleHideArchived={onToggleHideArchived}
+					onToggleUnreadOnly={onToggleUnreadOnly}
+					onToggleRightNowOnly={onToggleRightNowOnly}
+					onToggleOnlineNowOnly={onToggleOnlineNowOnly}
+					onClearInboxFilters={onClearInboxFilters}
+					archivedFilter={archivedFilter}
+					hiddenFilter={hiddenFilter}
 				/>
 			)}
-
-			{!isSearchOpen && <ChatSyncProgressRow userId={userId} />}
 
 			{isSearchOpen ? (
 				<ChatSearchPanel
@@ -800,10 +834,13 @@ export function ChatInboxPanel({
 				</div>
 			)}
 
+			{isDesktop && !isSearchOpen && <ChatSyncFooterRow userId={userId} />}
+
 			{contextMenuState ? (
 				<ConversationContextMenu
 					conversation={contextMenuState.conversation}
 					isArchived={contextMenuState.isArchived}
+					isHidden={hiddenConversationIds.has(contextMenuState.conversation.data.conversationId)}
 					x={contextMenuState.x}
 					y={contextMenuState.y}
 					onClose={() => setContextMenuState(null)}
@@ -811,6 +848,14 @@ export function ChatInboxPanel({
 						const { conversation } = contextMenuState;
 						setContextMenuState(null);
 						void onTogglePinConversation(conversation.data.conversationId, conversation.data.pinned);
+					}}
+					onToggleHide={() => {
+						const { conversation } = contextMenuState;
+						setContextMenuState(null);
+						onToggleHideConversation(
+							conversation.data.conversationId,
+							hiddenConversationIds.has(conversation.data.conversationId),
+						);
 					}}
 					onDelete={() => {
 						setContextMenuState(null);

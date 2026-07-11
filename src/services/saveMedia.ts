@@ -97,6 +97,15 @@ function base64ToBytes(base64: string): Uint8Array {
 	return bytes;
 }
 
+/** Keeps a conversation id safe to use as a single path segment on every platform. */
+function sanitizeFolderSegment(id: string): string {
+	return id.replace(/[^a-zA-Z0-9_-]/g, "_");
+}
+
+function mediaRelativeDir(conversationId: string | null | undefined): string {
+	return conversationId ? `${FOLDER_NAME}/${sanitizeFolderSegment(conversationId)}` : FOLDER_NAME;
+}
+
 function extensionFromMimeType(mimeType: string | null, type: "image" | "video"): string {
 	const subtype = mimeType?.split("/")[1]?.split(";")[0]?.trim();
 	if (subtype === "jpeg") return "jpg";
@@ -168,11 +177,12 @@ async function saveMediaBytesToGalleryAndroid(
 	bytes: Uint8Array,
 	mimeTypeIn: string | null,
 	type: "image" | "video",
+	conversationId?: string | null,
 ): Promise<boolean> {
 	const extension = extensionFromMimeType(mimeTypeIn, type);
 	const mimeType = mimeTypeIn || mimeTypeFor(type, extension, null);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-	const relativePath = `${FOLDER_NAME}/${fileName}`;
+	const relativePath = `${mediaRelativeDir(conversationId)}/${fileName}`;
 
 	const uri = type === "video"
 		? await AndroidFs.createNewPublicVideoFile(AndroidPublicGeneralPurposeDir.Download, relativePath, mimeType, { isPending: true })
@@ -202,13 +212,15 @@ async function saveMediaBytesToFolderDesktop(
 	bytes: Uint8Array,
 	mimeType: string | null,
 	type: "image" | "video",
+	conversationId?: string | null,
 ): Promise<boolean> {
 	const extension = extensionFromMimeType(mimeType, type);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 	const baseDir = BaseDirectory.Download;
-	const relativePath = `${FOLDER_NAME}/${fileName}`;
+	const relativeDir = mediaRelativeDir(conversationId);
+	const relativePath = `${relativeDir}/${fileName}`;
 
-	await mkdir(FOLDER_NAME, { baseDir, recursive: true });
+	await mkdir(relativeDir, { baseDir, recursive: true });
 	await writeFile(relativePath, bytes, { baseDir });
 	recordDownloadedMediaEntry({
 		identifier: relativePath,
@@ -233,20 +245,28 @@ export async function saveMediaToGallery(url: string, type: "image" | "video"): 
 
 /**
  * Saves a remote chat-media URL into the public Downloads collection via
- * MediaStore, in a "FreeGrind" sub-folder. Android only.
+ * MediaStore, in a "FreeGrind/<conversationId>" sub-folder. Android only.
  */
-async function saveMediaToGalleryAndroid(url: string, type: "image" | "video"): Promise<boolean> {
+async function saveMediaToGalleryAndroid(
+	url: string,
+	type: "image" | "video",
+	conversationId?: string | null,
+): Promise<boolean> {
 	const { bytes, contentType } = await fetchMediaBytes(url);
-	return saveMediaBytesToGalleryAndroid(bytes, contentType, type);
+	return saveMediaBytesToGalleryAndroid(bytes, contentType, type, conversationId);
 }
 
 /**
  * Saves a remote chat-media URL into the user's Downloads folder, in a
- * "FreeGrind" sub-folder. Desktop (Windows/macOS/Linux) only.
+ * "FreeGrind/<conversationId>" sub-folder. Desktop (Windows/macOS/Linux) only.
  */
-async function saveMediaToFolderDesktop(url: string, type: "image" | "video"): Promise<boolean> {
+async function saveMediaToFolderDesktop(
+	url: string,
+	type: "image" | "video",
+	conversationId?: string | null,
+): Promise<boolean> {
 	const { bytes, contentType } = await fetchMediaBytes(url);
-	return saveMediaBytesToFolderDesktop(bytes, contentType, type);
+	return saveMediaBytesToFolderDesktop(bytes, contentType, type, conversationId);
 }
 
 const BATCH_DELAY_MS = 400;
@@ -275,12 +295,16 @@ function downloadFile(url: string): void {
  * plain browser download/open outside of Tauri (web preview), and also if
  * the native save itself throws (e.g. missing plugin/permission).
  */
-export async function saveMediaToDevice(url: string, type: "image" | "video"): Promise<boolean> {
+export async function saveMediaToDevice(
+	url: string,
+	type: "image" | "video",
+	conversationId?: string | null,
+): Promise<boolean> {
 	if (isIos()) return saveMediaToGallery(url, type);
 
 	if (isAndroid()) {
 		try {
-			return await saveMediaToGalleryAndroid(url, type);
+			return await saveMediaToGalleryAndroid(url, type, conversationId);
 		} catch (error) {
 			appLog.error("[saveMedia] Android save failed, falling back to browser", error);
 			downloadFile(url);
@@ -290,7 +314,7 @@ export async function saveMediaToDevice(url: string, type: "image" | "video"): P
 
 	if (isDesktopTauri()) {
 		try {
-			return await saveMediaToFolderDesktop(url, type);
+			return await saveMediaToFolderDesktop(url, type, conversationId);
 		} catch (error) {
 			appLog.error("[saveMedia] Desktop save failed, falling back to browser", error);
 			downloadFile(url);
@@ -322,6 +346,7 @@ export async function saveMediaBytesToDevice(
 	base64: string,
 	mimeType: string | null,
 	type: "image" | "video",
+	conversationId?: string | null,
 ): Promise<boolean> {
 	const bytes = base64ToBytes(base64);
 
@@ -329,7 +354,7 @@ export async function saveMediaBytesToDevice(
 
 	if (isAndroid()) {
 		try {
-			return await saveMediaBytesToGalleryAndroid(bytes, mimeType, type);
+			return await saveMediaBytesToGalleryAndroid(bytes, mimeType, type, conversationId);
 		} catch (error) {
 			appLog.error("[saveMedia] Android save failed, falling back to browser", error);
 			downloadDataUri(toDataUri(mimeType, base64));
@@ -339,7 +364,7 @@ export async function saveMediaBytesToDevice(
 
 	if (isDesktopTauri()) {
 		try {
-			return await saveMediaBytesToFolderDesktop(bytes, mimeType, type);
+			return await saveMediaBytesToFolderDesktop(bytes, mimeType, type, conversationId);
 		} catch (error) {
 			appLog.error("[saveMedia] Desktop save failed, falling back to browser", error);
 			downloadDataUri(toDataUri(mimeType, base64));
@@ -360,12 +385,13 @@ export async function saveMediaBytesToDeviceSilent(
 	base64: string,
 	mimeType: string | null,
 	type: "image" | "video",
+	conversationId?: string | null,
 ): Promise<boolean> {
 	const bytes = base64ToBytes(base64);
 
 	if (isIos()) return saveMediaBytesToGallery(bytes, mimeType, type);
-	if (isAndroid()) return saveMediaBytesToGalleryAndroid(bytes, mimeType, type);
-	if (isDesktopTauri()) return saveMediaBytesToFolderDesktop(bytes, mimeType, type);
+	if (isAndroid()) return saveMediaBytesToGalleryAndroid(bytes, mimeType, type, conversationId);
+	if (isDesktopTauri()) return saveMediaBytesToFolderDesktop(bytes, mimeType, type, conversationId);
 
 	// Not a supported native platform — skip silently instead of opening a
 	// browser download, since this runs in the background without user intent.
@@ -378,6 +404,7 @@ export type SaveMediaBytesBatchItem = { base64: string; mimeType: string | null;
 export async function saveMediaBytesBatch(
 	items: SaveMediaBytesBatchItem[],
 	onProgress?: (done: number, total: number) => void,
+	conversationId?: string | null,
 ): Promise<SaveMediaBatchResult> {
 	let succeeded = 0;
 	let failed = 0;
@@ -385,7 +412,7 @@ export async function saveMediaBytesBatch(
 	for (let i = 0; i < items.length; i++) {
 		const { base64, mimeType, type } = items[i];
 		try {
-			const saved = await saveMediaBytesToDevice(base64, mimeType, type);
+			const saved = await saveMediaBytesToDevice(base64, mimeType, type, conversationId);
 			if (saved) succeeded++;
 			else failed++;
 		} catch (error) {
@@ -410,6 +437,7 @@ export async function saveMediaBytesBatch(
 export async function saveMediaBatch(
 	items: SaveMediaBatchItem[],
 	onProgress?: (done: number, total: number) => void,
+	conversationId?: string | null,
 ): Promise<SaveMediaBatchResult> {
 	let succeeded = 0;
 	let failed = 0;
@@ -417,7 +445,7 @@ export async function saveMediaBatch(
 	for (let i = 0; i < items.length; i++) {
 		const { url, type } = items[i];
 		try {
-			const saved = await saveMediaToDevice(url, type);
+			const saved = await saveMediaToDevice(url, type, conversationId);
 			if (saved) succeeded++;
 			else failed++;
 		} catch (error) {

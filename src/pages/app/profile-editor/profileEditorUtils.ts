@@ -8,12 +8,15 @@ import {
 	poundsToGrams,
 	type UnitsPreset,
 } from "../../../utils/units";
+import { calculateSquareCrop, validateMediaHash } from "../../../utils/media";
 
 function isImperialHeight(unitsPreset: UnitsPreset): boolean {
 	return unitsPreset === "uk" || unitsPreset === "american";
 }
 
 export const MAX_PROFILE_PHOTOS = 5;
+export const MAX_PROFILE_TAGS = 10;
+export const MAX_GENDERS = 3;
 
 /** Media moderation review state, as returned per-item in a profile's `medias` array. */
 export const MEDIA_MODERATION_STATE = {
@@ -82,6 +85,33 @@ export const profileSchema = z.object({
 export const profileResponseSchema = z.object({
 	profiles: z.array(profileSchema).length(1),
 });
+
+/**
+ * Picks the profile's primary photo hash the same way everywhere it's
+ * needed (grid header avatar, chat header avatar, account switcher) — prefer
+ * the first valid hash in `medias`, falling back to `profileImageMediaHash`
+ * (which can lag behind `medias` after deleting every photo).
+ */
+export function getProfilePhotoHash(
+	profile: Pick<z.infer<typeof profileSchema>, "medias" | "profileImageMediaHash"> | null | undefined,
+): string | null {
+	if (!profile) {
+		return null;
+	}
+
+	const fromMedias = (profile.medias ?? [])
+		.map((item) => item.mediaHash ?? "")
+		.find((hash) => validateMediaHash(hash));
+	if (fromMedias) {
+		return fromMedias;
+	}
+
+	if (profile.profileImageMediaHash && validateMediaHash(profile.profileImageMediaHash)) {
+		return profile.profileImageMediaHash;
+	}
+
+	return null;
+}
 
 export interface ProfileDraft {
 	displayName: string;
@@ -167,6 +197,30 @@ export function parseDateInput(value: string): number | null {
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** Formats a timestamp as "yyyy-mm" for an <input type="month"> — used where only the month/year matters (e.g. last tested date), not the exact day. */
+export function formatMonthInput(value: number | null | undefined): string {
+	if (!value) {
+		return "";
+	}
+
+	const date = new Date(value);
+	if (Number.isNaN(date.getTime())) {
+		return "";
+	}
+
+	return date.toISOString().slice(0, 7);
+}
+
+/** Parses an <input type="month"> value ("yyyy-mm"), always resolving to the 1st of that month. */
+export function parseMonthInput(value: string): number | null {
+	if (!value.trim()) {
+		return null;
+	}
+
+	const parsed = Date.parse(`${value}-01T00:00:00.000Z`);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function normalizeTagList(value: string): string[] {
 	return value
 		.split(",")
@@ -174,7 +228,15 @@ export function normalizeTagList(value: string): string[] {
 		.filter(Boolean);
 }
 
-import { calculateSquareCrop } from "../../../utils/media";
+/** Adds/removes a tag (case-insensitively) from a comma-separated tag text, for the tag picker dialog. */
+export function toggleProfileTagText(currentText: string, tag: string): string {
+	const list = normalizeTagList(currentText);
+	const exists = list.some((item) => item.toLowerCase() === tag.toLowerCase());
+	const next = exists
+		? list.filter((item) => item.toLowerCase() !== tag.toLowerCase())
+		: [...list, tag];
+	return next.join(", ");
+}
 
 export async function buildSquareThumbCoords(file: File): Promise<string> {
 	const { top, left, right, bottom } = await calculateSquareCrop(file);
@@ -223,7 +285,7 @@ export function profileToDraft(
 		genders: profile.genders ?? [],
 		pronouns: profile.pronouns ?? [],
 		hivStatus: profile.hivStatus?.toString() ?? "",
-		lastTestedDate: formatDateInput(profile.lastTestedDate),
+		lastTestedDate: formatMonthInput(profile.lastTestedDate),
 		sexualHealth: profile.sexualHealth ?? [],
 		vaccines: profile.vaccines ?? [],
 		instagram: profile.socialNetworks?.instagram?.userId ?? "",

@@ -67,6 +67,11 @@ export function useBrowseFilters(persistedBrowseFilters: BrowseFiltersDraft) {
 		setTags(normalized.tags);
 		setNicknameFilter(normalized.nicknameFilter);
 
+		// Persist immediately so this becomes the source of truth on disk too —
+		// otherwise a later account-ready reload can clobber it with the stale draft
+		// before the regular (skip-first-run) persist effect ever saves it.
+		void saveBrowseFiltersDraft(normalized);
+
 		// Clear the state from the history entry so it doesn't re-apply when returning to this page
 		navigate(location.pathname + location.search, {
 			replace: true,

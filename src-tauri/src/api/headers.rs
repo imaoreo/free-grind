@@ -82,6 +82,7 @@ struct VersionInfo {
 }
 
 static VERSION_INFO: OnceLock<VersionInfo> = OnceLock::new();
+static LOCALE_INFO: OnceLock<(String, String)> = OnceLock::new();
 
 fn fetch_version_info() -> Option<VersionInfo> {
     let client = reqwest::blocking::Client::builder()
@@ -111,6 +112,34 @@ fn version_info() -> &'static VersionInfo {
             app_version: DEFAULT_APP_VERSION.to_string(),
             build_number: DEFAULT_BUILD_NUMBER.to_string(),
         })
+    })
+}
+
+/// Returns `(l_locale, accept_language)`, e.g. `("en_US", "en-US")`, derived from the
+/// device's OS locale (BCP-47, as reported by `sys_locale` via `tauri_plugin_os::locale`).
+fn locale_info() -> &'static (String, String) {
+    LOCALE_INFO.get_or_init(|| {
+        let raw = tauri_plugin_os::locale().unwrap_or_else(|| "en-US".to_string());
+        let normalized = raw.replace('_', "-");
+        let segments: Vec<&str> = normalized.split('-').filter(|s| !s.is_empty()).collect();
+
+        let language = segments
+            .first()
+            .copied()
+            .unwrap_or("en")
+            .to_lowercase();
+
+        // Skip script subtags (e.g. "Hans" in "zh-Hans-CN") and take the last 2-letter
+        // segment as the region; fall back to the language code itself (e.g. "de" -> "DE").
+        let region = segments
+            .iter()
+            .skip(1)
+            .rev()
+            .find(|segment| segment.len() == 2)
+            .map(|segment| segment.to_uppercase())
+            .unwrap_or_else(|| language.to_uppercase());
+
+        (format!("{language}_{region}"), format!("{language}-{region}"))
     })
 }
 
@@ -257,16 +286,15 @@ pub fn build_headers(
     }
 
     // 7. L-Locale
-    headers.push((
-        HeaderName::from_static("l-locale"),
-        HeaderValue::from_static("en_US"),
-    ));
+    let (l_locale, accept_language) = locale_info();
+    if let Ok(value) = HeaderValue::from_str(l_locale) {
+        headers.push((HeaderName::from_static("l-locale"), value));
+    }
 
     // 8. Accept-Language
-    headers.push((
-        HeaderName::from_static("accept-language"),
-        HeaderValue::from_static("en-US"),
-    ));
+    if let Ok(value) = HeaderValue::from_str(accept_language) {
+        headers.push((HeaderName::from_static("accept-language"), value));
+    }
 
     // 9. Accept-Encoding
     headers.push((

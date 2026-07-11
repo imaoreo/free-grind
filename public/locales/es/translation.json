@@ -318,8 +318,8 @@
                 "about_me": "Sobre mí",
                 "about_me_placeholder": "Hasta 255 caracteres",
                 "my_tags": "Mis etiquetas",
-                "my_tags_placeholder": "Etiquetas clave, separadas por comas",
-                "no_tags_added": "No se han añadido etiquetas todavía."
+                "my_tags_manage": "Gestionar etiquetas",
+                "no_tags_added": "Añadir etiquetas"
             },
             "visiting_mode": {
                 "title": "Modo",
@@ -378,9 +378,13 @@
             },
             "identity": {
                 "title": "Identidad",
-                "description": "Gestionar campos de identidad",
+                "description": "Género y pronombres",
                 "gender": "Género",
                 "gender_unavailable": "Opciones de género no están disponibles ahora mismo.",
+                "gender_more": "Más géneros",
+                "gender_dialog_title": "Elegir géneros",
+                "gender_search_placeholder": "Buscar géneros...",
+                "gender_no_matches": "Ningún género coincide con tu búsqueda.",
                 "pronouns": "Pronombres",
                 "pronouns_unavailable": "Las opciones de pronombre no están disponibles ahora mismo."
             },
@@ -390,7 +394,10 @@
                 "hiv_status": "Estado de VIH",
                 "last_tested": "Último análisis",
                 "health_practices": "Prácticas saludables",
-                "vaccinations": "Vacunas"
+                "vaccinations": "Vacunas",
+                "test_reminder": "Han pasado más de 3 meses desde tu última prueba — considera hacerte otra.",
+                "test_reminder_toggle": "Recordatorio de prueba",
+                "test_reminder_toggle_desc": "Muestra un recordatorio para hacerte una prueba cuando haya pasado un tiempo desde la última."
             },
             "social": {
                 "title": "Redes sociales",
@@ -427,7 +434,15 @@
         },
         "errors": {
             "display_name_length": "El nombre en pantalla no puede tener más de 15 caracteres.",
-            "about_me_length": "Sobre mí tiene que tener menos de 255 caracteres."
+            "about_me_length": "Sobre mí tiene que tener menos de 255 caracteres.",
+            "max_selection": "Puedes seleccionar hasta {{count}}."
+        },
+        "tags_dialog": {
+            "title": "Elegir etiquetas",
+            "unavailable": "Las etiquetas no están disponibles en este momento.",
+            "see_more": "Ver {{count}} más",
+            "search_placeholder": "Buscar etiquetas...",
+            "no_matches": "No hay etiquetas que coincidan con tu búsqueda."
         }
     },
     "browse_page": {
@@ -477,7 +492,8 @@
             "tap_limit": "Ya has enviado un tap a este perfil en las últimas 24 horas",
             "tap_mutual": "Tap enviado. Es mutuo.",
             "tap_sent": "Tap enviado",
-            "tap_failed": "Error al enviar tap"
+            "tap_failed": "Error al enviar tap",
+            "tag_filter_applied": "Filtrado por etiqueta \"{{tag}}\""
         },
         "chatted": "Chatted"
     },
@@ -518,13 +534,16 @@
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
         "media_sheet": {
-            "title": "Medios recibidos",
+            "title": "Medios",
             "tab_albums": "Álbumes",
-            "tab_media": "Medios",
+            "tab_received": "Recibidos",
+            "tab_sent": "Enviados",
             "albums_empty_title": "Aún no se han compartido álbumes",
             "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
-            "media_empty_title": "Aún no has recibido medios",
-            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
+            "received_empty_title": "Aún no has recibido medios",
+            "received_empty_desc": "Las fotos enviadas a ti aparecerán aquí",
+            "sent_empty_title": "Aún no has enviado medios",
+            "sent_empty_desc": "Las fotos que envíes aparecerán aquí"
         },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",
@@ -602,6 +621,7 @@
             "album_share": "Compartir álbum",
             "album_image": "Imagen de álbum",
             "replied_to_photo": "Respondió a tu foto de perfil",
+            "replied_to_photo_theirs": "Respondiste a su foto de perfil",
             "reacted_to_image": "Reaccionó a tu imagen de álbum",
             "location_placeholder": "[ubicación]",
             "location_shared": "Ubicación compartida",
@@ -736,7 +756,18 @@
         },
         "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
         "share_location_label": "Compartir ubicación",
-        "share_location_confirm": "¿Compartir esta ubicación?"
+        "share_location_confirm": "¿Compartir esta ubicación?",
+        "filter": {
+            "state_all": "Mostrar todo",
+            "state_hide": "Ocultar",
+            "state_only": "Solo"
+        },
+        "hidden": {
+            "filter_label": "Ocultos"
+        },
+        "archived": {
+            "filter_label": "Archivados"
+        }
     },
     "profile_details": {
         "loading": "Cargando detalles de perfil...",
@@ -991,7 +1022,8 @@
         "options": {
             "unread": "Sin leer",
             "chemistry": "Química"
-        }
+        },
+        "visibility": "Visibilidad"
     },
     "interest_page": {
         "empty_views": "Sin visitas aún",
@@ -1136,7 +1168,9 @@
             "enrollment_failed": "Error en la verificación de inscripción",
             "document_failed": "Error en la verificación de documentación",
             "load_right_now": "Error al cargar la página de Right Now",
-            "session_right_now": "Error al iniciar sesión"
+            "session_right_now": "Error al iniciar sesión",
+            "load_tags": "Error al cargar las etiquetas",
+            "invalid_tags_response": "Respuesta de etiquetas no válida"
         }
     },
     "errors": {
@@ -1306,6 +1340,19 @@
         "read_receipts_hidden_badge": "Confirmaciones de lectura ocultas para este chat",
         "profile_views": "Vistas de perfil",
         "record_profile_views": "Registrar vistas de perfil",
-        "record_profile_views_desc": "Permite que otros vean que has visitado su perfil. Desactívalo para explorar perfiles sin dejar rastro."
+        "record_profile_views_desc": "Permite que otros vean que has visitado su perfil. Desactívalo para explorar perfiles sin dejar rastro.",
+        "read_receipts_grid_unread_note": "Si las confirmaciones de lectura están desactivadas, el servidor no puede saber que has leído un mensaje, por lo que un chat puede seguir apareciendo como no leído en Grid incluso después de haberlo leído o eliminado."
+    },
+    "grid": {
+        "open_profile_by_id": "Abrir perfil por ID"
+    },
+    "test_reminder": {
+        "title": "¿Hora de hacerte una prueba?",
+        "description": "Han pasado más de 3 meses desde tu última prueba. Indica cuándo te hiciste la última, o actualízalo más tarde en tu perfil.",
+        "save": "Guardar",
+        "saving": "Guardando...",
+        "skip": "Omitir por ahora",
+        "saved": "Fecha de prueba actualizada",
+        "save_failed": "No se pudo actualizar la fecha de la prueba."
     }
 }

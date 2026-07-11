@@ -15,7 +15,7 @@
         "privacy": "Privacy & Analytics",
         "privacy_desc": "Read receipts, profile view tracking, media blur, and analytics.",
         "automation": "Automation",
-        "automation_desc": "Configure automated blocking rules and automatic grid refresh.",
+        "automation_desc": "Build custom chat automation rules, manage your forbidden keyword list, and configure automatic grid refresh.",
         "issue_board": "Issues & Feature Requests",
         "issue_board_desc": "Browse and search reported bugs and feature requests.",
         "report_issue": "Report Bug or Feature",
@@ -28,6 +28,8 @@
         "my_albums_desc": "Create, rename, and delete private albums.",
         "blocked_accounts": "Blocked Accounts",
         "blocked_accounts_desc": "See who you blocked and unblock them anytime.",
+        "block_history": "Block Activity",
+        "block_history_desc": "See who has blocked or unblocked you, and when.",
         "export_chat": "Export Chat Data",
         "export_chat_desc": "Download all locally stored messages as a JSON file.",
         "check_updates": "Check for Updates",
@@ -59,12 +61,24 @@
         "count_one": "{{count}} blocked account",
         "count_other": "{{count}} blocked accounts"
     },
+    "settings_block_history": {
+        "title": "Block Activity",
+        "subtitle": "Profiles that have blocked or unblocked you, and when it happened.",
+        "refreshing": "Refreshing...",
+        "error_load": "Failed to load block activity",
+        "empty": "No block activity yet.",
+        "empty_desc": "When someone blocks or unblocks you, it'll show up here.",
+        "section_label": "History",
+        "blocked": "Blocked you",
+        "unblocked": "Unblocked you",
+        "name_fallback": "Someone"
+    },
     "settings_automation": {
         "auto_block_title": "Message Auto-Block",
         "apply_to_inbox": "Apply to Inbox",
         "apply_to_inbox_desc": "Instantly blocks new chats that match your criteria.",
         "forbidden_keywords_title": "Forbidden Keywords",
-        "forbidden_keywords_desc": "Block profiles or messages containing these words. Separate with commas (e.g. snapchat, crypto, bot).",
+        "forbidden_keywords_desc": "A shared word list — separate with commas (e.g. snapchat, crypto, bot). It doesn't block anything by itself; reuse it as the keyword source (\"Forbidden Keywords\") in an automation condition to build a rule that checks bios, messages, or display names against it.",
         "keywords_placeholder": "Type keywords here...",
         "export_txt": "Export (.txt)",
         "import_txt": "Import (.txt)",
@@ -72,8 +86,8 @@
         "keywords_exported": "Keywords exported!",
         "age_limits_title": "Age Limits",
         "age_limits_desc": "Block anyone outside of this age range.",
-        "update_block_rules": "Update Block Rules",
-        "block_rules_updated": "Auto-block rules updated!",
+        "update_block_rules": "Save Keyword List",
+        "block_rules_updated": "Keyword list updated!",
         "auto_refresh_title": "Automatic Grid Refresh",
         "auto_refresh_desc": "Keep your session active and your location updated by automatically refreshing the grid. You must stay on the grid for the refresh to take effect.",
         "enable_refresh": "Enable Refresh",
@@ -86,7 +100,99 @@
         "chat_block_enabled": "Inbox auto-block enabled",
         "chat_block_disabled": "Inbox auto-block disabled",
         "auto_refresh_enabled": "Auto-refresh enabled",
-        "auto_refresh_disabled": "Auto-refresh disabled"
+        "auto_refresh_disabled": "Auto-refresh disabled",
+        "custom_rules_title": "Automation Rules",
+        "custom_rules_desc": "Build your own \"when X then Y\" rules for someone's first message to you — check the sender, then block, reply, or share an album automatically. Each rule runs once per new chat.",
+        "add_rule": "Add Rule",
+        "no_rules_yet": "No custom automations yet. Add one to get started.",
+        "unnamed_rule": "Unnamed rule",
+        "rule_when": "When: ",
+        "edit_rule": "Edit Rule",
+        "delete_rule": "Delete Rule",
+        "delete_rule_confirm": "This automation will be permanently deleted.",
+        "rule_saved": "Automation saved!",
+        "rule_deleted": "Automation deleted.",
+        "rule_needs_action": "Add at least one action before saving.",
+        "action_needs_message_text": "Enter a message to send before saving.",
+        "rule_name_placeholder": "Name this automation",
+        "trigger_label": "When (Trigger)",
+        "conditions_label": "If (Conditions)",
+        "rule_no_conditions": "always",
+        "add_condition": "Add condition...",
+        "condition_no_profile_picture": "Sender has no profile picture",
+        "condition_has_profile_picture": "Sender has a profile picture",
+        "condition_age_above": "Sender is older than",
+        "condition_age_below": "Sender is younger than",
+        "actions_label": "Then (Actions)",
+        "add_action": "Add action...",
+        "action_block": "Block sender",
+        "action_send_message": "Send message",
+        "action_send_message_placeholder": "Type the message...",
+        "action_share_album": "Share album",
+        "no_albums_hint": "You don't have any albums yet.",
+        "save_rule": "Save Rule",
+        "cancel": "Cancel",
+        "loading_rules": "Loading automations…",
+        "condition_profile_picture": "Profile picture",
+        "rule_trigger_new_chat": "New chat started",
+        "rule_when_label": "When any trigger",
+        "rule_then_label": "Then",
+        "rule_and_label": "and",
+        "rule_trigger_tap_received": "Tap received",
+        "rule_trigger_message_received": "Message received",
+        "condition_bio_contains_keyword": "Bio contains keyword",
+        "condition_bio_not_contains_keyword": "Bio doesn't contain keyword",
+        "condition_message_contains_keyword": "Message contains keyword",
+        "condition_message_not_contains_keyword": "Message doesn't contain keyword",
+        "condition_keywords_placeholder": "Comma-separated keywords...",
+        "match_mode_all": "All",
+        "match_mode_any": "Any",
+        "rule_or_label": "or",
+        "locked_rule": "Built-in",
+        "locked_rule_hint": "This automation replaces built-in app behavior and can't be deleted, only edited or disabled.",
+        "default_age_rule_name": "Age limit block",
+        "keyword_source_custom": "Custom",
+        "keyword_source_forbidden": "Forbidden Keywords",
+        "keyword_source_forbidden_hint": "Uses the keyword list from the Forbidden Keywords section in Settings > Automations.",
+        "default_keywords_rule_name": "Forbidden keywords block",
+        "condition_display_name_contains_keyword": "Display name contains keyword",
+        "condition_display_name_not_contains_keyword": "Display name doesn't contain keyword",
+        "condition_short_bio_contains_keyword": "Bio contains",
+        "condition_short_message_contains_keyword": "Message contains",
+        "condition_short_display_name_contains_keyword": "Display name contains",
+        "experimental_badge": "Experimental",
+        "conditions_label_all": "If every condition",
+        "conditions_label_any": "If any condition",
+        "rule_trigger_noun": "trigger",
+        "rule_condition_noun": "condition",
+        "rule_action_noun": "action",
+        "rule_needs_name": "Give this automation a name before saving.",
+        "phrase_when": "When",
+        "phrase_then": "then",
+        "trigger_phrase_new_chat": "a new chat starts",
+        "trigger_phrase_tap_received": "a tap is received",
+        "trigger_phrase_message_received": "a message is received",
+        "phrase_has_profile_picture": "sender has a profile picture",
+        "phrase_no_profile_picture": "sender has no profile picture",
+        "phrase_age_above": "sender is older than {{value}}",
+        "phrase_age_below": "sender is younger than {{value}}",
+        "action_phrase_block": "block sender",
+        "action_phrase_send_message": "send sender a message",
+        "action_phrase_share_album": "share an album with sender",
+        "rule_type_builtin": "Built-in rule",
+        "rule_type_custom": "Custom rule",
+        "phrase_bio_prefix": "sender's bio contains",
+        "phrase_bio_suffix": " ",
+        "phrase_bio_prefix_not": "sender's bio doesn't contain",
+        "phrase_bio_suffix_not": " ",
+        "phrase_message_prefix": "the message contains",
+        "phrase_message_suffix": " ",
+        "phrase_message_prefix_not": "the message doesn't contain",
+        "phrase_message_suffix_not": " ",
+        "phrase_display_name_prefix": "sender's display name contains",
+        "phrase_display_name_suffix": " ",
+        "phrase_display_name_prefix_not": "sender's display name doesn't contain",
+        "phrase_display_name_suffix_not": " "
     },
     "shared_albums": {
         "title": "Shared Albums",
@@ -280,7 +386,11 @@
         "start_explore": "Start exploring",
         "stop_explore": "Stop exploring",
         "exploring_badge": "Exploring",
-        "exploring_label": "Exploring: {{label}}"
+        "exploring_label": "Exploring: {{label}}",
+        "set_as_home": "Set as home",
+        "home_location_label": "Home",
+        "home_updated_toast": "Home location updated",
+        "home_update_failed": "Failed to update home location"
     },
     "nav": {
         "browse": "Browse",
@@ -335,7 +445,8 @@
             "tap_limit": "You already tapped this profile in the last 24 hours",
             "tap_mutual": "Tap sent. It's mutual.",
             "tap_sent": "Tap sent",
-            "tap_failed": "Failed to send tap"
+            "tap_failed": "Failed to send tap",
+            "tag_filter_applied": "Filtered by tag \"{{tag}}\""
         },
         "chatted": "Chatted"
     },
@@ -347,7 +458,8 @@
         "options": {
             "unread": "Unread",
             "chemistry": "Chemistry"
-        }
+        },
+        "visibility": "Visibility"
     },
     "about_page": {
         "badge": "About Free Grind",
@@ -400,7 +512,7 @@
         "limit_reached": "You reached your album limit for the current plan.",
         "limit_reached_toast": "You reached your current album limit. Upgrade to create more albums.",
         "your_albums": "Your albums",
-        "untitled": "Untitled album",
+        "untitled": "My Album",
         "album_id": "Album ID: {{id}}",
         "loading": "Loading albums",
         "loading_desc": "Fetching your album collection and plan limits.",
@@ -427,12 +539,18 @@
         "no_media": "No media in this album yet.",
         "media_alt": "Album media {{index}}",
         "cancel_delete_content": "Cancel delete",
+        "add_from_drawer": "Add from Drawer",
+        "drawer_picker_title": "Select media",
+        "drawer_empty": "No media in your drawer yet.",
+        "add_to_album_button": "Add to Album",
         "toast_created": "Album created",
         "toast_renamed": "Album renamed",
         "toast_deleted": "Album deleted",
         "toast_picture_added_one": "Picture added",
         "toast_picture_added_other": "Pictures added",
         "toast_picture_removed": "Picture removed",
+        "toast_added_from_drawer_one": "Media added",
+        "toast_added_from_drawer_other": "{{count}} media added",
         "error_load_fallback": "Failed to load albums",
         "error_create_fallback": "Failed to create album",
         "error_rename_fallback": "Failed to rename album",
@@ -480,8 +598,8 @@
                 "about_me": "About Me",
                 "about_me_placeholder": "Up to 255 characters",
                 "my_tags": "My Tags",
-                "my_tags_placeholder": "Keyword tags, separated by commas",
-                "no_tags_added": "No tags added yet."
+                "my_tags_manage": "Manage tags",
+                "no_tags_added": "Add tags"
             },
             "visiting_mode": {
                 "title": "Mode",
@@ -540,9 +658,13 @@
             },
             "identity": {
                 "title": "Identity",
-                "description": "Managed identity fields",
+                "description": "Gender and pronouns",
                 "gender": "Gender",
                 "gender_unavailable": "Gender options are unavailable right now.",
+                "gender_more": "More genders",
+                "gender_dialog_title": "Choose genders",
+                "gender_search_placeholder": "Search genders...",
+                "gender_no_matches": "No genders match your search.",
                 "pronouns": "Pronouns",
                 "pronouns_unavailable": "Pronoun options are unavailable right now."
             },
@@ -552,7 +674,10 @@
                 "hiv_status": "HIV Status",
                 "last_tested": "Last Tested",
                 "health_practices": "Health Practices",
-                "vaccinations": "Vaccinations"
+                "vaccinations": "Vaccinations",
+                "test_reminder": "It's been over 3 months since your last test — consider getting tested again.",
+                "test_reminder_toggle": "Test Reminder",
+                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
             },
             "social": {
                 "title": "Social",
@@ -592,7 +717,21 @@
         },
         "errors": {
             "display_name_length": "Display name cannot exceed 15 characters.",
-            "about_me_length": "About Me must stay under 255 characters."
+            "about_me_length": "About Me must stay under 255 characters.",
+            "max_selection": "You can select up to {{count}}."
+        },
+        "photo_upload": {
+            "title": "Upload Picture",
+            "confirm": "Upload",
+            "taken_on_grindr": "Taken on Grindr watermark",
+            "taken_on_grindr_description": "Include the timestamp to certify the authenticity and recency of your photo"
+        },
+        "tags_dialog": {
+            "title": "Choose tags",
+            "unavailable": "Tags aren't available right now.",
+            "see_more": "See {{count}} more",
+            "search_placeholder": "Search tags...",
+            "no_matches": "No tags match your search."
         }
     },
     "privacy": {
@@ -605,7 +744,8 @@
         "read_receipts_hidden_badge": "Read receipts hidden for this chat",
         "profile_views": "Profile Views",
         "record_profile_views": "Record Profile Views",
-        "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace."
+        "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace.",
+        "read_receipts_grid_unread_note": "With read receipts off, there's no way to tell the server you've read a message — so a chat can still show up as unread on the Grid even after you've read or deleted it."
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",
@@ -777,6 +917,41 @@
             "inbox": "Inbox",
             "albums": "Albums"
         },
+        "slash_commands": {
+            "block": {
+                "description": "Blocks a profile. Uses current chat if no ID given."
+            },
+            "unblock": {
+                "description": "Unblocks a profile. Uses current chat if no ID given."
+            },
+            "open": {
+                "description": "Opens a profile. Uses current chat if no ID given."
+            },
+            "chat": {
+                "description": "Opens a chat with the given ID."
+            },
+            "clear": {
+                "description": "Clears this chat by blocking then unblocking the profile."
+            },
+            "mute": {
+                "description": "Toggles mute status."
+            },
+            "pin": {
+                "description": "Toggles pin status."
+            },
+            "favourite": {
+                "description": "Toggles favourite status."
+            },
+            "id": {
+                "description": "Displays the internal ID of the current chat partner.",
+                "result": "Profile ID: {{id}}"
+            },
+            "errors": {
+                "no_target": "Open a chat or provide an ID",
+                "no_chat_id": "Provide a chat ID",
+                "no_conversation": "Open a chat first"
+            }
+        },
         "your_conversations": "Your conversations",
         "pinned": "Pinned",
         "muted": "Muted",
@@ -800,6 +975,19 @@
         "open_filters": "Open filters",
         "profile": "Profile",
         "view_profile": "View profile",
+        "start_video_call": "Start video call",
+        "video_call_limit_reached": "Video call limit reached",
+        "video_call_platform_unsupported": "Platform unsupported",
+        "video_call_minutes_left_one": "{{count}} min left",
+        "video_call_minutes_left_other": "{{count}} min left",
+        "video_call_seconds_left_one": "{{count}}s left",
+        "video_call_seconds_left_other": "{{count}}s left",
+        "preview_call_ui_incoming": "Preview incoming call",
+        "preview_call_ui_outgoing": "Preview outgoing call",
+        "preview_call_ui_subtext": "Mock, no minutes used",
+        "read_receipts_label": "Read receipts",
+        "read_receipts_on": "On",
+        "read_receipts_off": "Off",
         "received_media": "Received media",
         "favorite": "Favorite",
         "unfavorite": "Unfavorite",
@@ -860,7 +1048,9 @@
         "loading_album": "Loading album...",
         "time": {
             "one_min_ago": "1 min ago",
-            "mins_ago": "{{count}} mins ago"
+            "mins_ago": "{{count}} mins ago",
+            "now": "Now",
+            "last_week": "Last week"
         },
         "preview": {
             "sent_image": "Sent an image",
@@ -874,7 +1064,18 @@
             "sent_video": "Sent a video",
             "sent_location": "Sent a location",
             "sent_message": "Sent a message",
-            "replied_profile_photo": "Replied to a profile photo"
+            "replied_profile_photo": "Replied to a profile photo",
+            "video_call": "Video call"
+        },
+        "video_call_status": {
+            "successful": "Video call",
+            "busy": "Busy",
+            "cancelled": "Cancelled",
+            "declined": "Declined",
+            "missed": "Missed call",
+            "unsupported": "Not supported",
+            "no_answer": "No answer",
+            "generic": "Video call"
         },
         "notifications": {
             "someone": "Someone",
@@ -903,8 +1104,11 @@
             "album_share": "Album share",
             "album_image": "Album image",
             "replied_to_photo": "Replied to your profile photo",
+            "replied_to_photo_theirs": "Replied to their profile photo",
             "reacted_to_image": "Reacted to your album image",
-            "audio_label": "Audio"
+            "audio_label": "Audio",
+            "unsupported_message": "Unsupported message",
+            "unsupported_message_description": "This message type isn't supported in this app version yet."
         },
         "actions": {
             "title": "Message actions",
@@ -916,7 +1120,22 @@
             "add_to_saved_phrases": "Add to saved phrases",
             "added_to_saved_phrases": "Added to saved phrases",
             "open_media": "Open Media",
-            "download_media": "Download Media"
+            "download_media": "Download Media",
+            "download": "Download",
+            "stop_sharing": "Stop Sharing",
+            "ban_word": "Ban word",
+            "ban_word_prompt": "Trim this message down to the specific keyword you want to ban:",
+            "ban_word_added": "Added \"{{word}}\" to forbidden keywords!"
+        },
+        "system": {
+            "blocked_by_self": "You blocked this person",
+            "blocked": "You were blocked",
+            "unblocked_by_self": "You unblocked this person",
+            "unblocked": "You were unblocked"
+        },
+        "block_toast": {
+            "blocked_by_other": "{{name}} blocked you",
+            "unblocked_by_other": "{{name}} unblocked you"
         },
         "realtime": {
             "connected": "Connected",
@@ -929,7 +1148,8 @@
         },
         "attachments": {
             "only_image_video": "Only image and video attachments are supported.",
-            "ready_to_send": "Ready to send: {{file}}",
+            "upload_picture": "Upload Picture",
+            "upload_video": "Upload Video",
             "looping": "Looping",
             "looping_description": "The video will play on repeat",
             "max_views": "Max views",
@@ -964,6 +1184,7 @@
             "rate_limited": "Sending too fast. Please wait and retry.",
             "attachment_upload_send_failed": "Attachment upload/send failed",
             "reupload_image": "Please re-upload this image.",
+            "reupload_video": "Please re-upload this video.",
             "react_failed": "Failed to react",
             "unsend_failed": "Failed to unsend",
             "delete_failed": "Failed to delete",
@@ -989,7 +1210,10 @@
             "copied": "Copied to clipboard",
             "album_shared": "Album shared",
             "media_sent": "Media sent",
-            "conversation_deleted": "Conversation deleted"
+            "conversation_deleted": "Conversation deleted",
+            "album_reaction_sent": "Reaction sent",
+            "album_reply_sent": "Reply sent",
+            "album_share_stopped": "Album share stopped."
         },
         "new_conversation": {
             "title": "New conversation",
@@ -999,13 +1223,27 @@
             "send_first_message_hint": "Send a message below to start the conversation."
         },
         "media_sheet": {
-            "title": "Received Media",
+            "title": "Media",
             "tab_albums": "Albums",
-            "tab_media": "Media",
+            "tab_received": "Received",
+            "tab_sent": "Sent",
             "albums_empty_title": "No albums shared yet",
             "albums_empty_desc": "Albums shared with you will appear here",
-            "media_empty_title": "No media received yet",
-            "media_empty_desc": "Photos sent to you will appear here"
+            "received_empty_title": "No media received yet",
+            "received_empty_desc": "Photos sent to you will appear here",
+            "sent_empty_title": "No media sent yet",
+            "sent_empty_desc": "Photos you send will appear here"
+        },
+        "filter": {
+            "state_all": "Show all",
+            "state_hide": "Hide",
+            "state_only": "Only"
+        },
+        "hidden": {
+            "filter_label": "Hidden"
+        },
+        "archived": {
+            "filter_label": "Archived"
         }
     },
     "chat_drawer": {
@@ -1054,6 +1292,32 @@
         "get_note_failed": "Failed to load note",
         "delete_note": "Delete note"
     },
+    "video_call": {
+        "start_failed": "Failed to start video call",
+        "join_failed": "Failed to join video call",
+        "leave_failed": "Failed to leave video call",
+        "extend_failed": "Failed to extend video call",
+        "info_failed": "Failed to load video call info",
+        "limit_reached": "You've used up your video call time.",
+        "busy": "This person is unavailable",
+        "incoming_title": "Incoming video call",
+        "outgoing_ringing": "Calling...",
+        "accept": "Accept",
+        "decline": "Decline",
+        "hang_up": "Hang up",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "camera_off": "Turn camera off",
+        "camera_on": "Turn camera on",
+        "switch_camera": "Switch camera",
+        "switch_camera_failed": "Couldn't switch camera",
+        "call_ended_unanswered": "No answer",
+        "call_declined": "Call declined",
+        "call_ended_generic": "Call ended",
+        "permission_denied": "Camera or microphone access was denied",
+        "connection_failed": "Could not connect the call",
+        "webrtc_unsupported": "Video calls aren't supported on this device"
+    },
     "profile_details": {
         "title": "Profile details",
         "profile_fallback": "Profile {{id}}",
@@ -1063,11 +1327,15 @@
         "save_to_gallery_success": "Saved to your photo library",
         "save_to_gallery_error": "Failed to save to photo library",
         "save_to_gallery_unsupported": "Saving to photos isn't supported on this device",
+        "save_to_downloads_success": "Saved to your Downloads folder",
+        "save_to_downloads_error": "Failed to save to Downloads folder",
         "save_all": "Save all",
         "save_all_progress": "Saving {{done}}/{{total}}…",
         "save_all_success": "Saved {{count}} items to your photo library",
+        "save_all_success_downloads": "Saved {{count}} items to your Downloads folder",
         "save_all_partial": "Saved {{succeeded}}/{{total}} items ({{failed}} failed)",
         "save_all_error": "Failed to save items to photo library",
+        "save_all_error_downloads": "Failed to save items to Downloads folder",
         "save_all_empty": "Nothing to save",
         "previous_photo": "Previous photo",
         "next_photo": "Next photo",
@@ -1314,6 +1582,8 @@
             "load_visiting_mode": "Failed to load profile mode",
             "invalid_visiting_mode_response": "Invalid profile mode response",
             "save_visiting_mode": "Failed to save profile mode",
+            "load_home_location": "Failed to load home location",
+            "save_home_location": "Failed to save home location",
             "load_travel_plans": "Failed to load travel plans",
             "save_travel_plan": "Failed to save travel plan",
             "delete_travel_plan": "Failed to delete travel plan",
@@ -1328,7 +1598,9 @@
             "enrollment_failed": "Enrollment verification failed",
             "document_failed": "Document verification failed",
             "load_right_now": "Failed to load Right Now feed",
-            "session_right_now": "Failed to start session"
+            "session_right_now": "Failed to start session",
+            "load_tags": "Failed to load tags",
+            "invalid_tags_response": "Invalid tags response"
         }
     },
     "errors": {
@@ -1386,5 +1658,17 @@
         "cancel": "Cancel",
         "save": "Save",
         "edit": "Edit"
+    },
+    "grid": {
+        "open_profile_by_id": "Open Profile by ID"
+    },
+    "test_reminder": {
+        "title": "Time for a check-up?",
+        "description": "It's been over 3 months since your last test. Pick when you were last tested, or update it later in your profile.",
+        "save": "Save",
+        "saving": "Saving...",
+        "skip": "Skip for now",
+        "saved": "Test date updated",
+        "save_failed": "Could not update your test date."
     }
 }

@@ -8,7 +8,7 @@ import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { EmptyState, ErrorState, LoadingState } from "../../../components/ui/states";
 import type { ConversationEntry } from "../../../types/chat";
-import type { AlbumViewer, SharedAlbumItem } from "../../../types/shared-albums";
+import { albumViewerFolderKey, type AlbumViewer, type SharedAlbumItem } from "../../../types/shared-albums";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
 import { useAvatarCache } from "../../../hooks/useAvatarCache";
 import { resolveAvatarSrc } from "../../../services/avatarStore";
@@ -243,6 +243,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 						albumName: local.albumName ?? item.album.albumName ?? null,
 						profileId: item.profileId,
 						profileName: item.profileName,
+						conversationId: item.conversationId,
 						content: local.content,
 					});
 				} else {
@@ -253,6 +254,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 						albumName: details.albumName,
 						profileId: item.profileId,
 						profileName: item.profileName,
+						conversationId: item.conversationId,
 						content: details.content,
 					});
 
@@ -521,6 +523,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 					photos={viewerPhotos}
 					initialIndex={fullScreenIndex}
 					onIndexChange={handleIndexChange}
+					conversationId={albumViewerFolderKey(viewer)}
 				/>
 			)}
 		</div>

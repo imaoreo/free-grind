@@ -20,10 +20,13 @@ import { appLog } from "../utils/logger";
 import { setActiveChatDbUser, migrateLegacySettingsIfNeeded } from "../services/chatDb";
 import { clearAllCaches } from "../pages/app/gridpage/cache";
 import { loadAutomationCache } from "../utils/autoblock";
+import { loadAutomationRulesCache } from "../utils/automationRules";
 import { loadMediaSettingsCache } from "../utils/mediaSettings";
 import { loadPrivacyCache } from "../utils/privacy";
 import { loadSeenCache } from "../services/seenStore";
 import { runInboxSync } from "../services/inboxSync";
+import { runTapsAutomationSync } from "../services/tapsSync";
+import { syncSavedPhrasesFromServer } from "../services/savedPhrases";
 
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
@@ -300,10 +303,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			if (state.userId != null) {
 				const userId = state.userId;
 				void runInboxSync(apiFunctions, userId, () => currentUserIdRef.current === userId);
+				// Fire-and-forget: pulls this account's saved phrases from Grindr and
+				// unions them into the local list, but only the very first time this
+				// runs for this profile (see syncSavedPhrasesFromServer) — otherwise a
+				// phrase deleted locally would just get re-added from the server on the
+				// next load. Guarded by the same "still the active profile" check as the
+				// inbox sync above, since chatDb (and so where the merged list gets
+				// written) already points at whichever profile is active by the time
+				// this resolves.
+				void syncSavedPhrasesFromServer(
+					apiFunctions.getSavedPhrases,
+					() => currentUserIdRef.current === userId,
+				);
+				// Fire-and-forget: reconciles taps received while the app was closed
+				// against the "tap_received" automation trigger — guarded the same
+				// way, and safe to start before the automation cache below finishes
+				// loading (runAutomationRulesForSender no-ops until it has).
+				void runTapsAutomationSync(apiFunctions, () => currentUserIdRef.current === userId);
 			}
 
 			await Promise.all([
 				loadAutomationCache(),
+				loadAutomationRulesCache(),
 				loadMediaSettingsCache(),
 				loadPrivacyCache(),
 				loadSeenCache(),
@@ -346,15 +367,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			}
 
 			appLog.debug("[PUSH_SYNC] Syncing FCM token to Grindr");
-			void callMethod("sync_push_token", { token }).catch((error) => {
-				const appError = asAppError(error);
-				appLog.warn(
-					"[PUSH_SYNC] Failed to sync push token",
-					appError?.prettyMessage || error,
-				);
-			}).then(() => {
-				appLog.debug("[PUSH_SYNC] Push token sync succeeded");
-			});
+			void callMethod("sync_push_token", { token })
+				.then(() => {
+					window.localStorage.setItem(
+						PUSH_TOKEN_SYNCED_STORAGE_KEY,
+						`${token}::${state.userId}`,
+					);
+					appLog.debug("[PUSH_SYNC] Push token sync succeeded");
+				})
+				.catch((error) => {
+					const appError = asAppError(error);
+					appLog.warn(
+						"[PUSH_SYNC] Failed to sync push token",
+						appError?.prettyMessage || error,
+					);
+				});
 		};
 
 		window.addEventListener("fg:fcm-token", onFcmToken as EventListener);

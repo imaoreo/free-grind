@@ -68,6 +68,21 @@ export function toDataUri(mimeType: string | null, base64: string): string {
 	return `data:${mimeType || "application/octet-stream"};base64,${base64}`;
 }
 
+/**
+ * Checks whether a CloudFront signed URL has expired by reading the
+ * `Expires` query parameter (Unix epoch seconds). No network request needed.
+ * Returns false if the URL cannot be parsed or has no Expires param.
+ */
+export function isSignedUrlExpired(url: string): boolean {
+	try {
+		const expires = new URL(url).searchParams.get("Expires");
+		if (!expires) return false;
+		return Date.now() > Number(expires) * 1000;
+	} catch {
+		return false;
+	}
+}
+
 export type FetchedMedia = {
 	base64: string;
 	mimeType: string | null;
@@ -103,10 +118,15 @@ export type FetchAndStoreMediaParams = {
 	// to the device's Downloads folder only ever mirrors media *received*
 	// from someone else, never the user's own outgoing photos/videos.
 	isOwnMessage: boolean;
+	// Set for captures of secondary preview content (reply-quote thumbnails,
+	// reaction bubbles) rather than the actual media a message is about —
+	// never worth mirroring to the device's Downloads folder even when
+	// received. Defaults to false.
+	skipAutoDownload?: boolean;
 };
 
 async function downloadAndStore(params: FetchAndStoreMediaParams): Promise<void> {
-	const { mediaKey, kind, url, conversationId, messageId, viewOnce, isOwnMessage } = params;
+	const { mediaKey, kind, url, conversationId, messageId, viewOnce, isOwnMessage, skipAutoDownload } = params;
 	const fetched = await fetchAndEncode(url);
 
 	if (!fetched) {
@@ -139,8 +159,8 @@ async function downloadAndStore(params: FetchAndStoreMediaParams): Promise<void>
 	});
 	setCachedMediaUri(mediaKey, toDataUri(fetched.mimeType, fetched.base64));
 
-	if (!isOwnMessage && (kind === "image" || kind === "video")) {
-		void maybeAutoDownloadToDevice(fetched.base64, fetched.mimeType, kind);
+	if (!isOwnMessage && !skipAutoDownload && (kind === "image" || kind === "video")) {
+		void maybeAutoDownloadToDevice(fetched.base64, fetched.mimeType, kind, conversationId);
 	}
 }
 
@@ -153,13 +173,14 @@ async function maybeAutoDownloadToDevice(
 	base64: string,
 	mimeType: string | null,
 	kind: "image" | "video",
+	conversationId: string | null,
 ): Promise<void> {
 	if (!isAutoDownloadMediaEnabled()) {
 		return;
 	}
 	try {
 		const { saveMediaBytesToDeviceSilent } = await import("./saveMedia");
-		await saveMediaBytesToDeviceSilent(base64, mimeType, kind);
+		await saveMediaBytesToDeviceSilent(base64, mimeType, kind, conversationId);
 	} catch (error) {
 		appLog.warn("[media-store] auto-download to device failed", error);
 	}
@@ -188,6 +209,50 @@ export async function fetchAndStoreMedia(
 			const cached = await limitChatDbBlobRead(() => chatDb.getMediaFile(mediaKey));
 			if (cached?.fetchStatus === "ok") {
 				setCachedMediaUri(mediaKey, toDataUri(cached.mimeType, cached.dataBase64));
+				// Self-heal: a reply-quote/reaction preview capture for this same
+				// content-hash mediaKey (see replyMediaStore.ts) may have left
+				// message_id null, or pointed at a message that's since been
+				// superseded — if this call carries a real messageId that
+				// doesn't match what's stored, re-associate now that we know
+				// which message this content actually belongs to. Cheap since
+				// the bytes are already cached — no refetch needed.
+				if (params.messageId != null && cached.messageId !== params.messageId) {
+					await chatDb
+						.upsertMediaFile({
+							mediaKey,
+							conversationId: params.conversationId,
+							messageId: params.messageId,
+							kind: cached.kind,
+							mimeType: cached.mimeType,
+							dataBase64: cached.dataBase64,
+							viewOnce: cached.viewOnce,
+							sizeBytes: cached.sizeBytes,
+							fetchStatus: cached.fetchStatus,
+						})
+						.catch(() => {});
+				}
+				return;
+			}
+			// Signed URLs that already expired are guaranteed to 403 — skip the
+			// network round-trip (and the log spam it'd produce) instead of
+			// re-hitting CloudFront every time this message is re-processed
+			// (poll, realtime merge, hydration pass) until a fresh URL arrives.
+			if (isSignedUrlExpired(url)) {
+				if (cached?.fetchStatus !== "failed") {
+					await chatDb
+						.upsertMediaFile({
+							mediaKey,
+							conversationId: params.conversationId,
+							messageId: params.messageId,
+							kind: params.kind,
+							mimeType: null,
+							dataBase64: "",
+							viewOnce: params.viewOnce,
+							sizeBytes: null,
+							fetchStatus: "failed",
+						})
+						.catch(() => {});
+				}
 				return;
 			}
 			await downloadAndStore(params);

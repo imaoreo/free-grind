@@ -10,6 +10,7 @@ import {
 	MessageSquare,
 	Navigation,
 	SlidersHorizontal,
+	Star,
 } from "lucide-react";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useRightNowFeed } from "../../hooks/queries/useRightNowQueries";
@@ -124,7 +125,7 @@ function PostMediaGrid({
 						onClick={() => onOpenPhoto(0)}
 					>
 						<img
-							src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+							src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 							className="h-full w-full object-cover transition-transform active:scale-105"
 							alt=""
 						/>
@@ -139,7 +140,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(0)}
 						>
 							<img
-								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -150,7 +151,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(1)}
 						>
 							<img
-								src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+								src={items[1].data?.thumbnailUrl ?? items[1].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -166,7 +167,7 @@ function PostMediaGrid({
 							onClick={() => onOpenPhoto(0)}
 						>
 							<img
-								src={items[0].data?.fullImageUrl ?? items[0].data?.thumbnailUrl ?? ""}
+								src={items[0].data?.thumbnailUrl ?? items[0].data?.fullImageUrl ?? ""}
 								className="h-full w-full object-cover transition-transform active:scale-105"
 								alt=""
 							/>
@@ -178,7 +179,7 @@ function PostMediaGrid({
 								onClick={() => onOpenPhoto(1)}
 							>
 								<img
-									src={items[1].data?.fullImageUrl ?? items[1].data?.thumbnailUrl ?? ""}
+									src={items[1].data?.thumbnailUrl ?? items[1].data?.fullImageUrl ?? ""}
 									className="h-full w-full object-cover transition-transform active:scale-105"
 									alt=""
 								/>
@@ -189,7 +190,7 @@ function PostMediaGrid({
 								onClick={() => onOpenPhoto(2)}
 							>
 								<img
-									src={items[2].data?.fullImageUrl ?? items[2].data?.thumbnailUrl ?? ""}
+									src={items[2].data?.thumbnailUrl ?? items[2].data?.fullImageUrl ?? ""}
 									className="h-full w-full object-cover transition-transform active:scale-105"
 									alt=""
 								/>
@@ -239,7 +240,7 @@ function RightNowRow({
 		<div
 			ref={ref}
 			className={cn(
-				"flex items-center gap-4 pl-5 pr-6 py-4 border-b border-[var(--surface-2)]",
+				"flex items-center gap-4 pl-4 pr-4 py-3 border-b border-[var(--surface-2)]",
 				isFirst && "border-t",
 				revealClass
 			)}
@@ -290,9 +291,16 @@ function RightNowRow({
 					</div>
 
 					<div className="mt-1 flex items-center justify-between gap-2">
-						<p className="truncate text-xs text-[var(--text-muted)] font-medium">
-							{name}
-						</p>
+						<div className="flex min-w-0 items-center gap-1">
+							<p className="truncate text-xs text-[var(--text-muted)] font-medium">
+								{name}
+							</p>
+							{item.isFavorite && (
+								<span title={t("chat.favorite")}>
+									<Star className="h-3 w-3 shrink-0 fill-current text-[var(--accent)]" />
+								</span>
+							)}
+						</div>
 						{item.premiumType && item.premiumType !== "locked" && (
 							<span className="shrink-0 text-[10px] font-medium text-[var(--text-muted)] opacity-50 uppercase tracking-wider">
 								{item.premiumType.split("_")[0]}
@@ -325,7 +333,7 @@ function RightNowRow({
 
 function RightNowSkeleton() {
 	return (
-		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-5 pr-6">
+		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
 			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
 			<div className="flex flex-1 flex-col gap-2">
 				<div className="flex items-center justify-between gap-3">
@@ -684,12 +692,8 @@ export function RightNowPage() {
 							} as React.CSSProperties : undefined}
 						>
 							<SlidersHorizontal className="h-3.5 w-3.5" />
-							{t("right_now.filters")}
+							{hasAdvancedFilters ? filterSummary : t("right_now.filters")}
 						</button>
-
-						<span className="text-xs text-[var(--text-muted)] sm:text-sm">
-							{filterSummary}
-						</span>
 					</div>
 				</div>
 			</header>

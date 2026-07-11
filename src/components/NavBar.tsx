@@ -154,21 +154,33 @@ export function NavBar() {
 					0,
 				);
 
-				if (lastSeen === 0) {
+				if (lastSeen === 0 && newest > 0) {
 					// Initialize "last seen" on first run to avoid showing stale dots
-					if (newest > 0) {
-						window.localStorage.setItem("fg-inbox-last-seen", String(newest));
-					}
-					setInboxUnseen(false);
-				} else {
-					// If we are currently on the inbox page, ensure our "last seen"
-					// timestamp is at least as high as the newest message we just fetched.
-					// This prevents the dot from reappearing immediately when switching away.
-					if (isAtInbox && newest > lastSeen) {
-						markInboxSeen(newest);
-					}
-					setInboxUnseen(!isAtInbox && newest > lastSeen);
+					window.localStorage.setItem("fg-inbox-last-seen", String(newest));
 				}
+
+				// Keeps the "last seen" bookmark current while the user is looking
+				// at the inbox, so the dot doesn't reappear immediately when they
+				// switch away — unrelated to whether anything is actually unread.
+				if (isAtInbox && newest > lastSeen) {
+					markInboxSeen(newest);
+				}
+
+				// A conversation only lights up the dot if it's both genuinely
+				// unread (server-reported unreadCount, the same signal the inbox
+				// rows themselves trust — not just "some activity happened") *and*
+				// that activity is newer than the last time the inbox list was
+				// actually viewed. The unreadCount check keeps the user's own
+				// outgoing messages, an automation auto-reply sent while this page
+				// isn't mounted, or a message already read on another device from
+				// falsely lighting it up. The lastSeen check keeps an unread
+				// conversation the user already looked at (but didn't open) from
+				// re-lighting the dot on every later remount/poll — visiting the
+				// inbox list once is enough to acknowledge it.
+				const hasUnseenUnread = response.entries.some(
+					(entry) => (entry.data.unreadCount ?? 0) > 0 && (entry.data.lastActivityTimestamp ?? 0) > lastSeen,
+				);
+				setInboxUnseen(!isAtInbox && hasUnseenUnread);
 			} catch {
 				if (!cancelled) {
 					setUnreadCount(0);

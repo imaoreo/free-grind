@@ -1,25 +1,17 @@
 import type {
 	BrowseCard,
-	ManagedOption,
 	ProfileDetail,
 } from "../GridPage.types";
 import type { CacheEntry } from "../../../types/grid-cache";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const BROWSE_CACHE_TTL_MS = 5 * 60 * 1000;
-const PUBLIC_OPTIONS_CACHE_TTL_MS = 30 * 60 * 1000;
 
 const profileCache = new Map<string, CacheEntry<ProfileDetail>>();
 const browseCache = new Map<
 	string,
 	CacheEntry<{ cards: BrowseCard[]; nextPage: string | null }>
 >();
-let genderOptionsCache: CacheEntry<ManagedOption[]> | null = null;
-let pronounOptionsCache: CacheEntry<ManagedOption[]> | null = null;
-let blockedProfileIdsCache: CacheEntry<Set<string>> | null = null;
-let ownProfilePhotoHashCache: CacheEntry<string | null> | null = null;
-let ownDisplayNameCache: string | null | undefined = undefined;
-let ownShowDistanceCache: boolean | undefined = undefined;
 
 function getFromCache<T>(
 	cache: Map<string, CacheEntry<T>>,
@@ -89,101 +81,15 @@ export function removeProfileFromBrowseCache(profileId: string) {
 	}
 }
 
-export function getCachedGenderOptions(): ManagedOption[] | null {
-	if (!genderOptionsCache) {
-		return null;
-	}
-
-	if (genderOptionsCache.expiresAt <= Date.now()) {
-		genderOptionsCache = null;
-		return null;
-	}
-
-	return genderOptionsCache.value;
-}
-
-export function setCachedGenderOptions(options: ManagedOption[]) {
-	genderOptionsCache = {
-		value: options,
-		expiresAt: Date.now() + PUBLIC_OPTIONS_CACHE_TTL_MS,
-	};
-}
-
-export function getCachedPronounOptions(): ManagedOption[] | null {
-	if (!pronounOptionsCache) {
-		return null;
-	}
-
-	if (pronounOptionsCache.expiresAt <= Date.now()) {
-		pronounOptionsCache = null;
-		return null;
-	}
-
-	return pronounOptionsCache.value;
-}
-
-export function setCachedPronounOptions(options: ManagedOption[]) {
-	pronounOptionsCache = {
-		value: options,
-		expiresAt: Date.now() + PUBLIC_OPTIONS_CACHE_TTL_MS,
-	};
-}
-
-export function getCachedBlockedProfileIds(): Set<string> | null {
-	if (!blockedProfileIdsCache) return null;
-	// No expiration check for session-based cache
-	return blockedProfileIdsCache.value;
-}
-
-export function setCachedBlockedProfileIds(ids: Set<string>) {
-	blockedProfileIdsCache = {
-		value: ids,
-		expiresAt: Infinity, // Session-based: does not expire until app reload
-	};
-}
-
-export function getCachedOwnProfilePhotoHash(): string | null | undefined {
-	if (!ownProfilePhotoHashCache) return undefined;
-	// No expiration check for session-based cache
-	return ownProfilePhotoHashCache.value;
-}
-
-export function setCachedOwnProfilePhotoHash(hash: string | null) {
-	ownProfilePhotoHashCache = {
-		value: hash,
-		expiresAt: Infinity, // Session-based: does not expire until app reload
-	};
-}
-
-export function getCachedOwnDisplayName(): string | null | undefined {
-	return ownDisplayNameCache;
-}
-
-export function setCachedOwnDisplayName(name: string | null) {
-	ownDisplayNameCache = name;
-}
-
-export function getCachedOwnShowDistance(): boolean | undefined {
-	return ownShowDistanceCache;
-}
-
-export function setCachedOwnShowDistance(value: boolean) {
-	ownShowDistanceCache = value;
-}
-
 /**
  * Resets every module-level cache here — call on logout/account switch.
  * Without this, a second account would briefly see the previous account's
- * profile cache, browse cards, blocked list, and own-profile fields, since
- * none of these caches were ever keyed or cleared by account.
+ * profile cache and browse cards, since neither is keyed or cleared by
+ * account. Genders/pronouns/blocked-list/own-profile fields are now React
+ * Query caches instead (see hooks/queries/useProfileQueries.ts) — those are
+ * cleared via queryClient on logout, not here.
  */
 export function clearAllCaches(): void {
 	profileCache.clear();
 	browseCache.clear();
-	genderOptionsCache = null;
-	pronounOptionsCache = null;
-	blockedProfileIdsCache = null;
-	ownProfilePhotoHashCache = null;
-	ownDisplayNameCache = undefined;
-	ownShowDistanceCache = undefined;
 }

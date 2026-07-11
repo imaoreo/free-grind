@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import freeGrindLogo from "../../images/freegrind-logo.webp";
+
 export function AuthShell({
 	title,
 	subtitle,
@@ -26,7 +28,7 @@ export function AuthShell({
 					style={{ paddingTop: "max(64px, env(safe-area-inset-top))" }}
 				>
 					<img
-						src="/newLogo.webp"
+						src={freeGrindLogo}
 						alt="Free Grind"
 						className="mb-7 h-16 w-16 rounded-2xl object-cover drop-shadow-[0_12px_20px_rgba(0,0,0,0.4)]"
 					/>
