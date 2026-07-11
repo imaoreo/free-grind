@@ -1273,7 +1273,15 @@ export async function upsertMediaFile(input: MediaFileUpsertInput): Promise<void
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			ON CONFLICT(media_key) DO UPDATE SET
 				conversation_id = excluded.conversation_id,
-				message_id = excluded.message_id,
+				-- A null incoming message_id (reply-quote/reaction preview
+				-- captures deliberately pass null — see replyMediaStore.ts —
+				-- so they don't misattribute quoted content as the quoting
+				-- message's own media) must never erase a message_id this
+				-- mediaKey already correctly resolved to; content-hash-based
+				-- mediaKeys are resend-invariant, so the same key can get a
+				-- preview capture and the real message's capture in either
+				-- order.
+				message_id = COALESCE(excluded.message_id, media_files.message_id),
 				kind = excluded.kind,
 				mime_type = excluded.mime_type,
 				data_base64 = excluded.data_base64,
