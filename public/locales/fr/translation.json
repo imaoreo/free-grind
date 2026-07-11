@@ -693,13 +693,16 @@
             "send_first_message_hint": ""
         },
         "media_sheet": {
-            "title": "Médias reçus",
+            "title": "Médias",
             "tab_albums": "Albums",
-            "tab_media": "Médias",
+            "tab_received": "Reçus",
+            "tab_sent": "Envoyés",
             "albums_empty_title": "Aucun album partagé pour l'instant",
             "albums_empty_desc": "Les albums partagés avec vous apparaîtront ici",
-            "media_empty_title": "Aucun média reçu pour l'instant",
-            "media_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici"
+            "received_empty_title": "Aucun média reçu pour l'instant",
+            "received_empty_desc": "Les photos envoyées par cet utilisateur apparaîtront ici",
+            "sent_empty_title": "Aucun média envoyé pour l'instant",
+            "sent_empty_desc": "Les photos que vous envoyez apparaîtront ici"
         },
         "tabs": {
             "inbox": "Messagerie",

@@ -31,6 +31,7 @@ import {
 	getVaccineLabelMap,
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
+import { getForbiddenWords, setForbiddenWords } from "../../../../utils/autoblock";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
@@ -430,6 +431,19 @@ export function ProfileDetailsModal({
 			toast.error(t("favorites.delete_note_failed"));
 		} finally {
 			setIsSavingNote(false);
+		}
+	};
+
+	const handleBanBioPhrase = () => {
+		setIsActionsMenuOpen(false);
+		const bio = activeProfile?.aboutMe || "";
+		if (!bio.trim()) { toast.error("This user has no bio!"); return; }
+		const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
+		if (wordToBan && wordToBan.trim()) {
+			const currentList = getForbiddenWords();
+			const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
+			void setForbiddenWords(newList);
+			toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
 		}
 	};
 
@@ -1034,6 +1048,17 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											<Triangle className="mr-2 h-4 w-4 opacity-70" />
 											{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 										</button>
+										<button
+											type="button"
+											onClick={handleBanBioPhrase}
+											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+										>
+											<Ban className="mr-2 h-4 w-4 opacity-50" />
+											<span className="flex flex-col">
+												<span>Add forbidden Keyword</span>
+												<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+											</span>
+										</button>
 									</div>
 								)}
 							</div>
@@ -1516,6 +1541,17 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-50">
 															<Triangle className="mr-2 h-4 w-4 opacity-70" />
 															{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
+														</button>
+														<button
+															type="button"
+															onClick={handleBanBioPhrase}
+															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+														>
+															<Ban className="mr-2 h-4 w-4 opacity-50" />
+															<span className="flex flex-col">
+																<span>Add forbidden Keyword</span>
+																<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+															</span>
 														</button>
 													</div>
 												)}

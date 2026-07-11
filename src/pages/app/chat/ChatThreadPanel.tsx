@@ -28,6 +28,7 @@ import {
 	MessageSquareQuote,
 	PencilLine,
 	Pin,
+	Play,
 	Reply,
 	RotateCw,
 	SendHorizontal,
@@ -79,7 +80,9 @@ import {
 	getMessageAudioUrl,
 	getMessageAlbumId,
 	getMessageAlbumCoverUrl,
+	getMediaCaptureTarget,
 } from "./chatUtils";
+import { getCachedMediaUri } from "../../../services/mediaStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -172,7 +175,7 @@ type ChatThreadPanelProps = {
 	startMessageLongPress: (messageId: string) => void;
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
-	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video") => void;
+	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
@@ -1494,35 +1497,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
 													>
 														<Ban className="mr-2 h-4 w-4 opacity-50" />
-														Ban Name "{displayName}"
-													</button>
-													<button
-														type="button"
-														onClick={async () => {
-															setIsHeaderActionsMenuOpen(false);
-															if (profileId == null) return;
-															const loadToast = toast.loading("Loading bio...");
-															try {
-																const profile = await apiFunctions.getProfileDetail(String(profileId));
-																toast.dismiss(loadToast);
-																const bio = profile.aboutMe || "";
-																if (!bio.trim()) { toast.error("This user has no bio!"); return; }
-																const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
-																if (wordToBan && wordToBan.trim()) {
-																	const currentList = getForbiddenWords();
-																	const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-																	void setForbiddenWords(newList);
-																	toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
-																}
-															} catch (e) {
-																toast.dismiss(loadToast);
-																toast.error("Failed to load bio.");
-															}
-														}}
-														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-													>
-														<Ban className="mr-2 h-4 w-4 opacity-50" />
-														Ban Bio Phrase
+														<span className="flex flex-col">
+															<span>Add forbidden Keyword</span>
+															<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
+														</span>
 													</button>
 													</div>
 												</>
@@ -1764,6 +1742,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							const rtmBody = rtm.body as Record<string, unknown> | null | undefined;
 							const isAudioReply = rtm.type === "Audio" || rtm.chat1Type?.toLowerCase() === "audio";
 							const isImageReply = rtm.type === "Image" || rtm.type === "ExpiringImage" || rtm.chat1Type?.toLowerCase() === "image" || rtm.chat1Type?.toLowerCase() === "expiring_image";
+							const isVideoReply = rtm.type === "Video" || rtm.type === "PrivateVideo" || rtm.type === "NonExpiringVideo"
+								|| rtm.chat1Type?.toLowerCase() === "video" || rtm.chat1Type?.toLowerCase() === "privatevideo" || rtm.chat1Type?.toLowerCase() === "nonexpiringvideo";
+							// Prefer the locally-cached copy over the live body URL — by the
+							// time a video's signed URL is used here it may already have
+							// expired (same reasoning as the in-thread reply-quote bar).
+							const videoCaptureTarget = isVideoReply ? getMediaCaptureTarget(rtm) : null;
+							const cachedVideoUri = videoCaptureTarget?.kind === "video"
+								? getCachedMediaUri(videoCaptureTarget.mediaKey)
+								: null;
+							const videoUrl = isVideoReply ? (cachedVideoUri ?? getMessageVideoUrl(rtm)) : null;
 							const thumbUrl = (() => {
 								if (isImageReply) {
 									const fromUtil = getMessageImageUrl(rtm);
@@ -1805,6 +1793,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										</div>
 										{thumbUrl ? (
 											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+										) : videoUrl ? (
+											<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black">
+												<video
+													muted
+													preload="metadata"
+													src={videoUrl}
+													onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+													className="h-full w-full object-cover"
+												/>
+												<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+													<Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
+												</div>
+											</div>
 										) : isAudioReply ? (
 											<div className="flex w-10 shrink-0 items-center justify-end py-0.5 text-[var(--text-muted)]">
 												<div className="flex flex-col items-center gap-1">
@@ -2521,7 +2522,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												key: "open-media",
 												icon: <Download className="h-3.5 w-3.5" />,
 												label: t("chat.actions.open_media", { defaultValue: "Open Media" }),
-												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image"),
+												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image", message.messageId, Number(message.senderId)),
 											});
 										} else {
 											rows.push({

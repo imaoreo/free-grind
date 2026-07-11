@@ -83,6 +83,17 @@ export type StoredMediaFile = {
 	fetchedAt: number;
 };
 
+/**
+ * StoredMediaFile plus the sender of the message it's attached to — only
+ * available where the query joins against `messages` (getMediaFilesForConversation),
+ * so it's a distinct type rather than a field on StoredMediaFile itself.
+ * Null for media with no messageId (e.g. live-merged items with no local
+ * message to join against) — treat as "sender unknown".
+ */
+export type StoredMediaFileWithSender = StoredMediaFile & {
+	senderId: number | null;
+};
+
 export type AlbumUpsertInput = {
 	albumId: string;
 	ownerProfileId: string | null;

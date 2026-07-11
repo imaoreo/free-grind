@@ -836,13 +836,16 @@
             "send_first_message_hint": "Envie uma mensagem abaixo para iniciar a conversa."
         },
         "media_sheet": {
-            "title": "Mídia recebida",
+            "title": "Mídia",
             "tab_albums": "Álbuns",
-            "tab_media": "Mídia",
+            "tab_received": "Recebidas",
+            "tab_sent": "Enviadas",
             "albums_empty_title": "Nenhum álbum compartilhado ainda",
             "albums_empty_desc": "Álbuns compartilhados com você aparecerão aqui",
-            "media_empty_title": "Nenhuma mídia recebida ainda",
-            "media_empty_desc": "Fotos enviadas para você aparecerão aqui"
+            "received_empty_title": "Nenhuma mídia recebida ainda",
+            "received_empty_desc": "Fotos enviadas para você aparecerão aqui",
+            "sent_empty_title": "Nenhuma mídia enviada ainda",
+            "sent_empty_desc": "Fotos que você enviar aparecerão aqui"
         },
         "delete_conversation": "Apagar conversa",
         "delete_conversation_in_progress": "Apagando conversa...",

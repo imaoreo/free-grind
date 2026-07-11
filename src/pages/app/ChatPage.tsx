@@ -22,7 +22,7 @@ import { useBlockProfile, useUnblockProfile, useBlockedProfileIds, useMyOwnProfi
 import { getProfilePhotoHash } from "./profile-editor/profileEditorUtils";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
-import { ChatApiError } from "../../services/chatService";
+import { ChatApiError, MESSAGE_PAGE_LIMIT } from "../../services/chatService";
 import { setConversationDirectory } from "../../services/conversationDirectory";
 import * as chatDb from "../../services/chatDb";
 import type { ArchivedReason } from "../../types/chat-db";
@@ -100,7 +100,7 @@ import {
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
-import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired } from "../../services/mediaStore";
+import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
 import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
 import { useAvatarCache } from "../../hooks/useAvatarCache";
@@ -134,7 +134,6 @@ import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 // no more history before the current cursor — see the "server exhausted"
 // handling in loadThread further down.
 const LOCAL_PAGE_KEY_PREFIX = "local:";
-const ARCHIVED_THREAD_PAGE_SIZE = 30;
 // Cap for the fully-offline inbox fallback below — chatDb's background sync
 // (inboxSync.ts) can hold the user's entire chat history locally, far more
 // than a single screen should ever render at once, and there's no server to
@@ -230,6 +229,22 @@ function mergeMessagePreservingUnsendWipe(
 ): UiMessage {
 	if (!previous) {
 		return incoming;
+	}
+	// Unsending is one-way and permanent — there's no server action that
+	// un-unsends a message. So once we already know a message is unsent
+	// (either confirmed by an earlier response, or set optimistically the
+	// instant the user tapped "Unsend"), an incoming update claiming it
+	// *isn't* unsent can only be stale data from a request that was already
+	// in flight before the unsend happened (the read-receipt poll is the main
+	// culprit — it fires every 10s independent of user actions), not a real
+	// reversal. Without this, that stale response would win the merge below
+	// (its unsent flag is false, so the wipe-preservation branch never
+	// triggers) and the message would flip back to looking completely normal
+	// for a moment, even though chatDb — unaffected by this in-memory race —
+	// already has the correct state, which is why reopening the chat shows
+	// it correctly again.
+	if (previous.unsent && !incoming.unsent) {
+		return previous;
 	}
 	const prevBody = previous.body as Record<string, unknown> | null | undefined;
 	const newBody = incoming.body as Record<string, unknown> | null | undefined;
@@ -1656,7 +1671,7 @@ export function ChatPage() {
 						);
 						const olderMessages = await chatDb.getMessagesPage(conversationId, {
 							beforeTimestamp,
-							limit: ARCHIVED_THREAD_PAGE_SIZE,
+							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
 							olderMessages.length > 0
@@ -1682,7 +1697,7 @@ export function ChatPage() {
 				setThreadError(null);
 				setThreadConversationId(conversationId);
 				const [initialMessages, lastRead] = await Promise.all([
-					chatDb.getMessagesPage(conversationId, { limit: ARCHIVED_THREAD_PAGE_SIZE }),
+					chatDb.getMessagesPage(conversationId, { limit: MESSAGE_PAGE_LIMIT }),
 					chatDb.getLastReadTimestamp(conversationId),
 				]);
 				const nextPageKey =
@@ -1761,7 +1776,7 @@ export function ChatPage() {
 						);
 						const olderMessages = await chatDb.getMessagesPage(conversationId, {
 							beforeTimestamp,
-							limit: ARCHIVED_THREAD_PAGE_SIZE,
+							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
 							olderMessages.length > 0
@@ -2157,58 +2172,79 @@ export function ChatPage() {
 				}
 				// --------------------------------------------------
 
-				// Captured from inside the updater below (where the merged, up-to-date
-				// message set is available) — used after it for the "server exhausted"
-				// pageKey handling, so that a subsequent local-only page picks up right
-				// where the merged view actually leaves off, not from some earlier,
-				// possibly-stale snapshot.
+				// Captured either from inside the updater below (where the merged,
+				// up-to-date message set is available) or, when that updater is
+				// skipped entirely (see the no-op case below), read directly from
+				// threadMessagesRef — used after it for the "server exhausted"
+				// pageKey handling, so that a subsequent local-only page picks up
+				// right where the merged view actually leaves off, not from some
+				// earlier, possibly-stale snapshot.
 				let oldestDisplayedTimestamp: number | null = null;
 
-				setThreadMessages((previous) => {
-					const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
-					const map = new Map<string, UiMessage>();
-					if (older) {
-						// Older messages prepended; keep existing (including any local-only,
-						// e.g. from a prior "server exhausted" local-only page) as the base,
-						// but let this fetch's freshly-confirmed server page win over
-						// whatever was already on screen for the same message id — otherwise a
-						// message that happened to already be displayed would keep showing as
-						// unverified local history forever, even though this fetch just
-						// re-confirmed it against the server. mergeMessagePreservingUnsendWipe
-						// still protects the one case where the old version should win anyway:
-						// a local copy surviving an unsend wipe.
-						for (const message of previous) map.set(message.messageId, message);
-						for (const message of responseMessages)
-							map.set(
-								message.messageId,
-								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
-							);
-					} else {
-						// Fresh load or poll: keep whatever's already in memory for this
-						// conversation as the base (e.g. from an earlier session-load, or
-						// carried over from the archived branch when a conversation just
-						// came back live) — that alone already gives continuity across
-						// re-loads without needing a separate chatDb seed here. No local
-						// history gets padded in on top of it (see the "server exhausted"
-						// pageKey handling further down for how older, server-forgotten
-						// history is still reachable, without the padding-induced gap that
-						// used to cause messages to get stuck flagged local-only forever).
-						for (const message of previous) {
-							if (message.conversationId === conversationId) {
-								map.set(message.messageId, message);
+				if (older && responseMessages.length === 0) {
+					// Nothing to merge — skip the update entirely instead of pushing a
+					// content-identical (but reference-different) array through
+					// setThreadMessages. A no-op update here used to still trigger the
+					// scroll-preservation effect (which fires on any threadMessages
+					// change), "spending" its one-shot restore before the "server
+					// exhausted → local pagination" step further down — which actually
+					// adds content — got a chance to (re-)arm it. So a genuinely new
+					// local-only page would land without the scroll position
+					// compensating for it, making "load older" look like it silently
+					// did nothing, repeatedly, until local history was also exhausted.
+					const current = threadMessagesRef.current.filter(
+						(m) => m.conversationId === conversationId,
+					);
+					oldestDisplayedTimestamp = current.length > 0
+						? current.reduce((oldest, m) => Math.min(oldest, m.timestamp), current[0].timestamp)
+						: null;
+				} else {
+					setThreadMessages((previous) => {
+						const previousById = new Map(previous.map((m) => [m.messageId, m] as const));
+						const map = new Map<string, UiMessage>();
+						if (older) {
+							// Older messages prepended; keep existing (including any local-only,
+							// e.g. from a prior "server exhausted" local-only page) as the base,
+							// but let this fetch's freshly-confirmed server page win over
+							// whatever was already on screen for the same message id — otherwise a
+							// message that happened to already be displayed would keep showing as
+							// unverified local history forever, even though this fetch just
+							// re-confirmed it against the server. mergeMessagePreservingUnsendWipe
+							// still protects the one case where the old version should win anyway:
+							// a local copy surviving an unsend wipe.
+							for (const message of previous) map.set(message.messageId, message);
+							for (const message of responseMessages)
+								map.set(
+									message.messageId,
+									mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
+								);
+						} else {
+							// Fresh load or poll: keep whatever's already in memory for this
+							// conversation as the base (e.g. from an earlier session-load, or
+							// carried over from the archived branch when a conversation just
+							// came back live) — that alone already gives continuity across
+							// re-loads without needing a separate chatDb seed here. No local
+							// history gets padded in on top of it (see the "server exhausted"
+							// pageKey handling further down for how older, server-forgotten
+							// history is still reachable, without the padding-induced gap that
+							// used to cause messages to get stuck flagged local-only forever).
+							for (const message of previous) {
+								if (message.conversationId === conversationId) {
+									map.set(message.messageId, message);
+								}
 							}
+							for (const message of responseMessages)
+								map.set(
+									message.messageId,
+									mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
+								);
 						}
-						for (const message of responseMessages)
-							map.set(
-								message.messageId,
-								mergeMessagePreservingUnsendWipe(previousById.get(message.messageId), message),
-							);
-					}
-					const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
-					const oldestForConversation = sorted.find((m) => m.conversationId === conversationId);
-					oldestDisplayedTimestamp = oldestForConversation?.timestamp ?? null;
-					return sorted;
-				});
+						const sorted = [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
+						const oldestForConversation = sorted.find((m) => m.conversationId === conversationId);
+						oldestDisplayedTimestamp = oldestForConversation?.timestamp ?? null;
+						return sorted;
+					});
+				}
 
 				// Surface messages from the local log that don't appear in this API page
 				// (e.g. unsent by the sender, conversation disappeared after a block).
@@ -2283,7 +2319,7 @@ export function ChatPage() {
 					const beforeTimestamp = oldestDisplayedTimestamp ?? Date.now();
 					const localOlder = await chatDb.getMessagesPage(conversationId, {
 						beforeTimestamp,
-						limit: ARCHIVED_THREAD_PAGE_SIZE,
+						limit: MESSAGE_PAGE_LIMIT,
 					});
 					const nextPageKey =
 						localOlder.length > 0
@@ -2529,8 +2565,15 @@ export function ChatPage() {
 			return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 		});
 
-		// Hydrate real-time image messages that arrive without a URL.
+		// Hydrate real-time image messages that arrive without a URL — but never
+		// for one that's already unsent. Unsending is permanent, so there's no
+		// fresher URL to ever fetch for it; treating a realtime echo of our own
+		// (or anyone's) unsend as "needs a refetch" would race the wipe-
+		// preservation merge above and, once the refetch also comes back with
+		// no body, flip the message to "expired" instead of the local-history
+		// content that merge just correctly restored.
 		const incomingImagesWithoutUrl = messages.filter((m) => {
+			if (m.unsent) return false;
 			const imageType = (m as UiMessage).chat1Type?.toLowerCase();
 			const isImageLike = m.type === "Image" || m.type === "ExpiringImage" || imageType === "image" || imageType === "expiring_image";
 			if (!isImageLike) return false;
@@ -2569,16 +2612,27 @@ export function ChatPage() {
 					userId,
 				);
 				setThreadMessages((prev) => {
+					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
-					for (const m of updates) map.set(m.messageId, m);
+					for (const m of updates) {
+						map.set(
+							m.messageId,
+							mergeMessagePreservingUnsendWipe(previousById.get(m.messageId), m),
+						);
+					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 			});
 		}
 
-		// Hydrate real-time video messages that arrive without a URL.
+		// Hydrate real-time video messages that arrive without a URL — same
+		// unsent exclusion as the image pass above, for the same reason: an
+		// unsent message will never have a fresher URL to fetch, and treating
+		// its realtime echo as "needs refetch" would race the wipe-preservation
+		// merge and flip it to "expired" instead of local-history content.
 		const incomingVideosWithoutUrl = messages.filter((m) => {
+			if (m.unsent) return false;
 			const isVideoLike = m.type === "Video" || m.type === "NonExpiringVideo" || (m as UiMessage).chat1Type?.toLowerCase() === "video" || (m as UiMessage).chat1Type?.toLowerCase() === "private_video" || (m as UiMessage).chat1Type?.toLowerCase() === "expiring_video";
 			if (!isVideoLike) return false;
 			return !getMessageVideoUrl(m as UiMessage);
@@ -2615,9 +2669,15 @@ export function ChatPage() {
 					);
 				}
 				setThreadMessages((prev) => {
+					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
 					const map = new Map<string, UiMessage>();
 					for (const m of prev) map.set(m.messageId, m);
-					for (const m of updates) map.set(m.messageId, m);
+					for (const m of updates) {
+						map.set(
+							m.messageId,
+							mergeMessagePreservingUnsendWipe(previousById.get(m.messageId), m),
+						);
+					}
 					return [...map.values()].sort((a, b) => a.timestamp - b.timestamp);
 				});
 			});
@@ -5445,36 +5505,69 @@ export function ChatPage() {
 		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
 	};
 
-	const openFullScreenImage = useCallback((imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType: "image" | "video" = "image") => {
-		const list: ThreadMediaItem[] = [];
-		for (const msg of threadMessages) {
-			const imgUrl = getMessageImageUrl(msg);
-			if (imgUrl) {
-				const createdAt = getMessageImageCreatedAt(msg);
-				list.push({
-					url: imgUrl,
-					type: "image",
-					meta: {
-						takenOnGrindr: getMessageTakenOnGrindr(msg),
-						createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
-						timestamp: msg.timestamp,
-					},
+	/**
+	 * Opens the full-screen carousel for a tapped message's media. Shows just
+	 * the tapped item immediately, then — when messageId/senderId are given —
+	 * expands it to every image/video the same sender (me vs. the other
+	 * participant) has in this conversation, sourced from the same chatDb
+	 * cache as the "received media" sheet rather than whatever's currently
+	 * paged into threadMessages — that in-memory window is only a fraction of
+	 * the conversation for any chat with real history, which is why the
+	 * carousel used to silently miss older media once pagination was added.
+	 */
+	const openFullScreenImage = useCallback((
+		imageUrl: string,
+		meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number },
+		mediaType: "image" | "video" = "image",
+		messageId?: string,
+		senderId?: number,
+	) => {
+		setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
+		setFullScreenMediaIndex(0);
+
+		const conversationId = selectedConversation?.data.conversationId;
+		if (!conversationId || messageId == null || senderId == null) {
+			return;
+		}
+
+		void (async () => {
+			try {
+				const files = await chatDb.getMediaFilesForConversation(conversationId);
+				const mine = userId != null && Number(senderId) === Number(userId);
+				const matching = files
+					.filter((f) => (f.senderId != null && userId != null && Number(f.senderId) === Number(userId)) === mine)
+					// newest-first from the query — reverse to chronological order,
+					// matching the old threadMessages-order carousel.
+					.reverse();
+				const idx = matching.findIndex((f) => f.messageId === messageId);
+				if (idx === -1) {
+					return;
+				}
+
+				const messagesById = new Map(threadMessages.map((m) => [m.messageId, m] as const));
+				const list: ThreadMediaItem[] = matching.map((f) => {
+					const msg = f.messageId ? messagesById.get(f.messageId) : undefined;
+					const createdAt = msg && f.kind === "image" ? getMessageImageCreatedAt(msg) : null;
+					return {
+						url: toDataUri(f.mimeType, f.dataBase64),
+						type: f.kind === "video" ? "video" : "image",
+						meta:
+							msg && f.kind === "image"
+								? {
+										takenOnGrindr: getMessageTakenOnGrindr(msg),
+										createdAtLabel: createdAt != null ? formatDateTime24(createdAt) : null,
+										timestamp: msg.timestamp,
+									}
+								: undefined,
+					};
 				});
-				continue;
+				setFullScreenMediaList(list);
+				setFullScreenMediaIndex(idx);
+			} catch (error) {
+				appLog.warn("[ChatPage] failed to build full-screen media carousel", error);
 			}
-			const vidUrl = getMessageVideoUrl(msg);
-			if (vidUrl) list.push({ url: vidUrl, type: "video" });
-		}
-		const idx = list.findIndex((item) => item.url === imageUrl);
-		if (idx === -1 || list.length === 0) {
-			// Fallback: single item
-			setFullScreenMediaList([{ url: imageUrl, type: mediaType, meta: meta ?? undefined }]);
-			setFullScreenMediaIndex(0);
-		} else {
-			setFullScreenMediaList(list);
-			setFullScreenMediaIndex(idx);
-		}
-	}, [threadMessages]);
+		})();
+	}, [selectedConversation, userId, threadMessages]);
 
 	const closeFullScreenImage = useCallback(() => {
 		if (fullScreenMediaList.length === 0) {

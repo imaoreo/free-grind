@@ -534,13 +534,16 @@
             "send_first_message_hint": "Envía un mensaje para empezar a conversar."
         },
         "media_sheet": {
-            "title": "Medios recibidos",
+            "title": "Medios",
             "tab_albums": "Álbumes",
-            "tab_media": "Medios",
+            "tab_received": "Recibidos",
+            "tab_sent": "Enviados",
             "albums_empty_title": "Aún no se han compartido álbumes",
             "albums_empty_desc": "Los álbumes compartidos contigo aparecerán aquí",
-            "media_empty_title": "Aún no has recibido medios",
-            "media_empty_desc": "Las fotos enviadas a ti aparecerán aquí"
+            "received_empty_title": "Aún no has recibido medios",
+            "received_empty_desc": "Las fotos enviadas a ti aparecerán aquí",
+            "sent_empty_title": "Aún no has enviado medios",
+            "sent_empty_desc": "Las fotos que envíes aparecerán aquí"
         },
         "loading_albums": "Cargando álbumes...",
         "loading": "Cargando...",

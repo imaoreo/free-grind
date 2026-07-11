@@ -405,13 +405,16 @@
             "send_first_message_hint": ""
         },
         "media_sheet": {
-            "title": "Ontvangen media",
+            "title": "Media",
             "tab_albums": "Albums",
-            "tab_media": "Media",
+            "tab_received": "Ontvangen",
+            "tab_sent": "Verzonden",
             "albums_empty_title": "Nog geen albums gedeeld",
             "albums_empty_desc": "Albums die met jou zijn gedeeld verschijnen hier",
-            "media_empty_title": "Nog geen media ontvangen",
-            "media_empty_desc": "Foto's die naar jou zijn gestuurd verschijnen hier"
+            "received_empty_title": "Nog geen media ontvangen",
+            "received_empty_desc": "Foto's die naar jou zijn gestuurd verschijnen hier",
+            "sent_empty_title": "Nog geen media verzonden",
+            "sent_empty_desc": "Foto's die je verstuurt verschijnen hier"
         },
         "loading_albums": "",
         "loading_inbox": "",
