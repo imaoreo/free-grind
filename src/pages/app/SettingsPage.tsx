@@ -488,7 +488,7 @@ export function SettingsPage() {
 			<header className="mb-7">
 				<button
 					type="button"
-					onClick={() => navigate("/")}
+					onClick={() => navigate("/", { replace: true })}
 					className="mb-4 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
 					aria-label={t("settings.back_to_browse")}
 				>

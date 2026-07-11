@@ -31,12 +31,15 @@ export function SignUpPage() {
 			title={t("auth.sign_up.title")}
 			subtitle={t("auth.sign_up.subtitle")}
 			footer={
-				<Link
-					to="/auth/sign-in"
-					className="text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
-				>
-					{t("auth.sign_up.have_account")}
-				</Link>
+				<span className="text-sm text-[var(--text-muted)]">
+					{t("auth.sign_up.have_account_label")}{" "}
+					<Link
+						to="/auth/sign-in"
+						className="font-bold underline hover:text-[var(--text)]"
+					>
+						{t("auth.sign_up.have_account_action")}
+					</Link>
+				</span>
 			}
 		>
 			<form onSubmit={handleSubmit} className="space-y-4">

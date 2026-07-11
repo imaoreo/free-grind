@@ -170,6 +170,14 @@ export const sharedAlbumViewSchema = z.object({
   emptyAlbumId: z.number().nullable().optional(),
 });
 
+export const profileAlbumShareStatusSchema = z.object({
+	profileId: z.coerce.number().int(),
+	hasAlbum: z.boolean(),
+	hasSharedWithMe: z.boolean(),
+});
+
+export type ProfileAlbumShareStatus = z.infer<typeof profileAlbumShareStatusSchema>;
+
 export type Album = z.infer<typeof albumSchema>;
 export type AlbumsResponse = z.infer<typeof albumsResponseSchema>;
 export type AlbumLimits = z.infer<typeof albumLimitsSchema>;

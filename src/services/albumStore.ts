@@ -72,6 +72,26 @@ const captureInFlight = new Map<number, Promise<void>>();
 const capturedAlbumIds = new Set<number>();
 const albumCacheListeners = new Set<() => void>();
 const albumCheckInFlight = new Map<number, Promise<void>>();
+// Owner-profile → locally-known album ids, so "does this profile have an
+// album in our local DB" (used to keep the profile carousel's album
+// indicator sticky even after a share is revoked/expired) is a synchronous
+// lookup instead of a DB round trip. Hydrated lazily per profile the same
+// way capturedAlbumIds is hydrated lazily per album (see
+// ensureProfileAlbumCacheChecked below).
+const profileIdToAlbumIds = new Map<string, Set<number>>();
+const profileAlbumCheckInFlight = new Map<string, Promise<void>>();
+
+function addProfileAlbumMapping(profileId: string | null, albumId: number): void {
+	if (!profileId) {
+		return;
+	}
+	let ids = profileIdToAlbumIds.get(profileId);
+	if (!ids) {
+		ids = new Set();
+		profileIdToAlbumIds.set(profileId, ids);
+	}
+	ids.add(albumId);
+}
 // The message bubble's cover image also comes straight from the live body
 // (coverUrl/previewUrl) — once a share is stopped/exhausted/expired the
 // server can drop that field entirely, which would otherwise make the
@@ -179,6 +199,52 @@ export function subscribeToAlbumCache(listener: () => void): () => void {
 	};
 }
 
+/** Synchronous read: has any album ever been captured locally for this owner profile? */
+export function isAlbumCachedForProfile(profileId: string): boolean {
+	const ids = profileIdToAlbumIds.get(profileId);
+	return !!ids && ids.size > 0;
+}
+
+/** Synchronous read of the most recently updated locally-known album id for this profile, or null. */
+export function getCachedAlbumIdForProfile(profileId: string): number | null {
+	const ids = profileIdToAlbumIds.get(profileId);
+	if (!ids || ids.size === 0) {
+		return null;
+	}
+	// getAlbumsForOwnerProfile orders by updated_at DESC, and insertion order
+	// below follows that, so the first id added is the most recently updated one.
+	return ids.values().next().value ?? null;
+}
+
+/**
+ * Checks chatDb for albums previously captured/cached for this owner profile,
+ * once per session — mirrors ensureAlbumCacheChecked's per-album hydration,
+ * just indexed by profile instead of by album id.
+ */
+export function ensureProfileAlbumCacheChecked(profileId: string): void {
+	if (profileIdToAlbumIds.has(profileId) || profileAlbumCheckInFlight.has(profileId)) {
+		return;
+	}
+	const run = (async () => {
+		try {
+			const albums = await chatDb.getAlbumsForOwnerProfile(profileId);
+			if (albums.length > 0) {
+				for (const album of albums) {
+					addProfileAlbumMapping(profileId, Number(album.albumId));
+				}
+				for (const listener of albumCacheListeners) {
+					listener();
+				}
+			}
+		} catch (error) {
+			appLog.warn(`[album-store] failed to check local album cache for profile ${profileId}`, error);
+		} finally {
+			profileAlbumCheckInFlight.delete(profileId);
+		}
+	})();
+	profileAlbumCheckInFlight.set(profileId, run);
+}
+
 /**
  * Clears every local trace of an album — chatDb rows plus every in-memory
  * cache keyed by albumId — used when the user explicitly deletes a received
@@ -193,6 +259,9 @@ export async function deleteLocalAlbum(albumId: number): Promise<void> {
 	capturedAlbumIds.delete(albumId);
 	albumCoverCache.delete(albumId);
 	knownGoneAlbumIds.delete(albumId);
+	for (const ids of profileIdToAlbumIds.values()) {
+		ids.delete(albumId);
+	}
 	for (const listener of albumCacheListeners) {
 		listener();
 	}
@@ -409,6 +478,7 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 		conversationId,
 		sharedViaMessageId,
 	});
+	addProfileAlbumMapping(ownerProfileId, albumId);
 
 	const existing = await chatDb.getAlbumMedia(String(albumId));
 	const existingById = new Map(existing.map((m) => [m.contentId, m] as const));
@@ -607,15 +677,19 @@ export async function cacheAlbumFromSharedPage(params: {
 			conversationId,
 			sharedViaMessageId: null,
 		});
+		addProfileAlbumMapping(String(ownerProfileId), albumId);
 		if (coverUrl && !albumCoverCache.has(albumId)) {
 			const fetched = await fetchAndEncode(coverUrl);
 			if (fetched) {
 				await chatDb.upsertAlbumPreviewCover(String(albumId), fetched.base64, fetched.mimeType);
 				albumCoverCache.set(albumId, toDataUri(fetched.mimeType, fetched.base64));
-				for (const listener of albumCacheListeners) {
-					listener();
-				}
 			}
+		}
+		// Notify regardless of whether the cover fetch above ran — the sticky
+		// "this profile has an album" mapping just changed either way, and the
+		// profile carousel's indicator needs to react to that on its own.
+		for (const listener of albumCacheListeners) {
+			listener();
 		}
 	} catch (error) {
 		appLog.warn(`[album-store] failed to cache album ${albumId} from shared page`, error);
