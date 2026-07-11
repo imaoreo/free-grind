@@ -209,6 +209,28 @@ export async function fetchAndStoreMedia(
 			const cached = await limitChatDbBlobRead(() => chatDb.getMediaFile(mediaKey));
 			if (cached?.fetchStatus === "ok") {
 				setCachedMediaUri(mediaKey, toDataUri(cached.mimeType, cached.dataBase64));
+				// Self-heal: a reply-quote/reaction preview capture for this same
+				// content-hash mediaKey (see replyMediaStore.ts) may have left
+				// message_id null, or pointed at a message that's since been
+				// superseded — if this call carries a real messageId that
+				// doesn't match what's stored, re-associate now that we know
+				// which message this content actually belongs to. Cheap since
+				// the bytes are already cached — no refetch needed.
+				if (params.messageId != null && cached.messageId !== params.messageId) {
+					await chatDb
+						.upsertMediaFile({
+							mediaKey,
+							conversationId: params.conversationId,
+							messageId: params.messageId,
+							kind: cached.kind,
+							mimeType: cached.mimeType,
+							dataBase64: cached.dataBase64,
+							viewOnce: cached.viewOnce,
+							sizeBytes: cached.sizeBytes,
+							fetchStatus: cached.fetchStatus,
+						})
+						.catch(() => {});
+				}
 				return;
 			}
 			// Signed URLs that already expired are guaranteed to 403 — skip the
