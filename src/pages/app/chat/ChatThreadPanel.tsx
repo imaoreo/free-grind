@@ -28,6 +28,7 @@ import {
 	MessageSquareQuote,
 	PencilLine,
 	Pin,
+	Play,
 	Reply,
 	RotateCw,
 	SendHorizontal,
@@ -79,7 +80,9 @@ import {
 	getMessageAudioUrl,
 	getMessageAlbumId,
 	getMessageAlbumCoverUrl,
+	getMediaCaptureTarget,
 } from "./chatUtils";
+import { getCachedMediaUri } from "../../../services/mediaStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -1739,6 +1742,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							const rtmBody = rtm.body as Record<string, unknown> | null | undefined;
 							const isAudioReply = rtm.type === "Audio" || rtm.chat1Type?.toLowerCase() === "audio";
 							const isImageReply = rtm.type === "Image" || rtm.type === "ExpiringImage" || rtm.chat1Type?.toLowerCase() === "image" || rtm.chat1Type?.toLowerCase() === "expiring_image";
+							const isVideoReply = rtm.type === "Video" || rtm.type === "PrivateVideo" || rtm.type === "NonExpiringVideo"
+								|| rtm.chat1Type?.toLowerCase() === "video" || rtm.chat1Type?.toLowerCase() === "privatevideo" || rtm.chat1Type?.toLowerCase() === "nonexpiringvideo";
+							// Prefer the locally-cached copy over the live body URL — by the
+							// time a video's signed URL is used here it may already have
+							// expired (same reasoning as the in-thread reply-quote bar).
+							const videoCaptureTarget = isVideoReply ? getMediaCaptureTarget(rtm) : null;
+							const cachedVideoUri = videoCaptureTarget?.kind === "video"
+								? getCachedMediaUri(videoCaptureTarget.mediaKey)
+								: null;
+							const videoUrl = isVideoReply ? (cachedVideoUri ?? getMessageVideoUrl(rtm)) : null;
 							const thumbUrl = (() => {
 								if (isImageReply) {
 									const fromUtil = getMessageImageUrl(rtm);
@@ -1780,6 +1793,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										</div>
 										{thumbUrl ? (
 											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
+										) : videoUrl ? (
+											<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black">
+												<video
+													muted
+													preload="metadata"
+													src={videoUrl}
+													onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
+													className="h-full w-full object-cover"
+												/>
+												<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+													<Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
+												</div>
+											</div>
 										) : isAudioReply ? (
 											<div className="flex w-10 shrink-0 items-center justify-end py-0.5 text-[var(--text-muted)]">
 												<div className="flex flex-col items-center gap-1">
