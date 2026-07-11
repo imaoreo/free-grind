@@ -629,6 +629,7 @@
         "default_profile": "",
         "open_photo": "",
         "album_locked": "",
+        "album_locked_label": "",
         "open_shared_album": "",
         "next_photo": "",
         "photo_alt": "",

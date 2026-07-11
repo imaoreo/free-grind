@@ -1402,6 +1402,7 @@
         "default_profile": "Default profile",
         "open_photo": "Open photo {{index}}",
         "album_locked": "Album not shared with you",
+        "album_locked_label": "Album locked",
         "open_shared_album": "Open shared album",
         "tags": "Tags",
         "expectations": "Expectations",
