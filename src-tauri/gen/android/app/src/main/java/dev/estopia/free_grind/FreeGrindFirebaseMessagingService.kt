@@ -48,6 +48,11 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
         var conversationId: String? = null
         var senderId: String? = NotificationPoster.normalizeNullableString(data["senderId"])
         var messageType: String? = null
+        // Inline preview shown in the notification (e.g. the actual picture/gif),
+        // not just a "Sent you a picture" placeholder. Deliberately not populated
+        // for ExpiringImage — that's a view-once/self-destruct message type, so
+        // it shouldn't linger visible in the notification shade.
+        var previewImageUrl: String? = null
 
         if (topBody == "TAP_NOTIFICATION_BODY") {
             isTap = true
@@ -85,6 +90,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
                         "Video" -> "Sent you a video"
                         else -> messageText
                     }
+                    previewImageUrl = NotificationPoster.extractMessagePreviewImageUrl(json.optJSONObject("body"), type)
                 }
             } catch (e: Exception) {
                 Log.e("FCM", "Failed to parse message payload, continuing without it", e)
@@ -114,6 +120,7 @@ class FreeGrindFirebaseMessagingService : FirebaseMessagingService() {
             put("conversationId", conversationId ?: JSONObject.NULL)
             put("senderId", senderId ?: JSONObject.NULL)
             put("messageType", messageType ?: JSONObject.NULL)
+            put("previewImageUrl", previewImageUrl ?: JSONObject.NULL)
             put("rawData", JSONObject(data))
         }
     }
