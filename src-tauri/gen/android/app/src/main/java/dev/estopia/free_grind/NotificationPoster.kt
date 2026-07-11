@@ -32,7 +32,9 @@ import java.nio.charset.StandardCharsets
  */
 object NotificationPoster {
     private const val PUBLIC_MEDIA_BASE_URL = "https://cdns.grindr.com"
-    private const val NOTIFICATION_INSTANCE_ID = 1
+    // Shared with MainActivity's notification-cancellation paths, which must
+    // cancel using the same (tag, id) pair this class posts with.
+    const val NOTIFICATION_INSTANCE_ID = 1
     private const val DEDUP_WINDOW_MS = 45_000L
 
     private val recentlyNotifiedKeys = mutableMapOf<String, Long>()
@@ -410,7 +412,7 @@ object NotificationPoster {
         }
 
         if (!conversationId.isNullOrBlank()) {
-            return "chat:$conversationId"
+            return chatNotificationTag(conversationId)
         }
 
         val senderId = extractSenderStableId(rawData)
@@ -420,6 +422,10 @@ object NotificationPoster {
 
         return "chat:name:${senderName.lowercase()}"
     }
+
+    // Same tag format used when posting (resolveNotificationKey) and when
+    // cancelling (MainActivity) — kept in one place so the two can't drift.
+    fun chatNotificationTag(conversationId: String): String = "chat:$conversationId"
 
     fun normalizeNullableString(value: String?): String? {
         val trimmed = value?.trim().orEmpty()

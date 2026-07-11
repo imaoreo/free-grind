@@ -67,7 +67,7 @@ import {
 	isForegroundNotificationsEnabled,
 	isTapNotificationsEnabled,
 } from "../utils/notificationSettings";
-import { notifyLocal } from "../services/localNotify";
+import { notifyLocal, clearChatNotifications } from "../services/localNotify";
 
 let cachedIsAndroid: boolean | null = null;
 function isAndroidRuntime(): boolean {
@@ -716,6 +716,12 @@ export function ChatRealtimeBridge() {
 								await chatLog.appendMessages(cid, [], ts);
 								maybeUnarchiveOnActivity(senderId);
 							} else {
+								// This is the server echoing back that *we* read this
+								// conversation — possibly from another of our own
+								// devices — so any system notification still showing
+								// for it here is now stale.
+								void clearChatNotifications(cid).catch(() => {});
+
 								const conv = getConversation(cid);
 								if (conv && !isReadReceiptsHidden(cid)) {
 									const other = getOtherParticipant(conv, userIdRef.current);
