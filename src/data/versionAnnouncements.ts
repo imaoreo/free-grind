@@ -14,6 +14,7 @@ import {
 	Sticker,
 	Terminal,
 	Users,
+	Video,
 	Zap,
 	type LucideIcon,
 } from "lucide-react";
@@ -72,6 +73,11 @@ export const VERSION_ANNOUNCEMENTS: VersionAnnouncement[] = [
 				icon: Sticker,
 				title: "Send Gifs",
 				description: "Search and send GIFs straight from the chat composer.",
+			},
+			{
+				icon: Video,
+				title: "Video Calls",
+				description: "Start a video call directly from any conversation.",
 			},
 			{
 				icon: Share2,
