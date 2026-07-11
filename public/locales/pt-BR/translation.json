@@ -954,6 +954,7 @@
         "default_profile": "Perfil padrão",
         "open_photo": "Abrir foto {{index}}",
         "album_locked": "Álbum não compartilhado com você",
+        "album_locked_label": "Álbum bloqueado",
         "open_shared_album": "Abrir álbum compartilhado",
         "tags": "Etiquetas",
         "expectations": "Expectativas",

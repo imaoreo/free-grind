@@ -1,4 +1,4 @@
-import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, Lock, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -68,6 +68,11 @@ const RIGHT_NOW_SLIDE_HASH = "__right_now_slide__";
 // Synthetic hash appended to the photo carousel when the profile has (or has
 // ever had) an album, so it shows as the last slide/indicator dot.
 const ALBUM_SLIDE_HASH = "__album_slide__";
+
+// Synthetic hash prepended when the profile has no real photo of its own
+// (and no Right Now slide either) — keeps the default-avatar placeholder as
+// its own slide instead of just disappearing once an album slide is added.
+const DEFAULT_PROFILE_SLIDE_HASH = "__default_profile_slide__";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -874,28 +879,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		!isOwnProfile && messageProfileId != null,
 	);
 
-	// The photo set shown in both carousels and the full-screen viewer, with
-	// the Right Now post's image (if any) prepended as the first slide, and
-	// the album slide (if any) appended as the last one.
+	// True only when there's genuinely nothing photo-like to show for this
+	// profile yet — mirrors the pre-album condition that used to gate the
+	// standalone default-avatar placeholder, so that behavior (no separate
+	// placeholder once a Right Now slide already fills that role) is unchanged.
+	const showDefaultProfileSlide = activeProfilePhotoHashes.length === 0 && !hasRightNowSlide;
+
+	// The photo set shown in both carousels and the full-screen viewer: the
+	// default-avatar placeholder (if there's no real photo or Right Now slide
+	// to show instead) first, then the Right Now post's image (if any), then
+	// the profile's own photos, then the album slide (if any) last.
 	const carouselHashes = useMemo(() => {
 		const base = hasRightNowSlide ? [RIGHT_NOW_SLIDE_HASH, ...activeProfilePhotoHashes] : activeProfilePhotoHashes;
-		return albumStatus.hasAlbum ? [...base, ALBUM_SLIDE_HASH] : base;
-	}, [hasRightNowSlide, activeProfilePhotoHashes, albumStatus.hasAlbum]);
+		const withDefault = showDefaultProfileSlide ? [DEFAULT_PROFILE_SLIDE_HASH, ...base] : base;
+		return albumStatus.hasAlbum ? [...withDefault, ALBUM_SLIDE_HASH] : withDefault;
+	}, [hasRightNowSlide, activeProfilePhotoHashes, albumStatus.hasAlbum, showDefaultProfileSlide]);
 	const getSlideImageUrl = (hash: string) => {
 		if (hash === RIGHT_NOW_SLIDE_HASH) return rightNowSlideUrl ?? "";
 		if (hash === ALBUM_SLIDE_HASH) return albumStatus.coverUrl ?? "";
+		if (hash === DEFAULT_PROFILE_SLIDE_HASH) return "";
 		return getProfileImageUrl(hash, "1024x1024");
 	};
 	const isRightNowSlideActive = carouselHashes[mobileCarouselPhotoIndex] === RIGHT_NOW_SLIDE_HASH;
 	carouselTotalRef.current = carouselHashes.length;
 
-	// Excludes the album slide (always last, if present) — that slide opens
-	// the album viewer, not this generic photo viewer, and since PhotoViewer
-	// wraps navigation with modulo, leaving it in would let swiping past the
-	// last real photo land on it as an unstyled, un-tappable "photo".
+	// Excludes the album and default-avatar slides (always last/first, if
+	// present) — neither opens this generic photo viewer (album opens the
+	// album viewer, the default slide has no real photo to show fullscreen),
+	// and since PhotoViewer wraps navigation with modulo, leaving them in
+	// would let swiping past the boundary land on an unstyled "photo".
 	const photoUrls = useMemo(() => {
 		return carouselHashes
-			.filter((hash) => hash !== ALBUM_SLIDE_HASH)
+			.filter((hash) => hash !== ALBUM_SLIDE_HASH && hash !== DEFAULT_PROFILE_SLIDE_HASH)
 			.map((hash) => getSlideImageUrl(hash));
 	}, [carouselHashes, rightNowSlideUrl]);
 
@@ -1125,8 +1140,18 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 	// blocks below — renders a slide's tappable content for a given hash,
 	// swapping in the album cover/lock overlay in place of a plain photo.
 	const renderCarouselSlideContent = (hash: string, index: number) => {
+		if (hash === DEFAULT_PROFILE_SLIDE_HASH) {
+			// Non-interactive, same as the old standalone placeholder — there's
+			// no real photo behind this slide to open a viewer for.
+			return (
+				<ProfileImage alt={t("profile_details.default_profile")} className="h-full w-full object-cover" />
+			);
+		}
+
 		if (hash === ALBUM_SLIDE_HASH) {
 			const isLocked = !albumStatus.hasSharedWithMe;
+			const primaryPhotoHash = activeProfilePhotoHashes[0];
+			const showAlbumCover = !isLocked && !!albumStatus.coverUrl;
 			return (
 				<>
 					<button
@@ -1135,22 +1160,37 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						className="absolute inset-0 z-10"
 						aria-label={t(isLocked ? "profile_details.album_locked" : "profile_details.open_shared_album")}
 					/>
-					{!isLocked && albumStatus.coverUrl ? (
+					{showAlbumCover ? (
 						<img
-							src={albumStatus.coverUrl}
+							src={albumStatus.coverUrl ?? undefined}
 							alt=""
 							className="h-full w-full object-cover blur-[2px] brightness-[0.55]"
 						/>
 					) : (
-						<div className="h-full w-full bg-black/70" />
+						<>
+							{/* Locked (or cover not loaded yet) — frosted-glass backdrop of
+							the profile's own picture (or the default avatar) instead of a
+							flat black background. */}
+							<ProfileImage
+								src={primaryPhotoHash ? getProfileImageUrl(primaryPhotoHash, "1024x1024") : null}
+								alt=""
+								className="h-full w-full scale-110 object-cover blur-2xl brightness-[0.55]"
+							/>
+							<div className="pointer-events-none absolute inset-0 bg-black/25 backdrop-blur-sm" aria-hidden="true" />
+						</>
 					)}
 					<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
 						{isLocked ? (
-							<Lock className="h-10 w-10 text-white/90 drop-shadow-lg" />
+							<div className="flex flex-col items-center gap-8">
+								<LockKeyhole className="h-10 w-10 text-white/90 drop-shadow-lg" />
+								<span className="text-xs font-bold uppercase tracking-wide text-white/90 drop-shadow-lg">
+									{t("profile_details.album_locked_label")}
+								</span>
+							</div>
 						) : (
 							<div className="h-20 w-20 overflow-hidden rounded-full ring-4 ring-white/80 shadow-xl">
-								<img
-									src={getProfileImageUrl(activeProfilePhotoHashes[0] ?? "", "320x320")}
+								<ProfileImage
+									src={primaryPhotoHash ? getProfileImageUrl(primaryPhotoHash, "320x320") : null}
 									alt=""
 									className="h-full w-full object-cover"
 								/>
@@ -1318,9 +1358,6 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							style={{ height: "6rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
 							aria-hidden="true"
 						/>
-						{carouselHashes.length === 0 && (
-							<ProfileImage alt={t("profile_details.default_profile")} className="h-full w-full object-cover" />
-						)}
 						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
@@ -1656,12 +1693,6 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								className="pointer-events-none absolute inset-0 z-30"
 								style={{ boxShadow: "inset 0 0 34px -10px color-mix(in srgb, color-mix(in srgb, var(--right-now), black 25%), transparent 35%)" }}
 								aria-hidden="true"
-							/>
-						)}
-						{carouselHashes.length === 0 && (
-							<ProfileImage
-								alt={t("profile_details.default_profile")}
-								className="h-full w-full object-cover brightness-50"
 							/>
 						)}
 						{carouselHashes.map((hash, index) => (
