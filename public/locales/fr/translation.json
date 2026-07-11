@@ -532,7 +532,8 @@
         "sign_up": {
             "title": "Inscription",
             "subtitle": "L'inscription n'est pas encore implémentée. Suivez la progression sur le Ticket #2.",
-            "have_account": "Déjà un compte ? Connectez-vous",
+            "have_account_label": "Déjà un compte ?",
+            "have_account_action": "Connectez-vous",
             "open_issue": "Ouvrir le Ticket #2",
             "opening_issue": "Ouverture du ticket..."
         },

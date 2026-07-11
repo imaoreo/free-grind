@@ -6,6 +6,7 @@ type NativePushNotificationDetail = {
 	event?: string;
 	action?: string | null;
 	conversationId?: string | null;
+	senderId?: string | null;
 };
 
 declare global {
@@ -23,7 +24,8 @@ function detailKey(detail: NativePushNotificationDetail): string {
 	const action = typeof detail.action === "string" ? detail.action : "";
 	const conversationId =
 		typeof detail.conversationId === "string" ? detail.conversationId : "";
-	return `${event}|${action}|${conversationId}`;
+	const senderId = typeof detail.senderId === "string" ? detail.senderId : "";
+	return `${event}|${action}|${conversationId}|${senderId}`;
 }
 
 function removeQueuedPushNotification(detail: NativePushNotificationDetail) {
@@ -82,6 +84,11 @@ function getNotificationRoute(detail: NativePushNotificationDetail): string | nu
 	}
 
 	if (detail.action === "taps") {
+		// A tap notification is about a specific person — open their profile
+		// directly when we know who it was, instead of the generic taps list.
+		if (typeof detail.senderId === "string" && detail.senderId.trim()) {
+			return `/profile/${encodeURIComponent(detail.senderId.trim())}`;
+		}
 		return "/interest";
 	}
 

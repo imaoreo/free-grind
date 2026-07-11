@@ -422,7 +422,8 @@
             "opening_issue": "",
             "title": "",
             "subtitle": "",
-            "have_account": "",
+            "have_account_label": "",
+            "have_account_action": "",
             "open_issue": ""
         },
         "common": {

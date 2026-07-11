@@ -840,7 +840,8 @@
         "sign_up": {
             "title": "Registrieren",
             "subtitle": "Die Registrierung ist noch nicht implementiert. Verfolge den Fortschritt in Issue #2.",
-            "have_account": "Hast du bereits ein Konto? Anmelden",
+            "have_account_label": "Hast du bereits ein Konto?",
+            "have_account_action": "Anmelden",
             "opening_issue": "Öffne Issue...",
             "open_issue": "Issue #2 öffnen"
         }

@@ -907,7 +907,8 @@
         "sign_up": {
             "title": "Sign Up",
             "subtitle": "Sign up is not implemented yet. Track progress in Issue #2.",
-            "have_account": "Already have an account? Sign in",
+            "have_account_label": "Already have an account?",
+            "have_account_action": "Sign in",
             "opening_issue": "Opening issue...",
             "open_issue": "Open Issue #2"
         }

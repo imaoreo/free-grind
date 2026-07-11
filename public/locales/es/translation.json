@@ -514,7 +514,8 @@
             "opening_issue": "Abriendo Problema...",
             "title": "Registrarse",
             "subtitle": "El registro aún no se ha implementado. Sigue el progreso en Problema #2.",
-            "have_account": "¿Ya tienes cuenta? Inicia sesión",
+            "have_account_label": "¿Ya tienes cuenta?",
+            "have_account_action": "Inicia sesión",
             "open_issue": "Abrir Problema #2"
         },
         "common": {

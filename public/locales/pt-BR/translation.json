@@ -645,7 +645,8 @@
         "sign_up": {
             "title": "Inscrever-se",
             "subtitle": "O cadastro ainda não foi implementado. Acompanhe o progresso na Issue #2.",
-            "have_account": "Já tem uma conta? Iniciar sessão",
+            "have_account_label": "Já tem uma conta?",
+            "have_account_action": "Iniciar sessão",
             "opening_issue": "Abrindo chamadao...",
             "open_issue": "Questão em aberto #2"
         },
