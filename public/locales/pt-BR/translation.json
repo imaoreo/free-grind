@@ -58,6 +58,7 @@
     "shared_albums": {
         "title": "Álbuns Compartilhados",
         "subtitle": "Veja todos os álbuns compartilhados pelas pessoas nos seus chats.",
+        "name_fallback": "Alguém",
         "albums_count_one": "{{count}} álbum",
         "albums_count_many": "{{count}} álbuns",
         "albums_count_other": "{{count}} álbum",
@@ -645,7 +646,8 @@
         "sign_up": {
             "title": "Inscrever-se",
             "subtitle": "O cadastro ainda não foi implementado. Acompanhe o progresso na Issue #2.",
-            "have_account": "Já tem uma conta? Iniciar sessão",
+            "have_account_label": "Já tem uma conta?",
+            "have_account_action": "Iniciar sessão",
             "opening_issue": "Abrindo chamadao...",
             "open_issue": "Questão em aberto #2"
         },
@@ -951,6 +953,8 @@
         "message_placeholder": "Enviar uma mensagem…",
         "default_profile": "Perfil padrão",
         "open_photo": "Abrir foto {{index}}",
+        "album_locked": "Álbum não compartilhado com você",
+        "open_shared_album": "Abrir álbum compartilhado",
         "tags": "Etiquetas",
         "expectations": "Expectativas",
         "looking_for": "Procurando por",

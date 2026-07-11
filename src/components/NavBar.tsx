@@ -337,6 +337,8 @@ export function NavBar() {
 										if (item.value === "browse" && activeTab === "browse") {
 											window.dispatchEvent(new CustomEvent("browse-scroll-top"));
 										}
+										setActiveTab(item.value);
+										navigate(item.path, { replace: true });
 									}}
 									className={cn(
 										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",

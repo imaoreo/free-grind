@@ -94,7 +94,9 @@ function SavedLocationRow({
 				</div>
 				{isActive && (
 					<div
-						className="flex shrink-0 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm"
+						className={`flex shrink-0 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 text-xs font-bold shadow-sm ${
+							activeColor === "var(--accent)" ? "text-[var(--accent-contrast)]" : "text-white"
+						}`}
 						style={{ backgroundColor: activeColor }}
 					>
 						<Check className="h-3.5 w-3.5 shrink-0" />
@@ -378,6 +380,12 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 		? !!exploreLocation && selectedLocation?.label === exploreLocation.label
 		: !!locationName && selectedLocation?.label === locationName;
 
+	// Same "Active" badge treatment as SavedLocationRow gets — compares against
+	// the real geohash (not selectedLocation, which also tracks in-progress
+	// map picks) so it only lights up once home is actually the saved location.
+	const isHomeLocationActive =
+		!useAutoLocation && !!homeLocation && geohash === encodeGeohash(homeLocation.lat, homeLocation.lon);
+
 	const handleMapPick = (lat: number, lon: number) => {
 		const fallbackLabel = t("browse_location.lat_lon_label", { lat: lat.toFixed(4), lon: lon.toFixed(4) });
 		setSelectedLocation({ lat, lon, label: t("browse_location.resolving_location"), city: null });
@@ -609,6 +617,12 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 											</p>
 											<p className="mt-0.5 truncate text-xs text-[var(--text-muted)]">{homeLocation.name}</p>
 										</div>
+										{isHomeLocationActive && (
+											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-[var(--accent-contrast)] shadow-sm">
+												<Check className="h-3.5 w-3.5 shrink-0" />
+												{t("browse_location.badge_active")}
+											</div>
+										)}
 									</button>
 								)}
 
@@ -649,7 +663,7 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 											</p>
 										</div>
 										{useAutoLocation && !isDetectingLocation && !currentLocationError && (
-											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-white shadow-sm">
+											<div className="flex shrink-0 items-center gap-1 rounded-full bg-[var(--accent)] py-1 pl-1.5 pr-2.5 text-xs font-bold text-[var(--accent-contrast)] shadow-sm">
 												<Check className="h-3.5 w-3.5 shrink-0" />
 												{t("browse_location.badge_active")}
 											</div>
@@ -764,7 +778,9 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 									<div className="border-t border-[var(--border)] bg-[var(--surface-2)] p-4">
 										<div className="flex items-center gap-3">
 											<div
-												className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white"
+												className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+													isExploreTab ? "text-white" : "text-[var(--accent-contrast)]"
+												}`}
 												style={{ backgroundColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)" }}
 											>
 												<MapPin className="h-4 w-4" />
@@ -809,7 +825,9 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 												}
 												className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition ${
 													isNamingLocation
-														? "text-white"
+														? isExploreTab
+															? "text-white"
+															: "text-[var(--accent-contrast)]"
 														: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
 												}`}
 											>
@@ -835,7 +853,9 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 													disabled={!newLocationName.trim()}
 													onClick={handleSaveCurrentAsNamedLocation}
 													style={{ backgroundColor: isExploreTab ? EXPLORE_COLOR : "var(--accent)" }}
-													className="shrink-0 rounded-xl px-4 text-sm font-bold text-white transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50"
+													className={`shrink-0 rounded-xl px-4 text-sm font-bold transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 ${
+														isExploreTab ? "text-white" : "text-[var(--accent-contrast)]"
+													}`}
 												>
 													{t("travel_plans.save")}
 												</button>
@@ -851,8 +871,8 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 													: void saveAndClose(selectedLocation.lat, selectedLocation.lon, selectedLocation.label)
 											}
 											style={isExploreTab ? { backgroundColor: EXPLORE_COLOR } : undefined}
-											className={`relative mt-3 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl text-sm font-bold text-white shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 ${
-												isExploreTab ? "" : "bg-[var(--accent)] shadow-[var(--accent)]/30"
+											className={`relative mt-3 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl text-sm font-bold shadow-md transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 ${
+												isExploreTab ? "text-white" : "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--accent)]/30"
 											}`}
 										>
 											{isSaving ? (

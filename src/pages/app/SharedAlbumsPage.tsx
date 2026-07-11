@@ -104,7 +104,7 @@ function AlbumCard({
 						<div className="absolute left-2 top-2 flex items-center gap-1">
 							{item.album.contentCount.videoCount > 0 ? (
 								<div
-									className="flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-white/85 backdrop-blur-sm"
+									className="inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-1 text-[10px] font-semibold text-white/85 backdrop-blur-sm"
 									title={t("shared_albums.video_label")}
 									aria-label={t("shared_albums.video_label")}
 								>
@@ -118,16 +118,16 @@ function AlbumCard({
 								{item.albumNumber}/{item.totalAlbumsShared}
 							</div>
 						) : null}
-						<div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-3 text-center text-white">
-							<div className="h-20 w-20 overflow-hidden rounded-full border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
+						<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white">
+							<div className="h-14 w-14 overflow-hidden rounded-full border-white/25 bg-white/15 text-white shadow-lg backdrop-blur-sm">
 								<ProfileImage src={avatarUrl} alt={item.profileName} />
 							</div>
 							<div className="min-w-0">
-								<p className="truncate text-base font-semibold leading-tight text-white drop-shadow">
+								<p className="truncate text-sm font-semibold leading-tight text-white drop-shadow">
 									{item.profileName}
 								</p>
 								{item.album.albumName ? (
-									<p className="mt-0.5 truncate text-xs font-medium leading-tight text-white/75 drop-shadow">
+									<p className="mt-0.5 truncate text-[11px] font-medium leading-tight text-white/75 drop-shadow">
 										{item.album.albumName}
 									</p>
 								) : null}
@@ -197,7 +197,7 @@ export function SharedAlbumsPage() {
 
 					profileMap.set(counterparty.profileId, {
 						profileName:
-							entry.data.name?.trim() || `Profile ${counterparty.profileId}`,
+							entry.data.name?.trim() || t("shared_albums.name_fallback"),
 						conversationId: entry.data.conversationId ?? null,
 						profileMediaHash: counterparty.mediaHash,
 					});
@@ -221,7 +221,7 @@ export function SharedAlbumsPage() {
 				const profileName =
 					profileMeta?.profileName ||
 					sharedAlbum.profile.name?.trim() ||
-					`Profile ${sharedAlbum.ownerProfileId}`;
+					t("shared_albums.name_fallback");
 
 				return {
 					profileId: sharedAlbum.ownerProfileId,
@@ -298,7 +298,7 @@ export function SharedAlbumsPage() {
 						if (profileId == null) {
 							return null;
 						}
-						let profileName = `Profile ${profileId}`;
+						let profileName = t("shared_albums.name_fallback");
 						let profileMediaHash: string | null = null;
 						if (stored.conversationId) {
 							const conversation = await getConversation(stored.conversationId).catch(() => null);
@@ -334,6 +334,76 @@ export function SharedAlbumsPage() {
 					}),
 				)
 			).filter((entry): entry is SharedAlbumItem => entry !== null);
+
+			// Batch-fetch full profile details for every distinct album owner in
+			// this load — the shared-albums feed itself never returns a media
+			// hash (sharedAlbumFeedProfileSchema only has profileId/name/
+			// profileUrl/onlineUntil/distanceKm), and the conversation-derived
+			// fallback above only covers profiles you have a conversation with
+			// among the first 6 inbox pages. This is the same cascade endpoint
+			// the blocked-profiles page uses to get real display names/avatars
+			// for profiles the single-profile endpoint won't serve.
+			const allOwnerIds = new Set<number>();
+			for (const item of nextItems) allOwnerIds.add(item.profileId);
+			for (const item of cachedOnlyItems) allOwnerIds.add(item.profileId);
+
+			if (allOwnerIds.size > 0) {
+				const ids = [...allOwnerIds];
+				const CHUNK_SIZE = 50;
+				const chunks: number[][] = [];
+				for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+					chunks.push(ids.slice(i, i + CHUNK_SIZE));
+				}
+
+				const detailsById = new Map<
+					number,
+					{ displayName: string | null; profileMediaHash: string | null }
+				>();
+				await Promise.all(
+					chunks.map(async (chunk) => {
+						try {
+							const raw = await apiFunctions.getProfilesByIds(chunk);
+							const profiles =
+								raw && typeof raw === "object" && Array.isArray((raw as { profiles?: unknown }).profiles)
+									? (raw as { profiles: unknown[] }).profiles
+									: [];
+							for (const p of profiles) {
+								if (!p || typeof p !== "object") continue;
+								const idRaw = (p as { profileId?: unknown }).profileId;
+								if (idRaw == null) continue;
+								const nameRaw = (p as { displayName?: unknown }).displayName;
+								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+								detailsById.set(Number(idRaw), {
+									displayName:
+										typeof nameRaw === "string" && nameRaw.trim().length > 0
+											? nameRaw.trim()
+											: null,
+									profileMediaHash:
+										typeof hashRaw === "string" && validateMediaHash(hashRaw) ? hashRaw : null,
+								});
+							}
+						} catch {
+							// Chunk failed — those profiles keep whatever they already had.
+						}
+					}),
+				);
+
+				const nameFallback = t("shared_albums.name_fallback");
+				const applyDetails = (item: SharedAlbumItem): SharedAlbumItem => {
+					const details = detailsById.get(item.profileId);
+					if (!details) return item;
+					return {
+						...item,
+						profileName:
+							item.profileName === nameFallback
+								? details.displayName ?? item.profileName
+								: item.profileName,
+						profileMediaHash: item.profileMediaHash ?? details.profileMediaHash,
+					};
+				};
+				for (let i = 0; i < nextItems.length; i++) nextItems[i] = applyDetails(nextItems[i]);
+				for (let i = 0; i < cachedOnlyItems.length; i++) cachedOnlyItems[i] = applyDetails(cachedOnlyItems[i]);
+			}
 
 			setItems([...nextItems, ...cachedOnlyItems]);
 		} catch (loadError) {
@@ -700,7 +770,7 @@ export function SharedAlbumsPage() {
 					<div className="pointer-events-auto flex flex-col gap-3 mx-auto w-full max-w-6xl px-[var(--app-px)]">
 						<button
 							type="button"
-							onClick={() => navigate("/chat")}
+							onClick={() => navigate("/chat", { replace: true })}
 							className="mt-3 inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
 						>
 							<ChevronLeft className="h-4 w-4" />

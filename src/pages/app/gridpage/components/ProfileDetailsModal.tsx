@@ -1,4 +1,4 @@
-import { Ban, Check, ChevronLeft, EllipsisVertical, Flame, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, Lock, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -53,6 +53,10 @@ import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { PhotoViewer } from "../../../../components/PhotoViewer";
 import { PhotoActionBar } from "../../../../components/PhotoActionBar";
+import { useProfileAlbumStatus } from "../../../../hooks/useProfileAlbumStatus";
+import { captureAlbum, getLocalAlbum } from "../../../../services/albumStore";
+import type { AlbumViewer } from "../../../../types/shared-albums";
+import { AlbumViewerPanel } from "../../shared-albums/AlbumViewerPanel";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -60,6 +64,10 @@ const ownProfileDataCache = new Map<string, OwnProfileData>();
 // Synthetic hash prepended to the photo carousel when the profile has an
 // active Right Now post with an image, so it shows as the first slide.
 const RIGHT_NOW_SLIDE_HASH = "__right_now_slide__";
+
+// Synthetic hash appended to the photo carousel when the profile has (or has
+// ever had) an album, so it shows as the last slide/indicator dot.
+const ALBUM_SLIDE_HASH = "__album_slide__";
 
 type ProfileDetailsModalProps = {
 	isOpen: boolean;
@@ -857,19 +865,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 	);
 	const rightNowSlideUrl = activeProfile?.rightNowFullImageUrl || activeProfile?.rightNowThumbnailUrl || null;
 
-	// The photo set shown in both carousels and the full-screen viewer, with
-	// the Right Now post's image (if any) prepended as the first slide.
-	const carouselHashes = useMemo(
-		() => (hasRightNowSlide ? [RIGHT_NOW_SLIDE_HASH, ...activeProfilePhotoHashes] : activeProfilePhotoHashes),
-		[hasRightNowSlide, activeProfilePhotoHashes],
+	// Lazily checked once this profile's detail view is open (not per grid
+	// tile) — hasAlbum is sticky (stays true once we've ever locally cached
+	// an album for this profile), hasSharedWithMe always reflects the latest
+	// live check and drives the lock-vs-cover decision on the slide.
+	const albumStatus = useProfileAlbumStatus(
+		messageProfileId != null ? String(messageProfileId) : null,
+		!isOwnProfile && messageProfileId != null,
 	);
-	const getSlideImageUrl = (hash: string) =>
-		hash === RIGHT_NOW_SLIDE_HASH ? (rightNowSlideUrl ?? "") : getProfileImageUrl(hash, "1024x1024");
+
+	// The photo set shown in both carousels and the full-screen viewer, with
+	// the Right Now post's image (if any) prepended as the first slide, and
+	// the album slide (if any) appended as the last one.
+	const carouselHashes = useMemo(() => {
+		const base = hasRightNowSlide ? [RIGHT_NOW_SLIDE_HASH, ...activeProfilePhotoHashes] : activeProfilePhotoHashes;
+		return albumStatus.hasAlbum ? [...base, ALBUM_SLIDE_HASH] : base;
+	}, [hasRightNowSlide, activeProfilePhotoHashes, albumStatus.hasAlbum]);
+	const getSlideImageUrl = (hash: string) => {
+		if (hash === RIGHT_NOW_SLIDE_HASH) return rightNowSlideUrl ?? "";
+		if (hash === ALBUM_SLIDE_HASH) return albumStatus.coverUrl ?? "";
+		return getProfileImageUrl(hash, "1024x1024");
+	};
 	const isRightNowSlideActive = carouselHashes[mobileCarouselPhotoIndex] === RIGHT_NOW_SLIDE_HASH;
 	carouselTotalRef.current = carouselHashes.length;
 
+	// Excludes the album slide (always last, if present) — that slide opens
+	// the album viewer, not this generic photo viewer, and since PhotoViewer
+	// wraps navigation with modulo, leaving it in would let swiping past the
+	// last real photo land on it as an unstyled, un-tappable "photo".
 	const photoUrls = useMemo(() => {
-		return carouselHashes.map((hash) => getSlideImageUrl(hash));
+		return carouselHashes
+			.filter((hash) => hash !== ALBUM_SLIDE_HASH)
+			.map((hash) => getSlideImageUrl(hash));
 	}, [carouselHashes, rightNowSlideUrl]);
 
 	const renderPhotoExtraInfo = useCallback(
@@ -946,6 +973,210 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			renderFooter={renderPhotoFooter}
 		/>
 	);
+
+	// Opening the album shared with this profile — mirrors
+	// SharedAlbumsPage.tsx's openViewer: mark it opened, fetch full content,
+	// fall back to whatever's already cached locally if the live fetch fails,
+	// and eagerly capture it so it survives the share later expiring.
+	const [albumViewer, setAlbumViewer] = useState<AlbumViewer | null>(null);
+	const [albumViewerIndex, setAlbumViewerIndex] = useState(0);
+	const [albumFullScreenIndex, setAlbumFullScreenIndex] = useState<number | null>(null);
+	const [isOpeningAlbum, setIsOpeningAlbum] = useState(false);
+	const albumViewerOpenRef = useRef(false);
+	albumViewerOpenRef.current = albumViewer != null;
+
+	useEffect(() => {
+		const onPopState = () => {
+			if (albumViewerOpenRef.current && !(window.history.state as { profileAlbumViewer?: boolean } | null)?.profileAlbumViewer) {
+				setAlbumFullScreenIndex(null);
+				setAlbumViewer(null);
+				setAlbumViewerIndex(0);
+			}
+		};
+		window.addEventListener("popstate", onPopState);
+		return () => window.removeEventListener("popstate", onPopState);
+	}, []);
+
+	const closeAlbumViewer = useCallback(() => {
+		const state = window.history.state as Record<string, unknown> | null;
+		if (state?.profileAlbumViewer) {
+			const { profileAlbumViewer: _omit, ...rest } = state;
+			window.history.replaceState(rest, "");
+		}
+		setAlbumFullScreenIndex(null);
+		setAlbumViewer(null);
+		setAlbumViewerIndex(0);
+	}, []);
+
+	const openAlbumFullScreen = useCallback((index: number) => {
+		setAlbumViewerIndex(index);
+		setAlbumFullScreenIndex(index);
+	}, []);
+
+	const closeAlbumFullScreen = useCallback(() => {
+		setAlbumFullScreenIndex(null);
+	}, []);
+
+	const handleAlbumViewerIndexChange = useCallback((index: number) => {
+		setAlbumFullScreenIndex((prev) => (prev === index ? prev : index));
+		setAlbumViewerIndex((prev) => (prev === index ? prev : index));
+	}, []);
+
+	const handleAlbumSlideClick = useCallback(async () => {
+		if (!albumStatus.hasSharedWithMe || albumStatus.albumId == null || isOpeningAlbum || messageProfileId == null) {
+			return;
+		}
+		const albumId = albumStatus.albumId;
+		const profileIdNum = Number(messageProfileId);
+		setIsOpeningAlbum(true);
+		try {
+			await apiFunctions.openSharedAlbum({ albumId });
+			const details = await apiFunctions.getAlbum(albumId);
+			setAlbumViewer({
+				albumId: details.albumId,
+				albumName: details.albumName,
+				profileId: profileIdNum,
+				profileName: activeProfileName,
+				conversationId: null,
+				content: details.content,
+			});
+			setAlbumViewerIndex(0);
+			if (!(window.history.state as { profileAlbumViewer?: boolean } | null)?.profileAlbumViewer) {
+				window.history.pushState({ ...(window.history.state as object | null), profileAlbumViewer: true }, "");
+			}
+			void captureAlbum({
+				albumId: details.albumId,
+				albumName: details.albumName,
+				content: details.content,
+				ownerProfileId: String(messageProfileId),
+				conversationId: null,
+				sharedViaMessageId: null,
+				remainingViews: null,
+				isViewable: true,
+			});
+		} catch (error) {
+			const local = await getLocalAlbum(albumId).catch(() => null);
+			if (local && local.content.length > 0) {
+				setAlbumViewer({
+					albumId: local.albumId,
+					albumName: local.albumName,
+					profileId: profileIdNum,
+					profileName: activeProfileName,
+					conversationId: null,
+					content: local.content,
+				});
+				setAlbumViewerIndex(0);
+				if (!(window.history.state as { profileAlbumViewer?: boolean } | null)?.profileAlbumViewer) {
+					window.history.pushState({ ...(window.history.state as object | null), profileAlbumViewer: true }, "");
+				}
+			} else {
+				toast.error(error instanceof Error ? error.message : t("shared_albums.error_open_fallback"));
+			}
+		} finally {
+			setIsOpeningAlbum(false);
+		}
+	}, [albumStatus.hasSharedWithMe, albumStatus.albumId, isOpeningAlbum, apiFunctions, messageProfileId, activeProfileName, t]);
+
+	const albumViewerPhotos = useMemo(() => {
+		if (!albumViewer) return [];
+		return albumViewer.content.map((item) => ({
+			url: item.url || item.thumbUrl || item.coverUrl || "",
+			type: (item.contentType?.startsWith("video/") ? "video" : "image") as "image" | "video",
+		}));
+	}, [albumViewer]);
+
+	const selectedAlbumViewerItem =
+		albumViewer && albumViewer.content.length > 0
+			? albumViewer.content[Math.min(albumViewerIndex, albumViewer.content.length - 1)]
+			: null;
+
+	const albumOpeningOverlay = isOpeningAlbum && (
+		<div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/50 p-4">
+			<div className="surface-card p-4 text-sm text-[var(--text-muted)]">{t("shared_albums.opening")}</div>
+		</div>
+	);
+
+	const albumViewerOverlay = albumViewer && (
+		<>
+			<AlbumViewerPanel
+				viewer={albumViewer}
+				viewerIndex={albumViewerIndex}
+				fullScreenIndex={albumFullScreenIndex}
+				selectedViewerItem={selectedAlbumViewerItem}
+				closeViewer={closeAlbumViewer}
+				openFullScreen={openAlbumFullScreen}
+				onMessageProfile={() => {}}
+				onViewProfile={() => {}}
+				hideProfileActions
+			/>
+			{albumFullScreenIndex !== null && (
+				<PhotoViewer
+					isOpen={true}
+					onClose={closeAlbumFullScreen}
+					photos={albumViewerPhotos}
+					initialIndex={albumFullScreenIndex}
+					onIndexChange={handleAlbumViewerIndexChange}
+				/>
+			)}
+		</>
+	);
+
+	// Shared between both the mobile/inline and split-desktop carousel
+	// blocks below — renders a slide's tappable content for a given hash,
+	// swapping in the album cover/lock overlay in place of a plain photo.
+	const renderCarouselSlideContent = (hash: string, index: number) => {
+		if (hash === ALBUM_SLIDE_HASH) {
+			const isLocked = !albumStatus.hasSharedWithMe;
+			return (
+				<>
+					<button
+						type="button"
+						onClick={() => void handleAlbumSlideClick()}
+						className="absolute inset-0 z-10"
+						aria-label={t(isLocked ? "profile_details.album_locked" : "profile_details.open_shared_album")}
+					/>
+					{!isLocked && albumStatus.coverUrl ? (
+						<img
+							src={albumStatus.coverUrl}
+							alt=""
+							className="h-full w-full object-cover blur-[2px] brightness-[0.55]"
+						/>
+					) : (
+						<div className="h-full w-full bg-black/70" />
+					)}
+					<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+						{isLocked ? (
+							<Lock className="h-10 w-10 text-white/90 drop-shadow-lg" />
+						) : (
+							<div className="h-20 w-20 overflow-hidden rounded-full ring-4 ring-white/80 shadow-xl">
+								<img
+									src={getProfileImageUrl(activeProfilePhotoHashes[0] ?? "", "320x320")}
+									alt=""
+									className="h-full w-full object-cover"
+								/>
+							</div>
+						)}
+					</div>
+				</>
+			);
+		}
+
+		return (
+			<>
+				<button
+					type="button"
+					onClick={() => openPhotoViewer(index)}
+					className="absolute inset-0 z-10"
+					aria-label={t("profile_details.open_photo", { index: index + 1 })}
+				/>
+				<img
+					src={getSlideImageUrl(hash)}
+					alt={t("profile_details.photo_alt", { name: activeProfileName })}
+					className="h-full w-full object-cover"
+				/>
+			</>
+		);
+	};
 
 	const renderInlineLayout = () => (
 		<>
@@ -1099,17 +1330,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									transition: carouselDragDelta !== 0 ? "none" : "transform 300ms ease-out",
 								}}
 							>
-								<button
-									type="button"
-									onClick={() => openPhotoViewer(index)}
-									className="absolute inset-0 z-10"
-									aria-label={t("profile_details.open_photo", { index: index + 1 })}
-								/>
-								<img
-									src={getSlideImageUrl(hash)}
-									alt={t("profile_details.photo_alt", { name: activeProfileName })}
-									className="h-full w-full object-cover"
-								/>
+								{renderCarouselSlideContent(hash, index)}
 							</div>
 						))}
 						{activeProfile.lastReceivedTapTimestamp != null && (
@@ -1135,6 +1356,18 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 													className="h-3 w-3 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
 													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
 													fill="currentColor"
+												/>
+											</span>
+										) : hash === ALBUM_SLIDE_HASH ? (
+											<span
+												key={`${hash}-dot`}
+												className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+												style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
+												aria-hidden="true"
+											>
+												<Album
+													className="h-3 w-3 shrink-0 scale-[0.6] transition-colors duration-150 ease-out"
+													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
 												/>
 											</span>
 										) : (
@@ -1337,6 +1570,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				>
 				{renderInlineLayout()}
 				{photoViewerOverlay}
+				{albumOpeningOverlay}
+				{albumViewerOverlay}
 				{barTapFlyEmoji && (
 					<>
 						{barTapFlyEmoji.particles.map((p, i) => p.emoji ? (
@@ -1438,17 +1673,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									transition: "transform 300ms ease-out",
 								}}
 							>
-								<button
-									type="button"
-									onClick={() => openPhotoViewer(index)}
-									className="absolute inset-0 z-10"
-									aria-label={t("profile_details.open_photo", { index: index + 1 })}
-								/>
-								<img
-									src={getSlideImageUrl(hash)}
-									alt={t("profile_details.photo_alt", { name: activeProfileName })}
-									className="h-full w-full object-cover"
-								/>
+								{renderCarouselSlideContent(hash, index)}
 							</div>
 						))}
 						{activeProfile.lastReceivedTapTimestamp != null && (
@@ -1476,6 +1701,18 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 													className="h-4 w-4 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
 													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
 													fill="currentColor"
+												/>
+											</span>
+										) : hash === ALBUM_SLIDE_HASH ? (
+											<span
+												key={`${hash}-dot`}
+												className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+												style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
+												aria-hidden="true"
+											>
+												<Album
+													className="h-4 w-4 shrink-0 scale-[0.65] transition-colors duration-150 ease-out"
+													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
 												/>
 											</span>
 										) : (
@@ -1708,6 +1945,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				</>
 			)}
 			{photoViewerOverlay}
+			{albumOpeningOverlay}
+			{albumViewerOverlay}
 		</div>
 	);
 }

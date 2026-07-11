@@ -69,7 +69,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				cachedStoredAlbums.map(async (stored): Promise<SharedAlbumItem | null> => {
 					const profileId = stored.ownerProfileId ? Number(stored.ownerProfileId) : null;
 					if (profileId == null) return null;
-					let profileName = `Profile ${profileId}`;
+					let profileName = t("shared_albums.name_fallback");
 					let profileMediaHash: string | null = null;
 					if (stored.conversationId) {
 						const conv = await getConversation(stored.conversationId).catch(() => null);
@@ -121,7 +121,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 					const cp = getCounterparty(entry, userId);
 					if (!cp) continue;
 					profileMap.set(cp.profileId, {
-						profileName: entry.data.name?.trim() || `Profile ${cp.profileId}`,
+						profileName: entry.data.name?.trim() || t("shared_albums.name_fallback"),
 						conversationId: entry.data.conversationId ?? null,
 						profileMediaHash: cp.mediaHash,
 					});
@@ -147,7 +147,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				});
 				return {
 					profileId: sa.ownerProfileId,
-					profileName: meta?.profileName || sa.profile.name?.trim() || `Profile ${sa.ownerProfileId}`,
+					profileName: meta?.profileName || sa.profile.name?.trim() || t("shared_albums.name_fallback"),
 					profileMediaHash:
 						meta?.profileMediaHash && validateMediaHash(meta.profileMediaHash)
 							? meta.profileMediaHash
@@ -176,7 +176,7 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				cachedOnlyItems.map(async (stored): Promise<SharedAlbumItem | null> => {
 					const profileId = stored.ownerProfileId ? Number(stored.ownerProfileId) : null;
 					if (profileId == null) return null;
-					let profileName = `Profile ${profileId}`;
+					let profileName = t("shared_albums.name_fallback");
 					let profileMediaHash: string | null = null;
 					if (stored.conversationId) {
 						const conv = await getConversation(stored.conversationId).catch(() => null);
@@ -209,7 +209,78 @@ export function SharedAlbumsPanel({ isDesktop }: Props) {
 				}),
 			);
 
-			setItems([...nextItems, ...extraItems.filter((x): x is SharedAlbumItem => x !== null)]);
+			const cachedOnlyValidItems = extraItems.filter((x): x is SharedAlbumItem => x !== null);
+
+			// Batch-fetch full profile details for every distinct album owner in
+			// this load — the shared-albums feed itself never returns a media
+			// hash, and the conversation-derived fallback above only covers
+			// profiles you have a conversation with among the first 6 inbox
+			// pages. Same cascade endpoint the blocked-profiles page uses to get
+			// real display names/avatars for profiles the single-profile
+			// endpoint won't serve.
+			const allOwnerIds = new Set<number>();
+			for (const item of nextItems) allOwnerIds.add(item.profileId);
+			for (const item of cachedOnlyValidItems) allOwnerIds.add(item.profileId);
+
+			if (allOwnerIds.size > 0) {
+				const ids = [...allOwnerIds];
+				const CHUNK_SIZE = 50;
+				const chunks: number[][] = [];
+				for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+					chunks.push(ids.slice(i, i + CHUNK_SIZE));
+				}
+
+				const detailsById = new Map<
+					number,
+					{ displayName: string | null; profileMediaHash: string | null }
+				>();
+				await Promise.all(
+					chunks.map(async (chunk) => {
+						try {
+							const raw = await apiFunctions.getProfilesByIds(chunk);
+							const profiles =
+								raw && typeof raw === "object" && Array.isArray((raw as { profiles?: unknown }).profiles)
+									? (raw as { profiles: unknown[] }).profiles
+									: [];
+							for (const p of profiles) {
+								if (!p || typeof p !== "object") continue;
+								const idRaw = (p as { profileId?: unknown }).profileId;
+								if (idRaw == null) continue;
+								const nameRaw = (p as { displayName?: unknown }).displayName;
+								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+								detailsById.set(Number(idRaw), {
+									displayName:
+										typeof nameRaw === "string" && nameRaw.trim().length > 0
+											? nameRaw.trim()
+											: null,
+									profileMediaHash:
+										typeof hashRaw === "string" && validateMediaHash(hashRaw) ? hashRaw : null,
+								});
+							}
+						} catch {
+							// Chunk failed — those profiles keep whatever they already had.
+						}
+					}),
+				);
+
+				const nameFallback = t("shared_albums.name_fallback");
+				const applyDetails = (item: SharedAlbumItem): SharedAlbumItem => {
+					const details = detailsById.get(item.profileId);
+					if (!details) return item;
+					return {
+						...item,
+						profileName:
+							item.profileName === nameFallback
+								? details.displayName ?? item.profileName
+								: item.profileName,
+						profileMediaHash: item.profileMediaHash ?? details.profileMediaHash,
+					};
+				};
+				for (let i = 0; i < nextItems.length; i++) nextItems[i] = applyDetails(nextItems[i]);
+				for (let i = 0; i < cachedOnlyValidItems.length; i++) cachedOnlyValidItems[i] = applyDetails(cachedOnlyValidItems[i]);
+			}
+
+			setItems([...nextItems, ...cachedOnlyValidItems]);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : t("shared_albums.error_load_fallback"));
 		} finally {

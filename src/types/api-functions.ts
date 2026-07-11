@@ -3,6 +3,7 @@ import type {
 	AlbumDetail,
 	AlbumLimits,
 	AlbumPoster,
+	ProfileAlbumShareStatus,
 	SharedAlbum,
 	SharedAlbumView,
 } from "./albums";
@@ -27,6 +28,7 @@ export type ApiFunctionName =
 	| "deleteOwnAlbumContent"
 	| "getSharedAlbums"
 	| "getSharedAlbumsForProfile"
+	| "checkProfileAlbumShare"
 	| "openSharedAlbum"
 	| "removeAlbumShare"
 	| "getViews"
@@ -78,6 +80,10 @@ export interface GetSharedAlbumsForProfileInput {
 	profileId: number;
 }
 
+export interface CheckProfileAlbumShareInput {
+	profileId: number;
+}
+
 export interface OpenSharedAlbumInput {
 	albumId: number;
 }
@@ -121,6 +127,7 @@ export interface ApiFunctionResultMap {
 	deleteOwnAlbumContent: ApiFunctionVoidResult;
 	getSharedAlbums: SharedAlbumView;
 	getSharedAlbumsForProfile: SharedAlbum[];
+	checkProfileAlbumShare: ProfileAlbumShareStatus;
 	openSharedAlbum: OpenSharedAlbumResult;
 	removeAlbumShare: RemoveAlbumShareResult;
 	getViews: InterestViewsResponse;

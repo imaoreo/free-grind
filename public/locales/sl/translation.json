@@ -36,6 +36,7 @@
     },
     "shared_albums": {
         "subtitle": "Prebrskaj vse albume, ki so jih delili ljudje v tvojih klepetih.",
+        "name_fallback": "Nekdo",
         "albums_count_one": "{{count}} album",
         "albums_count_two": "{{count}} albuma",
         "albums_count_few": "{{count}} albumi",
@@ -422,7 +423,8 @@
             "opening_issue": "",
             "title": "",
             "subtitle": "",
-            "have_account": "",
+            "have_account_label": "",
+            "have_account_action": "",
             "open_issue": ""
         },
         "common": {
@@ -626,6 +628,8 @@
         "message_placeholder": "Pošlji sporočilo…",
         "default_profile": "",
         "open_photo": "",
+        "album_locked": "",
+        "open_shared_album": "",
         "next_photo": "",
         "photo_alt": "",
         "previous_profile": "",

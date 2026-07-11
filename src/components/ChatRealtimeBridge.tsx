@@ -50,6 +50,8 @@ import {
 	getMediaCaptureTarget,
 	getOtherParticipant,
 	getMessagePreviewLabel,
+	getMessageImageUrl,
+	getGaymojiUrl,
 } from "../pages/app/chat/chatUtils";
 import { fetchAndStoreMedia } from "../services/mediaStore";
 import { captureAlbumsForMessages } from "../services/albumStore";
@@ -519,6 +521,15 @@ export function ChatRealtimeBridge() {
 			const other = conv ? getOtherParticipant(conv, userIdRef.current) : null;
 			const senderName = conv?.data.name?.trim() || tRef.current("chat.notifications.someone");
 			const bodyText = getMessagePreviewLabel(m, tRef.current);
+			// Same as the FCM-side native code: inline preview for picture/gif
+			// content, deliberately excluded for ExpiringImage (view-once) and
+			// Video (no thumbnail available).
+			const previewImageUrl =
+				m.type === "Image" || m.type === "Giphy"
+					? getMessageImageUrl(m)
+					: m.type === "Gaymoji"
+						? getGaymojiUrl(m)
+						: null;
 
 			if (isAndroidRuntime()) {
 				const payload = {
@@ -532,6 +543,7 @@ export function ChatRealtimeBridge() {
 					conversationId: m.conversationId,
 					senderId: String(m.senderId),
 					messageType: m.type,
+					previewImageUrl,
 					rawData: {
 						senderProfileImageMediaHash: other?.primaryMediaHash ?? null,
 					},

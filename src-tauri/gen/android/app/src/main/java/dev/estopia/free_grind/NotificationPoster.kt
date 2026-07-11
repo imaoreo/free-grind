@@ -39,6 +39,10 @@ object NotificationPoster {
     // Caches decoded sender avatars so repeated notifications from the same
     // person don't re-download the same bitmap (keyed by CDN URL).
     private val avatarCache = android.util.LruCache<String, Bitmap>(10)
+    // Separate small cache for message content previews (picture/gif/gaymoji),
+    // kept apart from avatarCache since these URLs are one-off per message
+    // rather than reused across many notifications from the same sender.
+    private val previewCache = android.util.LruCache<String, Bitmap>(5)
 
     @Synchronized
     private fun shouldSuppressAsDuplicate(key: String): Boolean {
@@ -141,6 +145,8 @@ object NotificationPoster {
         )
 
         val senderAvatarBitmap = getNotificationAvatarBitmap(context, rawData)
+        val previewImageUrl = payload.optString("previewImageUrl").trim().ifBlank { null }
+        val previewBitmap = loadMessagePreviewBitmap(previewImageUrl)
 
         val me = Person.Builder().setName("Me").build()
         val senderIcon = IconCompat.createWithBitmap(senderAvatarBitmap)
@@ -149,9 +155,23 @@ object NotificationPoster {
             .setIcon(senderIcon)
             .setImportant(true)
             .build()
-        val messagingStyle = NotificationCompat.MessagingStyle(me)
-            .addMessage(text, System.currentTimeMillis(), sender)
-            .setConversationTitle(if (isTap) "Taps" else null)
+
+        // With an image/gif preview available, an expandable BigPictureStyle
+        // shows the actual content instead of a "Sent you a picture"
+        // placeholder. Without one (text, audio, location, video, taps —
+        // or the download simply failed), keep the existing MessagingStyle
+        // conversation bubble.
+        val style: NotificationCompat.Style = if (previewBitmap != null) {
+            NotificationCompat.BigPictureStyle()
+                .bigPicture(previewBitmap)
+                .bigLargeIcon(null as Bitmap?)
+                .setBigContentTitle(title)
+                .setSummaryText(text)
+        } else {
+            NotificationCompat.MessagingStyle(me)
+                .addMessage(text, System.currentTimeMillis(), sender)
+                .setConversationTitle(if (isTap) "Taps" else null)
+        }
 
         val builder = NotificationCompat.Builder(context, channelId)
             // Status-bar icon: monochrome stencil with transparent background only.
@@ -168,7 +188,13 @@ object NotificationPoster {
             .setContentIntent(pendingIntent)
             .setTicker(text)
             .setSound(soundUri)
-            .setStyle(messagingStyle)
+            .setStyle(style)
+
+        if (previewBitmap != null) {
+            // BigPictureStyle doesn't infer the collapsed title/text from a
+            // Person the way MessagingStyle does — set them explicitly.
+            builder.setContentTitle(title).setContentText(text)
+        }
 
         notificationManager.notify(notificationKey, NOTIFICATION_INSTANCE_ID, builder.build())
         Log.d("FCM", "Local notification posted successfully")
@@ -213,21 +239,33 @@ object NotificationPoster {
     private fun loadSenderAvatarBitmap(rawData: JSONObject?): Bitmap? {
         val avatarUrl = extractSenderAvatarUrl(rawData)
         if (avatarUrl.isNullOrBlank()) return null
+        return downloadBitmap(avatarUrl, avatarCache, "sender avatar")
+    }
 
-        avatarCache.get(avatarUrl)?.let { return it }
+    // Best-effort inline preview of the message's own content (picture/gif/
+    // gaymoji) for the notification. Returns null on any failure (missing
+    // field, network error, decode failure) — caller falls back to a plain
+    // text-only notification, same as before this existed.
+    fun loadMessagePreviewBitmap(previewImageUrl: String?): Bitmap? {
+        if (previewImageUrl.isNullOrBlank()) return null
+        return downloadBitmap(previewImageUrl, previewCache, "message preview")
+    }
+
+    private fun downloadBitmap(url: String, cache: android.util.LruCache<String, Bitmap>, label: String): Bitmap? {
+        cache.get(url)?.let { return it }
 
         return try {
-            val connection = URL(avatarUrl).openConnection() as HttpURLConnection
+            val connection = URL(url).openConnection() as HttpURLConnection
             connection.connectTimeout = 3000
             connection.readTimeout = 3000
             connection.instanceFollowRedirects = true
             connection.doInput = true
             connection.connect()
             val bitmap = connection.inputStream.use { stream -> BitmapFactory.decodeStream(stream) }
-            if (bitmap != null) avatarCache.put(avatarUrl, bitmap)
+            if (bitmap != null) cache.put(url, bitmap)
             bitmap
         } catch (error: Exception) {
-            Log.w("FCM", "Failed to load sender avatar for notification", error)
+            Log.w("FCM", "Failed to load $label for notification", error)
             null
         }
     }
@@ -291,6 +329,73 @@ object NotificationPoster {
         }
 
         return null
+    }
+
+    // Mirrors the field-probing done client-side in chatUtils.ts's
+    // getMessageImageUrl/getGaymojiUrl — the server payload shape is
+    // inconsistent across message types, so several possible field names are
+    // tried before giving up. `messageBody` is the message JSON's own `body`
+    // object (not `rawData` — this is about the message's content, not the
+    // sender's avatar). Returns null (no preview, falls back to text-only)
+    // for any type not listed here, notably ExpiringImage and Video.
+    fun extractMessagePreviewImageUrl(messageBody: JSONObject?, type: String?): String? {
+        if (messageBody == null) return null
+
+        return when (type) {
+            "Image" -> extractBodyMediaUrl(messageBody)
+            "Giphy" -> extractGiphyPreviewUrl(messageBody)
+            "Gaymoji" -> extractGaymojiPreviewUrl(messageBody)
+            else -> null
+        }
+    }
+
+    private fun extractBodyMediaUrl(body: JSONObject): String? {
+        val directUrlKeys = listOf(
+            "url", "imageUrl", "mediaUrl", "previewUrl", "thumbUrl", "signedUrl", "cdnUrl", "urlPath",
+        )
+        for (key in directUrlKeys) {
+            val value = body.optString(key).trim()
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                return value
+            }
+        }
+
+        body.optJSONObject("image")?.let { nested ->
+            for (key in directUrlKeys) {
+                val value = nested.optString(key).trim()
+                if (value.startsWith("http://") || value.startsWith("https://")) {
+                    return value
+                }
+            }
+        }
+
+        val hashKeys = listOf("imageHash", "mediaHash", "hash", "fileCacheKey")
+        for (key in hashKeys) {
+            val value = body.optString(key).trim()
+            if (isMediaHash(value)) {
+                return "$PUBLIC_MEDIA_BASE_URL/images/thumb/480x480/$value"
+            }
+        }
+
+        return null
+    }
+
+    private fun extractGiphyPreviewUrl(body: JSONObject): String? {
+        for (key in listOf("previewPath", "stillPath", "urlPath")) {
+            val value = body.optString(key).trim()
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                return value
+            }
+        }
+        return null
+    }
+
+    private fun extractGaymojiPreviewUrl(body: JSONObject): String? {
+        // Here imageHash is a CDN path fragment, not a content hash (same as
+        // getGaymojiUrl in chatUtils.ts) — used directly, not via isMediaHash.
+        val fragment = body.optString("imageHash").trim()
+        if (fragment.isEmpty()) return null
+        return "$PUBLIC_MEDIA_BASE_URL/grindr/chat/$fragment"
     }
 
     private fun resolveNotificationKey(

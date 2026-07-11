@@ -85,6 +85,7 @@ type ChatThreadMessagesProps = {
 	threadBottomRef: { current: HTMLDivElement | null };
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
+	ownProfilePhotoUrl?: string | null;
 };
 
 const KNOWN_REPLY_TYPES = new Set([
@@ -305,6 +306,7 @@ export function ChatThreadMessages({
 	threadBottomRef,
 	isPartnerTyping = false,
 	isArchived = false,
+	ownProfilePhotoUrl = null,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	useLocalMediaCache();
@@ -1170,13 +1172,20 @@ export function ChatThreadMessages({
                             (participant) =>
                                 Number(participant.profileId) === Number(message.senderId),
                         ) ?? null;
-                    const senderAvatarUrl = resolveAvatarSrc(
-                        senderParticipant?.primaryMediaHash,
-                        senderParticipant?.primaryMediaHash &&
-                        validateMediaHash(senderParticipant.primaryMediaHash)
-                            ? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
-                            : null,
-                    );
+                    // participants only lists the *other* side of a DM, so for an
+                    // own album/video-call share (mine) the lookup above always
+                    // misses — fall back to the signed-in user's own photo,
+                    // already resolved for the media drawer, instead of showing
+                    // the placeholder in the bubble's centered avatar.
+                    const senderAvatarUrl = mine
+                        ? ownProfilePhotoUrl
+                        : resolveAvatarSrc(
+                            senderParticipant?.primaryMediaHash,
+                            senderParticipant?.primaryMediaHash &&
+                            validateMediaHash(senderParticipant.primaryMediaHash)
+                                ? getThumbImageUrl(senderParticipant.primaryMediaHash, "320x320")
+                                : null,
+                        );
                     const senderLabel = mine
                         ? t("chat.you")
                         : selectedConversation.data.name?.trim() || t("chat.unknown");

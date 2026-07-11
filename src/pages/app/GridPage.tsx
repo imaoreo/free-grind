@@ -1750,7 +1750,7 @@ export function GridPage() {
 						const id = profileSearchInput.trim();
 						if (!id) return;
 						setIsProfileSearchOpen(false);
-						setActiveProfileId(id);
+						handleSelectProfile(id);
 					}}
 					className="p-4"
 				>

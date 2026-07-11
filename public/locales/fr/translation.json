@@ -47,6 +47,7 @@
     },
     "shared_albums": {
         "subtitle": "Explorez tous les albums partagés par les autres dans vos chats.",
+        "name_fallback": "Quelqu'un",
         "albums_count_one": "{{count}} album",
         "albums_count_many": "{{count}} albums",
         "albums_count_other": "{{count}} albums",
@@ -532,7 +533,8 @@
         "sign_up": {
             "title": "Inscription",
             "subtitle": "L'inscription n'est pas encore implémentée. Suivez la progression sur le Ticket #2.",
-            "have_account": "Déjà un compte ? Connectez-vous",
+            "have_account_label": "Déjà un compte ?",
+            "have_account_action": "Connectez-vous",
             "open_issue": "Ouvrir le Ticket #2",
             "opening_issue": "Ouverture du ticket..."
         },
@@ -802,6 +804,8 @@
         "message_placeholder": "Envoyer un message…",
         "default_profile": "Profil par défaut",
         "open_photo": "Ouvrir la photo {{index}}",
+        "album_locked": "Album non partagé avec vous",
+        "open_shared_album": "Ouvrir l'album partagé",
         "uses_free_grind": "Utilise Free Grind",
         "loading": "Chargement des détails du profil...",
         "chat_history": "Historique des discussions",

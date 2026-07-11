@@ -166,6 +166,7 @@
     "shared_albums": {
         "title": "Geteilte Alben",
         "subtitle": "Durchsuche alle Alben, die von Personen in deinen Chats geteilt wurden.",
+        "name_fallback": "Jemand",
         "albums_count_one": "{{count}} Album",
         "albums_count_other": "{{count}} Alben",
         "people_count_one": "{{count}} Person",
@@ -840,7 +841,8 @@
         "sign_up": {
             "title": "Registrieren",
             "subtitle": "Die Registrierung ist noch nicht implementiert. Verfolge den Fortschritt in Issue #2.",
-            "have_account": "Hast du bereits ein Konto? Anmelden",
+            "have_account_label": "Hast du bereits ein Konto?",
+            "have_account_action": "Anmelden",
             "opening_issue": "Öffne Issue...",
             "open_issue": "Issue #2 öffnen"
         }
@@ -1274,6 +1276,8 @@
         "message_placeholder": "Nachricht senden…",
         "default_profile": "Standardprofil",
         "open_photo": "Foto {{index}} öffnen",
+        "album_locked": "Album nicht mit dir geteilt",
+        "open_shared_album": "Geteiltes Album öffnen",
         "tags": "Tags",
         "expectations": "Erwartungen",
         "looking_for": "Ich suche",
