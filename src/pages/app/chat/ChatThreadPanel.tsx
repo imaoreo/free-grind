@@ -1494,35 +1494,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
 													>
 														<Ban className="mr-2 h-4 w-4 opacity-50" />
-														Ban Name "{displayName}"
-													</button>
-													<button
-														type="button"
-														onClick={async () => {
-															setIsHeaderActionsMenuOpen(false);
-															if (profileId == null) return;
-															const loadToast = toast.loading("Loading bio...");
-															try {
-																const profile = await apiFunctions.getProfileDetail(String(profileId));
-																toast.dismiss(loadToast);
-																const bio = profile.aboutMe || "";
-																if (!bio.trim()) { toast.error("This user has no bio!"); return; }
-																const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
-																if (wordToBan && wordToBan.trim()) {
-																	const currentList = getForbiddenWords();
-																	const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-																	void setForbiddenWords(newList);
-																	toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
-																}
-															} catch (e) {
-																toast.dismiss(loadToast);
-																toast.error("Failed to load bio.");
-															}
-														}}
-														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-													>
-														<Ban className="mr-2 h-4 w-4 opacity-50" />
-														Ban Bio Phrase
+														<span className="flex flex-col">
+															<span>Add forbidden Keyword</span>
+															<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
+														</span>
 													</button>
 													</div>
 												</>

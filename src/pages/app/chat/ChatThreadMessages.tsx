@@ -1,4 +1,4 @@
-import { Album, Ban, Copy, Download, Eye, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, History, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
@@ -1152,7 +1152,6 @@ export function ChatThreadMessages({
                         isAlbumMessage && messageText === t("chat.preview.shared_album") && !hasReply;
                     const isLocationOnlyBubble =
                         Boolean(location) && messageText === t("chat.preview.sent_location");
-                    const hasVisualMedia = Boolean(imageUrl) || Boolean(videoUrl) || isAlbumOnlyBubble || isLocationOnlyBubble || isAlbumReactionBubble;
                 const isAudioOnlyBubble =
                         Boolean(audioUrl) && messageText === t("chat.thread.shared_audio");
                     const isMediaOnlyBubble =
@@ -1328,12 +1327,6 @@ export function ChatThreadMessages({
                                     } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
                                 >
                                     <div className={isMediaOnlyBubble && hasReply ? `overflow-hidden rounded-2xl ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}` : "contents"}>
-                                    {localOnly && !hasVisualMedia ? (
-                                        <span className="mb-1.5 block w-fit rounded-full bg-black/15 px-2 py-0.5 text-[10px] font-semibold">
-                                            {t("chat.thread.from_local_history")}
-                                        </span>
-                                    ) : null}
-
                                     {message.type !== "ProfilePhotoReply" && (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply) ? (
                                         <div className={isMediaOnlyBubble && hasReply
                                             ? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
@@ -1429,11 +1422,6 @@ export function ChatThreadMessages({
                                                 alt={t("chat.thread.shared_alt")}
                                                 className={`${message.type === "Giphy" && hasReply ? "max-h-96 w-full object-cover" : isImageOnlyBubble ? "max-h-80 w-full object-cover" : "max-h-64 w-full object-cover"} ${mediaBlurClassName}`}
                                             />
-                                            {localOnly && (
-                                                <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                    {t("chat.thread.from_local_history")}
-                                                </span>
-                                            )}
                                             {isExpiringImage ? (
                                                 <div className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-black/65 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-white ring-1 ring-white/25">
                                                     <Eye className="h-3 w-3" />
@@ -1481,6 +1469,9 @@ export function ChatThreadMessages({
                                                                 {failed ? <span>{t("chat.thread.failed")}</span> : null}
                                                             </div>
                                                             <div className="flex items-center gap-2">
+                                                                {localOnly ? (
+                                                                    <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-80" /></span>
+                                                                ) : null}
                                                                 <span>
                                                                     {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                                                 </span>
@@ -1533,11 +1524,6 @@ export function ChatThreadMessages({
                                                 <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
                                                     <Album className="h-8 w-8" />
                                                 </div>
-                                                {(localOnly || isCachedExpiredAlbum) && (
-                                                    <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                        {t("chat.thread.from_local_history")}
-                                                    </span>
-                                                )}
                                                 {albumCover ? (
                                                     <>
                                                         <img
@@ -1583,6 +1569,9 @@ export function ChatThreadMessages({
                                                             {failed ? <span>{t("chat.thread.failed")}</span> : null}
                                                         </div>
                                                         <div className="flex items-center gap-2">
+                                                            {(localOnly || isCachedExpiredAlbum) ? (
+                                                                <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-80" /></span>
+                                                            ) : null}
                                                             <span>
                                                                 {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                                             </span>
@@ -1664,11 +1653,6 @@ export function ChatThreadMessages({
                                                     }}
                                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                                 >
-                                                    {localOnly && (
-                                                        <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                            {t("chat.thread.from_local_history")}
-                                                        </span>
-                                                    )}
                                                     <video
                                                         preload="metadata"
                                                         muted
@@ -1704,6 +1688,9 @@ export function ChatThreadMessages({
                                                                     {failed ? <span>{t("chat.thread.failed")}</span> : null}
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
+                                                                    {localOnly ? (
+                                                                        <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-80" /></span>
+                                                                    ) : null}
                                                                     <span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
                                                                     {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
                                                                         <button
@@ -1775,17 +1762,15 @@ export function ChatThreadMessages({
                                                     ) : (
                                                         <div className="h-48 w-full bg-[var(--surface-2)]" />
                                                     )}
-                                                    {localOnly && (
-                                                        <span className="absolute left-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                            {t("chat.thread.from_local_history")}
-                                                        </span>
-                                                    )}
                                                     <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                         <div className="flex items-center justify-between gap-2 text-[10px]">
                                                             <div className="flex items-center opacity-90">
                                                                 <Album className="h-3 w-3 shrink-0" />
                                                             </div>
                                                             <div className="flex items-center gap-2">
+                                                                {localOnly ? (
+                                                                    <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-80" /></span>
+                                                                ) : null}
                                                                 <span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
                                                                 {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
                                                                     <button type="button" onClick={(e) => { e.stopPropagation(); setContextMenuState({ messageId: message.messageId, x: e.clientX, y: e.clientY }); }} className="rounded-md p-1 hover:bg-white/10">
@@ -1826,11 +1811,6 @@ export function ChatThreadMessages({
                                         >
                                             <div className="relative">
                                                 <MapLocationPreview lat={location.lat} lon={location.lon} className="h-48 w-48 pointer-events-none" />
-                                                {localOnly && (
-                                                    <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                        {t("chat.thread.from_local_history")}
-                                                    </span>
-                                                )}
                                                 {isLocationOnlyBubble ? (
                                                     <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                         <div className="flex items-center justify-between gap-2 text-[10px]">
@@ -1839,6 +1819,9 @@ export function ChatThreadMessages({
                                                                 {failed ? <span>{t("chat.thread.failed")}</span> : null}
                                                             </div>
                                                             <div className="flex items-center gap-2">
+                                                                {localOnly ? (
+                                                                    <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-80" /></span>
+                                                                ) : null}
                                                                 <span>{formatMessageTime(message.timestamp, nowTimestamp, t)}</span>
                                                                 {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
                                                                     <>
@@ -1864,11 +1847,6 @@ export function ChatThreadMessages({
 
                                     {isAlbumMessage && !isAlbumOnlyBubble ? (
                                         <div className={`relative mb-2 rounded-xl border border-black/10 p-2 ${isLocked ? "bg-[var(--surface-2)] opacity-60" : "bg-[color-mix(in_srgb,var(--surface)_76%,transparent)]"} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}>
-                                            {(localOnly || isCachedExpiredAlbum) && (
-                                                <span className="absolute right-2 top-2 z-10 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                                                    {t("chat.thread.from_local_history")}
-                                                </span>
-                                            )}
                                             {albumCover ? (
                                                 <img
                                                     src={albumCover}
@@ -2004,6 +1982,9 @@ export function ChatThreadMessages({
                                             {failed ? <span>{t("chat.thread.failed")}</span> : null}
                                         </div>
                                         <div className="flex items-center gap-2">
+                                            {localOnly ? (
+                                                <span title={t("chat.thread.from_local_history")}><History className="h-3 w-3 opacity-70" /></span>
+                                            ) : null}
                                             <span>
                                                 {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                             </span>

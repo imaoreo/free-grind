@@ -231,6 +231,22 @@ function mergeMessagePreservingUnsendWipe(
 	if (!previous) {
 		return incoming;
 	}
+	// Unsending is one-way and permanent — there's no server action that
+	// un-unsends a message. So once we already know a message is unsent
+	// (either confirmed by an earlier response, or set optimistically the
+	// instant the user tapped "Unsend"), an incoming update claiming it
+	// *isn't* unsent can only be stale data from a request that was already
+	// in flight before the unsend happened (the read-receipt poll is the main
+	// culprit — it fires every 10s independent of user actions), not a real
+	// reversal. Without this, that stale response would win the merge below
+	// (its unsent flag is false, so the wipe-preservation branch never
+	// triggers) and the message would flip back to looking completely normal
+	// for a moment, even though chatDb — unaffected by this in-memory race —
+	// already has the correct state, which is why reopening the chat shows
+	// it correctly again.
+	if (previous.unsent && !incoming.unsent) {
+		return previous;
+	}
 	const prevBody = previous.body as Record<string, unknown> | null | undefined;
 	const newBody = incoming.body as Record<string, unknown> | null | undefined;
 	if (incoming.unsent && !newBody && prevBody) {
