@@ -328,6 +328,19 @@ pub async fn ws_status(ws_state: tauri::State<'_, Arc<WsState>>) -> Result<bool,
     Ok(ws_state.inner.lock().await.is_some())
 }
 
+// One-way debug helper: prints a short, human-readable line to this process's
+// own stdout/terminal — unlike appLog.debug (src/utils/logger.ts), which only
+// ever reaches the browser DevTools console and is a no-op in production
+// builds. Called from ChatRealtimeManager.dispatchEvent for every parsed WS
+// envelope so event names (chat.v1.message_sent, tap.v1.tap_sent, etc.) show
+// up in the terminal running `bun run dev:desktop`/`tauri dev` without
+// needing devtools open.
+#[tauri::command]
+pub fn ws_log_event(message: String) -> Result<(), AppError> {
+    eprintln!("[chat-ws-event] {message}");
+    Ok(())
+}
+
 fn describe(msg: &Message) -> &'static str {
     match msg {
         Message::Text(_) => "text",

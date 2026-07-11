@@ -5,6 +5,7 @@ import type {
 	RealtimeStatus,
 } from "../types/chat-realtime";
 import { appLog } from "../utils/logger";
+import { logWsEventToTerminal } from "./tauriWebSocket";
 
 async function normalizeSocketData(data: unknown): Promise<{
 	kind: "text" | "blob" | "arraybuffer" | "unknown";
@@ -180,6 +181,10 @@ export class ChatRealtimeManager {
 	private dispatchEvent(envelope: RealtimeEnvelope) {
 		appLog.debug("[chat-ws:recv] incoming", JSON.stringify(envelope));
 		const eventType = (envelope as Record<string, unknown>).type as string | undefined;
+		// appLog.debug never reaches the Tauri terminal (browser-console-only,
+		// stripped in prod builds) — mirror just the readable event name there
+		// too, so event traffic is visible without devtools open.
+		logWsEventToTerminal(eventType ?? "(no type)");
 		// Server responds to chat.v1.message.send with chat.v1.message_sent but always ref=null,
 		// so match against the FIFO queue of pending sends instead.
 		if (eventType === "chat.v1.message_sent" && this.pendingSendRefs.length > 0) {
