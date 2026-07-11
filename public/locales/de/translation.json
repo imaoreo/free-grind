@@ -1277,6 +1277,7 @@
         "default_profile": "Standardprofil",
         "open_photo": "Foto {{index}} öffnen",
         "album_locked": "Album nicht mit dir geteilt",
+        "album_locked_label": "Album gesperrt",
         "open_shared_album": "Geteiltes Album öffnen",
         "tags": "Tags",
         "expectations": "Erwartungen",
