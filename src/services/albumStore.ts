@@ -268,6 +268,24 @@ export async function deleteLocalAlbum(albumId: number): Promise<void> {
 }
 
 /**
+ * Removes a locally-cached album if (and only if) it turns out to be one the
+ * signed-in user owns — a one-time cleanup for rows written before
+ * captureAlbumsForMessages started skipping own-sender albums, so already-
+ * mis-captured own albums stop lingering in a conversation's received-albums
+ * list after the fix ships.
+ */
+async function purgeIfOwnAlbum(albumId: number, userId: number): Promise<void> {
+	try {
+		const stored = await chatDb.getAlbum(String(albumId));
+		if (stored?.ownerProfileId === String(userId)) {
+			await deleteLocalAlbum(albumId);
+		}
+	} catch (error) {
+		appLog.warn(`[album-store] failed to check/purge own album ${albumId}`, error);
+	}
+}
+
+/**
  * Checks chatDb for a previously-captured album once per session (e.g. on
  * first render after an app restart, when the in-memory set above starts
  * empty, or simply re-opening an already-loaded thread before the next
@@ -628,14 +646,31 @@ async function captureAlbumFromMessageIfNeeded(
  * Scans messages for Album/ExpiringAlbum/ExpiringAlbumV2 shares and eagerly
  * captures each one (fire-and-forget). Safe to call repeatedly for the same
  * messages — reuses already-downloaded bytes instead of re-fetching them.
+ *
+ * Skips albums the signed-in user shared themselves — that's the user's own
+ * pre-existing album (managed permanently via My Albums), not something
+ * "received" that needs a local offline copy, and attributing it to this
+ * conversation would surface it in the chat's own received-albums list as if
+ * it were the other participant's content.
  */
 export function captureAlbumsForMessages(
 	messages: UiMessage[],
 	conversationId: string,
 	getAlbum: (albumId: number) => Promise<AlbumDetailsResponse>,
+	userId: number | null,
 ): void {
 	const entries: { info: AlbumMessageInfo; message: UiMessage }[] = [];
 	for (const message of messages) {
+		if (userId != null && Number(message.senderId) === Number(userId)) {
+			// Retroactive cleanup for albums a prior version of this function
+			// already captured under the user's own senderId, before this
+			// skip existed — purge them so they stop showing as "received".
+			const info = getAlbumMessageInfo(message);
+			if (info) {
+				void purgeIfOwnAlbum(info.albumId, userId);
+			}
+			continue;
+		}
 		const info = getAlbumMessageInfo(message);
 		if (info) {
 			entries.push({ info, message });

@@ -41,3 +41,20 @@ export async function unhideConversation(conversationId: string): Promise<void> 
 		appLog.error(`[conversation-hide] failed to unhide ${conversationId}`, error);
 	}
 }
+
+/**
+ * Auto-unhide on new activity: a hidden chat shouldn't stay buried once the
+ * other person actually sends something, so a hidden conversation is
+ * unhidden as soon as a new message arrives in it. No-ops (and doesn't
+ * dispatch) if the conversation wasn't hidden to begin with.
+ */
+export async function unhideConversationOnNewMessage(conversationId: string): Promise<void> {
+	try {
+		const didUnhide = await chatDb.unhideConversationIfHidden(conversationId);
+		if (didUnhide) {
+			dispatchHideStateChange({ conversationId, hidden: false });
+		}
+	} catch (error) {
+		appLog.error(`[conversation-hide] failed to auto-unhide ${conversationId}`, error);
+	}
+}

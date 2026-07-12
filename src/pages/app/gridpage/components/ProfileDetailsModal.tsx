@@ -1,4 +1,4 @@
-import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -51,12 +51,12 @@ import {
 } from "../utils";
 import { ProfileDetailsContent } from "./ProfileDetailsContent";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
-import { PhotoViewer } from "../../../../components/PhotoViewer";
+import { PhotoViewer, type PhotoViewerMenuAction } from "../../../../components/PhotoViewer";
 import { PhotoActionBar } from "../../../../components/PhotoActionBar";
 import { useProfileAlbumStatus } from "../../../../hooks/useProfileAlbumStatus";
 import { captureAlbum, getLocalAlbum } from "../../../../services/albumStore";
 import type { AlbumViewer } from "../../../../types/shared-albums";
-import { AlbumViewerPanel } from "../../shared-albums/AlbumViewerPanel";
+import { saveAllAlbumMedia } from "../../../../utils/albumMedia";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -157,7 +157,7 @@ export function ProfileDetailsModal({
 	onNextProfile,
 }: ProfileDetailsModalProps) {
 	const { t } = useTranslation();
-	const { unitsPreset } = usePreferences();
+	const { unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
 	const { userId } = useAuth();
 	const navigate = useNavigate();
 	const apiFunctions = useApiFunctions();
@@ -995,15 +995,14 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 	// and eagerly capture it so it survives the share later expiring.
 	const [albumViewer, setAlbumViewer] = useState<AlbumViewer | null>(null);
 	const [albumViewerIndex, setAlbumViewerIndex] = useState(0);
-	const [albumFullScreenIndex, setAlbumFullScreenIndex] = useState<number | null>(null);
 	const [isOpeningAlbum, setIsOpeningAlbum] = useState(false);
+	const [isSavingAllAlbumMedia, setIsSavingAllAlbumMedia] = useState(false);
 	const albumViewerOpenRef = useRef(false);
 	albumViewerOpenRef.current = albumViewer != null;
 
 	useEffect(() => {
 		const onPopState = () => {
 			if (albumViewerOpenRef.current && !(window.history.state as { profileAlbumViewer?: boolean } | null)?.profileAlbumViewer) {
-				setAlbumFullScreenIndex(null);
 				setAlbumViewer(null);
 				setAlbumViewerIndex(0);
 			}
@@ -1018,24 +1017,88 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			const { profileAlbumViewer: _omit, ...rest } = state;
 			window.history.replaceState(rest, "");
 		}
-		setAlbumFullScreenIndex(null);
 		setAlbumViewer(null);
 		setAlbumViewerIndex(0);
 	}, []);
 
-	const openAlbumFullScreen = useCallback((index: number) => {
-		setAlbumViewerIndex(index);
-		setAlbumFullScreenIndex(index);
-	}, []);
-
-	const closeAlbumFullScreen = useCallback(() => {
-		setAlbumFullScreenIndex(null);
-	}, []);
-
 	const handleAlbumViewerIndexChange = useCallback((index: number) => {
-		setAlbumFullScreenIndex((prev) => (prev === index ? prev : index));
 		setAlbumViewerIndex((prev) => (prev === index ? prev : index));
 	}, []);
+
+	const handleSaveAllAlbumMedia = useCallback(async () => {
+		if (!albumViewer || isSavingAllAlbumMedia) return;
+		setIsSavingAllAlbumMedia(true);
+		try {
+			await saveAllAlbumMedia(albumViewer, t);
+		} finally {
+			setIsSavingAllAlbumMedia(false);
+		}
+	}, [albumViewer, isSavingAllAlbumMedia, t]);
+
+	const albumMenuActions = useMemo<PhotoViewerMenuAction[]>(() => {
+		if (!albumViewer) return [];
+		return [
+			{
+				key: "save-all",
+				label: t("profile_details.save_all"),
+				icon: Images,
+				onClick: () => void handleSaveAllAlbumMedia(),
+				disabled: isSavingAllAlbumMedia || albumViewer.content.length === 0,
+			},
+		];
+	}, [albumViewer, isSavingAllAlbumMedia, t, handleSaveAllAlbumMedia]);
+
+	const sendAlbumContentReaction = useCallback(
+		async (albumId: number, albumContentId: number, targetProfileId: number) => {
+			try {
+				await apiFunctions.sendMessage({
+					type: "AlbumContentReaction",
+					target: { type: "Direct", targetId: targetProfileId },
+					body: { albumId, albumContentId },
+				});
+				toast.success(t("chat.toasts.album_reaction_sent", { defaultValue: "Reaction sent" }));
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			}
+		},
+		[apiFunctions, t],
+	);
+
+	const sendAlbumContentReply = useCallback(
+		async (
+			albumId: number,
+			albumContentId: number,
+			contentType: string | null | undefined,
+			targetProfileId: number,
+			text: string,
+		) => {
+			try {
+				await apiFunctions.sendMessage({
+					type: "AlbumContentReply",
+					target: { type: "Direct", targetId: targetProfileId },
+					body: { albumId, albumContentId, albumContentReply: text, contentType: contentType ?? "image/jpeg" },
+				});
+				toast.success(t("chat.toasts.album_reply_sent", { defaultValue: "Reply sent" }));
+			} catch (error) {
+				toast.error(error instanceof Error ? error.message : t("chat.errors.send_failed"));
+			}
+		},
+		[apiFunctions, t],
+	);
+
+	const albumHeader = useMemo(() => {
+		if (!albumViewer) return undefined;
+		return {
+			avatarUrl: albumViewer.profileMediaHash
+				? getProfileImageUrl(albumViewer.profileMediaHash, "320x320")
+				: null,
+			name: albumViewer.profileName,
+			subtitle: [profileStatusLabel, profileDistance != null ? formatDistance(profileDistance, t, unitsPreset) : null]
+				.filter(Boolean)
+				.join(" · ") || null,
+			isOnline: profileStatusMeta.isOnline,
+		};
+	}, [albumViewer, profileStatusLabel, profileDistance, profileStatusMeta.isOnline, t, unitsPreset]);
 
 	const handleAlbumSlideClick = useCallback(async () => {
 		if (!albumStatus.hasSharedWithMe || albumStatus.albumId == null || isOpeningAlbum || messageProfileId == null) {
@@ -1052,6 +1115,9 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				albumName: details.albumName,
 				profileId: profileIdNum,
 				profileName: activeProfileName,
+				profileMediaHash: activeProfilePhotoHashes[0] ?? null,
+				onlineUntil: profileOnlineUntil,
+				distanceMetres: profileDistance,
 				conversationId: null,
 				content: details.content,
 			});
@@ -1077,6 +1143,9 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 					albumName: local.albumName,
 					profileId: profileIdNum,
 					profileName: activeProfileName,
+					profileMediaHash: activeProfilePhotoHashes[0] ?? null,
+					onlineUntil: profileOnlineUntil,
+					distanceMetres: profileDistance,
 					conversationId: null,
 					content: local.content,
 				});
@@ -1090,7 +1159,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		} finally {
 			setIsOpeningAlbum(false);
 		}
-	}, [albumStatus.hasSharedWithMe, albumStatus.albumId, isOpeningAlbum, apiFunctions, messageProfileId, activeProfileName, t]);
+	}, [albumStatus.hasSharedWithMe, albumStatus.albumId, isOpeningAlbum, apiFunctions, messageProfileId, activeProfileName, activeProfilePhotoHashes, profileOnlineUntil, profileDistance, t]);
 
 	const albumViewerPhotos = useMemo(() => {
 		if (!albumViewer) return [];
@@ -1100,11 +1169,6 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		}));
 	}, [albumViewer]);
 
-	const selectedAlbumViewerItem =
-		albumViewer && albumViewer.content.length > 0
-			? albumViewer.content[Math.min(albumViewerIndex, albumViewer.content.length - 1)]
-			: null;
-
 	const albumOpeningOverlay = isOpeningAlbum && (
 		<div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/50 p-4">
 			<div className="surface-card p-4 text-sm text-[var(--text-muted)]">{t("shared_albums.opening")}</div>
@@ -1112,28 +1176,29 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 	);
 
 	const albumViewerOverlay = albumViewer && (
-		<>
-			<AlbumViewerPanel
-				viewer={albumViewer}
-				viewerIndex={albumViewerIndex}
-				fullScreenIndex={albumFullScreenIndex}
-				selectedViewerItem={selectedAlbumViewerItem}
-				closeViewer={closeAlbumViewer}
-				openFullScreen={openAlbumFullScreen}
-				onMessageProfile={() => {}}
-				onViewProfile={() => {}}
-				hideProfileActions
-			/>
-			{albumFullScreenIndex !== null && (
-				<PhotoViewer
-					isOpen={true}
-					onClose={closeAlbumFullScreen}
-					photos={albumViewerPhotos}
-					initialIndex={albumFullScreenIndex}
-					onIndexChange={handleAlbumViewerIndexChange}
-				/>
-			)}
-		</>
+		<PhotoViewer
+			isOpen={true}
+			onClose={closeAlbumViewer}
+			photos={albumViewerPhotos}
+			initialIndex={albumViewerIndex}
+			onIndexChange={handleAlbumViewerIndexChange}
+			menuActions={albumMenuActions}
+			albumHeader={albumHeader}
+			contentWarning={showAlbumSensitiveContentWarning}
+			renderFooter={(idx) => {
+				const item = albumViewer.content[idx];
+				if (!item || messageProfileId == null || isOwnProfile) return null;
+				const targetProfileId = Number(messageProfileId);
+				return (
+					<PhotoActionBar
+						onSendText={(text) =>
+							sendAlbumContentReply(albumViewer.albumId, item.contentId, item.contentType, targetProfileId, text)
+						}
+						onReact={() => sendAlbumContentReaction(albumViewer.albumId, item.contentId, targetProfileId)}
+					/>
+				);
+			}}
+		/>
 	);
 
 	// Shared between both the mobile/inline and split-desktop carousel

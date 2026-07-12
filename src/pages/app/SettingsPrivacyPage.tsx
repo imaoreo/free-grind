@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { BarChart3, CheckCheck, Eye, ImageOff, ToggleRight } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCheck, Eye, ImageOff, ToggleRight } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -20,7 +20,7 @@ import {
 
 export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
-	const { blurIncomingMedia, setPreferences } = usePreferences();
+	const { blurIncomingMedia, showAlbumSensitiveContentWarning, setPreferences } = usePreferences();
 
 	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => !getHideReadReceiptsGlobal());
 	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => getShowReadReceiptToggle());
@@ -95,7 +95,7 @@ export function SettingsPrivacyPage() {
 				{/* NSFW Content */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.nsfw_content")}</p>
-					<div className="surface-card overflow-hidden">
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
 							icon={<ImageOff className="h-5 w-5" />}
 							iconClass="bg-sky-500/15 text-sky-400"
@@ -103,6 +103,14 @@ export function SettingsPrivacyPage() {
 							description={t("customizability.blur_incoming_media_description")}
 							checked={blurIncomingMedia}
 							onChange={(checked) => void setPreferences({ blurIncomingMedia: checked })}
+						/>
+						<ToggleRow
+							icon={<AlertTriangle className="h-5 w-5" />}
+							iconClass="bg-orange-500/15 text-orange-400"
+							label={t("privacy.show_sensitive_content_warning")}
+							description={t("privacy.show_sensitive_content_warning_desc")}
+							checked={showAlbumSensitiveContentWarning}
+							onChange={(checked) => void setPreferences({ showAlbumSensitiveContentWarning: checked })}
 						/>
 					</div>
 				</div>

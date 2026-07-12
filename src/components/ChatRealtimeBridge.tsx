@@ -43,6 +43,7 @@ import {
 	CHAT_ARCHIVE_STATE_EVENT,
 	type ChatArchiveStateChangeDetail,
 } from "../services/conversationArchive";
+import { unhideConversationOnNewMessage } from "../services/conversationHide";
 import { messageSchema, type Message } from "../types/messages";
 import type { RealtimeEnvelope, RealtimeStatus } from "../types/chat-realtime";
 import { appLog } from "../utils/logger";
@@ -816,6 +817,7 @@ export function ChatRealtimeBridge() {
 
 						if (isIncoming) {
 							maybeUnarchiveOnActivity(m.senderId);
+							void unhideConversationOnNewMessage(m.conversationId);
 						}
 
 						// Update local contact index for unread badge persistence
@@ -853,7 +855,7 @@ export function ChatRealtimeBridge() {
 									userIdRef.current != null && Number(msg.senderId) === Number(userIdRef.current),
 							});
 						}
-						captureAlbumsForMessages(msgs, cid, (id) => apiFunctions.getAlbum(id));
+						captureAlbumsForMessages(msgs, cid, (id) => apiFunctions.getAlbum(id), userIdRef.current);
 						captureReplyPreviewsForMessages(msgs, cid);
 					}
 				}
