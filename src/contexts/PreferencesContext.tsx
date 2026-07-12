@@ -167,6 +167,7 @@ const preferencesSchema = z.object({
 	rightNowRemaining: z.number().default(0),
 	revealEffectEnabled: z.boolean().default(true),
 	revealEffectStrength: z.enum(["subtle", "pronounced"]).default("subtle"),
+	showAlbumSensitiveContentWarning: z.boolean().default(true),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -196,6 +197,7 @@ type PreferencesAction =
 	| { type: "SET_RIGHT_NOW_REMAINING"; payload: number }
 	| { type: "SET_REVEAL_EFFECT_ENABLED"; payload: boolean }
 	| { type: "SET_REVEAL_EFFECT_STRENGTH"; payload: RevealStrength }
+	| { type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING"; payload: boolean }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
@@ -234,6 +236,8 @@ function preferencesReducer(
 			return { ...state, revealEffectEnabled: action.payload };
 		case "SET_REVEAL_EFFECT_STRENGTH":
 			return { ...state, revealEffectStrength: action.payload };
+		case "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING":
+			return { ...state, showAlbumSensitiveContentWarning: action.payload };
 		case "SET_RIGHT_NOW_STATUS":
 			return {
 				...state,
@@ -309,6 +313,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		rightNowRemaining: 0,
 		revealEffectEnabled: true,
 		revealEffectStrength: "subtle",
+		showAlbumSensitiveContentWarning: true,
 		isLoading: true,
 	});
 
@@ -343,6 +348,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_RIGHT_NOW_REMAINING", payload: parsed.rightNowRemaining });
 					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
 					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: parsed.revealEffectStrength });
+					dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: parsed.showAlbumSensitiveContentWarning });
 					dispatch({
 						type: "SET_RIGHT_NOW_STATUS",
 						payload: {
@@ -424,6 +430,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				rightNowRemaining: currentState.rightNowRemaining,
 				revealEffectEnabled: currentState.revealEffectEnabled,
 				revealEffectStrength: currentState.revealEffectStrength,
+				showAlbumSensitiveContentWarning: currentState.showAlbumSensitiveContentWarning,
 				activeRightNowId: currentState.activeRightNowId ?? null,
 				activeRightNowExpiresAt: currentState.activeRightNowExpiresAt ?? null,
 				...newValues,
@@ -479,6 +486,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.revealEffectStrength !== undefined) {
 				dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: newValues.revealEffectStrength });
+			}
+			if (newValues.showAlbumSensitiveContentWarning !== undefined) {
+				dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: newValues.showAlbumSensitiveContentWarning });
 			}
 			if (
 				newValues.activeRightNowId !== undefined ||
@@ -547,6 +557,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					rightNowRemaining: preferences.rightNowRemaining,
 					revealEffectEnabled: preferences.revealEffectEnabled,
 					revealEffectStrength: preferences.revealEffectStrength,
+					showAlbumSensitiveContentWarning: preferences.showAlbumSensitiveContentWarning,
 					activeRightNowId: preferences.activeRightNowId,
 					activeRightNowExpiresAt: preferences.activeRightNowExpiresAt,
 				}),
@@ -574,6 +585,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		rightNowRemaining: state.rightNowRemaining,
 		revealEffectEnabled: state.revealEffectEnabled,
 		revealEffectStrength: state.revealEffectStrength,
+		showAlbumSensitiveContentWarning: state.showAlbumSensitiveContentWarning,
 		setPreferences,
 		isLoading: state.isLoading || !isLocationLoaded,
 	};

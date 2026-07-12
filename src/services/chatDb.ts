@@ -753,6 +753,24 @@ export async function setConversationHidden(
 	});
 }
 
+/** Unhides a conversation only if it's currently hidden, reporting whether it
+ * actually changed — used to auto-unhide on new activity without dispatching
+ * a no-op state-change event for conversations that were never hidden. */
+export async function unhideConversationIfHidden(conversationId: string): Promise<boolean> {
+	const db = await getDb();
+	const now = Date.now();
+
+	let didUnhide = false;
+	await executeWithLockRetry(db, "unhide-conversation-if-hidden", async () => {
+		const result = await db.execute(
+			"UPDATE conversations SET hidden = 0, updated_at = $2 WHERE conversation_id = $1 AND hidden = 1",
+			[conversationId, now],
+		);
+		didUnhide = (result?.rowsAffected ?? 0) > 0;
+	});
+	return didUnhide;
+}
+
 /** All conversation ids currently flagged hidden — used to hydrate ChatPage's
  * in-memory set once on mount, since hidden conversations are otherwise
  * indistinguishable from any other row in a normal inbox fetch. */

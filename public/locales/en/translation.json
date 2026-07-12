@@ -746,7 +746,9 @@
         "profile_views": "Profile Views",
         "record_profile_views": "Record Profile Views",
         "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace.",
-        "read_receipts_grid_unread_note": "With read receipts off, there's no way to tell the server you've read a message — so a chat can still show up as unread on the Grid even after you've read or deleted it."
+        "read_receipts_grid_unread_note": "With read receipts off, there's no way to tell the server you've read a message — so a chat can still show up as unread on the Grid even after you've read or deleted it.",
+        "show_sensitive_content_warning": "Sensitive Content Warning",
+        "show_sensitive_content_warning_desc": "Show a warning screen before opening an album that could contain sensitive content."
     },
     "customizability": {
         "subtitle": "Personalize the look and feel of the app.",

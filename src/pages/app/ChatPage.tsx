@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Images } from "lucide-react";
 import {
 	type FormEvent,
 	type TouchEvent,
@@ -22,6 +22,7 @@ import { useBlockProfile, useUnblockProfile, useBlockedProfileIds, useMyOwnProfi
 import { getProfilePhotoHash } from "./profile-editor/profileEditorUtils";
 import { usePresenceCheckBatch } from "../../hooks/usePresenceCheck";
 import { useAuth } from "../../contexts/useAuth";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import { ChatApiError, MESSAGE_PAGE_LIMIT } from "../../services/chatService";
 import { setConversationDirectory } from "../../services/conversationDirectory";
 import * as chatDb from "../../services/chatDb";
@@ -49,7 +50,7 @@ import {
 	getChatRealtimeStatus,
 	type TypingStatusDetail,
 } from "../../components/ChatRealtimeBridge";
-import { PhotoViewer, type PhotoViewerMedia } from "../../components/PhotoViewer";
+import { PhotoViewer, type PhotoViewerMedia, type PhotoViewerMenuAction } from "../../components/PhotoViewer";
 import { PhotoActionBar } from "../../components/PhotoActionBar";
 import {
 	messageSchema,
@@ -75,7 +76,6 @@ import { ChatInboxHeader } from "./chat/ChatInboxHeader";
 import { ChatFiltersOverlay } from "./chat/ChatFiltersOverlay";
 import { ChatThreadPanel } from "./chat/ChatThreadPanel";
 import { parseSlashCommand } from "./chat/slashCommands";
-import { ChatAlbumSheet } from "./chat/ChatAlbumSheet";
 import { ChatMediaSheet } from "./chat/ChatMediaSheet";
 import * as chatLog from "../../services/chatLog";
 import {
@@ -94,6 +94,7 @@ import {
 	getMessageMediaId,
 	getMessagePreviewLabel,
 	getOtherParticipant,
+	getParticipantOnlineMeta,
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
     formatDateTime24,
@@ -102,6 +103,8 @@ import {
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
 import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
 import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
+import { saveAllAlbumMedia } from "../../utils/albumMedia";
+import { formatDistance } from "./gridpage/utils";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
 import { useAvatarCache } from "../../hooks/useAvatarCache";
 import { resolveAvatarSrc } from "../../services/avatarStore";
@@ -278,6 +281,7 @@ export function ChatPage() {
 	const { data: blockedProfileIdsData, refetch: refetchBlockedProfileIds } = useBlockedProfileIds();
 	const { data: myProfile } = useMyOwnProfile();
 	const profileImageHash = useMemo(() => getProfilePhotoHash(myProfile), [myProfile]);
+	const { unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
 	const { userId, settingsReady } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -671,7 +675,7 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
-	const [isAlbumSheetOpen, setIsAlbumSheetOpen] = useState(false);
+	const [isSavingAlbumAll, setIsSavingAlbumAll] = useState(false);
 	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
 	type ThreadMediaItem = PhotoViewerMedia & { meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number } };
@@ -1052,7 +1056,6 @@ export function ChatPage() {
 	useEffect(() => {
 		setPendingAlbumShare(null);
 		albumViewerCancelledRef.current = true;
-		setIsAlbumSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
 		setIsAlbumViewerLoading(false);
@@ -1895,8 +1898,11 @@ export function ChatPage() {
 					older ? undefined : normalizedLastRead,
 				);
 				captureMediaForMessages(responseMessages, conversationId, userId);
-				captureAlbumsForMessages(responseMessages, conversationId, (id) =>
-					service.getAlbum(id),
+				captureAlbumsForMessages(
+					responseMessages,
+					conversationId,
+					(id) => service.getAlbum(id),
+					userId,
 				);
 				captureReplyPreviewsForMessages(responseMessages, conversationId);
 
@@ -2552,7 +2558,7 @@ export function ChatPage() {
 		for (const [cid, msgs] of byConv) {
 			void chatLog.appendMessages(cid, msgs);
 			captureMediaForMessages(msgs, cid, userId);
-			captureAlbumsForMessages(msgs, cid, (id) => service.getAlbum(id));
+			captureAlbumsForMessages(msgs, cid, (id) => service.getAlbum(id), userId);
 			captureReplyPreviewsForMessages(msgs, cid);
 		}
 
@@ -3316,7 +3322,7 @@ export function ChatPage() {
 				(m) => m.type === "Album" || m.type === "ExpiringAlbum" || m.type === "ExpiringAlbumV2",
 			);
 			if (albumMessages.length === 0) return;
-			captureAlbumsForMessages(albumMessages, cid, (id) => service.getAlbum(id));
+			captureAlbumsForMessages(albumMessages, cid, (id) => service.getAlbum(id), userId);
 		}, document.hidden ? 60_000 : 30_000);
 
 		return () => {
@@ -5197,10 +5203,15 @@ export function ChatPage() {
 	}, [selectedConversation, targetProfileId, userId, t, loadThread]);
 
 	const openAlbumViewerById = useCallback(
-		async (albumId: number, isOwnAlbum?: boolean) => {
+		async (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => {
 			albumViewerCancelledRef.current = false;
-			setIsAlbumSheetOpen(true);
 			setAlbumViewerMediaIndex(null);
+
+			const resolveIndex = (content: { contentId: number }[]): number => {
+				if (targetContentId == null) return 0;
+				const index = content.findIndex((item) => item.contentId === targetContentId);
+				return index >= 0 ? index : 0;
+			};
 
 			// Show the local cache immediately if we have one — covers both the
 			// offline case and the case where the share has already
@@ -5210,6 +5221,7 @@ export function ChatPage() {
 			if (albumViewerCancelledRef.current) return;
 			if (cached) {
 				setAlbumViewer({ ...cached, isOwn: isOwnAlbum });
+				setAlbumViewerMediaIndex(resolveIndex(cached.content));
 				setIsAlbumViewerLoading(false);
 			} else {
 				setAlbumViewer(null);
@@ -5237,6 +5249,7 @@ export function ChatPage() {
 				});
 				const merged = await getLocalAlbum(albumId);
 				if (albumViewerCancelledRef.current) return;
+				const finalContent = merged ? merged.content : details.content;
 				setAlbumViewer(
 					merged
 						? { ...merged, isOwn: isOwnAlbum }
@@ -5247,10 +5260,27 @@ export function ChatPage() {
 							isOwn: isOwnAlbum,
 						},
 				);
+				setAlbumViewerMediaIndex((prev) => {
+					// A specific reacted-to/replied-to photo always gets re-resolved
+					// against the freshly merged content — its position can shift (or
+					// the cached snapshot could've had a different item order/count)
+					// once the live fetch lands.
+					if (targetContentId != null) {
+						const idx = finalContent.findIndex((item) => item.contentId === targetContentId);
+						if (idx >= 0) return idx;
+					}
+					// Otherwise keep wherever the user already navigated to, as long
+					// as it's still a valid index into the (possibly shorter) merged
+					// content — a stale index here would crash the viewer trying to
+					// read a photo that no longer exists.
+					if (prev != null && prev >= 0 && prev < finalContent.length) return prev;
+					return 0;
+				});
 			} catch (error) {
 				if (albumViewerCancelledRef.current) return;
 				if (!cached) {
-					setIsAlbumSheetOpen(false);
+					setAlbumViewer(null);
+					setAlbumViewerMediaIndex(null);
 					toast.error(
 						error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 					);
@@ -5263,25 +5293,89 @@ export function ChatPage() {
 	);
 
 	const closeAlbumMediaViewer = useCallback(() => {
+		albumViewerCancelledRef.current = true;
+		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
 	}, []);
 
-	const openAlbumMediaViewer = useCallback(
-		(index: number) => {
-			if (!albumViewer || index < 0 || index >= albumViewer.content.length) {
-				return;
-			}
+	const handleSaveAllAlbumMedia = useCallback(async () => {
+		if (!albumViewer || isSavingAlbumAll) return;
+		setIsSavingAlbumAll(true);
+		try {
+			await saveAllAlbumMedia(
+				{
+					albumId: albumViewer.albumId,
+					albumName: albumViewer.albumName,
+					profileId: 0,
+					profileName: "",
+					profileMediaHash: null,
+					onlineUntil: null,
+					distanceMetres: null,
+					conversationId: selectedConversation?.data.conversationId ?? null,
+					content: albumViewer.content,
+				},
+				t,
+			);
+		} finally {
+			setIsSavingAlbumAll(false);
+		}
+	}, [albumViewer, isSavingAlbumAll, t, selectedConversation]);
 
-			const item = albumViewer.content[index];
-			const mediaUrl = item.url || item.thumbUrl || item.coverUrl;
-			if (!mediaUrl) {
-				return;
-			}
+	const albumMenuActions = useMemo<PhotoViewerMenuAction[]>(() => {
+		if (!albumViewer) return [];
+		return [
+			{
+				key: "save-all",
+				label: t("profile_details.save_all"),
+				icon: Images,
+				onClick: () => void handleSaveAllAlbumMedia(),
+				disabled: isSavingAlbumAll || albumViewer.content.length === 0,
+			},
+		];
+	}, [albumViewer, isSavingAlbumAll, t, handleSaveAllAlbumMedia]);
 
-			setAlbumViewerMediaIndex(index);
-		},
-		[albumViewer],
-	);
+	const albumHeader = useMemo(() => {
+		if (!albumViewer) return undefined;
+		if (albumViewer.isOwn) {
+			return {
+				avatarUrl: ownProfilePhotoUrl,
+				name: myProfile?.displayName?.trim() || t("shared_albums.name_fallback"),
+				subtitle: albumViewer.albumName?.trim() || null,
+				isOnline: true,
+			};
+		}
+		const otherParticipant = selectedConversation ? getOtherParticipant(selectedConversation, userId) : null;
+		const onlineMeta = getParticipantOnlineMeta(
+			otherParticipant?.lastOnline,
+			otherParticipant?.onlineUntil,
+			nowTimestamp,
+			t,
+		);
+		const distanceLabel = otherParticipant?.distanceMetres
+			? formatDistance(otherParticipant.distanceMetres, t, unitsPreset)
+			: null;
+		return {
+			avatarUrl: resolveAvatarSrc(
+				otherParticipant?.primaryMediaHash,
+				otherParticipant?.primaryMediaHash && validateMediaHash(otherParticipant.primaryMediaHash)
+					? getThumbImageUrl(otherParticipant.primaryMediaHash, "75x75")
+					: null,
+			),
+			name: selectedConversation?.data.name?.trim() || t("shared_albums.name_fallback"),
+			subtitle: [onlineMeta.label, distanceLabel].filter(Boolean).join(" · ") || null,
+			isOnline: onlineMeta.isOnline,
+			onClick: otherParticipant?.profileId != null
+				? () => {
+					const profileId = otherParticipant.profileId;
+					const returnTo = getProfileReturnToChatPath(profileId);
+					const nextParams = new URLSearchParams();
+					nextParams.set("returnTo", returnTo);
+					navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
+				}
+				: undefined,
+		};
+	}, [albumViewer, ownProfilePhotoUrl, myProfile, selectedConversation, userId, nowTimestamp, unitsPreset, t, getProfileReturnToChatPath, navigate]);
 
 	const toggleAlbumPicker = useCallback(async () => {
 		if (isAlbumPickerOpen) {
@@ -5851,7 +5945,7 @@ export function ChatPage() {
 			isSending={isSending}
 			selectedActionMessage={selectedActionMessage}
 			selectedActionMessageMine={selectedActionMessageMine}
-			isAlbumSheetOpen={isAlbumSheetOpen}
+			isAlbumSheetOpen={albumViewer !== null}
 			onOpenMediaSheet={() => setIsChatMediaSheetOpen(true)}
 			isPartnerTyping={selectedConversation != null && typingConversationIds.has(selectedConversation.data.conversationId)}
 		/>
@@ -5917,22 +6011,12 @@ export function ChatPage() {
 				);
 			})() : null}
 
-			{isAlbumSheetOpen ? (
-				<ChatAlbumSheet
-					viewer={albumViewer}
-					isLoading={isAlbumViewerLoading}
-					fullScreenIndex={albumViewerMediaIndex}
-					onClose={() => {
-						albumViewerCancelledRef.current = true;
-						setIsAlbumSheetOpen(false);
-						setAlbumViewer(null);
-						setAlbumViewerMediaIndex(null);
-						setIsAlbumViewerLoading(false);
-					}}
-					onOpenFullScreen={openAlbumMediaViewer}
-					isDesktop={isDesktop}
-					conversationId={selectedConversation?.data.conversationId ?? null}
-				/>
+			{isAlbumViewerLoading && !albumViewer ? (
+				<div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/50 p-4">
+					<div className="surface-card p-4 text-sm text-[var(--text-muted)]">
+						{t("shared_albums.opening")}
+					</div>
+				</div>
 			) : null}
 
 			<PhotoViewer
@@ -5940,7 +6024,11 @@ export function ChatPage() {
 				onClose={closeAlbumMediaViewer}
 				photos={albumViewerPhotos}
 				initialIndex={albumViewerMediaIndex ?? 0}
+				onIndexChange={setAlbumViewerMediaIndex}
 				conversationId={selectedConversation?.data.conversationId ?? null}
+				menuActions={albumMenuActions}
+				albumHeader={albumHeader}
+				contentWarning={showAlbumSensitiveContentWarning}
 				renderFooter={(idx) => {
 					const item = albumViewer?.content[idx];
 					if (!albumViewer || !item || albumViewer.isOwn) return null;

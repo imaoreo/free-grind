@@ -709,7 +709,9 @@
         "profile_views": "Profilaufrufe",
         "record_profile_views": "Profilaufrufe aufzeichnen",
         "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern.",
-        "read_receipts_grid_unread_note": "Wenn Lesebestätigungen deaktiviert sind, kann der Server nicht wissen, dass du eine Nachricht gelesen hast — ein Chat kann daher im Grid weiterhin als ungelesen angezeigt werden, selbst nachdem du ihn gelesen oder gelöscht hast."
+        "read_receipts_grid_unread_note": "Wenn Lesebestätigungen deaktiviert sind, kann der Server nicht wissen, dass du eine Nachricht gelesen hast — ein Chat kann daher im Grid weiterhin als ungelesen angezeigt werden, selbst nachdem du ihn gelesen oder gelöscht hast.",
+        "show_sensitive_content_warning": "Warnung vor sensiblen Inhalten",
+        "show_sensitive_content_warning_desc": "Zeigt vor dem Öffnen eines Albums einen Warnbildschirm an, falls es sensible Inhalte enthalten könnte."
     },
     "customizability": {
         "subtitle": "Personalisiere das Aussehen der App.",
