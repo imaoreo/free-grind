@@ -5435,10 +5435,17 @@ export function ChatPage() {
 		setIsLoadingDrawer(true);
 		setDrawerError(null);
 		try {
-			const media = selectedConversationId
-				? await service.getDrawerMedia(selectedConversationId)
-				: await service.getGlobalDrawerMedia();
-			setDrawerMedia(media);
+			const [media, sendCounts] = await Promise.all([
+				selectedConversationId
+					? service.getDrawerMedia(selectedConversationId)
+					: service.getGlobalDrawerMedia(),
+				chatDb.getDrawerMediaSendCounts(),
+			]);
+			setDrawerMedia(
+				media
+					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
+					.sort((a, b) => b.sendCount - a.sendCount),
+			);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
 			setDrawerError(message);
@@ -5514,6 +5521,14 @@ export function ChatPage() {
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
+
+					// Local-only usage counter, so the drawer can surface the
+					// most-sent media first on next load.
+					try {
+						await chatDb.incrementDrawerMediaSendCount(mediaId);
+					} catch (error) {
+						appLog.warn("[chat] failed to record drawer media send count", error);
+					}
 				}
 
 				// Update conversation preview with the last sent message

@@ -53,6 +53,7 @@ import {
 } from "./settings-albums/settingsAlbumsUtils";
 import { AlbumDrawerPickerSheet } from "./settings-albums/AlbumDrawerPickerSheet";
 import type { DrawerMedia } from "./chat/ChatDrawerPanel";
+import * as chatDb from "../../services/chatDb";
 import {
 	DndContext,
 	PointerSensor,
@@ -407,8 +408,15 @@ export function SettingsAlbumsPage() {
 		setIsLoadingDrawerMedia(true);
 		setDrawerMediaError(null);
 		try {
-			const items = await apiFunctions.getGlobalDrawerMedia();
-			setDrawerMedia(items);
+			const [items, sendCounts] = await Promise.all([
+				apiFunctions.getGlobalDrawerMedia(),
+				chatDb.getDrawerMediaSendCounts(),
+			]);
+			setDrawerMedia(
+				items
+					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
+					.sort((a, b) => b.sendCount - a.sendCount),
+			);
 		} catch (loadError) {
 			setDrawerMediaError(
 				loadError instanceof Error ? loadError.message : t("settings_albums.error_load_details_fallback"),

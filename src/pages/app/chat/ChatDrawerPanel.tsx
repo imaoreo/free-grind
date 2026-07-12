@@ -36,6 +36,10 @@ export interface DrawerMedia {
 	createdTs: number;
 	used: boolean;
 	takenOnGrindr: boolean;
+	/** Local-only, not from the server — how often this item has been sent
+	 * from the drawer, used to sort most-used media first. See chatDb's
+	 * drawer_media_usage table. */
+	sendCount: number;
 }
 
 interface ChatDrawerPanelProps {

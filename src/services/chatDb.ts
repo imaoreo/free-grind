@@ -368,6 +368,14 @@ async function getDb(): Promise<Database> {
 				`);
 
 				await db.execute(`
+					CREATE TABLE IF NOT EXISTS drawer_media_usage (
+						media_id INTEGER PRIMARY KEY,
+						send_count INTEGER NOT NULL DEFAULT 0,
+						updated_at INTEGER NOT NULL
+					)
+				`);
+
+				await db.execute(`
 					CREATE TABLE IF NOT EXISTS block_events (
 						id TEXT PRIMARY KEY,
 						profile_id TEXT,
@@ -771,6 +779,36 @@ export async function setConversationPinned(
 		await db.execute(
 			"UPDATE conversations SET pinned = $2, updated_at = $3 WHERE conversation_id = $1",
 			[conversationId, pinned ? 1 : 0, now],
+		);
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Drawer media usage (send counts)
+// ---------------------------------------------------------------------------
+
+/** The server has no concept of "how often I've sent this from my drawer",
+ * so send counts are tracked locally by media id and merged into the fetched
+ * drawer list on load to sort the most-used media first. */
+export async function getDrawerMediaSendCounts(): Promise<Map<number, number>> {
+	const db = await getDb();
+	const rows = await db.select<{ media_id: number; send_count: number }[]>(
+		"SELECT media_id, send_count FROM drawer_media_usage",
+	);
+	return new Map(rows.map((row) => [row.media_id, row.send_count]));
+}
+
+export async function incrementDrawerMediaSendCount(mediaId: number): Promise<void> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "increment-drawer-media-send-count", async () => {
+		await db.execute(
+			`
+			INSERT INTO drawer_media_usage (media_id, send_count, updated_at)
+			VALUES ($1, 1, $2)
+			ON CONFLICT(media_id) DO UPDATE SET send_count = send_count + 1, updated_at = $2
+			`,
+			[mediaId, Date.now()],
 		);
 	});
 }
