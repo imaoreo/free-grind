@@ -1839,6 +1839,36 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
+				// Opening a thread from a profile/album view can otherwise show a
+				// stale distance/online status carried over from whenever this
+				// conversation was last loaded via the inbox list — refresh it from
+				// the profile snapshot the server just sent alongside the messages.
+				const freshProfile = response.profile;
+				if (freshProfile) {
+					setConversations((previous) =>
+						previous.map((conversation) => {
+							if (conversation.data.conversationId !== conversationId) {
+								return conversation;
+							}
+							return {
+								...conversation,
+								data: {
+									...conversation.data,
+									participants: conversation.data.participants.map((participant) =>
+										participant.profileId === freshProfile.profileId
+											? {
+													...participant,
+													onlineUntil: freshProfile.onlineUntil ?? participant.onlineUntil,
+													distanceMetres: freshProfile.distance ?? participant.distanceMetres,
+												}
+											: participant,
+									),
+								},
+							};
+						}),
+					);
+				}
+
 				const localData = await chatLog.readLog(conversationId);
 				const localMessages = localData.messages;
 				const localMessageMap = new Map(
@@ -3798,6 +3828,9 @@ export function ChatPage() {
 				} else {
 					await service.pinConversation(conversationId);
 				}
+				await chatDb.setConversationPinned(conversationId, !isPinned).catch((error) => {
+					appLog.warn("[chat-db] failed to persist pin state", error);
+				});
 				setConversations((previous) => {
 					const updated = previous.map((conversation) =>
 						conversation.data.conversationId === conversationId

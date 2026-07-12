@@ -38,6 +38,7 @@ export function BrowseCardTile({
 	const usesFreegrind = usePresenceCheck(card.profileId);
 	const isDemoCard = card.profileId.toString().startsWith("demo-");
 	const isVisiting = card.isVisiting === true;
+	const isRoaming = card.roaming === true;
 	const isPopular = card.isPopular === true;
 	const isRightNow = card.rightNow === "HOSTING" || card.rightNow === "NOT_HOSTING";
 	const isBoosting = card.isBoosting === true;
@@ -108,7 +109,7 @@ export function BrowseCardTile({
 							"flex shrink-0 items-center",
 							onlineStatus.isOnline ? "gap-1" : "gap-0.5"
 						)}>
-							{(isRightNow || isVisiting || isPopular) && (
+							{(isRightNow || isPopular) && (
 								<div className="flex items-center gap-0.5">
 									{isPopular && (
 										<Zap
@@ -122,13 +123,6 @@ export function BrowseCardTile({
 											className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
 											strokeWidth={2.5}
 											title="Right Now"
-										/>
-									)}
-									{isVisiting && (
-										<Plane
-											className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-											strokeWidth={2.5}
-											title={t("profile_details.visiting")}
 										/>
 									)}
 								</div>
@@ -174,7 +168,14 @@ export function BrowseCardTile({
 					{/* Bottom-left: Distance */}
 					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
 						<span className="inline-flex items-center gap-1 text-xs font-semibold">
-							<MapPin className="h-3.5 w-3.5" />
+							{isVisiting || isRoaming ? (
+								<Plane
+									className={cn("h-3.5 w-3.5", isRoaming && "text-green-500")}
+									title={t("profile_details.visiting")}
+								/>
+							) : (
+								<MapPin className="h-3.5 w-3.5" />
+							)}
 							{formatDistance(card.distanceMeters, t, unitsPreset)}
 						</span>
 					</div>

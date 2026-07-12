@@ -753,6 +753,28 @@ export async function setConversationHidden(
 	});
 }
 
+/**
+ * Persists a pin/unpin so it survives a reload — without this, the row in
+ * chatDb keeps the old pinned value, and if a later loadInbox page recovers
+ * this conversation from chatDb (see loadInbox's recoveredEntries — used for
+ * conversations the server's live page no longer includes), it comes back
+ * with the stale pinned state instead of the one the user just set.
+ */
+export async function setConversationPinned(
+	conversationId: string,
+	pinned: boolean,
+): Promise<void> {
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "set-conversation-pinned", async () => {
+		await db.execute(
+			"UPDATE conversations SET pinned = $2, updated_at = $3 WHERE conversation_id = $1",
+			[conversationId, pinned ? 1 : 0, now],
+		);
+	});
+}
+
 /** Unhides a conversation only if it's currently hidden, reporting whether it
  * actually changed — used to auto-unhide on new activity without dispatching
  * a no-op state-change event for conversations that were never hidden. */
