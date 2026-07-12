@@ -245,7 +245,7 @@ export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => s
 		// caller cleans up the local cache regardless of which status comes back.
 		async removeAlbumShare(input: RemoveAlbumShareInput): Promise<RemoveAlbumShareResult> {
 			const response = await fetchRest(`/v1/albums/${input.albumId}/shares/remove`, {
-				method: "POST",
+				method: "PUT",
 			});
 			if (
 				response.status !== 403 &&
