@@ -69,7 +69,7 @@ type ChatThreadMessagesProps = {
 	endMessageLongPress: () => void;
 	messageLongPressTriggeredRef: { current: boolean };
 	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
-	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean) => void | Promise<void>;
+	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => void | Promise<void>;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
 	openMessageActionId: string | null;
@@ -1761,9 +1761,12 @@ export function ChatThreadMessages({
                                                     onClick={(event) => {
                                                         event.stopPropagation();
                                                         if (!rxAlbumId) return;
-                                                        if (isDesktop) { void openAlbumViewerById(rxAlbumId, mine); return; }
+                                                        // Reacting/replying to your own album doesn't happen — the
+                                                        // album this bubble points at always belongs to whichever
+                                                        // side did NOT send the reaction/reply message.
+                                                        if (isDesktop) { void openAlbumViewerById(rxAlbumId, !mine, rxTarget?.contentId); return; }
                                                         if (messageLongPressTriggeredRef.current) { messageLongPressTriggeredRef.current = false; return; }
-                                                        scheduleMobileTap(message, () => void openAlbumViewerById(rxAlbumId, mine));
+                                                        scheduleMobileTap(message, () => void openAlbumViewerById(rxAlbumId, !mine, rxTarget?.contentId));
                                                     }}
                                                 >
                                                     {rxPreviewUrl ? (

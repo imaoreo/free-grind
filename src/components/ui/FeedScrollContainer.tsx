@@ -16,14 +16,8 @@ export const FeedScrollContainer = forwardRef<HTMLDivElement, FeedScrollContaine
 
 		useEffect(() => {
 			if (!isDesktop || !innerRef.current || !SMOOTH_SCROLL_CONFIG.enabled) {
-				console.log("[FeedScroll] Skipping init:", { isDesktop, hasRef: !!innerRef.current, enabled: SMOOTH_SCROLL_CONFIG.enabled });
 				return;
 			}
-
-			console.log("[FeedScroll] Initializing inner Lenis", {
-				lerp: SMOOTH_SCROLL_CONFIG.lerp,
-				multiplier: SMOOTH_SCROLL_CONFIG.wheelMultiplier
-			});
 
 			const lenis = new Lenis({
 				wrapper: innerRef.current,

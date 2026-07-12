@@ -4,6 +4,8 @@ export type SharedAlbumItem = {
 	profileId: number;
 	profileName: string;
 	profileMediaHash: string | null;
+	onlineUntil: number | null;
+	distanceMetres: number | null;
 	conversationId: string | null;
 	album: SharedAlbum;
 	albumNumber: number;
@@ -16,6 +18,9 @@ export type AlbumViewer = {
 	albumName: string | null;
 	profileId: number;
 	profileName: string;
+	profileMediaHash: string | null;
+	onlineUntil: number | null;
+	distanceMetres: number | null;
 	conversationId: string | null;
 	content: Array<{
 		contentId: number;

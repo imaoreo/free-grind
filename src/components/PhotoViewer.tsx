@@ -1,10 +1,12 @@
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, EllipsisVertical, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { isIos, saveMediaToDevice } from "../services/saveMedia";
 import { appLog } from "../utils/logger";
+import { ProfileImage } from "./ui/profile-image";
+import { useDesktopBreakpoint } from "../hooks/useDesktopBreakpoint";
 
 export type PhotoViewerMedia = {
 	url: string;
@@ -23,6 +25,28 @@ export type PhotoViewerProps = {
 	renderFooter?: (index: number) => React.ReactNode;
 	/** Chat conversation this media belongs to, if any — saved media is filed under a matching device subfolder instead of a flat Downloads folder. */
 	conversationId?: string | null;
+	/** When provided (non-empty), the default left/right corner buttons are replaced by a single top header bar — back button, optional albumHeader, and a "more options" menu (save-to-device plus these extra actions). */
+	menuActions?: PhotoViewerMenuAction[];
+	/** Avatar + name shown next to the back button in the header bar (only used together with menuActions) — mirrors the chat thread header. */
+	albumHeader?: {
+		avatarUrl: string | null;
+		name: string;
+		/** Online/distance line shown under the name, e.g. "Online · 3 km" — omitted when not available. */
+		subtitle?: string | null;
+		isOnline?: boolean;
+		/** Tapping the avatar/name opens the profile — omitted (non-interactive) when not provided. */
+		onClick?: () => void;
+	};
+	/** When true, a "could contain sensitive content" gate screen is shown first — the actual media only reveals after the user confirms. Re-shown every time the viewer opens. */
+	contentWarning?: boolean;
+};
+
+export type PhotoViewerMenuAction = {
+	key: string;
+	label: string;
+	icon: React.ComponentType<{ className?: string }>;
+	onClick: () => void | Promise<void>;
+	disabled?: boolean;
 };
 
 function getMediaInfo(photo: string | PhotoViewerMedia) {
@@ -39,9 +63,25 @@ export function PhotoViewer({
 	renderExtraInfo,
 	renderFooter,
 	conversationId,
+	menuActions,
+	albumHeader,
+	contentWarning,
 }: PhotoViewerProps) {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const N = photos.length;
+	// Fixed header/back-button offset — identical everywhere (sensitive-content
+	// gate, default chrome, album header) so switching between them never
+	// shifts the back button. The position indicator sits below this, it
+	// never pushes the header itself down.
+	const chromeTopOffset = "calc(env(safe-area-inset-top, 0px) + clamp(14px, 2.2vw, 28px))";
+	// The real chat header vertically centers its back button (items-center)
+	// against a taller h-10 avatar, which visually shifts the button ~4px
+	// below the row's own top edge. The album header here reproduces that
+	// centering naturally; buttons rendered standalone (gate screen,
+	// non-album chrome) need this offset added explicitly to land on the
+	// exact same pixel as the chat header's back button.
+	const chromeButtonTop = `calc(${chromeTopOffset} + 7px)`;
 
 	const [centerIdx, setCenterIdx] = useState(initialIndex);
 	const [trackPos, setTrackPos] = useState(1);
@@ -50,6 +90,13 @@ export function PhotoViewer({
 	const [zoomScale, setZoomScale] = useState(1);
 	const [zoomOffset, setZoomOffset] = useState({ x: 0, y: 0 });
 	const [isSaving, setIsSaving] = useState(false);
+	const [isMenuOpen, setIsMenuOpen] = useState(false);
+	const menuRef = useRef<HTMLDivElement | null>(null);
+	const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false);
+
+	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+	const [isVideoMuted, setIsVideoMuted] = useState(false);
+	const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
 
 	const mediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
 
@@ -79,8 +126,45 @@ export function PhotoViewer({
 		setDragOffset(0);
 		setZoomScale(1);
 		setZoomOffset({ x: 0, y: 0 });
+		setIsMenuOpen(false);
+		setHasAcknowledgedWarning(false);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
+
+	useEffect(() => {
+		setIsMenuOpen(false);
+		setIsVideoPlaying(false);
+		setIsVideoMuted(false);
+		setShowCenterPlayButton(true);
+	}, [centerIdx]);
+
+	// Auto-hide the big center play/pause button shortly after playback
+	// starts — reappears immediately on pause (or on tap, since tapping the
+	// video toggles play/pause and re-runs this effect).
+	useEffect(() => {
+		if (!isVideoPlaying) {
+			setShowCenterPlayButton(true);
+			return;
+		}
+		setShowCenterPlayButton(true);
+		const timer = setTimeout(() => setShowCenterPlayButton(false), 1200);
+		return () => clearTimeout(timer);
+	}, [isVideoPlaying]);
+
+	useEffect(() => {
+		if (!isMenuOpen) return;
+		const handleOutside = (e: Event) => {
+			if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+				setIsMenuOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleOutside);
+		document.addEventListener("touchstart", handleOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleOutside);
+			document.removeEventListener("touchstart", handleOutside);
+		};
+	}, [isMenuOpen]);
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -328,7 +412,58 @@ export function PhotoViewer({
 		}
 	};
 
+	const toggleVideoPlay = () => {
+		const el = mediaRef.current;
+		if (!el || !(el instanceof HTMLVideoElement)) return;
+		if (el.paused) void el.play();
+		else el.pause();
+	};
+
+	const toggleVideoMute = () => {
+		setIsVideoMuted((prev) => !prev);
+	};
+
 	if (!isOpen || N === 0) return null;
+
+	if (contentWarning && !hasAcknowledgedWarning) {
+		return createPortal(
+			<div
+				className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-6 bg-black px-8 text-center"
+				onClick={onClose}
+			>
+				<button
+					type="button"
+					onClick={(e) => { e.stopPropagation(); onClose(); }}
+					className="absolute left-3 inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 sm:left-5"
+					style={{ top: chromeButtonTop }}
+					aria-label={t("profile_details.close_photo_viewer")}
+				>
+					<ChevronLeft className="h-4 w-4" />
+				</button>
+				<div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--accent)]">
+					<AlertTriangle className="h-8 w-8 text-[var(--accent-contrast)]" />
+				</div>
+				<div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+					<p className="text-lg font-semibold text-white">
+						{t("shared_albums.sensitive_content_title", { defaultValue: "Sensitive content" })}
+					</p>
+					<p className="max-w-xs text-sm text-white/70">
+						{t("shared_albums.sensitive_content_description", {
+							defaultValue: "This album could contain sensitive content.",
+						})}
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={(e) => { e.stopPropagation(); setHasAcknowledgedWarning(true); }}
+					className="rounded-full bg-[var(--accent)] px-6 py-2.5 text-sm font-semibold text-[var(--accent-contrast)] transition active:scale-95"
+				>
+					{t("shared_albums.sensitive_content_confirm", { defaultValue: "View album" })}
+				</button>
+			</div>,
+			document.body,
+		);
+	}
 
 	const slots: Array<{ photoIndex: number; slotIndex: number }> =
 		N <= 1
@@ -341,39 +476,150 @@ export function PhotoViewer({
 
 	const activeSlot = N <= 1 ? 0 : trackPos;
 	const canAnimate = dragOffset === 0 && !noTransition;
+	const footerContent = renderFooter ? renderFooter(centerIdx) : null;
+	// centerIdx can briefly point past the end of `photos` if a caller
+	// mutates the array (e.g. album content reloading with fewer items)
+	// without also re-clamping the index it's driving — fall back to the
+	// last valid photo instead of crashing on `.url` of undefined.
+	const safeCenterIdx = centerIdx >= 0 && centerIdx < N ? centerIdx : N - 1;
+	const currentMedia = getMediaInfo(photos[safeCenterIdx]);
+	const isCurrentVideo = currentMedia.type === "video";
 
 	return createPortal(
 		<div className="fixed inset-0 z-[80] bg-black" onClick={onClose}>
-			<button
-				type="button"
-				onClick={(e) => { e.stopPropagation(); onClose(); }}
-				onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
-				onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
-				className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md transition active:scale-90 sm:left-5 sm:top-5"
-				aria-label={t("profile_details.close_photo_viewer")}
-			>
-				<ChevronLeft className="h-5 w-5" />
-			</button>
+			{menuActions && menuActions.length > 0 ? (
+				<>
+					<div
+						className="pointer-events-none absolute inset-x-0 top-0 z-[82]"
+						style={{ height: "14rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)" }}
+						aria-hidden="true"
+					/>
+					<div
+						className="pointer-events-none absolute inset-x-0 bottom-0 z-[82]"
+						style={{ height: "16rem", background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)" }}
+						aria-hidden="true"
+					/>
+					<div
+						className="pointer-events-none absolute inset-x-0 top-0 z-[83] px-3 sm:px-5"
+						style={{ paddingTop: chromeTopOffset }}
+					>
+						<div
+							className="pointer-events-auto flex w-full items-center justify-between gap-3"
+							onClick={(e) => e.stopPropagation()}
+						>
+							<div className="flex min-w-0 items-center gap-3">
+							<button
+								type="button"
+								onClick={onClose}
+								onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
+								onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
+								className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90"
+								aria-label={t("profile_details.close_photo_viewer")}
+							>
+								<ChevronLeft className="h-4 w-4" />
+							</button>
 
-			<button
-				type="button"
-				onClick={(e) => { e.stopPropagation(); void handleSave(); }}
-				onTouchEnd={(e) => handleButtonTouchEnd(e, () => void handleSave())}
-				disabled={isSaving}
-				className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5 sm:top-5"
-				aria-label={t("profile_details.save_to_gallery")}
-			>
-				<Download className="h-5 w-5" />
-			</button>
+							{albumHeader && (
+								<button
+									type="button"
+									onClick={albumHeader.onClick}
+									disabled={!albumHeader.onClick}
+									className="flex min-w-0 items-center gap-3 text-left disabled:cursor-default"
+								>
+									<div
+										className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-white/10 ${
+											albumHeader.isOnline ? "border-emerald-500" : "border-white/30"
+										}`}
+									>
+										<ProfileImage src={albumHeader.avatarUrl} alt={albumHeader.name} />
+									</div>
+									<div className="min-w-0">
+										<p className="truncate text-lg font-semibold text-white">{albumHeader.name}</p>
+										{albumHeader.subtitle && (
+											<p className="truncate text-sm text-white/70">{albumHeader.subtitle}</p>
+										)}
+									</div>
+								</button>
+							)}
+						</div>
 
-			{N > 1 && (
+						<div ref={menuRef} className="relative shrink-0">
+							<button
+								type="button"
+								onClick={() => setIsMenuOpen((v) => !v)}
+								onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
+								onTouchEnd={(e) => handleButtonTouchEnd(e, () => setIsMenuOpen((v) => !v))}
+								aria-label="More options"
+								aria-expanded={isMenuOpen}
+								className="inline-flex shrink-0 items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90"
+							>
+								<EllipsisVertical className="h-4 w-4" />
+							</button>
+							{isMenuOpen && (
+								<div className="absolute right-0 top-[calc(100%+0.5rem)] min-w-[200px] overflow-hidden rounded-xl border border-white/15 bg-black/90 py-1.5 shadow-xl backdrop-blur-md">
+									<button
+										type="button"
+										onClick={() => { setIsMenuOpen(false); void handleSave(); }}
+										disabled={isSaving}
+										className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-white transition hover:bg-white/10 disabled:opacity-50"
+									>
+										<Download className="h-4 w-4 opacity-80" />
+										{t("profile_details.save_to_gallery")}
+									</button>
+									{menuActions.map((action) => (
+										<button
+											key={action.key}
+											type="button"
+											onClick={() => { setIsMenuOpen(false); void action.onClick(); }}
+											disabled={action.disabled}
+											className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-white transition hover:bg-white/10 disabled:opacity-50"
+										>
+											<action.icon className="h-4 w-4 opacity-80" />
+											{action.label}
+										</button>
+									))}
+								</div>
+							)}
+						</div>
+					</div>
+				</div>
+				</>
+			) : (
+				<>
+					<button
+						type="button"
+						onClick={(e) => { e.stopPropagation(); onClose(); }}
+						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
+						onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
+						className="absolute left-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 sm:left-5"
+						style={{ top: chromeButtonTop }}
+						aria-label={t("profile_details.close_photo_viewer")}
+					>
+						<ChevronLeft className="h-4 w-4" />
+					</button>
+
+					<button
+						type="button"
+						onClick={(e) => { e.stopPropagation(); void handleSave(); }}
+						onTouchEnd={(e) => handleButtonTouchEnd(e, () => void handleSave())}
+						disabled={isSaving}
+						className="absolute right-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5"
+						style={{ top: chromeButtonTop }}
+						aria-label={t("profile_details.save_to_gallery")}
+					>
+						<Download className="h-4 w-4" />
+					</button>
+				</>
+			)}
+
+			{N > 1 && isDesktop && (
 				<>
 					<button
 						type="button"
 						onClick={(e) => { e.stopPropagation(); showPrev(); }}
 						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, showPrev)}
-						className="absolute left-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90 sm:left-4 sm:h-11 sm:w-11"
+						className="absolute left-4 top-1/2 z-[83] inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90"
 						aria-label={t("profile_details.previous_photo")}
 					>
 						<ChevronLeft className="h-5 w-5" />
@@ -383,7 +629,7 @@ export function PhotoViewer({
 						onClick={(e) => { e.stopPropagation(); showNext(); }}
 						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, showNext)}
-						className="absolute right-2 top-1/2 z-[83] inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90 sm:right-4 sm:h-11 sm:w-11"
+						className="absolute right-4 top-1/2 z-[83] inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-black/40 text-white shadow-lg backdrop-blur-md transition active:scale-90"
 						aria-label={t("profile_details.next_photo")}
 					>
 						<ChevronRight className="h-5 w-5" />
@@ -394,13 +640,47 @@ export function PhotoViewer({
 			{N > 1 && (
 				<p
 					className={`absolute left-1/2 z-[83] -translate-x-1/2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md ${
-						renderFooter
+						footerContent
 							? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
 							: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
 					}`}
 				>
 					{centerIdx + 1} / {N}
 				</p>
+			)}
+
+			{isCurrentVideo && (
+				<button
+					type="button"
+					onClick={(e) => { e.stopPropagation(); toggleVideoPlay(); }}
+					aria-label={isVideoPlaying ? t("profile_details.pause_video", { defaultValue: "Pause" }) : t("profile_details.play_video", { defaultValue: "Play" })}
+					className={`absolute left-1/2 top-1/2 z-[84] flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-white transition-opacity duration-300 active:scale-90 ${
+						showCenterPlayButton ? "opacity-100" : "pointer-events-none opacity-0"
+					}`}
+					style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.55))" }}
+				>
+					{isVideoPlaying ? <Pause className="h-9 w-9 fill-current" /> : <Play className="h-9 w-9 fill-current" />}
+				</button>
+			)}
+
+			{isCurrentVideo && (
+				<div
+					className={`absolute right-3 z-[84] flex items-center gap-2 sm:right-5 ${
+						footerContent
+							? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
+							: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+					}`}
+					onClick={(e) => e.stopPropagation()}
+				>
+					<button
+						type="button"
+						onClick={toggleVideoMute}
+						aria-label={isVideoMuted ? t("profile_details.unmute_video", { defaultValue: "Unmute" }) : t("profile_details.mute_video", { defaultValue: "Mute" })}
+						className="inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90"
+					>
+						{isVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+					</button>
+				</div>
 			)}
 
 			<div
@@ -438,26 +718,28 @@ export function PhotoViewer({
 						return (
 							<div
 								key={slotIndex}
-								className="flex h-full w-screen flex-shrink-0 items-center justify-center p-3 sm:p-8"
-								style={
-									renderFooter
-										? { paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }
-										: undefined
-								}
+								className="flex h-full w-screen flex-shrink-0 items-center justify-center"
 								onClick={onClose}
 							>
 								<div
-									className="relative flex max-h-full max-w-full items-center justify-center overflow-hidden rounded-xl"
-									onClick={(e) => e.stopPropagation()}
+									className="relative w-full overflow-hidden"
+									onClick={(e) => {
+										e.stopPropagation();
+										if (isCurrent && type === "video") toggleVideoPlay();
+									}}
 								>
 									{type === "video" ? (
 										<video
 											ref={isCurrent ? (mediaRef as React.RefObject<HTMLVideoElement>) : undefined}
 											src={url}
-											controls
 											autoPlay={isCurrent}
-											className="max-h-[88vh] w-auto max-w-full object-contain"
+											playsInline
+											muted={isCurrent ? isVideoMuted : true}
+											className="h-auto max-h-[100dvh] w-full object-contain"
 											style={zoomStyle}
+											onPlay={isCurrent ? () => setIsVideoPlaying(true) : undefined}
+											onPause={isCurrent ? () => setIsVideoPlaying(false) : undefined}
+											onEnded={isCurrent ? () => setIsVideoPlaying(false) : undefined}
 										/>
 									) : (
 										<img
@@ -466,7 +748,7 @@ export function PhotoViewer({
 											alt={alt}
 											loading="eager"
 											draggable={false}
-											className="max-h-[88vh] w-auto max-w-full select-none object-contain"
+											className="h-auto max-h-[100dvh] w-full select-none object-contain"
 											style={zoomStyle}
 										/>
 									)}
@@ -475,6 +757,23 @@ export function PhotoViewer({
 						);
 					})}
 				</div>
+
+				{N > 1 && !isDesktop && (
+					<>
+						<button
+							type="button"
+							onClick={(e) => { e.stopPropagation(); showPrev(); }}
+							className="absolute inset-y-0 left-0 z-[81] w-1/3"
+							aria-label={t("profile_details.previous_photo")}
+						/>
+						<button
+							type="button"
+							onClick={(e) => { e.stopPropagation(); showNext(); }}
+							className="absolute inset-y-0 right-0 z-[81] w-1/3"
+							aria-label={t("profile_details.next_photo")}
+						/>
+					</>
+				)}
 			</div>
 
 			{renderExtraInfo && (
@@ -483,19 +782,20 @@ export function PhotoViewer({
 				// which for narrow/portrait images is often narrower than this pill's natural
 				// width and was forcing the text to wrap.
 				<div
-					className="absolute left-1/2 top-[calc(env(safe-area-inset-top,0px)+2rem)] z-[83] flex -translate-x-1/2 items-center gap-2"
+					className="absolute left-1/2 z-[83] flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+					style={{ top: `calc(${chromeButtonTop} + 1rem)` }}
 					onClick={(e) => e.stopPropagation()}
 				>
 					{renderExtraInfo(centerIdx)}
 				</div>
 			)}
 
-			{renderFooter && (
+			{footerContent && (
 				<div
 					className="absolute inset-x-0 bottom-0 z-[83]"
 					onClick={(e) => e.stopPropagation()}
 				>
-					{renderFooter(centerIdx)}
+					{footerContent}
 				</div>
 			)}
 		</div>,
