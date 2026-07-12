@@ -1,4 +1,4 @@
-import { Grid as GridIcon, Droplet, Flame, MessageCircle } from "lucide-react";
+import { Grid as GridIcon, Droplets, Flame, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -93,7 +93,7 @@ export function NavBar() {
 		{
 			value: "right-now",
 			label: t("nav.right_now"),
-			icon: Droplet,
+			icon: Droplets,
 			path: "/right-now",
 			visible: showRightNow, // Toggleable
 		},

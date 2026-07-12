@@ -1,4 +1,4 @@
-import { X, Home, Camera, Map, Loader2, CheckCircle2, AlertCircle, EyeOff, Droplet, Info, Lock, Hourglass } from "lucide-react";
+import { X, Home, Camera, Map, Loader2, CheckCircle2, AlertCircle, EyeOff, Droplets, Info, Lock, Hourglass } from "lucide-react";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { appLog } from "../../../utils/logger";
@@ -388,7 +388,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
-								<Droplet className="h-5 w-5 fill-current" />
+								<Droplets className="h-5 w-5 fill-current" />
 							</div>
 							<h2 className="text-xl font-bold tracking-tight text-[var(--text)]">
 								{isEditMode
@@ -453,7 +453,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 							}}
 						>
 							<ToggleRow
-								icon={<Droplet className="h-5 w-5 fill-current" />}
+								icon={<Droplets className="h-5 w-5 fill-current" />}
 								iconClass={cn(
 									"flex h-10 w-10 items-center justify-center shadow-sm transition-colors",
 									isHidden ? "bg-[var(--surface-3,var(--surface))] text-[var(--text-muted)]" : "bg-[var(--right-now)] text-white"
@@ -477,7 +477,7 @@ export function RightNowPostPage({ onClose, onPost }: RightNowPostPageProps) {
 						>
 							<div className="flex items-center gap-4">
 								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--right-now)] text-white shadow-sm">
-									<Droplet className="h-5 w-5 fill-current" />
+									<Droplets className="h-5 w-5 fill-current" />
 								</div>
 								<div>
 									<div className="flex items-center gap-1.5">

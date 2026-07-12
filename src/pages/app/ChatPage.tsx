@@ -199,7 +199,6 @@ function canHaveOwnMedia(message: UiMessage): boolean {
 function captureMediaForMessages(
 	messages: UiMessage[],
 	conversationId: string,
-	userId: number | null,
 ): Promise<void> {
 	const pending: Promise<unknown>[] = [];
 	for (const message of messages) {
@@ -213,7 +212,6 @@ function captureMediaForMessages(
 					conversationId,
 					messageId: message.messageId,
 					viewOnce: target.viewOnce,
-					isOwnMessage: userId != null && message.senderId === userId,
 				}),
 			);
 		} else if (canHaveOwnMedia(message)) {
@@ -1927,7 +1925,7 @@ export function ChatPage() {
 					responseMessages,
 					older ? undefined : normalizedLastRead,
 				);
-				captureMediaForMessages(responseMessages, conversationId, userId);
+				captureMediaForMessages(responseMessages, conversationId);
 				captureAlbumsForMessages(
 					responseMessages,
 					conversationId,
@@ -1990,7 +1988,7 @@ export function ChatPage() {
 
 							if (hydratedMessages.length > 0) {
 								void chatLog.appendMessages(conversationId, hydratedMessages);
-								captureMediaForMessages(hydratedMessages, conversationId, userId);
+								captureMediaForMessages(hydratedMessages, conversationId);
 
 								if (selectedConversationIdRef.current !== conversationId) return;
 
@@ -2056,7 +2054,7 @@ export function ChatPage() {
 
 								if (resolvedMessages.length > 0) {
 									void chatLog.appendMessages(conversationId, resolvedMessages);
-									captureMediaForMessages(resolvedMessages, conversationId, userId);
+									captureMediaForMessages(resolvedMessages, conversationId);
 
 									if (selectedConversationIdRef.current !== conversationId) return;
 									setThreadMessages((previous) => {
@@ -2128,7 +2126,7 @@ export function ChatPage() {
 							if (updates.length === 0) return;
                             const nonExpiredUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
                             void chatLog.appendMessages(conversationId, nonExpiredUpdates);
-                            captureMediaForMessages(nonExpiredUpdates, conversationId, userId);
+                            captureMediaForMessages(nonExpiredUpdates, conversationId);
 							if (selectedConversationIdRef.current !== conversationId) return;
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -2587,7 +2585,7 @@ export function ChatPage() {
 		}
 		for (const [cid, msgs] of byConv) {
 			void chatLog.appendMessages(cid, msgs);
-			captureMediaForMessages(msgs, cid, userId);
+			captureMediaForMessages(msgs, cid);
 			captureAlbumsForMessages(msgs, cid, (id) => service.getAlbum(id), userId);
 			captureReplyPreviewsForMessages(msgs, cid);
 		}
@@ -2660,7 +2658,6 @@ export function ChatPage() {
 				captureMediaForMessages(
 					nonExpiredImageUpdates,
 					incomingImagesWithoutUrl[0].conversationId,
-					userId,
 				);
 				setThreadMessages((prev) => {
 					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
@@ -2716,7 +2713,6 @@ export function ChatPage() {
 					captureMediaForMessages(
 						nonExpiredVideoUpdates,
 						incomingVideosWithoutUrl[0].conversationId,
-						userId,
 					);
 				}
 				setThreadMessages((prev) => {
@@ -4742,7 +4738,7 @@ export function ChatPage() {
 				// pass, which made a just-sent image invisible in the "Sent"
 				// media tab and unable to find itself in the full-screen
 				// carousel (both source from that table) until then.
-				captureMediaForMessages([sentMessage], sentMessage.conversationId, userId);
+				captureMediaForMessages([sentMessage], sentMessage.conversationId);
 
 				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
@@ -5704,7 +5700,7 @@ export function ChatPage() {
 				// this, images could keep failing to resolve their own sender
 				// indefinitely, since nothing else re-triggers a capture pass
 				// for a page once it's no longer the one being (re)loaded.
-				await captureMediaForMessages(threadMessages, conversationId, userId);
+				await captureMediaForMessages(threadMessages, conversationId);
 
 				const files = await chatDb.getMediaFilesForConversation(conversationId);
 				const mine = userId != null && Number(senderId) === Number(userId);

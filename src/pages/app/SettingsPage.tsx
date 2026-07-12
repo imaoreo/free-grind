@@ -751,17 +751,17 @@ export function SettingsPage() {
 					</div>
 				</div>
 
-				{/* Data */}
+				{/* Backup & Restore */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("settings.data_section", { defaultValue: "Data" })}
+						{t("settings.data_section", { defaultValue: "Backup & Restore" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						{navRow(
 							() => navigate("/settings/data"),
 							<DatabaseBackup className="h-5 w-5" />,
 							"bg-teal-500/15 text-teal-400",
-							t("settings.data", { defaultValue: "Data" }),
+							t("settings.data", { defaultValue: "Backup & Restore" }),
 							t("settings.data_desc", { defaultValue: "Downloaded media storage, and back up/restore your entire account" }),
 						)}
 					</div>

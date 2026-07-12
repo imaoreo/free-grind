@@ -334,7 +334,7 @@ function RightNowRow({
 function RightNowSkeleton() {
 	return (
 		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
-			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+			<div className="h-15 w-15 shrink-0 squircle animate-pulse bg-[var(--surface-2)]" />
 			<div className="flex flex-1 flex-col gap-2">
 				<div className="flex items-center justify-between gap-3">
 					<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
@@ -342,7 +342,7 @@ function RightNowSkeleton() {
 				</div>
 				<div className="h-2.5 w-40 animate-pulse rounded-full bg-[var(--border)]" />
 			</div>
-			<div className="h-10 w-10 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+			<div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[var(--surface-2)]" />
 		</div>
 	);
 }

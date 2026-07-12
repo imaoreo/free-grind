@@ -2131,11 +2131,6 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 			await setSetting("chatHidePinned", legacyHidePinned === "true");
 		}
 
-		const legacyAutoDownload = window.localStorage.getItem("fg-auto-download-media");
-		if (legacyAutoDownload != null) {
-			await setSetting("autoDownloadMedia", legacyAutoDownload === "true");
-		}
-
 		const legacyPrivacyKeys = [
 			"fg-hide-read-receipts",
 			"fg-show-read-receipt-toggle",
