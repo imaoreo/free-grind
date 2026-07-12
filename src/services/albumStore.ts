@@ -19,32 +19,7 @@ import type { AlbumContentItem } from "../types/chat-page";
 import type { AlbumDetailsResponse } from "../types/chat-service";
 import type { StoredAlbumMedia } from "../types/chat-db";
 import { appLog } from "../utils/logger";
-import { isAutoDownloadMediaEnabled } from "../utils/mediaSettings";
 import { limitChatDbBlobRead } from "../utils/chatDbBlobLimiter";
-
-/**
- * Mirrors newly-downloaded album content into the device's Downloads
- * folder, if the user has opted in. Dynamically imported to avoid a
- * circular dependency — saveMedia.ts imports toDataUri from mediaStore.ts,
- * which this module also depends on.
- */
-async function maybeAutoDownloadToDevice(
-	base64: string,
-	mimeType: string | null,
-	contentType: string | null,
-	conversationId: string | null,
-): Promise<void> {
-	if (!isAutoDownloadMediaEnabled()) {
-		return;
-	}
-	const isVideo = (contentType ?? mimeType ?? "").toLowerCase().startsWith("video/");
-	try {
-		const { saveMediaBytesToDeviceSilent } = await import("./saveMedia");
-		await saveMediaBytesToDeviceSilent(base64, mimeType ?? contentType, isVideo ? "video" : "image", conversationId);
-	} catch (error) {
-		appLog.warn("[album-store] auto-download to device failed", error);
-	}
-}
 
 // Once a background refresh attempt confirms the server doesn't have this
 // album/share anymore (404 once truly gone, 403 once the share is stopped —
@@ -432,7 +407,6 @@ async function captureAlbumContent(
 	existing: StoredAlbumMedia | undefined,
 	remainingViews: number | null,
 	isViewable: boolean | null,
-	folderKey: string | null,
 ): Promise<void> {
 	const compositeId = `${albumId}:${item.contentId}`;
 	try {
@@ -467,10 +441,6 @@ async function captureAlbumContent(
 			remainingViews,
 			isViewable,
 		});
-
-		if (main?.base64) {
-			void maybeAutoDownloadToDevice(main.base64, main.mimeType, item.contentType, folderKey);
-		}
 	} catch (error) {
 		appLog.warn(`[album-store] failed to capture album content ${compositeId}`, error);
 	}
@@ -501,13 +471,6 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 	const existing = await chatDb.getAlbumMedia(String(albumId));
 	const existingById = new Map(existing.map((m) => [m.contentId, m] as const));
 
-	// conversationId is only resolved by matching against a locally-cached
-	// conversation list (see SharedAlbumsPage.tsx/SharedAlbumsPanel.tsx),
-	// which can miss older/archived chats — fall back to ownerProfileId
-	// (always known) so auto-downloaded album content still lands in a
-	// per-profile folder instead of a flat, unsplit one.
-	const folderKey = conversationId ?? (ownerProfileId ? `profile-${ownerProfileId}` : null);
-
 	await Promise.all(
 		content.map((item) =>
 			captureAlbumContent(
@@ -516,7 +479,6 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 				existingById.get(`${albumId}:${item.contentId}`),
 				remainingViews,
 				isViewable,
-				folderKey,
 			),
 		),
 	);

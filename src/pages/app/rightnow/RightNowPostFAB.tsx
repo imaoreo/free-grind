@@ -1,4 +1,4 @@
-import { Droplet, Plus, Pencil, Lock } from "lucide-react";
+import { Plus, Pencil, Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { RIGHT_NOW_SESSION_DURATION, RIGHT_NOW_TEST_SESSION_DURATION } from "./rightnow-constants";
 

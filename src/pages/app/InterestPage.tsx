@@ -47,7 +47,7 @@ let globalHasShownCount = false;
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
 		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
-			<div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-[var(--surface-2)]" />
+			<div className="h-15 w-15 shrink-0 squircle animate-pulse bg-[var(--surface-2)]" />
 			<div className="flex flex-1 flex-col gap-2">
 				<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
 				<div className="h-2.5 w-16 animate-pulse rounded-full bg-[var(--border)]" />

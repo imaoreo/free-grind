@@ -199,7 +199,6 @@ function canHaveOwnMedia(message: UiMessage): boolean {
 function captureMediaForMessages(
 	messages: UiMessage[],
 	conversationId: string,
-	userId: number | null,
 ): Promise<void> {
 	const pending: Promise<unknown>[] = [];
 	for (const message of messages) {
@@ -213,7 +212,6 @@ function captureMediaForMessages(
 					conversationId,
 					messageId: message.messageId,
 					viewOnce: target.viewOnce,
-					isOwnMessage: userId != null && message.senderId === userId,
 				}),
 			);
 		} else if (canHaveOwnMedia(message)) {
@@ -1839,6 +1837,36 @@ export function ChatPage() {
 					includeProfile: true,
 				});
 
+				// Opening a thread from a profile/album view can otherwise show a
+				// stale distance/online status carried over from whenever this
+				// conversation was last loaded via the inbox list — refresh it from
+				// the profile snapshot the server just sent alongside the messages.
+				const freshProfile = response.profile;
+				if (freshProfile) {
+					setConversations((previous) =>
+						previous.map((conversation) => {
+							if (conversation.data.conversationId !== conversationId) {
+								return conversation;
+							}
+							return {
+								...conversation,
+								data: {
+									...conversation.data,
+									participants: conversation.data.participants.map((participant) =>
+										participant.profileId === freshProfile.profileId
+											? {
+													...participant,
+													onlineUntil: freshProfile.onlineUntil ?? participant.onlineUntil,
+													distanceMetres: freshProfile.distance ?? participant.distanceMetres,
+												}
+											: participant,
+									),
+								},
+							};
+						}),
+					);
+				}
+
 				const localData = await chatLog.readLog(conversationId);
 				const localMessages = localData.messages;
 				const localMessageMap = new Map(
@@ -1897,7 +1925,7 @@ export function ChatPage() {
 					responseMessages,
 					older ? undefined : normalizedLastRead,
 				);
-				captureMediaForMessages(responseMessages, conversationId, userId);
+				captureMediaForMessages(responseMessages, conversationId);
 				captureAlbumsForMessages(
 					responseMessages,
 					conversationId,
@@ -1960,7 +1988,7 @@ export function ChatPage() {
 
 							if (hydratedMessages.length > 0) {
 								void chatLog.appendMessages(conversationId, hydratedMessages);
-								captureMediaForMessages(hydratedMessages, conversationId, userId);
+								captureMediaForMessages(hydratedMessages, conversationId);
 
 								if (selectedConversationIdRef.current !== conversationId) return;
 
@@ -2026,7 +2054,7 @@ export function ChatPage() {
 
 								if (resolvedMessages.length > 0) {
 									void chatLog.appendMessages(conversationId, resolvedMessages);
-									captureMediaForMessages(resolvedMessages, conversationId, userId);
+									captureMediaForMessages(resolvedMessages, conversationId);
 
 									if (selectedConversationIdRef.current !== conversationId) return;
 									setThreadMessages((previous) => {
@@ -2098,7 +2126,7 @@ export function ChatPage() {
 							if (updates.length === 0) return;
                             const nonExpiredUpdates = updates.filter((u) => !(u.body as any)?._videoExpired);
                             void chatLog.appendMessages(conversationId, nonExpiredUpdates);
-                            captureMediaForMessages(nonExpiredUpdates, conversationId, userId);
+                            captureMediaForMessages(nonExpiredUpdates, conversationId);
 							if (selectedConversationIdRef.current !== conversationId) return;
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -2557,7 +2585,7 @@ export function ChatPage() {
 		}
 		for (const [cid, msgs] of byConv) {
 			void chatLog.appendMessages(cid, msgs);
-			captureMediaForMessages(msgs, cid, userId);
+			captureMediaForMessages(msgs, cid);
 			captureAlbumsForMessages(msgs, cid, (id) => service.getAlbum(id), userId);
 			captureReplyPreviewsForMessages(msgs, cid);
 		}
@@ -2630,7 +2658,6 @@ export function ChatPage() {
 				captureMediaForMessages(
 					nonExpiredImageUpdates,
 					incomingImagesWithoutUrl[0].conversationId,
-					userId,
 				);
 				setThreadMessages((prev) => {
 					const previousById = new Map(prev.map((m) => [m.messageId, m] as const));
@@ -2686,7 +2713,6 @@ export function ChatPage() {
 					captureMediaForMessages(
 						nonExpiredVideoUpdates,
 						incomingVideosWithoutUrl[0].conversationId,
-						userId,
 					);
 				}
 				setThreadMessages((prev) => {
@@ -3798,6 +3824,9 @@ export function ChatPage() {
 				} else {
 					await service.pinConversation(conversationId);
 				}
+				await chatDb.setConversationPinned(conversationId, !isPinned).catch((error) => {
+					appLog.warn("[chat-db] failed to persist pin state", error);
+				});
 				setConversations((previous) => {
 					const updated = previous.map((conversation) =>
 						conversation.data.conversationId === conversationId
@@ -4709,7 +4738,7 @@ export function ChatPage() {
 				// pass, which made a just-sent image invisible in the "Sent"
 				// media tab and unable to find itself in the full-screen
 				// carousel (both source from that table) until then.
-				captureMediaForMessages([sentMessage], sentMessage.conversationId, userId);
+				captureMediaForMessages([sentMessage], sentMessage.conversationId);
 
 				setReplyTargetMessageId(null);
 				setThreadMessages((previous) => {
@@ -5406,10 +5435,17 @@ export function ChatPage() {
 		setIsLoadingDrawer(true);
 		setDrawerError(null);
 		try {
-			const media = selectedConversationId
-				? await service.getDrawerMedia(selectedConversationId)
-				: await service.getGlobalDrawerMedia();
-			setDrawerMedia(media);
+			const [media, sendCounts] = await Promise.all([
+				selectedConversationId
+					? service.getDrawerMedia(selectedConversationId)
+					: service.getGlobalDrawerMedia(),
+				chatDb.getDrawerMediaSendCounts(),
+			]);
+			setDrawerMedia(
+				media
+					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
+					.sort((a, b) => b.sendCount - a.sendCount),
+			);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
 			setDrawerError(message);
@@ -5485,6 +5521,14 @@ export function ChatPage() {
 
 					// Track the last sent message for preview update
 					finalSentMessage = sentMessage;
+
+					// Local-only usage counter, so the drawer can surface the
+					// most-sent media first on next load.
+					try {
+						await chatDb.incrementDrawerMediaSendCount(mediaId);
+					} catch (error) {
+						appLog.warn("[chat] failed to record drawer media send count", error);
+					}
 				}
 
 				// Update conversation preview with the last sent message
@@ -5671,7 +5715,7 @@ export function ChatPage() {
 				// this, images could keep failing to resolve their own sender
 				// indefinitely, since nothing else re-triggers a capture pass
 				// for a page once it's no longer the one being (re)loaded.
-				await captureMediaForMessages(threadMessages, conversationId, userId);
+				await captureMediaForMessages(threadMessages, conversationId);
 
 				const files = await chatDb.getMediaFilesForConversation(conversationId);
 				const mine = userId != null && Number(senderId) === Number(userId);

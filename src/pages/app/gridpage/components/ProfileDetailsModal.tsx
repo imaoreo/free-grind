@@ -1,4 +1,4 @@
-import { Album, Ban, Check, ChevronLeft, EllipsisVertical, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -122,6 +122,30 @@ function normalizeMediaCreatedAt(value: unknown): number | null {
 
 	// Most API timestamps are in milliseconds; seconds are normalized.
 	return numeric < 1_000_000_000_000 ? Math.round(numeric * 1000) : Math.round(numeric);
+}
+
+function ProfileDetailsSkeleton() {
+	return (
+		<div className="animate-pulse space-y-5" aria-hidden="true">
+			<div className="flex items-center gap-3">
+				<div className="h-14 w-14 shrink-0 rounded-full bg-[var(--surface-2)]" />
+				<div className="flex-1 space-y-2">
+					<div className="h-4 w-1/3 rounded-full bg-[var(--surface-2)]" />
+					<div className="h-3 w-1/4 rounded-full bg-[var(--surface-2)]" />
+				</div>
+			</div>
+			<div className="space-y-2">
+				<div className="h-3 w-full rounded-full bg-[var(--surface-2)]" />
+				<div className="h-3 w-5/6 rounded-full bg-[var(--surface-2)]" />
+				<div className="h-3 w-2/3 rounded-full bg-[var(--surface-2)]" />
+			</div>
+			<div className="flex flex-wrap gap-2">
+				<div className="h-6 w-16 rounded-full bg-[var(--surface-2)]" />
+				<div className="h-6 w-20 rounded-full bg-[var(--surface-2)]" />
+				<div className="h-6 w-14 rounded-full bg-[var(--surface-2)]" />
+			</div>
+		</div>
+	);
 }
 
 export function ProfileDetailsModal({
@@ -1405,6 +1429,13 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 
 			{/* Scrollable content — carousel first, profile details below */}
 			<div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
+				{isLoadingActiveProfile && (
+					<div
+						className="animate-pulse bg-[var(--surface-2)]"
+						style={{ height: variant === "page" ? "min(78dvh, calc(100vw * 1.55))" : "min(55dvh, calc((100vw - 3rem) * 1.25))" }}
+						aria-hidden="true"
+					/>
+				)}
 				{!isLoadingActiveProfile && !activeProfileError && activeProfile && (
 					<div
 						ref={mobileCarouselRef}
@@ -1489,7 +1520,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				)}
 				<div className={`p-4 sm:p-5 ${variant === "page" ? "pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] sm:pb-[calc(env(safe-area-inset-bottom,0px)+6rem)]" : "pb-28"}`}>
 					{isLoadingActiveProfile ? (
-						<p className="text-sm text-[var(--text-muted)]">{t("profile_details.loading")}</p>
+						<ProfileDetailsSkeleton />
 					) : activeProfileError ? (
 						<p className="text-sm text-[var(--text-muted)]">{activeProfileError}</p>
 					) : activeProfile ? (
@@ -1743,6 +1774,9 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				onClick={(event) => event.stopPropagation()}
 			>
 				{/* Left panel: full-height photo carousel (split mode only) */}
+				{isModalSplit && isLoadingActiveProfile && (
+					<div className="relative shrink-0 animate-pulse overflow-hidden bg-[var(--surface-2)]" style={{ width: "54%" }} aria-hidden="true" />
+				)}
 				{isModalSplit && !isLoadingActiveProfile && !activeProfileError && activeProfile && (
 					<div
 						className="relative shrink-0 overflow-hidden bg-black"
@@ -1781,6 +1815,28 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									</span>
 								</div>
 							</div>
+						)}
+						{carouselHashes.length > 1 && (
+							<>
+								<button
+									type="button"
+									onClick={() => setMobileCarouselPhotoIndex((i) => Math.max(i - 1, 0))}
+									disabled={mobileCarouselPhotoIndex === 0}
+									aria-label={t("profile_details.previous_photo")}
+									className="absolute left-1/2 top-3 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-0 disabled:pointer-events-none"
+								>
+									<ChevronUp className="h-4 w-4" />
+								</button>
+								<button
+									type="button"
+									onClick={() => setMobileCarouselPhotoIndex((i) => Math.min(i + 1, carouselHashes.length - 1))}
+									disabled={mobileCarouselPhotoIndex === carouselHashes.length - 1}
+									aria-label={t("profile_details.next_photo")}
+									className="absolute bottom-3 left-1/2 z-20 flex h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition hover:bg-black/60 disabled:opacity-0 disabled:pointer-events-none"
+								>
+									<ChevronDown className="h-4 w-4" />
+								</button>
+							</>
 						)}
 						{carouselHashes.length > 1 && (
 							<div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
@@ -1897,7 +1953,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							<div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-lenis-prevent>
 								<div className="p-4 pb-28 sm:p-5 sm:pb-28">
 									{isLoadingActiveProfile ? (
-										<p className="text-sm text-[var(--text-muted)]">{t("profile_details.loading")}</p>
+										<ProfileDetailsSkeleton />
 									) : activeProfileError ? (
 										<p className="text-sm text-[var(--text-muted)]">{activeProfileError}</p>
 									) : activeProfile ? (

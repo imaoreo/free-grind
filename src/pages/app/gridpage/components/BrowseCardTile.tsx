@@ -1,5 +1,5 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { MapPin, MessageCircle, Plane, Star, Zap, Droplet } from "lucide-react";
+import { MapPin, MessageCircle, Plane, Satellite, Star, Zap, Droplets } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
@@ -38,6 +38,7 @@ export function BrowseCardTile({
 	const usesFreegrind = usePresenceCheck(card.profileId);
 	const isDemoCard = card.profileId.toString().startsWith("demo-");
 	const isVisiting = card.isVisiting === true;
+	const isRoaming = card.roaming === true;
 	const isPopular = card.isPopular === true;
 	const isRightNow = card.rightNow === "HOSTING" || card.rightNow === "NOT_HOSTING";
 	const isBoosting = card.isBoosting === true;
@@ -108,7 +109,7 @@ export function BrowseCardTile({
 							"flex shrink-0 items-center",
 							onlineStatus.isOnline ? "gap-1" : "gap-0.5"
 						)}>
-							{(isRightNow || isVisiting || isPopular) && (
+							{(isRightNow || isPopular) && (
 								<div className="flex items-center gap-0.5">
 									{isPopular && (
 										<Zap
@@ -118,24 +119,32 @@ export function BrowseCardTile({
 										/>
 									)}
 									{isRightNow && (
-										<Droplet
+										<Droplets
 											className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
 											strokeWidth={2.5}
 											title="Right Now"
 										/>
 									)}
-									{isVisiting && (
-										<Plane
-											className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-											strokeWidth={2.5}
-											title={t("profile_details.visiting")}
-										/>
-									)}
 								</div>
 							)}
 							{onlineStatus.isOnline ? (
-								<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
-							) : (
+								isVisiting ? (
+									<Plane
+										className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+										strokeWidth={2.5}
+										title={t("profile_details.visiting")}
+									/>
+								) : isRoaming ? (
+									<Satellite
+										className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+										strokeWidth={2.5}
+										title={t("profile_details.roaming")}
+									/>
+								) : (
+									<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
+								)
+							) : null}
+							{!onlineStatus.isOnline && (
 								<span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm sm:text-[11px]">
 									{t(onlineStatus.labelKey, { count: onlineStatus.count })}
 								</span>
@@ -172,7 +181,8 @@ export function BrowseCardTile({
 					</div>
 
 					{/* Bottom-left: Distance */}
-					<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent px-2 py-0 text-white">
+					<div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
+					<div className="absolute bottom-2 left-2 z-10 flex h-5 items-center text-white">
 						<span className="inline-flex items-center gap-1 text-xs font-semibold">
 							<MapPin className="h-3.5 w-3.5" />
 							{formatDistance(card.distanceMeters, t, unitsPreset)}
