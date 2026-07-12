@@ -21,7 +21,6 @@ import { setActiveChatDbUser, migrateLegacySettingsIfNeeded } from "../services/
 import { clearAllCaches } from "../pages/app/gridpage/cache";
 import { loadAutomationCache } from "../utils/autoblock";
 import { loadAutomationRulesCache } from "../utils/automationRules";
-import { loadMediaSettingsCache } from "../utils/mediaSettings";
 import { loadPrivacyCache } from "../utils/privacy";
 import { loadSeenCache } from "../services/seenStore";
 import { runInboxSync } from "../services/inboxSync";
@@ -325,7 +324,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			await Promise.all([
 				loadAutomationCache(),
 				loadAutomationRulesCache(),
-				loadMediaSettingsCache(),
 				loadPrivacyCache(),
 				loadSeenCache(),
 			]);

@@ -376,28 +376,6 @@ export async function saveMediaBytesToDevice(
 	return true;
 }
 
-/**
- * Silent variant for background auto-download: same as saveMediaBytesToDevice
- * but never falls back to opening a browser download — on any failure it
- * throws so the caller can log and move on without disrupting the UI.
- */
-export async function saveMediaBytesToDeviceSilent(
-	base64: string,
-	mimeType: string | null,
-	type: "image" | "video",
-	conversationId?: string | null,
-): Promise<boolean> {
-	const bytes = base64ToBytes(base64);
-
-	if (isIos()) return saveMediaBytesToGallery(bytes, mimeType, type);
-	if (isAndroid()) return saveMediaBytesToGalleryAndroid(bytes, mimeType, type, conversationId);
-	if (isDesktopTauri()) return saveMediaBytesToFolderDesktop(bytes, mimeType, type, conversationId);
-
-	// Not a supported native platform — skip silently instead of opening a
-	// browser download, since this runs in the background without user intent.
-	return false;
-}
-
 export type SaveMediaBytesBatchItem = { base64: string; mimeType: string | null; type: "image" | "video" };
 
 /** Bytes-based counterpart to saveMediaBatch, for locally-cached media. */

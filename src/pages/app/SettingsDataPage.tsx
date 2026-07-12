@@ -12,12 +12,10 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { ToggleRow } from "../../components/ui/toggle-row";
 import { useAuth } from "../../contexts/useAuth";
 import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
 import * as chatDb from "../../services/chatDb";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid } from "../../services/saveMedia";
-import { isAutoDownloadMediaEnabled, setAutoDownloadMediaEnabled } from "../../utils/mediaSettings";
 import { appLog } from "../../utils/logger";
 import type { FullDbExport } from "../../types/chat-db";
 
@@ -37,7 +35,6 @@ export function SettingsDataPage() {
 	const { t } = useTranslation();
 	const { userId } = useAuth();
 
-	const [autoDownloadMedia, setAutoDownloadMedia] = useState(() => isAutoDownloadMediaEnabled());
 	const [usage, setUsage] = useState<{ count: number; totalBytes: number } | null>(null);
 	const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -177,7 +174,7 @@ export function SettingsDataPage() {
 		<section className="app-screen">
 			<header className="mb-7">
 				<BackToSettings />
-				<h1 className="app-title mb-1">{t("data_backup.title", { defaultValue: "Data" })}</h1>
+				<h1 className="app-title mb-1">{t("data_backup.title", { defaultValue: "Backup & Restore" })}</h1>
 				<p className="app-subtitle">
 					{t("data_backup.subtitle", { defaultValue: "Manage downloaded media and back up your account's entire data." })}
 				</p>
@@ -190,18 +187,6 @@ export function SettingsDataPage() {
 						{t("data_backup.media_storage", { defaultValue: "Media Storage" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						<ToggleRow
-							icon={<Download className="h-5 w-5" />}
-							iconClass="bg-emerald-500/15 text-emerald-400"
-							label={t("data_backup.auto_download_media", { defaultValue: "Auto-download media" })}
-							description={t("data_backup.auto_download_media_desc", { defaultValue: "Also save every cached photo and video to your device's Downloads folder, in addition to the app's local database." })}
-							checked={autoDownloadMedia}
-							onChange={(checked) => {
-								setAutoDownloadMedia(checked);
-								void setAutoDownloadMediaEnabled(checked);
-							}}
-						/>
-
 						<div className="flex items-center justify-between gap-4 px-4 py-3.5">
 							<div className="min-w-0">
 								<p className="text-sm font-medium text-[var(--text)]">
@@ -315,7 +300,7 @@ export function SettingsDataPage() {
 				isOpen={showDeleteConfirm}
 				title={t("data_backup.delete_confirm_title", { defaultValue: "Delete all downloaded media?" })}
 				message={t("data_backup.delete_confirm_message", {
-					defaultValue: "This permanently deletes every photo and video this app has saved to your device (manual saves and auto-downloads). The app's own local cache is not affected.",
+					defaultValue: "This permanently deletes every photo and video this app has saved to your device. The app's own local cache is not affected.",
 				})}
 				confirmLabel={t("data_backup.delete_all", { defaultValue: "Delete all" })}
 				cancelLabel={t("common.cancel", { defaultValue: "Cancel" })}

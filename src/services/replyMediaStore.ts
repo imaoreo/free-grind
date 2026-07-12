@@ -45,8 +45,6 @@ export function captureReplyPreviewsForMessages(
 				// conversation's "shared media" gallery.
 				messageId: null,
 				viewOnce: false,
-				isOwnMessage: false,
-				skipAutoDownload: true,
 			});
 		}
 

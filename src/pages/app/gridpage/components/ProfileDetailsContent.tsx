@@ -7,6 +7,7 @@ import {
 	ChevronsDown,
 	ChevronsUp,
 	Compass,
+	Droplets,
 	ExternalLink,
 	Flame,
 	Globe,
@@ -26,7 +27,6 @@ import {
 	Sparkles,
 	Syringe,
 	User,
-	Zap,
 } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -468,8 +468,17 @@ export function ProfileDetailsContent({
 							)}
 							{hasRightNow && (
 								<span className="flex items-center gap-1 font-semibold" style={{ color: "var(--right-now)" }}>
-									<Zap className="h-3.5 w-3.5" />
-									{t("profile_details.right_now")}
+									{isRightNowHosting ? (
+										<>
+											<Home className="h-3.5 w-3.5" />
+											{t("right_now.hosting")}
+										</>
+									) : (
+										<>
+											<Droplets className="h-3.5 w-3.5" />
+											{t("profile_details.right_now")}
+										</>
+									)}
 								</span>
 							)}
 							{profileDistance !== undefined && profileDistance !== null && (
@@ -568,12 +577,6 @@ export function ProfileDetailsContent({
 								style={{ color: "var(--right-now)" }}
 							>
 								{t("profile_details.right_now")}
-								{isRightNowHosting && (
-									<>
-										<span aria-hidden="true">·</span>
-										<Home className="h-3.5 w-3.5" aria-label={t("right_now.hosting")} />
-									</>
-								)}
 							</p>
 							<div
 								className="rounded-xl px-4 py-3"

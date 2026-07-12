@@ -851,8 +851,6 @@ export function ChatRealtimeBridge() {
 								conversationId: cid,
 								messageId: msg.messageId,
 								viewOnce: target.viewOnce,
-								isOwnMessage:
-									userIdRef.current != null && Number(msg.senderId) === Number(userIdRef.current),
 							});
 						}
 						captureAlbumsForMessages(msgs, cid, (id) => apiFunctions.getAlbum(id), userIdRef.current);
