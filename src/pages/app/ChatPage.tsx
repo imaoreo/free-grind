@@ -1750,7 +1750,7 @@ export function ChatPage() {
 							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
-							olderMessages.length > 0
+							olderMessages.length >= MESSAGE_PAGE_LIMIT
 								? `${LOCAL_PAGE_KEY_PREFIX}${olderMessages[0].timestamp}`
 								: null;
 						setMessagePageKey(nextPageKey);
@@ -1776,8 +1776,11 @@ export function ChatPage() {
 					chatDb.getMessagesPage(conversationId, { limit: MESSAGE_PAGE_LIMIT }),
 					chatDb.getLastReadTimestamp(conversationId),
 				]);
+				// A page shorter than the requested limit means chatDb has nothing
+				// older left — same reasoning as the live path below, otherwise a
+				// short conversation would show a "load older" affordance forever.
 				const nextPageKey =
-					initialMessages.length > 0
+					initialMessages.length >= MESSAGE_PAGE_LIMIT
 						? `${LOCAL_PAGE_KEY_PREFIX}${initialMessages[0].timestamp}`
 						: null;
 				setMessagePageKey(nextPageKey);
@@ -1855,7 +1858,7 @@ export function ChatPage() {
 							limit: MESSAGE_PAGE_LIMIT,
 						});
 						const nextPageKey =
-							olderMessages.length > 0
+							olderMessages.length >= MESSAGE_PAGE_LIMIT
 								? `${LOCAL_PAGE_KEY_PREFIX}${olderMessages[0].timestamp}`
 								: null;
 						setMessagePageKey(nextPageKey);
@@ -2438,7 +2441,7 @@ export function ChatPage() {
 						limit: MESSAGE_PAGE_LIMIT,
 					});
 					const nextPageKey =
-						localOlder.length > 0
+						localOlder.length >= MESSAGE_PAGE_LIMIT
 							? `${LOCAL_PAGE_KEY_PREFIX}${localOlder[0].timestamp}`
 							: null;
 					setMessagePageKey(nextPageKey);
