@@ -54,7 +54,7 @@ import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
 import { isIos, saveMediaToDevice } from "../../../services/saveMedia";
-import { startOutgoingCall, previewCallUi } from "../../../components/VideoCallManager";
+import { startOutgoingCall } from "../../../components/VideoCallManager";
 import { useVideoCallRemainingSeconds } from "../../../hooks/queries/useVideoCallQueries";
 import { isWebRtcSupported } from "../../../services/agoraCall";
 import {
@@ -275,7 +275,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const { t } = useTranslation();
 	useAvatarCache();
     const apiFunctions = useApiFunctions();
-	const { unitsPreset, geohash, developerMode } = usePreferences();
+	const { unitsPreset, geohash } = usePreferences();
 	// Feature-detected once (doesn't change during the app's lifetime) —
 	// hides every video-call entry point entirely on WebView builds without
 	// RTCPeerConnection (confirmed missing on some Linux WebKitGTK builds)
@@ -1317,38 +1317,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												</button>
 												);
 											})()}
-											{developerMode && !isArchived && profileId != null && (
-												<button
-													type="button"
-													onClick={() => {
-														setIsHeaderActionsMenuOpen(false);
-														previewCallUi("incoming", displayName, avatarHash ?? null);
-													}}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-												>
-													<Video className="mr-2 h-4 w-4 opacity-70" />
-													<span className="flex flex-col">
-														<span>{t("chat.preview_call_ui_incoming")}</span>
-														<span className="text-xs text-[var(--text-muted)]">{t("chat.preview_call_ui_subtext")}</span>
-													</span>
-												</button>
-											)}
-											{developerMode && !isArchived && profileId != null && (
-												<button
-													type="button"
-													onClick={() => {
-														setIsHeaderActionsMenuOpen(false);
-														previewCallUi("outgoing", displayName, avatarHash ?? null);
-													}}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-												>
-													<Video className="mr-2 h-4 w-4 opacity-70" />
-													<span className="flex flex-col">
-														<span>{t("chat.preview_call_ui_outgoing")}</span>
-														<span className="text-xs text-[var(--text-muted)]">{t("chat.preview_call_ui_subtext")}</span>
-													</span>
-												</button>
-											)}
 											{!isDesktop && onOpenMediaSheet && (
 												<button
 													type="button"
