@@ -1508,7 +1508,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
-								className="absolute inset-0"
+								className="absolute inset-0 overflow-hidden"
 								style={{
 									transform: `translateY(calc(${(index - mobileCarouselPhotoIndex) * 100}% + ${carouselDragDelta}px))`,
 									transition: carouselDragDelta !== 0 ? "none" : "transform 300ms ease-out",
@@ -1882,7 +1882,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
-								className="absolute inset-0"
+								className="absolute inset-0 overflow-hidden"
 								style={{
 									transform: `translateY(${(index - mobileCarouselPhotoIndex) * 100}%)`,
 									transition: "transform 300ms ease-out",
