@@ -57,6 +57,10 @@ import {
 } from "../../utils/blockConfirm";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
+// The local displayname filter ("Lokale Filter" > nicknameFilter) matches
+// only against already-loaded cards, so a narrow/rare name would otherwise
+// keep auto-pagination running indefinitely trying to find more matches.
+const NICKNAME_FILTER_MAX_PAGES = 7;
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -81,6 +85,12 @@ export function GridPage() {
 	// Cascade encodes this as a page number, explore (/v7/search) as a
 	// (distance, profileId) cursor — see encodeSearchCursor/decodeSearchCursor.
 	const [nextPage, setNextPage] = useState<string | null>(null);
+	// Counts grid pages loaded since the last fresh load (reset to 1 by
+	// loadBrowseCards, incremented by handleLoadMoreCards) — used to cap
+	// auto-pagination while the local displayname filter is narrowing the
+	// grid down to little/nothing, which would otherwise keep fetching page
+	// after page indefinitely trying to find a match. See NICKNAME_FILTER_MAX_PAGES.
+	const [loadedPageCount, setLoadedPageCount] = useState(1);
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	// Explore mode: browse a different area via /v7/search's exploreGeoHash
 	// without touching the real geohash (preferences.geohash / nearbyGeoHash).
@@ -547,6 +557,7 @@ export function GridPage() {
 			if (cached) {
 				setCards(cached.cards);
 				setNextPage(cached.nextPage);
+				setLoadedPageCount(1);
 				setIsLoadingCards(false);
 				setDebugLoadSource("cache");
 				// If we have cached cards and we're on the first page, don't re-fetch from API immediately.
@@ -586,6 +597,7 @@ export function GridPage() {
 					parsed.nextPage ?? null,
 				);
 				setNextPage(parsed.nextPage ?? null);
+				setLoadedPageCount(1);
 			} catch (error) {
 				if (!isMountedRef.current) {
 					return;
@@ -789,6 +801,7 @@ export function GridPage() {
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
+		if (nicknameFilter && loadedPageCount >= NICKNAME_FILTER_MAX_PAGES) return;
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
@@ -816,6 +829,7 @@ export function GridPage() {
 					return next;
 				});
 				setNextPage(parsed.nextPage ?? null);
+				setLoadedPageCount((prev) => prev + 1);
 			}
 		} catch {
 			// silently fail — existing cards remain
@@ -1574,7 +1588,7 @@ export function GridPage() {
 							}
 							onSelectProfile={handleSelectProfile}
 							onMessageProfile={handleMessageProfile}
-							hasMore={nextPage !== null}
+							hasMore={nextPage !== null && !(nicknameFilter && loadedPageCount >= NICKNAME_FILTER_MAX_PAGES)}
 							isLoadingMore={isLoadingMoreCards}
 							onLoadMore={() => {
 								void handleLoadMoreCards();

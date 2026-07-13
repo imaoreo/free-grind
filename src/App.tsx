@@ -46,6 +46,7 @@ import { EntitlementsBridge } from "./components/EntitlementsBridge";
 import { ManagedOptionsCacheBridge } from "./components/ManagedOptionsCacheBridge";
 import { SplashReadyBridge } from "./components/SplashReadyBridge";
 import { SmoothScroll } from "./components/SmoothScroll";
+import { SinModeUnlockOverlay } from "./components/SinModeUnlockOverlay";
 import { usePreferences } from "./contexts/PreferencesContext";
 import ManagerApp from "./ManagerApp";
 import { getRuntimeContext } from "./services/runtimeContext";
@@ -170,6 +171,7 @@ export default function App() {
 		<AuthProvider>
 			<SplashReadyBridge />
 			<PreferencesProvider>
+				<SinModeUnlockOverlay />
 				<SmoothScroll>
 					{showOnboarding ? (
 						<div className="app-shell">

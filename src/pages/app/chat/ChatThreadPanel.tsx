@@ -1800,14 +1800,26 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											<img src={thumbUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" />
 										) : videoUrl ? (
 											<div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black">
+												<div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+													<Loader2 className="h-3.5 w-3.5 animate-spin text-white/60" />
+												</div>
 												<video
 													muted
 													preload="metadata"
 													src={videoUrl}
 													onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
-													className="h-full w-full object-cover"
+													onSeeked={(e) => {
+														const el = e.currentTarget;
+														el.style.opacity = "1";
+														const parent = el.parentElement;
+														const spinner = parent?.querySelector<HTMLElement>(".js-video-spinner");
+														if (spinner) spinner.style.display = "none";
+														const badge = parent?.querySelector<HTMLElement>(".js-video-play-badge");
+														if (badge) badge.style.opacity = "1";
+													}}
+													className="h-full w-full object-cover opacity-0 transition-opacity duration-200"
 												/>
-												<div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+												<div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
 													<Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
 												</div>
 											</div>

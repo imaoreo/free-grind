@@ -17,6 +17,7 @@ import { Card } from "../../components/ui/card";
 import { Badge } from "../../components/ui/chip";
 import { BackToSettings } from "../../components/BackToSettings";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { triggerSinModeUnlock } from "../../utils/sinModeEasterEgg";
 
 const DEV_TAP_TARGET = 7;
 
@@ -38,9 +39,11 @@ export function AboutPage() {
 		if (remaining <= 0) {
 			const nextMode = !developerMode;
 			void setPreferences({ developerMode: nextMode });
-			toast.success(
-				nextMode ? "Developer Mode enabled" : "Developer Mode disabled",
-			);
+			if (nextMode) {
+				triggerSinModeUnlock();
+			} else {
+				toast.success("Developer Mode disabled");
+			}
 			setDevTapCount(0);
 			setLastDevTapAt(0);
 			return;

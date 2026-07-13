@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import type { ProfileDetail } from "../../GridPage.types";
+import { usePreferences } from "../../../../contexts/PreferencesContext";
+import { registerTapForSinMode, triggerSinModeUnlock } from "../../../../utils/sinModeEasterEgg";
 
 type TapVisualState = { visualState: "single" | "mutual"; sentAt: number; tapId: number };
 
@@ -37,6 +39,7 @@ export function useTapProfile({
 	TAP_WINDOW_MS,
 }: UseTapProfileParams) {
 	const { t } = useTranslation();
+	const { setPreferences } = usePreferences();
 	const [tappingProfileId, setTappingProfileId] = useState<string | null>(null);
 	const [tapVisualStates, setTapVisualStates] = useState<
 		Record<string, TapVisualState>
@@ -123,6 +126,11 @@ export function useTapProfile({
 						? t("browse_page.toasts.tap_mutual")
 						: t("browse_page.toasts.tap_sent"),
 				);
+
+				if (await registerTapForSinMode(tapId, profileId)) {
+					void setPreferences({ developerMode: true });
+					triggerSinModeUnlock();
+				}
 			} catch (error) {
 				toast.error(
 					error instanceof Error
@@ -135,7 +143,7 @@ export function useTapProfile({
 				);
 			}
 		},
-		[activeProfile, tap, tapVisualStates, tappingProfileId, TAP_WINDOW_MS, t],
+		[activeProfile, tap, tapVisualStates, tappingProfileId, TAP_WINDOW_MS, t, setPreferences],
 	);
 
 	return {
