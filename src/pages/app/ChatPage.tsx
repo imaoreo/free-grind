@@ -1085,6 +1085,67 @@ export function ChatPage() {
 		[selectedConversationId],
 	);
 
+	// Sending a brand-new chat's first message swaps targetProfileId for a
+	// real conversationId, but `conversations` has no entry for it yet — that
+	// only arrives once the loadInbox refresh below resolves. In the gap,
+	// selectedConversation resolves to null (see its useMemo above), which on
+	// the single-pane mobile layout (selectedConversation ?? targetProfileId
+	// ? renderThread : renderInbox, further down) falls back to showing the
+	// inbox instead of the thread — a visible flash to the chat list and back
+	// that reads as a full reload. Seeding a minimal entry here closes that
+	// gap; loadInbox's own replace logic naturally supersedes it with the
+	// authoritative entry once the response lands.
+	const ensureConversationPlaceholder = useCallback(
+		(
+			conversationId: string,
+			otherProfileId: number,
+			preview: ConversationEntry["data"]["preview"],
+			timestamp: number,
+		) => {
+			setConversations((previous) => {
+				if (previous.some((conversation) => conversation.data.conversationId === conversationId)) {
+					return previous;
+				}
+				const mediaHash =
+					targetProfileDetail?.medias?.[0]?.mediaHash ??
+					targetProfileDetail?.profileImageMediaHash ??
+					null;
+				const placeholder: ConversationEntry = {
+					data: {
+						conversationId,
+						name: targetProfileDetail?.displayName ?? "",
+						participants: [
+							{
+								profileId: otherProfileId,
+								primaryMediaHash: mediaHash,
+								age: targetProfileDetail?.age ?? null,
+								aboutMe: targetProfileDetail?.aboutMe ?? null,
+								lastOnline: targetProfileDetail?.seen ?? null,
+								onlineUntil: targetProfileDetail?.onlineUntil ?? null,
+								distanceMetres: targetProfileDetail?.distance ?? null,
+								position: null,
+								isInAList: false,
+								hasDatingPotential: false,
+							},
+						],
+						lastActivityTimestamp: timestamp,
+						unreadCount: 0,
+						preview,
+						muted: false,
+						pinned: false,
+						favorite: false,
+						context: null,
+						translatable: false,
+						rightNow: null,
+						hasUnreadThrob: false,
+					},
+				};
+				return [placeholder, ...previous];
+			});
+		},
+		[targetProfileDetail],
+	);
+
 	const loadAlbums = useCallback(async (): Promise<AlbumListItem[]> => {
 		setIsLoadingAlbums(true);
 		try {
@@ -4431,6 +4492,21 @@ export function ChatPage() {
 						},
 					}));
 				} else {
+					ensureConversationPlaceholder(
+						sentMessage.conversationId,
+						targetProfileIdValue,
+						{
+							conversationId: { value: sentMessage.conversationId },
+							messageId: sentMessage.messageId,
+							senderId: sentMessage.senderId,
+							type: sentMessage.type,
+							chat1Type: sentMessage.chat1Type ?? "text",
+							text: trimmed,
+							albumId: null,
+							imageHash: null,
+						},
+						sentMessage.timestamp,
+					);
 					openConversationById(sentMessage.conversationId);
 					void loadInbox({ page: 1, replace: true });
 				}
@@ -4459,6 +4535,7 @@ export function ChatPage() {
 			}
 		},
 		[
+			ensureConversationPlaceholder,
 			loadInbox,
 			openConversationById,
 			replyTargetMessageId,
@@ -4504,6 +4581,21 @@ export function ChatPage() {
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
+					ensureConversationPlaceholder(
+						sentMessage.conversationId,
+						targetProfileIdValue,
+						{
+							conversationId: { value: sentMessage.conversationId },
+							messageId: sentMessage.messageId,
+							senderId: sentMessage.senderId,
+							type: sentMessage.type,
+							chat1Type: sentMessage.chat1Type ?? "location",
+							text: null,
+							albumId: null,
+							imageHash: null,
+						},
+						sentMessage.timestamp,
+					);
 					openConversationById(sentMessage.conversationId);
 					void loadInbox({ page: 1, replace: true });
 				}
@@ -4513,7 +4605,7 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
+		[ensureConversationPlaceholder, loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	const sendGiphyMessage = useCallback(
@@ -4554,6 +4646,21 @@ export function ChatPage() {
 				if (selectedConversation) {
 					setThreadMessages((previous) => [...previous, sentMessage]);
 				} else {
+					ensureConversationPlaceholder(
+						sentMessage.conversationId,
+						targetProfileIdValue,
+						{
+							conversationId: { value: sentMessage.conversationId },
+							messageId: sentMessage.messageId,
+							senderId: sentMessage.senderId,
+							type: sentMessage.type,
+							chat1Type: sentMessage.chat1Type ?? "giphy",
+							text: null,
+							albumId: null,
+							imageHash: null,
+						},
+						sentMessage.timestamp,
+					);
 					openConversationById(sentMessage.conversationId);
 					void loadInbox({ page: 1, replace: true });
 				}
@@ -4563,7 +4670,7 @@ export function ChatPage() {
 				setIsSending(false);
 			}
 		},
-		[loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
+		[ensureConversationPlaceholder, loadInbox, openConversationById, selectedConversation, service, t, targetProfileId, userId, replyTargetMessageId, setReplyTargetMessageId],
 	);
 
 	// Sent from the in-thread album image viewer's reply/react bar — deliberately
@@ -4774,6 +4881,21 @@ export function ChatPage() {
 						},
 					}));
 				} else {
+					ensureConversationPlaceholder(
+						sentMessage.conversationId,
+						targetProfileIdValue,
+						{
+							conversationId: { value: sentMessage.conversationId },
+							messageId: sentMessage.messageId,
+							senderId: sentMessage.senderId,
+							type: sentMessage.type,
+							chat1Type: sentMessage.chat1Type ?? (isVideo ? "video" : "image"),
+							text: null,
+							albumId: null,
+							imageHash: null,
+						},
+						sentMessage.timestamp,
+					);
 					openConversationById(sentMessage.conversationId);
 					void loadInbox({ page: 1, replace: true });
 				}
@@ -4803,6 +4925,7 @@ export function ChatPage() {
 			}
 		},
 		[
+			ensureConversationPlaceholder,
 			loadInbox,
 			openConversationById,
 			selectedConversation,
