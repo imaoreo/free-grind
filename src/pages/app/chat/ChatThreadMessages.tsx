@@ -1831,6 +1831,8 @@ export function ChatThreadMessages({
                                                 event.stopPropagation();
                                                 const url = isDesktop
                                                     ? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+                                                    : isIos()
+                                                    ? `https://maps.apple.com/?ll=${location.lat},${location.lon}&q=${location.lat},${location.lon}`
                                                     : `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
                                                 const doOpen = () => {
                                                     openUrl(url).catch((error) => {

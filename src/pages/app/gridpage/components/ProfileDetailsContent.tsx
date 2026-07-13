@@ -52,6 +52,7 @@ import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { formatTravelDateRange } from "../utils";
 import { decodeGeohash } from "../../../../utils/geohash";
 import { appLog } from "../../../../utils/logger";
+import { isIos } from "../../../../services/saveMedia";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 type LabelMap = Record<number, string>;
@@ -85,6 +86,8 @@ function TravelPlanRow({
 		const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
 		const url = isDesktopLike
 			? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+			: isIos()
+			? `https://maps.apple.com/?ll=${lat},${lon}&q=${lat},${lon}`
 			: `geo:${lat},${lon}?q=${lat},${lon}`;
 		openUrl(url).catch((error) => {
 			appLog.error("Failed to open map URL", error);
