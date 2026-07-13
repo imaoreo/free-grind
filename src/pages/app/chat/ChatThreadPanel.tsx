@@ -53,7 +53,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import type { NavigateFunction } from "react-router-dom";
 import toast from "react-hot-toast";
 import { appLog } from "../../../utils/logger";
-import { isIos, isAndroid, saveMediaToDevice } from "../../../services/saveMedia";
+import { isIos, saveMediaToDevice } from "../../../services/saveMedia";
 import { startOutgoingCall, previewCallUi } from "../../../components/VideoCallManager";
 import { useVideoCallRemainingSeconds } from "../../../hooks/queries/useVideoCallQueries";
 import { isWebRtcSupported } from "../../../services/agoraCall";
@@ -2507,55 +2507,46 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									}
 
 									if (mediaUrl || audioUrl) {
-										if (mediaUrl && (isIos() || isAndroid())) {
-											rows.push({
-												key: "open-media",
-												icon: <Download className="h-3.5 w-3.5" />,
-												label: t("chat.actions.open_media", { defaultValue: "Open Media" }),
-												onClick: () => openFullScreenImage(mediaUrl, undefined, videoUrl ? "video" : "image", message.messageId, Number(message.senderId)),
-											});
-										} else {
-											rows.push({
-												key: "download-media",
-												icon: <Download className="h-3.5 w-3.5" />,
-												label: t("chat.actions.download_media", { defaultValue: "Download Media" }),
-												onClick: () => {
-													if (mediaUrl) {
-														void (async () => {
-															try {
-																const saved = await saveMediaToDevice(
+										rows.push({
+											key: "download-media",
+											icon: <Download className="h-3.5 w-3.5" />,
+											label: t("chat.actions.download_media", { defaultValue: "Download Media" }),
+											onClick: () => {
+												if (mediaUrl) {
+													void (async () => {
+														try {
+															const saved = await saveMediaToDevice(
 																mediaUrl,
 																videoUrl ? "video" : "image",
 																selectedConversation?.data.conversationId ?? null,
 															);
-																if (saved) {
-																	toast.success(
-																		t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
-																	);
-																} else {
-																	toast.error(t("profile_details.save_to_gallery_unsupported"));
-																}
-															} catch (e) {
-																appLog.error("Failed to save media to gallery", e);
-																toast.error(
-																	t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+															if (saved) {
+																toast.success(
+																	t(isIos() ? "profile_details.save_to_gallery_success" : "profile_details.save_to_downloads_success"),
 																);
+															} else {
+																toast.error(t("profile_details.save_to_gallery_unsupported"));
 															}
-														})();
-														return;
-													}
-													if (audioUrl) {
-														const a = document.createElement("a");
-														a.href = audioUrl;
-														a.download = `media-${Date.now()}`;
-														a.target = "_blank";
-														document.body.appendChild(a);
-														a.click();
-														document.body.removeChild(a);
-													}
-												},
-											});
-										}
+														} catch (e) {
+															appLog.error("Failed to save media to gallery", e);
+															toast.error(
+																t(isIos() ? "profile_details.save_to_gallery_error" : "profile_details.save_to_downloads_error"),
+															);
+														}
+													})();
+													return;
+												}
+												if (audioUrl) {
+													const a = document.createElement("a");
+													a.href = audioUrl;
+													a.download = `media-${Date.now()}`;
+													a.target = "_blank";
+													document.body.appendChild(a);
+													a.click();
+													document.body.removeChild(a);
+												}
+											},
+										});
 									}
 
 									if (hasText && !mine) {
