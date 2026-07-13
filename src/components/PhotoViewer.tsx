@@ -564,7 +564,7 @@ export function PhotoViewer({
 										className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-white transition hover:bg-white/10 disabled:opacity-50"
 									>
 										<Download className="h-4 w-4 opacity-80" />
-										{t("profile_details.save_to_gallery")}
+										{t("profile_details.save")}
 									</button>
 									{menuActions.map((action) => (
 										<button
@@ -605,7 +605,7 @@ export function PhotoViewer({
 						disabled={isSaving}
 						className="absolute right-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5"
 						style={{ top: chromeButtonTop }}
-						aria-label={t("profile_details.save_to_gallery")}
+						aria-label={t("profile_details.save")}
 					>
 						<Download className="h-4 w-4" />
 					</button>

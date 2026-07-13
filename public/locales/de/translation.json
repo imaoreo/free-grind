@@ -173,7 +173,7 @@
         "people_count_other": "{{count}} Personen",
         "refresh": "Aktualisieren",
         "loading_title": "Lade geteilte Alben",
-        "loading_desc": "Sammle Albumfreigaben aus deinen Konversationen.",
+        "loading_desc": "Sammle Albumfreigaben aus deinen Unterhaltungen.",
         "error_load_title": "Geteilte Alben konnten nicht geladen werden",
         "error_load_fallback": "Laden der geteilten Alben fehlgeschlagen",
         "error_open_title": "Album konnte nicht geöffnet werden",
@@ -422,7 +422,7 @@
     },
     "chat_filters": {
         "title": "Chat-Filter",
-        "subtitle": "Verfeinere, welche Konversationen im Posteingang erscheinen",
+        "subtitle": "Verfeinere, welche Unterhaltungen im Posteingang erscheinen",
         "back": "Zurück",
         "max_distance": "Maximale Entfernung",
         "options": {
@@ -889,11 +889,9 @@
                 "no_conversation": "Öffne zuerst einen Chat"
             }
         },
-        "your_conversations": "Deine Konversationen",
+        "your_conversations": "Deine Unterhaltungen",
         "pinned": "Angepinnt",
         "muted": "Stummgeschaltet",
-        "conversation": "Konversation",
-        "unknown": "Unbekannt",
         "you": "Du",
         "typing": "tippt…",
         "read": "gelesen",
@@ -915,18 +913,18 @@
         "received_media": "Erhaltene Medien",
         "favorite": "Favorisieren",
         "unfavorite": "Entfavorisieren",
-        "no_conversations_match": "Keine Konversationen entsprechen deinen Filtern.",
-        "no_conversations": "Noch keine Konversationen.",
+        "no_conversations_match": "Keine Unterhaltungen entsprechen deinen Filtern.",
+        "no_conversations": "Noch keine Unterhaltungen.",
         "no_messages_yet": "Noch keine Nachrichten.",
         "pin": "Anpinnen",
         "unpin": "Loslösen",
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "clear_local_history": "Lokalen Verlauf löschen",
-        "delete_conversation": "Konversation löschen",
-        "delete_conversation_in_progress": "Konversation wird gelöscht...",
-        "delete_conversation_confirm": "Diese Konversation löschen? Dies kann nicht rückgängig gemacht werden.",
-        "open_conversation_actions": "Konversationsaktionen öffnen",
+        "delete_conversation": "Unterhaltung löschen",
+        "delete_conversation_in_progress": "Unterhaltung wird gelöscht...",
+        "delete_conversation_confirm": "Diese Unterhaltung löschen? Dies kann nicht rückgängig gemacht werden.",
+        "open_conversation_actions": "Unterhaltungsaktionen öffnen",
         "share_album_label": "Album teilen",
         "share_location_label": "Standort teilen",
         "share_location_confirm": "Diesen Standort teilen?",
@@ -970,7 +968,7 @@
         "sending": "Sende...",
         "open": "Öffnen",
         "album_fallback": "Album {{id}}",
-        "select_conversation": "Wähle eine Konversation aus, um Nachrichten anzuzeigen.",
+        "select_conversation": "Wähle eine Unterhaltung aus, um Nachrichten anzuzeigen.",
         "loading_album": "Album wird geladen...",
         "time": {
             "one_min_ago": "vor 1 Min",
@@ -993,7 +991,6 @@
             "replied_profile_photo": "Hat auf ein Profilbild geantwortet"
         },
         "notifications": {
-            "someone": "Jemand",
             "tapped_you": "Hat dich angetippt",
             "tapped_you_back": "Hat dich zurückgetippt"
         },
@@ -1034,12 +1031,13 @@
             "cancel": "Abbrechen",
             "add_to_saved_phrases": "Zu gespeicherten Sätzen hinzufügen",
             "added_to_saved_phrases": "Zu gespeicherten Sätzen hinzugefügt",
-            "open_media": "Medien öffnen",
             "download_media": "Medien herunterladen",
             "download": "Herunterladen",
             "stop_sharing": "Freigabe beenden",
-            "ban_word": "Wort verbannen",
+            "ban_word": "Verbotenes Schlüsselwort hinzufügen",
             "ban_word_prompt": "Kürze diese Nachricht auf das konkrete Schlüsselwort, das du verbannen möchtest:",
+            "ban_name_prompt": "Kürze dies auf den genauen Namen oder die Phrase, die du verbannen möchtest:",
+            "ban_word_confirm": "Hinzufügen",
             "ban_word_added": "\"{{word}}\" zu den verbotenen Schlüsselwörtern hinzugefügt!"
         },
         "system": {
@@ -1112,7 +1110,7 @@
             "upload_media_failed": "Medien-Upload fehlgeschlagen",
             "load_drawer_media": "Galerie-Medien konnten nicht geladen werden",
             "send_drawer_media": "Medien aus der Galerie konnten nicht gesendet werden",
-            "delete_conversation": "Konversation konnte nicht gelöscht werden",
+            "delete_conversation": "Unterhaltung konnte nicht gelöscht werden",
             "microphone_access": "Mikrofon konnte nicht aufgerufen werden.",
             "microphone_denied": "Mikrofonzugriff verweigert.",
             "microphone_not_found": "Kein Mikrofon gefunden.",
@@ -1123,13 +1121,13 @@
             "copied": "In die Zwischenablage kopiert",
             "album_shared": "Album geteilt",
             "media_sent": "Medien gesendet",
-            "conversation_deleted": "Konversation gelöscht",
+            "conversation_deleted": "Unterhaltung gelöscht",
             "album_reaction_sent": "Reaktion gesendet",
             "album_reply_sent": "Antwort gesendet",
             "album_share_stopped": "Album-Freigabe beendet."
         },
         "new_conversation": {
-            "title": "Neue Konversation",
+            "title": "Neue Unterhaltung",
             "subtitle": "Profil #{{profileId}}",
             "write_first_message": "Schreibe deine erste Nachricht...",
             "no_messages_yet": "Noch keine Nachrichten",
@@ -1207,10 +1205,13 @@
     },
     "profile_details": {
         "title": "Profildetails",
+        "ban_bio_title": "Verbotenes Schlüsselwort hinzufügen",
+        "ban_bio_prompt": "Kürze diese Bio auf die genaue Phrase, die du verbannen möchtest:",
+        "ban_bio_added": "\"{{word}}\" zu den verbotenen Schlüsselwörtern hinzugefügt!",
         "profile_fallback": "Profil {{id}}",
         "last_online": "zuletzt online {{value}}",
         "close_photo_viewer": "Fotobetrachter schließen",
-        "save_to_gallery": "In Fotos speichern",
+        "save": "Speichern",
         "save_to_gallery_success": "In deiner Fotobibliothek gespeichert",
         "save_to_gallery_error": "Speichern in der Fotobibliothek fehlgeschlagen",
         "save_to_gallery_unsupported": "Speichern in Fotos wird auf diesem Gerät nicht unterstützt",
@@ -1233,7 +1234,7 @@
         "unfavorite": "Entfavorisieren",
         "block_in_progress": "Wird blockiert...",
         "unblock_in_progress": "Wird entsperrt...",
-        "block_confirm": "Dieses Profil blockieren? Dies entfernt die Konversation für beide Benutzer.",
+        "block_confirm": "Dieses Profil blockieren? Dies entfernt die Unterhaltung für beide Benutzer.",
         "unblock_confirm": "Dieses Profil entsperren?",
         "dont_ask_again": "Nicht erneut fragen",
         "block_success": "Profil blockiert",
@@ -1540,7 +1541,8 @@
     "common": {
         "cancel": "Abbrechen",
         "save": "Speichern",
-        "edit": "Bearbeiten"
+        "edit": "Bearbeiten",
+        "unknown_display_name": "Jemand"
     },
     "grid": {
         "open_profile_by_id": "Profil per ID öffnen"

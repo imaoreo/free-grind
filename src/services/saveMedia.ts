@@ -102,8 +102,30 @@ function sanitizeFolderSegment(id: string): string {
 	return id.replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 
-function mediaRelativeDir(conversationId: string | null | undefined): string {
-	return conversationId ? `${FOLDER_NAME}/${sanitizeFolderSegment(conversationId)}` : FOLDER_NAME;
+/**
+ * Resolves a caller-supplied conversationId/folder-key into the *other
+ * participant's* profile id — so a chat's saves land in the exact same
+ * folder as saving that person's profile picture directly, instead of a
+ * conversationId string (which encodes both participants, e.g.
+ * "myId_partnerId") that's meaningless as a folder name and never matches
+ * across entry points. If the input isn't a real conversationId (already a
+ * bare profile id passed by a non-chat caller, or no local conversation row
+ * exists for it), it's used as-is.
+ */
+async function mediaRelativeDir(conversationId: string | null | undefined): Promise<string> {
+	if (!conversationId) {
+		return FOLDER_NAME;
+	}
+	let key = conversationId;
+	try {
+		const conversation = await chatDb.getConversation(conversationId);
+		if (conversation?.otherProfileId) {
+			key = conversation.otherProfileId;
+		}
+	} catch {
+		// Lookup failed — fall back to using the input as-is.
+	}
+	return `${FOLDER_NAME}/${sanitizeFolderSegment(key)}`;
 }
 
 function extensionFromMimeType(mimeType: string | null, type: "image" | "video"): string {
@@ -182,7 +204,7 @@ async function saveMediaBytesToGalleryAndroid(
 	const extension = extensionFromMimeType(mimeTypeIn, type);
 	const mimeType = mimeTypeIn || mimeTypeFor(type, extension, null);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
-	const relativePath = `${mediaRelativeDir(conversationId)}/${fileName}`;
+	const relativePath = `${await mediaRelativeDir(conversationId)}/${fileName}`;
 
 	const uri = type === "video"
 		? await AndroidFs.createNewPublicVideoFile(AndroidPublicGeneralPurposeDir.Download, relativePath, mimeType, { isPending: true })
@@ -217,7 +239,7 @@ async function saveMediaBytesToFolderDesktop(
 	const extension = extensionFromMimeType(mimeType, type);
 	const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 	const baseDir = BaseDirectory.Download;
-	const relativeDir = mediaRelativeDir(conversationId);
+	const relativeDir = await mediaRelativeDir(conversationId);
 	const relativePath = `${relativeDir}/${fileName}`;
 
 	await mkdir(relativeDir, { baseDir, recursive: true });

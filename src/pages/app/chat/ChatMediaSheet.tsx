@@ -425,7 +425,7 @@ export function ChatMediaSheet({
 							{tab_item.icon}
 							{tab_item.label}
 							{!tab_item.loading && tab_item.count > 0 && (
-								<span className="min-w-[18px] rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-white">
+								<span className="min-w-[18px] rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-center text-[10px] font-semibold leading-none text-[var(--accent-contrast)]">
 									{tab_item.count}
 								</span>
 							)}

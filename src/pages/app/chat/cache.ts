@@ -26,7 +26,7 @@ function scoreMatch(haystack: string, needle: string): number {
 export function indexConversations(entries: ConversationEntry[]) {
 	for (const entry of entries) {
 		const conversationId = entry.data.conversationId;
-		const name = entry.data.name ?? "Unknown";
+		const name = entry.data.name ?? "Someone";
 		const preview = entry.data.preview?.text ?? "";
 		const searchText = normalize(`${name} ${preview}`);
 
