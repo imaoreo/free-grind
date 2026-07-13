@@ -1,4 +1,4 @@
-import { Album, Ban, Copy, Download, Eye, History, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, History, Hourglass, Loader2, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { PromptDialog } from "../../../components/ui/prompt-dialog";
@@ -1100,9 +1100,11 @@ export function ChatThreadMessages({
                                                     : t("chat.thread.shared_image");
                     const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
-                            ? t("chat.thread.replied_to_myself")
+                            ? mine // Prüft, ob die AKTUELL gerenderte Nachricht von uns ist
+                                ? t("chat.thread.replied_to_myself") 
+                                : t("chat.thread.replied_to_you", { defaultValue: "Replied to you" })
                             : t("chat.thread.replied_to_name", {
-                                    name: selectedConversation.data.name || t("common.unknown_display_name"),
+                                    name: selectedConversation?.data.name || t("common.unknown_display_name"),
                                 })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
@@ -1353,14 +1355,26 @@ export function ChatThreadMessages({
                                                 </div>
                                             ) : replyVideoUrl ? (
                                                 <div className="relative w-14 shrink-0 self-stretch overflow-hidden bg-black">
+                                                    <div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/60" />
+                                                    </div>
                                                     <video
                                                         muted
                                                         preload="metadata"
                                                         src={replyVideoUrl}
                                                         onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
-                                                        className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+                                                        onSeeked={(e) => {
+                                                            const el = e.currentTarget;
+                                                            el.style.opacity = "1";
+                                                            const parent = el.parentElement;
+                                                            const spinner = parent?.querySelector<HTMLElement>(".js-video-spinner");
+                                                            if (spinner) spinner.style.display = "none";
+                                                            const badge = parent?.querySelector<HTMLElement>(".js-video-play-badge");
+                                                            if (badge) badge.style.opacity = "1";
+                                                        }}
+                                                        className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-200 [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
                                                     />
-                                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                    <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
                                                         <Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
                                                     </div>
                                                 </div>
@@ -1650,12 +1664,24 @@ export function ChatThreadMessages({
                                                     }}
                                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                                 >
+                                                    <div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+                                                    </div>
                                                     <video
                                                         preload="metadata"
                                                         muted
                                                         src={videoUrl}
                                                         onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
-                                                        className={`w-full object-cover ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
+                                                        onSeeked={(e) => {
+                                                            const el = e.currentTarget;
+                                                            el.style.opacity = "1";
+                                                            const parent = el.parentElement;
+                                                            const spinner = parent?.querySelector<HTMLElement>(".js-video-spinner");
+                                                            if (spinner) spinner.style.display = "none";
+                                                            const badge = parent?.querySelector<HTMLElement>(".js-video-play-badge");
+                                                            if (badge) badge.style.opacity = "1";
+                                                        }}
+                                                        className={`w-full object-cover opacity-0 transition-opacity duration-200 ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
                                                     />
                                                     {isLimitedVideo && (
                                                         videoMaxViews === 1 ? (
@@ -1671,7 +1697,7 @@ export function ChatThreadMessages({
                                                         )
                                                     )}
                                                     {!shouldBlurIncomingMedia && (
-                                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
                                                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
                                                                 <Play className="h-5 w-5 fill-white text-white" />
                                                             </div>

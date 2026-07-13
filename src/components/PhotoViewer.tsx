@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronLeft, ChevronRight, Download, EllipsisVertical, Pause, Play, Volume2, VolumeX } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, EllipsisVertical, Loader2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
@@ -54,6 +54,33 @@ function getMediaInfo(photo: string | PhotoViewerMedia) {
 	return { url: photo.url, type: photo.type, alt: photo.alt ?? "" };
 }
 
+/**
+ * `object-fit: contain` doesn't shrink the <img>/<video> element's own box to
+ * match the picture's aspect ratio — it letterboxes the content *inside*
+ * whatever box the element ends up with (here, one that often ends up
+ * full-screen-sized). That means the element itself, not some separate
+ * wrapper, is what gets hit-tested over the "black" letterboxed area too.
+ * This reproduces the object-contain layout math to find where the content
+ * is actually drawn, so callers can tell a real tap-on-the-picture apart from
+ * a tap on the empty letterboxed space around it. Returns null if the
+ * element's intrinsic size isn't known yet (e.g. video metadata not loaded).
+ */
+function getObjectContainRect(el: HTMLImageElement | HTMLVideoElement): DOMRect | null {
+	const box = el.getBoundingClientRect();
+	const naturalW = el instanceof HTMLVideoElement ? el.videoWidth : el.naturalWidth;
+	const naturalH = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
+	if (!naturalW || !naturalH || !box.width || !box.height) return null;
+
+	const boxRatio = box.width / box.height;
+	const mediaRatio = naturalW / naturalH;
+	const contentW = mediaRatio > boxRatio ? box.width : box.height * mediaRatio;
+	const contentH = mediaRatio > boxRatio ? box.width / mediaRatio : box.height;
+	const left = box.left + (box.width - contentW) / 2;
+	const top = box.top + (box.height - contentH) / 2;
+
+	return new DOMRect(left, top, contentW, contentH);
+}
+
 export function PhotoViewer({
 	isOpen,
 	onClose,
@@ -95,10 +122,25 @@ export function PhotoViewer({
 	const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false);
 
 	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-	const [isVideoMuted, setIsVideoMuted] = useState(false);
+	const [isVideoMuted, setIsVideoMuted] = useState(true);
 	const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
+	const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+	const [videoDuration, setVideoDuration] = useState(0);
+	const [isScrubbing, setIsScrubbing] = useState(false);
+	// Mirrors isScrubbing but read from the high-frequency pointermove/timeupdate
+	// handlers below — a ref avoids re-rendering the whole viewer on every move.
+	const isScrubbingRef = useRef(false);
+	const trackBarRef = useRef<HTMLDivElement | null>(null);
 
 	const mediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
+	// Video elements are torn down and recreated whenever a carousel slot's
+	// underlying photo/type changes (e.g. swiping past an image and back to a
+	// video) — the browser still has the bytes cached, but a fresh element has
+	// to decode a frame again regardless. Tracking which URLs have already
+	// shown a frame once lets a revisit skip the spinner/fade entirely, since
+	// the decode is effectively instant from cache — without this, every
+	// revisit replayed the full "loading" animation for no real reason.
+	const readyVideoUrlsRef = useRef<Set<string>>(new Set());
 
 	const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 	const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
@@ -114,6 +156,13 @@ export function PhotoViewer({
 	const zoomOffsetRef = useRef(zoomOffset);
 	useEffect(() => { zoomScaleRef.current = zoomScale; }, [zoomScale]);
 	useEffect(() => { zoomOffsetRef.current = zoomOffset; }, [zoomOffset]);
+
+	// Desktop-only mouse equivalents of the touch pinch-zoom/pan above: wheel
+	// to zoom (centered on the cursor), click-and-drag to pan once zoomed.
+	const trackContainerRef = useRef<HTMLDivElement | null>(null);
+	const isMousePanningRef = useRef(false);
+	const mouseLastPosRef = useRef<{ x: number; y: number } | null>(null);
+	const hasPannedRef = useRef(false);
 
 	const prevIdx = N > 1 ? (centerIdx - 1 + N) % N : centerIdx;
 	const nextIdx = N > 1 ? (centerIdx + 1) % N : centerIdx;
@@ -134,8 +183,10 @@ export function PhotoViewer({
 	useEffect(() => {
 		setIsMenuOpen(false);
 		setIsVideoPlaying(false);
-		setIsVideoMuted(false);
+		setIsVideoMuted(true);
 		setShowCenterPlayButton(true);
+		setVideoCurrentTime(0);
+		setVideoDuration(0);
 	}, [centerIdx]);
 
 	// Auto-hide the big center play/pause button shortly after playback
@@ -220,6 +271,91 @@ export function PhotoViewer({
 			y: Math.min(maxY, Math.max(-maxY, offset.y)),
 		};
 	}, []);
+
+	// Mouse wheel zoom, centered on the cursor — desktop's equivalent of the
+	// touch pinch gesture. Attached as a native listener (not React's onWheel)
+	// because React registers wheel listeners as passive, which silently
+	// ignores preventDefault().
+	useEffect(() => {
+		if (!isOpen || !isDesktop) return;
+		const el = trackContainerRef.current;
+		if (!el) return;
+
+		const onWheel = (e: WheelEvent) => {
+			e.preventDefault();
+			const factor = Math.exp(-e.deltaY * 0.0015);
+			setZoomScale((prev) => {
+				const next = Math.min(Math.max(1, prev * factor), 4);
+				if (next === prev) return prev;
+				if (next <= 1) {
+					setZoomOffset({ x: 0, y: 0 });
+					return 1;
+				}
+				const cx = e.clientX - window.innerWidth / 2;
+				const cy = e.clientY - window.innerHeight / 2;
+				const ratio = next / prev;
+				setZoomOffset((prevOffset) =>
+					clampOffset(
+						{ x: prevOffset.x - cx * (ratio - 1), y: prevOffset.y - cy * (ratio - 1) },
+						next,
+					),
+				);
+				return next;
+			});
+		};
+
+		el.addEventListener("wheel", onWheel, { passive: false });
+		return () => el.removeEventListener("wheel", onWheel);
+		// hasAcknowledgedWarning: the sensitive-content gate renders a totally
+		// different tree (trackContainerRef never mounts there), so this needs
+		// to re-run once the real viewer mounts after the gate is dismissed.
+	}, [isOpen, isDesktop, clampOffset, hasAcknowledgedWarning]);
+
+	// Click-and-drag panning once zoomed in — mouse equivalent of the touch
+	// 1-finger pan. Listens on window (not the media element) so dragging
+	// past the media's edge doesn't drop the gesture.
+	const handleMediaMouseDown = useCallback((e: React.MouseEvent) => {
+		if (!isDesktop || zoomScaleRef.current <= 1) return;
+		e.preventDefault();
+		isMousePanningRef.current = true;
+		hasPannedRef.current = false;
+		mouseLastPosRef.current = { x: e.clientX, y: e.clientY };
+	}, [isDesktop]);
+
+	useEffect(() => {
+		if (!isDesktop) return;
+
+		const onMouseMove = (e: MouseEvent) => {
+			if (!isMousePanningRef.current || !mouseLastPosRef.current) return;
+			// The button can be released outside the window/webview (e.g.
+			// dragged off the app) without ever firing our window "mouseup"
+			// listener — without this check panning (and the click-swallowing
+			// it triggers, see hasPannedRef below) would get stuck on
+			// permanently, silently breaking every future click in the viewer,
+			// including tap-to-close on the black background.
+			if (e.buttons === 0) {
+				isMousePanningRef.current = false;
+				mouseLastPosRef.current = null;
+				return;
+			}
+			const dx = e.clientX - mouseLastPosRef.current.x;
+			const dy = e.clientY - mouseLastPosRef.current.y;
+			if (Math.abs(dx) > 2 || Math.abs(dy) > 2) hasPannedRef.current = true;
+			mouseLastPosRef.current = { x: e.clientX, y: e.clientY };
+			setZoomOffset((prev) => clampOffset({ x: prev.x + dx, y: prev.y + dy }, zoomScaleRef.current));
+		};
+		const onMouseUp = () => {
+			isMousePanningRef.current = false;
+			mouseLastPosRef.current = null;
+		};
+
+		window.addEventListener("mousemove", onMouseMove);
+		window.addEventListener("mouseup", onMouseUp);
+		return () => {
+			window.removeEventListener("mousemove", onMouseMove);
+			window.removeEventListener("mouseup", onMouseUp);
+		};
+	}, [isDesktop, clampOffset]);
 
 	const handleTouchStart = useCallback((e: React.TouchEvent) => {
 		gestureMovedRef.current = false;
@@ -423,6 +559,16 @@ export function PhotoViewer({
 		setIsVideoMuted((prev) => !prev);
 	};
 
+	const handleSeek = useCallback((clientX: number) => {
+		const el = mediaRef.current;
+		const bar = trackBarRef.current;
+		if (!el || !bar || !(el instanceof HTMLVideoElement) || !videoDuration) return;
+		const rect = bar.getBoundingClientRect();
+		const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+		el.currentTime = ratio * videoDuration;
+		setVideoCurrentTime(el.currentTime);
+	}, [videoDuration]);
+
 	if (!isOpen || N === 0) return null;
 
 	if (contentWarning && !hasAcknowledgedWarning) {
@@ -487,6 +633,16 @@ export function PhotoViewer({
 
 	return createPortal(
 		<div className="fixed inset-0 z-[80] bg-black" onClick={onClose}>
+			{isCurrentVideo && !(menuActions && menuActions.length > 0) && (
+				// Same darkening treatment as the album header's top gradient —
+				// the seek bar/mute button dropped their own chip backgrounds, so
+				// this is what keeps them legible over bright video content instead.
+				<div
+					className="pointer-events-none absolute inset-x-0 bottom-0 z-[82]"
+					style={{ height: "16rem", background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)" }}
+					aria-hidden="true"
+				/>
+			)}
 			{menuActions && menuActions.length > 0 ? (
 				<>
 					<div
@@ -638,11 +794,19 @@ export function PhotoViewer({
 			)}
 
 			{N > 1 && (
+				// Pushed further up whenever the video seek bar/mute row is also on
+				// screen — that row is full-width, so this pill (which otherwise sits
+				// right where it does) would sit right underneath/against it instead
+				// of clearing it.
 				<p
 					className={`absolute left-1/2 z-[83] -translate-x-1/2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md ${
-						footerContent
-							? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
-							: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+						isCurrentVideo
+							? footerContent
+								? "bottom-[calc(env(safe-area-inset-bottom,0px)+9.25rem)]"
+								: "bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
+							: footerContent
+								? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
+								: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
 					}`}
 				>
 					{centerIdx + 1} / {N}
@@ -654,29 +818,66 @@ export function PhotoViewer({
 					type="button"
 					onClick={(e) => { e.stopPropagation(); toggleVideoPlay(); }}
 					aria-label={isVideoPlaying ? t("profile_details.pause_video", { defaultValue: "Pause" }) : t("profile_details.play_video", { defaultValue: "Play" })}
-					className={`absolute left-1/2 top-1/2 z-[84] flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-white transition-opacity duration-300 active:scale-90 ${
+					className={`absolute left-1/2 top-1/2 z-[84] flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-opacity duration-300 active:scale-90 ${
 						showCenterPlayButton ? "opacity-100" : "pointer-events-none opacity-0"
 					}`}
-					style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.55))" }}
 				>
-					{isVideoPlaying ? <Pause className="h-9 w-9 fill-current" /> : <Play className="h-9 w-9 fill-current" />}
+					{isVideoPlaying ? <Pause className="h-7 w-7 fill-current" /> : <Play className="h-7 w-7 fill-current pl-0.5" />}
 				</button>
 			)}
 
 			{isCurrentVideo && (
+				// Seek bar + mute toggle share one control row (rather than the mute
+				// button floating alone bottom-right) — sits above the page-count
+				// pill (1.25rem/5.5rem above the safe area), clearing both it and the
+				// footer/reply bar underneath instead of overlapping.
 				<div
-					className={`absolute right-3 z-[84] flex items-center gap-2 sm:right-5 ${
+					className={`absolute inset-x-0 z-[84] flex items-center gap-3 px-6 sm:px-8 ${
 						footerContent
-							? "bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]"
-							: "bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)]"
+							? "bottom-[calc(env(safe-area-inset-bottom,0px)+6.75rem)]"
+							: "bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]"
 					}`}
 					onClick={(e) => e.stopPropagation()}
 				>
+					<div
+						ref={trackBarRef}
+						className="flex h-4 flex-1 cursor-pointer items-center touch-none"
+						onClick={(e) => handleSeek(e.clientX)}
+						onPointerDown={(e) => {
+							e.currentTarget.setPointerCapture(e.pointerId);
+							isScrubbingRef.current = true;
+							setIsScrubbing(true);
+							handleSeek(e.clientX);
+						}}
+						onPointerMove={(e) => {
+							if (isScrubbingRef.current) handleSeek(e.clientX);
+						}}
+						onPointerUp={() => {
+							isScrubbingRef.current = false;
+							setIsScrubbing(false);
+						}}
+					>
+						<div className={`w-full overflow-hidden rounded-full bg-white/35 transition-[height] ${isScrubbing ? "h-1.5" : "h-1"}`}>
+							<div
+								className="h-full rounded-full bg-[var(--accent)]"
+								style={{
+									// A min-width floor (rather than a literal 0-100%) keeps a
+									// small visible nub at the current position even at 0:00 —
+									// without it, the bar reads as empty/inert until you've
+									// already played or scrubbed some way into the video.
+									width: videoDuration
+										? `max(6px, ${Math.min(100, (videoCurrentTime / videoDuration) * 100)}%)`
+										: "0px",
+								}}
+							/>
+						</div>
+					</div>
 					<button
 						type="button"
 						onClick={toggleVideoMute}
 						aria-label={isVideoMuted ? t("profile_details.unmute_video", { defaultValue: "Unmute" }) : t("profile_details.mute_video", { defaultValue: "Mute" })}
-						className="inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90"
+						className="inline-flex shrink-0 items-center justify-center p-1 text-white transition active:scale-90"
+						style={{ filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.7))" }}
 					>
 						{isVideoMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
 					</button>
@@ -684,6 +885,7 @@ export function PhotoViewer({
 			)}
 
 			<div
+				ref={trackContainerRef}
 				className="h-full w-full overflow-hidden"
 				onClick={(e) => e.stopPropagation()}
 				onTouchStart={handleTouchStart}
@@ -707,6 +909,13 @@ export function PhotoViewer({
 						const { url, type, alt } = getMediaInfo(photo);
 						const isCurrent = slotIndex === activeSlot;
 
+						// Only hint at the drag-to-pan affordance once actually zoomed —
+						// a "zoom-in" cursor beforehand reads as "click to zoom", but
+						// zooming here is wheel/scroll-driven, not click-driven.
+						const desktopCursor = isDesktop && isCurrent && zoomScale > 1
+							? ("grab" as const)
+							: undefined;
+
 						const zoomStyle =
 							isCurrent && (zoomScale !== 1 || zoomOffset.x !== 0 || zoomOffset.y !== 0)
 								? {
@@ -717,39 +926,114 @@ export function PhotoViewer({
 
 						return (
 							<div
-								key={slotIndex}
-								className="flex h-full w-screen flex-shrink-0 items-center justify-center"
+								// Keyed by photoIndex (not slotIndex) so that when a swipe
+								// promotes the already-loaded "next"/"prev" preview into the
+								// center position, React moves that same DOM node instead of
+								// tearing it down and remounting a fresh one in its place —
+								// otherwise a video that had *just* finished decoding its
+								// preview frame would reload from scratch and flash black
+								// again the moment it becomes the active slide. Falls back to
+								// slotIndex for N<=2, where prevIdx and nextIdx are the same
+								// photo and would otherwise collide on one key.
+								key={N <= 2 ? slotIndex : photoIndex}
+								// overflow-hidden lives here so the clip boundary for a
+								// zoomed image/video is the full slide, not some smaller box.
+								className="flex h-full w-screen flex-shrink-0 items-center justify-center overflow-hidden"
 								onClick={onClose}
 							>
 								<div
-									className="relative flex h-full w-full items-center justify-center overflow-hidden"
+									className="relative w-full"
 									onClick={(e) => {
-										// This div now spans the full slide (including the
-										// letterboxed black area around non-full-height
-										// images/videos, so zoom isn't clipped to the media's
-										// own small box) — only swallow the click when the
-										// media itself was tapped, so tapping the black area
-										// still bubbles up to the outer onClose handler.
-										if (e.target !== e.currentTarget) {
+										// A desktop drag-to-pan ends with a click firing on
+										// mouseup (unlike touch, where a moved gesture doesn't
+										// produce one) — swallow that one click so it doesn't
+										// also close the viewer or toggle video playback.
+										if (hasPannedRef.current) {
+											hasPannedRef.current = false;
+											e.stopPropagation();
+											return;
+										}
+										// The <img>/<video> element's own box is *not* shrunk to
+										// the picture's aspect ratio — object-contain instead
+										// letterboxes the content *inside* that (often
+										// full-screen-sized) box, so the element itself covers
+										// the "black" letterboxed area too and is always what
+										// gets click-targeted there. Compute where the content
+										// is actually drawn and only treat it as a media click
+										// if the click landed inside that computed rect —
+										// otherwise let it bubble up to onClose.
+										const mediaEl = isCurrent ? mediaRef.current : null;
+										const rect = mediaEl ? getObjectContainRect(mediaEl) : null;
+										const clickedMedia = !!rect &&
+											e.clientX >= rect.left && e.clientX <= rect.right &&
+											e.clientY >= rect.top && e.clientY <= rect.bottom;
+										if (clickedMedia) {
 											e.stopPropagation();
 											if (isCurrent && type === "video") toggleVideoPlay();
 										}
 									}}
 								>
-									{type === "video" ? (
-										<video
-											ref={isCurrent ? (mediaRef as React.RefObject<HTMLVideoElement>) : undefined}
-											src={url}
-											autoPlay={isCurrent}
-											playsInline
-											muted={isCurrent ? isVideoMuted : true}
-											className="h-auto max-h-[100dvh] w-full object-contain"
-											style={zoomStyle}
-											onPlay={isCurrent ? () => setIsVideoPlaying(true) : undefined}
-											onPause={isCurrent ? () => setIsVideoPlaying(false) : undefined}
-											onEnded={isCurrent ? () => setIsVideoPlaying(false) : undefined}
-										/>
-									) : (
+									{type === "video" ? (() => {
+										const wasReady = readyVideoUrlsRef.current.has(url);
+										return (
+											<>
+												{/* Positioned elements always paint above static in-flow content
+												    (the video below isn't positioned, so its opacity fade alone
+												    never covers this) — explicitly hidden in onSeeked once the
+												    preview frame is ready, so it doesn't linger over playback.
+												    Opacity always starts at 0, even for a URL seen before this
+												    session — decode isn't guaranteed instant just because the
+												    bytes may be cache-warm, and revealing early risks exposing
+												    Android's native "buffering" chrome for however long it takes.
+												    A shorter transition is used for a revisit only to make the
+												    (normally-fast) reveal feel snappier, never to skip the wait. */}
+												<div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+													<Loader2 className="h-6 w-6 animate-spin text-white/60" />
+												</div>
+												<video
+													ref={isCurrent ? (mediaRef as React.RefObject<HTMLVideoElement>) : undefined}
+													src={url}
+													preload="metadata"
+													playsInline
+													muted={isCurrent ? isVideoMuted : true}
+													className={`h-auto max-h-[100dvh] w-full object-contain opacity-0 transition-opacity ${wasReady ? "duration-100" : "duration-300"}`}
+													style={{ ...zoomStyle, cursor: desktopCursor }}
+													onMouseDown={isCurrent ? handleMediaMouseDown : undefined}
+													onPlay={isCurrent ? () => setIsVideoPlaying(true) : undefined}
+													onPause={isCurrent ? () => setIsVideoPlaying(false) : undefined}
+													onEnded={isCurrent ? () => setIsVideoPlaying(false) : undefined}
+													onTimeUpdate={isCurrent ? (e) => {
+														if (!isScrubbingRef.current) setVideoCurrentTime(e.currentTarget.currentTime);
+													} : undefined}
+													onLoadedMetadata={(e) => {
+														if (isCurrent) setVideoDuration(e.currentTarget.duration);
+														// Seeking to a hair past 0 forces the browser to decode and
+														// display a real frame instead of playback not having started
+														// yet — this is the "preview" frame shown while paused.
+														e.currentTarget.currentTime = 0.001;
+													}}
+													onDurationChange={isCurrent ? (e) => setVideoDuration(e.currentTarget.duration) : undefined}
+													onLoadStart={(e) => {
+														// The DOM node for a given slot is reused as the carousel
+														// advances (only its `src` changes) — reset back to hidden
+														// so a spinner/opacity left over from the previous video
+														// doesn't leak into this one's load.
+														const el = e.currentTarget;
+														el.style.opacity = "0";
+														const spinner = el.parentElement?.querySelector<HTMLElement>(".js-video-spinner");
+														if (spinner) spinner.style.display = "";
+													}}
+													onSeeked={(e) => {
+														const el = e.currentTarget;
+														el.style.opacity = "1";
+														readyVideoUrlsRef.current.add(url);
+														const spinner = el.parentElement?.querySelector<HTMLElement>(".js-video-spinner");
+														if (spinner) spinner.style.display = "none";
+													}}
+												/>
+											</>
+										);
+									})() : (
 										<img
 											ref={isCurrent ? (mediaRef as React.RefObject<HTMLImageElement>) : undefined}
 											src={url}
@@ -757,7 +1041,8 @@ export function PhotoViewer({
 											loading="eager"
 											draggable={false}
 											className="h-auto max-h-[100dvh] w-full select-none object-contain"
-											style={zoomStyle}
+											style={{ ...zoomStyle, cursor: desktopCursor }}
+											onMouseDown={isCurrent ? handleMediaMouseDown : undefined}
 										/>
 									)}
 								</div>
