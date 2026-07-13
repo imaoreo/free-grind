@@ -101,7 +101,7 @@ import {
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
-import { fetchAndStoreMedia, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
+import { fetchAndStoreMedia, getDrawerMediaKey, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
 import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
 import { saveAllAlbumMedia } from "../../utils/albumMedia";
 import { formatDistance } from "./gridpage/utils";
@@ -5579,6 +5579,23 @@ export function ChatPage() {
 					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
 					.sort((a, b) => b.sendCount - a.sendCount),
 			);
+			// Cache each thumbnail/video locally by its stable media id, so
+			// re-opening the drawer renders instantly instead of re-hitting the
+			// (sometimes slow) server for every item again.
+			for (const item of media) {
+				void fetchAndStoreMedia({
+					mediaKey: getDrawerMediaKey(item.id),
+					kind: item.contentType?.startsWith("video/") ? "video" : "image",
+					url: item.url,
+					conversationId: null,
+					messageId: null,
+					viewOnce: false,
+				});
+			}
+			// The server no longer serving an item (deleted from the drawer,
+			// e.g. from another device) means it shouldn't linger in the local
+			// cache either.
+			void chatDb.deleteStaleDrawerMediaFiles(media.map((item) => getDrawerMediaKey(item.id)));
 		} catch (error) {
 			const message = error instanceof Error ? error.message : t("chat.errors.load_drawer_media");
 			setDrawerError(message);
@@ -5770,6 +5787,7 @@ export function ChatPage() {
 			try {
 				await service.deleteDrawerMedia(mediaId);
 				setDrawerMedia((previous) => previous.filter((item) => item.id !== mediaId));
+				void chatDb.deleteMediaFile(getDrawerMediaKey(mediaId));
 			} catch (error) {
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.delete_failed"),
