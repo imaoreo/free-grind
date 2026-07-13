@@ -90,6 +90,7 @@ import { FreeGrindBadge } from "../../../components/FreeGrindBadge";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { PromptDialog } from "../../../components/ui/prompt-dialog";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { getShowReadReceiptToggle, isReadReceiptsHidden, toggleReadReceiptsHidden } from "../../../utils/privacy";
 import { ToggleRow } from "../../../components/ui/toggle-row";
@@ -282,6 +283,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [webRtcSupported] = useState(() => isWebRtcSupported());
 	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
+	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
+	const [banNamePrompt, setBanNamePrompt] = useState<{ text: string } | null>(null);
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
 	const [phrasesExpanded, setPhrasesExpanded] = useState(false);
 	const [isGiphyPickerOpen, setIsGiphyPickerOpen] = useState(false);
@@ -991,10 +994,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				);
 				const isOnline = onlineMeta.isOnline;
 				const distanceLabel = distanceMetres ? formatDistance(distanceMetres, t, unitsPreset) : null;
+				const actualProfileName = selectedConversation ? selectedConversation.data.name : targetProfileDetail?.displayName;
 				const displayName =
 					localNickname ||
-					(selectedConversation ? selectedConversation.data.name : targetProfileDetail?.displayName) ||
-					t(selectedConversation ? "chat.conversation" : "chat.notifications.someone");
+					actualProfileName ||
+					t("common.unknown_display_name");
 
 				// Blocking a chat with a live conversation archives it — that's why
 				// the existing-conversation case keys off isArchived. There's no
@@ -1470,7 +1474,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											)}
 											</div>
 											{/* — Keyword banning — */}
-											{!isArchived && (
+											{!isArchived && actualProfileName && (
 												<>
 													<div className="h-px shrink-0 bg-[var(--border)]" />
 													<div className="flex shrink-0 flex-col gap-1 px-2">
@@ -1478,14 +1482,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														type="button"
 														onClick={() => {
 															setIsHeaderActionsMenuOpen(false);
-															const currentList = getForbiddenWords();
-															const newList = currentList ? `${currentList}, ${displayName}` : displayName;
-															void setForbiddenWords(newList);
-															toast.success(`Added "${displayName}" to Forbidden Keywords!`);
+															setBanNamePrompt({ text: actualProfileName });
 														}}
-														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
+														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
 													>
-														<Ban className="mr-2 h-4 w-4 opacity-50" />
+														<Ban className="mr-2 h-4 w-4 opacity-70" />
 														<span className="flex flex-col">
 															<span>Add forbidden Keyword</span>
 															<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
@@ -1576,6 +1577,52 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							dontAskAgainLabel={t("profile_details.dont_ask_again")}
 							dontAskAgainChecked={dontAskDeleteConversationAgain}
 							onDontAskAgainChange={setDontAskDeleteConversationAgain}
+						/>
+						<PromptDialog
+							isOpen={banWordPrompt !== null}
+							title={t("chat.actions.ban_word", { defaultValue: "Add forbidden keyword" })}
+							message={t("chat.actions.ban_word_prompt", {
+								defaultValue: "Trim this message down to the specific keyword you want to ban:",
+							})}
+							defaultValue={banWordPrompt?.text ?? ""}
+							confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={(wordToBan) => {
+								const currentList = getForbiddenWords();
+								const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+								void setForbiddenWords(newList);
+								toast.success(
+									t("chat.actions.ban_word_added", {
+										defaultValue: "Added \"{{word}}\" to forbidden keywords!",
+										word: wordToBan,
+									}),
+								);
+								setBanWordPrompt(null);
+							}}
+							onCancel={() => setBanWordPrompt(null)}
+						/>
+						<PromptDialog
+							isOpen={banNamePrompt !== null}
+							title={t("chat.actions.ban_word", { defaultValue: "Add forbidden keyword" })}
+							message={t("chat.actions.ban_name_prompt", {
+								defaultValue: "Trim this down to the exact name or phrase you want to ban:",
+							})}
+							defaultValue={banNamePrompt?.text ?? ""}
+							confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={(wordToBan) => {
+								const currentList = getForbiddenWords();
+								const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+								void setForbiddenWords(newList);
+								toast.success(
+									t("chat.actions.ban_word_added", {
+										defaultValue: "Added \"{{word}}\" to forbidden keywords!",
+										word: wordToBan,
+									}),
+								);
+								setBanNamePrompt(null);
+							}}
+							onCancel={() => setBanNamePrompt(null)}
 						/>
 					</>
 				);
@@ -2446,7 +2493,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							onClose={() => setOpenMessageActionId(null)}
 							bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
 						>
-							<div className="flex items-center justify-between px-4 pb-2">
+							<div className="flex items-center justify-between px-4 pb-3">
 								<p className="text-sm font-semibold text-[var(--text)]">
 									{t("chat.actions.title")}
 								</p>
@@ -2454,7 +2501,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<X className="h-4 w-4" />
 								</SheetClose>
 							</div>
-							<div className="border-t border-[var(--border)]" />
 							<div className="divide-y divide-[var(--border)] pb-1">
 								{(() => {
 									const message = selectedActionMessage;
@@ -2553,25 +2599,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										rows.push({
 											key: "ban-word",
 											icon: <Ban className="h-3.5 w-3.5" />,
-											label: t("chat.actions.ban_word", { defaultValue: "Ban word" }),
+											label: t("chat.actions.ban_word", { defaultValue: "Add forbidden keyword" }),
 											onClick: () => {
-												const wordToBan = window.prompt(
-													t("chat.actions.ban_word_prompt", {
-														defaultValue: "Trim this message down to the specific keyword you want to ban:",
-													}),
-													body?.text || "",
-												);
-												if (wordToBan && wordToBan.trim()) {
-													const currentList = getForbiddenWords();
-													const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-													void setForbiddenWords(newList);
-													toast.success(
-														t("chat.actions.ban_word_added", {
-															defaultValue: "Added \"{{word}}\" to forbidden keywords!",
-															word: wordToBan.trim(),
-														}),
-													);
-												}
+												setBanWordPrompt({ text: body?.text || "" });
 											},
 										});
 									}
@@ -2610,7 +2640,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											key={row.key}
 											disabled={row.disabled}
 											onClick={row.onClick}
-											className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium transition disabled:opacity-50 ${
+											className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium transition active:bg-[var(--surface-2)] disabled:opacity-50 ${
 												row.danger ? "text-red-400" : "text-[var(--text)]"
 											}`}
 										>

@@ -959,8 +959,6 @@
         "your_conversations": "Your conversations",
         "pinned": "Pinned",
         "muted": "Muted",
-        "conversation": "Conversation",
-        "unknown": "Unknown",
         "you": "You",
         "typing": "typing…",
         "read": "read",
@@ -1082,7 +1080,6 @@
             "generic": "Video call"
         },
         "notifications": {
-            "someone": "Someone",
             "tapped_you": "Tapped you",
             "tapped_you_back": "Tapped you back"
         },
@@ -1126,8 +1123,10 @@
             "download_media": "Download Media",
             "download": "Download",
             "stop_sharing": "Stop Sharing",
-            "ban_word": "Ban word",
+            "ban_word": "Add forbidden keyword",
             "ban_word_prompt": "Trim this message down to the specific keyword you want to ban:",
+            "ban_name_prompt": "Trim this down to the exact name or phrase you want to ban:",
+            "ban_word_confirm": "Add",
             "ban_word_added": "Added \"{{word}}\" to forbidden keywords!"
         },
         "system": {
@@ -1323,6 +1322,9 @@
     },
     "profile_details": {
         "title": "Profile details",
+        "ban_bio_title": "Add forbidden keyword",
+        "ban_bio_prompt": "Trim this bio down to the exact phrase you want to ban:",
+        "ban_bio_added": "Added \"{{word}}\" to forbidden keywords!",
         "profile_fallback": "Profile {{id}}",
         "last_online": "Last online {{value}}",
         "close_photo_viewer": "Close photo viewer",
@@ -1664,7 +1666,8 @@
     "common": {
         "cancel": "Cancel",
         "save": "Save",
-        "edit": "Edit"
+        "edit": "Edit",
+        "unknown_display_name": "Someone"
     },
     "grid": {
         "open_profile_by_id": "Open Profile by ID"

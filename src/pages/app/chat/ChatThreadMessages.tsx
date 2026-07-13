@@ -1,6 +1,7 @@
 import { Album, Ban, Copy, Download, Eye, History, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
+import { PromptDialog } from "../../../components/ui/prompt-dialog";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import React, { Fragment, useEffect, useState, useMemo, useCallback, useRef, useLayoutEffect } from "react";
@@ -318,6 +319,7 @@ export function ChatThreadMessages({
 	);
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
 	const [contextMenuState, setContextMenuState] = useState<{ messageId: string; x: number; y: number } | null>(null);
+	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
 
 	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
 	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
@@ -723,26 +725,10 @@ export function ChatThreadMessages({
 		if (!mine && hasText) {
 			actions.push({
 				key: "ban-word",
-				label: t("chat.actions.ban_word", { defaultValue: "Ban word" }),
+				label: t("chat.actions.ban_word", { defaultValue: "Add forbidden keyword" }),
 				icon: <Ban className="h-4 w-4" />,
 				onClick: () => {
-					const wordToBan = window.prompt(
-						t("chat.actions.ban_word_prompt", {
-							defaultValue: "Trim this message down to the specific keyword you want to ban:",
-						}),
-						hasText ? body.text : "",
-					);
-					if (wordToBan && wordToBan.trim()) {
-						const currentList = getForbiddenWords();
-						const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-						void setForbiddenWords(newList);
-						toast.success(
-							t("chat.actions.ban_word_added", {
-								defaultValue: "Added \"{{word}}\" to forbidden keywords!",
-								word: wordToBan.trim(),
-							}),
-						);
-					}
+					setBanWordPrompt({ text: hasText ? body.text : "" });
 				},
 			});
 		}
@@ -1188,7 +1174,7 @@ export function ChatThreadMessages({
                         );
                     const senderLabel = mine
                         ? t("chat.you")
-                        : selectedConversation.data.name?.trim() || t("chat.unknown");
+                        : selectedConversation.data.name?.trim() || t("common.unknown_display_name");
                     const isActiveSearchMatch =
                         selectedThreadMessageMatches[activeThreadSearchIndex]
                             ?.messageId === message.messageId;
@@ -2076,6 +2062,29 @@ export function ChatThreadMessages({
 					onClose={() => setContextMenuState(null)}
 				/>
 			) : null}
+			<PromptDialog
+				isOpen={banWordPrompt !== null}
+				title={t("chat.actions.ban_word", { defaultValue: "Add forbidden keyword" })}
+				message={t("chat.actions.ban_word_prompt", {
+					defaultValue: "Trim this message down to the specific keyword you want to ban:",
+				})}
+				defaultValue={banWordPrompt?.text ?? ""}
+				confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={(wordToBan) => {
+					const currentList = getForbiddenWords();
+					const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+					void setForbiddenWords(newList);
+					toast.success(
+						t("chat.actions.ban_word_added", {
+							defaultValue: "Added \"{{word}}\" to forbidden keywords!",
+							word: wordToBan,
+						}),
+					);
+					setBanWordPrompt(null);
+				}}
+				onCancel={() => setBanWordPrompt(null)}
+			/>
 		</div>
 	);
 }

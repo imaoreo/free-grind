@@ -479,7 +479,7 @@ export function VideoCallManager() {
 				channelId: detail.channelId,
 				token: null,
 				otherProfileId: detail.senderId,
-				displayName: tRef.current("chat.notifications.someone"),
+				displayName: tRef.current("common.unknown_display_name"),
 				imageHash: null,
 				maxSeconds: 60,
 			});
