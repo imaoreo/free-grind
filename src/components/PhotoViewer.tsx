@@ -724,8 +724,16 @@ export function PhotoViewer({
 								<div
 									className="relative flex h-full w-full items-center justify-center overflow-hidden"
 									onClick={(e) => {
-										e.stopPropagation();
-										if (isCurrent && type === "video") toggleVideoPlay();
+										// This div now spans the full slide (including the
+										// letterboxed black area around non-full-height
+										// images/videos, so zoom isn't clipped to the media's
+										// own small box) — only swallow the click when the
+										// media itself was tapped, so tapping the black area
+										// still bubbles up to the outer onClose handler.
+										if (e.target !== e.currentTarget) {
+											e.stopPropagation();
+											if (isCurrent && type === "video") toggleVideoPlay();
+										}
 									}}
 								>
 									{type === "video" ? (
@@ -758,22 +766,6 @@ export function PhotoViewer({
 					})}
 				</div>
 
-				{N > 1 && !isDesktop && (
-					<>
-						<button
-							type="button"
-							onClick={(e) => { e.stopPropagation(); showPrev(); }}
-							className="absolute inset-y-0 left-0 z-[81] w-1/3"
-							aria-label={t("profile_details.previous_photo")}
-						/>
-						<button
-							type="button"
-							onClick={(e) => { e.stopPropagation(); showNext(); }}
-							className="absolute inset-y-0 right-0 z-[81] w-1/3"
-							aria-label={t("profile_details.next_photo")}
-						/>
-					</>
-				)}
 			</div>
 
 			{renderExtraInfo && (
