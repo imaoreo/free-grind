@@ -722,7 +722,7 @@ export function PhotoViewer({
 								onClick={onClose}
 							>
 								<div
-									className="relative w-full overflow-hidden"
+									className="relative flex h-full w-full items-center justify-center overflow-hidden"
 									onClick={(e) => {
 										e.stopPropagation();
 										if (isCurrent && type === "video") toggleVideoPlay();
