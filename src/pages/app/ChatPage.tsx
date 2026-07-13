@@ -2411,7 +2411,14 @@ export function ChatPage() {
 				}
 
 				const firstMessage = response.messages[0];
-				if (firstMessage) {
+				// A response shorter than the requested limit means the server has
+				// exhausted its history before this cursor — even if it returned some
+				// messages, there's nothing further back to page to server-side.
+				// Only a full page leaves that genuinely open, so only that case
+				// keeps pointing at the server; anything shorter falls through to the
+				// same chatDb-only pagination as a literally empty response, instead
+				// of always showing a "load older" affordance that has nothing to do.
+				if (firstMessage && response.messages.length >= MESSAGE_PAGE_LIMIT) {
 					setMessagePageKey(firstMessage.messageId);
 					messagePageKeyRef.current = firstMessage.messageId;
 				} else {
