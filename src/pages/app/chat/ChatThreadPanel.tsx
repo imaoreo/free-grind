@@ -982,7 +982,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					: targetProfileId;
 				const avatarHash = selectedConversation
 					? otherParticipant?.primaryMediaHash
-					: targetProfileDetail?.profileImageMediaHash;
+					: (targetProfileDetail?.medias?.[0]?.mediaHash ?? targetProfileDetail?.profileImageMediaHash);
 				const distanceMetres = selectedConversation
 					? otherParticipant?.distanceMetres
 					: targetProfileDetail?.distance;
