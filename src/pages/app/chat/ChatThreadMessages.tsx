@@ -71,6 +71,8 @@ type ChatThreadMessagesProps = {
 	messageLongPressTriggeredRef: { current: boolean };
 	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => void | Promise<void>;
+	onJumpToMessage: (messageId: string) => void;
+	highlightedMessageId: string | null;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
 	openMessageActionId: string | null;
@@ -294,6 +296,8 @@ export function ChatThreadMessages({
 	messageLongPressTriggeredRef,
 	openFullScreenImage,
 	openAlbumViewerById,
+	onJumpToMessage,
+	highlightedMessageId,
 	selectedThreadMessageMatches,
 	activeThreadSearchIndex,
 	isMutatingMessageId,
@@ -1101,11 +1105,13 @@ export function ChatThreadMessages({
                     const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
                             ? mine // Prüft, ob die AKTUELL gerenderte Nachricht von uns ist
-                                ? t("chat.thread.replied_to_myself") 
+                                ? t("chat.thread.replied_to_myself")
                                 : t("chat.thread.replied_to_you", { defaultValue: "Replied to you" })
-                            : t("chat.thread.replied_to_name", {
-                                    name: selectedConversation?.data.name || t("common.unknown_display_name"),
-                                })
+                            : replySenderId != null && Number(replySenderId) === Number(message.senderId)
+                                ? t("chat.thread.replied_to_myself")
+                                : t("chat.thread.replied_to_name", {
+                                        name: selectedConversation?.data.name || t("common.unknown_display_name"),
+                                    })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
                     let displayText = messageText;
@@ -1323,7 +1329,7 @@ export function ChatThreadMessages({
                                                         ? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
                                                         : "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
                                                 }`
-                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
+                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${highlightedMessageId === message.messageId ? (mine ? "animate-jump-highlight-mine" : "animate-jump-highlight-other") : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
                                 >
                                     <div className={isMediaOnlyBubble && hasReply ? `overflow-hidden rounded-2xl ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}` : "contents"}>
                                     {message.type !== "ProfilePhotoReply" && (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply) ? (
@@ -1331,7 +1337,13 @@ export function ChatThreadMessages({
                                             ? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
                                             : "contents"
                                         }>
-                                        <div className={`relative flex overflow-hidden text-xs ${
+                                        <div
+                                            onClick={(event) => {
+                                                if (!replyToMsgId) return;
+                                                event.stopPropagation();
+                                                onJumpToMessage(replyToMsgId);
+                                            }}
+                                            className={`relative flex overflow-hidden text-xs ${replyToMsgId ? "cursor-pointer active:opacity-70" : ""} ${
                                             isMediaOnlyBubble && hasReply
                                                 ? `rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
                                                 : isMediaOnlyBubble

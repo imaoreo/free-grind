@@ -178,6 +178,8 @@ type ChatThreadPanelProps = {
 	messageLongPressTriggeredRef: { current: boolean };
 	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean) => void | Promise<void>;
+	onJumpToMessage: (messageId: string) => void;
+	highlightedMessageId: string | null;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
 	openMessageActionId: string | null;
@@ -506,6 +508,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		messageLongPressTriggeredRef,
 		openFullScreenImage,
 		openAlbumViewerById,
+		onJumpToMessage,
+		highlightedMessageId,
 		selectedThreadMessageMatches,
 		activeThreadSearchIndex,
 		openMessageActionId,
@@ -1638,6 +1642,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						messageLongPressTriggeredRef={messageLongPressTriggeredRef}
 						openFullScreenImage={openFullScreenImage}
 						openAlbumViewerById={openAlbumViewerById}
+						onJumpToMessage={onJumpToMessage}
+						highlightedMessageId={highlightedMessageId}
 						selectedThreadMessageMatches={selectedThreadMessageMatches}
 						activeThreadSearchIndex={activeThreadSearchIndex}
 						openMessageActionId={openMessageActionId}
