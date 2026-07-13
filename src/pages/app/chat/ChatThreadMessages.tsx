@@ -1100,8 +1100,10 @@ export function ChatThreadMessages({
                                                     : t("chat.thread.shared_image");
                     const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
-                            ? mine ? "Reply to myself" : "Reply to you"
-                            : `Reply to "${selectedConversation.data.name || ""}"`
+                            ? t("chat.thread.replied_to_myself")
+                            : t("chat.thread.replied_to_name", {
+                                    name: selectedConversation.data.name || t("common.unknown_display_name"),
+                                })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
                     let displayText = messageText;
@@ -1893,8 +1895,12 @@ export function ChatThreadMessages({
                                             <div className={`relative mb-2.5 mt-1 flex overflow-hidden rounded-[6px] text-xs ${mine ? "bg-black/20" : "bg-black/[0.08]"}`}>
                                                 <div className={`absolute left-0 top-0 h-full w-[3px] shrink-0 ${mine ? "bg-white/60" : "bg-[var(--accent)]/50"}`} />
                                                 <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
-                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{mine ? t("chat.thread.replied_to_photo_theirs") : t("chat.thread.replied_to_photo")}</p>
-                                                    <p className="opacity-60">{t("chat.thread.shared_image")}</p>
+                                                    <p className="mb-0.5 font-semibold opacity-60 truncate">{mine
+                                                        ? t("chat.thread.replied_to_name", {
+                                                                name: selectedConversation.data.name || t("common.unknown_display_name"),
+                                                            })
+                                                        : t("chat.thread.replied_to_myself")}</p>
+                                                    <p className="opacity-60">{t("chat.thread.profile_photo")}</p>
                                                 </div>
                                                 {photoUrl && (
                                                     <div className="relative w-14 shrink-0 self-stretch overflow-hidden">
