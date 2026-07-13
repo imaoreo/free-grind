@@ -98,7 +98,7 @@ export function ChatSearchPanel({ isDesktop, searchQuery, onClose, onOpenConvers
 			const otherParticipant = entry ? getOtherParticipant(entry, userId) : null;
 			const hash = otherParticipant?.primaryMediaHash;
 			return {
-				name: entry?.data.name || t("chat.unknown"),
+				name: entry?.data.name || t("common.unknown_display_name"),
 				avatarSrc: hash ? resolveAvatarSrc(hash, getParticipantAvatarUrl(hash)) : null,
 			};
 		},

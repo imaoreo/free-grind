@@ -387,7 +387,7 @@ function ChatConversationRow({
 	const otherParticipant = getOtherParticipant(conversation, userId);
 	const otherProfileId = otherParticipant?.profileId ? String(otherParticipant.profileId) : null;
 	const localNickname = otherProfileId ? localNicknamesByProfileId[otherProfileId] : null;
-	const displayName = localNickname || conversation.data.name || t("chat.unknown");
+	const displayName = localNickname || conversation.data.name || t("common.unknown_display_name");
 	const otherParticipantOnlineMeta = getParticipantOnlineMeta(
 		otherParticipant?.lastOnline,
 		otherParticipant?.onlineUntil,

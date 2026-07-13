@@ -33,6 +33,7 @@ import {
 import { getProfileImageUrl } from "../../../../utils/media";
 import { getForbiddenWords, setForbiddenWords } from "../../../../utils/autoblock";
 import { ProfileImage } from "../../../../components/ui/profile-image";
+import { PromptDialog } from "../../../../components/ui/prompt-dialog";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
@@ -126,23 +127,40 @@ function normalizeMediaCreatedAt(value: unknown): number | null {
 
 function ProfileDetailsSkeleton() {
 	return (
-		<div className="animate-pulse space-y-5" aria-hidden="true">
-			<div className="flex items-center gap-3">
-				<div className="h-14 w-14 shrink-0 rounded-full bg-[var(--surface-2)]" />
-				<div className="flex-1 space-y-2">
-					<div className="h-4 w-1/3 rounded-full bg-[var(--surface-2)]" />
-					<div className="h-3 w-1/4 rounded-full bg-[var(--surface-2)]" />
+		<div className="animate-pulse space-y-8 px-3" aria-hidden="true">
+			<div>
+				<div className="h-7 w-2/5 rounded-full bg-[var(--surface-2)]" />
+				<div className="mt-2.5 flex flex-wrap items-center gap-3">
+					<div className="h-3 w-20 rounded-full bg-[var(--surface-2)]" />
+					<div className="h-3 w-16 rounded-full bg-[var(--surface-2)]" />
+				</div>
+				<div className="mt-2 flex flex-wrap items-center gap-3">
+					<div className="h-3 w-12 rounded-full bg-[var(--surface-2)]" />
+					<div className="h-3 w-12 rounded-full bg-[var(--surface-2)]" />
+					<div className="h-3 w-12 rounded-full bg-[var(--surface-2)]" />
 				</div>
 			</div>
-			<div className="space-y-2">
-				<div className="h-3 w-full rounded-full bg-[var(--surface-2)]" />
-				<div className="h-3 w-5/6 rounded-full bg-[var(--surface-2)]" />
-				<div className="h-3 w-2/3 rounded-full bg-[var(--surface-2)]" />
-			</div>
+
 			<div className="flex flex-wrap gap-2">
 				<div className="h-6 w-16 rounded-full bg-[var(--surface-2)]" />
 				<div className="h-6 w-20 rounded-full bg-[var(--surface-2)]" />
 				<div className="h-6 w-14 rounded-full bg-[var(--surface-2)]" />
+				<div className="h-6 w-24 rounded-full bg-[var(--surface-2)]" />
+			</div>
+
+			<div className="space-y-2.5">
+				<div className="h-3 w-full rounded-full bg-[var(--surface-2)]" />
+				<div className="h-3 w-5/6 rounded-full bg-[var(--surface-2)]" />
+				<div className="h-3 w-2/3 rounded-full bg-[var(--surface-2)]" />
+			</div>
+
+			<div className="space-y-3">
+				{Array.from({ length: 4 }).map((_, i) => (
+					<div key={i} className="flex items-center gap-2.5">
+						<div className="h-4 w-4 shrink-0 rounded bg-[var(--surface-2)]" />
+						<div className="h-3 w-1/3 rounded-full bg-[var(--surface-2)]" />
+					</div>
+				))}
 			</div>
 		</div>
 	);
@@ -386,6 +404,8 @@ export function ProfileDetailsModal({
 	const inlineScrolled = headerOpacity > 0.5;
 	const [carouselDragDelta, setCarouselDragDelta] = useState(0);
 	const [isActionsMenuOpen, setIsActionsMenuOpen] = useState(false);
+	const [banBioPrompt, setBanBioPrompt] = useState<{ text: string } | null>(null);
+	const [banNamePrompt, setBanNamePrompt] = useState<{ text: string } | null>(null);
 	const [quickMessageDraft, setQuickMessageDraft] = useState("");
 	const [barTapPickerOpen, setBarTapPickerOpen] = useState(false);
 	const [barInputVisible, setBarInputVisible] = useState(true);
@@ -471,17 +491,21 @@ export function ProfileDetailsModal({
 		}
 	};
 
+	const hasBio = Boolean(activeProfile?.aboutMe?.trim());
+
 	const handleBanBioPhrase = () => {
 		setIsActionsMenuOpen(false);
 		const bio = activeProfile?.aboutMe || "";
-		if (!bio.trim()) { toast.error("This user has no bio!"); return; }
-		const wordToBan = window.prompt("Trim this bio down to the exact phrase you want to ban:", bio);
-		if (wordToBan && wordToBan.trim()) {
-			const currentList = getForbiddenWords();
-			const newList = currentList ? `${currentList}, ${wordToBan.trim()}` : wordToBan.trim();
-			void setForbiddenWords(newList);
-			toast.success(`Added "${wordToBan.trim()}" to Forbidden Keywords!`);
-		}
+		if (!bio.trim()) { return; }
+		setBanBioPrompt({ text: bio });
+	};
+
+	const actualProfileName = activeProfile?.displayName?.trim() || "";
+
+	const handleBanProfileName = () => {
+		setIsActionsMenuOpen(false);
+		if (!actualProfileName) { return; }
+		setBanNamePrompt({ text: actualProfileName });
 	};
 
 	const notesSectionJsx = isFavorite && !isOwnProfile ? (
@@ -1010,6 +1034,11 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			initialIndex={selectedPhotoIndex}
 			renderExtraInfo={renderPhotoExtraInfo}
 			renderFooter={renderPhotoFooter}
+			// Own profile pictures aren't worth their own subfolder — there's
+			// only ever one "me" to organize by. Someone else's photos get
+			// filed under their profile id so saved pictures land sorted by
+			// person instead of all dumped in one flat folder.
+			conversationId={!isOwnProfile && messageProfileId != null ? String(messageProfileId) : null}
 		/>
 	);
 
@@ -1253,7 +1282,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						<img
 							src={albumStatus.coverUrl ?? undefined}
 							alt=""
-							className="h-full w-full object-cover blur-[2px] brightness-[0.55]"
+							className="h-full w-full scale-110 object-cover blur-[2px] brightness-[0.55]"
 						/>
 					) : (
 						<>
@@ -1277,7 +1306,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 								</span>
 							</div>
 						) : (
-							<div className="h-20 w-20 overflow-hidden rounded-full ring-4 ring-white/80 shadow-xl">
+							<div className="h-20 w-20 overflow-hidden rounded-full ring-2 ring-white/80 shadow-xl">
 								<ProfileImage
 									src={primaryPhotoHash ? getProfileImageUrl(primaryPhotoHash, "320x320") : null}
 									alt=""
@@ -1364,7 +1393,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									disabled={isTogglingFavorite}
 									className={`inline-flex shrink-0 items-center justify-center rounded-xl border p-2 transition-colors disabled:opacity-60 ${
 										isFavorite
-											? inlineScrolled ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]" : "border-white/70 bg-white/15 text-white backdrop-blur-md"
+											? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
 											: inlineScrolled ? "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)]" : "border-white/45 bg-transparent text-white shadow-[0_10px_28px_-18px_rgba(0,0,0,0.95)] backdrop-blur-md"
 									}`}
 									aria-label={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
@@ -1398,7 +1427,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									<EllipsisVertical className="h-4 w-4" />
 								</button>
 								{isActionsMenuOpen && (
-									<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+									<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+										<div className="flex flex-col gap-1 px-2">
 										<button
 											type="button"
 											disabled={isTriangleDisabled}
@@ -1408,17 +1438,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											<Triangle className="mr-2 h-4 w-4 opacity-70" />
 											{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 										</button>
-										<button
-											type="button"
-											onClick={handleBanBioPhrase}
-											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-										>
-											<Ban className="mr-2 h-4 w-4 opacity-50" />
-											<span className="flex flex-col">
-												<span>Add forbidden Keyword</span>
-												<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
-											</span>
-										</button>
+										</div>
+										{(hasBio || actualProfileName) && <div className="h-px shrink-0 bg-[var(--border)]" />}
+										{(hasBio || actualProfileName) && (
+										<div className="flex flex-col gap-1 px-2">
+										{hasBio && (
+											<button
+												type="button"
+												onClick={handleBanBioPhrase}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												<span className="flex flex-col">
+													<span>Add forbidden Keyword</span>
+													<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+												</span>
+											</button>
+										)}
+										{actualProfileName && (
+											<button
+												type="button"
+												onClick={handleBanProfileName}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+											>
+												<Ban className="mr-2 h-4 w-4 opacity-70" />
+												<span className="flex flex-col">
+													<span>Add forbidden Keyword</span>
+													<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
+												</span>
+											</button>
+										)}
+										</div>
+										)}
 									</div>
 								)}
 							</div>
@@ -1451,13 +1502,13 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						)}
 						<div
 							className="pointer-events-none absolute inset-x-0 top-0 z-10"
-							style={{ height: "6rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)" }}
+							style={{ height: "12rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)" }}
 							aria-hidden="true"
 						/>
 						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
-								className="absolute inset-0"
+								className="absolute inset-0 overflow-hidden"
 								style={{
 									transform: `translateY(calc(${(index - mobileCarouselPhotoIndex) * 100}% + ${carouselDragDelta}px))`,
 									transition: carouselDragDelta !== 0 ? "none" : "transform 300ms ease-out",
@@ -1705,6 +1756,40 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 				{photoViewerOverlay}
 				{albumOpeningOverlay}
 				{albumViewerOverlay}
+				<PromptDialog
+					isOpen={banBioPrompt !== null}
+					title={t("profile_details.ban_bio_title")}
+					message={t("profile_details.ban_bio_prompt")}
+					defaultValue={banBioPrompt?.text ?? ""}
+					confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+					cancelLabel={t("chat.actions.cancel")}
+					onConfirm={(wordToBan) => {
+						const currentList = getForbiddenWords();
+						const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+						void setForbiddenWords(newList);
+						toast.success(t("profile_details.ban_bio_added", { word: wordToBan }));
+						setBanBioPrompt(null);
+					}}
+					onCancel={() => setBanBioPrompt(null)}
+				/>
+				<PromptDialog
+					isOpen={banNamePrompt !== null}
+					title={t("profile_details.ban_bio_title")}
+					message={t("chat.actions.ban_name_prompt", {
+						defaultValue: "Trim this down to the exact name or phrase you want to ban:",
+					})}
+					defaultValue={banNamePrompt?.text ?? ""}
+					confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+					cancelLabel={t("chat.actions.cancel")}
+					onConfirm={(wordToBan) => {
+						const currentList = getForbiddenWords();
+						const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+						void setForbiddenWords(newList);
+						toast.success(t("profile_details.ban_bio_added", { word: wordToBan }));
+						setBanNamePrompt(null);
+					}}
+					onCancel={() => setBanNamePrompt(null)}
+				/>
 				{barTapFlyEmoji && (
 					<>
 						{barTapFlyEmoji.particles.map((p, i) => p.emoji ? (
@@ -1797,7 +1882,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						{carouselHashes.map((hash, index) => (
 							<div
 								key={hash}
-								className="absolute inset-0"
+								className="absolute inset-0 overflow-hidden"
 								style={{
 									transform: `translateY(${(index - mobileCarouselPhotoIndex) * 100}%)`,
 									transition: "transform 300ms ease-out",
@@ -1924,24 +2009,46 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 													<EllipsisVertical className="h-4 w-4" />
 												</button>
 												{isActionsMenuOpen && (
-													<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-lg">
+													<div className="absolute right-0 top-full z-50 mt-2 flex min-w-[190px] flex-col gap-1 rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+														<div className="flex flex-col gap-1 px-2">
 														<button type="button" disabled={isTriangleDisabled}
 															onClick={() => { setIsActionsMenuOpen(false); if (messageProfileId) onTriangleProfile?.(String(messageProfileId)); }}
 															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-50">
 															<Triangle className="mr-2 h-4 w-4 opacity-70" />
 															{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 														</button>
-														<button
-															type="button"
-															onClick={handleBanBioPhrase}
-															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text-muted)] transition hover:bg-[var(--surface-2)]"
-														>
-															<Ban className="mr-2 h-4 w-4 opacity-50" />
-															<span className="flex flex-col">
-																<span>Add forbidden Keyword</span>
-																<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
-															</span>
-														</button>
+														</div>
+														{(hasBio || actualProfileName) && <div className="h-px shrink-0 bg-[var(--border)]" />}
+														{(hasBio || actualProfileName) && (
+														<div className="flex flex-col gap-1 px-2">
+														{hasBio && (
+															<button
+																type="button"
+																onClick={handleBanBioPhrase}
+																className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+															>
+																<Ban className="mr-2 h-4 w-4 opacity-70" />
+																<span className="flex flex-col">
+																	<span>Add forbidden Keyword</span>
+																	<span className="text-xs text-[var(--text-muted)]">Bio Phrase</span>
+																</span>
+															</button>
+														)}
+														{actualProfileName && (
+															<button
+																type="button"
+																onClick={handleBanProfileName}
+																className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+															>
+																<Ban className="mr-2 h-4 w-4 opacity-70" />
+																<span className="flex flex-col">
+																	<span>Add forbidden Keyword</span>
+																	<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
+																</span>
+															</button>
+														)}
+														</div>
+														)}
 													</div>
 												)}
 											</div>
@@ -2099,6 +2206,40 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			{photoViewerOverlay}
 			{albumOpeningOverlay}
 			{albumViewerOverlay}
+			<PromptDialog
+				isOpen={banBioPrompt !== null}
+				title={t("profile_details.ban_bio_title")}
+				message={t("profile_details.ban_bio_prompt")}
+				defaultValue={banBioPrompt?.text ?? ""}
+				confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={(wordToBan) => {
+					const currentList = getForbiddenWords();
+					const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+					void setForbiddenWords(newList);
+					toast.success(t("profile_details.ban_bio_added", { word: wordToBan }));
+					setBanBioPrompt(null);
+				}}
+				onCancel={() => setBanBioPrompt(null)}
+			/>
+			<PromptDialog
+				isOpen={banNamePrompt !== null}
+				title={t("profile_details.ban_bio_title")}
+				message={t("chat.actions.ban_name_prompt", {
+					defaultValue: "Trim this down to the exact name or phrase you want to ban:",
+				})}
+				defaultValue={banNamePrompt?.text ?? ""}
+				confirmLabel={t("chat.actions.ban_word_confirm", { defaultValue: "Add" })}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={(wordToBan) => {
+					const currentList = getForbiddenWords();
+					const newList = currentList ? `${currentList}, ${wordToBan}` : wordToBan;
+					void setForbiddenWords(newList);
+					toast.success(t("profile_details.ban_bio_added", { word: wordToBan }));
+					setBanNamePrompt(null);
+				}}
+				onCancel={() => setBanNamePrompt(null)}
+			/>
 		</div>
 	);
 }

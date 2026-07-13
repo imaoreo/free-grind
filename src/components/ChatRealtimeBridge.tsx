@@ -386,7 +386,7 @@ export function ChatRealtimeBridge() {
 				// conversation isn't even in the directory yet.
 				const name =
 					getDisplayName(message.conversationId, userIdRef.current) ??
-					tRef.current("chat.notifications.someone");
+					tRef.current("common.unknown_display_name");
 				if (message.type === "SystemBlocked") {
 					toast(
 						tRef.current("chat.block_toast.blocked_by_other", {
@@ -520,7 +520,7 @@ export function ChatRealtimeBridge() {
 
 			const conv = getConversation(m.conversationId);
 			const other = conv ? getOtherParticipant(conv, userIdRef.current) : null;
-			const senderName = conv?.data.name?.trim() || tRef.current("chat.notifications.someone");
+			const senderName = conv?.data.name?.trim() || tRef.current("common.unknown_display_name");
 			const bodyText = getMessagePreviewLabel(m, tRef.current);
 			// Same as the FCM-side native code: inline preview for picture/gif
 			// content, deliberately excluded for ExpiringImage (view-once) and
@@ -568,7 +568,7 @@ export function ChatRealtimeBridge() {
 			)
 				return;
 
-			const senderName = tap.displayName || tRef.current("chat.notifications.someone");
+			const senderName = tap.displayName || tRef.current("common.unknown_display_name");
 			const bodyText = tap.isMutual
 				? tRef.current("chat.notifications.tapped_you_back")
 				: tRef.current("chat.notifications.tapped_you");

@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { Mic, MicOff, PhoneOff, SwitchCamera, Video, VideoOff } from "lucide-react";
 import { useAuth } from "../contexts/useAuth";
-import { usePreferences } from "../contexts/PreferencesContext";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useMyOwnProfile } from "../hooks/queries/useProfileQueries";
 import {
@@ -72,10 +71,6 @@ interface CallInfo {
 	displayName: string;
 	imageHash: string | null;
 	maxSeconds: number;
-	// True for the dev-only "preview call UI" trigger — skips every real API
-	// call, WS interaction, and Agora session so the ringing/active screens
-	// can be inspected without a working connection or any remaining minutes.
-	mock?: boolean;
 }
 
 const HISTORY_MODAL_KEY = "video-call";
@@ -102,33 +97,8 @@ export function startOutgoingCall(
 	outgoingCallTrigger(targetProfileId, displayName, imageHash);
 }
 
-type PreviewCallVariant = "incoming" | "outgoing";
-
-let previewCallTrigger:
-	| ((variant: PreviewCallVariant, displayName: string, imageHash: string | null) => void)
-	| null = null;
-
-// Dev-only: shows the ringing → active call UI with fake data, no
-// network/API/Agora calls at all — for inspecting the layout when the
-// account's real video-call minutes are exhausted (or just to check the
-// screens without burning real minutes). variant picks which ringing screen
-// to start from — "incoming" also exercises the accept/decline buttons,
-// "outgoing" only has hang-up, matching what a real call of that kind shows.
-export function previewCallUi(
-	variant: PreviewCallVariant,
-	displayName: string,
-	imageHash: string | null = null,
-): void {
-	if (!previewCallTrigger) {
-		appLog.warn("[video-call] previewCallUi called before VideoCallManager mounted");
-		return;
-	}
-	previewCallTrigger(variant, displayName, imageHash);
-}
-
 export function VideoCallManager() {
 	const { userId } = useAuth();
-	const { developerMode } = usePreferences();
 	const apiFunctions = useApiFunctions();
 	const { t } = useTranslation();
 	const { data: ownProfile } = useMyOwnProfile(true);
@@ -204,14 +174,6 @@ export function VideoCallManager() {
 		userIdRef.current = userId;
 	}, [userId]);
 
-	const previewAutoAdvanceRef = useRef<number | null>(null);
-	const clearPreviewAutoAdvance = useCallback(() => {
-		if (previewAutoAdvanceRef.current != null) {
-			window.clearTimeout(previewAutoAdvanceRef.current);
-			previewAutoAdvanceRef.current = null;
-		}
-	}, []);
-
 	const sessionRef = useRef<AgoraCallSession | null>(null);
 	const closingRef = useRef(false);
 	const localVideoRef = useRef<HTMLDivElement | null>(null);
@@ -270,7 +232,7 @@ export function VideoCallManager() {
 	// the initial maxSeconds from startVideoCall/joinVideoCall as the first
 	// deadline; stop it as soon as the call is no longer active.
 	useEffect(() => {
-		if (phase !== "active" || callInfoRef.current?.mock) {
+		if (phase !== "active") {
 			clearRenewTimer();
 			return;
 		}
@@ -282,13 +244,11 @@ export function VideoCallManager() {
 		if (closingRef.current) return;
 		closingRef.current = true;
 		clearRenewTimer();
-		clearPreviewAutoAdvance();
-		const wasMock = callInfoRef.current?.mock === true;
 		try {
 			await sessionRef.current?.leave();
 			sessionRef.current = null;
 			const channelId = callInfoRef.current?.channelId;
-			if (channelId && !wasMock) {
+			if (channelId) {
 				await apiFunctionsRef.current.leaveVideoCall(channelId).catch(() => {});
 			}
 		} finally {
@@ -300,15 +260,14 @@ export function VideoCallManager() {
 			setIsLocalMain(false);
 			// A call may have just consumed some of the account's daily/monthly
 			// allowance — refresh the cached remaining-seconds value now rather
-			// than on every conversation open. Skipped for the mock preview,
-			// which never touched the real allowance.
-			if (!wasMock) void refreshVideoCallRemainingSeconds();
+			// than on every conversation open.
+			void refreshVideoCallRemainingSeconds();
 			if (!options?.fromHardwareBack && window.history.state?.modal === HISTORY_MODAL_KEY) {
 				window.history.back();
 			}
 			closingRef.current = false;
 		}
-	}, [refreshVideoCallRemainingSeconds, clearRenewTimer, clearPreviewAutoAdvance]);
+	}, [refreshVideoCallRemainingSeconds, clearRenewTimer]);
 	const endCallRef = useRef(endCall);
 	useEffect(() => {
 		endCallRef.current = endCall;
@@ -435,41 +394,6 @@ export function VideoCallManager() {
 		};
 	}, [handleStartOutgoing]);
 
-	const handlePreviewCallUi = useCallback(
-		(variant: PreviewCallVariant, displayName: string, imageHash: string | null) => {
-			if (phaseRef.current !== "idle") return;
-			setCallInfo({
-				channelId: "mock-channel",
-				token: null,
-				otherProfileId: "mock",
-				displayName,
-				imageHash,
-				maxSeconds: 60,
-				mock: true,
-			});
-			setPhase(variant === "incoming" ? "incoming-ringing" : "outgoing-ringing");
-			// Outgoing calls have no accept button to trigger the switch to
-			// "active" manually — auto-advance after a short ring, mirroring the
-			// moment a real callee would answer, so that screen is previewable too.
-			if (variant === "outgoing") {
-				clearPreviewAutoAdvance();
-				previewAutoAdvanceRef.current = window.setTimeout(() => {
-					previewAutoAdvanceRef.current = null;
-					setPhase("active");
-				}, 2500);
-			}
-		},
-		[clearPreviewAutoAdvance],
-	);
-
-	useEffect(() => {
-		if (!developerMode) return;
-		previewCallTrigger = handlePreviewCallUi;
-		return () => {
-			previewCallTrigger = null;
-		};
-	}, [handlePreviewCallUi, developerMode]);
-
 	// Incoming call, pushed over the chat WebSocket.
 	useEffect(() => {
 		const handleIncoming = (event: Event) => {
@@ -479,7 +403,7 @@ export function VideoCallManager() {
 				channelId: detail.channelId,
 				token: null,
 				otherProfileId: detail.senderId,
-				displayName: tRef.current("chat.notifications.someone"),
+				displayName: tRef.current("common.unknown_display_name"),
 				imageHash: null,
 				maxSeconds: 60,
 			});
@@ -553,10 +477,6 @@ export function VideoCallManager() {
 	const handleAccept = useCallback(async () => {
 		const info = callInfoRef.current;
 		if (!info) return;
-		if (info.mock) {
-			setPhase("active");
-			return;
-		}
 		try {
 			const joinResult = await apiFunctionsRef.current.joinVideoCall(info.channelId);
 			let token = joinResult.token;

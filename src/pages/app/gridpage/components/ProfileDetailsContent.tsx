@@ -50,10 +50,21 @@ import type { ChatContactIndexRecord } from "../../../../types/chat-contact-inde
 import { formatRelativeTime } from "../../../../utils/relativeTime";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { formatTravelDateRange } from "../utils";
+import { decodeGeohash } from "../../../../utils/geohash";
+import { appLog } from "../../../../utils/logger";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 type LabelMap = Record<number, string>;
 
-function TravelPlanRow({ plan, t }: { plan: TravelPlan; t: ReturnType<typeof useTranslation>["t"] }) {
+function TravelPlanRow({
+	plan,
+	t,
+	isDesktopLike,
+}: {
+	plan: TravelPlan;
+	t: ReturnType<typeof useTranslation>["t"];
+	isDesktopLike: boolean;
+}) {
 	const [location, setLocation] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -68,8 +79,25 @@ function TravelPlanRow({ plan, t }: { plan: TravelPlan; t: ReturnType<typeof use
 		};
 	}, [plan.geohash]);
 
+	const handleOpenMaps = () => {
+		const decoded = decodeGeohash(plan.geohash);
+		const lat = (decoded.lat[0] + decoded.lat[1]) / 2;
+		const lon = (decoded.lon[0] + decoded.lon[1]) / 2;
+		const url = isDesktopLike
+			? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+			: `geo:${lat},${lon}?q=${lat},${lon}`;
+		openUrl(url).catch((error) => {
+			appLog.error("Failed to open map URL", error);
+			window.open(url, "_blank");
+		});
+	};
+
 	return (
-		<div className="flex items-start gap-2.5">
+		<button
+			type="button"
+			onClick={handleOpenMaps}
+			className="flex w-full items-start gap-2.5 text-left transition hover:opacity-80"
+		>
 			<Plane className="mt-0.5 h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 			<div className="min-w-0">
 				<p className="text-sm text-[var(--text)]">
@@ -82,7 +110,7 @@ function TravelPlanRow({ plan, t }: { plan: TravelPlan; t: ReturnType<typeof use
 					<p className="mt-1 text-sm italic text-[var(--text-muted)]">{plan.notes.trim()}</p>
 				)}
 			</div>
-		</div>
+		</button>
 	);
 }
 
@@ -566,7 +594,7 @@ export function ProfileDetailsContent({
 
 			{extraTopSection}
 
-			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNowDetail || hasStatsFields || hasSocialFields) && (
+			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNowDetail || hasStatsFields || hasSocialFields || hasTravelPlans) && (
 			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
 				{(hasTagsContent || hasAboutContent || hasRightNowDetail || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
@@ -755,7 +783,7 @@ export function ProfileDetailsContent({
 				</div>
 				)}
 
-				{(hasStatsFields || hasSocialFields) && (
+				{(hasStatsFields || hasTravelPlans || hasSocialFields) && (
 				<div className="grid gap-8">
 					{hasStatsFields && (
 						<div>
@@ -799,6 +827,19 @@ export function ProfileDetailsContent({
 										<p className="text-sm text-[var(--text-muted)]">{formatEnumValue(activeProfile.relationshipStatus, relationshipStatusLabels, t)}</p>
 									</div>
 								)}
+							</div>
+						</div>
+					)}
+
+					{hasTravelPlans && (
+						<div>
+							<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
+								{t("profile_details.travel_plans")}
+							</p>
+							<div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+								{visibleTravelPlans.map((plan) => (
+									<TravelPlanRow key={plan.travelPlanId} plan={plan} t={t} isDesktopLike={isDesktopLike} />
+								))}
 							</div>
 						</div>
 					)}
@@ -857,19 +898,6 @@ export function ProfileDetailsContent({
 				</div>
 				)}
 			</div>
-			)}
-
-			{hasTravelPlans && (
-				<div className="px-3">
-					<p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)]">
-						{t("profile_details.travel_plans")}
-					</p>
-					<div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-						{visibleTravelPlans.map((plan) => (
-							<TravelPlanRow key={plan.travelPlanId} plan={plan} t={t} />
-						))}
-					</div>
-				</div>
 			)}
 
 			<div className="px-3">

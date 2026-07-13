@@ -213,7 +213,7 @@ function RightNowRow({
 	item: RightNowFeedItem;
 	onMessage: (profileId: string) => void;
 	onSelect: (profileId: string) => void;
-	onOpenPhoto: (photos: string[], index: number) => void;
+	onOpenPhoto: (photos: string[], index: number, profileId: string) => void;
 	isFirst?: boolean;
 }) {
 	const { t } = useTranslation();
@@ -311,7 +311,7 @@ function RightNowRow({
 
 				<PostMediaGrid
 					media={item.media}
-					onOpenPhoto={(index) => onOpenPhoto(photos, index)}
+					onOpenPhoto={(index) => onOpenPhoto(photos, index, item.profileId)}
 				/>
 			</div>
 
@@ -377,10 +377,12 @@ export function RightNowPage() {
 	const [viewerPhotos, setViewerPhotos] = useState<string[]>([]);
 	const [viewerIndex, setViewerIndex] = useState(0);
 	const [isViewerOpen, setIsViewerOpen] = useState(false);
+	const [viewerProfileId, setViewerProfileId] = useState<string | null>(null);
 
-	const openPhotoViewer = useCallback((photos: string[], index: number) => {
+	const openPhotoViewer = useCallback((photos: string[], index: number, profileId: string) => {
 		setViewerPhotos(photos);
 		setViewerIndex(index);
+		setViewerProfileId(profileId);
 		setIsViewerOpen(true);
 	}, []);
 
@@ -806,6 +808,7 @@ export function RightNowPage() {
 				onClose={() => setIsViewerOpen(false)}
 				photos={viewerPhotos}
 				initialIndex={viewerIndex}
+				conversationId={viewerProfileId}
 			/>
 		)}
 	</>
