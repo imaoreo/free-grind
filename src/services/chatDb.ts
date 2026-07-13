@@ -1415,6 +1415,37 @@ export async function getMediaFileByMessageId(
 	return row ? rowToStoredMediaFile(row) : null;
 }
 
+/** Removes one cached media entry (e.g. a single drawer item the user deleted). */
+export async function deleteMediaFile(mediaKey: string): Promise<void> {
+	const db = await getDb();
+	await executeWithLockRetry(db, "delete-media-file", async () => {
+		await db.execute("DELETE FROM media_files WHERE media_key = $1", [mediaKey]);
+	});
+}
+
+/**
+ * Purges cached drawer media (see mediaStore.ts's getDrawerMediaKey, keys
+ * prefixed "drawer:") that's no longer in `currentMediaKeys` — the set the
+ * server just returned from a fresh drawer list request. Anything cached
+ * under that prefix but missing from the latest response means the server
+ * stopped serving that item (deleted from the drawer elsewhere, e.g.
+ * another device), so its locally-cached bytes should go too.
+ */
+export async function deleteStaleDrawerMediaFiles(currentMediaKeys: string[]): Promise<void> {
+	const db = await getDb();
+	await executeWithLockRetry(db, "delete-stale-drawer-media", async () => {
+		if (currentMediaKeys.length === 0) {
+			await db.execute("DELETE FROM media_files WHERE media_key LIKE 'drawer:%'");
+			return;
+		}
+		const placeholders = currentMediaKeys.map((_, i) => `$${i + 1}`).join(", ");
+		await db.execute(
+			`DELETE FROM media_files WHERE media_key LIKE 'drawer:%' AND media_key NOT IN (${placeholders})`,
+			currentMediaKeys,
+		);
+	});
+}
+
 /**
  * All successfully-cached image/video media for a conversation, newest
  * first — the local, always-available backing for the "received media"
