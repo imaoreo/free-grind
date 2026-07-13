@@ -9,12 +9,27 @@ type StoredInterestView = {
 	updatedAt: number;
 };
 
-const DB_NAME = "open-grind-interest";
+// Pre-login fallback; once a profile is known, activeDbName switches to a
+// per-profile db (see setActiveInterestStoreUser) so switching accounts can
+// never surface a previous profile's cached viewers/taps.
+const LEGACY_DB_NAME = "open-grind-interest";
 const DB_VERSION = 1;
 const STORE_NAME = "views";
 
 const MAX_STORED_VIEWS = 1000;
 const MAX_VIEW_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+let activeDbName = LEGACY_DB_NAME;
+
+/**
+ * Points the interest views cache at the given profile's own IndexedDB
+ * database — mirrors setActiveChatDbUser's per-account file split. Without
+ * this, a second account would see the first account's cached "viewed you"
+ * entries merged in until they aged out (30 days).
+ */
+export function setActiveInterestStoreUser(profileId: number | string | null): void {
+	activeDbName = profileId != null ? `open-grind-interest-${profileId}` : LEGACY_DB_NAME;
+}
 
 function openDatabase(): Promise<IDBDatabase | null> {
 	if (typeof window === "undefined" || !("indexedDB" in window)) {
@@ -23,7 +38,7 @@ function openDatabase(): Promise<IDBDatabase | null> {
 
 	return new Promise((resolve) => {
 		try {
-			const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+			const request = window.indexedDB.open(activeDbName, DB_VERSION);
 
 			request.onupgradeneeded = () => {
 				const db = request.result;

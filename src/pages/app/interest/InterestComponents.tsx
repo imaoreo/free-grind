@@ -12,7 +12,6 @@ export const InterestTabs = memo(function InterestTabs({
 	onViewsClick,
 	onTapsClick,
 	firstTab = "taps",
-	shouldBounce = false,
 	newViewsCount = 0,
 	newTapsCount = 0,
 }: {
@@ -20,7 +19,6 @@ export const InterestTabs = memo(function InterestTabs({
 	onViewsClick: () => void;
 	onTapsClick: () => void;
 	firstTab?: InterestTab;
-	shouldBounce?: boolean;
 	newViewsCount?: number;
 	newTapsCount?: number;
 }) {
@@ -95,7 +93,6 @@ export const InterestTabs = memo(function InterestTabs({
 				style={{
 					width: indicatorStyle.width,
 					left: indicatorStyle.left,
-					transform: shouldBounce ? "translateX(8px)" : "translateX(0)",
 				}}
 			/>
 
@@ -107,7 +104,6 @@ export const InterestTabs = memo(function InterestTabs({
 					onClick={handlers[i]}
 					className={cn(
 						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
-						shouldBounce && "translate-x-2",
 						activeIndex === i
 							? "text-[var(--accent-contrast)] text-base font-black tracking-tight"
 							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
@@ -235,7 +231,7 @@ export const InterestRow = memo(function InterestRow({
 
 			{/* Action Area (Views or Taps) */}
 			{!isPrivate && (
-				<div className="shrink-0 flex items-center justify-center h-12 w-12">
+				<div className="shrink-0 flex items-center justify-end h-12 w-12">
 					{mode === "taps" ? (
 						<div className="relative flex h-12 w-12 items-center justify-center">
 							<span
