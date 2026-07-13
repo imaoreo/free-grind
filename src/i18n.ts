@@ -8,9 +8,7 @@ const i18nBackendBaseUrl = (
 	import.meta.env.VITE_I18N_BASE_URL ?? import.meta.env.BASE_URL
 ).replace(/\/+$/, "");
 
-const preloadLanguages = Array.from(
-	new Set(SUPPORTED_LOCALES.map((locale) => locale.split("-")[0])),
-);
+const preloadLanguages = SUPPORTED_LOCALES;
 
 i18n
 	.use(Backend)
@@ -20,7 +18,9 @@ i18n
 		fallbackLng: ["en"],
 		supportedLngs: SUPPORTED_LOCALES,
 		nonExplicitSupportedLngs: true,
-		load: "languageOnly",
+		// Load exactly the resolved locale's file (e.g. "es-419" or "pt-PT"),
+		// not a region-stripped variant that may not exist as its own file.
+		load: "currentOnly",
 		defaultNS: "translation",
 		ns: ["translation"],
 		returnEmptyString: false,
