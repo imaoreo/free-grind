@@ -94,7 +94,7 @@
         "enable_refresh_desc": "Se activa automáticamente una recarga en el intervalo que se muestra abajo.",
         "refresh_interval": "Intervalo de recarga",
         "refresh_interval_unit": "{{count}} min.",
-        "refresh_technical_note": "Nota técnica: En el móvil, esto solo funciona mientras la app está activa o en primer plano y consumirá batería.",
+        "refresh_technical_note": "Nota técnica: En el celular, esto solo funciona mientras la app está activa o en primer plano y consumirá batería.",
         "update_refresh_settings": "Actualizar configuración de recarga",
         "refresh_settings_updated": "¡Intervalo de recarga actualizada!",
         "chat_block_enabled": "Auto-bloqueo en el buzón habilitado",
@@ -785,7 +785,7 @@
         "apply_hex": "Aplicar hex",
         "hex_error": "Envía un color hexadecimal válido como #22c55e o 22c55e",
         "browse_grid_mobile": "Cuadrícula de Navegar (Móvil)",
-        "browse_grid_mobile_desc": "Ajusta cuántos perfiles aparecen por fila en el móvil.",
+        "browse_grid_mobile_desc": "Ajusta cuántos perfiles aparecen por fila en el celular.",
         "columns_2": "2 Columnas",
         "columns_3": "3 Columnas",
         "reveal_effect": {

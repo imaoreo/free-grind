@@ -8,8 +8,8 @@
         "profile_editor_desc": "",
         "customizability": "",
         "customizability_desc": "",
-        "behavior": "Ponašanje",
-        "behavior_desc": "Potvrde prije blokiranja i brisanja razgovora.",
+        "behavior": "",
+        "behavior_desc": "",
         "notifications": "",
         "notifications_desc": "",
         "privacy": "",
@@ -449,7 +449,7 @@
             "tap_failed": "",
             "tag_filter_applied": ""
         },
-        "chatted": "Chatted"
+        "chatted": ""
     },
     "chat_filters": {
         "title": "",
@@ -460,7 +460,7 @@
             "unread": "",
             "chemistry": ""
         },
-        "visibility": "Vidljivost"
+        "visibility": ""
     },
     "about_page": {
         "badge": "",
@@ -577,7 +577,7 @@
         "sections": {
             "pictures": {
                 "title": "",
-                "description": "Dodaj i rasporedi svoje fotografije",
+                "description": "",
                 "usage": "",
                 "add": "",
                 "uploading": "",
@@ -623,7 +623,7 @@
                 }
             },
             "states": {
-                "title": "Stats",
+                "title": "",
                 "description": "",
                 "show_age": "",
                 "show_age_desc": "",
@@ -677,8 +677,8 @@
                 "health_practices": "",
                 "vaccinations": "",
                 "test_reminder": "",
-                "test_reminder_toggle": "Test Reminder",
-                "test_reminder_toggle_desc": "Show a reminder to get tested when it's been a while since your last test."
+                "test_reminder_toggle": "",
+                "test_reminder_toggle_desc": ""
             },
             "social": {
                 "title": "",
@@ -706,7 +706,7 @@
             "photo_uploaded": "",
             "primary_updated": "",
             "photo_removed": "",
-            "photos_reordered": "Redoslijed fotografija ažuriran",
+            "photos_reordered": "",
             "photo_approved": "",
             "photo_rejected": "",
             "photo_pending_again": "",
@@ -746,7 +746,7 @@
         "profile_views": "",
         "record_profile_views": "",
         "record_profile_views_desc": "",
-        "read_receipts_grid_unread_note": "Ako su potvrde o čitanju isključene, server ne može znati da ste pročitali poruku — razgovor se stoga na Gridu i dalje može prikazivati kao nepročitan, čak i nakon što ste ga pročitali ili obrisali.",
+        "read_receipts_grid_unread_note": "",
         "show_sensitive_content_warning": "",
         "show_sensitive_content_warning_desc": ""
     },
@@ -820,7 +820,7 @@
         }
     },
     "behavior": {
-        "subtitle": "Upravljaj potvrdama prije blokiranja profila ili brisanja razgovora."
+        "subtitle": ""
     },
     "notifications_page": {
         "subtitle": "",
@@ -960,7 +960,7 @@
         "pinned": "",
         "muted": "",
         "you": "",
-        "typing": "piše…",
+        "typing": "",
         "read": "",
         "unread": "",
         "today": "",
@@ -1007,18 +1007,18 @@
         "share_location_confirm": "",
         "drawer_label": "",
         "giphy": {
-            "title": "GIF-ovi",
-            "button_label": "Pošalji GIF",
-            "tab_trending": "U trendu",
-            "tab_recent": "Nedavni",
-            "search_placeholder": "Pretraži GIF-ove…",
-            "error_load": "Nije moguće učitati GIF-ove.",
-            "error_search": "Pretraga nije uspjela.",
-            "retry": "Pokušaj ponovo",
-            "no_results": "Nema GIF-ova.",
-            "recent_empty": "Nema nedavno poslanih GIF-ova.",
-            "recent_empty_hint": "GIF-ovi koje pošalješ će se prikazati ovdje.",
-            "send_confirm": "Pošalji GIF?"
+            "title": "",
+            "button_label": "",
+            "tab_trending": "",
+            "tab_recent": "",
+            "search_placeholder": "",
+            "error_load": "",
+            "error_search": "",
+            "retry": "",
+            "no_results": "",
+            "recent_empty": "",
+            "recent_empty_hint": "",
+            "send_confirm": ""
         },
         "drawer_unavailable": "",
         "attach_media": "",
@@ -1091,7 +1091,7 @@
             "shared_gif": "",
             "shared_video": "",
             "image_expired": "",
-            "video_expired": "Istekao",
+            "video_expired": "",
             "shared_audio": "",
             "location_shared": "",
             "failed": "",
@@ -1223,27 +1223,27 @@
             "send_first_message_hint": ""
         },
         "media_sheet": {
-            "title": "Media",
-            "tab_albums": "Albums",
-            "tab_received": "Received",
-            "tab_sent": "Sent",
-            "albums_empty_title": "No albums shared yet",
-            "albums_empty_desc": "Albums shared with you will appear here",
-            "received_empty_title": "No media received yet",
-            "received_empty_desc": "Photos sent to you will appear here",
-            "sent_empty_title": "No media sent yet",
-            "sent_empty_desc": "Photos you send will appear here"
+            "title": "",
+            "tab_albums": "",
+            "tab_received": "",
+            "tab_sent": "",
+            "albums_empty_title": "",
+            "albums_empty_desc": "",
+            "received_empty_title": "",
+            "received_empty_desc": "",
+            "sent_empty_title": "",
+            "sent_empty_desc": ""
         },
         "filter": {
-            "state_all": "Prikaži sve",
-            "state_hide": "Sakrij",
-            "state_only": "Samo"
+            "state_all": "",
+            "state_hide": "",
+            "state_only": ""
         },
         "hidden": {
-            "filter_label": "Skriveno"
+            "filter_label": ""
         },
         "archived": {
-            "filter_label": "Arhivirano"
+            "filter_label": ""
         }
     },
     "chat_drawer": {
@@ -1281,16 +1281,16 @@
         "notes_loaded_one": "",
         "notes_loaded_other": "",
         "search_placeholder": "",
-        "note_section_title": "Privatna bilješka",
-        "note_placeholder": "Dodaj ličnu bilješku o ovom profilu...",
-        "phone_number_placeholder": "Broj telefona (opcionalno)",
-        "note_empty": "Dodaj bilješku...",
-        "note_saved": "Bilješka sačuvana",
-        "note_deleted": "Bilješka obrisana",
-        "save_note_failed": "Čuvanje bilješke nije uspjelo",
-        "delete_note_failed": "Brisanje bilješke nije uspjelo",
-        "get_note_failed": "Učitavanje bilješke nije uspjelo",
-        "delete_note": "Obriši bilješku"
+        "note_section_title": "",
+        "note_placeholder": "",
+        "phone_number_placeholder": "",
+        "note_empty": "",
+        "note_saved": "",
+        "note_deleted": "",
+        "save_note_failed": "",
+        "delete_note_failed": "",
+        "get_note_failed": "",
+        "delete_note": ""
     },
     "video_call": {
         "start_failed": "",
@@ -1366,9 +1366,9 @@
         "unblock_failed": "",
         "visiting": "",
         "roaming": "",
-        "chat_history": "Chat history",
-        "last_message": "Last message {{time}}",
-        "chatted_before": "Chatted before",
+        "chat_history": "",
+        "last_message": "",
+        "chatted_before": "",
         "recently_joined": "",
         "account_info": "",
         "profile_id": "",
@@ -1400,7 +1400,7 @@
         "x": "",
         "facebook": "",
         "close_profile_details": "",
-        "message_placeholder": "Pošalji poruku…",
+        "message_placeholder": "",
         "default_profile": "",
         "open_photo": "",
         "album_locked": "",
@@ -1531,10 +1531,10 @@
         "refreshing": "",
         "loading": "",
         "error_load": "",
-        "empty_views": "No views yet",
-        "empty_views_desc": "Profiles that view you will appear here.",
-        "empty_taps": "No taps yet",
-        "empty_taps_desc": "People who tap you will appear here.",
+        "empty_views": "",
+        "empty_views_desc": "",
+        "empty_taps": "",
+        "empty_taps_desc": "",
         "view_count_one": "",
         "view_count_other": "",
         "viewed": "",
@@ -1662,13 +1662,13 @@
         "delete_confirm_message": ""
     },
     "common": {
-        "cancel": "Otkaži",
-        "save": "Sačuvaj",
-        "edit": "Uredi",
+        "cancel": "",
+        "save": "",
+        "edit": "",
         "unknown_display_name": ""
     },
     "grid": {
-        "open_profile_by_id": "Otvori profil putem ID-a"
+        "open_profile_by_id": ""
     },
     "test_reminder": {
         "title": "",
