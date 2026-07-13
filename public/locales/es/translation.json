@@ -44,7 +44,10 @@
         "privacy": "Privacidad y análisis",
         "privacy_desc": "Confirmaciones de lectura, vistas de perfil, desenfoque multimedia, y análisis.",
         "check_updates_desc": "Descarga e instala la última versión de Free Grind.",
-        "notifications": "Notificaciones"
+        "notifications": "Notificaciones",
+        "notifications_desc": "Elige qué notificaciones recibes, y cómo se muestran mientras la aplicación está abierta.",
+        "block_history": "Actividad de bloqueo",
+        "block_history_desc": "Mira quién te ha bloqueado o desbloqueado, y cuándo."
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
@@ -1360,5 +1363,16 @@
         "skip": "Omitir por ahora",
         "saved": "Fecha de prueba actualizada",
         "save_failed": "No se pudo actualizar la fecha de la prueba."
+    },
+    "settings_block_history": {
+        "title": "Actividad de bloqueo",
+        "subtitle": "Perfiles que te han bloqueado o desbloqueado, y cuándo ocurrió.",
+        "refreshing": "Recargando...",
+        "error_load": "Error al cargar actividad de bloqueo",
+        "empty": "Sin actividad de bloqueo todavía.",
+        "empty_desc": "Cuando alguien te bloquee o desbloquee, se mostrará aquí.",
+        "section_label": "Historial",
+        "blocked": "Te bloqueó",
+        "unblocked": "Te desbloqueó"
     }
 }
