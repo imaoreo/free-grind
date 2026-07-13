@@ -1010,6 +1010,11 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			initialIndex={selectedPhotoIndex}
 			renderExtraInfo={renderPhotoExtraInfo}
 			renderFooter={renderPhotoFooter}
+			// Own profile pictures aren't worth their own subfolder — there's
+			// only ever one "me" to organize by. Someone else's photos get
+			// filed under their profile id so saved pictures land sorted by
+			// person instead of all dumped in one flat folder.
+			conversationId={!isOwnProfile && messageProfileId != null ? String(messageProfileId) : null}
 		/>
 	);
 
