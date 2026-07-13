@@ -261,6 +261,16 @@ export function getMessageFallbackMediaKey(messageId: string): string {
 }
 
 /**
+ * Cache key for a user's own drawer media (ChatDrawerPanel) — keyed by the
+ * server's numeric media id, which is stable for the item's lifetime (unlike
+ * its signed CDN url, which expires on a timer and gets re-issued on every
+ * fetch).
+ */
+export function getDrawerMediaKey(mediaId: number): string {
+	return `drawer:${mediaId}`;
+}
+
+/**
  * Populates the in-memory cache (under the message-id fallback key) from
  * whatever's already stored for this message, regardless of whether the
  * live message currently carries a usable URL. Safe to call repeatedly.

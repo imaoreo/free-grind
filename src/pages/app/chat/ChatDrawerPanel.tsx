@@ -28,6 +28,8 @@ import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { useModalClose } from "../../../hooks/useModalClose";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import { useLocalMediaCache } from "../../../hooks/useLocalMediaCache";
+import { getCachedMediaUri, getDrawerMediaKey } from "../../../services/mediaStore";
 
 export interface DrawerMedia {
 	id: number;
@@ -90,6 +92,9 @@ export function ChatDrawerPanel({
 	ownProfilePhotoUrl,
 }: ChatDrawerPanelProps) {
 	const { t } = useTranslation();
+	// Re-renders once a background fetch lands a drawer item in the local
+	// media cache, so it can swap in the cached copy without waiting for a DB read.
+	useLocalMediaCache();
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const [pendingAddFile, setPendingAddFile] = useState<File | null>(null);
 	const [pendingTakenOnGrindr, setPendingTakenOnGrindr] = useState(false);
@@ -618,6 +623,7 @@ export function ChatDrawerPanel({
 										const isDisabledByType = hasSelection && (
 											(isItemVideo && hasAnyImage) || (!isItemVideo && hasAnyVideo)
 										);
+										const mediaSrc = getCachedMediaUri(getDrawerMediaKey(item.id)) ?? item.url;
 
 										return (
 											<div
@@ -634,14 +640,14 @@ export function ChatDrawerPanel({
 											>
 												{isImage ? (
 													<img
-														src={item.url}
+														src={mediaSrc}
 														alt={t("chat_drawer.media_alt")}
 														className="h-full w-full object-cover"
 													/>
 												) : (
 													<>
 														<video
-									src={item.url}
+									src={mediaSrc}
 									preload="metadata"
 									muted
 									onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
