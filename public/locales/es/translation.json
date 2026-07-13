@@ -43,7 +43,8 @@
         "automation_desc": "Configura las reglas de bloqueo automáticas y la recarga automática del Navegar.",
         "privacy": "Privacidad y análisis",
         "privacy_desc": "Confirmaciones de lectura, vistas de perfil, desenfoque multimedia, y análisis.",
-        "check_updates_desc": "Descarga e instala la última versión de Free Grind."
+        "check_updates_desc": "Descarga e instala la última versión de Free Grind.",
+        "notifications": "Notificaciones"
     },
     "shared_albums": {
         "subtitle": "Explora todos los álbumes compartidos por los demás en tus chats.",
