@@ -58,7 +58,6 @@ import { OutdatedVersionPromptView } from "../../components/OutdatedVersionPromp
 import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
 import { getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
-import { getAutomationSettings } from "../../utils/autoblock";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
@@ -212,9 +211,6 @@ export function SettingsPage() {
 	const [fcmSyncedToken, setFcmSyncedToken] = useState<string | null>(() => window.localStorage.getItem(PUSH_TOKEN_SYNCED_STORAGE_KEY));
 	const [fcmEventLog, setFcmEventLog] = useState<{ time: string; token: string }[]>([]);
 	const [manualToken, setManualToken] = useState("");
-    const [forbiddenWords, setForbiddenWords] = useState(() => getAutomationSettings().forbiddenWords);
-    const [blockOnGrid, setBlockOnGrid] = useState(() => getAutomationSettings().blockGrid);
-	const [blockOnChat, setBlockOnChat] = useState(() => getAutomationSettings().blockOnChat);
 	const fcmLogRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -775,21 +771,15 @@ export function SettingsPage() {
 						{/* Check for Updates + Channel switcher */}
 						<div className="flex items-start gap-3 px-4 py-3.5">
 							<div className="rounded-2xl bg-green-500/15 p-2.5 shrink-0 text-green-400">
-								<RefreshCcw className="h-5 w-5" />
+								<RefreshCcw className={`h-5 w-5 ${isCheckingUpdates || isSwitchingChannel ? "animate-spin" : ""}`} />
 							</div>
 							<div className="min-w-0 flex-1">
 								<div className="grid grid-cols-[1fr_auto] gap-x-3">
 									<p className="text-sm font-semibold leading-snug">{t("settings.check_updates")}</p>
 									<div className="row-span-2 flex items-start">
-										{isSwitchingChannel ? (
-											<span className="text-xs text-[var(--text-muted)]">{t("settings.switching")}</span>
-										) : isCheckingUpdates ? (
-											<span className="text-xs text-[var(--text-muted)]">{t("settings.checking")}</span>
-										) : (
-											<Button type="button" onClick={() => void handleCheckUpdates()} disabled={isCheckingUpdates || isSwitchingChannel}>
-												{t("settings.check_now")}
-											</Button>
-										)}
+										<Button type="button" onClick={() => void handleCheckUpdates()} disabled={isCheckingUpdates || isSwitchingChannel}>
+											{t("settings.check_now")}
+										</Button>
 									</div>
 									<p className="mt-0.5 text-xs text-[var(--text-muted)]">{t("settings.check_updates_desc")}</p>
 								</div>

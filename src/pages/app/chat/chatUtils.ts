@@ -1,5 +1,4 @@
 import i18n from "../../../i18n";
-import { useEffect, useState } from "react";
 import type { ConversationEntry, InboxFilters, Message } from "../../../types/messages";
 import type { InboxVisibilityFilter, UiMessage } from "../../../types/chat-page";
 import type { MediaKind } from "../../../types/chat-db";
@@ -131,16 +130,7 @@ export async function buildBinaryUpload(file: File): Promise<{
 	};
 }
 
-const relativeTimeFormatterCache = new Map<string, Intl.RelativeTimeFormat>();
 const dateTimeFormatterCache = new Map<string, Intl.DateTimeFormat>();
-
-function getRelativeTimeFormatter(lng: string, options: Intl.RelativeTimeFormatOptions) {
-	const key = `${lng}-${JSON.stringify(options)}`;
-	if (!relativeTimeFormatterCache.has(key)) {
-		relativeTimeFormatterCache.set(key, new Intl.RelativeTimeFormat(lng, options));
-	}
-	return relativeTimeFormatterCache.get(key)!;
-}
 
 function getDateTimeFormatter(lng: string, options: Intl.DateTimeFormatOptions) {
 	const key = `${lng}-${JSON.stringify(options)}`;

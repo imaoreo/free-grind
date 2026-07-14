@@ -112,34 +112,38 @@ export function BrowseCardTile({
 							{(isRightNow || isPopular) && (
 								<div className="flex items-center gap-0.5">
 									{isPopular && (
-										<Zap
-											className="h-4 w-4 text-amber-400 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-											strokeWidth={2.5}
-											title="Popular"
-										/>
+										<span className="inline-flex" title="Popular">
+											<Zap
+												className="h-4 w-4 text-amber-400 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+												strokeWidth={2.5}
+											/>
+										</span>
 									)}
 									{isRightNow && (
-										<Droplets
-											className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-											strokeWidth={2.5}
-											title="Right Now"
-										/>
+										<span className="inline-flex" title="Right Now">
+											<Droplets
+												className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+												strokeWidth={2.5}
+											/>
+										</span>
 									)}
 								</div>
 							)}
 							{onlineStatus.isOnline ? (
 								isVisiting ? (
-									<Plane
-										className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-										strokeWidth={2.5}
-										title={t("profile_details.visiting")}
-									/>
+									<span className="inline-flex" title={t("profile_details.visiting")}>
+										<Plane
+											className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+											strokeWidth={2.5}
+										/>
+									</span>
 								) : isRoaming ? (
-									<Satellite
-										className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-										strokeWidth={2.5}
-										title={t("profile_details.roaming")}
-									/>
+									<span className="inline-flex" title={t("profile_details.roaming")}>
+										<Satellite
+											className="h-4 w-4 text-green-500 drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
+											strokeWidth={2.5}
+										/>
+									</span>
 								) : (
 									<span className="block h-3 w-3 rounded-full bg-green-500 shadow-lg ring-2 ring-black/30" />
 								)

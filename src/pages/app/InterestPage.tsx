@@ -2,7 +2,6 @@ import { RefreshCw, Eye, Flame } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type TouchEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useInterestData } from "../../hooks/queries/useInterestQueries";
 import { useBlockedProfileIds } from "../../hooks/queries/useProfileQueries";
 import { getBlockStatesByProfileIds } from "../../services/chatDb";
@@ -10,19 +9,9 @@ import { markInterestSeen, getInterestTabLastSeen, markInterestTabSeen } from ".
 import { EmptyState, ErrorState } from "../../components/ui/states";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
-	TAP_RECEIVED_EVENT,
-	type TapReceivedDetail,
-} from "../../components/ChatRealtimeBridge";
-import {
 	type InterestTab,
 	type InterestItem,
-	fromStoredView,
-	toStoredView,
-	toNumber,
-	asObject,
 	PREVIEW_ID_PREFIX,
-	normalizeViews,
-	normalizeTaps,
 } from "./interest/interestUtils";
 import { InterestTabs, InterestRow } from "./interest/InterestComponents";
 import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
@@ -32,7 +21,6 @@ import {
 import { cn } from "../../utils/cn";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
-import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { usePreferences } from "../../contexts/PreferencesContext";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
@@ -56,10 +44,8 @@ function InterestSkeleton({ mode }: { mode: InterestTab }) {
 
 export function InterestPage() {
 	const { t } = useTranslation();
-	const api = useApiFunctions();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const isDesktop = useDesktopBreakpoint();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
 	const lastActiveTab = window.localStorage.getItem("fg-interest-last-tab");
@@ -309,7 +295,7 @@ export function InterestPage() {
 		const saved = sessionStorage.getItem("interest-scroll-views");
 		if (saved) {
 			try {
-				const { limit, timestamp } = JSON.parse(saved);
+				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
 				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 					return limit;
 				}
@@ -321,7 +307,7 @@ export function InterestPage() {
 		const saved = sessionStorage.getItem("interest-scroll-taps");
 		if (saved) {
 			try {
-				const { limit, timestamp } = JSON.parse(saved);
+				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
 				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 					return limit;
 				}
@@ -449,7 +435,7 @@ export function InterestPage() {
 			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
 				try {
-					const { top, timestamp } = JSON.parse(saved);
+					const { top, timestamp } = JSON.parse(saved) as { top: number; timestamp: number };
 
 					// Only restore if the scroll position is less than the timeout
 					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {

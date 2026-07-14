@@ -2,9 +2,10 @@ import type { BrowseCard } from "../../GridPage.types";
 import { BrowseCardTile } from "./BrowseCardTile";
 import { usePreferences } from "../../../../contexts/PreferencesContext";
 import { cn } from "../../../../utils/cn";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { MapPin } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
 	EmptyState,
 	ErrorState,
@@ -47,6 +48,8 @@ function BrowseGridSkeleton({ isDesktop, mobileColumns }: { isDesktop: boolean; 
 	);
 }
 
+type RowMetrics = { columnCount: number; rowSizePx: number };
+
 type BrowseGridProps = {
 	isLoadingCards: boolean;
 	cardsError: string | null;
@@ -59,6 +62,17 @@ type BrowseGridProps = {
 	hasMore?: boolean;
 	isLoadingMore?: boolean;
 	onLoadMore?: () => void;
+	// The grid scrolls inside an ancestor GridPage renders (FeedScrollContainer),
+	// so the virtualizer needs that element's ref rather than owning its own.
+	scrollContainerRef: RefObject<HTMLDivElement | null>;
+	// Below let BrowseGrid own the scroll-restore + header-snap logic itself,
+	// since only it knows the real (measured) row size needed to do the snap
+	// math without querying the DOM for a currently-mounted tile (which,
+	// once virtualized, may not be mounted at the restored position yet).
+	headerRef?: RefObject<HTMLElement | null>;
+	browseCacheKey?: string;
+	hasRestoredScroll: boolean;
+	onRestoredScrollChange: (restored: boolean) => void;
 };
 
 export function BrowseGrid({
@@ -73,10 +87,14 @@ export function BrowseGrid({
 	hasMore,
 	isLoadingMore,
 	onLoadMore,
+	scrollContainerRef,
+	headerRef,
+	browseCacheKey,
+	hasRestoredScroll,
+	onRestoredScrollChange,
 }: BrowseGridProps) {
 	const { t } = useTranslation();
 	const { mobileGridColumns } = usePreferences();
-	const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 	const [isDesktop, setIsDesktop] = useState(() => {
 		if (typeof window === "undefined") {
 			return false;
@@ -97,34 +115,138 @@ export function BrowseGrid({
 		return () => query.removeEventListener("change", update);
 	}, []);
 
+	const gridTemplateColumns = isDesktop
+		? "repeat(6, minmax(0, 1fr))"
+		: mobileGridColumns === "2"
+			? "repeat(auto-fill,  minmax(clamp(33.4%, 15vw, 250px), 1fr))"
+			: "repeat(auto-fill,  minmax(clamp(25.1%, 15vw, 250px), 1fr))";
+	const gridClassName = cn("grid w-full", isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px");
+
+	// Column count and row height (tiles are always square, see BrowseCardTile)
+	// aren't knowable from JS in advance — the mobile template uses
+	// auto-fill/clamp() percentages the browser resolves at layout time. So
+	// we read them back off a live, always-mounted (but invisible) probe grid
+	// that shares the exact same template/className as a real row, rather
+	// than re-deriving the CSS math (which would drift from actual layout on
+	// odd viewport widths).
+	const probeElRef = useRef<HTMLDivElement | null>(null);
+	const probeObserverRef = useRef<ResizeObserver | null>(null);
+	const [rowMetrics, setRowMetrics] = useState<RowMetrics>(() => ({
+		columnCount: isDesktop ? 6 : mobileGridColumns === "2" ? 3 : 4,
+		rowSizePx: 140,
+	}));
+
+	const measureProbe = useCallback((el: HTMLDivElement) => {
+		const style = window.getComputedStyle(el);
+		const tracks = style.gridTemplateColumns.split(" ").filter(Boolean);
+		const columnCount = tracks.length;
+		const columnWidthPx = parseFloat(tracks[0] ?? "0");
+		const rowGapPx = parseFloat(style.rowGap || "0");
+		if (columnCount > 0 && columnWidthPx > 0) {
+			const rowSizePx = columnWidthPx + rowGapPx;
+			setRowMetrics((prev) =>
+				prev.columnCount === columnCount && prev.rowSizePx === rowSizePx
+					? prev
+					: { columnCount, rowSizePx },
+			);
+		}
+	}, []);
+
+	const probeRefCallback = useCallback(
+		(el: HTMLDivElement | null) => {
+			probeObserverRef.current?.disconnect();
+			probeObserverRef.current = null;
+			probeElRef.current = el;
+			if (!el) {
+				return;
+			}
+			measureProbe(el);
+			const observer = new ResizeObserver(() => measureProbe(el));
+			observer.observe(el);
+			probeObserverRef.current = observer;
+		},
+		[measureProbe],
+	);
+
 	useEffect(() => {
-		if (!hasMore || !onLoadMore) {
+		if (probeElRef.current) {
+			measureProbe(probeElRef.current);
+		}
+	}, [gridTemplateColumns, gridClassName, measureProbe]);
+
+	const rows = useMemo(() => {
+		const columnCount = rowMetrics.columnCount;
+		const result: BrowseCard[][] = [];
+		for (let i = 0; i < cards.length; i += columnCount) {
+			result.push(cards.slice(i, i + columnCount));
+		}
+		return result;
+	}, [cards, rowMetrics.columnCount]);
+
+	const rowVirtualizer = useVirtualizer({
+		count: rows.length,
+		getScrollElement: () => scrollContainerRef.current,
+		estimateSize: () => rowMetrics.rowSizePx,
+		overscan: 3,
+		getItemKey: (index) => rows[index]?.[0]?.profileId ?? index,
+	});
+	const virtualRows = rowVirtualizer.getVirtualItems();
+	const lastVirtualRowIndex = virtualRows.length > 0 ? virtualRows[virtualRows.length - 1].index : -1;
+
+	// Pagination trigger — fires once virtualization has actually rendered the
+	// last row, i.e. the user has scrolled to the bottom of what's loaded.
+	// Guarded by rows.length so a just-requested page can't trigger a second
+	// request before its (possibly small) result has had a chance to push the
+	// last row out of view again.
+	const lastRequestedAtRowCountRef = useRef(-1);
+	useEffect(() => {
+		if (!hasMore || !onLoadMore || isLoadingMore) {
 			return;
 		}
-
-		const sentinel = loadMoreSentinelRef.current;
-		if (!sentinel) {
+		if (rows.length === 0 || lastVirtualRowIndex < rows.length - 1) {
 			return;
 		}
+		if (lastRequestedAtRowCountRef.current === rows.length) {
+			return;
+		}
+		lastRequestedAtRowCountRef.current = rows.length;
+		onLoadMore();
+	}, [lastVirtualRowIndex, rows.length, hasMore, isLoadingMore, onLoadMore]);
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (!entries.some((entry) => entry.isIntersecting)) {
-					return;
+	// Restore the saved scroll position once cards are in, then nudge it so
+	// the topmost partially-visible row aligns with the header's bottom edge
+	// instead of being cut off. Done here (not in GridPage) because only the
+	// virtualizer knows the real row size — with virtualization the tile that
+	// used to be queried via the DOM at the target scroll position may not be
+	// mounted yet.
+	useLayoutEffect(() => {
+		if (cards.length === 0 || hasRestoredScroll || isLoadingCards) {
+			return;
+		}
+		const container = scrollContainerRef.current;
+		if (browseCacheKey && container) {
+			const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
+			if (saved) {
+				const scrollY = parseInt(saved, 10);
+				if (scrollY > 0) {
+					container.scrollTop = scrollY;
+					const header = headerRef?.current;
+					if (header) {
+						const headerBottom = header.getBoundingClientRect().bottom;
+						const containerTop = container.getBoundingClientRect().top;
+						const rowSizePx = rowMetrics.rowSizePx;
+						const headerLineContentY = container.scrollTop + (headerBottom - containerTop);
+						const rowIndex = Math.floor(headerLineContentY / rowSizePx);
+						const rowTopContentY = rowIndex * rowSizePx;
+						if (rowTopContentY < headerLineContentY) {
+							container.scrollTop -= headerLineContentY - rowTopContentY;
+						}
+					}
 				}
-
-				if (isLoadingMore) {
-					return;
-				}
-
-				onLoadMore();
-			},
-			{ root: null, rootMargin: "0px 0px 280px 0px", threshold: 0 },
-		);
-
-		observer.observe(sentinel);
-		return () => observer.disconnect();
-	}, [cards.length, hasMore, isLoadingMore, onLoadMore]);
+			}
+		}
+		onRestoredScrollChange(true);
+	}, [cards.length, hasRestoredScroll, isLoadingCards, browseCacheKey, rowMetrics.rowSizePx]);
 
 	if (isLocationMissing) {
 		return (
@@ -190,41 +312,51 @@ export function BrowseGrid({
 
 	return (
 		<div className="w-full flex flex-col gap-4">
-			<div
-				className={cn(
-					"w-full grid",
-					isDesktop ? "gap-2 px-[var(--app-px)]" : "gap-px",
-				)}
-				style={{
-					gridTemplateColumns: isDesktop
-						? "repeat(6, minmax(0, 1fr))"
-						: mobileGridColumns === "2"
-							? "repeat(auto-fill,  minmax(clamp(33.4%, 15vw, 250px), 1fr))"
-							: "repeat(auto-fill,  minmax(clamp(25.1%, 15vw, 250px), 1fr))",
-				}}
-			>
-				{cards.map((card) => (
-					<BrowseCardTile
-						key={card.profileId}
-						card={card}
-						chatContactStatus={chatContactIndexByProfileId?.[card.profileId] ?? null}
-						onSelectProfile={onSelectProfile}
-						onMessageProfile={onMessageProfile}
-						isDesktop={isDesktop}
-					/>
-				))}
+			<div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>
+				{/* Invisible, always-mounted probe — the only purpose of this element
+					is to let us read back the actual column count / track width the
+					browser resolved for gridTemplateColumns (auto-fill + clamp() on
+					mobile can't be reliably re-derived in JS), via ResizeObserver. */}
+				<div
+					ref={probeRefCallback}
+					aria-hidden="true"
+					className={cn(gridClassName, "absolute inset-x-0 top-0 invisible pointer-events-none")}
+					style={{ gridTemplateColumns, height: 0, overflow: "hidden" }}
+				/>
+				{virtualRows.map((virtualRow) => {
+					const row = rows[virtualRow.index];
+					if (!row) {
+						return null;
+					}
+					return (
+						<div
+							key={virtualRow.key}
+							data-index={virtualRow.index}
+							className={cn(gridClassName, "absolute inset-x-0 top-0")}
+							style={{
+								gridTemplateColumns,
+								transform: `translateY(${virtualRow.start}px)`,
+							}}
+						>
+							{row.map((card) => (
+								<BrowseCardTile
+									key={card.profileId}
+									card={card}
+									chatContactStatus={chatContactIndexByProfileId?.[card.profileId] ?? null}
+									onSelectProfile={onSelectProfile}
+									onMessageProfile={onMessageProfile}
+									isDesktop={isDesktop}
+								/>
+							))}
+						</div>
+					);
+				})}
 			</div>
-			{hasMore && (
-				/* Sentinel triggers automatic pagination before the user reaches the end. */
-				<div className="px-[var(--app-px)] pb-8">
-					<div ref={loadMoreSentinelRef} className="h-8 w-full" aria-hidden="true" />
-					{isLoadingMore ? (
-						<p className="text-center text-sm text-[var(--text-muted)]">
-							{t("browse_page.loading")}
-						</p>
-					) : null}
-				</div>
-			)}
+			{hasMore && isLoadingMore ? (
+				<p className="px-[var(--app-px)] pb-8 text-center text-sm text-[var(--text-muted)]">
+					{t("browse_page.loading")}
+				</p>
+			) : null}
 		</div>
 	);
 }

@@ -7,7 +7,6 @@ import {
 	SquareCenterlineDashedHorizontal,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import z from "zod";
 import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
@@ -71,10 +70,9 @@ const DEFAULT_GENDER_ORDER = [1, 4, 5, 2, 6, 7, 3];
 
 export function ProfileEditorPage() {
 	const { t } = useTranslation();
-	const { userId, logout } = useAuth();
+	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const queryClient = useQueryClient();
-	const navigate = useNavigate();
 	const { unitsPreset } = usePreferences();
 	const [profile, setProfile] = useState<z.infer<typeof profileSchema> | null>(
 		null,

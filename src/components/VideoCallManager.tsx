@@ -484,7 +484,7 @@ export function VideoCallManager() {
 				try {
 					const fallbackInfo = await apiFunctionsRef.current.getVideoCallInfo();
 					if (fallbackInfo && typeof fallbackInfo === "object") {
-						const maybeToken = (fallbackInfo as Record<string, unknown>).token;
+						const maybeToken = (fallbackInfo as unknown as Record<string, unknown>).token;
 						if (typeof maybeToken === "string") token = maybeToken;
 					}
 				} catch {

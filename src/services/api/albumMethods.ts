@@ -38,7 +38,7 @@ import type {
 import type { RestFetcher } from "../../types/chat-service";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 
-export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string) => string) {
+export function createAlbumMethods(fetchRest: RestFetcher, t: (key: string, options?: { defaultValue?: string }) => string) {
 	return {
 		async getOwnAlbums(): Promise<Album[]> {
 			const response = await fetchRest("/v1/albums");

@@ -1,7 +1,6 @@
-import { ChevronLeft, ChevronRight, Images } from "lucide-react";
+import { Images } from "lucide-react";
 import {
 	type FormEvent,
-	type TouchEvent,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
