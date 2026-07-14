@@ -37,14 +37,14 @@ export function fromStoredView(row: StoredInterestView): InterestItem {
 export function toStoredView(item: InterestItem): Omit<StoredInterestView, "updatedAt"> {
 	return {
 		profileId: item.profileId,
-		displayName: item.displayName,
+		displayName: item.displayName ?? "",
 		imageHash: item.imageHash,
 		timestamp: item.timestamp,
 		viewCount: item.viewCount,
 	};
 }
 
-function isPlaceholderName(name: string, profileId: string): boolean {
+function isPlaceholderName(name: string | null, profileId: string): boolean {
 	return name === `Profile ${profileId}`;
 }
 
@@ -113,7 +113,7 @@ export function toNumber(value: unknown): number | null {
 	return null;
 }
 
-function getItemDisplayName(entry: Record<string, unknown>, profileId: string): string | null {
+function getItemDisplayName(entry: Record<string, unknown>): string | null {
 	const value = entry.displayName;
 	if (typeof value === "string" && value.trim().length > 0) {
 		return value;
@@ -190,7 +190,7 @@ function getPreviewSyntheticId(
 export function normalizeViews(
 	payload: unknown,
 	previouslyCached: InterestItem[],
-	t: TFunction
+	_t: TFunction
 ): InterestItem[] {
 	const root = asObject(payload);
 	if (!root) return previouslyCached;
@@ -208,14 +208,14 @@ export function normalizeViews(
 	}
 
 	// 2. Normalize raw data from server
-	const incomingProfiles = profilesRaw.map(entry => {
+	const incomingProfiles = profilesRaw.map((entry): InterestItem | null => {
 		const obj = getViewEntryRecord(entry);
 		if (!obj) return null;
 		const profileId = getViewProfileId(obj);
 		if (!profileId) return null;
 		return {
 			profileId,
-			displayName: getItemDisplayName(obj, profileId),
+			displayName: getItemDisplayName(obj),
 			imageHash: getItemImageHash(obj),
 			timestamp: getItemTimestamp(obj),
 			tapType: null,
@@ -227,7 +227,7 @@ export function normalizeViews(
 		};
 	}).filter((it): it is InterestItem => it !== null);
 
-	const incomingPreviews = previewsRaw.map((entry, index) => {
+	const incomingPreviews = previewsRaw.map((entry, index): InterestItem | null => {
 		const obj = getViewEntryRecord(entry);
 		if (!obj) return null;
 		const imageHash = getItemImageHash(obj);
@@ -260,7 +260,7 @@ export function normalizeViews(
 	}
 
 	// Then fresh profiles/previews from server (overwrite old items with new timestamps)
-	for (const incoming of [...incomingProfiles, incomingPreviews].flat()) {
+	for (const incoming of [...incomingProfiles, ...incomingPreviews]) {
 		const existing = mergedMap.get(incoming.profileId);
 		mergedMap.set(incoming.profileId, mergeViewItem(existing ?? null, incoming));
 	}
@@ -268,7 +268,7 @@ export function normalizeViews(
 	return Array.from(mergedMap.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 }
 
-export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
+export function normalizeTaps(payload: unknown, _t: TFunction): InterestItem[] {
 	const root = asObject(payload);
 	if (!root || !Array.isArray(root.profiles)) return [];
 
@@ -282,7 +282,7 @@ export function normalizeTaps(payload: unknown, t: TFunction): InterestItem[] {
 
 		const incoming: InterestItem = {
 			profileId,
-			displayName: getItemDisplayName(obj, profileId),
+			displayName: getItemDisplayName(obj),
 			imageHash: getItemImageHash(obj),
 			timestamp: getItemTimestamp(obj),
 			tapType: toNumber(obj.tapType),

@@ -14,7 +14,7 @@ import {
 	INBOX_SEEN_EVENT,
 	markInboxSeen,
 } from "../services/seenStore";
-import { CHAT_REALTIME_EVENT, TAP_RECEIVED_EVENT } from "./ChatRealtimeBridge";
+import { CHAT_REALTIME_EVENT } from "./ChatRealtimeBridge";
 import { messageSchema, type Message } from "../types/messages";
 import type { RealtimeEnvelope } from "../types/chat-realtime";
 import { useInterestData } from "../hooks/queries/useInterestQueries";
@@ -74,7 +74,7 @@ export function NavBar() {
 	}, [location.pathname]);
 
 	const [activeTab, setActiveTab] = useState("browse");
-	const [unreadCount, setUnreadCount] = useState(0);
+	const setUnreadCount = useState(0)[1];
 	const [interestUnseen, setInterestUnseen] = useState(false);
 	const [inboxUnseen, setInboxUnseen] = useState(false);
 

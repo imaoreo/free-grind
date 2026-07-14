@@ -1,4 +1,4 @@
-import { Album, Ban, Copy, Download, Eye, History, Hourglass, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
+import { Album, Ban, Copy, Download, Eye, History, Hourglass, Loader2, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
 import { PromptDialog } from "../../../components/ui/prompt-dialog";
@@ -71,6 +71,8 @@ type ChatThreadMessagesProps = {
 	messageLongPressTriggeredRef: { current: boolean };
 	openFullScreenImage: (imageUrl: string, meta?: { takenOnGrindr: boolean; createdAtLabel: string | null; timestamp: number }, mediaType?: "image" | "video", messageId?: string, senderId?: number) => void;
 	openAlbumViewerById: (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => void | Promise<void>;
+	onJumpToMessage: (messageId: string) => void;
+	highlightedMessageId: string | null;
 	selectedThreadMessageMatches: Array<{ messageId: string }>;
 	activeThreadSearchIndex: number;
 	openMessageActionId: string | null;
@@ -294,6 +296,8 @@ export function ChatThreadMessages({
 	messageLongPressTriggeredRef,
 	openFullScreenImage,
 	openAlbumViewerById,
+	onJumpToMessage,
+	highlightedMessageId,
 	selectedThreadMessageMatches,
 	activeThreadSearchIndex,
 	isMutatingMessageId,
@@ -1100,10 +1104,14 @@ export function ChatThreadMessages({
                                                     : t("chat.thread.shared_image");
                     const replyLabel = (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply)
                         ? replySenderId === userId
-                            ? t("chat.thread.replied_to_myself")
-                            : t("chat.thread.replied_to_name", {
-                                    name: selectedConversation.data.name || t("common.unknown_display_name"),
-                                })
+                            ? mine // Prüft, ob die AKTUELL gerenderte Nachricht von uns ist
+                                ? t("chat.thread.replied_to_myself")
+                                : t("chat.thread.replied_to_you", { defaultValue: "Replied to you" })
+                            : replySenderId != null && Number(replySenderId) === Number(message.senderId)
+                                ? t("chat.thread.replied_to_myself")
+                                : t("chat.thread.replied_to_name", {
+                                        name: selectedConversation?.data.name || t("common.unknown_display_name"),
+                                    })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
                     let displayText = messageText;
@@ -1321,7 +1329,7 @@ export function ChatThreadMessages({
                                                         ? "bg-[var(--accent)] text-[var(--accent-contrast)] rounded-br-[3px]"
                                                         : "bg-[var(--surface-2)] text-[var(--text)] rounded-bl-[3px]"
                                                 }`
-                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
+                                    } ${isActiveSearchMatch ? "ring-2 ring-[var(--accent)]" : ""} ${highlightedMessageId === message.messageId ? (mine ? "animate-jump-highlight-mine" : "animate-jump-highlight-other") : ""} ${(localOnly || isCachedExpiredAlbum) ? "opacity-50" : ""}`}
                                 >
                                     <div className={isMediaOnlyBubble && hasReply ? `overflow-hidden rounded-2xl ${mine ? "rounded-br-[3px]" : "rounded-bl-[3px]"}` : "contents"}>
                                     {message.type !== "ProfilePhotoReply" && (replyText || replyThumbUrl || replyVideoUrl || replyIsAudio || hasReply) ? (
@@ -1329,7 +1337,13 @@ export function ChatThreadMessages({
                                             ? `relative w-full p-3 ${mine ? "bg-[var(--accent)] text-[var(--accent-contrast)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`
                                             : "contents"
                                         }>
-                                        <div className={`relative flex overflow-hidden text-xs ${
+                                        <div
+                                            onClick={(event) => {
+                                                if (!replyToMsgId) return;
+                                                event.stopPropagation();
+                                                onJumpToMessage(replyToMsgId);
+                                            }}
+                                            className={`relative flex overflow-hidden text-xs ${replyToMsgId ? "cursor-pointer active:opacity-70" : ""} ${
                                             isMediaOnlyBubble && hasReply
                                                 ? `rounded-[6px] ${mine ? "bg-black/20" : "bg-black/[0.08]"}`
                                                 : isMediaOnlyBubble
@@ -1353,14 +1367,26 @@ export function ChatThreadMessages({
                                                 </div>
                                             ) : replyVideoUrl ? (
                                                 <div className="relative w-14 shrink-0 self-stretch overflow-hidden bg-black">
+                                                    <div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin text-white/60" />
+                                                    </div>
                                                     <video
                                                         muted
                                                         preload="metadata"
                                                         src={replyVideoUrl}
                                                         onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
-                                                        className={`absolute inset-0 h-full w-full object-cover [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
+                                                        onSeeked={(e) => {
+                                                            const el = e.currentTarget;
+                                                            el.style.opacity = "1";
+                                                            const parent = el.parentElement;
+                                                            const spinner = parent?.querySelector<HTMLElement>(".js-video-spinner");
+                                                            if (spinner) spinner.style.display = "none";
+                                                            const badge = parent?.querySelector<HTMLElement>(".js-video-play-badge");
+                                                            if (badge) badge.style.opacity = "1";
+                                                        }}
+                                                        className={`absolute inset-0 h-full w-full object-cover opacity-0 transition-opacity duration-200 [clip-path:inset(0)]${blurIncomingMedia ? " blur-md transition" : ""}`}
                                                     />
-                                                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                    <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
                                                         <Play className="h-3.5 w-3.5 fill-white text-white drop-shadow" />
                                                     </div>
                                                 </div>
@@ -1650,12 +1676,24 @@ export function ChatThreadMessages({
                                                     }}
                                                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") e.currentTarget.click(); }}
                                                 >
+                                                    <div className="js-video-spinner pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <Loader2 className="h-5 w-5 animate-spin text-white/60" />
+                                                    </div>
                                                     <video
                                                         preload="metadata"
                                                         muted
                                                         src={videoUrl}
                                                         onLoadedMetadata={(e) => { (e.currentTarget as HTMLVideoElement).currentTime = 0.001; }}
-                                                        className={`w-full object-cover ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
+                                                        onSeeked={(e) => {
+                                                            const el = e.currentTarget;
+                                                            el.style.opacity = "1";
+                                                            const parent = el.parentElement;
+                                                            const spinner = parent?.querySelector<HTMLElement>(".js-video-spinner");
+                                                            if (spinner) spinner.style.display = "none";
+                                                            const badge = parent?.querySelector<HTMLElement>(".js-video-play-badge");
+                                                            if (badge) badge.style.opacity = "1";
+                                                        }}
+                                                        className={`w-full object-cover opacity-0 transition-opacity duration-200 ${isVideoOnlyBubble ? "max-h-80" : "max-h-64"} ${mediaBlurClassName}`}
                                                     />
                                                     {isLimitedVideo && (
                                                         videoMaxViews === 1 ? (
@@ -1671,7 +1709,7 @@ export function ChatThreadMessages({
                                                         )
                                                     )}
                                                     {!shouldBlurIncomingMedia && (
-                                                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                                        <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
                                                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
                                                                 <Play className="h-5 w-5 fill-white text-white" />
                                                             </div>
@@ -1793,6 +1831,8 @@ export function ChatThreadMessages({
                                                 event.stopPropagation();
                                                 const url = isDesktop
                                                     ? `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lon}`
+                                                    : isIos()
+                                                    ? `https://maps.apple.com/?ll=${location.lat},${location.lon}&q=${location.lat},${location.lon}`
                                                     : `geo:${location.lat},${location.lon}?q=${location.lat},${location.lon}`;
                                                 const doOpen = () => {
                                                     openUrl(url).catch((error) => {

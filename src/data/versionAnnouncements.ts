@@ -1,6 +1,5 @@
 import {
 	ArrowUpDown,
-	Ban,
 	Database,
 	DatabaseBackup,
 	EyeOff,

@@ -48,7 +48,6 @@ export function SmoothScroll({
 			smoothWheel: true,
 			wheelMultiplier: wheelMultiplier,
 			touchMultiplier: touchMultiplier,
-			smoothTouch: smoothTouch,
 			autoResize: true,
 		});
 

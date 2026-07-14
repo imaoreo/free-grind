@@ -1,4 +1,4 @@
-import type { BrowseCard } from "./GridPage.types";
+import type { BrowseCard } from "../GridPage.types";
 import type { ChatContactIndexRecord } from "../../../types/chat-contact-index";
 
 export const SHOW_DEMO_DATA = false; // Toggle this to show/hide demo profiles
@@ -183,39 +183,50 @@ export const DEMO_CARDS: BrowseCard[] = [
 export const DEMO_CHAT_STATUS: Record<string, ChatContactIndexRecord> = {
 	"demo-chatted-freegrind": {
 		profileId: "demo-chatted-freegrind",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 0,
 		lastMessageTimestamp: Date.now(),
-		lastMessageText: "Hey!",
+		updatedAt: Date.now(),
 	},
 	"demo-fav-unread": {
 		profileId: "demo-fav-unread",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 3,
 		lastMessageTimestamp: Date.now(),
+		updatedAt: Date.now(),
 	},
 	"demo-pop-unread": {
 		profileId: "demo-pop-unread",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 1,
 		lastMessageTimestamp: Date.now(),
+		updatedAt: Date.now(),
 	},
 	"demo-huge-unread": {
 		profileId: "demo-huge-unread",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 4,
 		lastMessageTimestamp: Date.now(),
+		updatedAt: Date.now(),
 	},
 	"demo-boost-unread": {
 		profileId: "demo-boost-unread",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 2,
 		lastMessageTimestamp: Date.now(),
+		updatedAt: Date.now(),
 	},
 	"demo-fav-fg-freegrind": {
 		profileId: "demo-fav-fg-freegrind",
+		conversationId: null,
 		hasChatted: true,
 		unreadCount: 0,
 		lastMessageTimestamp: Date.now(),
+		updatedAt: Date.now(),
 	},
 };

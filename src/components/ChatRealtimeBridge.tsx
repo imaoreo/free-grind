@@ -865,7 +865,7 @@ export function ChatRealtimeBridge() {
 					}),
 				);
 			},
-			onRawMessage: (raw) => {
+			onRawMessage: (_raw) => {
 				// appLog.debug(`[chat-ws:bridge:raw] ${JSON.stringify(raw)}`);
 			},
 			onParseError: (raw, error) => {

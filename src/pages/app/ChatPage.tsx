@@ -1,7 +1,6 @@
-import { ChevronLeft, ChevronRight, Images } from "lucide-react";
+import { Images } from "lucide-react";
 import {
 	type FormEvent,
-	type TouchEvent,
 	useCallback,
 	useEffect,
 	useLayoutEffect,
@@ -711,6 +710,10 @@ export function ChatPage() {
 	const [pendingMessageScrollId, setPendingMessageScrollId] = useState<
 		string | null
 	>(null);
+	const [highlightedMessageId, setHighlightedMessageId] = useState<
+		string | null
+	>(null);
+	const jumpScrollWaitRef = useRef<{ id: string; cleanup: () => void } | null>(null);
 	const [activeThreadSearchIndex, setActiveThreadSearchIndex] = useState(0);
 	const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>(() => getChatRealtimeStatus());
 
@@ -3522,9 +3525,78 @@ export function ChatPage() {
 			return;
 		}
 
-		target.scrollIntoView({ block: "center", behavior: "smooth" });
+		const messageId = pendingMessageScrollId;
 		setPendingMessageScrollId(null);
+
+		// threadMessages is a dependency (so a jump target that only appears
+		// after older messages finish loading still resolves), but its
+		// reference changes on unrelated polling too. Track the in-flight
+		// wait in a ref rather than the effect's own cleanup, so those
+		// unrelated re-renders can't cancel the fallback timer / listener
+		// before the scroll actually finishes.
+		if (jumpScrollWaitRef.current) {
+			if (jumpScrollWaitRef.current.id === messageId) {
+				return;
+			}
+			jumpScrollWaitRef.current.cleanup();
+			jumpScrollWaitRef.current = null;
+		}
+
+		const container = threadScrollContainerRef.current;
+
+		// Only pulse once the smooth scroll has actually landed on the target —
+		// starting it immediately would play the animation off-screen (or mid-
+		// scroll) while the message is still flying past, so it goes unseen.
+		const containerRect = container?.getBoundingClientRect();
+		const targetRect = target.getBoundingClientRect();
+		const alreadyVisible = !!containerRect &&
+			targetRect.top >= containerRect.top &&
+			targetRect.bottom <= containerRect.bottom;
+
+		target.scrollIntoView({ block: "center", behavior: "smooth" });
+
+		if (alreadyVisible) {
+			setHighlightedMessageId(messageId);
+			return;
+		}
+
+		let settled = false;
+		const finish = () => {
+			if (settled) return;
+			settled = true;
+			jumpScrollWaitRef.current = null;
+			setHighlightedMessageId(messageId);
+		};
+
+		container?.addEventListener("scrollend", finish, { once: true });
+		const fallbackTimer = window.setTimeout(finish, 600);
+
+		jumpScrollWaitRef.current = {
+			id: messageId,
+			cleanup: () => {
+				window.clearTimeout(fallbackTimer);
+				container?.removeEventListener("scrollend", finish);
+			},
+		};
 	}, [pendingMessageScrollId, threadMessages]);
+
+	useEffect(() => {
+		return () => {
+			jumpScrollWaitRef.current?.cleanup();
+		};
+	}, []);
+
+	useEffect(() => {
+		if (!highlightedMessageId) {
+			return;
+		}
+
+		const timer = window.setTimeout(() => {
+			setHighlightedMessageId(null);
+		}, 1200);
+
+		return () => window.clearTimeout(timer);
+	}, [highlightedMessageId]);
 
 	useEffect(() => {
 		const intervalId = window.setInterval(() => {
@@ -6072,6 +6144,8 @@ export function ChatPage() {
 			messageLongPressTriggeredRef={messageLongPressTriggeredRef}
 			openFullScreenImage={openFullScreenImage}
 			openAlbumViewerById={openAlbumViewerById}
+			onJumpToMessage={setPendingMessageScrollId}
+			highlightedMessageId={highlightedMessageId}
 			selectedThreadMessageMatches={selectedThreadMessageMatches}
 			activeThreadSearchIndex={activeThreadSearchIndex}
 			openMessageActionId={openMessageActionId}

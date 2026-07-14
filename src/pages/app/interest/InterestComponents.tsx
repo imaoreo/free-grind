@@ -12,7 +12,6 @@ export const InterestTabs = memo(function InterestTabs({
 	onViewsClick,
 	onTapsClick,
 	firstTab = "taps",
-	shouldBounce = false,
 	newViewsCount = 0,
 	newTapsCount = 0,
 }: {
@@ -20,7 +19,6 @@ export const InterestTabs = memo(function InterestTabs({
 	onViewsClick: () => void;
 	onTapsClick: () => void;
 	firstTab?: InterestTab;
-	shouldBounce?: boolean;
 	newViewsCount?: number;
 	newTapsCount?: number;
 }) {
@@ -95,19 +93,17 @@ export const InterestTabs = memo(function InterestTabs({
 				style={{
 					width: indicatorStyle.width,
 					left: indicatorStyle.left,
-					transform: shouldBounce ? "translateX(8px)" : "translateX(0)",
 				}}
 			/>
 
 			{labels.map((label, i) => (
 				<button
 					key={label}
-					ref={(el) => (tabsRef.current[i] = el)}
+					ref={(el) => { tabsRef.current[i] = el; }}
 					type="button"
 					onClick={handlers[i]}
 					className={cn(
 						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
-						shouldBounce && "translate-x-2",
 						activeIndex === i
 							? "text-[var(--accent-contrast)] text-base font-black tracking-tight"
 							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
@@ -196,7 +192,11 @@ export const InterestRow = memo(function InterestRow({
 				)}
 				{isLocked && (
 					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)] z-10">
-						{isPrivate ? <Lock className="h-3 w-3" /> : <Ban className="h-3 w-3" title={t("interest_page.blocked_profile")} />}
+						{isPrivate ? <Lock className="h-3 w-3" /> : (
+							<span title={t("interest_page.blocked_profile")}>
+								<Ban className="h-3 w-3" />
+							</span>
+						)}
 					</div>
 				)}
 			</button>
@@ -214,7 +214,9 @@ export const InterestRow = memo(function InterestRow({
 							{displayName}
 						</p>
 						{isRecovered && (
-							<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+							<span title={t("interest_page.recovered_tooltip")}>
+								<History className="h-3 w-3 text-[var(--accent)]" />
+							</span>
 						)}
 						{item.rightNow === "HOSTING" && (
 							<span title={t("right_now.hosting")}>
@@ -235,13 +237,13 @@ export const InterestRow = memo(function InterestRow({
 
 			{/* Action Area (Views or Taps) */}
 			{!isPrivate && (
-				<div className="shrink-0 flex items-center justify-center h-12 w-12">
+				<div className="shrink-0 flex items-center justify-end h-12 w-12">
 					{mode === "taps" ? (
 						<div className="relative flex h-12 w-12 items-center justify-center">
 							<span
 								className="text-2xl leading-none select-none"
 								style={{
-									filter: `drop-shadow(0 0 3px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.55)) drop-shadow(0 0 7px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.3))`,
+									filter: `drop-shadow(0 0 3px rgba(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"}, 0.55)) drop-shadow(0 0 7px rgba(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"}, 0.3))`,
 								}}
 							>
 								{getTapEmoji(item.tapType)}
@@ -249,7 +251,7 @@ export const InterestRow = memo(function InterestRow({
 							{item.isMutual && (
 								<span
 									className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-md"
-									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})` }}
+									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"})` }}
 									title={t("interest_page.mutual_tap_tooltip")}
 								>
 									<MoveHorizontal className="h-2.5 w-2.5" />

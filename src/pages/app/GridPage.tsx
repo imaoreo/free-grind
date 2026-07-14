@@ -3,12 +3,12 @@ import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplet
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
-import { type BrowseCard, type ManagedOption, type ProfileDetail } from "./GridPage.types";
+import { type BrowseCard, type ProfileDetail } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
@@ -19,7 +19,7 @@ import {
 	setCachedBrowseCards,
 	setCachedProfileDetail,
 } from "./gridpage/cache";
-import { setSavedAccountDisplayName, setSavedAccountPhotoHash, getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
+import { setSavedAccountDisplayName, setSavedAccountPhotoHash, getSavedAccountProfile } from "../../services/savedAccountProfiles";
 import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseSortOption,
@@ -57,6 +57,10 @@ import {
 } from "../../utils/blockConfirm";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
+// The local displayname filter ("Lokale Filter" > nicknameFilter) matches
+// only against already-loaded cards, so a narrow/rare name would otherwise
+// keep auto-pagination running indefinitely trying to find more matches.
+const NICKNAME_FILTER_MAX_PAGES = 7;
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -81,6 +85,12 @@ export function GridPage() {
 	// Cascade encodes this as a page number, explore (/v7/search) as a
 	// (distance, profileId) cursor — see encodeSearchCursor/decodeSearchCursor.
 	const [nextPage, setNextPage] = useState<string | null>(null);
+	// Counts grid pages loaded since the last fresh load (reset to 1 by
+	// loadBrowseCards, incremented by handleLoadMoreCards) — used to cap
+	// auto-pagination while the local displayname filter is narrowing the
+	// grid down to little/nothing, which would otherwise keep fetching page
+	// after page indefinitely trying to find a match. See NICKNAME_FILTER_MAX_PAGES.
+	const [loadedPageCount, setLoadedPageCount] = useState(1);
 	const [cardsError, setCardsError] = useState<string | null>(null);
 	// Explore mode: browse a different area via /v7/search's exploreGeoHash
 	// without touching the real geohash (preferences.geohash / nearbyGeoHash).
@@ -547,6 +557,7 @@ export function GridPage() {
 			if (cached) {
 				setCards(cached.cards);
 				setNextPage(cached.nextPage);
+				setLoadedPageCount(1);
 				setIsLoadingCards(false);
 				setDebugLoadSource("cache");
 				// If we have cached cards and we're on the first page, don't re-fetch from API immediately.
@@ -586,6 +597,7 @@ export function GridPage() {
 					parsed.nextPage ?? null,
 				);
 				setNextPage(parsed.nextPage ?? null);
+				setLoadedPageCount(1);
 			} catch (error) {
 				if (!isMountedRef.current) {
 					return;
@@ -654,35 +666,11 @@ export function GridPage() {
 		setHasRestoredScroll(false);
 	}, [browseCacheKey]);
 
-	useLayoutEffect(() => {
-		if (cards.length > 0 && !hasRestoredScroll && !isLoadingCards) {
-			const container = feedContainerRef.current;
-			if (browseCacheKey && container) {
-				const saved = sessionStorage.getItem(`grid-scroll-${browseCacheKey}`);
-				if (saved) {
-					const scrollY = parseInt(saved, 10);
-					if (scrollY > 0) {
-						container.scrollTop = scrollY;
-						// Snap so the topmost partially-visible tile aligns with the header bottom
-						const header = headerRef.current;
-						if (header) {
-							const headerBottom = header.getBoundingClientRect().bottom;
-							const tiles = container.querySelectorAll<HTMLElement>(".surface-card-grid");
-							for (const tile of tiles) {
-								const rect = tile.getBoundingClientRect();
-								if (rect.top < headerBottom && rect.bottom > headerBottom) {
-									container.scrollTop -= headerBottom - rect.top;
-									break;
-								}
-								if (rect.top >= headerBottom) break;
-							}
-						}
-					}
-				}
-			}
-			setHasRestoredScroll(true);
-		}
-	}, [cards.length, hasRestoredScroll, isLoadingCards, browseCacheKey]);
+	// Scroll restore + header-snap now lives inside BrowseGrid (see its
+	// hasRestoredScroll/onRestoredScrollChange props) — with the grid
+	// virtualized, only BrowseGrid knows the real (measured) row size needed
+	// to do that math without querying the DOM for a tile that may not be
+	// mounted yet at the restored position.
 
 	useEffect(() => {
 		if (!browseCacheKey) return;
@@ -789,6 +777,7 @@ export function GridPage() {
 
 	const handleLoadMoreCards = async () => {
 		if (!geohash || !nextPage || isLoadingMoreCards) return;
+		if (nicknameFilter && loadedPageCount >= NICKNAME_FILTER_MAX_PAGES) return;
 		setIsLoadingMoreCards(true);
 		let cancelled = false;
 		try {
@@ -816,6 +805,7 @@ export function GridPage() {
 					return next;
 				});
 				setNextPage(parsed.nextPage ?? null);
+				setLoadedPageCount((prev) => prev + 1);
 			}
 		} catch {
 			// silently fail — existing cards remain
@@ -1574,11 +1564,16 @@ export function GridPage() {
 							}
 							onSelectProfile={handleSelectProfile}
 							onMessageProfile={handleMessageProfile}
-							hasMore={nextPage !== null}
+							hasMore={nextPage !== null && !(nicknameFilter && loadedPageCount >= NICKNAME_FILTER_MAX_PAGES)}
 							isLoadingMore={isLoadingMoreCards}
 							onLoadMore={() => {
 								void handleLoadMoreCards();
 							}}
+							scrollContainerRef={feedContainerRef}
+							headerRef={headerRef}
+							browseCacheKey={browseCacheKey}
+							hasRestoredScroll={hasRestoredScroll}
+							onRestoredScrollChange={setHasRestoredScroll}
 						/>
 					</div>
 				</FeedScrollContainer>

@@ -5,6 +5,7 @@ import type {
 	ScoredResult,
 } from "../../../types/chat-cache";
 import { getMessageText } from "../../../utils/messageText";
+import { isLocalClientMessageId } from "./chatUtils";
 
 const conversationIndex = new Map<string, IndexedConversation>();
 const messageIndex = new Map<string, IndexedMessage>();
@@ -41,6 +42,15 @@ export function indexConversations(entries: ConversationEntry[]) {
 
 export function indexMessages(messages: Message[]) {
 	for (const message of messages) {
+		// Optimistic client-side ids (local:/local-upload:) are superseded by a
+		// server-confirmed message under a different id once sending completes,
+		// but that swap only happens in threadMessages state — this index is a
+		// module-level Map that's never pruned, so indexing the local id would
+		// leave a stale duplicate entry search results keep matching forever.
+		if (isLocalClientMessageId(message.messageId)) {
+			continue;
+		}
+
 		const text = getMessageText(message);
 		if (!text) {
 			continue;

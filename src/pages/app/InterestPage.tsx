@@ -1,8 +1,7 @@
-import { RefreshCw, Eye, ArrowLeftRight } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type TouchEvent } from "react";
+import { RefreshCw, Eye, Flame } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition, type CSSProperties, type TouchEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useInterestData } from "../../hooks/queries/useInterestQueries";
 import { useBlockedProfileIds } from "../../hooks/queries/useProfileQueries";
 import { getBlockStatesByProfileIds } from "../../services/chatDb";
@@ -10,19 +9,9 @@ import { markInterestSeen, getInterestTabLastSeen, markInterestTabSeen } from ".
 import { EmptyState, ErrorState } from "../../components/ui/states";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import {
-	TAP_RECEIVED_EVENT,
-	type TapReceivedDetail,
-} from "../../components/ChatRealtimeBridge";
-import {
 	type InterestTab,
 	type InterestItem,
-	fromStoredView,
-	toStoredView,
-	toNumber,
-	asObject,
 	PREVIEW_ID_PREFIX,
-	normalizeViews,
-	normalizeTaps,
 } from "./interest/interestUtils";
 import { InterestTabs, InterestRow } from "./interest/InterestComponents";
 import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
@@ -32,17 +21,9 @@ import {
 import { cn } from "../../utils/cn";
 import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
-import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { usePreferences } from "../../contexts/PreferencesContext";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
-
-// SET THIS TO TRUE FOR DEBUGGING: Always triggers bounce and long delay on refresh
-const ALWAYS_BOUNCE_FOR_DEBUG = false;
-
-// Persistent flag for the session to prevent multiple bounces when navigating back and forth
-let globalHasBounced = false;
-let globalHasShownCount = false;
 
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
@@ -63,10 +44,8 @@ function InterestSkeleton({ mode }: { mode: InterestTab }) {
 
 export function InterestPage() {
 	const { t } = useTranslation();
-	const api = useApiFunctions();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const isDesktop = useDesktopBreakpoint();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
 	const lastActiveTab = window.localStorage.getItem("fg-interest-last-tab");
@@ -271,7 +250,6 @@ export function InterestPage() {
 	}, []);
 
 	const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
-	const [showCountLabel, setShowCountLabel] = useState(false);
 
 	// Track the newest activity across both taps and views.
 	const maxInterestTimestamp = useMemo(() => {
@@ -289,23 +267,7 @@ export function InterestPage() {
 	const [showOnboarding, setShowOnboarding] = useState(() => {
 		return !localStorage.getItem(ONBOARDING_KEY);
 	});
-	const [shouldBounce, setShouldBounce] = useState(false);
 	const touchStartXRef = useRef<number | null>(null);
-
-	const isFirstRender = useRef(true);
-
-	// Trigger peek animation
-	useEffect(() => {
-		if (!ALWAYS_BOUNCE_FOR_DEBUG && globalHasBounced && demoMode === 0) return;
-
-		const timer = setTimeout(() => {
-			setShouldBounce(true);
-			globalHasBounced = true;
-			// Reset bounce state after animation finishes
-			setTimeout(() => setShouldBounce(false), 1000);
-		}, 600);
-		return () => clearTimeout(timer);
-	}, [demoMode]);
 
 	const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 	const feedContainerRef = useRef<HTMLDivElement | null>(null);
@@ -333,7 +295,7 @@ export function InterestPage() {
 		const saved = sessionStorage.getItem("interest-scroll-views");
 		if (saved) {
 			try {
-				const { limit, timestamp } = JSON.parse(saved);
+				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
 				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 					return limit;
 				}
@@ -345,7 +307,7 @@ export function InterestPage() {
 		const saved = sessionStorage.getItem("interest-scroll-taps");
 		if (saved) {
 			try {
-				const { limit, timestamp } = JSON.parse(saved);
+				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
 				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 					return limit;
 				}
@@ -473,7 +435,7 @@ export function InterestPage() {
 			const saved = sessionStorage.getItem(storageKey);
 			if (saved) {
 				try {
-					const { top, timestamp } = JSON.parse(saved);
+					const { top, timestamp } = JSON.parse(saved) as { top: number; timestamp: number };
 
 					// Only restore if the scroll position is less than the timeout
 					if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
@@ -506,37 +468,6 @@ export function InterestPage() {
 			markInterestSeen(Math.max(Date.now(), maxInterestTimestamp));
 		}
 	}, [activeTab, maxInterestTimestamp, data]);
-
-	// Animate the count label: show it briefly on tab change, then hide it.
-	useEffect(() => {
-		setShowCountLabel(false);
-
-		// Synchronize with the bounce: Only long delay if a bounce is actually happening
-		// ALWAYS_BOUNCE_FOR_DEBUG forces the long delay.
-		// Otherwise, we only wait long if it's the very first render AND we haven't bounced yet.
-		const willBounceNow = !globalHasBounced || demoMode !== 0;
-		const isInitialLook = ALWAYS_BOUNCE_FOR_DEBUG || (isFirstRender.current && willBounceNow);
-
-		const delay = isInitialLook ? 2200 : 800;
-
-		// Only show the animation once per session, but keep the delay logic above for future use
-		if (ALWAYS_BOUNCE_FOR_DEBUG || !globalHasShownCount || demoMode !== 0) {
-			const timer = setTimeout(() => {
-				setShowCountLabel(true);
-				globalHasShownCount = true;
-			}, delay);
-			const hideTimer = setTimeout(() => setShowCountLabel(false), delay + 4000);
-
-			isFirstRender.current = false;
-
-			return () => {
-				clearTimeout(timer);
-				clearTimeout(hideTimer);
-			};
-		}
-
-		isFirstRender.current = false;
-	}, [activeTab, demoMode]);
 
 	const handleRefresh = useCallback(() => {
 		if (activeTab === "views") {
@@ -636,47 +567,38 @@ export function InterestPage() {
 					</div>
 
 					<div className="flex flex-col gap-3">
-						<div className="flex h-12 items-center justify-between pl-[var(--app-px)] pr-6 -mt-1">
+						<div className="flex h-12 items-center justify-between pl-[var(--app-px)] pr-4 -mt-1">
 							<InterestTabs
 								activeTab={activeTab}
 								onViewsClick={() => handleSetActiveTab("views")}
 								onTapsClick={() => handleSetActiveTab("taps")}
 								firstTab={defaultSetting}
-								shouldBounce={shouldBounce}
 								newViewsCount={newViewsCount}
 								newTapsCount={newTapsCount}
 							/>
 
 							<div
-								className={cn(
-									"glass-pill neutral flex h-8 items-center justify-center overflow-hidden shrink-0 transition-all duration-500 ease-in-out",
-									showCountLabel ? "pl-4 pr-4" : "px-3 min-w-[40px]"
-								)}
+								className="glass-pill flex h-8 shrink-0 items-center gap-1.5 px-3"
+								style={{ "--pill-color": "var(--text-muted)" } as CSSProperties}
+								title={activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
 							>
-								<div className="flex items-center justify-center">
-									<div
-										className={cn(
-											"flex transition-all duration-500 ease-in-out overflow-hidden",
-											showCountLabel ? "opacity-100 max-w-[200px]" : "opacity-0 max-w-0 pointer-events-none"
-										)}
-									>
-										<p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] leading-none whitespace-nowrap mr-2">
-											{activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
-										</p>
-									</div>
-									<div className="relative flex items-center justify-center">
-										<p className={cn(
-											"text-sm font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
-											(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
-										)}>
-											{activeTab === "views" ? viewedCount : taps.length}
-										</p>
-										{((isFetching && !isQueryLoading) || isDemoLoading) && (
-											<div className="absolute inset-0 flex items-center justify-center">
-												<RefreshCw className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />
-											</div>
-										)}
-									</div>
+								{activeTab === "views" ? (
+									<Eye className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+								) : (
+									<Flame className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+								)}
+								<div className="relative flex min-w-[1.25rem] items-center justify-center">
+									<p className={cn(
+										"text-xs font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
+										(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
+									)}>
+										{activeTab === "views" ? viewedCount : taps.length}
+									</p>
+									{((isFetching && !isQueryLoading) || isDemoLoading) && (
+										<div className="absolute inset-0 flex items-center justify-center">
+											<RefreshCw className="h-3 w-3 animate-spin text-[var(--text-muted)]" />
+										</div>
+									)}
 								</div>
 							</div>
 						</div>
@@ -688,7 +610,6 @@ export function InterestPage() {
 				ref={feedContainerRef}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}
-				className={cn("transition-transform duration-500 ease-in-out", shouldBounce && "-translate-x-8")}
 			>
 				<div className="mx-auto w-full max-w-4xl pb-[calc(env(safe-area-inset-bottom,0px)+120px)] px-0">
 					{(isLoading && (activeItems.length === 0 || isDemoLoading)) ? (

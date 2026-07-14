@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useRef } from "react";
+import React, { forwardRef, useCallback, useEffect, useRef } from "react";
 import Lenis from "lenis";
 import { cn } from "../../utils/cn";
 import { FEED_HEADER_OFFSET, FEED_MASK_GRADIENT_STOP } from "../../config/design-config";
@@ -13,6 +13,24 @@ export const FeedScrollContainer = forwardRef<HTMLDivElement, FeedScrollContaine
 	({ children, className, ...props }, ref) => {
 		const isDesktop = useDesktopBreakpoint();
 		const innerRef = useRef<HTMLDivElement | null>(null);
+
+		// Memoized so its identity is stable across re-renders — an inline ref
+		// callback gets a new identity every render, and React responds to that
+		// by calling the old one with null then the new one with the node, on
+		// every single re-render. Consumers of the forwarded ref (e.g. a
+		// virtualizer's getScrollElement) would otherwise see it flicker to
+		// null and back on every re-render of this component.
+		const setRefs = useCallback(
+			(node: HTMLDivElement | null) => {
+				innerRef.current = node;
+				if (typeof ref === "function") {
+					ref(node);
+				} else if (ref) {
+					ref.current = node;
+				}
+			},
+			[ref],
+		);
 
 		useEffect(() => {
 			if (!isDesktop || !innerRef.current || !SMOOTH_SCROLL_CONFIG.enabled) {
@@ -48,14 +66,7 @@ export const FeedScrollContainer = forwardRef<HTMLDivElement, FeedScrollContaine
 				style={{ marginTop: `-${FEED_HEADER_OFFSET}` }}
 			>
 				<div
-					ref={(node) => {
-						innerRef.current = node;
-						if (typeof ref === "function") {
-							ref(node);
-						} else if (ref) {
-							ref.current = node;
-						}
-					}}
+					ref={setRefs}
 					data-lenis-prevent
 					className={cn("h-full overflow-y-auto", className)}
 					style={{
