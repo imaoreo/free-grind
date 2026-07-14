@@ -60,7 +60,6 @@ if (typeof window !== "undefined") {
 // Global state to track if the initial reveal period has passed for the current "view"
 let globalAnimationsEnabled = false;
 let lastUrl = "";
-let activeHooksCount = 0;
 
 function processNext() {
 	if (pendingReveals.length === 0) {
@@ -114,18 +113,6 @@ export function useRevealOnScroll(threshold = 0.05, rootMargin = "0px 0px -20px 
 			revealTimer = null;
 		}
 	}
-
-	// Track the number of active hooks to reset global state when navigating away to a page without reveal effects
-	useEffect(() => {
-		activeHooksCount++;
-		return () => {
-			activeHooksCount--;
-			if (activeHooksCount === 0) {
-				globalAnimationsEnabled = false;
-				lastUrl = "";
-			}
-		};
-	}, []);
 
 	useEffect(() => {
 		if (!isEnabled) return;
