@@ -20,7 +20,7 @@ import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
 import { isRecordProfileViewsEnabled } from "../../utils/privacy";
 import { appLog } from "../../utils/logger";
 
-export function createProfileMethods(fetchRest: RestFetcher, t: (key: string) => string) {
+export function createProfileMethods(fetchRest: RestFetcher, t: (key: string, options?: { defaultValue?: string }) => string) {
 	return {
 		async getBlockedProfileIds(): Promise<string[]> {
 			const response = await fetchRest("/v3.1/me/blocks");

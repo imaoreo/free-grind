@@ -82,7 +82,7 @@ export function ChatDrawerPanel({
 	onDeleteMedia,
 	isDesktop,
 	albums = [],
-	isLoadingAlbums = false,
+	isLoadingAlbums: _isLoadingAlbums = false,
 	albumCoverMap = new Map(),
 	sharedAlbumIds = new Set(),
 	onShareAlbum,

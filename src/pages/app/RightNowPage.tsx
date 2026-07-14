@@ -6,13 +6,11 @@ import {
 	ArrowUpDown,
 	Clock,
 	Home,
-	Loader2,
 	MessageSquare,
 	Navigation,
 	SlidersHorizontal,
 	Star,
 } from "lucide-react";
-import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useRightNowFeed } from "../../hooks/queries/useRightNowQueries";
 import type { RightNowFeedItem } from "../../services/apiFunctions";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
@@ -351,7 +349,6 @@ export function RightNowPage() {
 	const { t } = useTranslation();
 	const location = useLocation();
 	const navigate = useNavigate();
-	const isDesktop = useDesktopBreakpoint();
 	const persistedFilters = useMemo(() => loadRightNowFiltersDraft(), []);
 
 	const [sort, setSort] = useState<SortOption>(persistedFilters.sort);
@@ -552,7 +549,7 @@ export function RightNowPage() {
 					const parsed = JSON.parse(saved);
 					// Safety check: is it our new object format or just an old number?
 					if (parsed && typeof parsed === "object" && "top" in parsed) {
-						const { top, timestamp } = parsed;
+						const { top, timestamp } = parsed as { top: number; timestamp: number };
 						if (Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
 							feedContainerRef.current.scrollTop = top;
 						} else {

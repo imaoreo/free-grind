@@ -99,7 +99,7 @@ export const InterestTabs = memo(function InterestTabs({
 			{labels.map((label, i) => (
 				<button
 					key={label}
-					ref={(el) => (tabsRef.current[i] = el)}
+					ref={(el) => { tabsRef.current[i] = el; }}
 					type="button"
 					onClick={handlers[i]}
 					className={cn(
@@ -192,7 +192,11 @@ export const InterestRow = memo(function InterestRow({
 				)}
 				{isLocked && (
 					<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-1 ring-[var(--surface)] z-10">
-						{isPrivate ? <Lock className="h-3 w-3" /> : <Ban className="h-3 w-3" title={t("interest_page.blocked_profile")} />}
+						{isPrivate ? <Lock className="h-3 w-3" /> : (
+							<span title={t("interest_page.blocked_profile")}>
+								<Ban className="h-3 w-3" />
+							</span>
+						)}
 					</div>
 				)}
 			</button>
@@ -210,7 +214,9 @@ export const InterestRow = memo(function InterestRow({
 							{displayName}
 						</p>
 						{isRecovered && (
-							<History className="h-3 w-3 text-[var(--accent)]" title={t("interest_page.recovered_tooltip")} />
+							<span title={t("interest_page.recovered_tooltip")}>
+								<History className="h-3 w-3 text-[var(--accent)]" />
+							</span>
 						)}
 						{item.rightNow === "HOSTING" && (
 							<span title={t("right_now.hosting")}>
@@ -237,7 +243,7 @@ export const InterestRow = memo(function InterestRow({
 							<span
 								className="text-2xl leading-none select-none"
 								style={{
-									filter: `drop-shadow(0 0 3px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.55)) drop-shadow(0 0 7px rgba(${emojiColorMap[item.tapType] || "255, 200, 0"}, 0.3))`,
+									filter: `drop-shadow(0 0 3px rgba(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"}, 0.55)) drop-shadow(0 0 7px rgba(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"}, 0.3))`,
 								}}
 							>
 								{getTapEmoji(item.tapType)}
@@ -245,7 +251,7 @@ export const InterestRow = memo(function InterestRow({
 							{item.isMutual && (
 								<span
 									className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-md"
-									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType] || "255, 200, 0"})` }}
+									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"})` }}
 									title={t("interest_page.mutual_tap_tooltip")}
 								>
 									<MoveHorizontal className="h-2.5 w-2.5" />

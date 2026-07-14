@@ -72,7 +72,7 @@ export function ChatMediaSheet({
 	senderPhotoUrl,
 	onClose,
 	openAlbumViewerById,
-	openFullScreenImage,
+	openFullScreenImage: _openFullScreenImage,
 }: Props) {
 	const { t } = useTranslation();
 	const service = useApiFunctions();

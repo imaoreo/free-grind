@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApiFunctions } from "../useApiFunctions";
-import type { RightNowFeedItem } from "../../services/apiFunctions";
+import type { RightNowSortOption } from "../../pages/app/rightnow/rightnow-filters-storage";
 
-import { SCROLL_RESTORATION_TIMEOUT_MS, DEFAULT_STALE_TIME_MS } from "../../config/ui-constants";
+import { DEFAULT_STALE_TIME_MS } from "../../config/ui-constants";
 
 interface RightNowQueryParams {
-	sort: string;
+	sort: RightNowSortOption;
 	hosting?: boolean;
 	ageMin?: number;
 	ageMax?: number;

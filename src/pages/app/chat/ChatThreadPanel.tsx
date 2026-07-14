@@ -14,7 +14,6 @@ import {
 	Hourglass,
 	ImagePlus,
 	Images,
-	Infinity,
 	Loader2,
 	MapPin,
 	Mic,
@@ -32,12 +31,10 @@ import {
 	Reply,
 	RotateCw,
 	SendHorizontal,
-	Share2,
 	ShieldCheck,
 	SquareCenterlineDashedHorizontal,
 	SquareStack,
 	Sticker,
-	TimerOff,
 	Trash2,
 	Video,
 	VideoOff,
@@ -283,7 +280,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	// RTCPeerConnection (confirmed missing on some Linux WebKitGTK builds)
 	// instead of showing a menu item that would only fail after tapping it.
 	const [webRtcSupported] = useState(() => isWebRtcSupported());
-	const [selectedExpirationType, setSelectedExpirationType] = useState("INDEFINITE");
 	const [pendingLocationShare, setPendingLocationShare] = useState<{ lat: number; lon: number } | null>(null);
 	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
 	const [banNamePrompt, setBanNamePrompt] = useState<{ text: string } | null>(null);
@@ -524,7 +520,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleStopAlbumShare,
 		threadBottomRef,
 		handleSend,
-		toggleAlbumPicker,
+		toggleAlbumPicker: _toggleAlbumPicker,
 		attachmentInputRef,
 		onAttachmentInput,
 		isUploadingAttachment,
@@ -538,15 +534,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		confirmPendingAttachment: _confirmPendingAttachment,
 		confirmAttachmentFile,
 		cancelPendingAttachment,
-		isAlbumPickerOpen,
+		isAlbumPickerOpen: _isAlbumPickerOpen,
 		isLoadingAlbums,
 		shareableAlbums,
 		albumCoverMap: externalAlbumCoverMap,
 		ownProfilePhotoUrl,
 		isSharingAlbum,
 		pendingAlbumShare,
-		shareAlbumToCurrentConversation,
-        confirmPendingAlbumShare,
+		shareAlbumToCurrentConversation: _shareAlbumToCurrentConversation,
+        confirmPendingAlbumShare: _confirmPendingAlbumShare,
         closePendingAlbumShare,
 		uploadProgress,
 		draft,

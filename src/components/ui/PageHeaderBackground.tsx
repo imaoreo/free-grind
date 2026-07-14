@@ -1,4 +1,3 @@
-import React from "react";
 import { HEADER_GLOW_MASK_STOP_1, HEADER_GLOW_MASK_STOP_2 } from "../../config/design-config";
 
 interface PageHeaderBackgroundProps {
