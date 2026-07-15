@@ -400,9 +400,6 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Cache Status
-        run: echo "Cache hit = ${{ steps.android-cache.outputs.cache-hit }}"
-
       - name: Install Android SDK components
         run: |
           sdkmanager --install \
