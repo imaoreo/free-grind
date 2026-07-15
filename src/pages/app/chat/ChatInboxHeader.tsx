@@ -1,4 +1,4 @@
-import { Droplets, Images, Loader2, Mail, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Droplets, Images, Loader2, Mail, Pill, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -122,6 +122,16 @@ export function ChatInboxHeader({
 						</div>
 
 						<div className="flex shrink-0 items-center gap-0.5">
+							{!isSearchOpen && (
+								<button
+									type="button"
+									onClick={() => navigate("/settings/sexual-health", { state: { from: "inbox" } })}
+									className="rounded-xl p-2 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+									aria-label={t("sexualHealth.title", { defaultValue: "Sexual Health" })}
+								>
+									<Pill className="h-5 w-5" />
+								</button>
+							)}
 							{!isSearchOpen && (
 								<button
 									type="button"
