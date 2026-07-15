@@ -395,24 +395,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
           cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-      
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.android
-            /usr/local/lib/android/sdk
-          key: android-sdk-${{ runner.os }}-36-29
 
       - name: Cache Status
         run: echo "Cache hit = ${{ steps.android-cache.outputs.cache-hit }}"
