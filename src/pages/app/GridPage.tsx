@@ -1291,7 +1291,7 @@ export function GridPage() {
 												setIsAccountSwitcherOpen((v) => !v);
 											}
 										}}
-										className="h-12 w-12 shrink-0 rounded-full transition-all active:scale-95"
+										className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-all active:scale-95"
 										aria-label={t("browse_page.open_settings")}
 										aria-expanded={isAccountSwitcherOpen}
 										title={t("browse_page.settings")}

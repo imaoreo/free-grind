@@ -368,6 +368,54 @@ async function getDb(): Promise<Database> {
 				`);
 
 				await db.execute(`
+					CREATE TABLE IF NOT EXISTS sexual_health_prep_doses (
+						id TEXT PRIMARY KEY,
+						taken_at INTEGER NOT NULL,
+						scheme TEXT NOT NULL,
+						dose_role TEXT NOT NULL,
+						note TEXT,
+						created_at INTEGER NOT NULL
+					)
+				`);
+
+				await db.execute(`
+					CREATE TABLE IF NOT EXISTS sexual_health_encounters (
+						id TEXT PRIMARY KEY,
+						occurred_at INTEGER NOT NULL,
+						profile_id TEXT,
+						display_name TEXT NOT NULL,
+						tags_json TEXT NOT NULL DEFAULT '[]',
+						note TEXT,
+						conversation_id TEXT,
+						created_at INTEGER NOT NULL
+					)
+				`);
+
+				await db.execute(`
+					CREATE TABLE IF NOT EXISTS sexual_health_appointments (
+						id TEXT PRIMARY KEY,
+						title TEXT NOT NULL,
+						scheduled_at INTEGER NOT NULL,
+						kind TEXT NOT NULL,
+						location TEXT,
+						note TEXT,
+						completed_at INTEGER,
+						created_at INTEGER NOT NULL
+					)
+				`);
+
+				await db.execute(`
+					CREATE TABLE IF NOT EXISTS sexual_health_sti_tests (
+						id TEXT PRIMARY KEY,
+						tested_at INTEGER NOT NULL,
+						test_type TEXT NOT NULL,
+						result TEXT NOT NULL,
+						note TEXT,
+						created_at INTEGER NOT NULL
+					)
+				`);
+
+				await db.execute(`
 					CREATE TABLE IF NOT EXISTS drawer_media_usage (
 						media_id INTEGER PRIMARY KEY,
 						send_count INTEGER NOT NULL DEFAULT 0,
@@ -1881,6 +1929,29 @@ const FULL_EXPORT_TABLES: {
 		primaryKey: "id",
 		columns: ["id", "name", "geohash", "lat", "lon", "created_at"],
 	},
+	{
+		name: "sexual_health_prep_doses",
+		primaryKey: "id",
+		columns: ["id", "taken_at", "scheme", "dose_role", "note", "created_at"],
+	},
+	{
+		name: "sexual_health_encounters",
+		primaryKey: "id",
+		columns: [
+			"id", "occurred_at", "profile_id", "display_name",
+			"tags_json", "note", "conversation_id", "created_at",
+		],
+	},
+	{
+		name: "sexual_health_appointments",
+		primaryKey: "id",
+		columns: ["id", "title", "scheduled_at", "kind", "location", "note", "completed_at", "created_at"],
+	},
+	{
+		name: "sexual_health_sti_tests",
+		primaryKey: "id",
+		columns: ["id", "tested_at", "test_type", "result", "note", "created_at"],
+	},
 ];
 
 /**
@@ -2094,6 +2165,328 @@ export async function deleteSavedLocationRow(id: string): Promise<StoredSavedLoc
 	});
 
 	return getAllSavedLocations();
+}
+
+// ---------------------------------------------------------------------------
+// Sexual health tracking — PrEP doses, encounters, appointments, STI tests.
+// Local-only (device-scoped, per-profile db): never synced to the server or
+// the remote profile record, unlike activeProfile.hivStatus/.sexualHealth.
+// ---------------------------------------------------------------------------
+
+export interface StoredPrepDose {
+	id: string;
+	takenAt: number;
+	scheme: "daily" | "on_demand";
+	doseRole: "daily" | "loading" | "plus24" | "plus48";
+	note: string | null;
+}
+
+type PrepDoseRow = {
+	id: string;
+	taken_at: number;
+	scheme: string;
+	dose_role: string;
+	note: string | null;
+};
+
+function rowToPrepDose(row: PrepDoseRow): StoredPrepDose {
+	return {
+		id: row.id,
+		takenAt: row.taken_at,
+		scheme: row.scheme as StoredPrepDose["scheme"],
+		doseRole: row.dose_role as StoredPrepDose["doseRole"],
+		note: row.note,
+	};
+}
+
+export async function getAllPrepDoses(): Promise<StoredPrepDose[]> {
+	const db = await getDb();
+	const rows = await db.select<PrepDoseRow[]>(
+		"SELECT id, taken_at, scheme, dose_role, note FROM sexual_health_prep_doses ORDER BY taken_at DESC",
+	);
+	return rows.map(rowToPrepDose);
+}
+
+export async function insertPrepDose(input: StoredPrepDose): Promise<StoredPrepDose[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "insert-prep-dose", async () => {
+		await db.execute(
+			`
+			INSERT INTO sexual_health_prep_doses (id, taken_at, scheme, dose_role, note, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			`,
+			[input.id, input.takenAt, input.scheme, input.doseRole, input.note, Date.now()],
+		);
+	});
+
+	return getAllPrepDoses();
+}
+
+export async function deletePrepDoseRow(id: string): Promise<StoredPrepDose[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "delete-prep-dose", async () => {
+		await db.execute("DELETE FROM sexual_health_prep_doses WHERE id = $1", [id]);
+	});
+
+	return getAllPrepDoses();
+}
+
+export interface StoredEncounter {
+	id: string;
+	occurredAt: number;
+	profileId: string | null;
+	displayName: string;
+	tags: string[];
+	note: string | null;
+	conversationId: string | null;
+}
+
+type EncounterRow = {
+	id: string;
+	occurred_at: number;
+	profile_id: string | null;
+	display_name: string;
+	tags_json: string;
+	note: string | null;
+	conversation_id: string | null;
+};
+
+function rowToEncounter(row: EncounterRow): StoredEncounter {
+	let tags: string[] = [];
+	try {
+		const parsed = JSON.parse(row.tags_json);
+		if (Array.isArray(parsed)) {
+			tags = parsed.filter((tag): tag is string => typeof tag === "string");
+		}
+	} catch (error) {
+		appLog.error("[chat-db] failed to parse encounter tags_json", { id: row.id, error });
+	}
+
+	return {
+		id: row.id,
+		occurredAt: row.occurred_at,
+		profileId: row.profile_id,
+		displayName: row.display_name,
+		tags,
+		note: row.note,
+		conversationId: row.conversation_id,
+	};
+}
+
+export async function getAllEncounters(): Promise<StoredEncounter[]> {
+	const db = await getDb();
+	const rows = await db.select<EncounterRow[]>(
+		`SELECT id, occurred_at, profile_id, display_name, tags_json, note, conversation_id
+		 FROM sexual_health_encounters ORDER BY occurred_at DESC`,
+	);
+	return rows.map(rowToEncounter);
+}
+
+export async function insertEncounter(input: StoredEncounter): Promise<StoredEncounter[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "insert-encounter", async () => {
+		await db.execute(
+			`
+			INSERT INTO sexual_health_encounters
+				(id, occurred_at, profile_id, display_name, tags_json, note, conversation_id, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			`,
+			[
+				input.id,
+				input.occurredAt,
+				input.profileId,
+				input.displayName,
+				JSON.stringify(input.tags),
+				input.note,
+				input.conversationId,
+				Date.now(),
+			],
+		);
+	});
+
+	return getAllEncounters();
+}
+
+export async function deleteEncounterRow(id: string): Promise<StoredEncounter[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "delete-encounter", async () => {
+		await db.execute("DELETE FROM sexual_health_encounters WHERE id = $1", [id]);
+	});
+
+	return getAllEncounters();
+}
+
+export interface StoredAppointment {
+	id: string;
+	title: string;
+	scheduledAt: number;
+	kind: "prep_followup" | "sti_screening" | "other";
+	location: string | null;
+	note: string | null;
+	completedAt: number | null;
+}
+
+type AppointmentRow = {
+	id: string;
+	title: string;
+	scheduled_at: number;
+	kind: string;
+	location: string | null;
+	note: string | null;
+	completed_at: number | null;
+};
+
+function rowToAppointment(row: AppointmentRow): StoredAppointment {
+	return {
+		id: row.id,
+		title: row.title,
+		scheduledAt: row.scheduled_at,
+		kind: row.kind as StoredAppointment["kind"],
+		location: row.location,
+		note: row.note,
+		completedAt: row.completed_at,
+	};
+}
+
+export async function getAllAppointments(): Promise<StoredAppointment[]> {
+	const db = await getDb();
+	const rows = await db.select<AppointmentRow[]>(
+		`SELECT id, title, scheduled_at, kind, location, note, completed_at
+		 FROM sexual_health_appointments ORDER BY scheduled_at ASC`,
+	);
+	return rows.map(rowToAppointment);
+}
+
+export async function insertAppointment(input: StoredAppointment): Promise<StoredAppointment[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "insert-appointment", async () => {
+		await db.execute(
+			`
+			INSERT INTO sexual_health_appointments (id, title, scheduled_at, kind, location, note, completed_at, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			`,
+			[
+				input.id,
+				input.title,
+				input.scheduledAt,
+				input.kind,
+				input.location,
+				input.note,
+				input.completedAt,
+				Date.now(),
+			],
+		);
+	});
+
+	return getAllAppointments();
+}
+
+export async function updateAppointmentCompletion(
+	id: string,
+	completedAt: number | null,
+): Promise<StoredAppointment[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-appointment-completion", async () => {
+		await db.execute(
+			"UPDATE sexual_health_appointments SET completed_at = $1 WHERE id = $2",
+			[completedAt, id],
+		);
+	});
+
+	return getAllAppointments();
+}
+
+export async function deleteAppointmentRow(id: string): Promise<StoredAppointment[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "delete-appointment", async () => {
+		await db.execute("DELETE FROM sexual_health_appointments WHERE id = $1", [id]);
+	});
+
+	return getAllAppointments();
+}
+
+export interface StoredStiTest {
+	id: string;
+	testedAt: number;
+	testType: "full_panel" | "hiv" | "chlamydia" | "gonorrhea" | "syphilis" | "other";
+	result: "pending" | "negative" | "positive";
+	note: string | null;
+}
+
+type StiTestRow = {
+	id: string;
+	tested_at: number;
+	test_type: string;
+	result: string;
+	note: string | null;
+};
+
+function rowToStiTest(row: StiTestRow): StoredStiTest {
+	return {
+		id: row.id,
+		testedAt: row.tested_at,
+		testType: row.test_type as StoredStiTest["testType"],
+		result: row.result as StoredStiTest["result"],
+		note: row.note,
+	};
+}
+
+export async function getAllStiTests(): Promise<StoredStiTest[]> {
+	const db = await getDb();
+	const rows = await db.select<StiTestRow[]>(
+		"SELECT id, tested_at, test_type, result, note FROM sexual_health_sti_tests ORDER BY tested_at DESC",
+	);
+	return rows.map(rowToStiTest);
+}
+
+export async function insertStiTest(input: StoredStiTest): Promise<StoredStiTest[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "insert-sti-test", async () => {
+		await db.execute(
+			`
+			INSERT INTO sexual_health_sti_tests (id, tested_at, test_type, result, note, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+			`,
+			[input.id, input.testedAt, input.testType, input.result, input.note, Date.now()],
+		);
+	});
+
+	return getAllStiTests();
+}
+
+export async function updateStiTestRow(input: StoredStiTest): Promise<StoredStiTest[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-sti-test", async () => {
+		await db.execute(
+			`
+			UPDATE sexual_health_sti_tests
+			SET tested_at = $1, test_type = $2, result = $3, note = $4
+			WHERE id = $5
+			`,
+			[input.testedAt, input.testType, input.result, input.note, input.id],
+		);
+	});
+
+	return getAllStiTests();
+}
+
+export async function deleteStiTestRow(id: string): Promise<StoredStiTest[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "delete-sti-test", async () => {
+		await db.execute("DELETE FROM sexual_health_sti_tests WHERE id = $1", [id]);
+	});
+
+	return getAllStiTests();
 }
 
 // ---------------------------------------------------------------------------

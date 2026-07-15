@@ -740,7 +740,7 @@ export function RightNowPage() {
 			</FeedScrollContainer>
 		</PullToRefreshContainer>
 
-		<div className="fixed inset-x-0 bottom-30 z-[60] pointer-events-none md:bottom-36">
+		<div className="fixed inset-x-0 bottom-32 z-[60] pointer-events-none md:bottom-36">
 			<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
 				{developerMode && showDebugInfo && (
 					<div

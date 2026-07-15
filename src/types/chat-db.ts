@@ -176,5 +176,9 @@ export type FullDbExport = {
 		settings: Record<string, unknown>[];
 		saved_phrases: Record<string, unknown>[];
 		saved_locations: Record<string, unknown>[];
+		sexual_health_prep_doses: Record<string, unknown>[];
+		sexual_health_encounters: Record<string, unknown>[];
+		sexual_health_appointments: Record<string, unknown>[];
+		sexual_health_sti_tests: Record<string, unknown>[];
 	};
 };

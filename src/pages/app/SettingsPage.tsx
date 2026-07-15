@@ -11,6 +11,7 @@ import {
 	DatabaseBackup,
 	Download,
 	GitBranch,
+	HeartPulse,
 	Images,
 	Info,
 	Loader2,
@@ -743,6 +744,15 @@ export function SettingsPage() {
 							"bg-sky-500/15 text-sky-400",
 							t("settings.privacy"),
 							t("settings.privacy_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/sexual-health"),
+							<HeartPulse className="h-5 w-5" />,
+							"bg-rose-500/15 text-rose-400",
+							t("settings.sexual_health", { defaultValue: "Sexual Health" }),
+							t("settings.sexual_health_desc", {
+								defaultValue: "Track PrEP doses, encounters, tests and appointments.",
+							}),
 						)}
 					</div>
 				</div>

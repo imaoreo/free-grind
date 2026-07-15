@@ -11,6 +11,7 @@ import {
 	Eye,
 	EyeOff,
 	Star,
+	HeartPulse,
 	Hourglass,
 	ImagePlus,
 	Images,
@@ -62,6 +63,7 @@ import type { ConversationEntry, Message } from "../../../types/messages";
 import type { ProfileDetail } from "../../../types/grid";
 import type { DrawerMedia } from "./ChatDrawerPanel";
 import { ChatDrawerPanel } from "./ChatDrawerPanel";
+import { EncounterLogSheet } from "../sexual-health/EncounterLogSheet";
 import { decodeGeohash } from "../../../utils/geohash";
 import { MapLocationPicker } from "../gridpage/components/MapLocationPicker";
 import freegrindLogo from "../../../images/freegrind-logo.webp";
@@ -284,6 +286,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
 	const [banNamePrompt, setBanNamePrompt] = useState<{ text: string } | null>(null);
 	const [isSavedPhrasesOpen, setIsSavedPhrasesOpen] = useState(false);
+	const [isEncounterSheetOpen, setIsEncounterSheetOpen] = useState(false);
 	const [phrasesExpanded, setPhrasesExpanded] = useState(false);
 	const [isGiphyPickerOpen, setIsGiphyPickerOpen] = useState(false);
 	const [newPhraseInput, setNewPhraseInput] = useState("");
@@ -1279,6 +1282,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												{t("chat.view_profile")}
 											</button>
 											)}
+											{!isArchived && profileId != null && (
+											<button
+												type="button"
+												onClick={() => {
+													setIsHeaderActionsMenuOpen(false);
+													setIsEncounterSheetOpen(true);
+												}}
+												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+											>
+												<HeartPulse className="mr-2 h-4 w-4 opacity-70" />
+												{t("chat.log_encounter", { defaultValue: "I met this person now" })}
+											</button>
+											)}
 											{!isArchived && profileId != null && (() => {
 												const videoCallExhausted =
 													webRtcSupported && videoCallRemainingSeconds != null && videoCallRemainingSeconds <= 0;
@@ -1592,6 +1608,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							}}
 							onCancel={() => setBanNamePrompt(null)}
 						/>
+
+						{isEncounterSheetOpen && profileId != null ? (
+							<EncounterLogSheet
+								prefill={{
+									profileId: String(profileId),
+									conversationId: selectedConversation?.data.conversationId ?? null,
+									displayName,
+									avatarSrc: resolveAvatarSrc(avatarHash, getParticipantAvatarUrl(avatarHash)),
+								}}
+								onClose={() => setIsEncounterSheetOpen(false)}
+								onLogged={() => setIsEncounterSheetOpen(false)}
+							/>
+						) : null}
 					</>
 				);
 			})()}
