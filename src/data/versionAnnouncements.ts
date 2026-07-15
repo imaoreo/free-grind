@@ -118,6 +118,11 @@ export const VERSION_ANNOUNCEMENTS: VersionAnnouncement[] = [
 				title: "Saved Locations",
 				description: "Save your favorite locations for quick access when browsing.",
 			},
+			{
+				icon: MapPin,
+				title: "Sexual Health",
+				description: "Track PrEP doses, encounters, tests and appointments.",
+			},
 		],
 	},
 ];
