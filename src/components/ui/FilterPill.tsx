@@ -19,6 +19,10 @@ type FilterPillProps = {
 	/** "label" (default): icon + visible text, sized to content.
 	 * "icon": icon-only square button (aria-label/title carry the label). */
 	variant?: "label" | "icon";
+	/** Optional trailing badge (e.g. an active-filter count or a status
+	 * icon), rendered after the label the same way the inbox/grid "Filters"
+	 * button shows its active-count badge. */
+	badge?: ReactNode;
 };
 
 /** Shared quick-filter pill used by both GridPage's and the chat inbox's
@@ -31,6 +35,7 @@ export function FilterPill({
 	onClick,
 	color = "accent",
 	variant = "label",
+	badge,
 }: FilterPillProps) {
 	const isIconOnly = variant === "icon";
 	const isRightNow = color === "right-now";
@@ -54,6 +59,7 @@ export function FilterPill({
 		>
 			{icon}
 			{!isIconOnly && label}
+			{badge}
 		</button>
 	);
 }

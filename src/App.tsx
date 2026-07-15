@@ -34,6 +34,7 @@ import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
 import { SettingsDataPage } from "./pages/app/SettingsDataPage.tsx";
 import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
 import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
+import { SexualHealthPage } from "./pages/app/sexual-health/SexualHealthPage.tsx";
 import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
 import { VersionAnnouncement } from "./components/VersionAnnouncement";
 import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
@@ -230,6 +231,7 @@ export default function App() {
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
 								<Route path="/settings/block-history" element={<SettingsBlockHistoryPage />} />
 								<Route path="/settings/saved-phrases" element={<SettingsSavedPhrasesPage />} />
+								<Route path="/settings/sexual-health" element={<SexualHealthPage />} />
 								<Route
 									path="/settings/api-inspector"
 									element={
