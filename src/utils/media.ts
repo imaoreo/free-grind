@@ -11,6 +11,20 @@ export function validateMediaHash(hash: string): boolean {
 	return mediaHashSchema.safeParse(hash.trim()).success;
 }
 
+/**
+ * Extracts the media hash from a CDN image URL (e.g. .../images/profile/480x480/{hash}).
+ * The hash is always the last path segment.
+ */
+export function extractMediaHashFromUrl(url: string): string | null {
+	const withoutQuery = url.split(/[?#]/)[0];
+	const segments = withoutQuery.split("/").filter(Boolean);
+	const last = segments[segments.length - 1];
+	if (last && validateMediaHash(last)) {
+		return last.toLowerCase();
+	}
+	return null;
+}
+
 export function getProfileImageUrl(
 	hash: string,
 	size: ProfileImageSize = "480x480",
