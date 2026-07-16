@@ -15,8 +15,9 @@ import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
+import { useManagedGenders, useManagedPronouns, useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { tagTextsToKeys } from "../../utils/tags";
 import { BackToSettings } from "../../components/BackToSettings";
 import { BottomDrawer } from "../../components/ui/bottom-drawer";
 import { ToggleRow } from "../../components/ui/toggle-row";
@@ -69,7 +70,7 @@ const MULTI_VALUE_MAX: Partial<Record<ToggleMultiValueKey, number>> = {
 const DEFAULT_GENDER_ORDER = [1, 4, 5, 2, 6, 7, 3];
 
 export function ProfileEditorPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const queryClient = useQueryClient();
@@ -124,6 +125,14 @@ export function ProfileEditorPage() {
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
+	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
+	// Tag state is kept/matched as display text throughout the editor (see
+	// TagsPickerDialog), but the server's profile update expects catalog
+	// keys — resolved only at save time, right before building the payload.
+	const allManagedTags = useMemo(
+		() => (managedTagCategories ?? []).flatMap((category) => category.tags),
+		[managedTagCategories],
+	);
 
 	// sortFilter ranks most genders (ascending = intended order); the rest
 	// (sortFilter === null) just sort to the end, no special grouping.
@@ -524,10 +533,12 @@ export function ProfileEditorPage() {
 				addIfChanged("sexualHealth", "sexualHealth");
 				addIfChanged("vaccines", "vaccines");
 
-				// Handle tags separately due to different structure
+				// Handle tags separately due to different structure. Compared as
+				// display text (matching how both sides are stored/tracked), but
+				// sent as catalog keys since that's what the server expects.
 				const savedTags = profile?.profileTags ?? [];
 				if (JSON.stringify(tagList) !== JSON.stringify(savedTags)) {
-					payload.profileTags = tagList;
+					payload.profileTags = tagTextsToKeys(allManagedTags, tagList);
 				}
 
 				// Handle social networks selectively

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { reverseGeocodeGeohash } from "./gridpage/geocoding";
+import { tagTextsToKeys } from "../../utils/tags";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ProfileDetail } from "./GridPage.types";
@@ -33,7 +34,7 @@ import { FilterPill } from "../../components/ui/FilterPill";
 import { useBrowseFilters } from "./gridpage/hooks/useBrowseFilters";
 import { useTapProfile } from "./gridpage/hooks/useTapProfile";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { useManagedGenders, useManagedPronouns, useBlockedProfileIds, useBlockProfile, useUnblockProfile, useMyOwnProfile } from "../../hooks/queries/useProfileQueries";
+import { useManagedGenders, useManagedPronouns, useManagedTagCategories, useBlockedProfileIds, useBlockProfile, useUnblockProfile, useMyOwnProfile } from "../../hooks/queries/useProfileQueries";
 import { useQueryClient } from "@tanstack/react-query";
 import { getProfilePhotoHash } from "./profile-editor/profileEditorUtils";
 import {
@@ -64,7 +65,7 @@ const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 const NICKNAME_FILTER_MAX_PAGES = 7;
 
 export function GridPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
 	const TAP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -275,6 +276,23 @@ export function GridPage() {
 		applyDraft,
 	} = useBrowseFilters(getDefaultBrowseFiltersDraft());
 
+	// The tags filter is stored/matched as display text (see BrowseFiltersOverlay),
+	// but the server's tag filter expects catalog keys — resolved here, right
+	// before the request goes out, so the rest of the filter UI/state doesn't
+	// need to care about the key/text distinction.
+	const { data: managedTagCategoriesForFilters } = useManagedTagCategories(i18n.language);
+	const allManagedTagsForFilters = useMemo(
+		() => (managedTagCategoriesForFilters ?? []).flatMap((category) => category.tags),
+		[managedTagCategoriesForFilters],
+	);
+	const browseRequestFiltersForApi = useMemo(() => {
+		if (!browseRequestFilters.tags) return browseRequestFilters;
+		return {
+			...browseRequestFilters,
+			tags: tagTextsToKeys(allManagedTagsForFilters, browseRequestFilters.tags.split(",")).join(","),
+		};
+	}, [browseRequestFilters, allManagedTagsForFilters]);
+
 	// Reload whenever the active account's chatDb is ready (settingsReady),
 	// so switching accounts from GridPage's own account switcher also
 	// switches filters instead of leaking the previous account's browse
@@ -441,14 +459,14 @@ export function GridPage() {
 				geohash: activeGeohash,
 				exploreGeohash: explore?.geohash,
 				page: cursor ? Number(cursor) : undefined,
-				filters: browseRequestFilters,
+				filters: browseRequestFiltersForApi,
 			});
 			return {
 				cards: parsed.cards,
 				nextPage: parsed.nextPage != null ? String(parsed.nextPage) : null,
 			};
 		},
-		[browseRequestFilters, getBrowseCardsWithTimeout],
+		[browseRequestFiltersForApi, getBrowseCardsWithTimeout],
 	);
 
 	const refreshLocation = useCallback(async () => {

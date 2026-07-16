@@ -785,17 +785,27 @@ export function ChatPage() {
 	}, [isDesktop, routeConversationId, selectedDesktopConversationId, navigate]);
 
 	// On desktop, initialize selection from route when landing on /chat/:id
-	// (e.g. returning from profile). Do not keep forcing it afterward.
+	// (e.g. returning from profile), and re-sync on later route changes that
+	// come from outside this page (e.g. a notification click's `navigate()`,
+	// or browser back/forward) — but not on every render, since selecting a
+	// conversation in-page never touches the URL here (see
+	// `handleSelectConversation`/`openConversationById`), so re-running this
+	// on an unrelated re-render would clobber the user's in-page selection.
+	const prevRouteConversationIdRef = useRef(routeConversationId);
 	useEffect(() => {
 		if (!isDesktop || targetProfileId) {
+			prevRouteConversationIdRef.current = routeConversationId;
 			return;
 		}
+
+		const routeChanged = routeConversationId !== prevRouteConversationIdRef.current;
+		prevRouteConversationIdRef.current = routeConversationId;
 
 		if (!routeConversationId) {
 			return;
 		}
 
-		if (selectedDesktopConversationId !== null) {
+		if (selectedDesktopConversationId !== null && !routeChanged) {
 			return;
 		}
 
