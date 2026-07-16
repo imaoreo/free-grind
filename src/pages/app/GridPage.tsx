@@ -63,6 +63,16 @@ const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 // keep auto-pagination running indefinitely trying to find more matches.
 const NICKNAME_FILTER_MAX_PAGES = 7;
 
+// Guards the initial auto-location refresh below to once per actual app
+// launch. This has to be a module-level variable, not sessionStorage — the
+// embedded webview (Tauri) persists Web Storage across full app restarts
+// just like localStorage, so a sessionStorage-backed flag would only ever
+// fire once per install instead of once per launch, silently disabling the
+// startup location/geocode refresh (though not later ones — the periodic
+// timer and pull-to-refresh call refreshLocation() unconditionally). A
+// plain module variable is reliably reset on every fresh process start.
+let hasRefreshedLocationThisAppLaunch = false;
+
 export function GridPage() {
 	const { t } = useTranslation();
 	const BROWSE_LOAD_TIMEOUT_MS = 15000;
@@ -643,15 +653,12 @@ export function GridPage() {
 	);
 
 	useEffect(() => {
-		const SESSION_REFRESH_KEY = "grid_initial_location_refreshed";
-		const hasRefreshedThisSession = sessionStorage.getItem(SESSION_REFRESH_KEY) === "true";
-
-		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedThisSession) {
+		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedLocationThisAppLaunch) {
 			appLog.info("[grid] triggering initial session auto-location refresh");
 			void refreshLocation().finally(() => {
 				if (isMountedRef.current) {
 					setInitialLocationChecked(true);
-					sessionStorage.setItem(SESSION_REFRESH_KEY, "true");
+					hasRefreshedLocationThisAppLaunch = true;
 				}
 			});
 		} else if (!isLoadingPreferences && !initialLocationChecked) {
