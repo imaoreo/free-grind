@@ -50,12 +50,7 @@ import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoDat
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
 import { LocationOverlay, type ExploreLocation, EXPLORE_COLOR } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
-import {
-	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
-	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
-} from "../../utils/blockConfirm";
+import { SKIP_BLOCK_CONFIRM_KEY, isBlockConfirmSkipped } from "../../utils/blockConfirm";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 // The local displayname filter ("Lokale Filter" > nicknameFilter) matches
@@ -184,7 +179,7 @@ export function GridPage() {
 		null,
 	);
 	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
-		action: "block" | "unblock";
+		action: "block";
 		profileId: string;
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
@@ -1154,13 +1149,8 @@ export function GridPage() {
 				return;
 			}
 
-			if (isUnblockConfirmSkipped()) {
-				await performUnblockProfile(targetProfileId);
-				return;
-			}
-
-			setDontAskAgainChecked(false);
-			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+			// Unblocking isn't destructive, so it never needs a confirmation prompt.
+			await performUnblockProfile(targetProfileId);
 		},
 		[isBlockingProfile, isUnblockingProfile, performUnblockProfile],
 	);
@@ -1231,25 +1221,17 @@ export function GridPage() {
 			return;
 		}
 
-		const { action, profileId } = pendingProfileConfirm;
+		const { profileId } = pendingProfileConfirm;
 		if (dontAskAgainChecked && typeof window !== "undefined") {
-			localStorage.setItem(
-				action === "block" ? SKIP_BLOCK_CONFIRM_KEY : SKIP_UNBLOCK_CONFIRM_KEY,
-				"true",
-			);
+			localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
 		}
 
 		setPendingProfileConfirm(null);
-		if (action === "block") {
-			await performBlockProfile(profileId);
-			return;
-		}
-		await performUnblockProfile(profileId);
+		await performBlockProfile(profileId);
 	}, [
 		dontAskAgainChecked,
 		pendingProfileConfirm,
 		performBlockProfile,
-		performUnblockProfile,
 		isBlockingProfile,
 		isUnblockingProfile,
 	]);
@@ -1687,28 +1669,14 @@ export function GridPage() {
 
 			<ConfirmDialog
 				isOpen={pendingProfileConfirm !== null}
-				title={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				message={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock_confirm")
-						: t("profile_details.block_confirm")
-				}
-				confirmLabel={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
+				title={t("profile_details.block")}
+				message={t("profile_details.block_confirm")}
+				confirmLabel={t("profile_details.block")}
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
 				isProcessing={isBlockingProfile || isUnblockingProfile}
-				confirmTone={
-					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
-				}
+				confirmTone="danger"
 				dontAskAgainLabel={t("profile_details.dont_ask_again")}
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}

@@ -32,12 +32,7 @@ import { appLog } from "../../utils/logger";
 import { consumeSelfBlockAction } from "../../utils/selfBlockActions";
 import { classifyProfileAccess } from "../../utils/profileAccessStatus";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import {
-	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
-	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
-} from "../../utils/blockConfirm";
+import { SKIP_BLOCK_CONFIRM_KEY, isBlockConfirmSkipped } from "../../utils/blockConfirm";
 
 const profileRouteParamsSchema = z.object({
 	profileId: z.string().min(1),
@@ -119,7 +114,7 @@ export function GridProfilePage() {
 		null,
 	);
 	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
-		action: "block" | "unblock";
+		action: "block";
 		profileId: string;
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
@@ -360,12 +355,8 @@ export function GridProfilePage() {
 		if (isBlockingProfile || isUnblockingProfile) {
 			return;
 		}
-		if (isUnblockConfirmSkipped()) {
-			await performUnblockProfile(targetProfileId);
-			return;
-		}
-		setDontAskAgainChecked(false);
-		setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+		// Unblocking isn't destructive, so it never needs a confirmation prompt.
+		await performUnblockProfile(targetProfileId);
 	};
 
 	const handleToggleFavoriteProfile = async (
@@ -422,20 +413,13 @@ export function GridProfilePage() {
 			return;
 		}
 
-		const { action, profileId } = pendingProfileConfirm;
+		const { profileId } = pendingProfileConfirm;
 		if (dontAskAgainChecked && typeof window !== "undefined") {
-			localStorage.setItem(
-				action === "block" ? SKIP_BLOCK_CONFIRM_KEY : SKIP_UNBLOCK_CONFIRM_KEY,
-				"true",
-			);
+			localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
 		}
 
 		setPendingProfileConfirm(null);
-		if (action === "block") {
-			await performBlockProfile(profileId);
-			return;
-		}
-		await performUnblockProfile(profileId);
+		await performBlockProfile(profileId);
 	};
 
     const solveTrilateration = (points: { lat: number, lon: number, dist: number }[]) => {
@@ -676,28 +660,14 @@ export function GridProfilePage() {
 
 			<ConfirmDialog
 				isOpen={pendingProfileConfirm !== null}
-				title={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				message={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock_confirm")
-						: t("profile_details.block_confirm")
-				}
-				confirmLabel={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
+				title={t("profile_details.block")}
+				message={t("profile_details.block_confirm")}
+				confirmLabel={t("profile_details.block")}
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
 				isProcessing={isBlockingProfile || isUnblockingProfile}
-				confirmTone={
-					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
-				}
+				confirmTone="danger"
 				dontAskAgainLabel={t("profile_details.dont_ask_again")}
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}

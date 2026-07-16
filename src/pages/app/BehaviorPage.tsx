@@ -1,21 +1,30 @@
 import { useState } from "react";
-import { Ban, ShieldOff, Trash2 } from "lucide-react";
+import { Ban, Images, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
+import { Chip } from "../../components/ui/chip";
 import { useTranslation } from "react-i18next";
+import { usePreferences } from "../../contexts/PreferencesContext";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
 	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
 } from "../../utils/blockConfirm";
 
+const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"] as const;
+
 export function BehaviorPage() {
 	const { t } = useTranslation();
+	const { defaultExpiringPhotos, defaultAlbumExpirationType, setPreferences } = usePreferences();
+	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
+		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
+		ONCE: t("chat_drawer.expiry.once", { defaultValue: "Once" }),
+		TEN_MINUTES: t("chat_drawer.expiry.ten_minutes", { defaultValue: "10 minutes" }),
+		ONE_HOUR: t("chat_drawer.expiry.one_hour", { defaultValue: "1 hour" }),
+		ONE_DAY: t("chat_drawer.expiry.one_day", { defaultValue: "1 day" }),
+	};
 	const [confirmBeforeBlock, setConfirmBeforeBlock] = useState(() => !isBlockConfirmSkipped());
-	const [confirmBeforeUnblock, setConfirmBeforeUnblock] = useState(() => !isUnblockConfirmSkipped());
 	const [confirmBeforeDeleteConversation, setConfirmBeforeDeleteConversation] = useState(
 		() => !isDeleteConversationConfirmSkipped(),
 	);
@@ -42,17 +51,6 @@ export function BehaviorPage() {
 						}}
 					/>
 					<ToggleRow
-						icon={<ShieldOff className="h-5 w-5" />}
-						iconClass="bg-red-500/15 text-red-400"
-						label={t("customizability.confirm_before_unblock")}
-						description={t("customizability.confirm_before_unblock_desc")}
-						checked={confirmBeforeUnblock}
-						onChange={(checked) => {
-							setConfirmBeforeUnblock(checked);
-							window.localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, String(!checked));
-						}}
-					/>
-					<ToggleRow
 						icon={<Trash2 className="h-5 w-5" />}
 						iconClass="bg-red-500/15 text-red-400"
 						label={t("customizability.confirm_before_delete_conversation")}
@@ -63,6 +61,40 @@ export function BehaviorPage() {
 							window.localStorage.setItem(SKIP_DELETE_CONVERSATION_CONFIRM_KEY, String(!checked));
 						}}
 					/>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.disappearing_media")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							icon={<Timer className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("behavior.default_expiring_photos")}
+							description={t("behavior.default_expiring_photos_desc")}
+							checked={defaultExpiringPhotos}
+							onChange={(checked) => void setPreferences({ defaultExpiringPhotos: checked })}
+						/>
+						<div className="flex items-start gap-3 px-4 py-3.5">
+							<div className="rounded-2xl p-2.5 shrink-0 bg-violet-500/15 text-violet-400">
+								<Images className="h-5 w-5" />
+							</div>
+							<div className="min-w-0 flex-1">
+								<p className="text-sm font-semibold">{t("behavior.default_album_expiration")}</p>
+								<p className="mt-0.5 text-xs text-[var(--text-muted)]">{t("behavior.default_album_expiration_desc")}</p>
+								<div className="mt-3 flex flex-wrap gap-2">
+									{ALBUM_EXPIRATION_OPTIONS.map((option) => (
+										<Chip
+											key={option}
+											selected={defaultAlbumExpirationType === option}
+											onClick={() => void setPreferences({ defaultAlbumExpirationType: option })}
+										>
+											{albumExpirationLabels[option]}
+										</Chip>
+									))}
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</section>

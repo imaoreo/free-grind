@@ -118,10 +118,6 @@ export function SettingsBlockedPage() {
 	const handleUnblock = async (profileId: string) => {
 		if (isUnblocking) return;
 
-		const requiresConfirm = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-		const confirmed = requiresConfirm ? window.confirm(t("profile_details.unblock_confirm")) : true;
-		if (!confirmed) return;
-
 		setMutatingProfileId(profileId);
 		try {
 			await unblockProfileMutation(profileId);

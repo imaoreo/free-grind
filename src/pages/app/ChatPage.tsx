@@ -278,7 +278,7 @@ export function ChatPage() {
 	const { data: blockedProfileIdsData, refetch: refetchBlockedProfileIds } = useBlockedProfileIds();
 	const { data: myProfile } = useMyOwnProfile();
 	const profileImageHash = useMemo(() => getProfilePhotoHash(myProfile), [myProfile]);
-	const { unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
+	const { unitsPreset, showAlbumSensitiveContentWarning, defaultExpiringPhotos } = usePreferences();
 	const { userId, settingsReady } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -5908,7 +5908,10 @@ export function ChatPage() {
 		setPendingAttachmentFile(file);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
-		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
+		// The 10-second disappearing timer default only applies to photos —
+		// videos keep their own existing default (a normal single-play video),
+		// unaffected by this preference.
+		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : defaultExpiringPhotos ? 1 : 2147483647);
 	};
 
 	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {

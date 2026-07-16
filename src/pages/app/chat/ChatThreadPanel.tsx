@@ -103,10 +103,8 @@ import { matchSlashCommandsByPrefix, type SlashCommandDef } from "./slashCommand
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
 	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
 } from "../../../utils/blockConfirm";
 
@@ -458,8 +456,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		useState(false);
 	const [dontAskDeleteConversationAgain, setDontAskDeleteConversationAgain] = useState(false);
 	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
-	const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
-	const [dontAskUnblockAgain, setDontAskUnblockAgain] = useState(false);
 
 	const {
 		navigate,
@@ -791,13 +787,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 	};
 
-	const closeUnblockConfirm = () => {
-		if (isUnblockingProfile) {
-			return;
-		}
-		setIsUnblockConfirmOpen(false);
-	};
-
 	const closeDeleteConversationConfirm = () => {
 		if (isDeletingConversation) {
 			return;
@@ -878,12 +867,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	});
 
 	useModalClose({
-		isOpen: isUnblockConfirmOpen,
-		onClose: closeUnblockConfirm,
-		escapeKey: !isUnblockingProfile,
-	});
-
-	useModalClose({
 		isOpen: isDeleteConversationConfirmOpen,
 		onClose: closeDeleteConversationConfirm,
 		escapeKey: !isDeletingConversation,
@@ -899,8 +882,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 		setIsDeleteConversationConfirmOpen(false);
 		setDontAskBlockAgain(false);
-		setIsUnblockConfirmOpen(false);
-		setDontAskUnblockAgain(false);
 	}, [selectedConversation?.data.conversationId]);
 
 	useEffect(() => {
@@ -1103,26 +1084,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						return;
 					}
 
+					// Unblocking isn't destructive, so it never needs a confirmation prompt.
 					setIsHeaderActionsMenuOpen(false);
-					if (isUnblockConfirmSkipped()) {
-						void onUnblockProfile(profileId);
-						return;
-					}
-
-					setDontAskUnblockAgain(false);
-					setIsUnblockConfirmOpen(true);
-				};
-
-				const confirmUnblockProfile = () => {
-					if (profileId == null || isUnblockingProfile || !onUnblockProfile) {
-						return;
-					}
-
-					if (dontAskUnblockAgain && typeof window !== "undefined") {
-						localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
-					}
-
-					setIsUnblockConfirmOpen(false);
 					void onUnblockProfile(profileId);
 				};
 
@@ -1591,20 +1554,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							dontAskAgainLabel={t("profile_details.dont_ask_again")}
 							dontAskAgainChecked={dontAskBlockAgain}
 							onDontAskAgainChange={setDontAskBlockAgain}
-						/>
-						<ConfirmDialog
-							isOpen={isUnblockConfirmOpen}
-							title={t("profile_details.unblock")}
-							message={t("profile_details.unblock_confirm")}
-							confirmLabel={t("profile_details.unblock")}
-							cancelLabel={t("chat.actions.cancel")}
-							onConfirm={confirmUnblockProfile}
-							onCancel={closeUnblockConfirm}
-							isProcessing={isUnblockingProfile}
-							confirmTone="default"
-							dontAskAgainLabel={t("profile_details.dont_ask_again")}
-							dontAskAgainChecked={dontAskUnblockAgain}
-							onDontAskAgainChange={setDontAskUnblockAgain}
 						/>
 						<ConfirmDialog
 							isOpen={isDeleteConversationConfirmOpen}
