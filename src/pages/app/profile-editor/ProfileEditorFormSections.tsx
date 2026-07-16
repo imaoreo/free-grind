@@ -177,6 +177,7 @@ type ProfileEditorFormSectionsProps = {
 	aboutMeError: string | null;
 	tagsError: string | null;
 	tagList: string[];
+	tagLabelByKey: Map<string, string>;
 	profilePhotoHashes: string[];
 	photoModerationByHash?: Map<string, PhotoModeration>;
 	isSavingPhotos: boolean;
@@ -211,6 +212,7 @@ export function ProfileEditorFormSections({
 	aboutMeError,
 	tagsError,
 	tagList,
+	tagLabelByKey,
 	profilePhotoHashes,
 	photoModerationByHash,
 	isSavingPhotos,
@@ -450,7 +452,7 @@ export function ProfileEditorFormSections({
 											}
 											className="group inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium transition-colors hover:border-[var(--accent)]"
 										>
-											{tag}
+											{tagLabelByKey.get(tag) ?? tag}
 											<X className="h-3 w-3 text-[var(--text-muted)] transition-colors group-hover:text-[var(--text)]" />
 										</button>
 									))}

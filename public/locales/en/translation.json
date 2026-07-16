@@ -1025,6 +1025,7 @@
         },
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
+        "drop_to_attach": "Drop to attach",
         "cancel_recording": "Slide left to cancel",
         "stop_recording": "Stop recording",
         "expiration": {
@@ -1713,6 +1714,7 @@
             "scheme_on_demand": "On-demand dosing (2-1-1)",
             "log_daily": "Log today's dose",
             "already_logged_today": "Today's dose is already logged",
+            "next_due": "{{dose}} still needed",
             "already_logged": "Already logged — nothing more to add right now.",
             "empty": "No doses logged yet",
             "empty_desc": "Use the button below to log your first dose.",
@@ -1731,6 +1733,7 @@
         },
         "encounter": {
             "sheet_title": "Log an encounter",
+            "edit_title": "Edit encounter",
             "change_person": "Change",
             "when": "When",
             "protection": "Protection",
@@ -1738,6 +1741,7 @@
             "cancel": "Cancel",
             "save": "Save",
             "saved": "Encounter logged",
+            "updated": "Encounter updated",
             "save_failed": "Could not log this encounter.",
             "search_placeholder": "Search conversations…",
             "loading_people": "Loading…",
@@ -1745,11 +1749,16 @@
             "someone_not_listed": "Someone not listed",
             "name_placeholder": "Their name…",
             "back": "Back",
-            "continue": "Continue"
+            "continue": "Continue",
+            "delete": "Delete encounter",
+            "delete_confirm_title": "Delete this encounter?",
+            "delete_confirm_message": "This can't be undone.",
+            "delete_confirm_action": "Delete"
         },
         "appointments": {
             "add": "Add appointment",
             "add_title": "Add appointment",
+            "edit_title": "Edit appointment",
             "field_title": "Title",
             "field_title_placeholder": "Follow-up appointment",
             "field_when": "When",

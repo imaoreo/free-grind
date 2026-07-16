@@ -228,7 +228,7 @@ export function normalizeTagList(value: string): string[] {
 		.filter(Boolean);
 }
 
-/** Adds/removes a tag (case-insensitively) from a comma-separated tag text, for the tag picker dialog. */
+/** Adds/removes a tag key (case-insensitively) from the comma-separated draft field, for the tag picker dialog. */
 export function toggleProfileTagText(currentText: string, tag: string): string {
 	const list = normalizeTagList(currentText);
 	const exists = list.some((item) => item.toLowerCase() === tag.toLowerCase());

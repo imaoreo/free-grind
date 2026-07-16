@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { listen } from "@tauri-apps/api/event";
 import { appLog } from "../utils/logger";
 
 type NativePushNotificationDetail = {
@@ -99,7 +100,6 @@ export function PushNotificationBridge() {
 	const navigate = useNavigate();
 	const recentlyHandledKeysRef = useRef<Map<string, number>>(new Map());
 
-
 	useEffect(() => {
 		const markHandled = (detail: NativePushNotificationDetail): boolean => {
 			const key = detailKey(detail);
@@ -132,7 +132,15 @@ export function PushNotificationBridge() {
 				const route = getNotificationRoute(detail);
 				if (route) {
 					try {
-						navigate(route);
+						// A notification for the conversation already reflected
+						// in the URL (e.g. a repeat click, or the user manually
+						// switched to a different conversation in-page without
+						// the URL changing — desktop selection never touches
+						// it) navigates to a path react-router treats as
+						// unchanged, so `useParams()` doesn't update and
+						// nothing reacts. The state nonce forces a fresh
+						// location on every click regardless of path equality.
+						navigate(route, { state: { notificationClickedAt: Date.now() } });
 					} catch (error) {
 						appLog.error(
 							"[PUSH_EVENT] Failed to navigate to notification route",
@@ -161,11 +169,28 @@ export function PushNotificationBridge() {
 		);
 		consumePendingPushNotifications(handleDetail);
 
+		// Desktop (Windows for now): the Rust notification plugin emits this
+		// when the user clicks a native toast, carrying the same `group`
+		// (conversationId, or "taps") it was posted with — see
+		// notification-patched/src/desktop.rs's `show_windows`.
+		let unlistenClicked: (() => void) | undefined;
+		void listen<string>("fg:notification-clicked", (event) => {
+			const group = event.payload;
+			const detail: NativePushNotificationDetail =
+				group === "taps"
+					? { event: "opened", action: "taps", conversationId: null, senderId: null }
+					: { event: "opened", action: `chat:${group}`, conversationId: group, senderId: null };
+			handleDetail(detail);
+		}).then((unlisten) => {
+			unlistenClicked = unlisten;
+		});
+
 		return () => {
 			window.removeEventListener(
 				"fg:push-notification",
 				onPushNotification as EventListener,
 			);
+			unlistenClicked?.();
 		};
 	}, [navigate]);
 

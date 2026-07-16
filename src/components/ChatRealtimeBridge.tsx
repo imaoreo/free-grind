@@ -24,6 +24,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { platform } from "@tauri-apps/plugin-os";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { useAuth } from "../contexts/useAuth";
@@ -85,8 +86,38 @@ function isAndroidRuntime(): boolean {
 	return cachedIsAndroid;
 }
 
+let cachedIsDesktop: boolean | null = null;
+// `@tauri-apps/api/window`'s window-management calls (isFocused,
+// onFocusChanged, ...) reject with "window api not available on mobile" on
+// Android/iOS — there's no windowing concept there. Must gate on this, not
+// just `isTauriRuntime()` (true on mobile too).
+function isDesktopRuntime(): boolean {
+	if (cachedIsDesktop != null) return cachedIsDesktop;
+	if (!isTauriRuntime()) {
+		cachedIsDesktop = false;
+		return false;
+	}
+	try {
+		const p = platform();
+		cachedIsDesktop = p === "windows" || p === "macos" || p === "linux";
+	} catch {
+		cachedIsDesktop = false;
+	}
+	return cachedIsDesktop;
+}
+
+// `document.visibilityState` alone isn't reliable for "is the window
+// actually visible to the user" here — WebView2 doesn't consistently flip it
+// to "hidden" when the native window is merely minimized (as opposed to a
+// browser tab switch). Tauri's own window focus state doesn't have that gap,
+// so it's tracked separately (see the effect below) and combined here.
+let isWindowFocusedCached = true;
+
 function isAppForeground(): boolean {
-	return typeof document === "undefined" || document.visibilityState === "visible";
+	return (
+		(typeof document === "undefined" || document.visibilityState === "visible") &&
+		isWindowFocusedCached
+	);
 }
 
 export const CHAT_REALTIME_EVENT = "fg:chat-realtime-event";
@@ -291,6 +322,36 @@ export function ChatRealtimeBridge() {
 	useEffect(() => {
 		pathRef.current = location.pathname;
 	}, [location.pathname]);
+
+	// Keeps `isWindowFocusedCached` (used by `isAppForeground()`) in sync —
+	// see that function's comment for why `document.visibilityState` alone
+	// can't be trusted for the minimized case on this platform.
+	useEffect(() => {
+		if (!isDesktopRuntime()) return;
+		let unlisten: (() => void) | undefined;
+		let cancelled = false;
+
+		const appWindow = getCurrentWindow();
+		void appWindow.isFocused().then((focused) => {
+			if (!cancelled) isWindowFocusedCached = focused;
+		});
+		void appWindow
+			.onFocusChanged(({ payload }) => {
+				isWindowFocusedCached = payload;
+			})
+			.then((fn) => {
+				if (cancelled) {
+					fn();
+				} else {
+					unlisten = fn;
+				}
+			});
+
+		return () => {
+			cancelled = true;
+			unlisten?.();
+		};
+	}, []);
 
 	const userIdRef = useRef<number | null>(userId);
 	useEffect(() => {
@@ -504,19 +565,25 @@ export function ChatRealtimeBridge() {
 			void reconcileArchivedConversationForProfile(id, isProfileFound);
 		};
 
-		// Foreground-only: fires the OS notification straight from the
-		// WebSocket event so it shows up instantly, before FCM's delayed
-		// push would otherwise be the only source. Android routes through
-		// the native bridge (which dedupes against that later FCM push);
-		// desktop/iOS have no competing push channel, so they go straight
-		// to notifyLocal().
+		// Fires the OS notification straight from the WebSocket event so it
+		// shows up instantly, before FCM's delayed push would otherwise be
+		// the only source. Android routes through the native bridge (which
+		// dedupes against that later FCM push) and only needs to cover the
+		// foreground case there, since FCM already handles background —
+		// hence gating Android on `isAppForeground()` too. Desktop/iOS have
+		// no competing push channel at all, so they must notify regardless
+		// of foreground/background state (e.g. minimized): only the
+		// foreground-notifications toggle (suppressing a redundant popup
+		// while actively looking at the app) applies there, not the
+		// foreground/background state itself.
 		const triggerIncomingMessageNotification = (m: Message) => {
-			if (
-				!isAppForeground() ||
-				!isChatNotificationsEnabled() ||
-				!isForegroundNotificationsEnabled()
-			)
+			if (!isChatNotificationsEnabled()) return;
+
+			if (isAndroidRuntime()) {
+				if (!isAppForeground() || !isForegroundNotificationsEnabled()) return;
+			} else if (isAppForeground() && !isForegroundNotificationsEnabled()) {
 				return;
+			}
 
 			const conv = getConversation(m.conversationId);
 			const other = conv ? getOtherParticipant(conv, userIdRef.current) : null;
@@ -823,9 +890,15 @@ export function ChatRealtimeBridge() {
 						// Update local contact index for unread badge persistence
 						if (isIncoming) {
 							const path = pathRef.current;
+							// The route alone isn't enough — it stays on this
+							// chat's path even while the window is minimized,
+							// which would otherwise suppress the unread bump
+							// and notification for a message the user can't
+							// actually see.
 							const isViewingThisChat =
-								path === `/app/chat/${m.conversationId}` ||
-								path.startsWith(`/app/chat/${m.conversationId}/`);
+								isAppForeground() &&
+								(path === `/app/chat/${m.conversationId}` ||
+									path.startsWith(`/app/chat/${m.conversationId}/`));
 							if (!isViewingThisChat) {
 								await incrementUnreadCountForProfile(
 									String(m.senderId),

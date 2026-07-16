@@ -1031,6 +1031,7 @@
         },
         "drawer_unavailable": "Envía un mensaje primero para poder usar la galería",
         "attach_media": "Adjuntar contenido",
+        "drop_to_attach": "",
         "cancel_recording": "Deslizar a la izquierda para cancelar",
         "stop_recording": "Detener grabación",
         "expiration": {
