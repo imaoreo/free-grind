@@ -2310,6 +2310,23 @@ export async function insertEncounter(input: StoredEncounter): Promise<StoredEnc
 	return getAllEncounters();
 }
 
+export async function updateEncounterRow(input: StoredEncounter): Promise<StoredEncounter[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-encounter", async () => {
+		await db.execute(
+			`
+			UPDATE sexual_health_encounters
+			SET tags_json = $1, note = $2
+			WHERE id = $3
+			`,
+			[JSON.stringify(input.tags), input.note, input.id],
+		);
+	});
+
+	return getAllEncounters();
+}
+
 export async function deleteEncounterRow(id: string): Promise<StoredEncounter[]> {
 	const db = await getDb();
 
@@ -2380,6 +2397,23 @@ export async function insertAppointment(input: StoredAppointment): Promise<Store
 				input.completedAt,
 				Date.now(),
 			],
+		);
+	});
+
+	return getAllAppointments();
+}
+
+export async function updateAppointmentRow(input: StoredAppointment): Promise<StoredAppointment[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-appointment", async () => {
+		await db.execute(
+			`
+			UPDATE sexual_health_appointments
+			SET title = $1, scheduled_at = $2, kind = $3, location = $4, note = $5
+			WHERE id = $6
+			`,
+			[input.title, input.scheduledAt, input.kind, input.location, input.note, input.id],
 		);
 	});
 

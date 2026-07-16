@@ -82,3 +82,12 @@ apple-native-keyring-store = { version = "0.2.3", features = ["protected", "keyc
 [target.'cfg(target_os = "linux")'.dependencies]
 linux-keyutils-keyring-store = "0.2.1"
 webkit2gtk = "2"
+
+# boring-sys2 builds BoringSSL from source via CMake. In a dev (debug) profile,
+# OPT_LEVEL=0 makes the `cmake` crate pick CMAKE_BUILD_TYPE=Debug, which on MSVC
+# defaults to the /MDd debug CRT (needs __imp__CrtDbgReport). Rust always links
+# against the release CRT (msvcrt, not msvcrtd), so the two mismatch and the
+# linker fails with LNK2019 on __imp__CrtDbgReport. Bumping the opt-level here
+# makes cmake-rs pick RelWithDebInfo instead, which uses the matching /MD CRT.
+[profile.dev.package.boring-sys2]
+opt-level = 1

@@ -1730,6 +1730,7 @@
         },
         "encounter": {
             "sheet_title": "Log an encounter",
+            "edit_title": "Edit encounter",
             "change_person": "Change",
             "when": "When",
             "protection": "Protection",
@@ -1737,6 +1738,7 @@
             "cancel": "Cancel",
             "save": "Save",
             "saved": "Encounter logged",
+            "updated": "Encounter updated",
             "save_failed": "Could not log this encounter.",
             "search_placeholder": "Search conversations…",
             "loading_people": "Loading…",
@@ -1744,11 +1746,16 @@
             "someone_not_listed": "Someone not listed",
             "name_placeholder": "Their name…",
             "back": "Back",
-            "continue": "Continue"
+            "continue": "Continue",
+            "delete": "Delete encounter",
+            "delete_confirm_title": "Delete this encounter?",
+            "delete_confirm_message": "This can't be undone.",
+            "delete_confirm_action": "Delete"
         },
         "appointments": {
             "add": "Add appointment",
             "add_title": "Add appointment",
+            "edit_title": "Edit appointment",
             "field_title": "Title",
             "field_title_placeholder": "Follow-up appointment",
             "field_when": "When",

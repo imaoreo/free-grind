@@ -17,7 +17,7 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { useManagedGenders, useManagedPronouns, useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
-import { tagTextsToKeys } from "../../utils/tags";
+import { buildTagLabelMap } from "../../utils/tags";
 import { BackToSettings } from "../../components/BackToSettings";
 import { BottomDrawer } from "../../components/ui/bottom-drawer";
 import { ToggleRow } from "../../components/ui/toggle-row";
@@ -126,11 +126,11 @@ export function ProfileEditorPage() {
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
 	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
-	// Tag state is kept/matched as display text throughout the editor (see
-	// TagsPickerDialog), but the server's profile update expects catalog
-	// keys — resolved only at save time, right before building the payload.
-	const allManagedTags = useMemo(
-		() => (managedTagCategories ?? []).flatMap((category) => category.tags),
+	// The picker selects/stores tags by their catalog `key` (what the server
+	// expects on save) — this resolves a key back to display text wherever a
+	// tag needs to render as a chip (the "my tags" preview below).
+	const tagLabelByKey = useMemo(
+		() => buildTagLabelMap((managedTagCategories ?? []).flatMap((category) => category.tags)),
 		[managedTagCategories],
 	);
 
@@ -533,12 +533,12 @@ export function ProfileEditorPage() {
 				addIfChanged("sexualHealth", "sexualHealth");
 				addIfChanged("vaccines", "vaccines");
 
-				// Handle tags separately due to different structure. Compared as
-				// display text (matching how both sides are stored/tracked), but
-				// sent as catalog keys since that's what the server expects.
+				// Handle tags separately due to different structure — tagList
+				// already holds catalog keys (see TagsPickerDialog), which is what
+				// the server expects here too.
 				const savedTags = profile?.profileTags ?? [];
 				if (JSON.stringify(tagList) !== JSON.stringify(savedTags)) {
-					payload.profileTags = tagTextsToKeys(allManagedTags, tagList);
+					payload.profileTags = tagList;
 				}
 
 				// Handle social networks selectively
@@ -946,6 +946,7 @@ export function ProfileEditorPage() {
 								aboutMeError={aboutMeError}
 								tagsError={tagsError}
 								tagList={tagList}
+								tagLabelByKey={tagLabelByKey}
 								profilePhotoHashes={profilePhotoHashes}
 								photoModerationByHash={photoModerationByHash}
 								isSavingPhotos={isSavingPhotos}

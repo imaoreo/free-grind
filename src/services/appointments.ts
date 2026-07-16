@@ -5,6 +5,7 @@ import {
 	getAllAppointments,
 	insertAppointment,
 	updateAppointmentCompletion,
+	updateAppointmentRow,
 } from "./chatDb";
 
 const appointmentSchema = z.object({
@@ -53,6 +54,28 @@ export async function addAppointment(input: {
 		completedAt: null,
 	};
 	const rows = await insertAppointment(entry);
+	return rows;
+}
+
+export async function updateAppointment(input: {
+	id: string;
+	title: string;
+	scheduledAt: number;
+	kind: Appointment["kind"];
+	location?: string | null;
+	note?: string | null;
+	completedAt: number | null;
+}): Promise<Appointment[]> {
+	const entry: Appointment = {
+		id: input.id,
+		title: input.title.trim(),
+		scheduledAt: input.scheduledAt,
+		kind: input.kind,
+		location: input.location ?? null,
+		note: input.note ?? null,
+		completedAt: input.completedAt,
+	};
+	const rows = await updateAppointmentRow(entry);
 	return rows;
 }
 

@@ -194,20 +194,6 @@ mod imp {
         crate::Error::Show(format!("{error:?}"))
     }
 
-    /// Temporary diagnostic for the click-does-nothing investigation — appends
-    /// a timestamped line to `%TEMP%\free-grind-notification-debug.log` so we
-    /// can tell whether Windows ever calls back into `Activated` at all, as
-    /// opposed to the click being swallowed before reaching this process.
-    /// Remove once resolved.
-    #[cfg(windows)]
-    fn debug_log(line: &str) {
-        use std::io::Write;
-        let path = std::env::temp_dir().join("free-grind-notification-debug.log");
-        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
-            let _ = writeln!(file, "[{:?}] {}", std::time::SystemTime::now(), line);
-        }
-    }
-
     /// Non-packaged (Win32) apps must explicitly claim their AppUserModelID
     /// for the current process before raising toast notifications — without
     /// this, Windows still *displays* a toast created via
@@ -247,10 +233,39 @@ mod imp {
     /// (conversationId, or "taps") to the frontend as `fg:notification-clicked`,
     /// and records enough state for `windows_active`/`windows_remove_active`
     /// to later report/clear this notification from Windows' own history.
+    /// Creating and showing the toast happens via `run_on_main_thread`: this
+    /// command runs on a Tokio worker thread (like any async Tauri command),
+    /// and — same lesson as the `Activated` handler's `emit` call — WinRT
+    /// toast APIs called off the main thread can report success while the
+    /// OS silently drops the actual display, particularly (observed
+    /// firsthand) while the window is minimized/unfocused. Errors are
+    /// best-effort logged rather than propagated, since `run_on_main_thread`
+    /// can't hand a return value back synchronously.
     #[cfg(windows)]
     pub fn show_windows<R: tauri::Runtime>(
         app: &tauri::AppHandle<R>,
         data: crate::NotificationData,
+    ) -> crate::Result<()> {
+        let app_id = effective_app_id(app)?;
+        ensure_process_app_user_model_id(&app_id);
+
+        let app_handle = app.clone();
+        let app_id_for_thread = app_id.clone();
+        let _ = app.run_on_main_thread(move || {
+            if let Err(error) = show_windows_on_main_thread(&app_handle, data, &app_id_for_thread)
+            {
+                eprintln!("Free Grind failed to show Windows toast: {error:?}");
+            }
+        });
+
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    fn show_windows_on_main_thread<R: tauri::Runtime>(
+        app: &tauri::AppHandle<R>,
+        data: crate::NotificationData,
+        app_id: &str,
     ) -> crate::Result<()> {
         use tauri::Emitter;
         use windows::core::{HSTRING, IInspectable};
@@ -258,9 +273,6 @@ mod imp {
         use windows::Foundation::TypedEventHandler;
         use windows::UI::Notifications::{ToastNotification, ToastNotificationManager};
 
-        let app_id = effective_app_id(app)?;
-        ensure_process_app_user_model_id(&app_id);
-        debug_log(&format!("show_windows: app_id={app_id}"));
         let title = data
             .title
             .clone()
@@ -302,12 +314,31 @@ mod imp {
         let click_tag = tag.clone();
         let handler = TypedEventHandler::<ToastNotification, IInspectable>::new(
             move |_sender, _args| {
-                debug_log(&format!("Activated fired, group={click_group:?}"));
-                if let Some(group) = &click_group {
-                    let emit_result = app_handle.emit("fg:notification-clicked", group.clone());
-                    debug_log(&format!("emit result={emit_result:?}"));
-                }
                 windows_live_toasts().lock().unwrap().remove(&click_tag);
+                // `Activated` runs on a WinRT/COM callback thread, not
+                // Tauri's main thread. `AppHandle::emit` returning `Ok`
+                // there only means it was queued internally — actual
+                // delivery to the webview needs WebView2's own thread, so
+                // hand the emit off to `run_on_main_thread` instead of
+                // calling it directly from this callback.
+                let group = click_group.clone();
+                let main_thread_app_handle = app_handle.clone();
+                let _ = app_handle.run_on_main_thread(move || {
+                    // Clicking a toast only re-emits into the webview; if the
+                    // window is minimized (or behind other windows) that's
+                    // invisible to the user unless we also explicitly bring
+                    // it to the foreground.
+                    use tauri::Manager;
+                    if let Some(window) = main_thread_app_handle.get_webview_window("main") {
+                        let _ = window.unminimize();
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+
+                    if let Some(group) = group {
+                        let _ = main_thread_app_handle.emit("fg:notification-clicked", group);
+                    }
+                });
                 Ok(())
             },
         );
@@ -317,12 +348,7 @@ mod imp {
         let dismissed_handler = TypedEventHandler::<
             ToastNotification,
             windows::UI::Notifications::ToastDismissedEventArgs,
-        >::new(move |_sender, args| {
-            let reason = args
-                .as_ref()
-                .and_then(|a| a.Reason().ok())
-                .map(|r| format!("{r:?}"));
-            debug_log(&format!("Dismissed fired, reason={reason:?}"));
+        >::new(move |_sender, _args| {
             windows_live_toasts().lock().unwrap().remove(&dismissed_tag);
             Ok(())
         });
@@ -336,10 +362,8 @@ mod imp {
             .unwrap()
             .insert(tag.clone(), toast.clone());
 
-        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(
-            app_id.as_str(),
-        ))
-        .map_err(win_err)?;
+        let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(app_id))
+            .map_err(win_err)?;
         notifier.Show(&toast).map_err(win_err)
     }
 

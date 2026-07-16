@@ -791,15 +791,32 @@ export function ChatPage() {
 	// conversation in-page never touches the URL here (see
 	// `handleSelectConversation`/`openConversationById`), so re-running this
 	// on an unrelated re-render would clobber the user's in-page selection.
+	//
+	// Path equality alone isn't enough to detect "a fresh navigation intent
+	// happened": if the user manually switches to a different conversation
+	// in-page (URL untouched) and then clicks a notification for whatever
+	// conversation the URL still happens to say, react-router treats that
+	// `navigate()` as a no-op (identical path) and `routeConversationId`
+	// never changes, so nothing would re-sync. PushNotificationBridge tags
+	// every notification-driven navigate() with a fresh `state` nonce for
+	// exactly this case — watch that too, not just the id itself.
+	const notificationClickedAt = (
+		location.state as { notificationClickedAt?: number } | null
+	)?.notificationClickedAt;
 	const prevRouteConversationIdRef = useRef(routeConversationId);
+	const prevNotificationClickedAtRef = useRef(notificationClickedAt);
 	useEffect(() => {
 		if (!isDesktop || targetProfileId) {
 			prevRouteConversationIdRef.current = routeConversationId;
+			prevNotificationClickedAtRef.current = notificationClickedAt;
 			return;
 		}
 
-		const routeChanged = routeConversationId !== prevRouteConversationIdRef.current;
+		const routeChanged =
+			routeConversationId !== prevRouteConversationIdRef.current ||
+			notificationClickedAt !== prevNotificationClickedAtRef.current;
 		prevRouteConversationIdRef.current = routeConversationId;
+		prevNotificationClickedAtRef.current = notificationClickedAt;
 
 		if (!routeConversationId) {
 			return;
@@ -815,6 +832,7 @@ export function ChatPage() {
 		routeConversationId,
 		selectedDesktopConversationId,
 		targetProfileId,
+		notificationClickedAt,
 	]);
 
 	const selectedConversation = useMemo(

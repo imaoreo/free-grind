@@ -1,6 +1,6 @@
 import { appLog } from "../utils/logger";
 import z from "zod";
-import { deleteEncounterRow, getAllEncounters, insertEncounter } from "./chatDb";
+import { deleteEncounterRow, getAllEncounters, insertEncounter, updateEncounterRow } from "./chatDb";
 
 const encounterSchema = z.object({
 	id: z.string(),
@@ -63,6 +63,19 @@ export async function addEncounterFromConversation(input: {
 	note?: string | null;
 }): Promise<Encounter[]> {
 	return addEncounter(input);
+}
+
+/**
+ * Only tags and note are editable — who was met and when are locked in at
+ * creation time and not exposed for editing (see chatDb.ts's
+ * updateEncounterRow, which only ever writes those two columns).
+ */
+export async function updateEncounter(
+	encounter: Encounter,
+	updates: { tags: string[]; note: string | null },
+): Promise<Encounter[]> {
+	const rows = await updateEncounterRow({ ...encounter, tags: updates.tags, note: updates.note });
+	return rows;
 }
 
 export async function deleteEncounter(id: string): Promise<Encounter[]> {

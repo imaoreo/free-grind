@@ -26,7 +26,7 @@ function TagCategorySection({
 	category: ManagedTagCategory;
 	selected: string[];
 	showAll: boolean;
-	onToggle: (tagText: string) => void;
+	onToggle: (tagKey: string) => void;
 }) {
 	const { t } = useTranslation();
 	const [expanded, setExpanded] = useState(false);
@@ -34,9 +34,8 @@ function TagCategorySection({
 	// Selected tags go first so the >7 preview cutoff can never hide a tag
 	// the user already picked.
 	const orderedTags = useMemo(() => {
-		const isSelected = (tagText: string) =>
-			selected.some((item) => item.toLowerCase() === tagText.toLowerCase());
-		return [...category.tags].sort((a, b) => Number(isSelected(b.text)) - Number(isSelected(a.text)));
+		const isSelected = (tagKey: string) => selected.includes(tagKey);
+		return [...category.tags].sort((a, b) => Number(isSelected(b.key)) - Number(isSelected(a.key)));
 	}, [category.tags, selected]);
 
 	// Desktop has room to just show everything, and while the search box is
@@ -55,9 +54,9 @@ function TagCategorySection({
 			    list back to 7 before the click could land on it. */}
 			<div className="flex flex-wrap gap-2.5" onMouseDown={(event) => event.preventDefault()}>
 				{visibleTags.map((tag) => {
-					const active = selected.some((item) => item.toLowerCase() === tag.text.toLowerCase());
+					const active = selected.includes(tag.key);
 					return (
-						<Chip key={tag.tagId} selected={active} onClick={() => onToggle(tag.text)}>
+						<Chip key={tag.tagId} selected={active} onClick={() => onToggle(tag.key)}>
 							{tag.text}
 						</Chip>
 					);
@@ -105,13 +104,13 @@ export function TagsPickerDialog({ tagsText, onChange, onClose }: TagsPickerDial
 
 	const selected = useMemo(() => normalizeTagList(tagsText), [tagsText]);
 
-	const handleToggle = (tagText: string) => {
-		const alreadySelected = selected.some((tag) => tag.toLowerCase() === tagText.toLowerCase());
+	const handleToggle = (tagKey: string) => {
+		const alreadySelected = selected.includes(tagKey);
 		if (!alreadySelected && selected.length >= MAX_PROFILE_TAGS) {
 			toast.error(t("profile_editor.errors.max_selection", { count: MAX_PROFILE_TAGS }));
 			return;
 		}
-		onChange(toggleProfileTagText(tagsText, tagText));
+		onChange(toggleProfileTagText(tagsText, tagKey));
 	};
 
 	return (

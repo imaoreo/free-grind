@@ -100,7 +100,6 @@ export function PushNotificationBridge() {
 	const navigate = useNavigate();
 	const recentlyHandledKeysRef = useRef<Map<string, number>>(new Map());
 
-
 	useEffect(() => {
 		const markHandled = (detail: NativePushNotificationDetail): boolean => {
 			const key = detailKey(detail);
@@ -133,7 +132,15 @@ export function PushNotificationBridge() {
 				const route = getNotificationRoute(detail);
 				if (route) {
 					try {
-						navigate(route);
+						// A notification for the conversation already reflected
+						// in the URL (e.g. a repeat click, or the user manually
+						// switched to a different conversation in-page without
+						// the URL changing — desktop selection never touches
+						// it) navigates to a path react-router treats as
+						// unchanged, so `useParams()` doesn't update and
+						// nothing reacts. The state nonce forces a fresh
+						// location on every click regardless of path equality.
+						navigate(route, { state: { notificationClickedAt: Date.now() } });
 					} catch (error) {
 						appLog.error(
 							"[PUSH_EVENT] Failed to navigate to notification route",
