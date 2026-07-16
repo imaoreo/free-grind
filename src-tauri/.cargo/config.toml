@@ -10,11 +10,3 @@ rustflags = ["-C", "link-arg=-fuse-ld=bfd"]
 
 [build]
 jobs = 4
-
-# boring-sys2's cmake build script auto-detects the VS generator via
-# cc::windows_registry::find_vs_version(), which picks up a VS 18 / "2026"
-# preview toolset if one is installed alongside VS2022 and produces
-# "Visual Studio 18 2026" — a generator name the cmake.exe bundled with
-# VS2022 Community doesn't know yet. Pin it so cmake-rs skips detection.
-[env]
-CMAKE_GENERATOR = "Visual Studio 17 2022"
