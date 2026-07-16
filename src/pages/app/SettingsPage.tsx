@@ -44,6 +44,7 @@ import {
 	checkForHotswapUpdate,
 	getCurrentHotswapChannel,
 	getHotswapChannels,
+	getHotswapChannelLabel,
 	installHotswapUpdate,
 	isHotswapAvailable,
 	setHotswapChannel,
@@ -235,19 +236,9 @@ export function SettingsPage() {
 	}, []);
 	const [updateChannel, setUpdateChannel] =
 		useState<HotswapChannel>(getCurrentHotswapChannel());
-	const visibleChannels = getHotswapChannels({ includeDevChannels: developerMode });
+	const visibleChannels = getHotswapChannels();
 	const [contributorCodeInput, setContributorCodeInput] = useState("");
 	const [isActivatingContributor, setIsActivatingContributor] = useState(false);
-
-	useEffect(() => {
-		if (!developerMode && updateChannel === "testingwjay") {
-			void setHotswapChannel("main").then(() => {
-				setUpdateChannel("main");
-				toast("Developer-only update channel disabled; switched to main.");
-			});
-		}
-		// Contributor channels are always allowed regardless of developer mode
-	}, [developerMode, updateChannel]);
 
 	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
 		const tokenToSync = overrideToken ?? fcmToken;
@@ -350,11 +341,6 @@ export function SettingsPage() {
 	};
 
 	const handleSwitchUpdateChannel = async (channel: HotswapChannel) => {
-		if (!developerMode && channel === "testingwjay") {
-			toast.error("Enable Developer Mode to use this update branch.");
-			return;
-		}
-
 		if (!isHotswapAvailable()) {
 			toast.error(t("settings.ota_available_only_tauri"));
 			return;
@@ -372,12 +358,12 @@ export function SettingsPage() {
 			const result = await checkForHotswapUpdate();
 			if (!result.requiresBinaryUpdate && result.available) {
 				await installHotswapUpdate();
-				toast.success(t("settings.switched_and_updated", { channel }));
+				toast.success(t("settings.switched_and_updated", { channel: getHotswapChannelLabel(channel) }));
 				window.location.reload();
 				return;
 			}
 
-			toast.success(t("settings.switched_channel", { channel }));
+			toast.success(t("settings.switched_channel", { channel: getHotswapChannelLabel(channel) }));
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
@@ -835,7 +821,7 @@ export function SettingsPage() {
 														: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)]/50"
 												}`}
 											>
-												{channel}
+												{getHotswapChannelLabel(channel)}
 											</button>
 										))}
 									</div>
@@ -847,36 +833,42 @@ export function SettingsPage() {
 						{(developerMode || isContributorChannel(updateChannel)) && (
 							<div className="px-4 py-3.5">
 								<div className="flex items-start gap-3">
-									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
-										<GitBranch className="h-5 w-5" />
+									<div className="relative shrink-0">
+										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
+											<GitBranch className="h-5 w-5" />
+										</div>
+										{isContributorChannel(updateChannel) && (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
+												<CheckCircle2 className="h-3 w-3" />
+											</div>
+										)}
 									</div>
 									<div className="grid gap-2 min-w-0 flex-1">
 										<div>
 											<p className="text-sm font-semibold leading-snug">Contributor Channel</p>
-											<p className="text-xs text-[var(--text-muted)] mt-0.5">Receive experimental builds from a community contributor.</p>
+											<p className="text-xs text-[var(--text-muted)] mt-0.5">
+											{isContributorChannel(updateChannel)
+												? "Receiving experimental builds from a community contributor. Use at your own risk."
+												: "Receive experimental builds from a community contributor."}
+										</p>
 										</div>
 										{isContributorChannel(updateChannel) ? (
-											<>
-												<div className="flex items-center justify-between rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
-													<div>
-														<p className="text-xs text-[var(--text-muted)]">Active</p>
-														<p className="text-sm font-semibold text-[var(--accent)]">{getContributorHandle(updateChannel)}</p>
-													</div>
-													<button
-														type="button"
-														disabled={isSwitchingChannel}
-														onClick={() => void handleLeaveContributorChannel()}
-														className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition hover:border-red-400 hover:text-red-400 disabled:opacity-50"
-													>
-														{isSwitchingChannel ? "Leaving…" : "Leave"}
-													</button>
+											<div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
+												<div className="min-w-0">
+													<p className="text-xs text-[var(--text-muted)]">Active</p>
+													<p className="text-sm font-semibold text-[var(--accent)] truncate">{getContributorHandle(updateChannel)}</p>
 												</div>
-												<p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
-													Community build — use at your own risk.
-												</p>
-											</>
+												<button
+													type="button"
+													disabled={isSwitchingChannel}
+													onClick={() => void handleLeaveContributorChannel()}
+													className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+												>
+													{isSwitchingChannel ? "Leaving…" : "Leave"}
+												</button>
+											</div>
 										) : developerMode ? (
-											<div className="flex items-center gap-2">
+											<div className="flex gap-2">
 												<input
 													type="text"
 													value={contributorCodeInput}
@@ -884,16 +876,11 @@ export function SettingsPage() {
 													onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
 													placeholder="contributor-handle"
 													maxLength={32}
-													className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+													className="input-field flex min-w-0 flex-1 items-center font-mono text-xs"
 												/>
-												<button
-													type="button"
-													disabled={isActivatingContributor || !contributorCodeInput}
-													onClick={() => void handleActivateContributorChannel()}
-													className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black transition disabled:opacity-50"
-												>
+												<Button type="button" disabled={isActivatingContributor || !contributorCodeInput} onClick={() => void handleActivateContributorChannel()}>
 													{isActivatingContributor ? "Activating…" : "Activate"}
-												</button>
+												</Button>
 											</div>
 										) : null}
 									</div>
@@ -1007,9 +994,16 @@ export function SettingsPage() {
 								<div className="flex items-start gap-3">
 									<div className="relative shrink-0">
 										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
-											<Radar className={`h-5 w-5 ${fingerprintCheck.loading ? "animate-spin" : ""}`} />
+											<Radar className="h-5 w-5" />
 										</div>
-										{fingerprintCheck.ok ? (
+										{fingerprintCheck.loading ? (
+											<div
+												className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-[var(--surface)]"
+												style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}
+											>
+												<Loader2 className="h-3 w-3 animate-spin" />
+											</div>
+										) : fingerprintCheck.ok ? (
 											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
 												<CheckCircle2 className="h-3 w-3" />
 											</div>
