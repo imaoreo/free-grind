@@ -15,8 +15,9 @@ import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
-import { useManagedGenders, useManagedPronouns } from "../../hooks/queries/useProfileQueries";
+import { useManagedGenders, useManagedPronouns, useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { buildTagLabelMap } from "../../utils/tags";
 import { BackToSettings } from "../../components/BackToSettings";
 import { BottomDrawer } from "../../components/ui/bottom-drawer";
 import { ToggleRow } from "../../components/ui/toggle-row";
@@ -69,7 +70,7 @@ const MULTI_VALUE_MAX: Partial<Record<ToggleMultiValueKey, number>> = {
 const DEFAULT_GENDER_ORDER = [1, 4, 5, 2, 6, 7, 3];
 
 export function ProfileEditorPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { userId } = useAuth();
 	const apiFunctions = useApiFunctions();
 	const queryClient = useQueryClient();
@@ -124,6 +125,14 @@ export function ProfileEditorPage() {
 
 	const { data: managedGenders } = useManagedGenders();
 	const { data: managedPronouns } = useManagedPronouns();
+	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
+	// The picker selects/stores tags by their catalog `key` (what the server
+	// expects on save) — this resolves a key back to display text wherever a
+	// tag needs to render as a chip (the "my tags" preview below).
+	const tagLabelByKey = useMemo(
+		() => buildTagLabelMap((managedTagCategories ?? []).flatMap((category) => category.tags)),
+		[managedTagCategories],
+	);
 
 	// sortFilter ranks most genders (ascending = intended order); the rest
 	// (sortFilter === null) just sort to the end, no special grouping.
@@ -524,7 +533,9 @@ export function ProfileEditorPage() {
 				addIfChanged("sexualHealth", "sexualHealth");
 				addIfChanged("vaccines", "vaccines");
 
-				// Handle tags separately due to different structure
+				// Handle tags separately due to different structure — tagList
+				// already holds catalog keys (see TagsPickerDialog), which is what
+				// the server expects here too.
 				const savedTags = profile?.profileTags ?? [];
 				if (JSON.stringify(tagList) !== JSON.stringify(savedTags)) {
 					payload.profileTags = tagList;
@@ -935,6 +946,7 @@ export function ProfileEditorPage() {
 								aboutMeError={aboutMeError}
 								tagsError={tagsError}
 								tagList={tagList}
+								tagLabelByKey={tagLabelByKey}
 								profilePhotoHashes={profilePhotoHashes}
 								photoModerationByHash={photoModerationByHash}
 								isSavingPhotos={isSavingPhotos}

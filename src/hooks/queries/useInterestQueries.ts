@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { TAP_RECEIVED_EVENT, VIEW_RECEIVED_EVENT } from "../../components/ChatRealtimeBridge";
 import { interestViewsStore } from "../../services/interestViewsStore";
 import { fromStoredView, toStoredView, normalizeViews, normalizeTaps } from "../../pages/app/interest/interestUtils";
+import { getAllCachedBrowseCardsByImageHash } from "../../pages/app/gridpage/cache";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_STALE_TIME_MS } from "../../config/ui-constants";
 
@@ -25,8 +26,21 @@ export function useInterestData() {
 			const cachedRows = await interestViewsStore.getAll();
 			const cachedViews = cachedRows.map(fromStoredView);
 
-			// 3. Normalize & Merge
-			const normalizedViews = normalizeViews(viewsResponse, cachedViews, t);
+			// 3. Normalize & Merge (recover locked preview entries by matching their
+			// image hash against profiles already seen in the browse grid)
+			const browseHashIndex = getAllCachedBrowseCardsByImageHash();
+			const browseMatches = new Map(
+				Array.from(browseHashIndex, ([hash, card]) => [
+					hash,
+					{
+						profileId: card.profileId,
+						displayName: card.displayName ?? null,
+						onlineUntil: card.onlineUntil ?? null,
+						rightNow: card.rightNow ?? null,
+					},
+				]),
+			);
+			const normalizedViews = normalizeViews(viewsResponse, cachedViews, t, browseMatches);
 			const normalizedTaps = normalizeTaps(tapsResponse, t);
 
 			// 4. Update persistence store with merged views

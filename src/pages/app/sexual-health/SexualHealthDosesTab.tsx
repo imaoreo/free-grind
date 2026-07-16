@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { LoadingState } from "../../../components/ui/states";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { cn } from "../../../utils/cn";
 import { addPrepDose, deletePrepDose, loadPrepDoses, type PrepDose } from "../../../services/prepDoses";
 import {
 	computeProtectionStatus,
@@ -37,6 +39,38 @@ const ON_DEMAND_LOG_LABEL: Record<"loading" | "plus24" | "plus48", { key: string
 	plus24: { key: "sexualHealth.doses.log_plus24", defaultValue: "+24h dose" },
 	plus48: { key: "sexualHealth.doses.log_plus48", defaultValue: "+48h dose" },
 };
+
+function DoseRow({ dose, onDelete }: { dose: PrepDose; onDelete: () => void }) {
+	const { t } = useTranslation();
+	const { ref, revealClass } = useRevealOnScroll();
+
+	return (
+		<div
+			ref={ref}
+			className={cn("flex items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4", revealClass)}
+		>
+			<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
+				<Pill className="h-6 w-6" />
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-sm font-bold text-[var(--text)]">{t(DOSE_ROLE_LABEL_KEYS[dose.doseRole])}</p>
+				<p className="mt-0.5 truncate text-xs font-medium text-[var(--text-muted)]">{formatDateTime(dose.takenAt)}</p>
+			</div>
+			<button
+				type="button"
+				onClick={onDelete}
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/35 text-red-400 transition-all active:scale-95 hover:border-red-500/45"
+				style={{
+					backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
+					boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
+				}}
+				aria-label={t("sexualHealth.doses.delete", { defaultValue: "Delete dose" })}
+			>
+				<Trash2 className="h-4 w-4" />
+			</button>
+		</div>
+	);
+}
 
 export function SexualHealthDosesTab({
 	headerSlotEl,
@@ -98,6 +132,17 @@ export function SexualHealthDosesTab({
 								{scheme === "daily"
 									? t("sexualHealth.doses.scheme_daily", { defaultValue: "Daily dosing" })
 									: t("sexualHealth.doses.scheme_on_demand", { defaultValue: "On-demand dosing (2-1-1)" })}
+								{nextAction?.scheme === "on_demand" && nextAction.nextRole !== "loading" && (
+									<>
+										{" · "}
+										{t("sexualHealth.doses.next_due", {
+											defaultValue: "{{dose}} still needed",
+											dose: t(ON_DEMAND_LOG_LABEL[nextAction.nextRole].key, {
+												defaultValue: ON_DEMAND_LOG_LABEL[nextAction.nextRole].defaultValue,
+											}),
+										})}
+									</>
+								)}
 								{nextAction?.alreadyLoggedToday && (
 									<>
 										{" · "}
@@ -132,32 +177,7 @@ export function SexualHealthDosesTab({
 				) : (
 					<div>
 						{doses.map((dose) => (
-							<div
-								key={dose.id}
-								className="flex items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4"
-							>
-								<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
-									<Pill className="h-6 w-6" />
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-bold text-[var(--text)]">{t(DOSE_ROLE_LABEL_KEYS[dose.doseRole])}</p>
-									<p className="mt-0.5 truncate text-xs font-medium text-[var(--text-muted)]">
-										{formatDateTime(dose.takenAt)}
-									</p>
-								</div>
-								<button
-									type="button"
-									onClick={() => setPendingDeleteId(dose.id)}
-									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/35 text-red-400 transition-all active:scale-95 hover:border-red-500/45"
-									style={{
-										backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
-										boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
-									}}
-									aria-label={t("sexualHealth.doses.delete", { defaultValue: "Delete dose" })}
-								>
-									<Trash2 className="h-4 w-4" />
-								</button>
-							</div>
+							<DoseRow key={dose.id} dose={dose} onDelete={() => setPendingDeleteId(dose.id)} />
 						))}
 					</div>
 				)}

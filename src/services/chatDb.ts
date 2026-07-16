@@ -2069,6 +2069,32 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 	});
 }
 
+// Keys in the settings table that represent user-facing preferences/toggles
+// (as opposed to sync bookkeeping like inbox-sync-done or seen-timestamps,
+// which "reset all settings" intentionally leaves alone since wiping those
+// just forces an expensive resync rather than resetting anything the user
+// perceives as a setting).
+const RESETTABLE_SETTING_KEYS = [
+	"privacy",
+	"automation",
+	"automation_rules",
+	"automation_seen_senders",
+	"automation_age_defaults_seeded_v2",
+	"automation_keywords_defaults_seeded",
+	"locationPreferences",
+	"sexualHealthPrepMode",
+];
+
+export async function resetAllSettings(): Promise<void> {
+	const db = await getDb();
+	await executeWithLockRetry(db, "reset-all-settings", async () => {
+		await db.execute(
+			`DELETE FROM settings WHERE key IN (${RESETTABLE_SETTING_KEYS.map((_, i) => `$${i + 1}`).join(", ")})`,
+			RESETTABLE_SETTING_KEYS,
+		);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // Saved phrases
 // ---------------------------------------------------------------------------
@@ -2310,6 +2336,23 @@ export async function insertEncounter(input: StoredEncounter): Promise<StoredEnc
 	return getAllEncounters();
 }
 
+export async function updateEncounterRow(input: StoredEncounter): Promise<StoredEncounter[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-encounter", async () => {
+		await db.execute(
+			`
+			UPDATE sexual_health_encounters
+			SET tags_json = $1, note = $2
+			WHERE id = $3
+			`,
+			[JSON.stringify(input.tags), input.note, input.id],
+		);
+	});
+
+	return getAllEncounters();
+}
+
 export async function deleteEncounterRow(id: string): Promise<StoredEncounter[]> {
 	const db = await getDb();
 
@@ -2380,6 +2423,23 @@ export async function insertAppointment(input: StoredAppointment): Promise<Store
 				input.completedAt,
 				Date.now(),
 			],
+		);
+	});
+
+	return getAllAppointments();
+}
+
+export async function updateAppointmentRow(input: StoredAppointment): Promise<StoredAppointment[]> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "update-appointment", async () => {
+		await db.execute(
+			`
+			UPDATE sexual_health_appointments
+			SET title = $1, scheduled_at = $2, kind = $3, location = $4, note = $5
+			WHERE id = $6
+			`,
+			[input.title, input.scheduledAt, input.kind, input.location, input.note, input.id],
 		);
 	});
 

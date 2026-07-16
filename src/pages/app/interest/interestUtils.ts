@@ -187,10 +187,18 @@ function getPreviewSyntheticId(
 	return `${PREVIEW_ID_PREFIX}${hash}:${seen}:${index}`;
 }
 
+export type BrowseHashMatch = {
+	profileId: string;
+	displayName: string | null;
+	onlineUntil: number | null;
+	rightNow: string | null;
+};
+
 export function normalizeViews(
 	payload: unknown,
 	previouslyCached: InterestItem[],
-	_t: TFunction
+	_t: TFunction,
+	browseHashIndex?: Map<string, BrowseHashMatch>,
 ): InterestItem[] {
 	const root = asObject(payload);
 	if (!root) return previouslyCached;
@@ -199,8 +207,27 @@ export function normalizeViews(
 	const profilesRaw = Array.isArray(root.profiles) ? root.profiles : Array.isArray(dataRoot?.profiles) ? dataRoot.profiles : [];
 	const previewsRaw = Array.isArray(root.previews) ? root.previews : Array.isArray(dataRoot?.previews) ? dataRoot.previews : [];
 
-	// 1. Helper map for quick access to known profiles (by hash)
+	// 1. Helper map for quick access to known profiles (by hash).
+	// Seed from the browse grid first (weaker signal — just an identity guess),
+	// then let previously-resolved interest entries override on hash collision
+	// since those carry richer, interest-specific data.
 	const hashToProfile = new Map<string, InterestItem>();
+	if (browseHashIndex) {
+		for (const [hash, match] of browseHashIndex) {
+			hashToProfile.set(hash, {
+				profileId: match.profileId,
+				displayName: match.displayName,
+				imageHash: hash,
+				timestamp: null,
+				tapType: null,
+				viewCount: null,
+				canOpenProfile: true,
+				isFromCache: true,
+				onlineUntil: match.onlineUntil,
+				rightNow: match.rightNow,
+			});
+		}
+	}
 	for (const item of previouslyCached) {
 		if (item.imageHash && !item.profileId.startsWith(PREVIEW_ID_PREFIX)) {
 			hashToProfile.set(item.imageHash, item);
@@ -259,8 +286,23 @@ export function normalizeViews(
 		mergedMap.set(item.profileId, item);
 	}
 
+	// Stale synthetic preview IDs (e.g. from before this hash was resolvable) keyed by
+	// hash, so a newly-recovered real ID for the same hash can evict its old locked twin.
+	const staleSyntheticIdByHash = new Map<string, string>();
+	for (const item of previouslyCached) {
+		if (item.profileId.startsWith(PREVIEW_ID_PREFIX) && item.imageHash) {
+			staleSyntheticIdByHash.set(item.imageHash, item.profileId);
+		}
+	}
+
 	// Then fresh profiles/previews from server (overwrite old items with new timestamps)
 	for (const incoming of [...incomingProfiles, ...incomingPreviews]) {
+		if (!incoming.profileId.startsWith(PREVIEW_ID_PREFIX) && incoming.imageHash) {
+			const staleId = staleSyntheticIdByHash.get(incoming.imageHash);
+			if (staleId && staleId !== incoming.profileId) {
+				mergedMap.delete(staleId);
+			}
+		}
 		const existing = mergedMap.get(incoming.profileId);
 		mergedMap.set(incoming.profileId, mergeViewItem(existing ?? null, incoming));
 	}

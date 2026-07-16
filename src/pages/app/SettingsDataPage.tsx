@@ -4,6 +4,7 @@ import {
 	FileDown,
 	FileUp,
 	Loader2,
+	RotateCcw,
 	ShieldCheck,
 	Trash2,
 	Upload,
@@ -16,6 +17,7 @@ import { useAuth } from "../../contexts/useAuth";
 import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
 import * as chatDb from "../../services/chatDb";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid } from "../../services/saveMedia";
+import { resetAllSettings } from "../../utils/resetSettings";
 import { appLog } from "../../utils/logger";
 import type { FullDbExport } from "../../types/chat-db";
 
@@ -41,6 +43,8 @@ export function SettingsDataPage() {
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 	const [isExporting, setIsExporting] = useState(false);
 	const [isImporting, setIsImporting] = useState(false);
+	const [isResetting, setIsResetting] = useState(false);
+	const [showResetConfirm, setShowResetConfirm] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const loadUsage = useCallback(async () => {
@@ -170,6 +174,19 @@ export function SettingsDataPage() {
 		}
 	};
 
+	const handleResetAllSettings = async () => {
+		setIsResetting(true);
+		try {
+			await resetAllSettings();
+			toast.success(t("data_backup.reset_success", { defaultValue: "All settings reset. Reloading…" }));
+			window.location.reload();
+		} catch (error) {
+			toast.error(getErrorMessage(error, t("data_backup.reset_failed", { defaultValue: "Failed to reset settings." })));
+			setIsResetting(false);
+			setShowResetConfirm(false);
+		}
+	};
+
 	return (
 		<section className="app-screen">
 			<header className="mb-7">
@@ -206,7 +223,7 @@ export function SettingsDataPage() {
 								type="button"
 								onClick={() => setShowDeleteConfirm(true)}
 								disabled={isDeleting || isLoadingUsage || (usage?.count ?? 0) === 0}
-								className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-red-500/15 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/25 disabled:opacity-50"
+								className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
 							>
 								{isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
 								{t("data_backup.delete_all", { defaultValue: "Delete all" })}
@@ -294,6 +311,36 @@ export function SettingsDataPage() {
 						</div>
 					</div>
 				</div>
+
+				{/* Danger Zone */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("data_backup.danger_zone", { defaultValue: "Danger Zone" })}
+					</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<div className="flex items-center justify-between gap-4 px-4 py-3.5">
+							<div className="min-w-0">
+								<p className="text-sm font-medium text-[var(--text)]">
+									{t("data_backup.reset_all", { defaultValue: "Reset all settings" })}
+								</p>
+								<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+									{t("data_backup.reset_all_desc", {
+										defaultValue: "Restores theme, layout, privacy, automation, filters and notification settings to their defaults. Conversations and media are not affected.",
+									})}
+								</p>
+							</div>
+							<button
+								type="button"
+								onClick={() => setShowResetConfirm(true)}
+								disabled={isResetting}
+								className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+							>
+								{isResetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+								{t("data_backup.reset_all", { defaultValue: "Reset all settings" })}
+							</button>
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<ConfirmDialog
@@ -308,6 +355,20 @@ export function SettingsDataPage() {
 				isProcessing={isDeleting}
 				onConfirm={() => void handleDeleteAll()}
 				onCancel={() => setShowDeleteConfirm(false)}
+			/>
+
+			<ConfirmDialog
+				isOpen={showResetConfirm}
+				title={t("data_backup.reset_confirm_title", { defaultValue: "Reset all settings?" })}
+				message={t("data_backup.reset_confirm_message", {
+					defaultValue: "This restores theme, layout, privacy, automation, filters and notification settings to their defaults. Conversations, media and your account are not affected. The app will reload.",
+				})}
+				confirmLabel={t("data_backup.reset_all", { defaultValue: "Reset all settings" })}
+				cancelLabel={t("common.cancel", { defaultValue: "Cancel" })}
+				confirmTone="danger"
+				isProcessing={isResetting}
+				onConfirm={() => void handleResetAllSettings()}
+				onCancel={() => setShowResetConfirm(false)}
 			/>
 		</section>
 	);

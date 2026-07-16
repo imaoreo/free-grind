@@ -9,6 +9,8 @@ import { Button } from "../../../components/ui/button";
 import { Chip } from "../../../components/ui/chip";
 import { LoadingState } from "../../../components/ui/states";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { cn } from "../../../utils/cn";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { useMyOwnProfile } from "../../../hooks/queries/useProfileQueries";
 import { addStiTest, deleteStiTest, loadStiTests, updateStiTest, type StiTest } from "../../../services/stiTests";
@@ -31,14 +33,66 @@ const RESULT_LABEL_KEYS: Record<StiTest["result"], string> = {
 	positive: "sexualHealth.tests.result_positive",
 };
 
+function TestRow({
+	test,
+	onEdit,
+	onDelete,
+}: {
+	test: StiTest;
+	onEdit: () => void;
+	onDelete: () => void;
+}) {
+	const { t } = useTranslation();
+	const { ref, revealClass } = useRevealOnScroll();
+
+	return (
+		<div
+			ref={ref}
+			onClick={onEdit}
+			className={cn(
+				"flex cursor-pointer items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4 transition-colors hover:bg-[var(--surface-2)]/50",
+				revealClass,
+			)}
+		>
+			<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
+				<FlaskConical className="h-6 w-6" />
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-sm font-bold text-[var(--text)]">{t(TEST_TYPE_LABEL_KEYS[test.testType])}</p>
+				<p className="mt-0.5 truncate text-xs font-medium text-[var(--text-muted)]">
+					{[formatDate(test.testedAt), t(RESULT_LABEL_KEYS[test.result])].join(" · ")}
+				</p>
+				{test.note && <p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{test.note}</p>}
+			</div>
+			<button
+				type="button"
+				onClick={(event) => {
+					event.stopPropagation();
+					onDelete();
+				}}
+				className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/35 text-red-400 transition-all active:scale-95 hover:border-red-500/45"
+				style={{
+					backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
+					boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
+				}}
+				aria-label={t("sexualHealth.tests.delete", { defaultValue: "Delete" })}
+			>
+				<Trash2 className="h-4 w-4" />
+			</button>
+		</div>
+	);
+}
+
 function TestFormSheet({
 	editingTest,
 	onClose,
 	onSaved,
+	onDeleted,
 }: {
 	editingTest?: StiTest;
 	onClose: () => void;
 	onSaved: (testedAt: number) => void;
+	onDeleted?: () => void;
 }) {
 	const { t } = useTranslation();
 	const [testedAt, setTestedAt] = useState(() => toDateInputValue(editingTest?.testedAt ?? Date.now()));
@@ -46,6 +100,8 @@ function TestFormSheet({
 	const [result, setResult] = useState<StiTest["result"]>(editingTest?.result ?? "pending");
 	const [note, setNote] = useState(editingTest?.note ?? "");
 	const [isSaving, setIsSaving] = useState(false);
+	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
 
 	const handleSubmit = async () => {
 		setIsSaving(true);
@@ -70,6 +126,18 @@ function TestFormSheet({
 			onSaved(testedAtMs);
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!editingTest) return;
+		setIsDeleting(true);
+		try {
+			await deleteStiTest(editingTest.id);
+			onDeleted?.();
+		} finally {
+			setIsDeleting(false);
+			setIsConfirmingDelete(false);
 		}
 	};
 
@@ -126,13 +194,40 @@ function TestFormSheet({
 				</label>
 			</div>
 			<div className="flex gap-2 px-4">
-				<Button variant="secondary" className="flex-1" onClick={onClose} disabled={isSaving}>
-					{t("sexualHealth.tests.cancel", { defaultValue: "Cancel" })}
-				</Button>
+				{editingTest ? (
+					<button
+						type="button"
+						onClick={() => setIsConfirmingDelete(true)}
+						disabled={isSaving}
+						className="flex flex-1 items-center justify-center rounded-xl border border-red-500/35 px-4 py-2.5 text-sm font-medium text-red-400 transition-all active:scale-95 hover:border-red-500/45 disabled:opacity-40"
+						style={{
+							backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
+							boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
+						}}
+					>
+						{t("sexualHealth.tests.delete", { defaultValue: "Delete" })}
+					</button>
+				) : (
+					<Button variant="secondary" className="flex-1" onClick={onClose} disabled={isSaving}>
+						{t("sexualHealth.tests.cancel", { defaultValue: "Cancel" })}
+					</Button>
+				)}
 				<Button variant="primary" className="flex-1" loading={isSaving} onClick={() => void handleSubmit()}>
 					{t("sexualHealth.tests.save", { defaultValue: "Save" })}
 				</Button>
 			</div>
+
+			<ConfirmDialog
+				isOpen={isConfirmingDelete}
+				title={t("sexualHealth.tests.delete_confirm_title", { defaultValue: "Delete this test?" })}
+				message={t("sexualHealth.tests.delete_confirm_message", { defaultValue: "This can't be undone." })}
+				confirmLabel={t("sexualHealth.tests.delete_confirm_action", { defaultValue: "Delete" })}
+				cancelLabel={t("sexualHealth.tests.cancel", { defaultValue: "Cancel" })}
+				confirmTone="danger"
+				isProcessing={isDeleting}
+				onCancel={() => setIsConfirmingDelete(false)}
+				onConfirm={() => void handleDelete()}
+			/>
 		</BottomSheet>,
 		document.body,
 	);
@@ -220,36 +315,12 @@ export function SexualHealthTestsTab({
 				) : (
 					<div>
 						{tests.map((test) => (
-							<div
+							<TestRow
 								key={test.id}
-								onClick={() => setEditingTest(test)}
-								className="flex cursor-pointer items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4 transition-colors hover:bg-[var(--surface-2)]/50"
-							>
-								<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
-									<FlaskConical className="h-6 w-6" />
-								</div>
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-bold text-[var(--text)]">{t(TEST_TYPE_LABEL_KEYS[test.testType])}</p>
-									<p className="mt-0.5 truncate text-xs font-medium text-[var(--text-muted)]">
-										{[formatDate(test.testedAt), t(RESULT_LABEL_KEYS[test.result])].join(" · ")}
-									</p>
-								</div>
-								<button
-									type="button"
-									onClick={(event) => {
-										event.stopPropagation();
-										setPendingDeleteId(test.id);
-									}}
-									className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-500/35 text-red-400 transition-all active:scale-95 hover:border-red-500/45"
-									style={{
-										backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
-										boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
-									}}
-									aria-label={t("sexualHealth.tests.delete", { defaultValue: "Delete" })}
-								>
-									<Trash2 className="h-4 w-4" />
-								</button>
-							</div>
+								test={test}
+								onEdit={() => setEditingTest(test)}
+								onDelete={() => setPendingDeleteId(test.id)}
+							/>
 						))}
 					</div>
 				)}
@@ -283,6 +354,10 @@ export function SexualHealthTestsTab({
 						setEditingTest(null);
 						reload();
 						void syncProfileLastTested(testedAtMs);
+					}}
+					onDeleted={() => {
+						setEditingTest(null);
+						reload();
 					}}
 				/>
 			)}

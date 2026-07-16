@@ -785,17 +785,44 @@ export function ChatPage() {
 	}, [isDesktop, routeConversationId, selectedDesktopConversationId, navigate]);
 
 	// On desktop, initialize selection from route when landing on /chat/:id
-	// (e.g. returning from profile). Do not keep forcing it afterward.
+	// (e.g. returning from profile), and re-sync on later route changes that
+	// come from outside this page (e.g. a notification click's `navigate()`,
+	// or browser back/forward) — but not on every render, since selecting a
+	// conversation in-page never touches the URL here (see
+	// `handleSelectConversation`/`openConversationById`), so re-running this
+	// on an unrelated re-render would clobber the user's in-page selection.
+	//
+	// Path equality alone isn't enough to detect "a fresh navigation intent
+	// happened": if the user manually switches to a different conversation
+	// in-page (URL untouched) and then clicks a notification for whatever
+	// conversation the URL still happens to say, react-router treats that
+	// `navigate()` as a no-op (identical path) and `routeConversationId`
+	// never changes, so nothing would re-sync. PushNotificationBridge tags
+	// every notification-driven navigate() with a fresh `state` nonce for
+	// exactly this case — watch that too, not just the id itself.
+	const notificationClickedAt = (
+		location.state as { notificationClickedAt?: number } | null
+	)?.notificationClickedAt;
+	const prevRouteConversationIdRef = useRef(routeConversationId);
+	const prevNotificationClickedAtRef = useRef(notificationClickedAt);
 	useEffect(() => {
 		if (!isDesktop || targetProfileId) {
+			prevRouteConversationIdRef.current = routeConversationId;
+			prevNotificationClickedAtRef.current = notificationClickedAt;
 			return;
 		}
+
+		const routeChanged =
+			routeConversationId !== prevRouteConversationIdRef.current ||
+			notificationClickedAt !== prevNotificationClickedAtRef.current;
+		prevRouteConversationIdRef.current = routeConversationId;
+		prevNotificationClickedAtRef.current = notificationClickedAt;
 
 		if (!routeConversationId) {
 			return;
 		}
 
-		if (selectedDesktopConversationId !== null) {
+		if (selectedDesktopConversationId !== null && !routeChanged) {
 			return;
 		}
 
@@ -805,6 +832,7 @@ export function ChatPage() {
 		routeConversationId,
 		selectedDesktopConversationId,
 		targetProfileId,
+		notificationClickedAt,
 	]);
 
 	const selectedConversation = useMemo(
@@ -5871,13 +5899,7 @@ export function ChatPage() {
 		[service, t],
 	);
 
-	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		event.target.value = "";
-		if (!file) {
-			return;
-		}
-
+	const openAttachmentDialogForFile = (file: File) => {
 		if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
 			toast.error("Only image and video attachments are supported.");
 			return;
@@ -5887,6 +5909,20 @@ export function ChatPage() {
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
 		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
+	};
+
+	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) {
+			return;
+		}
+
+		openAttachmentDialogForFile(file);
+	};
+
+	const onAttachmentPaste = (file: File) => {
+		openAttachmentDialogForFile(file);
 	};
 
 	/**
@@ -6164,6 +6200,7 @@ export function ChatPage() {
 			toggleDrawer={toggleDrawer}
 			attachmentInputRef={attachmentInputRef}
 			onAttachmentInput={onAttachmentInput}
+			onAttachmentPaste={onAttachmentPaste}
 			isUploadingAttachment={isUploadingAttachment}
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}

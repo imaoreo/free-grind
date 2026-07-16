@@ -6,7 +6,9 @@ import { PageHeaderBackground } from "../../components/ui/PageHeaderBackground";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
 import { cn } from "../../utils/cn";
+import { buildTagLabelMap } from "../../utils/tags";
 import { type ManagedOption } from "./GridPage.types";
+import type { ManagedTag } from "../../types/api-functions";
 import {
 	type BrowseFilters,
 	type BrowseFiltersDraft,
@@ -137,15 +139,17 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		[managedTagCategories],
 	);
 
+	// `tags` holds whatever actually gets sent to the server: a catalog tag's
+	// stable `key` (see addManagedTag), or the raw typed text for a free-typed
+	// tag that isn't in the catalog (addTag) — there's no key for those.
+	const tagLabelByKey = useMemo(() => buildTagLabelMap(allManagedTags), [allManagedTags]);
+	const tagLabel = (value: string) => tagLabelByKey.get(value) ?? value;
+
 	const tagSearchResults = useMemo(() => {
 		const query = tagDraft.trim().toLowerCase();
 		if (!query) return [];
 		return allManagedTags
-			.filter(
-				(tag) =>
-					tag.text.toLowerCase().includes(query) &&
-					!tags.includes(tag.text.toLowerCase()),
-			)
+			.filter((tag) => tag.text.toLowerCase().includes(query) && !tags.includes(tag.key))
 			.slice(0, 8);
 	}, [tagDraft, allManagedTags, tags]);
 
@@ -161,6 +165,11 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		const norm = value.trim().toLowerCase();
 		if (!norm) return;
 		setTags((prev) => prev.includes(norm) ? prev : [...prev, norm]);
+		setTagDraft("");
+	};
+
+	const addManagedTag = (tag: ManagedTag) => {
+		setTags((prev) => (prev.includes(tag.key) ? prev : [...prev, tag.key]));
 		setTagDraft("");
 	};
 
@@ -440,7 +449,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 										<button
 											key={tag.tagId}
 											type="button"
-											onClick={() => addTag(tag.text)}
+											onClick={() => addManagedTag(tag)}
 											className="rounded-full border border-[var(--accent)]/60 bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
 										>
 											+ {tag.text}
@@ -457,7 +466,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
 											className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 										>
-											{tag} <span className="ml-1">×</span>
+											{tagLabel(tag)} <span className="ml-1">×</span>
 										</button>
 									))}
 								</div>

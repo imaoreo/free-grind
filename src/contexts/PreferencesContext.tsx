@@ -280,7 +280,7 @@ function applyTheme(colorScheme: ColorScheme, accentColor: string, accentContras
 	root.style.setProperty("--accent-readable", readableAccentColor);
 }
 
-const STORAGE_KEY = "app_preferences";
+export const PREFERENCES_STORAGE_KEY = "app_preferences";
 
 // Per-profile location settings — backed by the active account's chatDb
 // (see chatDb.ts's generic settings key/value store), not this shared
@@ -321,7 +321,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		const loadPreferences = async () => {
 			try {
-				const stored = localStorage.getItem(STORAGE_KEY);
+				const stored = localStorage.getItem(PREFERENCES_STORAGE_KEY);
 				const isDesktopDevice = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 				const deviceDefaultStrength = isDesktopDevice ? "pronounced" : "subtle";
 
@@ -542,7 +542,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
 			// Persist the rest to localStorage (geohash/locationName/useAutoLocation excluded, see above)
 			localStorage.setItem(
-				STORAGE_KEY,
+				PREFERENCES_STORAGE_KEY,
 				JSON.stringify({
 					colorScheme: preferences.colorScheme,
 					accentColor: preferences.accentColor,

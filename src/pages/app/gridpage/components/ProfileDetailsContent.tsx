@@ -348,7 +348,7 @@ export function ProfileDetailsContent({
 
 
 	return (
-		<div className="grid gap-8">
+		<div className="grid gap-8 @container">
 			{tapBurst && (
 				<div key={tapBurst.key} className="pointer-events-none fixed inset-0 z-50 overflow-hidden" aria-hidden>
 					<span className="absolute left-1/2 top-1/2 text-7xl animate-tap-burst">
@@ -407,7 +407,7 @@ export function ProfileDetailsContent({
 									)}
 								</div>
 
-								<div className="hidden grid-cols-3 gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-6">
+								<div className="hidden grid-cols-3 gap-2 sm:grid sm:grid-cols-4 @3xl:grid-cols-6">
 									{activeProfilePhotoHashes.map((hash, index) => (
 										<button
 											type="button"
@@ -429,7 +429,7 @@ export function ProfileDetailsContent({
 								</div>
 							</>
 						) : (
-							<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+							<div className="grid grid-cols-3 gap-2 sm:grid-cols-4 @3xl:grid-cols-6">
 								{activeProfilePhotoHashes.map((hash, index) => (
 									<button
 										type="button"
@@ -598,7 +598,7 @@ export function ProfileDetailsContent({
 			{extraTopSection}
 
 			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNowDetail || hasStatsFields || hasSocialFields || hasTravelPlans) && (
-			<div className="grid gap-8 px-3 lg:grid-cols-[1.25fr_1fr]">
+			<div className="grid gap-8 px-3">
 				{(hasTagsContent || hasAboutContent || hasRightNowDetail || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
 					{hasRightNowDetail && (

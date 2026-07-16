@@ -7,35 +7,62 @@ import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
 import { Avatar } from "../../../components/ui/avatar";
 import { Chip } from "../../../components/ui/chip";
 import { Button } from "../../../components/ui/button";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { PersonPicker, type PickedPerson } from "./PersonPicker";
-import { addEncounter } from "../../../services/encounters";
+import { addEncounter, deleteEncounter, updateEncounter, type Encounter } from "../../../services/encounters";
 import { loadPrepDoses } from "../../../services/prepDoses";
 import { computeProtectionStatus } from "../../../services/prepTracking";
 import { usePrepScheme } from "./usePrepScheme";
-import { toDateTimeLocalValue, fromDateTimeLocalValue } from "./sexualHealthFormat";
+import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from "./sexualHealthFormat";
 
 const PREP_TAG = "PrEP";
 const PROTECTION_TAGS = [PREP_TAG, "Doxy-PEP", "Condom"];
 
 interface EncounterLogSheetProps {
 	prefill?: PickedPerson;
+	editingEncounter?: Encounter;
+	editingAvatarSrc?: string | null;
 	onClose: () => void;
 	onLogged: () => void;
+	onDeleted?: () => void;
 }
 
-export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSheetProps) {
+export function EncounterLogSheet({
+	prefill,
+	editingEncounter,
+	editingAvatarSrc,
+	onClose,
+	onLogged,
+	onDeleted,
+}: EncounterLogSheetProps) {
 	const { t } = useTranslation();
 	const [scheme] = usePrepScheme();
-	const [person, setPerson] = useState<PickedPerson | null>(prefill ?? null);
+	const isEditing = editingEncounter != null;
+	const [person, setPerson] = useState<PickedPerson | null>(
+		editingEncounter
+			? {
+					profileId: editingEncounter.profileId,
+					conversationId: editingEncounter.conversationId,
+					displayName: editingEncounter.displayName,
+					avatarSrc: editingAvatarSrc ?? null,
+				}
+			: (prefill ?? null),
+	);
 	const [changingPerson, setChangingPerson] = useState(false);
-	const [occurredAt, setOccurredAt] = useState(() => toDateTimeLocalValue(Date.now()));
-	const [tags, setTags] = useState<string[]>([]);
-	const [note, setNote] = useState("");
+	const [occurredAt, setOccurredAt] = useState(() =>
+		toDateTimeLocalValue(editingEncounter?.occurredAt ?? Date.now()),
+	);
+	const [tags, setTags] = useState<string[]>(editingEncounter?.tags ?? []);
+	const [note, setNote] = useState(editingEncounter?.note ?? "");
 	const [isSaving, setIsSaving] = useState(false);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
 	// The app already knows whether the user is currently PrEP-protected from
-	// their own dose tracking — no need to make them tag that by hand.
+	// their own dose tracking — no need to make them tag that by hand. Only
+	// relevant when logging a new encounter, not when editing one's tags.
 	useEffect(() => {
+		if (isEditing) return;
 		let cancelled = false;
 		void loadPrepDoses().then((doses) => {
 			if (cancelled) return;
@@ -47,9 +74,9 @@ export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSh
 		return () => {
 			cancelled = true;
 		};
-	}, [scheme]);
+	}, [scheme, isEditing]);
 
-	const showPicker = !person || changingPerson;
+	const showPicker = !isEditing && (!person || changingPerson);
 
 	const toggleTag = (tag: string) => {
 		setTags((current) => (current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag]));
@@ -59,20 +86,37 @@ export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSh
 		if (!person) return;
 		setIsSaving(true);
 		try {
-			await addEncounter({
-				occurredAt: fromDateTimeLocalValue(occurredAt),
-				profileId: person.profileId,
-				displayName: person.displayName,
-				tags,
-				note: note.trim() || null,
-				conversationId: person.conversationId,
-			});
-			toast.success(t("sexualHealth.encounter.saved", { defaultValue: "Encounter logged" }));
+			if (editingEncounter) {
+				await updateEncounter(editingEncounter, { tags, note: note.trim() || null });
+				toast.success(t("sexualHealth.encounter.updated", { defaultValue: "Encounter updated" }));
+			} else {
+				await addEncounter({
+					occurredAt: fromDateTimeLocalValue(occurredAt),
+					profileId: person.profileId,
+					displayName: person.displayName,
+					tags,
+					note: note.trim() || null,
+					conversationId: person.conversationId,
+				});
+				toast.success(t("sexualHealth.encounter.saved", { defaultValue: "Encounter logged" }));
+			}
 			onLogged();
 		} catch {
 			toast.error(t("sexualHealth.encounter.save_failed", { defaultValue: "Could not log this encounter." }));
 		} finally {
 			setIsSaving(false);
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!editingEncounter) return;
+		setIsDeleting(true);
+		try {
+			await deleteEncounter(editingEncounter.id);
+			onDeleted?.();
+		} finally {
+			setIsDeleting(false);
+			setIsConfirmingDelete(false);
 		}
 	};
 
@@ -86,7 +130,9 @@ export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSh
 		<BottomSheet onClose={onClose} isProcessing={isSaving}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
-					{t("sexualHealth.encounter.sheet_title", { defaultValue: "Log an encounter" })}
+					{isEditing
+						? t("sexualHealth.encounter.edit_title", { defaultValue: "Edit encounter" })
+						: t("sexualHealth.encounter.sheet_title", { defaultValue: "Log an encounter" })}
 				</p>
 				<SheetClose
 					disabled={isSaving}
@@ -106,29 +152,45 @@ export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSh
 					/>
 				) : (
 					<div className="grid gap-4">
-						<button
-							type="button"
-							onClick={() => setChangingPerson(true)}
-							className="flex items-center gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]"
-						>
-							<Avatar src={person!.avatarSrc} fallback={person!.displayName} className="h-9 w-9" />
-							<span className="min-w-0 flex-1 truncate text-sm font-medium">{person!.displayName}</span>
-							<span className="shrink-0 text-xs text-[var(--text-muted)]">
-								{t("sexualHealth.encounter.change_person", { defaultValue: "Change" })}
-							</span>
-						</button>
+						{isEditing ? (
+							<div className="flex items-center gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5">
+								<Avatar src={person!.avatarSrc} fallback={person!.displayName} className="h-9 w-9" />
+								<span className="min-w-0 flex-1 truncate text-sm font-medium">{person!.displayName}</span>
+							</div>
+						) : (
+							<button
+								type="button"
+								onClick={() => setChangingPerson(true)}
+								className="flex items-center gap-3 rounded-xl border border-[var(--border)] px-3 py-2.5 text-left transition hover:border-[var(--accent)]"
+							>
+								<Avatar src={person!.avatarSrc} fallback={person!.displayName} className="h-9 w-9" />
+								<span className="min-w-0 flex-1 truncate text-sm font-medium">{person!.displayName}</span>
+								<span className="shrink-0 text-xs text-[var(--text-muted)]">
+									{t("sexualHealth.encounter.change_person", { defaultValue: "Change" })}
+								</span>
+							</button>
+						)}
 
-						<label className="grid gap-1.5">
-							<span className="text-xs font-medium text-[var(--text-muted)]">
-								{t("sexualHealth.encounter.when", { defaultValue: "When" })}
-							</span>
-							<input
-								type="datetime-local"
-								value={occurredAt}
-								onChange={(event) => setOccurredAt(event.target.value)}
-								className="input-field"
-							/>
-						</label>
+						{isEditing ? (
+							<div className="grid gap-1.5">
+								<span className="text-xs font-medium text-[var(--text-muted)]">
+									{t("sexualHealth.encounter.when", { defaultValue: "When" })}
+								</span>
+								<p className="text-sm text-[var(--text)]">{formatDateTime(editingEncounter.occurredAt)}</p>
+							</div>
+						) : (
+							<label className="grid gap-1.5">
+								<span className="text-xs font-medium text-[var(--text-muted)]">
+									{t("sexualHealth.encounter.when", { defaultValue: "When" })}
+								</span>
+								<input
+									type="datetime-local"
+									value={occurredAt}
+									onChange={(event) => setOccurredAt(event.target.value)}
+									className="input-field"
+								/>
+							</label>
+						)}
 
 						<div className="grid gap-1.5">
 							<span className="text-xs font-medium text-[var(--text-muted)]">
@@ -165,14 +227,41 @@ export function EncounterLogSheet({ prefill, onClose, onLogged }: EncounterLogSh
 
 			{!showPicker && (
 				<div className="flex gap-2 px-4">
-					<Button variant="secondary" className="flex-1" onClick={onClose} disabled={isSaving}>
-						{t("sexualHealth.encounter.cancel", { defaultValue: "Cancel" })}
-					</Button>
+					{isEditing ? (
+						<button
+							type="button"
+							onClick={() => setIsConfirmingDelete(true)}
+							disabled={isSaving}
+							className="flex flex-1 items-center justify-center rounded-xl border border-red-500/35 px-4 py-2.5 text-sm font-medium text-red-400 transition-all active:scale-95 hover:border-red-500/45 disabled:opacity-40"
+							style={{
+								backgroundColor: "color-mix(in srgb, #ef4444, transparent 92%)",
+								boxShadow: "0 2px 8px color-mix(in srgb, #ef4444, transparent 94%)",
+							}}
+						>
+							{t("sexualHealth.encounter.delete", { defaultValue: "Delete encounter" })}
+						</button>
+					) : (
+						<Button variant="secondary" className="flex-1" onClick={onClose} disabled={isSaving}>
+							{t("sexualHealth.encounter.cancel", { defaultValue: "Cancel" })}
+						</Button>
+					)}
 					<Button variant="primary" className="flex-1" loading={isSaving} onClick={() => void handleSubmit()}>
 						{t("sexualHealth.encounter.save", { defaultValue: "Save" })}
 					</Button>
 				</div>
 			)}
+
+			<ConfirmDialog
+				isOpen={isConfirmingDelete}
+				title={t("sexualHealth.encounter.delete_confirm_title", { defaultValue: "Delete this encounter?" })}
+				message={t("sexualHealth.encounter.delete_confirm_message", { defaultValue: "This can't be undone." })}
+				confirmLabel={t("sexualHealth.encounter.delete_confirm_action", { defaultValue: "Delete" })}
+				cancelLabel={t("sexualHealth.encounter.cancel", { defaultValue: "Cancel" })}
+				confirmTone="danger"
+				isProcessing={isDeleting}
+				onCancel={() => setIsConfirmingDelete(false)}
+				onConfirm={() => void handleDelete()}
+			/>
 		</BottomSheet>,
 		document.body,
 	);

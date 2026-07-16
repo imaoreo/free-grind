@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { ProfileImage } from "../../../components/ui/profile-image";
 import { LoadingState } from "../../../components/ui/states";
+import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { cn } from "../../../utils/cn";
 import { listConversations } from "../../../services/chatDb";
 import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getParticipantAvatarUrl } from "../chat/chatUtils";
@@ -25,6 +27,82 @@ const DOSE_ROLE_LABEL_KEYS: Record<PrepDose["doseRole"], string> = {
 	plus48: "sexualHealth.doses.role_plus48",
 };
 
+function HistoryRow({
+	item,
+	avatarSrc,
+	onEditEncounter,
+	onOpenChat,
+}: {
+	item: TimelineItem;
+	avatarSrc: string | null;
+	onEditEncounter: (encounter: Encounter) => void;
+	onOpenChat: (conversationId: string) => void;
+}) {
+	const { t } = useTranslation();
+	const { ref, revealClass } = useRevealOnScroll();
+	const isUnprotectedEncounter = item.kind === "encounter" && item.encounter.tags.length === 0;
+	const tags =
+		item.kind === "dose"
+			? [t(DOSE_ROLE_LABEL_KEYS[item.dose.doseRole])]
+			: isUnprotectedEncounter
+				? [t("sexualHealth.history.unprotected_tag", { defaultValue: "Unprotected" })]
+				: item.encounter.tags;
+
+	return (
+		<div
+			ref={ref}
+			onClick={item.kind === "encounter" ? () => onEditEncounter(item.encounter) : undefined}
+			className={cn(
+				"flex items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4 transition-colors",
+				item.kind === "encounter" && "cursor-pointer hover:bg-[var(--surface-2)]/50",
+				revealClass,
+			)}
+		>
+			{item.kind === "dose" ? (
+				<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
+					<Pill className="h-6 w-6" />
+				</div>
+			) : (
+				<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm bg-[var(--surface-2)]">
+					<ProfileImage src={avatarSrc} alt={item.encounter.displayName} />
+				</div>
+			)}
+			<div className="min-w-0 flex-1">
+				<p className="truncate text-sm font-bold text-[var(--text)]">
+					{item.kind === "dose" ? t("sexualHealth.doses.title", { defaultValue: "PrEP dose" }) : item.encounter.displayName}
+				</p>
+				<p
+					className={`mt-0.5 truncate text-xs font-medium ${
+						isUnprotectedEncounter ? "text-red-400" : "text-[var(--text-muted)]"
+					}`}
+				>
+					{[formatDateTime(item.at), ...tags].join(" · ")}
+				</p>
+				{item.kind === "encounter" && item.encounter.note && (
+					<p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{item.encounter.note}</p>
+				)}
+			</div>
+			{item.kind === "encounter" && item.encounter.conversationId != null && (
+				<button
+					type="button"
+					onClick={(event) => {
+						event.stopPropagation();
+						onOpenChat(item.encounter.conversationId!);
+					}}
+					className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--accent)]/35 text-[var(--accent)] transition-all active:scale-95 hover:border-[var(--accent)]/45"
+					style={{
+						backgroundColor: "color-mix(in srgb, var(--accent), transparent 92%)",
+						boxShadow: "0 2px 8px color-mix(in srgb, var(--accent), transparent 94%)",
+					}}
+					aria-label={t("sexualHealth.history.open_chat", { defaultValue: "Open chat" })}
+				>
+					<MessageSquare className="h-4 w-4" />
+				</button>
+			)}
+		</div>
+	);
+}
+
 // headerSlotEl is accepted for a consistent prop signature across list
 // tabs, but this tab has nothing left to pin there now that the filter is
 // gone and logging moved to the floating action button.
@@ -41,6 +119,7 @@ export function SexualHealthHistoryTab({
 	const [encounters, setEncounters] = useState<Encounter[] | null>(null);
 	const [avatarByProfileId, setAvatarByProfileId] = useState<Record<string, string | null>>({});
 	const [isLogSheetOpen, setIsLogSheetOpen] = useState(false);
+	const [editingEncounter, setEditingEncounter] = useState<Encounter | null>(null);
 
 	const reload = () => {
 		void loadPrepDoses().then(setDoses);
@@ -96,68 +175,23 @@ export function SexualHealthHistoryTab({
 			) : (
 				<div>
 					{items.map((item) => {
-						const isUnprotectedEncounter = item.kind === "encounter" && item.encounter.tags.length === 0;
-						const tags =
-							item.kind === "dose"
-								? [t(DOSE_ROLE_LABEL_KEYS[item.dose.doseRole])]
-								: isUnprotectedEncounter
-									? [t("sexualHealth.history.unprotected_tag", { defaultValue: "Unprotected" })]
-									: item.encounter.tags;
 						const avatarSrc = item.kind === "encounter" && item.encounter.profileId != null
 							? avatarByProfileId[item.encounter.profileId] ?? null
 							: null;
 						return (
-							<div
+							<HistoryRow
 								key={`${item.kind}-${item.id}`}
-								className="flex items-center gap-4 border-t border-[var(--surface-2)] py-3 pl-4 pr-4"
-							>
-								{item.kind === "dose" ? (
-									<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm flex items-center justify-center bg-[var(--surface-2)] text-[var(--text-muted)]">
-										<Pill className="h-6 w-6" />
-									</div>
-								) : (
-									<div className="h-15 w-15 shrink-0 squircle drop-shadow-sm bg-[var(--surface-2)]">
-										<ProfileImage src={avatarSrc} alt={item.encounter.displayName} />
-									</div>
-								)}
-								<div className="min-w-0 flex-1">
-									<p className="truncate text-sm font-bold text-[var(--text)]">
-										{item.kind === "dose"
-											? t("sexualHealth.doses.title", { defaultValue: "PrEP dose" })
-											: item.encounter.displayName}
-									</p>
-									<p
-										className={`mt-0.5 truncate text-xs font-medium ${
-											isUnprotectedEncounter ? "text-red-400" : "text-[var(--text-muted)]"
-										}`}
-									>
-										{[formatDateTime(item.at), ...tags].join(" · ")}
-									</p>
-									{item.kind === "encounter" && item.encounter.note && (
-										<p className="mt-1 line-clamp-2 text-sm text-[var(--text-muted)]">{item.encounter.note}</p>
-									)}
-								</div>
-								{item.kind === "encounter" && item.encounter.conversationId != null && (
-									<button
-										type="button"
-										onClick={() => navigate(`/chat/${item.encounter.conversationId}`)}
-										className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--accent)]/35 text-[var(--accent)] transition-all active:scale-95 hover:border-[var(--accent)]/45"
-										style={{
-											backgroundColor: "color-mix(in srgb, var(--accent), transparent 92%)",
-											boxShadow: "0 2px 8px color-mix(in srgb, var(--accent), transparent 94%)",
-										}}
-										aria-label={t("sexualHealth.history.open_chat", { defaultValue: "Open chat" })}
-									>
-										<MessageSquare className="h-4 w-4" />
-									</button>
-								)}
-							</div>
+								item={item}
+								avatarSrc={avatarSrc}
+								onEditEncounter={setEditingEncounter}
+								onOpenChat={(conversationId) => navigate(`/chat/${conversationId}`)}
+							/>
 						);
 					})}
 				</div>
 			)}
 
-			{!isLogSheetOpen && (
+			{!isLogSheetOpen && !editingEncounter && (
 				<SexualHealthFab
 					slotEl={fabSlotEl}
 					onClick={() => setIsLogSheetOpen(true)}
@@ -171,6 +205,24 @@ export function SexualHealthHistoryTab({
 					onClose={() => setIsLogSheetOpen(false)}
 					onLogged={() => {
 						setIsLogSheetOpen(false);
+						reload();
+					}}
+				/>
+			)}
+
+			{editingEncounter && (
+				<EncounterLogSheet
+					editingEncounter={editingEncounter}
+					editingAvatarSrc={
+						editingEncounter.profileId != null ? avatarByProfileId[editingEncounter.profileId] ?? null : null
+					}
+					onClose={() => setEditingEncounter(null)}
+					onLogged={() => {
+						setEditingEncounter(null);
+						reload();
+					}}
+					onDeleted={() => {
+						setEditingEncounter(null);
 						reload();
 					}}
 				/>

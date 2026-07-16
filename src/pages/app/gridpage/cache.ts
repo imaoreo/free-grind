@@ -3,6 +3,7 @@ import type {
 	ProfileDetail,
 } from "../GridPage.types";
 import type { CacheEntry } from "../../../types/grid-cache";
+import { extractMediaHashFromUrl } from "../../../utils/media";
 
 const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
 const BROWSE_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -67,6 +68,26 @@ export function setCachedBrowseCards(
 	nextPage: string | null,
 ) {
 	setInCache(browseCache, cacheKey, { cards, nextPage }, BROWSE_CACHE_TTL_MS);
+}
+
+/**
+ * Indexes every browse card currently held across all cache entries by its image
+ * media hash (extracted from primaryImageUrl), regardless of per-key TTL — this is
+ * used as an identity lookup, not a data-freshness read. Lets other features (e.g.
+ * Interest Views) recognize a profile they've only seen in the grid so far.
+ */
+export function getAllCachedBrowseCardsByImageHash(): Map<string, BrowseCard> {
+	const map = new Map<string, BrowseCard>();
+	for (const entry of browseCache.values()) {
+		for (const card of entry.value.cards) {
+			if (!card.primaryImageUrl) continue;
+			const hash = extractMediaHashFromUrl(card.primaryImageUrl);
+			if (hash && !map.has(hash)) {
+				map.set(hash, card);
+			}
+		}
+	}
+	return map;
 }
 
 export function removeProfileFromBrowseCache(profileId: string) {

@@ -42,6 +42,7 @@ pub fn run() {
             Ok(guard) => guard,
             Err(error) => {
                 eprintln!("Free Grind failed to acquire child instance lock: {}", error);
+                instance_lock::show_lock_error_dialog(&error);
                 return;
             }
         };

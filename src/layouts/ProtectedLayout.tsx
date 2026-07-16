@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
-import { useEffect, useState } from "react";
+import { useDesktopBreakpoint } from "../hooks/useDesktopBreakpoint";
 
 export function ProtectedLayout() {
 	const location = useLocation();
@@ -9,18 +9,12 @@ export function ProtectedLayout() {
         (location.pathname === "/chat" && new URLSearchParams(location.search).has("targetProfileId"));
 	const isProfileRoute = /^\/profile\/[^/]+$/.test(location.pathname);
 
-	// Determine if we are on a large enough screen to show both the inbox and chat thread.
-	// This matches the 1024px breakpoint used in ChatPage.tsx for the dual-pane layout.
-	const [isChatDualPane, setIsChatDualPane] = useState(window.innerWidth >= 1024);
-
-	useEffect(() => {
-		const handleResize = () => {
-			setIsChatDualPane(window.innerWidth >= 1024);
-		};
-
-		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
-	}, []);
+	// Must use the same "desktop" signal ChatPage.tsx uses for its dual-pane
+	// layout (pointer/hover capability, not window width) — otherwise the two
+	// can disagree (e.g. a mouse-driven window narrower than some arbitrary
+	// width threshold) and this hides the navbar for a route ChatPage itself
+	// never even considers "mobile fullscreen".
+	const isChatDualPane = useDesktopBreakpoint();
 
 	// Hide navbar on mobile/tablet for full-screen chat or profile pages.
 	const shouldHideNavbar = (isChatConversationRoute || isProfileRoute) && !isChatDualPane;
