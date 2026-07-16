@@ -100,6 +100,13 @@ Interested in contributing? Head to [CONTRIBUTING.md](./CONTRIBUTING.md) to get 
 bun install
 ```
 
+> [!NOTE]
+> Building the desktop app on Windows also requires, for `wreq`'s transitive `boring-sys2` (BoringSSL) dependency:
+> - [NASM](https://www.nasm.us/) on `PATH` (e.g. `winget install NASM.NASM`) — builds BoringSSL's assembly-optimized crypto routines.
+> - [LLVM](https://releases.llvm.org/) with `LIBCLANG_PATH` set (e.g. `winget install LLVM.LLVM`, then `setx LIBCLANG_PATH "C:\Program Files\LLVM\bin"`) — `bindgen` needs `libclang` to generate Rust bindings from the BoringSSL headers.
+>
+> Restart your shell after installing either so `PATH`/`LIBCLANG_PATH` take effect.
+
 ### Common Commands
 
 ```bash

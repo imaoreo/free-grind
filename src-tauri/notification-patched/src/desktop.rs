@@ -136,6 +136,28 @@ mod imp {
         WINDOWS_ACTIVE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
     }
 
+    /// `ToastNotification` is just a local variable in `show_windows` once
+    /// `notifier.Show()` returns — Rust drops it (releasing the in-process
+    /// COM object) as soon as the function exits. The Action Center still
+    /// displays the toast from the system's own copy, but our `Activated`
+    /// handler was registered on *this* COM object, so once it's released
+    /// Windows has nothing left to fire the click event on: clicking the
+    /// toast silently does nothing. Keeping a live reference here for as
+    /// long as the toast could still be clicked/dismissed fixes that; the
+    /// `Activated`/`Dismissed` handlers below remove their own entry once
+    /// they fire.
+    #[cfg(windows)]
+    static WINDOWS_LIVE_TOASTS: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, windows::UI::Notifications::ToastNotification>>,
+    > = std::sync::OnceLock::new();
+
+    #[cfg(windows)]
+    fn windows_live_toasts(
+    ) -> &'static std::sync::Mutex<std::collections::HashMap<String, windows::UI::Notifications::ToastNotification>>
+    {
+        WINDOWS_LIVE_TOASTS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+    }
+
     /// Well-known AUMID `notify-rust`/most Windows toast libraries fall back
     /// to when the app has no registered shortcut of its own (dev builds) —
     /// notifications show up as if sent by PowerShell, but at least display.
@@ -232,15 +254,35 @@ mod imp {
 
         let app_handle = app.clone();
         let click_group = group.clone();
+        let click_tag = tag.clone();
         let handler = TypedEventHandler::<ToastNotification, IInspectable>::new(
             move |_sender, _args| {
                 if let Some(group) = &click_group {
                     let _ = app_handle.emit("fg:notification-clicked", group.clone());
                 }
+                windows_live_toasts().lock().unwrap().remove(&click_tag);
                 Ok(())
             },
         );
         toast.Activated(&handler).map_err(win_err)?;
+
+        let dismissed_tag = tag.clone();
+        let dismissed_handler = TypedEventHandler::<
+            ToastNotification,
+            windows::UI::Notifications::ToastDismissedEventArgs,
+        >::new(move |_sender, _args| {
+            windows_live_toasts().lock().unwrap().remove(&dismissed_tag);
+            Ok(())
+        });
+        toast.Dismissed(&dismissed_handler).map_err(win_err)?;
+
+        // Keep the COM object alive past this function returning — see the
+        // doc comment on `WINDOWS_LIVE_TOASTS` for why that's required for
+        // `Activated` to ever fire.
+        windows_live_toasts()
+            .lock()
+            .unwrap()
+            .insert(tag.clone(), toast.clone());
 
         let notifier = ToastNotificationManager::CreateToastNotifierWithId(&HSTRING::from(
             app_id.as_str(),
