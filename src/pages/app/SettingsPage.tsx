@@ -12,6 +12,7 @@ import {
 	Download,
 	GitBranch,
 	HeartPulse,
+	HelpCircle,
 	Images,
 	Info,
 	Loader2,
@@ -24,6 +25,7 @@ import {
 	RefreshCcw,
 	Shield,
 	SlidersHorizontal,
+	Terminal,
     Workflow,
 	UserPlus,
 	UserX,
@@ -52,13 +54,14 @@ import {
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { FingerprintCheckButton } from "../../components/FingerprintCheckButton";
+import { useFingerprintCheck } from "../../components/FingerprintCheckButton";
 import { VersionAnnouncement } from "../../components/VersionAnnouncement";
 import { VERSION_ANNOUNCEMENTS } from "../../data/versionAnnouncements";
 import { OutdatedVersionPromptView } from "../../components/OutdatedVersionPrompt";
 import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
 import { getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
+import { isAndroid } from "../../services/saveMedia";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
@@ -202,6 +205,7 @@ export function SettingsPage() {
 	const [previewOutdatedPrompt, setPreviewOutdatedPrompt] = useState(false);
 	const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 	const [isSwitchingChannel, setIsSwitchingChannel] = useState(false);
+	const fingerprintCheck = useFingerprintCheck();
 	const [isSyncingFcm, setIsSyncingFcm] = useState(false);
 	const [fcmToken, setFcmToken] = useState<string | null>(() => {
 		const stored = window.localStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
@@ -479,6 +483,30 @@ export function SettingsPage() {
 			<div className={cls}>{inner}</div>
 		);
 	};
+
+	if (previewAnnouncement && LATEST_ANNOUNCEMENT) {
+		return (
+			<div className="app-shell z-[300]">
+				<VersionAnnouncement
+					announcement={LATEST_ANNOUNCEMENT}
+					buttonLabel="Close"
+					onClose={() => setPreviewAnnouncement(false)}
+				/>
+			</div>
+		);
+	}
+
+	if (previewOutdatedPrompt) {
+		return (
+			<div className="app-shell z-[110]">
+				<OutdatedVersionPromptView
+					appVersion={import.meta.env.VITE_APP_VERSION}
+					releaseInfo={PREVIEW_RELEASE_INFO}
+					onDismiss={() => setPreviewOutdatedPrompt(false)}
+				/>
+			</div>
+		);
+	}
 
 	return (
 		<section className="app-screen">
@@ -898,11 +926,12 @@ export function SettingsPage() {
 							</div>
 							{navRow(
 								() => navigate("/settings/api-inspector"),
-								<Radar className="h-5 w-5" />,
+								<Terminal className="h-5 w-5" />,
 								"bg-[var(--surface-2)] text-[var(--text-muted)]",
 								t("settings.api_inspector"),
 								t("settings.api_inspector_desc"),
 							)}
+							{isAndroid() && (
 							<div className="p-4 sm:p-5">
 								<div className="flex items-start gap-3">
 									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
@@ -973,17 +1002,66 @@ export function SettingsPage() {
 									</div>
 								</div>
 							</div>
-							<div className="p-4 sm:p-5 border-t border-[var(--border)]">
+							)}
+							<div className="p-4 sm:p-5">
 								<div className="flex items-start gap-3">
-									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
-										<Radar className="h-5 w-5" />
+									<div className="relative shrink-0">
+										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
+											<Radar className={`h-5 w-5 ${fingerprintCheck.loading ? "animate-spin" : ""}`} />
+										</div>
+										{fingerprintCheck.ok ? (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
+												<CheckCircle2 className="h-3 w-3" />
+											</div>
+										) : fingerprintCheck.result || fingerprintCheck.error ? (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-[var(--surface)]">
+												<AlertCircle className="h-3 w-3" />
+											</div>
+										) : (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-2 ring-[var(--surface)]">
+												<HelpCircle className="h-3 w-3" />
+											</div>
+										)}
 									</div>
 									<div className="grid gap-3 min-w-0 flex-1">
-										<div>
-											<p className="text-sm font-semibold">Fingerprint Check</p>
-											<p className="text-xs text-[var(--text-muted)] mt-0.5">Verify your HTTP/TLS fingerprint matches OkHttp configuration.</p>
+										<div className="grid grid-cols-[1fr_auto] gap-x-3">
+											<p className="text-sm font-semibold leading-snug">Fingerprint Check</p>
+											<div className="row-span-2 flex items-start">
+												<Button type="button" disabled={fingerprintCheck.loading} onClick={() => void fingerprintCheck.checkFingerprint()}>
+													Check
+												</Button>
+											</div>
+											<p className="mt-0.5 text-xs text-[var(--text-muted)]">Verify your HTTP/TLS fingerprint matches OkHttp configuration.</p>
 										</div>
-										<FingerprintCheckButton />
+										{fingerprintCheck.result && (
+											<div className="grid gap-2">
+												<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+													<div className="mb-1 flex items-center justify-between gap-2">
+														<p className="text-xs text-[var(--text-muted)]">JA3 Hash</p>
+														<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fingerprintCheck.result.ja3_match ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+															{fingerprintCheck.result.ja3_match ? "✓ Match" : "✗ Mismatch"}
+														</span>
+													</div>
+													<p className="break-all font-mono text-xs">{fingerprintCheck.result.ja3_hash}</p>
+												</div>
+												<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+													<div className="mb-1 flex items-center justify-between gap-2">
+														<p className="text-xs text-[var(--text-muted)]">Akamai Fingerprint</p>
+														<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fingerprintCheck.result.akamai_match ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+															{fingerprintCheck.result.akamai_match ? "✓ Match" : "✗ Mismatch"}
+														</span>
+													</div>
+													<p className="break-all font-mono text-xs">{fingerprintCheck.result.akamai_fingerprint}</p>
+												</div>
+												<p className="text-xs text-[var(--text-muted)]">HTTP Version <span className="font-mono text-[var(--text)]">{fingerprintCheck.result.http_version}</span></p>
+											</div>
+										)}
+										{fingerprintCheck.error && (
+											<div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-sm text-yellow-400">
+												<p className="font-medium mb-0.5">Fingerprint check failed</p>
+												<p className="text-xs opacity-80">{fingerprintCheck.error}</p>
+											</div>
+										)}
 									</div>
 								</div>
 							</div>
@@ -1008,22 +1086,6 @@ export function SettingsPage() {
 						</div>
 					</div>
 				) : null}
-
-				{previewAnnouncement && LATEST_ANNOUNCEMENT && (
-					<VersionAnnouncement
-						announcement={LATEST_ANNOUNCEMENT}
-						buttonLabel="Close"
-						onClose={() => setPreviewAnnouncement(false)}
-					/>
-				)}
-
-				{previewOutdatedPrompt && (
-					<OutdatedVersionPromptView
-						appVersion={import.meta.env.VITE_APP_VERSION}
-						releaseInfo={PREVIEW_RELEASE_INFO}
-						onDismiss={() => setPreviewOutdatedPrompt(false)}
-					/>
-				)}
 
 				{/* About */}
 				<div>
