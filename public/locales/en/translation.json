@@ -1694,8 +1694,8 @@
         },
         "status": {
             "protected": "Protected",
-            "building": "Building protection",
-            "unprotected": "Not currently protected",
+            "building": "Building",
+            "unprotected": "Not protected",
             "unknown": "Not tracked yet"
         },
         "history": {
@@ -1708,10 +1708,10 @@
         },
         "doses": {
             "title": "PrEP dose",
-            "scheme_daily": "Daily dosing",
-            "scheme_on_demand": "On-demand dosing (2-1-1)",
+            "scheme_daily": "Daily",
+            "scheme_on_demand": "On-demand",
             "log_daily": "Log today's dose",
-            "already_logged_today": "Today's dose is already logged",
+            "already_logged_today": "Already logged",
             "next_due": "{{dose}} still needed",
             "already_logged": "Already logged — nothing more to add right now.",
             "empty": "No doses logged yet",
