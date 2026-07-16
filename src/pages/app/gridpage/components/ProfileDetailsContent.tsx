@@ -598,7 +598,7 @@ export function ProfileDetailsContent({
 			{extraTopSection}
 
 			{(hasTagsContent || hasAboutContent || hasExpectationsFields || hasHealthFields || hasRightNowDetail || hasStatsFields || hasSocialFields || hasTravelPlans) && (
-			<div className="grid gap-8 px-3 @2xl:grid-cols-[1.25fr_1fr]">
+			<div className="grid gap-8 px-3">
 				{(hasTagsContent || hasAboutContent || hasRightNowDetail || hasExpectationsFields || hasHealthFields) && (
 				<div className="grid gap-8">
 					{hasRightNowDetail && (
