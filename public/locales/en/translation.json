@@ -1025,6 +1025,7 @@
         },
         "drawer_unavailable": "Send a message first to use the drawer",
         "attach_media": "Attach media",
+        "drop_to_attach": "Drop to attach",
         "cancel_recording": "Slide left to cancel",
         "stop_recording": "Stop recording",
         "expiration": {

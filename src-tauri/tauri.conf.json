@@ -15,7 +15,8 @@
 				"title": "Free Grind",
 				"width": 1000,
 				"height": 800,
-				"userAgent": "FreeGrind/0.5.3 (+https://freegrind.imaoreo.dev/; contact: support@imaoreo.dev)"
+				"userAgent": "FreeGrind/0.5.3 (+https://freegrind.imaoreo.dev/; contact: support@imaoreo.dev)",
+				"dragDropEnabled": false
 			}
 		],
 		"security": {

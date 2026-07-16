@@ -2069,6 +2069,32 @@ export async function setSetting(key: string, value: unknown): Promise<void> {
 	});
 }
 
+// Keys in the settings table that represent user-facing preferences/toggles
+// (as opposed to sync bookkeeping like inbox-sync-done or seen-timestamps,
+// which "reset all settings" intentionally leaves alone since wiping those
+// just forces an expensive resync rather than resetting anything the user
+// perceives as a setting).
+const RESETTABLE_SETTING_KEYS = [
+	"privacy",
+	"automation",
+	"automation_rules",
+	"automation_seen_senders",
+	"automation_age_defaults_seeded_v2",
+	"automation_keywords_defaults_seeded",
+	"locationPreferences",
+	"sexualHealthPrepMode",
+];
+
+export async function resetAllSettings(): Promise<void> {
+	const db = await getDb();
+	await executeWithLockRetry(db, "reset-all-settings", async () => {
+		await db.execute(
+			`DELETE FROM settings WHERE key IN (${RESETTABLE_SETTING_KEYS.map((_, i) => `$${i + 1}`).join(", ")})`,
+			RESETTABLE_SETTING_KEYS,
+		);
+	});
+}
+
 // ---------------------------------------------------------------------------
 // Saved phrases
 // ---------------------------------------------------------------------------

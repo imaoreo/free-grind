@@ -197,6 +197,7 @@ type ChatThreadPanelProps = {
 	toggleDrawer: () => void;
 	attachmentInputRef: { current: HTMLInputElement | null };
 	onAttachmentInput: (event: React.ChangeEvent<HTMLInputElement>) => void;
+	onAttachmentPaste: (file: File) => void;
 	isUploadingAttachment: boolean;
 	pendingAttachmentFile: File | null;
 	attachmentLooping: boolean;
@@ -292,6 +293,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const [newPhraseInput, setNewPhraseInput] = useState("");
 	const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
 	const [isComposerFocused, setIsComposerFocused] = useState(false);
+	const [isDraggingFile, setIsDraggingFile] = useState(false);
+	const dragCounterRef = useRef(0);
 
 	const [isRecording, setIsRecording] = useState(false);
 	const [recordingMs, setRecordingMs] = useState(0);
@@ -526,6 +529,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		toggleAlbumPicker: _toggleAlbumPicker,
 		attachmentInputRef,
 		onAttachmentInput,
+		onAttachmentPaste,
 		isUploadingAttachment,
 		pendingAttachmentFile,
 		attachmentLooping,
@@ -963,9 +967,51 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		};
 	}, [isDesktop, selectedConversation, targetProfileId]);
 
+	const handleAttachmentDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
+		}
+		event.preventDefault();
+		dragCounterRef.current += 1;
+		setIsDraggingFile(true);
+	};
+
+	const handleAttachmentDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
+		}
+		event.preventDefault();
+	};
+
+	const handleAttachmentDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
+		}
+		event.preventDefault();
+		dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
+		if (dragCounterRef.current === 0) {
+			setIsDraggingFile(false);
+		}
+	};
+
+	const handleAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+		if (!event.dataTransfer?.types.includes("Files")) {
+			return;
+		}
+		event.preventDefault();
+		dragCounterRef.current = 0;
+		setIsDraggingFile(false);
+		const file = Array.from(event.dataTransfer.files).find(
+			(candidate) => candidate.type.startsWith("image/") || candidate.type.startsWith("video/"),
+		);
+		if (file) {
+			onAttachmentPaste(file);
+		}
+	};
+
 	const renderThread = (selectedConversation || targetProfileId) ? (
 		<div
-			className={`flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
+			className={`relative flex h-full flex-col ${!isDesktop ? "overflow-hidden p-0" : "overflow-hidden p-3 sm:p-4"} ${
 				isDesktop ? "surface-card" : ""
 			}`}
 			style={
@@ -975,7 +1021,19 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 					}
 					: undefined
 			}
+			onDragEnter={handleAttachmentDragEnter}
+			onDragOver={handleAttachmentDragOver}
+			onDragLeave={handleAttachmentDragLeave}
+			onDrop={handleAttachmentDrop}
 		>
+			{isDraggingFile && (
+				<div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-[inherit] border-2 border-dashed border-[var(--accent)] bg-[var(--accent)]/10 backdrop-blur-sm">
+					<div className="flex items-center gap-2 rounded-full bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text)] shadow-lg">
+						<ImagePlus className="h-4 w-4" />
+						{t("chat.drop_to_attach", { defaultValue: "Drop to attach" })}
+					</div>
+				</div>
+			)}
 			{(() => {
 				const otherParticipant = selectedConversation
 					? getOtherParticipant(selectedConversation, userId)
@@ -2010,6 +2068,22 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									onChange={(event) => setDraft(event.target.value)}
 									onFocus={() => setIsComposerFocused(true)}
 									onBlur={() => setIsComposerFocused(false)}
+									onPaste={(event) => {
+										const items = event.clipboardData?.items;
+										if (!items) {
+											return;
+										}
+										for (const item of items) {
+											if (item.kind === "file" && (item.type.startsWith("image/") || item.type.startsWith("video/"))) {
+												const file = item.getAsFile();
+												if (file) {
+													event.preventDefault();
+													onAttachmentPaste(file);
+													break;
+												}
+											}
+										}
+									}}
 									onKeyDown={(event) => {
 										if (slashMatches.length > 0) {
 											if (event.key === "ArrowDown") {

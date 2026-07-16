@@ -5899,13 +5899,7 @@ export function ChatPage() {
 		[service, t],
 	);
 
-	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		event.target.value = "";
-		if (!file) {
-			return;
-		}
-
+	const openAttachmentDialogForFile = (file: File) => {
 		if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
 			toast.error("Only image and video attachments are supported.");
 			return;
@@ -5915,6 +5909,20 @@ export function ChatPage() {
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
 		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
+	};
+
+	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) {
+			return;
+		}
+
+		openAttachmentDialogForFile(file);
+	};
+
+	const onAttachmentPaste = (file: File) => {
+		openAttachmentDialogForFile(file);
 	};
 
 	/**
@@ -6192,6 +6200,7 @@ export function ChatPage() {
 			toggleDrawer={toggleDrawer}
 			attachmentInputRef={attachmentInputRef}
 			onAttachmentInput={onAttachmentInput}
+			onAttachmentPaste={onAttachmentPaste}
 			isUploadingAttachment={isUploadingAttachment}
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}
