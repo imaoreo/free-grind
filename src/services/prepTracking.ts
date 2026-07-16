@@ -226,12 +226,12 @@ export function describeProtectionStatus(
 			};
 		case "building":
 			return {
-				label: t("sexualHealth.status.building", { defaultValue: "Building protection" }),
+				label: t("sexualHealth.status.building", { defaultValue: "Building" }),
 				variant: "warning",
 			};
 		case "unprotected":
 			return {
-				label: t("sexualHealth.status.unprotected", { defaultValue: "Not currently protected" }),
+				label: t("sexualHealth.status.unprotected", { defaultValue: "Not protected" }),
 				variant: "negative",
 			};
 		case "unknown":

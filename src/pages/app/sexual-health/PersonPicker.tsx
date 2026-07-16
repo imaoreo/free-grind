@@ -121,7 +121,7 @@ export function PersonPicker({ onPick }: PersonPickerProps) {
 					className="input-field !pl-9"
 				/>
 			</div>
-			<div className="surface-card max-h-72 divide-y divide-[var(--border)] overflow-y-auto">
+			<div className="max-h-72 divide-y divide-[var(--border)] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
 				{rows === null ? (
 					<LoadingState compact title={t("sexualHealth.encounter.loading_people", { defaultValue: "Loading…" })} />
 				) : filtered.length === 0 ? (
