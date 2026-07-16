@@ -133,4 +133,4 @@ optional = true
 # history — none of which notify-rust's abstraction exposes.
 [target."cfg(windows)".dependencies.windows]
 version = "0.61"
-features = ["Foundation", "Data_Xml_Dom", "UI_Notifications"]
+features = ["Foundation", "Data_Xml_Dom", "UI_Notifications", "Win32_UI_Shell"]

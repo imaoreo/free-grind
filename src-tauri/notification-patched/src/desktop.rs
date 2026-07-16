@@ -187,6 +187,28 @@ mod imp {
         crate::Error::Show(format!("{error:?}"))
     }
 
+    /// Non-packaged (Win32) apps must explicitly claim their AppUserModelID
+    /// for the current process before raising toast notifications — without
+    /// this, Windows still *displays* a toast created via
+    /// `CreateToastNotifierWithId`, but since the process's own identity
+    /// doesn't match the AUMID the notifier was created with, it has no way
+    /// to route the `Activated` event back to this (still-running) process
+    /// when the user clicks it, so the click silently does nothing. Only
+    /// needs to happen once per process, before the first toast is shown.
+    #[cfg(windows)]
+    static PROCESS_APP_USER_MODEL_ID_SET: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
+    #[cfg(windows)]
+    fn ensure_process_app_user_model_id(app_id: &str) {
+        PROCESS_APP_USER_MODEL_ID_SET.get_or_init(|| {
+            use windows::core::HSTRING;
+            use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
+            unsafe {
+                let _ = SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(app_id));
+            }
+        });
+    }
+
     #[cfg(windows)]
     fn xml_escape(input: &str) -> String {
         input
@@ -216,6 +238,7 @@ mod imp {
         use windows::UI::Notifications::{ToastNotification, ToastNotificationManager};
 
         let app_id = effective_app_id(app)?;
+        ensure_process_app_user_model_id(&app_id);
         let title = data
             .title
             .clone()
