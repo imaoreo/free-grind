@@ -24,6 +24,7 @@ import { setSavedAccountDisplayName, setSavedAccountPhotoHash, getSavedAccountPr
 import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseSortOption,
+	getCachedBrowseFiltersDraft,
 	getDefaultBrowseFiltersDraft,
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
@@ -278,7 +279,7 @@ export function GridPage() {
 		clearBrowseFilters,
 		nicknameFilter,
 		applyDraft,
-	} = useBrowseFilters(getDefaultBrowseFiltersDraft());
+	} = useBrowseFilters(getCachedBrowseFiltersDraft() ?? getDefaultBrowseFiltersDraft());
 
 	// Reload whenever the active account's chatDb is ready (settingsReady),
 	// so switching accounts from GridPage's own account switcher also
