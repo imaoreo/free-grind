@@ -15,6 +15,7 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/useAuth";
 import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
+import { BaseDirectory, writeFile as writeFsFile } from "@tauri-apps/plugin-fs";
 import * as chatDb from "../../services/chatDb";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid } from "../../services/saveMedia";
 import { resetAllSettings } from "../../utils/resetSettings";
@@ -98,19 +99,33 @@ export function SettingsDataPage() {
 		}
 		setIsExporting(true);
 		try {
-			const data = await chatDb.exportFullDatabase(userId);
-			const json = JSON.stringify(data);
 			const fileName = `free-grind-data-${new Date().toISOString().slice(0, 10)}.json`;
 
 			if (isAndroid()) {
 				// The blob-URL + <a download> trick below doesn't trigger a save on
 				// Android's WebView, so write the export directly via MediaStore instead.
-				const bytes = new TextEncoder().encode(json);
+				// Streamed in chunks (rather than one writeFile(uri, allBytesAtOnce))
+				// since accounts with a lot of cached media can produce a
+				// multi-hundred-MB export — holding it all in memory at once was
+				// slow enough to look hung and could crash the WebView on low-memory
+				// devices.
 				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, fileName, "application/json", {
 					isPending: true,
 				});
 				try {
-					await AndroidFs.writeFile(uri, bytes);
+					const writable = await AndroidFs.openWriteFileStream(uri);
+					const writer = writable.getWriter();
+					try {
+						for await (const chunk of chatDb.streamFullDatabaseExportBytes(userId)) {
+							await writer.write(chunk);
+						}
+						await writer.close();
+					} catch (error) {
+						// A write failure already released the stream, so closing it
+						// again would throw and mask the real error below.
+						await writer.abort(error).catch(() => {});
+						throw error;
+					}
 					await AndroidFs.setPublicFilePending(uri, false);
 					await AndroidFs.scanPublicFile(uri);
 				} catch (error) {
@@ -118,18 +133,32 @@ export function SettingsDataPage() {
 					throw error;
 				}
 			} else {
-				const blob = new Blob([json], { type: "application/json" });
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = fileName;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
+				// Streams straight to the Downloads folder (same destination
+				// saveMedia.ts uses for desktop media saves) instead of building one
+				// giant JSON string for a Blob + <a download>, for the same
+				// memory/hang reason as the Android branch above.
+				const generator = chatDb.streamFullDatabaseExportBytes(userId);
+				const readable = new ReadableStream<Uint8Array>({
+					async pull(controller) {
+						const { value, done } = await generator.next();
+						if (done) {
+							controller.close();
+						} else {
+							controller.enqueue(value);
+						}
+					},
+					async cancel() {
+						await generator.return(undefined);
+					},
+				});
+				await writeFsFile(fileName, readable, { baseDir: BaseDirectory.Download });
 			}
 
-			toast.success(t("data_backup.export_success", { defaultValue: "Data exported." }));
+			toast.success(
+				isAndroid()
+					? t("data_backup.export_success", { defaultValue: "Data exported." })
+					: t("data_backup.export_success_desktop", { defaultValue: "Data exported to your Downloads folder." }),
+			);
 		} catch (error) {
 			toast.error(getErrorMessage(error, t("data_backup.export_failed", { defaultValue: "Failed to export data." })));
 		} finally {

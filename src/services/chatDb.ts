@@ -1954,26 +1954,70 @@ const FULL_EXPORT_TABLES: {
 	},
 ];
 
-/**
- * Dumps every portable table in this profile's db as raw rows, plus the
- * exporting user's id so a later import can refuse to load another
- * account's data.
- */
-export async function exportFullDatabase(ownerUserId: number): Promise<FullDbExport> {
-	const db = await getDb();
-	const tables = {} as FullDbExport["tables"];
+const EXPORT_PAGE_SIZE = 200;
 
-	for (const table of FULL_EXPORT_TABLES) {
-		const rows = await db.select<Record<string, unknown>[]>(`SELECT * FROM ${table.name}`);
-		tables[table.name] = rows;
+/**
+ * Yields the same JSON an exported {@link FullDbExport} would contain, as
+ * text fragments, reading each table a page at a time instead of one
+ * `SELECT *`. Rows can carry large base64-encoded photo/video blobs
+ * (media_files, album_media, avatars), so an account with a lot of cached
+ * media could previously mean loading every row of every table into memory
+ * at once before ever starting to serialize — this keeps memory bounded to
+ * one page of rows at a time.
+ */
+async function* generateFullDatabaseExportJson(ownerUserId: number): AsyncGenerator<string> {
+	const db = await getDb();
+
+	yield `{"version":1,"exportedAt":${Date.now()},"ownerUserId":${ownerUserId},"tables":{`;
+
+	for (let t = 0; t < FULL_EXPORT_TABLES.length; t++) {
+		const table = FULL_EXPORT_TABLES[t];
+		yield `${t > 0 ? "," : ""}${JSON.stringify(table.name)}:[`;
+
+		let offset = 0;
+		let isFirstRow = true;
+		while (true) {
+			const rows = await db.select<Record<string, unknown>[]>(
+				`SELECT * FROM ${table.name} LIMIT $1 OFFSET $2`,
+				[EXPORT_PAGE_SIZE, offset],
+			);
+			if (rows.length === 0) break;
+			for (const row of rows) {
+				yield `${isFirstRow ? "" : ","}${JSON.stringify(row)}`;
+				isFirstRow = false;
+			}
+			offset += rows.length;
+			if (rows.length < EXPORT_PAGE_SIZE) break;
+		}
+
+		yield "]";
 	}
 
-	return {
-		version: 1,
-		exportedAt: Date.now(),
-		ownerUserId,
-		tables,
-	};
+	yield "}}";
+}
+
+/**
+ * Dumps every portable table in this profile's db, as UTF-8 byte chunks
+ * (~512KB each) meant to be written to a file incrementally rather than
+ * built up as one in-memory object + one giant `JSON.stringify` string —
+ * exports with a lot of cached media were slow enough to hang, and on
+ * mobile could exhaust the WebView's memory and crash the app.
+ */
+export async function* streamFullDatabaseExportBytes(ownerUserId: number): AsyncGenerator<Uint8Array> {
+	const encoder = new TextEncoder();
+	const CHUNK_CHARS = 512 * 1024;
+	let buffer = "";
+
+	for await (const part of generateFullDatabaseExportJson(ownerUserId)) {
+		buffer += part;
+		if (buffer.length >= CHUNK_CHARS) {
+			yield encoder.encode(buffer);
+			buffer = "";
+		}
+	}
+	if (buffer.length > 0) {
+		yield encoder.encode(buffer);
+	}
 }
 
 export type ImportFullDatabaseResult =
