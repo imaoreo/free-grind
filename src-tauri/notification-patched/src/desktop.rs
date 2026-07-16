@@ -14,6 +14,13 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
     app: &AppHandle<R>,
     _api: PluginApi<R, C>,
 ) -> crate::Result<Notification<R>> {
+    // Must happen before any UI is displayed (Microsoft's guidance for
+    // non-packaged Win32 apps raising toast notifications) — plugin setup
+    // runs before window creation, so this is the earliest hook we have,
+    // well before the lazy call that used to happen on first notification.
+    #[cfg(windows)]
+    imp::ensure_process_app_user_model_id(&imp::effective_app_id(app)?);
+
     Ok(Notification(app.clone()))
 }
 
@@ -166,7 +173,7 @@ mod imp {
         "{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe";
 
     #[cfg(windows)]
-    fn effective_app_id<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> crate::Result<String> {
+    pub(super) fn effective_app_id<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> crate::Result<String> {
         let exe = tauri::utils::platform::current_exe()?;
         let exe_dir = exe.parent().expect("failed to get exe directory");
         let curr_dir = exe_dir.display().to_string();
@@ -187,6 +194,20 @@ mod imp {
         crate::Error::Show(format!("{error:?}"))
     }
 
+    /// Temporary diagnostic for the click-does-nothing investigation — appends
+    /// a timestamped line to `%TEMP%\free-grind-notification-debug.log` so we
+    /// can tell whether Windows ever calls back into `Activated` at all, as
+    /// opposed to the click being swallowed before reaching this process.
+    /// Remove once resolved.
+    #[cfg(windows)]
+    fn debug_log(line: &str) {
+        use std::io::Write;
+        let path = std::env::temp_dir().join("free-grind-notification-debug.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(file, "[{:?}] {}", std::time::SystemTime::now(), line);
+        }
+    }
+
     /// Non-packaged (Win32) apps must explicitly claim their AppUserModelID
     /// for the current process before raising toast notifications — without
     /// this, Windows still *displays* a toast created via
@@ -199,7 +220,7 @@ mod imp {
     static PROCESS_APP_USER_MODEL_ID_SET: std::sync::OnceLock<()> = std::sync::OnceLock::new();
 
     #[cfg(windows)]
-    fn ensure_process_app_user_model_id(app_id: &str) {
+    pub(super) fn ensure_process_app_user_model_id(app_id: &str) {
         PROCESS_APP_USER_MODEL_ID_SET.get_or_init(|| {
             use windows::core::HSTRING;
             use windows::Win32::UI::Shell::SetCurrentProcessExplicitAppUserModelID;
@@ -239,6 +260,7 @@ mod imp {
 
         let app_id = effective_app_id(app)?;
         ensure_process_app_user_model_id(&app_id);
+        debug_log(&format!("show_windows: app_id={app_id}"));
         let title = data
             .title
             .clone()
@@ -280,8 +302,10 @@ mod imp {
         let click_tag = tag.clone();
         let handler = TypedEventHandler::<ToastNotification, IInspectable>::new(
             move |_sender, _args| {
+                debug_log(&format!("Activated fired, group={click_group:?}"));
                 if let Some(group) = &click_group {
-                    let _ = app_handle.emit("fg:notification-clicked", group.clone());
+                    let emit_result = app_handle.emit("fg:notification-clicked", group.clone());
+                    debug_log(&format!("emit result={emit_result:?}"));
                 }
                 windows_live_toasts().lock().unwrap().remove(&click_tag);
                 Ok(())
@@ -293,7 +317,12 @@ mod imp {
         let dismissed_handler = TypedEventHandler::<
             ToastNotification,
             windows::UI::Notifications::ToastDismissedEventArgs,
-        >::new(move |_sender, _args| {
+        >::new(move |_sender, args| {
+            let reason = args
+                .as_ref()
+                .and_then(|a| a.Reason().ok())
+                .map(|r| format!("{r:?}"));
+            debug_log(&format!("Dismissed fired, reason={reason:?}"));
             windows_live_toasts().lock().unwrap().remove(&dismissed_tag);
             Ok(())
         });
