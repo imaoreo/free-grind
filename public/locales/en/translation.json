@@ -1163,6 +1163,7 @@
             "download_media": "Download Media",
             "download": "Download",
             "stop_sharing": "Stop Sharing",
+            "remove_share": "Remove Share",
             "ban_word": "Add forbidden keyword",
             "ban_word_prompt": "Trim this message down to the specific keyword you want to ban:",
             "ban_name_prompt": "Trim this down to the exact name or phrase you want to ban:",
@@ -1230,6 +1231,7 @@
             "react_failed": "Failed to react",
             "unsend_failed": "Failed to unsend",
             "delete_failed": "Failed to delete",
+            "album_remove_failed": "Failed to remove album",
             "album_share_missing_recipient": "Unable to determine recipient for album share",
             "album_share_failed": "Failed to share album",
             "album_open_failed": "Failed to open album",
@@ -1255,7 +1257,8 @@
             "conversation_deleted": "Conversation deleted",
             "album_reaction_sent": "Reaction sent",
             "album_reply_sent": "Reply sent",
-            "album_share_stopped": "Album share stopped."
+            "album_share_stopped": "Album share stopped.",
+            "album_removed_locally": "Album removed from your device"
         },
         "new_conversation": {
             "title": "New conversation",

@@ -1155,6 +1155,7 @@
             "download_media": "",
             "download": "",
             "stop_sharing": "",
+            "remove_share": "",
             "ban_word": "",
             "ban_word_prompt": "",
             "ban_name_prompt": "",
@@ -1222,6 +1223,7 @@
             "react_failed": "Error al reaccionar",
             "unsend_failed": "Error al no enviar",
             "delete_failed": "Error al borrar",
+            "album_remove_failed": "",
             "album_share_missing_recipient": "No se pudo determinar el destinatario para compartir el álbum",
             "album_share_failed": "Error al compartir álbum",
             "album_open_failed": "Error al abrir álbum",
@@ -1247,7 +1249,8 @@
             "conversation_deleted": "Conversación eliminada",
             "album_reaction_sent": "",
             "album_reply_sent": "",
-            "album_share_stopped": ""
+            "album_share_stopped": "",
+            "album_removed_locally": ""
         },
         "new_conversation": {
             "title": "Nueva conversación",

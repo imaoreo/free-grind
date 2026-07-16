@@ -82,6 +82,7 @@ import {
 	getMediaCaptureTarget,
 } from "./chatUtils";
 import { getCachedMediaUri } from "../../../services/mediaStore";
+import { isAlbumCachedLocally } from "../../../services/albumStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -189,6 +190,7 @@ type ChatThreadPanelProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	handleRemoveLocalAlbum: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
@@ -520,6 +522,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleRetry,
 		handleReply,
 		handleStopAlbumShare,
+		handleRemoveLocalAlbum,
 		threadBottomRef,
 		handleSend,
 		toggleAlbumPicker: _toggleAlbumPicker,
@@ -1688,6 +1691,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
+						handleRemoveLocalAlbum={handleRemoveLocalAlbum}
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
@@ -2656,6 +2660,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											icon: <Album className="h-3.5 w-3.5" />,
 											label: t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" }),
 											onClick: () => void handleStopAlbumShare(albumId),
+											disabled: isMutating,
+										});
+									}
+
+									if (!mine && albumId && isAlbumCachedLocally(albumId)) {
+										rows.push({
+											key: "remove-share",
+											icon: <Album className="h-3.5 w-3.5" />,
+											label: t("chat.actions.remove_share", { defaultValue: "Remove Share" }),
+											onClick: () => void handleRemoveLocalAlbum(albumId),
 											disabled: isMutating,
 										});
 									}

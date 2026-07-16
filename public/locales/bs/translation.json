@@ -1155,6 +1155,7 @@
             "download_media": "",
             "download": "",
             "stop_sharing": "",
+            "remove_share": "",
             "ban_word": "",
             "ban_word_prompt": "",
             "ban_name_prompt": "",
@@ -1222,6 +1223,7 @@
             "react_failed": "",
             "unsend_failed": "",
             "delete_failed": "",
+            "album_remove_failed": "",
             "album_share_missing_recipient": "",
             "album_share_failed": "",
             "album_open_failed": "",
@@ -1247,7 +1249,8 @@
             "conversation_deleted": "",
             "album_reaction_sent": "",
             "album_reply_sent": "",
-            "album_share_stopped": ""
+            "album_share_stopped": "",
+            "album_removed_locally": ""
         },
         "new_conversation": {
             "title": "",

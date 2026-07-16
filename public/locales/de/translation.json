@@ -1155,6 +1155,7 @@
             "download_media": "Medien herunterladen",
             "download": "Herunterladen",
             "stop_sharing": "Freigabe beenden",
+            "remove_share": "",
             "ban_word": "Verbotenes Schlüsselwort hinzufügen",
             "ban_word_prompt": "Kürze diese Nachricht auf das konkrete Schlüsselwort, das du verbannen möchtest:",
             "ban_name_prompt": "Kürze dies auf den genauen Namen oder die Phrase, die du verbannen möchtest:",
@@ -1222,6 +1223,7 @@
             "react_failed": "Reaktion fehlgeschlagen",
             "unsend_failed": "Zurückziehen fehlgeschlagen",
             "delete_failed": "Löschen fehlgeschlagen",
+            "album_remove_failed": "",
             "album_share_missing_recipient": "Empfänger für Album-Freigabe konnte nicht ermittelt werden",
             "album_share_failed": "Freigeben des Albums fehlgeschlagen",
             "album_open_failed": "Öffnen des Albums fehlgeschlagen",
@@ -1247,7 +1249,8 @@
             "conversation_deleted": "Unterhaltung gelöscht",
             "album_reaction_sent": "Reaktion gesendet",
             "album_reply_sent": "Antwort gesendet",
-            "album_share_stopped": "Album-Freigabe beendet."
+            "album_share_stopped": "Album-Freigabe beendet.",
+            "album_removed_locally": ""
         },
         "new_conversation": {
             "title": "Neue Unterhaltung",

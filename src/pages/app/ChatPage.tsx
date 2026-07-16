@@ -101,7 +101,7 @@ import {
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
 import { fetchAndStoreMedia, getDrawerMediaKey, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
-import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
+import { captureAlbum, captureAlbumsForMessages, deleteLocalAlbum, getLocalAlbum } from "../../services/albumStore";
 import { saveAllAlbumMedia } from "../../utils/albumMedia";
 import { formatDistance } from "./gridpage/utils";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
@@ -5379,6 +5379,20 @@ export function ChatPage() {
 		}
 	}, [selectedConversation, userId, isMutatingMessageId, t]);
 
+	const handleRemoveLocalAlbum = useCallback(async (albumId: number) => {
+		if (isMutatingMessageId) return;
+		setIsMutatingMessageId(String(albumId));
+		try {
+			await deleteLocalAlbum(albumId);
+			toast.success(t("chat.toasts.album_removed_locally", { defaultValue: "Album removed from your device" }));
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_remove_failed"));
+		} finally {
+			setIsMutatingMessageId(null);
+			setOpenMessageActionId(null);
+		}
+	}, [isMutatingMessageId, t]);
+
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
         const targetProfile = selectedConversation
@@ -6197,6 +6211,7 @@ export function ChatPage() {
 			handleRetry={handleRetry}
 			handleReply={handleReplyToMessage}
 			handleStopAlbumShare={handleStopAlbumShare}
+			handleRemoveLocalAlbum={handleRemoveLocalAlbum}
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
