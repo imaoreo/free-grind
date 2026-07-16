@@ -98,6 +98,17 @@ export function SexualHealthDosesTab({
 								{scheme === "daily"
 									? t("sexualHealth.doses.scheme_daily", { defaultValue: "Daily dosing" })
 									: t("sexualHealth.doses.scheme_on_demand", { defaultValue: "On-demand dosing (2-1-1)" })}
+								{nextAction?.scheme === "on_demand" && nextAction.nextRole !== "loading" && (
+									<>
+										{" · "}
+										{t("sexualHealth.doses.next_due", {
+											defaultValue: "{{dose}} still needed",
+											dose: t(ON_DEMAND_LOG_LABEL[nextAction.nextRole].key, {
+												defaultValue: ON_DEMAND_LOG_LABEL[nextAction.nextRole].defaultValue,
+											}),
+										})}
+									</>
+								)}
 								{nextAction?.alreadyLoggedToday && (
 									<>
 										{" · "}

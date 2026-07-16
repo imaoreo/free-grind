@@ -6,6 +6,7 @@ import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
+import { reverseGeocodeGeohash } from "./gridpage/geocoding";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { type BrowseCard, type ProfileDetail } from "./GridPage.types";
@@ -471,9 +472,15 @@ export function GridPage() {
 			const lat = position.coords.latitude;
 			const lon = position.coords.longitude;
 			const nextGeohash = encodeGeohash(lat, lon);
+			// Re-resolve the display name too, otherwise the header pill and the
+			// location overlay's title keep showing whatever place was last
+			// geocoded (e.g. where auto-location was first turned on) even
+			// though the grid/map have already moved on to the new geohash.
+			const nextLocationName = await reverseGeocodeGeohash(nextGeohash).catch(() => null);
 
 			await setPreferences({
 				geohash: nextGeohash,
+				...(nextLocationName ? { locationName: nextLocationName } : {}),
 			});
 
 			appLog.info("[grid] auto-location updated", { lat, lon });
@@ -490,7 +497,11 @@ export function GridPage() {
 					const lat = fallbackPosition.coords.latitude;
 					const lon = fallbackPosition.coords.longitude;
 					const nextGeohash = encodeGeohash(lat, lon);
-					await setPreferences({ geohash: nextGeohash });
+					const nextLocationName = await reverseGeocodeGeohash(nextGeohash).catch(() => null);
+					await setPreferences({
+						geohash: nextGeohash,
+						...(nextLocationName ? { locationName: nextLocationName } : {}),
+					});
 					appLog.info("[grid] auto-location updated (fallback)", { lat, lon });
 					return nextGeohash;
 				} catch (fallbackError: any) {

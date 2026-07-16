@@ -62,7 +62,7 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 # Same webview2-com/windows versions wry (our Tauri version's webview backend) already
 # pulls in, so the ICoreWebView2 types in lib.rs line up with what's actually loaded.
 webview2-com = "0.38"
-windows = "0.61"
+windows = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation", "Win32_System_Threading"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }

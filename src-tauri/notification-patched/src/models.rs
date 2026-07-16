@@ -236,7 +236,7 @@ impl PendingNotification {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveNotification {
     id: i32,
@@ -258,6 +258,33 @@ pub struct ActiveNotification {
 }
 
 impl ActiveNotification {
+    /// Builds an entry for platforms (desktop) that construct this from
+    /// their own native notification state rather than deserializing it
+    /// from a mobile plugin-invoke response.
+    #[cfg(desktop)]
+    pub(crate) fn new(
+        id: i32,
+        tag: Option<String>,
+        title: Option<String>,
+        body: Option<String>,
+        group: Option<String>,
+    ) -> Self {
+        Self {
+            id,
+            tag,
+            title,
+            body,
+            group,
+            group_summary: false,
+            data: HashMap::new(),
+            extra: HashMap::new(),
+            attachments: Vec::new(),
+            action_type_id: None,
+            schedule: None,
+            sound: None,
+        }
+    }
+
     pub fn id(&self) -> i32 {
         self.id
     }

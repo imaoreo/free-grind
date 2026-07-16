@@ -1711,6 +1711,7 @@
             "scheme_on_demand": "On-demand dosing (2-1-1)",
             "log_daily": "Log today's dose",
             "already_logged_today": "Today's dose is already logged",
+            "next_due": "{{dose}} still needed",
             "already_logged": "Already logged — nothing more to add right now.",
             "empty": "No doses logged yet",
             "empty_desc": "Use the button below to log your first dose.",

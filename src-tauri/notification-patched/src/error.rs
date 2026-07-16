@@ -13,6 +13,9 @@ pub enum Error {
     #[cfg(mobile)]
     #[error(transparent)]
     PluginInvoke(#[from] tauri::plugin::mobile::PluginInvokeError),
+    #[cfg(desktop)]
+    #[error("failed to show notification: {0}")]
+    Show(String),
 }
 
 impl Serialize for Error {
