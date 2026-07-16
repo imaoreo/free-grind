@@ -154,7 +154,7 @@ jobs:
             artifact_suffix: macos-universal
             bundle_dir: src-tauri/target/universal-apple-darwin/release/bundle
           - platform: windows-latest
-            args: ""
+            args: --bundles nsis,msi
             rust_targets: ""
             artifact_suffix: windows-x64
             bundle_dir: src-tauri/target/release/bundle
