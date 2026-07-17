@@ -4,5 +4,15 @@
 	"description": "Capabilities specific to iOS (ios-photos plugin is only compiled in for iOS)",
 	"platforms": ["iOS"],
 	"windows": ["main"],
-	"permissions": ["ios-photos:default"]
+	"permissions": [
+		"ios-photos:default",
+		{
+			"identifier": "fs:allow-mkdir",
+			"allow": [{ "path": "$DOCUMENT/FreeGrind" }]
+		},
+		{
+			"identifier": "fs:allow-write-file",
+			"allow": [{ "path": "$DOCUMENT/FreeGrind/**" }]
+		}
+	]
 }

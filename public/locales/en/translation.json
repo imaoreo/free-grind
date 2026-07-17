@@ -1568,7 +1568,6 @@
     },
     "interest_page": {
         "title": "Interest",
-        "profile_fallback": "Profile {{id}}",
         "tabs": {
             "views": "Views",
             "taps": "Taps"
