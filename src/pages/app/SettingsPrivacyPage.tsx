@@ -4,6 +4,7 @@ import { AlertTriangle, BarChart3, CheckCheck, Eye, ImageOff, ToggleRight } from
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	getHideReadReceiptsGlobal,
 	getShowReadReceiptToggle,
@@ -20,6 +21,7 @@ import {
 
 export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const { blurIncomingMedia, showAlbumSensitiveContentWarning, setPreferences } = usePreferences();
 
 	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => !getHideReadReceiptsGlobal());
@@ -42,6 +44,8 @@ export function SettingsPrivacyPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.read_receipts")}</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
+							id="privacy-send-read-receipts"
+							highlighted={highlightId === "privacy-send-read-receipts"}
 							icon={<CheckCheck className="h-5 w-5" />}
 							iconClass="bg-indigo-500/15 text-indigo-400"
 							label={t("privacy.send_read_receipts")}
@@ -53,6 +57,8 @@ export function SettingsPrivacyPage() {
 							}}
 						/>
 						<ToggleRow
+							id="privacy-per-chat-overrides"
+							highlighted={highlightId === "privacy-per-chat-overrides"}
 							icon={<ToggleRight className="h-5 w-5" />}
 							iconClass="bg-blue-500/15 text-blue-400"
 							label={t("privacy.per_chat_overrides")}
@@ -79,6 +85,8 @@ export function SettingsPrivacyPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.profile_views")}</p>
 					<div className="surface-card overflow-hidden">
 						<ToggleRow
+							id="privacy-record-profile-views"
+							highlighted={highlightId === "privacy-record-profile-views"}
 							icon={<Eye className="h-5 w-5" />}
 							iconClass="bg-amber-500/15 text-amber-400"
 							label={t("privacy.record_profile_views")}
@@ -97,6 +105,8 @@ export function SettingsPrivacyPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.nsfw_content")}</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
+							id="privacy-blur-incoming-media"
+							highlighted={highlightId === "privacy-blur-incoming-media"}
 							icon={<ImageOff className="h-5 w-5" />}
 							iconClass="bg-sky-500/15 text-sky-400"
 							label={t("customizability.blur_incoming_media")}
@@ -105,6 +115,8 @@ export function SettingsPrivacyPage() {
 							onChange={(checked) => void setPreferences({ blurIncomingMedia: checked })}
 						/>
 						<ToggleRow
+							id="privacy-sensitive-warning"
+							highlighted={highlightId === "privacy-sensitive-warning"}
 							icon={<AlertTriangle className="h-5 w-5" />}
 							iconClass="bg-orange-500/15 text-orange-400"
 							label={t("privacy.show_sensitive_content_warning")}
@@ -122,6 +134,8 @@ export function SettingsPrivacyPage() {
 					</p>
 					<div className="surface-card overflow-hidden">
 						<ToggleRow
+							id="privacy-analytics"
+							highlighted={highlightId === "privacy-analytics"}
 							icon={<BarChart3 className="h-5 w-5" />}
 							iconClass="bg-violet-500/15 text-violet-400"
 							label={t("customizability.analytics.title")}

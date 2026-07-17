@@ -432,6 +432,42 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string, op
 			return { ok: true };
 		},
 
+		/**
+		 * GET /v3.1/me/profile/images — the full pool of images uploaded to the
+		 * account, independent of which ones are currently selected into the
+		 * profile's photo slots (that selection lives in `medias`/
+		 * `profileImageMediaHash` on the profile itself). Used by the profile
+		 * picture drawer to let a user pick from previously-uploaded images
+		 * without re-uploading them.
+		 */
+		async getProfileImages(): Promise<{ mediaHash: string; type: number; state: number | null }[]> {
+			const response = await fetchRest("/v3.1/me/profile/images");
+			await assertSuccess(response, t("api.errors.load_photos"));
+			const payload = await parseJsonSafe(response);
+			const medias =
+				typeof payload === "object" && payload !== null
+					? (payload as { medias?: unknown }).medias
+					: null;
+			if (!Array.isArray(medias)) {
+				return [];
+			}
+
+			return medias
+				.map((item) => {
+					if (typeof item !== "object" || item === null) return null;
+					const hashRaw = (item as { mediaHash?: unknown }).mediaHash;
+					if (typeof hashRaw !== "string" || !hashRaw) return null;
+					const typeRaw = (item as { type?: unknown }).type;
+					const stateRaw = (item as { state?: unknown }).state;
+					return {
+						mediaHash: hashRaw,
+						type: typeof typeRaw === "number" ? typeRaw : 0,
+						state: typeof stateRaw === "number" ? stateRaw : null,
+					};
+				})
+				.filter((item): item is { mediaHash: string; type: number; state: number | null } => item !== null);
+		},
+
 		async deleteMyProfileImages(mediaHashes: string[]): Promise<{ ok: true }> {
 			const response = await fetchRest("/v3/me/profile/images", {
 				method: "DELETE",

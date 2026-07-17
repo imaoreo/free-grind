@@ -5,6 +5,7 @@ import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
 import { useTranslation } from "react-i18next";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
@@ -16,6 +17,7 @@ const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR
 
 export function BehaviorPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const { defaultExpiringPhotos, defaultAlbumExpirationType, setPreferences } = usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
 		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
@@ -40,6 +42,8 @@ export function BehaviorPage() {
 			<div className="grid gap-6">
 				<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 					<ToggleRow
+						id="behavior-confirm-block"
+						highlighted={highlightId === "behavior-confirm-block"}
 						icon={<Ban className="h-5 w-5" />}
 						iconClass="bg-red-500/15 text-red-400"
 						label={t("customizability.confirm_before_block")}
@@ -51,6 +55,8 @@ export function BehaviorPage() {
 						}}
 					/>
 					<ToggleRow
+						id="behavior-confirm-delete-conversation"
+						highlighted={highlightId === "behavior-confirm-delete-conversation"}
 						icon={<Trash2 className="h-5 w-5" />}
 						iconClass="bg-red-500/15 text-red-400"
 						label={t("customizability.confirm_before_delete_conversation")}
@@ -67,6 +73,8 @@ export function BehaviorPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.disappearing_media")}</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
+							id="behavior-default-expiring-photos"
+							highlighted={highlightId === "behavior-default-expiring-photos"}
 							icon={<Timer className="h-5 w-5" />}
 							iconClass="bg-violet-500/15 text-violet-400"
 							label={t("behavior.default_expiring_photos")}
@@ -74,7 +82,10 @@ export function BehaviorPage() {
 							checked={defaultExpiringPhotos}
 							onChange={(checked) => void setPreferences({ defaultExpiringPhotos: checked })}
 						/>
-						<div className="flex items-start gap-3 px-4 py-3.5">
+						<div
+							id="behavior-default-album-expiration"
+							className={`flex items-start gap-3 px-4 py-3.5 ${highlightId === "behavior-default-album-expiration" ? "animate-settings-highlight" : ""}`}
+						>
 							<div className="rounded-2xl p-2.5 shrink-0 bg-violet-500/15 text-violet-400">
 								<Images className="h-5 w-5" />
 							</div>

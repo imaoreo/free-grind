@@ -183,7 +183,7 @@ type ProfileEditorFormSectionsProps = {
 	isSavingPhotos: boolean;
 	isUploadingPhoto: boolean;
 	isDesktop: boolean;
-	onUploadPhoto: (event: React.ChangeEvent<HTMLInputElement>) => void;
+	onOpenPhotoDrawer: () => void;
 	onRemovePhoto: (hash: string) => void;
 	onReorderPhotos: (newHashes: string[]) => void;
 	profileId?: string | number | null;
@@ -218,7 +218,7 @@ export function ProfileEditorFormSections({
 	isSavingPhotos,
 	isUploadingPhoto,
 	isDesktop,
-	onUploadPhoto,
+	onOpenPhotoDrawer,
 	onRemovePhoto,
 	onReorderPhotos,
 	profileId,
@@ -298,37 +298,29 @@ export function ProfileEditorFormSections({
 					description={t("profile_editor.sections.pictures.description")}
 					icon={Camera}
 					action={
-						<>
-							{(() => {
-								const uploadDisabled = isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS;
-								return (
-									<label
-										htmlFor={uploadDisabled ? undefined : "profile-photo-upload"}
-										className={[
-											"inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium transition-colors",
-											uploadDisabled
-												? "cursor-not-allowed opacity-40"
-												: "cursor-pointer hover:border-[var(--text-muted)]",
-										].join(" ")}
-									>
-										{isUploadingPhoto
-											? t("profile_editor.sections.pictures.uploading")
-											: t("profile_editor.sections.pictures.add")}
-										<span className="ml-1 rounded bg-[var(--surface)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-muted)]">
-											{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS}
-										</span>
-									</label>
-								);
-							})()}
-							<input
-								id="profile-photo-upload"
-								type="file"
-								accept="image/*"
-								onChange={onUploadPhoto}
-								disabled={isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS}
-								className="hidden"
-							/>
-						</>
+						(() => {
+							const uploadDisabled = isUploadingPhoto || isSavingPhotos || profilePhotoHashes.length >= MAX_PROFILE_PHOTOS;
+							return (
+								<button
+									type="button"
+									onClick={onOpenPhotoDrawer}
+									disabled={uploadDisabled}
+									className={[
+										"inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm font-medium transition-colors",
+										uploadDisabled
+											? "cursor-not-allowed opacity-40"
+											: "cursor-pointer hover:border-[var(--text-muted)]",
+									].join(" ")}
+								>
+									{isUploadingPhoto
+										? t("profile_editor.sections.pictures.uploading")
+										: t("profile_editor.sections.pictures.add")}
+									<span className="ml-1 rounded bg-[var(--surface)] px-1.5 py-0.5 text-xs font-semibold tabular-nums text-[var(--text-muted)]">
+										{profilePhotoHashes.length}/{MAX_PROFILE_PHOTOS}
+									</span>
+								</button>
+							);
+						})()
 					}
 				/>
 				<div className="grid gap-4">
@@ -354,16 +346,17 @@ export function ProfileEditorFormSections({
 									/>
 								))}
 								{Array.from({ length: MAX_PROFILE_PHOTOS - profilePhotoHashes.length }).map((_, i) => (
-									<label
+									<button
 										key={`empty-${i}`}
-										htmlFor="profile-photo-upload"
+										type="button"
+										onClick={onOpenPhotoDrawer}
 										className="relative flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
 									>
 										<Plus className="h-6 w-6" />
 										<span className="text-xs font-medium">
 											{t("profile_editor.sections.pictures.add")}
 										</span>
-									</label>
+									</button>
 								))}
 							</div>
 						</SortableContext>

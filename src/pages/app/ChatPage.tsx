@@ -691,6 +691,7 @@ export function ChatPage() {
 		useState<File | null>(null);
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
+	const [attachmentAddToDrawer, setAttachmentAddToDrawer] = useState(false);
 	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
 	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
 	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
@@ -4840,6 +4841,11 @@ export function ChatPage() {
 		[selectedConversation, service, t, targetProfileId, userId],
 	);
 
+	// loadDrawerMedia is declared further below but sendMediaAttachment needs
+	// to trigger a refresh after adding to the drawer — routed through a ref
+	// to avoid a forward reference to a not-yet-initialized const.
+	const loadDrawerMediaRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
@@ -4847,6 +4853,7 @@ export function ChatPage() {
 				looping: boolean;
 				takenOnGrindr: boolean;
 				maxViews: number;
+				addToDrawer: boolean;
 			},
 		) => {
 			if (!userId) {
@@ -4924,6 +4931,17 @@ export function ChatPage() {
 					},
 				});
 				setUploadProgress(96);
+
+				if (options.addToDrawer) {
+					try {
+						await service.addMediaToDrawer(uploaded.mediaId);
+						void loadDrawerMediaRef.current();
+					} catch (error) {
+						toast.error(
+							error instanceof Error ? error.message : t("chat.errors.upload_media_failed"),
+						);
+					}
+				}
 
 				const imageUrl = uploaded.url;
 				const imageHash = imageUrl
@@ -5053,6 +5071,7 @@ export function ChatPage() {
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentAddToDrawer(false);
 		setAttachmentMaxViews(2147483647);
 	}, []);
 
@@ -5065,15 +5084,18 @@ export function ChatPage() {
 			looping: attachmentLooping,
 			takenOnGrindr: attachmentTakenOnGrindr,
 			maxViews: attachmentMaxViews,
+			addToDrawer: attachmentAddToDrawer,
 		});
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentAddToDrawer(false);
 		setAttachmentMaxViews(2147483647);
 	}, [
 		attachmentLooping,
 		attachmentMaxViews,
 		attachmentTakenOnGrindr,
+		attachmentAddToDrawer,
 		pendingAttachmentFile,
 		sendMediaAttachment,
 	]);
@@ -5084,13 +5106,15 @@ export function ChatPage() {
 				looping: attachmentLooping,
 				takenOnGrindr: attachmentTakenOnGrindr,
 				maxViews: attachmentMaxViews,
+				addToDrawer: attachmentAddToDrawer,
 			});
 			setPendingAttachmentFile(null);
 			setAttachmentLooping(false);
 			setAttachmentTakenOnGrindr(false);
+			setAttachmentAddToDrawer(false);
 			setAttachmentMaxViews(2147483647);
 		},
-		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
+		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, attachmentAddToDrawer, sendMediaAttachment],
 	);
 
 	const sendAudioBlob = useCallback(async (blob: Blob, durationMs: number) => {
@@ -5719,6 +5743,10 @@ export function ChatPage() {
 		}
 	}, [selectedConversationId, service, t]);
 
+	useEffect(() => {
+		loadDrawerMediaRef.current = loadDrawerMedia;
+	}, [loadDrawerMedia]);
+
 	const toggleDrawer = useCallback(async () => {
 		if (isDrawerOpen) {
 			setIsDrawerOpen(false);
@@ -5922,6 +5950,7 @@ export function ChatPage() {
 		setPendingAttachmentFile(file);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentAddToDrawer(false);
 		// The 10-second disappearing timer default only applies to photos —
 		// videos keep their own existing default (a normal single-play video),
 		// unaffected by this preference.
@@ -6223,9 +6252,11 @@ export function ChatPage() {
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}
 			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			attachmentAddToDrawer={attachmentAddToDrawer}
 			attachmentMaxViews={attachmentMaxViews}
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			setAttachmentAddToDrawer={setAttachmentAddToDrawer}
 			setAttachmentMaxViews={setAttachmentMaxViews}
 			confirmPendingAttachment={confirmPendingAttachment}
 			confirmAttachmentFile={confirmAttachmentFile}

@@ -17,6 +17,7 @@ function isImperialHeight(unitsPreset: UnitsPreset): boolean {
 export const MAX_PROFILE_PHOTOS = 5;
 export const MAX_PROFILE_TAGS = 10;
 export const MAX_GENDERS = 3;
+export const MAX_TRAVEL_PLANS = 3;
 
 /** Media moderation review state, as returned per-item in a profile's `medias` array. */
 export const MEDIA_MODERATION_STATE = {

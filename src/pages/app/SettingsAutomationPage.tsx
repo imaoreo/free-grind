@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Clock, Download, LockKeyhole, Plus, RefreshCw, Save, Tag, Upload, Workflow } from "lucide-react";
+import { Check, Download, LockKeyhole, Plus, RefreshCw, Save, Tag, Upload, Workflow } from "lucide-react";
 import toast from "react-hot-toast";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
@@ -17,6 +17,7 @@ import {
 } from "../../utils/automationRules";
 import { AutomationRuleEditor } from "../../components/settings/AutomationRuleEditor";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import type { Album } from "../../types/albums";
 
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
@@ -113,6 +114,7 @@ function describeRule(rule: AutomationRule, t: TFunc): React.ReactNode[] {
 
 export function SettingsAutomationPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const apiFunctions = useApiFunctions();
 	const { settingsReady } = useAuth();
 
@@ -170,6 +172,7 @@ export function SettingsAutomationPage() {
 	const [forbiddenWords, setForbiddenWords] = useState(() => getAutomationSettings().forbiddenWords);
 	const [refreshEnabled, setRefreshEnabled] = useState(() => getAutomationSettings().refreshEnabled);
 	const [refreshInterval, setRefreshInterval] = useState(() => getAutomationSettings().refreshInterval);
+	const [refreshIntervalJustSaved, setRefreshIntervalJustSaved] = useState(false);
 
 	const handleToggleRefresh = (val: boolean) => {
 		setRefreshEnabled(val);
@@ -177,14 +180,23 @@ export function SettingsAutomationPage() {
 		toast.success(val ? t("settings_automation.auto_refresh_enabled") : t("settings_automation.auto_refresh_disabled"), { id: "refresh-toggle" });
 	};
 
+	// Only persisted once the user releases the thumb (see Slider's onCommit)
+	// — handleRefreshIntervalChange just updates the live UI while dragging.
+	const handleRefreshIntervalChange = (val: number) => {
+		setRefreshInterval(String(val));
+	};
+
+	const handleRefreshIntervalCommit = (val: number) => {
+		const nextInterval = String(val);
+		void setAutomationSettings({ refreshInterval: nextInterval }).then(() => {
+			setRefreshIntervalJustSaved(true);
+			window.setTimeout(() => setRefreshIntervalJustSaved(false), 1500);
+		});
+	};
+
 	const handleSaveAutoBlock = () => {
 		void setAutomationSettings({ forbiddenWords });
 		toast.success(t("settings_automation.block_rules_updated"));
-	};
-
-	const handleSaveRefresh = () => {
-		void setAutomationSettings({ refreshInterval });
-		toast.success(t("settings_automation.refresh_settings_updated"));
 	};
 
 	const handleExport = () => {
@@ -220,7 +232,10 @@ export function SettingsAutomationPage() {
 
 			<div className="grid min-w-0 gap-6">
 				{/* CUSTOM RULES */}
-				<div className="min-w-0">
+				<div
+					id="automation-custom-rules"
+					className={`min-w-0 ${highlightId === "automation-custom-rules" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
 						<div className="flex min-w-0 items-center gap-2">
 							<p className="truncate text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
@@ -304,7 +319,10 @@ export function SettingsAutomationPage() {
 				</div>
 
 				{/* FORBIDDEN KEYWORDS */}
-				<div className="min-w-0">
+				<div
+					id="automation-forbidden-keywords"
+					className={`min-w-0 ${highlightId === "automation-forbidden-keywords" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						{t("settings_automation.forbidden_keywords_title")}
 					</p>
@@ -359,7 +377,10 @@ export function SettingsAutomationPage() {
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						{t("settings_automation.auto_refresh_title")}
 					</p>
-					<div className="surface-card divide-y divide-[var(--border)] overflow-hidden">
+					<div
+						id="automation-auto-refresh"
+						className={`surface-card overflow-hidden ${highlightId === "automation-auto-refresh" ? "animate-settings-highlight" : ""}`}
+					>
 						<ToggleRow
 							icon={<RefreshCw className="h-5 w-5" />}
 							iconClass="bg-green-500/15 text-green-400"
@@ -369,51 +390,39 @@ export function SettingsAutomationPage() {
 							onChange={handleToggleRefresh}
 						/>
 
-						{refreshEnabled && <div className="flex items-start gap-3 p-4">
-							<div className="shrink-0 rounded-2xl bg-blue-500/15 p-2.5 text-blue-400">
-								<Clock className="h-5 w-5" />
-							</div>
-							<div className="min-w-0 flex-1">
-								<div className="flex items-center gap-2">
-									<p className="min-w-0 flex-1 text-sm font-semibold leading-snug">
-										{t("settings_automation.refresh_interval")}
-									</p>
-									<span className="shrink-0 rounded-lg bg-[var(--surface-2)] px-2.5 py-1 text-xs font-bold">
-										{t("settings_automation.refresh_interval_unit", { count: refreshInterval })}
-									</span>
-								</div>
-								<p className="mt-0.5 text-xs leading-relaxed text-[var(--text-muted)]">
-									{t("settings_automation.refresh_technical_note")}
-								</p>
-								<div className="mt-3 px-2">
+						{refreshEnabled && (
+							<div className="pt-1.5 pb-4 pl-[68px] pr-4">
+								<div className="px-1">
 									<Slider
 										label=""
 										hideHeader
+										showValueBubble
 										min={5}
 										max={60}
 										step={5}
 										defaultValue={Number(refreshInterval)}
 										displayValue={t("settings_automation.refresh_interval_unit", { count: refreshInterval })}
-										onChange={(val) => setRefreshInterval(String(val))}
+										onChange={handleRefreshIntervalChange}
+										onCommit={handleRefreshIntervalCommit}
 									/>
-									<div className="flex justify-between mt-1">
+									<div className="flex items-center justify-between mt-1">
 										<span className="text-[10px] text-[var(--text-muted)]">5 min</span>
+										<span
+											className={`inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 transition-opacity duration-300 ${
+												refreshIntervalJustSaved ? "opacity-100" : "opacity-0"
+											}`}
+										>
+											<Check className="h-3 w-3" />
+											{t("settings_automation.refresh_saved", { defaultValue: "Saved" })}
+										</span>
 										<span className="text-[10px] text-[var(--text-muted)]">60 min</span>
 									</div>
 								</div>
+								<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
+									{t("settings_automation.refresh_technical_note")}
+								</p>
 							</div>
-						</div>}
-
-						{refreshEnabled && <div className="p-4">
-							<button
-								type="button"
-								onClick={handleSaveRefresh}
-								className="btn-accent inline-flex w-full min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold"
-							>
-								<Save className="h-4 w-4" />
-								{t("settings_automation.update_refresh_settings")}
-							</button>
-						</div>}
+						)}
 					</div>
 				</div>
 			</div>
