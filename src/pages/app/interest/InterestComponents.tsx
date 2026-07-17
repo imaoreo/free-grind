@@ -163,7 +163,7 @@ export const InterestRow = memo(function InterestRow({
 		? item.displayName
 		: isPrivate
 			? t("interest_page.unknown_profile")
-			: t("interest_page.profile_fallback", { id: item.profileId });
+			: t("common.unknown_display_name");
 
 	return (
 		<div

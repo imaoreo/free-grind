@@ -15,9 +15,9 @@ import { BackToSettings } from "../../components/BackToSettings";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useAuth } from "../../contexts/useAuth";
 import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
-import { BaseDirectory, writeFile as writeFsFile } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, mkdir, writeFile as writeFsFile } from "@tauri-apps/plugin-fs";
 import * as chatDb from "../../services/chatDb";
-import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid } from "../../services/saveMedia";
+import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid, isIos } from "../../services/saveMedia";
 import { resetAllSettings } from "../../utils/resetSettings";
 import { appLog } from "../../utils/logger";
 import type { FullDbExport } from "../../types/chat-db";
@@ -133,10 +133,9 @@ export function SettingsDataPage() {
 					throw error;
 				}
 			} else {
-				// Streams straight to the Downloads folder (same destination
-				// saveMedia.ts uses for desktop media saves) instead of building one
-				// giant JSON string for a Blob + <a download>, for the same
-				// memory/hang reason as the Android branch above.
+				// Streams straight to disk (same memory/hang reason as the Android
+				// branch above) instead of building one giant JSON string for a
+				// Blob + <a download>.
 				const generator = chatDb.streamFullDatabaseExportBytes(userId);
 				const readable = new ReadableStream<Uint8Array>({
 					async pull(controller) {
@@ -151,13 +150,25 @@ export function SettingsDataPage() {
 						await generator.return(undefined);
 					},
 				});
-				await writeFsFile(fileName, readable, { baseDir: BaseDirectory.Download });
+
+				// iOS has no shared Downloads folder — write into the app's own
+				// Documents dir instead, which Info.plist's UIFileSharingEnabled +
+				// LSSupportsOpeningDocumentsInPlace expose in the Files app under
+				// "On My iPhone/iPad" > Free Grind.
+				const baseDir = isIos() ? BaseDirectory.Document : BaseDirectory.Download;
+				// Must stay under <baseDir>/FreeGrind — the fs:allow-write-file
+				// capability (desktop.json / ios.json) only scopes write access to
+				// that folder, same one saveMedia.ts saves media into on desktop.
+				await mkdir("FreeGrind", { baseDir, recursive: true });
+				await writeFsFile(`FreeGrind/${fileName}`, readable, { baseDir });
 			}
 
 			toast.success(
 				isAndroid()
 					? t("data_backup.export_success", { defaultValue: "Data exported." })
-					: t("data_backup.export_success_desktop", { defaultValue: "Data exported to your Downloads folder." }),
+					: isIos()
+						? t("data_backup.export_success_ios", { defaultValue: "Data exported. Find it in the Files app under On My iPhone/iPad → Free Grind." })
+						: t("data_backup.export_success_desktop", { defaultValue: "Data exported to Downloads/FreeGrind." }),
 			);
 		} catch (error) {
 			toast.error(getErrorMessage(error, t("data_backup.export_failed", { defaultValue: "Failed to export data." })));
