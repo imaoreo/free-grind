@@ -14,21 +14,19 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { useManagedGenders, useManagedPronouns, useManagedTagCategories } from "../../hooks/queries/useProfileQueries";
-import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { validateMediaHash } from "../../utils/media";
 import { buildTagLabelMap } from "../../utils/tags";
 import { BackToSettings } from "../../components/BackToSettings";
 import { BottomDrawer } from "../../components/ui/bottom-drawer";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import freegrindLogo from "../../images/freegrind-logo.webp";
 import {
-	getBodyTypeLabelMap,
 	getBodyTypeOptions,
 	getEthnicityOptions,
 	getHivStatusOptions,
 	getLookingForOptions,
 	getMeetAtOptions,
 	getNsfwOptions,
-	getRelationshipStatusLabelMap,
 	getRelationshipStatusOptions,
 	getSexualHealthOptions,
 	getSexualPositionOptions,
@@ -183,16 +181,6 @@ export function ProfileEditorPage() {
 		return managedPronouns?.map((item) => ({ value: item.pronounId, label: item.pronoun })) ?? [];
 	}, [managedPronouns, userId]);
 
-	const relationshipStatusLabels = useMemo<Record<number, string>>(
-		() => getRelationshipStatusLabelMap(t),
-		[t],
-	);
-
-	const bodyTypeLabels = useMemo<Record<number, string>>(
-		() => getBodyTypeLabelMap(t),
-		[t],
-	);
-
 	const relationshipStatusOptions = useMemo(
 		() => getRelationshipStatusOptions(t),
 		[t],
@@ -336,23 +324,6 @@ export function ProfileEditorPage() {
 		setDraft(profileToDraft(profile, unitsPreset));
 	}, [profile, unitsPreset]);
 
-	const displayName = useMemo(() => {
-		if (profile?.displayName?.trim()) {
-			return profile.displayName.trim();
-		}
-
-		return userId ? `Profile ${userId}` : "Your profile";
-	}, [profile?.displayName, userId]);
-
-	const draftDisplayName = useMemo(() => {
-		return draft.displayName.trim() || displayName;
-	}, [displayName, draft.displayName]);
-
-	const draftInitials = useMemo(() => {
-		const parts = draftDisplayName.split(/\s+/).filter(Boolean).slice(0, 2);
-		return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "U";
-	}, [draftDisplayName]);
-
 	const savedDraft = useMemo(() => profileToDraft(profile, unitsPreset), [profile, unitsPreset]);
 
 	const hasProfileChanges = useMemo(
@@ -407,60 +378,6 @@ export function ProfileEditorPage() {
 		}
 		return map;
 	}, [profile?.medias]);
-
-	const selectedRelationshipLabel = useMemo(() => {
-		if (!draft.relationshipStatus) {
-			return t("profile_editor.sections.states.relationship_not_set");
-		}
-
-		return (
-			relationshipStatusLabels[Number(draft.relationshipStatus)] ??
-			`Status ${draft.relationshipStatus}`
-		);
-	}, [draft.relationshipStatus, relationshipStatusLabels, t]);
-
-	const selectedBodyTypeLabel = useMemo(() => {
-		if (!draft.bodyType) {
-			return t("profile_editor.sections.states.body_type_not_set");
-		}
-
-		return bodyTypeLabels[Number(draft.bodyType)] ?? `Type ${draft.bodyType}`;
-	}, [draft.bodyType, bodyTypeLabels, t]);
-
-	const completionChecklist = useMemo(
-		() => [
-			Boolean(draft.displayName.trim()),
-			Boolean(draft.aboutMe.trim()),
-			Boolean(draft.profileTagsText.trim()),
-			Boolean(draft.age.trim()),
-			Boolean(draft.height.trim()),
-			Boolean(draft.weight.trim()),
-			Boolean(draft.relationshipStatus),
-			Boolean(draft.nsfw),
-			Boolean(draft.hivStatus),
-		],
-		[
-			draft.aboutMe,
-			draft.age,
-			draft.displayName,
-			draft.height,
-			draft.hivStatus,
-			draft.nsfw,
-			draft.profileTagsText,
-			draft.relationshipStatus,
-			draft.weight,
-		],
-	);
-
-	const completionCount = useMemo(
-		() => completionChecklist.filter(Boolean).length,
-		[completionChecklist],
-	);
-
-	const completionPercent = useMemo(
-		() => Math.round((completionCount / completionChecklist.length) * 100),
-		[completionChecklist.length, completionCount],
-	);
 
 	const displayNameError = useMemo(() => {
 		const value = draft.displayName.trim();
@@ -927,65 +844,6 @@ export function ProfileEditorPage() {
 					</div>
 				) : (
 					<div className="grid gap-6">
-						<div className="surface-card overflow-hidden">
-							<div className="flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
-								<div className="relative h-16 w-16 shrink-0 sm:h-20 sm:w-20">
-									{profilePhotoHashes[0] ? (
-										<img
-											src={getThumbImageUrl(profilePhotoHashes[0], "320x320")}
-											alt={draftDisplayName}
-											className="h-full w-full rounded-full object-cover shadow-sm"
-										/>
-									) : (
-										<div className="flex h-full w-full items-center justify-center rounded-full bg-[var(--accent)] text-xl font-bold text-[var(--accent-contrast)] shadow-sm sm:text-2xl">
-											{draftInitials}
-										</div>
-									)}
-								</div>
-								<div>
-									<p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
-										{t("profile_editor.summary")}
-									</p>
-									<h2 className="mt-1 text-2xl font-semibold leading-tight sm:text-[2rem]">
-										{draftDisplayName}
-									</h2>
-									<div className="mt-3 flex flex-wrap gap-2">
-										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-											{selectedRelationshipLabel}
-										</span>
-										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-											{selectedBodyTypeLabel}
-										</span>
-										<span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1 text-sm font-medium text-[var(--text-muted)]">
-											{tagList.length > 0
-												? t("profile_editor.tags_count", {
-														count: tagList.length,
-													})
-												: t("profile_editor.no_tags")}
-										</span>
-									</div>
-								</div>
-							</div>
-
-							<div className="border-t border-[var(--border)] px-4 pt-3 pb-4 sm:px-5 sm:pb-5">
-								<div className="mb-1.5 flex items-center justify-between gap-3">
-									<p className="text-xs text-[var(--text-muted)]">
-										{t("profile_editor.completion_signals", {
-											count: completionCount,
-											total: completionChecklist.length,
-										})}
-									</p>
-									<p className="text-xs font-bold">{completionPercent}%</p>
-								</div>
-								<div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-2)]">
-									<div
-										className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-300"
-										style={{ width: `${completionPercent}%` }}
-									/>
-								</div>
-							</div>
-						</div>
-
 						<div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(270px,0.65fr)] lg:items-start">
 							<ProfileEditorFormSections
 								draft={draft}
