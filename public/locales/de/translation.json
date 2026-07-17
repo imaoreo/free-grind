@@ -1192,6 +1192,8 @@
             "view_once_description": "Das Bild kann nur einmal für 10 Sekunden angesehen werden",
             "taken_on_grindr": "In Grindr aufgenommen",
             "taken_on_grindr_description": "Füge den Zeitstempel hinzu, um die Echtheit und Aktualität deines Fotos zu bestätigen",
+            "add_to_drawer": "",
+            "add_to_drawer_description": "",
             "send": "Senden",
             "send_expiring": "Ablaufend senden",
             "uploading": "Anhang wird hochgeladen",

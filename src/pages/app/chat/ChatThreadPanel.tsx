@@ -201,9 +201,11 @@ type ChatThreadPanelProps = {
 	pendingAttachmentFile: File | null;
 	attachmentLooping: boolean;
 	attachmentTakenOnGrindr: boolean;
+	attachmentAddToDrawer: boolean;
 	attachmentMaxViews: number;
 	setAttachmentLooping: (value: boolean) => void;
 	setAttachmentTakenOnGrindr: (value: boolean) => void;
+	setAttachmentAddToDrawer: (value: boolean) => void;
 	setAttachmentMaxViews: (value: number) => void;
 	confirmPendingAttachment: () => void;
 	confirmAttachmentFile: (file: File) => void | Promise<void>;
@@ -532,9 +534,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		pendingAttachmentFile,
 		attachmentLooping,
 		attachmentTakenOnGrindr,
+		attachmentAddToDrawer,
 		attachmentMaxViews,
 		setAttachmentLooping,
 		setAttachmentTakenOnGrindr,
+		setAttachmentAddToDrawer,
 		setAttachmentMaxViews,
 		confirmPendingAttachment: _confirmPendingAttachment,
 		confirmAttachmentFile,
@@ -2333,7 +2337,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 							{/* Sticky toggle row — always pinned to bottom of sheet */}
 							<div className="shrink-0 px-3 pb-3 pt-2">
-								<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
 									{pendingAttachmentFile?.type.startsWith("video/") ? (
 										<ToggleRow
 											checked={attachmentLooping}
@@ -2349,6 +2353,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											description={t("chat.attachments.taken_on_grindr_description")}
 										/>
 									)}
+									<ToggleRow
+										checked={attachmentAddToDrawer}
+										onChange={setAttachmentAddToDrawer}
+										label={t("chat.attachments.add_to_drawer", { defaultValue: "Add to drawer" })}
+										description={t("chat.attachments.add_to_drawer_description", { defaultValue: "Also save this to your drawer so you can send it again later" })}
+									/>
 								</div>
 							</div>
 						</div>

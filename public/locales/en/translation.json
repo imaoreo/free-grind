@@ -1202,6 +1202,8 @@
             "view_once_description": "The image can only be viewed once for 10 seconds",
             "taken_on_grindr": "Taken on Grindr watermark",
             "taken_on_grindr_description": "Include the timestamp to certify the authenticity and recency of your photo",
+            "add_to_drawer": "Add to drawer",
+            "add_to_drawer_description": "Also save this to your drawer so you can send it again later",
             "send": "Send",
             "send_expiring": "Send expiring",
             "uploading": "Uploading attachment",

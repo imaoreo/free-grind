@@ -1209,6 +1209,8 @@
             "view_once_description": "La imagen solo se puede ver una vez durante 10 segundos",
             "taken_on_grindr": "Tomado con marca de agua de Grindr",
             "taken_on_grindr_description": "Añade la marca de tiempo para certificar la autenticidad y la actualidad de tu foto",
+            "add_to_drawer": "",
+            "add_to_drawer_description": "",
             "send": "Enviar",
             "send_expiring": "Enviar expirando",
             "uploading": "Subiendo archivo",

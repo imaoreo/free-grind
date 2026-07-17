@@ -1192,6 +1192,8 @@
             "view_once_description": "L'image ne peut être vue qu'une seule fois pendant 10 secondes",
             "taken_on_grindr": "PrisSurGrindr",
             "taken_on_grindr_description": "",
+            "add_to_drawer": "",
+            "add_to_drawer_description": "",
             "send": "Envoyer",
             "send_expiring": "Envoyer éphémère",
             "uploading": "Téléversement...",
