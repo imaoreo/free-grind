@@ -1711,7 +1711,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": "Odpri profil po ID-ju"
+    "open_profile_by_id": "Odpri profil po ID-ju",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "",

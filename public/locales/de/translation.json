@@ -1711,7 +1711,8 @@
     "unknown_display_name": "Jemand"
   },
   "grid": {
-    "open_profile_by_id": "Profil per ID öffnen"
+    "open_profile_by_id": "Profil per ID öffnen",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "Zeit für einen Test?",

@@ -1721,7 +1721,8 @@
     "unknown_display_name": "Someone"
   },
   "grid": {
-    "open_profile_by_id": "Open Profile by ID"
+    "open_profile_by_id": "Open Profile by ID",
+    "refresh": "Refresh grid"
   },
   "test_reminder": {
     "title": "Time for a check-up?",

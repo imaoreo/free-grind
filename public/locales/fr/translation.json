@@ -1711,7 +1711,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": "Ouvrir le profil par ID"
+    "open_profile_by_id": "Ouvrir le profil par ID",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "L'heure d'un test ?",

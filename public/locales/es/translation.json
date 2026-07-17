@@ -1726,7 +1726,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": "Abrir perfil por ID"
+    "open_profile_by_id": "Abrir perfil por ID",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "¿Hora de hacerte una prueba?",

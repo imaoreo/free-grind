@@ -1,5 +1,5 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplets, Search, Eye, EyeOff, Check, Loader2, Settings, X } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplets, Search, Eye, EyeOff, Check, Loader2, RefreshCw, Settings, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -89,6 +89,7 @@ export function GridPage() {
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
+	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 	// Cascade encodes this as a page number, explore (/v7/search) as a
 	// (distance, profileId) cursor — see encodeSearchCursor/decodeSearchCursor.
 	const [nextPage, setNextPage] = useState<string | null>(null);
@@ -768,6 +769,20 @@ export function GridPage() {
 			overrideGeohash: activeGeohash || undefined,
 		});
 	}, [browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation]);
+
+	// Desktop has no pull-to-refresh gesture (PullToRefreshContainer only
+	// listens for touch events), so this button is the desktop equivalent —
+	// same refresh logic as the mobile pull gesture, with its own loading
+	// flag since it runs with showLoadingState: false.
+	const handleManualRefresh = useCallback(async () => {
+		if (isManualRefreshing || isLoadingCards || isLoadingMoreCards) return;
+		setIsManualRefreshing(true);
+		try {
+			await handleAutoRefresh();
+		} finally {
+			setIsManualRefreshing(false);
+		}
+	}, [handleAutoRefresh, isManualRefreshing, isLoadingCards, isLoadingMoreCards]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -1536,6 +1551,20 @@ export function GridPage() {
 										active={false}
 										onClick={() => { setProfileSearchInput(""); setIsProfileSearchOpen(true); }}
 									/>
+
+									{isDesktop && (
+										<FilterPill
+											variant="icon"
+											icon={
+												<RefreshCw
+													className={cn("h-3.5 w-3.5", isManualRefreshing && "animate-spin")}
+												/>
+											}
+											label={t("grid.refresh", { defaultValue: "Refresh grid" })}
+											active={false}
+											onClick={() => void handleManualRefresh()}
+										/>
+									)}
 								</div>
 							</div>
 						</div>

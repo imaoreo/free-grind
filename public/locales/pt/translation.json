@@ -1711,7 +1711,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": ""
+    "open_profile_by_id": "",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "",
