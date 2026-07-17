@@ -2,14 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
 	RefreshCw,
-	RotateCw,
 	Save,
-	SquareCenterlineDashedHorizontal,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import z from "zod";
-import ReactCrop, { type Crop, type PixelCrop } from "react-image-crop";
+import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { useAuth } from "../../contexts/useAuth";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -38,6 +36,7 @@ import {
 	getVaccineOptions,
 } from "./profile-option-builders";
 import { ProfileEditorFormSections, type ToggleMultiValueKey } from "./profile-editor/ProfileEditorFormSections";
+import { ProfilePictureDrawer, type ProfilePoolImage } from "./profile-editor/ProfilePictureDrawer";
 import {
 	MAX_GENDERS,
 	MAX_PROFILE_PHOTOS,
@@ -90,6 +89,11 @@ export function ProfileEditorPage() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [isSavingPhotos, setIsSavingPhotos] = useState(false);
 	const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+	const [isPhotoDrawerOpen, setIsPhotoDrawerOpen] = useState(false);
+	const [poolImages, setPoolImages] = useState<ProfilePoolImage[]>([]);
+	const [isPoolLoading, setIsPoolLoading] = useState(false);
+	const [poolError, setPoolError] = useState<string | null>(null);
+	const [deletingPoolHash, setDeletingPoolHash] = useState<string | null>(null);
 	const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null);
 	const [pendingPhotoTakenOnGrindr, setPendingPhotoTakenOnGrindr] = useState(false);
 	const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
@@ -113,10 +117,28 @@ export function ProfileEditorPage() {
 		return () => URL.revokeObjectURL(url);
 	}, [pendingPhotoFile]);
 
-	useEffect(() => {
-		if (!photoPreviewUrl) return;
-		setPhotoCrop({ unit: "%", x: 0, y: 0, width: 100, height: 100 });
-	}, [photoPreviewUrl]);
+	// Square-only — this crop no longer produces the uploaded file (see
+	// confirmPendingPhotoUpload), it only picks the thumbnail region, which the
+	// server always renders as a square. Seeds photoCompletedCrop immediately
+	// (not just photoCrop) so confirming without dragging still has a valid
+	// pixel rect to derive thumbCoords from — react-image-crop only fires its
+	// own onComplete after a user-driven drag.
+	const handlePhotoImageLoad = useCallback((event: React.SyntheticEvent<HTMLImageElement>) => {
+		const { width, height } = event.currentTarget;
+		const percentCrop = centerCrop(
+			makeAspectCrop({ unit: "%", width: 90 }, 1, width, height),
+			width,
+			height,
+		);
+		setPhotoCrop(percentCrop);
+		setPhotoCompletedCrop({
+			unit: "px",
+			x: (percentCrop.x / 100) * width,
+			y: (percentCrop.y / 100) * height,
+			width: (percentCrop.width / 100) * width,
+			height: (percentCrop.height / 100) * height,
+		});
+	}, []);
 
 	// Tracks each photo's last-seen moderation state across reloads, so a
 	// background poll can toast when one changes (e.g. pending -> approved)
@@ -662,29 +684,96 @@ export function ProfileEditorPage() {
 		[apiFunctions, loadProfile, userId, t],
 	);
 
-	const handleUploadPhoto = (
-		event: React.ChangeEvent<HTMLInputElement>,
-	) => {
-		const file = event.currentTarget.files?.[0];
-		event.currentTarget.value = "";
-
-		if (!file) {
-			return;
-		}
-
+	// Picking a file always happens from inside the picture drawer now — it
+	// only adds the upload to the server-side pool, it doesn't select it into
+	// the profile's photo slots (see uploadPhotoFile), so there's no need to
+	// gate this on the slot count the way the old direct-upload flow did.
+	const handleDrawerUploadFile = (file: File) => {
 		if (!file.type.startsWith("image/")) {
 			toast.error(t("profile_editor.toasts.error_upload_type"));
-			return;
-		}
-
-		if (profilePhotoHashes.length >= MAX_PROFILE_PHOTOS) {
-			toast.error(t("profile_editor.toasts.error_photo_limit"));
 			return;
 		}
 
 		setPendingPhotoTakenOnGrindr(false);
 		setPendingPhotoFile(file);
 	};
+
+	const loadPoolImages = useCallback(async () => {
+		setIsPoolLoading(true);
+		setPoolError(null);
+		try {
+			const images = await apiFunctions.getProfileImages();
+			setPoolImages(images);
+		} catch (error) {
+			setPoolError(
+				error instanceof Error ? error.message : t("profile_editor.toasts.error_photos"),
+			);
+		} finally {
+			setIsPoolLoading(false);
+		}
+	}, [apiFunctions, t]);
+
+	useEffect(() => {
+		if (isPhotoDrawerOpen) {
+			void loadPoolImages();
+		}
+	}, [isPhotoDrawerOpen, loadPoolImages]);
+
+	const handleAddSelectedImages = useCallback(
+		async (hashes: string[]) => {
+			const newHashes = hashes.filter(
+				(hash) => validateMediaHash(hash) && !profilePhotoHashes.includes(hash),
+			);
+			if (newHashes.length === 0) {
+				return;
+			}
+			const remainingSlots = MAX_PROFILE_PHOTOS - profilePhotoHashes.length;
+			if (remainingSlots <= 0) {
+				toast.error(t("profile_editor.toasts.error_photo_limit"));
+				return;
+			}
+			await persistProfilePhotos(
+				[...profilePhotoHashes, ...newHashes.slice(0, remainingSlots)],
+				{ successMessage: t("profile_editor.toasts.photo_added") },
+			);
+			setIsPhotoDrawerOpen(false);
+		},
+		[profilePhotoHashes, persistProfilePhotos, t],
+	);
+
+	// Deleting from the drawer is a real server-side delete (unlike removing a
+	// photo from the grid below, which only unlinks it) — if the image being
+	// deleted also happens to be one of the profile's active slots, it has to
+	// be unlinked from there in the same step so the profile doesn't keep
+	// pointing at a now-nonexistent hash.
+	const handleDeletePoolImage = useCallback(
+		async (hash: string) => {
+			setDeletingPoolHash(hash);
+			try {
+				if (profilePhotoHashes.includes(hash)) {
+					await persistProfilePhotos(
+						profilePhotoHashes.filter((currentHash) => currentHash !== hash),
+						{ deletedHashes: [hash], successMessage: t("profile_photo_drawer.deleted") },
+					);
+				} else {
+					await apiFunctions.deleteMyProfileImages([hash]);
+					toast.success(t("profile_photo_drawer.deleted"));
+				}
+				// The pool endpoint only ever returns up to 10 images, so deleting
+				// one can bring an older image that was previously cut off back
+				// into view — a local filter of the current list can't reveal
+				// that, only a full reload can.
+				await loadPoolImages();
+			} catch (error) {
+				const message =
+					error instanceof Error ? error.message : t("profile_editor.toasts.error_photos");
+				toast.error(message);
+			} finally {
+				setDeletingPoolHash(null);
+			}
+		},
+		[apiFunctions, persistProfilePhotos, profilePhotoHashes, t, loadPoolImages],
+	);
 
 	const cancelPendingPhotoUpload = () => {
 		if (isUploadingPhoto) {
@@ -693,36 +782,12 @@ export function ProfileEditorPage() {
 		setPendingPhotoFile(null);
 	};
 
-	const applyPhotoTransform = useCallback(async (type: "flipH" | "rotateCw") => {
-		const img = photoImgRef.current;
-		if (!img || !img.complete || img.naturalWidth === 0) return;
-		const sw = img.naturalWidth;
-		const sh = img.naturalHeight;
-		const canvas = document.createElement("canvas");
-		canvas.width = type === "rotateCw" ? sh : sw;
-		canvas.height = type === "rotateCw" ? sw : sh;
-		const ctx = canvas.getContext("2d");
-		if (!ctx) return;
-		ctx.translate(canvas.width / 2, canvas.height / 2);
-		if (type === "flipH") ctx.scale(-1, 1);
-		if (type === "rotateCw") ctx.rotate(Math.PI / 2);
-		ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
-		const blob = await new Promise<Blob | null>((resolve) =>
-			canvas.toBlob(resolve, "image/jpeg", 0.95),
-		);
-		if (!blob) return;
-		setPhotoPreviewUrl((prev) => {
-			if (prev) URL.revokeObjectURL(prev);
-			return URL.createObjectURL(blob);
-		});
-	}, []);
-
-	const uploadPhotoFile = async (file: File) => {
+	const uploadPhotoFile = async (file: File, thumbCoordsOverride?: string) => {
 		setIsUploadingPhoto(true);
 
 		try {
 			const body = new Uint8Array(await file.arrayBuffer());
-			const thumbCoords = await buildSquareThumbCoords(file);
+			const thumbCoords = thumbCoordsOverride ?? (await buildSquareThumbCoords(file));
 
 			const uploadPaths = [
 				`/v4/media/upload?thumbCoords=${encodeURIComponent(thumbCoords)}&takenOnGrindr=${pendingPhotoTakenOnGrindr}`,
@@ -766,9 +831,15 @@ export function ProfileEditorPage() {
 				);
 			}
 
-			await persistProfilePhotos([...profilePhotoHashes, uploadedHash], {
-				successMessage: t("profile_editor.toasts.photo_uploaded"),
-			});
+			// Uploading only lands the image in the server-side pool — it doesn't
+			// select it into a profile slot. The drawer reappears (isPhotoDrawerOpen
+			// stays true) once pendingPhotoFile clears below, showing the new image
+			// as a pickable, not-yet-used tile.
+			setPoolImages((prev) => [
+				{ mediaHash: uploadedHash, type: 0, state: MEDIA_MODERATION_STATE.PENDING },
+				...prev.filter((image) => image.mediaHash !== uploadedHash),
+			]);
+			toast.success(t("profile_editor.toasts.photo_uploaded"));
 			setPendingPhotoFile(null);
 		} catch (error) {
 			const message =
@@ -781,51 +852,31 @@ export function ProfileEditorPage() {
 		}
 	};
 
+	// The crop selection is only used to tell the server which square region
+	// to render the thumbnail from (thumbCoords) — the uploaded file itself is
+	// always the original, unmodified image.
 	const confirmPendingPhotoUpload = async () => {
 		if (!pendingPhotoFile) return;
-		let fileToUpload: File = pendingPhotoFile;
-		const isFullImage =
-			!photoCompletedCrop ||
-			!photoImgRef.current ||
-			(photoCompletedCrop.x <= 1 &&
-				photoCompletedCrop.y <= 1 &&
-				Math.abs(photoCompletedCrop.width - photoImgRef.current.width) <= 2 &&
-				Math.abs(photoCompletedCrop.height - photoImgRef.current.height) <= 2);
-		if (!isFullImage && photoCompletedCrop?.width && photoCompletedCrop.height && photoImgRef.current) {
+
+		let thumbCoords: string | undefined;
+		if (photoCompletedCrop?.width && photoCompletedCrop.height && photoImgRef.current) {
 			const img = photoImgRef.current;
 			const scaleX = img.naturalWidth / img.width;
 			const scaleY = img.naturalHeight / img.height;
-			const canvas = document.createElement("canvas");
-			canvas.width = Math.round(photoCompletedCrop.width * scaleX);
-			canvas.height = Math.round(photoCompletedCrop.height * scaleY);
-			const ctx = canvas.getContext("2d");
-			if (ctx) {
-				ctx.drawImage(
-					img,
-					photoCompletedCrop.x * scaleX,
-					photoCompletedCrop.y * scaleY,
-					photoCompletedCrop.width * scaleX,
-					photoCompletedCrop.height * scaleY,
-					0,
-					0,
-					canvas.width,
-					canvas.height,
-				);
-				fileToUpload = await new Promise<File>((resolve) => {
-					canvas.toBlob(
-						(blob) => {
-							if (!blob) { resolve(pendingPhotoFile); return; }
-							resolve(new File([blob], pendingPhotoFile.name, { type: pendingPhotoFile.type || "image/jpeg" }));
-						},
-						pendingPhotoFile.type || "image/jpeg",
-						0.92,
-					);
-				});
-			}
+			const left = Math.round(photoCompletedCrop.x * scaleX);
+			const top = Math.round(photoCompletedCrop.y * scaleY);
+			const right = Math.round((photoCompletedCrop.x + photoCompletedCrop.width) * scaleX);
+			const bottom = Math.round((photoCompletedCrop.y + photoCompletedCrop.height) * scaleY);
+			thumbCoords = `${bottom},${left},${right},${top}`;
 		}
-		await uploadPhotoFile(fileToUpload);
+
+		await uploadPhotoFile(pendingPhotoFile, thumbCoords);
 	};
 
+	// Removing a photo here only unlinks it from the profile's active slots
+	// (plain PUT) — the underlying upload stays on the server and can still be
+	// picked again from the picture drawer. Permanently deleting it from the
+	// server is a separate, explicit action there (handleDeletePoolImage).
 	const handleRemovePhoto = async (hash: string) => {
 		if (!validateMediaHash(hash) || isSavingPhotos || isUploadingPhoto) {
 			return;
@@ -834,7 +885,6 @@ export function ProfileEditorPage() {
 		await persistProfilePhotos(
 			profilePhotoHashes.filter((currentHash) => currentHash !== hash),
 			{
-				deletedHashes: [hash],
 				successMessage: t("profile_editor.toasts.photo_removed"),
 			},
 		);
@@ -952,7 +1002,7 @@ export function ProfileEditorPage() {
 								isSavingPhotos={isSavingPhotos}
 								isUploadingPhoto={isUploadingPhoto}
 								isDesktop={isDesktop}
-								onUploadPhoto={handleUploadPhoto}
+								onOpenPhotoDrawer={() => setIsPhotoDrawerOpen(true)}
 								onRemovePhoto={handleRemovePhoto}
 								onReorderPhotos={handleReorderPhotos}
 								profileId={profile?.profileId ?? userId}
@@ -1038,6 +1088,7 @@ export function ProfileEditorPage() {
 										<div className="relative rounded-xl border border-[var(--border)] overflow-hidden">
 											<ReactCrop
 												crop={photoCrop}
+												aspect={1}
 												onChange={(c) => { setIsDraggingPhotoCrop(true); setPhotoCrop(c); }}
 												onComplete={(c) => { setIsDraggingPhotoCrop(false); setPhotoCompletedCrop(c); }}
 												ruleOfThirds={isDraggingPhotoCrop}
@@ -1046,7 +1097,14 @@ export function ProfileEditorPage() {
 												className="photo-crop ReactCrop--no-animate"
 												style={{ maxHeight: "45dvh", display: "block" }}
 											>
-												<img ref={photoImgRef} src={photoPreviewUrl} alt="Preview" className="block" style={{ maxHeight: "45dvh" }} />
+												<img
+													ref={photoImgRef}
+													src={photoPreviewUrl}
+													alt="Preview"
+													className="block"
+													style={{ maxHeight: "45dvh" }}
+													onLoad={handlePhotoImageLoad}
+												/>
 											</ReactCrop>
 											{pendingPhotoTakenOnGrindr && photoCrop && (
 												<div
@@ -1065,14 +1123,6 @@ export function ProfileEditorPage() {
 											)}
 										</div>
 									</div>
-									<div className="mt-3 flex items-center justify-center gap-8">
-										<button type="button" onClick={() => void applyPhotoTransform("flipH")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Flip horizontal">
-											<SquareCenterlineDashedHorizontal className="h-6 w-6" />
-										</button>
-										<button type="button" onClick={() => void applyPhotoTransform("rotateCw")} className="text-[var(--text-muted)] transition hover:text-[var(--text)]" aria-label="Rotate clockwise">
-											<RotateCw className="h-6 w-6" />
-										</button>
-									</div>
 								</div>
 							)}
 						</div>
@@ -1088,6 +1138,23 @@ export function ProfileEditorPage() {
 						</div>
 					</div>
 				</BottomDrawer>
+			) : null}
+			{isPhotoDrawerOpen && !pendingPhotoFile ? (
+				<ProfilePictureDrawer
+					images={poolImages}
+					isLoading={isPoolLoading}
+					error={poolError}
+					onRetry={() => void loadPoolImages()}
+					usedHashes={profilePhotoHashes}
+					remainingSlots={Math.max(0, MAX_PROFILE_PHOTOS - profilePhotoHashes.length)}
+					isSelecting={isSavingPhotos}
+					onAddSelectedImages={handleAddSelectedImages}
+					deletingHash={deletingPoolHash}
+					onDeleteImage={handleDeletePoolImage}
+					onUploadFile={handleDrawerUploadFile}
+					onClose={() => setIsPhotoDrawerOpen(false)}
+					isDesktop={isDesktop}
+				/>
 			) : null}
 		</section>
 	);
