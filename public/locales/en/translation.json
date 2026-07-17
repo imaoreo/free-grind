@@ -690,7 +690,7 @@
                 "description": "What you're open to and how",
                 "looking_for": "Looking For",
                 "meet_at": "Meet At",
-                "accept_nsfw": "NSFW pics?"
+                "accept_nsfw": "NSFW pics"
             },
             "identity": {
                 "title": "Identity",
@@ -1177,7 +1177,9 @@
             "unblocked": "You were unblocked"
         },
         "block_toast": {
+            "blocked_by_one": "",
             "blocked_by_other": "{{name}} blocked you",
+            "unblocked_by_one": "",
             "unblocked_by_other": "{{name}} unblocked you"
         },
         "realtime": {
