@@ -168,6 +168,10 @@ const preferencesSchema = z.object({
 	revealEffectEnabled: z.boolean().default(true),
 	revealEffectStrength: z.enum(["subtle", "pronounced"]).default("subtle"),
 	showAlbumSensitiveContentWarning: z.boolean().default(true),
+	defaultExpiringPhotos: z.boolean().default(false),
+	defaultAlbumExpirationType: z
+		.enum(["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"])
+		.default("INDEFINITE"),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -198,6 +202,8 @@ type PreferencesAction =
 	| { type: "SET_REVEAL_EFFECT_ENABLED"; payload: boolean }
 	| { type: "SET_REVEAL_EFFECT_STRENGTH"; payload: RevealStrength }
 	| { type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING"; payload: boolean }
+	| { type: "SET_DEFAULT_EXPIRING_PHOTOS"; payload: boolean }
+	| { type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE"; payload: Preferences["defaultAlbumExpirationType"] }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
@@ -238,6 +244,10 @@ function preferencesReducer(
 			return { ...state, revealEffectStrength: action.payload };
 		case "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING":
 			return { ...state, showAlbumSensitiveContentWarning: action.payload };
+		case "SET_DEFAULT_EXPIRING_PHOTOS":
+			return { ...state, defaultExpiringPhotos: action.payload };
+		case "SET_DEFAULT_ALBUM_EXPIRATION_TYPE":
+			return { ...state, defaultAlbumExpirationType: action.payload };
 		case "SET_RIGHT_NOW_STATUS":
 			return {
 				...state,
@@ -314,6 +324,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: true,
 		revealEffectStrength: "subtle",
 		showAlbumSensitiveContentWarning: true,
+		defaultExpiringPhotos: false,
+		defaultAlbumExpirationType: "INDEFINITE",
 		isLoading: true,
 	});
 
@@ -349,6 +361,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
 					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: parsed.revealEffectStrength });
 					dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: parsed.showAlbumSensitiveContentWarning });
+					dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: parsed.defaultExpiringPhotos });
+					dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: parsed.defaultAlbumExpirationType });
 					dispatch({
 						type: "SET_RIGHT_NOW_STATUS",
 						payload: {
@@ -431,6 +445,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				revealEffectEnabled: currentState.revealEffectEnabled,
 				revealEffectStrength: currentState.revealEffectStrength,
 				showAlbumSensitiveContentWarning: currentState.showAlbumSensitiveContentWarning,
+				defaultExpiringPhotos: currentState.defaultExpiringPhotos,
+				defaultAlbumExpirationType: currentState.defaultAlbumExpirationType,
 				activeRightNowId: currentState.activeRightNowId ?? null,
 				activeRightNowExpiresAt: currentState.activeRightNowExpiresAt ?? null,
 				...newValues,
@@ -489,6 +505,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.showAlbumSensitiveContentWarning !== undefined) {
 				dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: newValues.showAlbumSensitiveContentWarning });
+			}
+			if (newValues.defaultExpiringPhotos !== undefined) {
+				dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: newValues.defaultExpiringPhotos });
+			}
+			if (newValues.defaultAlbumExpirationType !== undefined) {
+				dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: newValues.defaultAlbumExpirationType });
 			}
 			if (
 				newValues.activeRightNowId !== undefined ||
@@ -558,6 +580,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					revealEffectEnabled: preferences.revealEffectEnabled,
 					revealEffectStrength: preferences.revealEffectStrength,
 					showAlbumSensitiveContentWarning: preferences.showAlbumSensitiveContentWarning,
+					defaultExpiringPhotos: preferences.defaultExpiringPhotos,
+					defaultAlbumExpirationType: preferences.defaultAlbumExpirationType,
 					activeRightNowId: preferences.activeRightNowId,
 					activeRightNowExpiresAt: preferences.activeRightNowExpiresAt,
 				}),
@@ -586,6 +610,8 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: state.revealEffectEnabled,
 		revealEffectStrength: state.revealEffectStrength,
 		showAlbumSensitiveContentWarning: state.showAlbumSensitiveContentWarning,
+		defaultExpiringPhotos: state.defaultExpiringPhotos,
+		defaultAlbumExpirationType: state.defaultAlbumExpirationType,
 		setPreferences,
 		isLoading: state.isLoading || !isLocationLoaded,
 	};

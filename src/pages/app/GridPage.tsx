@@ -24,6 +24,7 @@ import { setSavedAccountDisplayName, setSavedAccountPhotoHash, getSavedAccountPr
 import { Avatar } from "../../components/ui/avatar";
 import {
 	type BrowseSortOption,
+	getCachedBrowseFiltersDraft,
 	getDefaultBrowseFiltersDraft,
 	loadBrowseFiltersDraft,
 } from "./browse-filters-storage";
@@ -50,18 +51,23 @@ import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoDat
 import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
 import { LocationOverlay, type ExploreLocation, EXPLORE_COLOR } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
-import {
-	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
-	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
-} from "../../utils/blockConfirm";
+import { SKIP_BLOCK_CONFIRM_KEY, isBlockConfirmSkipped } from "../../utils/blockConfirm";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 // The local displayname filter ("Lokale Filter" > nicknameFilter) matches
 // only against already-loaded cards, so a narrow/rare name would otherwise
 // keep auto-pagination running indefinitely trying to find more matches.
 const NICKNAME_FILTER_MAX_PAGES = 7;
+
+// Guards the initial auto-location refresh below to once per actual app
+// launch. This has to be a module-level variable, not sessionStorage — the
+// embedded webview (Tauri) persists Web Storage across full app restarts
+// just like localStorage, so a sessionStorage-backed flag would only ever
+// fire once per install instead of once per launch, silently disabling the
+// startup location/geocode refresh (though not later ones — the periodic
+// timer and pull-to-refresh call refreshLocation() unconditionally). A
+// plain module variable is reliably reset on every fresh process start.
+let hasRefreshedLocationThisAppLaunch = false;
 
 export function GridPage() {
 	const { t } = useTranslation();
@@ -174,7 +180,7 @@ export function GridPage() {
 		null,
 	);
 	const [pendingProfileConfirm, setPendingProfileConfirm] = useState<{
-		action: "block" | "unblock";
+		action: "block";
 		profileId: string;
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
@@ -273,7 +279,7 @@ export function GridPage() {
 		clearBrowseFilters,
 		nicknameFilter,
 		applyDraft,
-	} = useBrowseFilters(getDefaultBrowseFiltersDraft());
+	} = useBrowseFilters(getCachedBrowseFiltersDraft() ?? getDefaultBrowseFiltersDraft());
 
 	// Reload whenever the active account's chatDb is ready (settingsReady),
 	// so switching accounts from GridPage's own account switcher also
@@ -643,15 +649,12 @@ export function GridPage() {
 	);
 
 	useEffect(() => {
-		const SESSION_REFRESH_KEY = "grid_initial_location_refreshed";
-		const hasRefreshedThisSession = sessionStorage.getItem(SESSION_REFRESH_KEY) === "true";
-
-		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedThisSession) {
+		if (!isLoadingPreferences && useAutoLocation && !initialLocationChecked && !hasRefreshedLocationThisAppLaunch) {
 			appLog.info("[grid] triggering initial session auto-location refresh");
 			void refreshLocation().finally(() => {
 				if (isMountedRef.current) {
 					setInitialLocationChecked(true);
-					sessionStorage.setItem(SESSION_REFRESH_KEY, "true");
+					hasRefreshedLocationThisAppLaunch = true;
 				}
 			});
 		} else if (!isLoadingPreferences && !initialLocationChecked) {
@@ -1147,13 +1150,8 @@ export function GridPage() {
 				return;
 			}
 
-			if (isUnblockConfirmSkipped()) {
-				await performUnblockProfile(targetProfileId);
-				return;
-			}
-
-			setDontAskAgainChecked(false);
-			setPendingProfileConfirm({ action: "unblock", profileId: targetProfileId });
+			// Unblocking isn't destructive, so it never needs a confirmation prompt.
+			await performUnblockProfile(targetProfileId);
 		},
 		[isBlockingProfile, isUnblockingProfile, performUnblockProfile],
 	);
@@ -1224,25 +1222,17 @@ export function GridPage() {
 			return;
 		}
 
-		const { action, profileId } = pendingProfileConfirm;
+		const { profileId } = pendingProfileConfirm;
 		if (dontAskAgainChecked && typeof window !== "undefined") {
-			localStorage.setItem(
-				action === "block" ? SKIP_BLOCK_CONFIRM_KEY : SKIP_UNBLOCK_CONFIRM_KEY,
-				"true",
-			);
+			localStorage.setItem(SKIP_BLOCK_CONFIRM_KEY, "true");
 		}
 
 		setPendingProfileConfirm(null);
-		if (action === "block") {
-			await performBlockProfile(profileId);
-			return;
-		}
-		await performUnblockProfile(profileId);
+		await performBlockProfile(profileId);
 	}, [
 		dontAskAgainChecked,
 		pendingProfileConfirm,
 		performBlockProfile,
-		performUnblockProfile,
 		isBlockingProfile,
 		isUnblockingProfile,
 	]);
@@ -1680,28 +1670,14 @@ export function GridPage() {
 
 			<ConfirmDialog
 				isOpen={pendingProfileConfirm !== null}
-				title={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
-				message={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock_confirm")
-						: t("profile_details.block_confirm")
-				}
-				confirmLabel={
-					pendingProfileConfirm?.action === "unblock"
-						? t("profile_details.unblock")
-						: t("profile_details.block")
-				}
+				title={t("profile_details.block")}
+				message={t("profile_details.block_confirm")}
+				confirmLabel={t("profile_details.block")}
 				cancelLabel={t("chat.actions.cancel")}
 				onConfirm={handleConfirmProfileAction}
 				onCancel={handleCancelProfileConfirm}
 				isProcessing={isBlockingProfile || isUnblockingProfile}
-				confirmTone={
-					pendingProfileConfirm?.action === "unblock" ? "default" : "danger"
-				}
+				confirmTone="danger"
 				dontAskAgainLabel={t("profile_details.dont_ask_again")}
 				dontAskAgainChecked={dontAskAgainChecked}
 				onDontAskAgainChange={setDontAskAgainChecked}

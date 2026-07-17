@@ -82,10 +82,10 @@ import {
 	getMediaCaptureTarget,
 } from "./chatUtils";
 import { getCachedMediaUri } from "../../../services/mediaStore";
+import { isAlbumCachedLocally } from "../../../services/albumStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
-import { FreeGrindBadge } from "../../../components/FreeGrindBadge";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
@@ -103,10 +103,8 @@ import { matchSlashCommandsByPrefix, type SlashCommandDef } from "./slashCommand
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
 	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
 } from "../../../utils/blockConfirm";
 
@@ -191,6 +189,7 @@ type ChatThreadPanelProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	handleRemoveLocalAlbum: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
@@ -458,8 +457,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		useState(false);
 	const [dontAskDeleteConversationAgain, setDontAskDeleteConversationAgain] = useState(false);
 	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
-	const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
-	const [dontAskUnblockAgain, setDontAskUnblockAgain] = useState(false);
 
 	const {
 		navigate,
@@ -524,6 +521,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleRetry,
 		handleReply,
 		handleStopAlbumShare,
+		handleRemoveLocalAlbum,
 		threadBottomRef,
 		handleSend,
 		toggleAlbumPicker: _toggleAlbumPicker,
@@ -791,13 +789,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 	};
 
-	const closeUnblockConfirm = () => {
-		if (isUnblockingProfile) {
-			return;
-		}
-		setIsUnblockConfirmOpen(false);
-	};
-
 	const closeDeleteConversationConfirm = () => {
 		if (isDeletingConversation) {
 			return;
@@ -878,12 +869,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	});
 
 	useModalClose({
-		isOpen: isUnblockConfirmOpen,
-		onClose: closeUnblockConfirm,
-		escapeKey: !isUnblockingProfile,
-	});
-
-	useModalClose({
 		isOpen: isDeleteConversationConfirmOpen,
 		onClose: closeDeleteConversationConfirm,
 		escapeKey: !isDeletingConversation,
@@ -899,8 +884,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 		setIsDeleteConversationConfirmOpen(false);
 		setDontAskBlockAgain(false);
-		setIsUnblockConfirmOpen(false);
-		setDontAskUnblockAgain(false);
 	}, [selectedConversation?.data.conversationId]);
 
 	useEffect(() => {
@@ -1103,26 +1086,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						return;
 					}
 
+					// Unblocking isn't destructive, so it never needs a confirmation prompt.
 					setIsHeaderActionsMenuOpen(false);
-					if (isUnblockConfirmSkipped()) {
-						void onUnblockProfile(profileId);
-						return;
-					}
-
-					setDontAskUnblockAgain(false);
-					setIsUnblockConfirmOpen(true);
-				};
-
-				const confirmUnblockProfile = () => {
-					if (profileId == null || isUnblockingProfile || !onUnblockProfile) {
-						return;
-					}
-
-					if (dontAskUnblockAgain && typeof window !== "undefined") {
-						localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
-					}
-
-					setIsUnblockConfirmOpen(false);
 					void onUnblockProfile(profileId);
 				};
 
@@ -1213,14 +1178,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<p className="truncate text-lg font-semibold">
 											{displayName}
 										</p>
-										{profileId != null && presenceResults[profileId] ? (
-											<FreeGrindBadge size="md" title={t("profile_details.uses_free_grind")} />
-										) : null}
 									</div>
 									<p className="text-sm text-[var(--text-muted)]">
-										{distanceLabel
-											? `${onlineMeta.label} · ${distanceLabel}`
-											: onlineMeta.label}
+										{[
+											onlineMeta.label,
+											distanceLabel,
+											profileId != null && presenceResults[profileId] ? "Free Grind" : null,
+										]
+											.filter(Boolean)
+											.join(" · ")}
 									</p>
 								</div>
 							</div>
@@ -1593,20 +1559,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							onDontAskAgainChange={setDontAskBlockAgain}
 						/>
 						<ConfirmDialog
-							isOpen={isUnblockConfirmOpen}
-							title={t("profile_details.unblock")}
-							message={t("profile_details.unblock_confirm")}
-							confirmLabel={t("profile_details.unblock")}
-							cancelLabel={t("chat.actions.cancel")}
-							onConfirm={confirmUnblockProfile}
-							onCancel={closeUnblockConfirm}
-							isProcessing={isUnblockingProfile}
-							confirmTone="default"
-							dontAskAgainLabel={t("profile_details.dont_ask_again")}
-							dontAskAgainChecked={dontAskUnblockAgain}
-							onDontAskAgainChange={setDontAskUnblockAgain}
-						/>
-						<ConfirmDialog
 							isOpen={isDeleteConversationConfirmOpen}
 							title={t("chat.delete_conversation")}
 							message={t("chat.delete_conversation_confirm")}
@@ -1739,6 +1691,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
+						handleRemoveLocalAlbum={handleRemoveLocalAlbum}
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
@@ -2194,7 +2147,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</div>}
 						</div>
 
-                        <div className="mb-2 mx-5 flex items-center justify-between gap-2">
+                        <div className={`${!isDesktop ? "mb-2" : ""} mx-5 flex items-center justify-between gap-2`}>
 							<button
 								type="button"
 								onClick={() => {
@@ -2707,6 +2660,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											icon: <Album className="h-3.5 w-3.5" />,
 											label: t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" }),
 											onClick: () => void handleStopAlbumShare(albumId),
+											disabled: isMutating,
+										});
+									}
+
+									if (!mine && albumId && isAlbumCachedLocally(albumId)) {
+										rows.push({
+											key: "remove-share",
+											icon: <Album className="h-3.5 w-3.5" />,
+											label: t("chat.actions.remove_share", { defaultValue: "Remove Share" }),
+											onClick: () => void handleRemoveLocalAlbum(albumId),
 											disabled: isMutating,
 										});
 									}

@@ -12,6 +12,7 @@ import {
 	Download,
 	GitBranch,
 	HeartPulse,
+	HelpCircle,
 	Images,
 	Info,
 	Loader2,
@@ -24,6 +25,7 @@ import {
 	RefreshCcw,
 	Shield,
 	SlidersHorizontal,
+	Terminal,
     Workflow,
 	UserPlus,
 	UserX,
@@ -42,6 +44,7 @@ import {
 	checkForHotswapUpdate,
 	getCurrentHotswapChannel,
 	getHotswapChannels,
+	getHotswapChannelLabel,
 	installHotswapUpdate,
 	isHotswapAvailable,
 	setHotswapChannel,
@@ -52,13 +55,14 @@ import {
 } from "../../services/hotswap";
 import { Button } from "../../components/ui/button";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
-import { FingerprintCheckButton } from "../../components/FingerprintCheckButton";
+import { useFingerprintCheck } from "../../components/FingerprintCheckButton";
 import { VersionAnnouncement } from "../../components/VersionAnnouncement";
 import { VERSION_ANNOUNCEMENTS } from "../../data/versionAnnouncements";
 import { OutdatedVersionPromptView } from "../../components/OutdatedVersionPrompt";
 import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
 import { getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
+import { isAndroid } from "../../services/saveMedia";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
@@ -202,6 +206,7 @@ export function SettingsPage() {
 	const [previewOutdatedPrompt, setPreviewOutdatedPrompt] = useState(false);
 	const [isCheckingUpdates, setIsCheckingUpdates] = useState(false);
 	const [isSwitchingChannel, setIsSwitchingChannel] = useState(false);
+	const fingerprintCheck = useFingerprintCheck();
 	const [isSyncingFcm, setIsSyncingFcm] = useState(false);
 	const [fcmToken, setFcmToken] = useState<string | null>(() => {
 		const stored = window.localStorage.getItem(PUSH_TOKEN_STORAGE_KEY);
@@ -231,19 +236,9 @@ export function SettingsPage() {
 	}, []);
 	const [updateChannel, setUpdateChannel] =
 		useState<HotswapChannel>(getCurrentHotswapChannel());
-	const visibleChannels = getHotswapChannels({ includeDevChannels: developerMode });
+	const visibleChannels = getHotswapChannels();
 	const [contributorCodeInput, setContributorCodeInput] = useState("");
 	const [isActivatingContributor, setIsActivatingContributor] = useState(false);
-
-	useEffect(() => {
-		if (!developerMode && updateChannel === "testingwjay") {
-			void setHotswapChannel("main").then(() => {
-				setUpdateChannel("main");
-				toast("Developer-only update channel disabled; switched to main.");
-			});
-		}
-		// Contributor channels are always allowed regardless of developer mode
-	}, [developerMode, updateChannel]);
 
 	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
 		const tokenToSync = overrideToken ?? fcmToken;
@@ -346,11 +341,6 @@ export function SettingsPage() {
 	};
 
 	const handleSwitchUpdateChannel = async (channel: HotswapChannel) => {
-		if (!developerMode && channel === "testingwjay") {
-			toast.error("Enable Developer Mode to use this update branch.");
-			return;
-		}
-
 		if (!isHotswapAvailable()) {
 			toast.error(t("settings.ota_available_only_tauri"));
 			return;
@@ -368,12 +358,12 @@ export function SettingsPage() {
 			const result = await checkForHotswapUpdate();
 			if (!result.requiresBinaryUpdate && result.available) {
 				await installHotswapUpdate();
-				toast.success(t("settings.switched_and_updated", { channel }));
+				toast.success(t("settings.switched_and_updated", { channel: getHotswapChannelLabel(channel) }));
 				window.location.reload();
 				return;
 			}
 
-			toast.success(t("settings.switched_channel", { channel }));
+			toast.success(t("settings.switched_channel", { channel: getHotswapChannelLabel(channel) }));
 			window.location.reload();
 		} catch (error) {
 			if (import.meta.env.DEV) {
@@ -479,6 +469,30 @@ export function SettingsPage() {
 			<div className={cls}>{inner}</div>
 		);
 	};
+
+	if (previewAnnouncement && LATEST_ANNOUNCEMENT) {
+		return (
+			<div className="app-shell z-[300]">
+				<VersionAnnouncement
+					announcement={LATEST_ANNOUNCEMENT}
+					buttonLabel="Close"
+					onClose={() => setPreviewAnnouncement(false)}
+				/>
+			</div>
+		);
+	}
+
+	if (previewOutdatedPrompt) {
+		return (
+			<div className="app-shell z-[110]">
+				<OutdatedVersionPromptView
+					appVersion={import.meta.env.VITE_APP_VERSION}
+					releaseInfo={PREVIEW_RELEASE_INFO}
+					onDismiss={() => setPreviewOutdatedPrompt(false)}
+				/>
+			</div>
+		);
+	}
 
 	return (
 		<section className="app-screen">
@@ -807,7 +821,7 @@ export function SettingsPage() {
 														: "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:border-[var(--accent)]/50"
 												}`}
 											>
-												{channel}
+												{getHotswapChannelLabel(channel)}
 											</button>
 										))}
 									</div>
@@ -819,36 +833,42 @@ export function SettingsPage() {
 						{(developerMode || isContributorChannel(updateChannel)) && (
 							<div className="px-4 py-3.5">
 								<div className="flex items-start gap-3">
-									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
-										<GitBranch className="h-5 w-5" />
+									<div className="relative shrink-0">
+										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
+											<GitBranch className="h-5 w-5" />
+										</div>
+										{isContributorChannel(updateChannel) && (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
+												<CheckCircle2 className="h-3 w-3" />
+											</div>
+										)}
 									</div>
 									<div className="grid gap-2 min-w-0 flex-1">
 										<div>
 											<p className="text-sm font-semibold leading-snug">Contributor Channel</p>
-											<p className="text-xs text-[var(--text-muted)] mt-0.5">Receive experimental builds from a community contributor.</p>
+											<p className="text-xs text-[var(--text-muted)] mt-0.5">
+											{isContributorChannel(updateChannel)
+												? "Receiving experimental builds from a community contributor. Use at your own risk."
+												: "Receive experimental builds from a community contributor."}
+										</p>
 										</div>
 										{isContributorChannel(updateChannel) ? (
-											<>
-												<div className="flex items-center justify-between rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
-													<div>
-														<p className="text-xs text-[var(--text-muted)]">Active</p>
-														<p className="text-sm font-semibold text-[var(--accent)]">{getContributorHandle(updateChannel)}</p>
-													</div>
-													<button
-														type="button"
-														disabled={isSwitchingChannel}
-														onClick={() => void handleLeaveContributorChannel()}
-														className="rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-2.5 py-1 text-xs text-[var(--text-muted)] transition hover:border-red-400 hover:text-red-400 disabled:opacity-50"
-													>
-														{isSwitchingChannel ? "Leaving…" : "Leave"}
-													</button>
+											<div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
+												<div className="min-w-0">
+													<p className="text-xs text-[var(--text-muted)]">Active</p>
+													<p className="text-sm font-semibold text-[var(--accent)] truncate">{getContributorHandle(updateChannel)}</p>
 												</div>
-												<p className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-300">
-													Community build — use at your own risk.
-												</p>
-											</>
+												<button
+													type="button"
+													disabled={isSwitchingChannel}
+													onClick={() => void handleLeaveContributorChannel()}
+													className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+												>
+													{isSwitchingChannel ? "Leaving…" : "Leave"}
+												</button>
+											</div>
 										) : developerMode ? (
-											<div className="flex items-center gap-2">
+											<div className="flex gap-2">
 												<input
 													type="text"
 													value={contributorCodeInput}
@@ -856,16 +876,11 @@ export function SettingsPage() {
 													onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
 													placeholder="contributor-handle"
 													maxLength={32}
-													className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+													className="input-field flex min-w-0 flex-1 items-center font-mono text-xs"
 												/>
-												<button
-													type="button"
-													disabled={isActivatingContributor || !contributorCodeInput}
-													onClick={() => void handleActivateContributorChannel()}
-													className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-black transition disabled:opacity-50"
-												>
+												<Button type="button" disabled={isActivatingContributor || !contributorCodeInput} onClick={() => void handleActivateContributorChannel()}>
 													{isActivatingContributor ? "Activating…" : "Activate"}
-												</button>
+												</Button>
 											</div>
 										) : null}
 									</div>
@@ -898,11 +913,12 @@ export function SettingsPage() {
 							</div>
 							{navRow(
 								() => navigate("/settings/api-inspector"),
-								<Radar className="h-5 w-5" />,
+								<Terminal className="h-5 w-5" />,
 								"bg-[var(--surface-2)] text-[var(--text-muted)]",
 								t("settings.api_inspector"),
 								t("settings.api_inspector_desc"),
 							)}
+							{isAndroid() && (
 							<div className="p-4 sm:p-5">
 								<div className="flex items-start gap-3">
 									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
@@ -973,17 +989,73 @@ export function SettingsPage() {
 									</div>
 								</div>
 							</div>
-							<div className="p-4 sm:p-5 border-t border-[var(--border)]">
+							)}
+							<div className="p-4 sm:p-5">
 								<div className="flex items-start gap-3">
-									<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 shrink-0 text-[var(--text-muted)]">
-										<Radar className="h-5 w-5" />
+									<div className="relative shrink-0">
+										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
+											<Radar className="h-5 w-5" />
+										</div>
+										{fingerprintCheck.loading ? (
+											<div
+												className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full ring-2 ring-[var(--surface)]"
+												style={{ backgroundColor: "var(--accent)", color: "var(--accent-contrast)" }}
+											>
+												<Loader2 className="h-3 w-3 animate-spin" />
+											</div>
+										) : fingerprintCheck.ok ? (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
+												<CheckCircle2 className="h-3 w-3" />
+											</div>
+										) : fingerprintCheck.result || fingerprintCheck.error ? (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white ring-2 ring-[var(--surface)]">
+												<AlertCircle className="h-3 w-3" />
+											</div>
+										) : (
+											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] ring-2 ring-[var(--surface)]">
+												<HelpCircle className="h-3 w-3" />
+											</div>
+										)}
 									</div>
 									<div className="grid gap-3 min-w-0 flex-1">
-										<div>
-											<p className="text-sm font-semibold">Fingerprint Check</p>
-											<p className="text-xs text-[var(--text-muted)] mt-0.5">Verify your HTTP/TLS fingerprint matches OkHttp configuration.</p>
+										<div className="grid grid-cols-[1fr_auto] gap-x-3">
+											<p className="text-sm font-semibold leading-snug">Fingerprint Check</p>
+											<div className="row-span-2 flex items-start">
+												<Button type="button" disabled={fingerprintCheck.loading} onClick={() => void fingerprintCheck.checkFingerprint()}>
+													Check
+												</Button>
+											</div>
+											<p className="mt-0.5 text-xs text-[var(--text-muted)]">Verify your HTTP/TLS fingerprint matches OkHttp configuration.</p>
 										</div>
-										<FingerprintCheckButton />
+										{fingerprintCheck.result && (
+											<div className="grid gap-2">
+												<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+													<div className="mb-1 flex items-center justify-between gap-2">
+														<p className="text-xs text-[var(--text-muted)]">JA3 Hash</p>
+														<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fingerprintCheck.result.ja3_match ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+															{fingerprintCheck.result.ja3_match ? "✓ Match" : "✗ Mismatch"}
+														</span>
+													</div>
+													<p className="break-all font-mono text-xs">{fingerprintCheck.result.ja3_hash}</p>
+												</div>
+												<div className="rounded-lg bg-[var(--surface-2)] px-3 py-2">
+													<div className="mb-1 flex items-center justify-between gap-2">
+														<p className="text-xs text-[var(--text-muted)]">Akamai Fingerprint</p>
+														<span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${fingerprintCheck.result.akamai_match ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+															{fingerprintCheck.result.akamai_match ? "✓ Match" : "✗ Mismatch"}
+														</span>
+													</div>
+													<p className="break-all font-mono text-xs">{fingerprintCheck.result.akamai_fingerprint}</p>
+												</div>
+												<p className="text-xs text-[var(--text-muted)]">HTTP Version <span className="font-mono text-[var(--text)]">{fingerprintCheck.result.http_version}</span></p>
+											</div>
+										)}
+										{fingerprintCheck.error && (
+											<div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 px-3 py-2 text-sm text-yellow-400">
+												<p className="font-medium mb-0.5">Fingerprint check failed</p>
+												<p className="text-xs opacity-80">{fingerprintCheck.error}</p>
+											</div>
+										)}
 									</div>
 								</div>
 							</div>
@@ -1008,22 +1080,6 @@ export function SettingsPage() {
 						</div>
 					</div>
 				) : null}
-
-				{previewAnnouncement && LATEST_ANNOUNCEMENT && (
-					<VersionAnnouncement
-						announcement={LATEST_ANNOUNCEMENT}
-						buttonLabel="Close"
-						onClose={() => setPreviewAnnouncement(false)}
-					/>
-				)}
-
-				{previewOutdatedPrompt && (
-					<OutdatedVersionPromptView
-						appVersion={import.meta.env.VITE_APP_VERSION}
-						releaseInfo={PREVIEW_RELEASE_INFO}
-						onDismiss={() => setPreviewOutdatedPrompt(false)}
-					/>
-				)}
 
 				{/* About */}
 				<div>

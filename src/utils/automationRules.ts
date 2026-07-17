@@ -38,7 +38,13 @@ export type AutomationRuleCondition =
 	| { type: "age_below"; value: number }
 	| { type: "bio_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean }
 	| { type: "message_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean }
-	| { type: "display_name_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean };
+	| { type: "display_name_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean }
+	| { type: "has_x_handle"; has: boolean }
+	| { type: "has_instagram_handle"; has: boolean }
+	| { type: "has_facebook_handle"; has: boolean }
+	| { type: "x_handle_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean }
+	| { type: "instagram_handle_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean }
+	| { type: "facebook_handle_contains_keyword"; keywords: string; useForbiddenList?: boolean; negate?: boolean };
 
 export type AutomationRuleAction =
 	| { type: "block" }
@@ -73,11 +79,20 @@ export interface AutomationRule {
 // Minimal profile shape rule conditions need. A full ProfileDetail satisfies
 // this; call sites that already have age/photo/bio inline (inbox previews)
 // can pass a plain object instead of fetching the full profile.
+// socialNetworks isn't part of the inbox-preview payload (chatService.ts's
+// listConversations reconciliation), so handle-based conditions never match
+// on that call site's snapshot — only on the lazily-fetched full ProfileDetail
+// used by ChatPage.tsx/ChatRealtimeBridge.tsx.
 export interface AutomationProfileSnapshot {
 	age?: number | null;
 	profileImageMediaHash?: string | null;
 	aboutMe?: string | null;
 	displayName?: string | null;
+	socialNetworks?: {
+		instagram?: { userId?: string | null };
+		twitter?: { userId?: string | null };
+		facebook?: { userId?: string | null };
+	};
 }
 
 const AUTOMATION_RULES_KEY = "automation_rules";
@@ -307,6 +322,33 @@ function conditionMatches(
 			return (
 				textContainsKeyword(profile?.displayName, condition.useForbiddenList ? getForbiddenWords() : condition.keywords) !==
 				!!condition.negate
+			);
+		case "has_x_handle":
+			return !!profile?.socialNetworks?.twitter?.userId === condition.has;
+		case "has_instagram_handle":
+			return !!profile?.socialNetworks?.instagram?.userId === condition.has;
+		case "has_facebook_handle":
+			return !!profile?.socialNetworks?.facebook?.userId === condition.has;
+		case "x_handle_contains_keyword":
+			return (
+				textContainsKeyword(
+					profile?.socialNetworks?.twitter?.userId,
+					condition.useForbiddenList ? getForbiddenWords() : condition.keywords,
+				) !== !!condition.negate
+			);
+		case "instagram_handle_contains_keyword":
+			return (
+				textContainsKeyword(
+					profile?.socialNetworks?.instagram?.userId,
+					condition.useForbiddenList ? getForbiddenWords() : condition.keywords,
+				) !== !!condition.negate
+			);
+		case "facebook_handle_contains_keyword":
+			return (
+				textContainsKeyword(
+					profile?.socialNetworks?.facebook?.userId,
+					condition.useForbiddenList ? getForbiddenWords() : condition.keywords,
+				) !== !!condition.negate
 			);
 	}
 }

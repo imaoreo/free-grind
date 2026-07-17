@@ -164,16 +164,31 @@ export function normalizeBrowseFiltersDraft(
 	};
 }
 
+// GridPage fully unmounts/remounts on every in-app navigation away from and
+// back to "/", so its local filter state normally has to reset to defaults
+// and wait on an async chatDb round trip to reload the real draft — visible
+// to the user as filters flashing "gone" for a moment. This module-level
+// cache survives that remount (but not a full page reload), so GridPage can
+// seed its initial state from the last known-good draft instead of defaults.
+let lastKnownBrowseFiltersDraft: BrowseFiltersDraft | null = null;
+
+export function getCachedBrowseFiltersDraft(): BrowseFiltersDraft | null {
+	return lastKnownBrowseFiltersDraft;
+}
+
 export async function loadBrowseFiltersDraft(): Promise<BrowseFiltersDraft> {
 	try {
 		const stored = await getSetting<BrowseFiltersDraftInput>(STORAGE_KEY);
-		return normalizeBrowseFiltersDraft(stored);
+		const normalized = normalizeBrowseFiltersDraft(stored);
+		lastKnownBrowseFiltersDraft = normalized;
+		return normalized;
 	} catch {
 		return getDefaultBrowseFiltersDraft();
 	}
 }
 
 export async function saveBrowseFiltersDraft(draft: BrowseFiltersDraft): Promise<void> {
+	lastKnownBrowseFiltersDraft = draft;
 	try {
 		await setSetting(STORAGE_KEY, draft);
 	} catch {

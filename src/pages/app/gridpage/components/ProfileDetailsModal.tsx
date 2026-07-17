@@ -1526,44 +1526,46 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</div>
 						)}
 						{carouselHashes.length > 1 && (
-							<div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
+							<div className="absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
-									{carouselHashes.map((hash, index) =>
-										hash === RIGHT_NOW_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
-												aria-hidden="true"
-											>
-												<Zap
-													className="h-3 w-3 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
-													fill="currentColor"
+									{carouselHashes.map((hash, index) => (
+										<button
+											key={`${hash}-dot`}
+											type="button"
+											onClick={() => setMobileCarouselPhotoIndex(index)}
+											className="flex items-center justify-center p-1.5 -m-1.5"
+											aria-label={t("profile_details.open_photo", { index: index + 1 })}
+										>
+											{hash === RIGHT_NOW_SLIDE_HASH ? (
+												<span
+													className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
+												>
+													<Zap
+														className="h-3 w-3 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
+														fill="currentColor"
+													/>
+												</span>
+											) : hash === ALBUM_SLIDE_HASH ? (
+												<span
+													className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
+												>
+													<Album
+														className="h-3 w-3 shrink-0 scale-[0.6] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
+													/>
+												</span>
+											) : (
+												<span
+													className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${
+														index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"
+													}`}
 												/>
-											</span>
-										) : hash === ALBUM_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
-												aria-hidden="true"
-											>
-												<Album
-													className="h-3 w-3 shrink-0 scale-[0.6] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
-												/>
-											</span>
-										) : (
-											<span
-												key={`${hash}-dot`}
-												className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${
-													index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"
-												}`}
-												aria-hidden="true"
-											/>
-										)
-									)}
+											)}
+										</button>
+									))}
 								</div>
 							</div>
 						)}
@@ -1924,44 +1926,46 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</>
 						)}
 						{carouselHashes.length > 1 && (
-							<div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
+							<div className="absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-2 rounded-full bg-black/30 px-[7px] py-[14px] backdrop-blur-sm">
-									{carouselHashes.map((hash, index) =>
-										hash === RIGHT_NOW_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
-												aria-hidden="true"
-											>
-												<Zap
-													className="h-4 w-4 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
-													fill="currentColor"
+									{carouselHashes.map((hash, index) => (
+										<button
+											key={`${hash}-dot`}
+											type="button"
+											onClick={() => setMobileCarouselPhotoIndex(index)}
+											className="flex items-center justify-center p-1.5 -m-1.5"
+											aria-label={t("profile_details.open_photo", { index: index + 1 })}
+										>
+											{hash === RIGHT_NOW_SLIDE_HASH ? (
+												<span
+													className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
+												>
+													<Zap
+														className="h-4 w-4 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
+														fill="currentColor"
+													/>
+												</span>
+											) : hash === ALBUM_SLIDE_HASH ? (
+												<span
+													className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
+												>
+													<Album
+														className="h-4 w-4 shrink-0 scale-[0.65] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
+													/>
+												</span>
+											) : (
+												<span
+													className={`w-2 rounded-full transition-[height,background-color] duration-300 ease-out ${
+														index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40"
+													}`}
 												/>
-											</span>
-										) : hash === ALBUM_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
-												aria-hidden="true"
-											>
-												<Album
-													className="h-4 w-4 shrink-0 scale-[0.65] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
-												/>
-											</span>
-										) : (
-											<span
-												key={`${hash}-dot`}
-												className={`w-2 rounded-full transition-[height,background-color] duration-300 ease-out ${
-													index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40"
-												}`}
-												aria-hidden="true"
-											/>
-										)
-									)}
+											)}
+										</button>
+									))}
 								</div>
 							</div>
 						)}

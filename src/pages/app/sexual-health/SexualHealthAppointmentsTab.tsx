@@ -101,7 +101,7 @@ function AppointmentFormSheet({
 						? t("sexualHealth.appointments.edit_title", { defaultValue: "Edit appointment" })
 						: t("sexualHealth.appointments.add_title", { defaultValue: "Add appointment" })}
 				</p>
-				<SheetClose disabled={isSaving} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40">
+				<SheetClose disabled={isSaving} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-40">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>

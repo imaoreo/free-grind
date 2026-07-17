@@ -61,12 +61,24 @@ function describeCondition(c: AutomationRuleCondition, t: TFunc): string {
 			return renderKeywordCondition(t, "message", c);
 		case "display_name_contains_keyword":
 			return renderKeywordCondition(t, "display_name", c);
+		case "has_x_handle":
+			return t(c.has ? "settings_automation.phrase_has_x_handle" : "settings_automation.phrase_no_x_handle");
+		case "has_instagram_handle":
+			return t(c.has ? "settings_automation.phrase_has_instagram_handle" : "settings_automation.phrase_no_instagram_handle");
+		case "has_facebook_handle":
+			return t(c.has ? "settings_automation.phrase_has_facebook_handle" : "settings_automation.phrase_no_facebook_handle");
+		case "x_handle_contains_keyword":
+			return renderKeywordCondition(t, "x_handle", c);
+		case "instagram_handle_contains_keyword":
+			return renderKeywordCondition(t, "instagram_handle", c);
+		case "facebook_handle_contains_keyword":
+			return renderKeywordCondition(t, "facebook_handle", c);
 	}
 }
 
 function renderKeywordCondition(
 	t: TFunc,
-	kind: "bio" | "message" | "display_name",
+	kind: "bio" | "message" | "display_name" | "x_handle" | "instagram_handle" | "facebook_handle",
 	c: { useForbiddenList?: boolean; keywords: string; negate?: boolean },
 ): string {
 	const variant = c.negate ? "prefix_not" : "prefix";

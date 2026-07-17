@@ -85,6 +85,7 @@ type ChatThreadMessagesProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	handleRemoveLocalAlbum: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
@@ -308,6 +309,7 @@ export function ChatThreadMessages({
 	handleRetry,
 	handleReply,
 	handleStopAlbumShare,
+	handleRemoveLocalAlbum,
 	threadBottomRef,
 	isPartnerTyping = false,
 	isArchived = false,
@@ -757,6 +759,16 @@ export function ChatThreadMessages({
 			});
 		}
 
+		if (!mine && isAlbumMessage && albumId && isAlbumCachedLocally(albumId)) {
+			actions.push({
+				key: "remove-share",
+				label: t("chat.actions.remove_share", { defaultValue: "Remove Share" }),
+				icon: <Album className="h-4 w-4" />,
+				onClick: () => void handleRemoveLocalAlbum(albumId),
+				disabled: isMutating,
+			});
+		}
+
 		actions.push({
 			key: "delete",
 			label: t("chat.actions.delete"),
@@ -777,8 +789,26 @@ export function ChatThreadMessages({
 		handleAddToSavedPhrases,
 		handleUnsend,
 		handleStopAlbumShare,
+		handleRemoveLocalAlbum,
 		handleDelete,
 	]);
+
+	// Grouped by day so each day's sticky date pill is bounded to its own
+	// group container and gets pushed off by the next group instead of
+	// staying stuck forever alongside every other day's pill.
+	const dayGroups = useMemo(() => {
+		const groups: { header: string; messages: UiMessage[] }[] = [];
+		for (const message of threadMessages) {
+			const header = formatDateHeader(message.timestamp, nowTimestamp, t);
+			const lastGroup = groups[groups.length - 1];
+			if (lastGroup && lastGroup.header === header) {
+				lastGroup.messages.push(message);
+			} else {
+				groups.push({ header, messages: [message] });
+			}
+		}
+		return groups;
+	}, [threadMessages, nowTimestamp, t]);
 
 	return (
 		<div
@@ -805,16 +835,27 @@ export function ChatThreadMessages({
 
             <div className={`flex flex-col gap-2 ${!isDesktop ? "px-[var(--app-px)] pt-4" : ""}`}>
             {(() => {
-                // Track the last header label to detect day transitions during rendering
-                let lastHeader = "";
-                return threadMessages.map((message) => {
-                    const currentHeader = formatDateHeader(
-                        message.timestamp,
-                        nowTimestamp,
-                        t,
-                    );
-                    const isNewDay = currentHeader !== lastHeader;
-                    lastHeader = currentHeader;
+                const renderDateSeparator = (label: string) => (
+                    <div className="sticky top-2 z-10 my-3 flex justify-center">
+                        <span className="rounded-full bg-[color-mix(in_srgb,var(--surface-2)_88%,transparent)] px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-sm backdrop-blur-sm">
+                            {label}
+                        </span>
+                    </div>
+                );
+                const renderEventPill = (icon: React.ReactNode, label: string, timestamp: number) => (
+                    <div className="my-1.5 flex justify-center">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 py-1.5 text-[11px] font-medium text-[var(--text-muted)] shadow-sm">
+                            {icon}
+                            <span>{label}</span>
+                            <span className="text-[var(--text-muted)]/70">{formatDateTime24(timestamp)}</span>
+                        </div>
+                    </div>
+                );
+                return dayGroups.map((group, groupIndex) => (
+                    <div key={`${group.header}-${groupIndex}`} className="relative">
+                        {renderDateSeparator(group.header)}
+                        <div className="flex flex-col gap-2">
+                        {group.messages.map((message) => {
 
                     if (
                         message.type === "SystemBlocked" ||
@@ -838,26 +879,15 @@ export function ChatThreadMessages({
                         }
                         return (
                             <Fragment key={message.messageId}>
-                                {isNewDay && (
-                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                            {currentHeader}
-                                        </span>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                    </div>
-                                )}
-                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
-                                    {isBlocked ? (
+                                {renderEventPill(
+                                    isBlocked ? (
                                         <Ban className="h-3.5 w-3.5 shrink-0" />
                                     ) : (
                                         <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                                    )}
-                                    <span>{label}</span>
-                                    <span className="text-[var(--text-muted)]/70">
-                                        {formatDateTime24(message.timestamp)}
-                                    </span>
-                                </div>
+                                    ),
+                                    label,
+                                    message.timestamp,
+                                )}
                             </Fragment>
                         );
                     }
@@ -869,26 +899,15 @@ export function ChatThreadMessages({
                         const label = getVideoCallStatusLabel(message, t);
                         return (
                             <Fragment key={message.messageId}>
-                                {isNewDay && (
-                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                            {currentHeader}
-                                        </span>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                    </div>
-                                )}
-                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
-                                    {isSuccessful ? (
+                                {renderEventPill(
+                                    isSuccessful ? (
                                         <Video className="h-3.5 w-3.5 shrink-0" />
                                     ) : (
                                         <PhoneOff className="h-3.5 w-3.5 shrink-0" />
-                                    )}
-                                    <span>{label}</span>
-                                    <span className="text-[var(--text-muted)]/70">
-                                        {formatDateTime24(message.timestamp)}
-                                    </span>
-                                </div>
+                                    ),
+                                    label,
+                                    message.timestamp,
+                                )}
                             </Fragment>
                         );
                     }
@@ -1264,17 +1283,7 @@ export function ChatThreadMessages({
                         (!isLatestShare || !msgBody?.isViewable);
 
                     return (
-                    /* Use Fragment to allow rendering the separator and the message as a single map item */
                     <Fragment key={message.messageId}>
-                        {isNewDay && (
-                            <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                <div className="h-px flex-1 bg-[var(--border)]" />
-                                <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                    {currentHeader}
-                                </span>
-                                <div className="h-px flex-1 bg-[var(--border)]" />
-                            </div>
-                        )}
                         <div
                             data-message-id={message.messageId}
                             ref={(element) => {
@@ -1543,7 +1552,7 @@ export function ChatThreadMessages({
                                             onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
                                             onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
                                         >
-                                            <div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
+                                            <div className={`relative h-56 w-64 max-w-full overflow-hidden rounded-2xl ${tailCorner} bg-[var(--surface-2)] sm:w-72`}>
                                                 <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
                                                     <Album className="h-8 w-8" />
                                                 </div>
@@ -1560,7 +1569,7 @@ export function ChatThreadMessages({
                                                 ) : null}
 
                                                 {isLocked && (
-                                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[15px]">
+                                                    <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl ${tailCorner} bg-black/50 backdrop-blur-[15px]`}>
                                                         <Lock className="h-10 w-10 text-white/90 drop-shadow-lg" />
                                                         <span className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/90 drop-shadow">
                                                             {t("chat.expiration.expired")}
@@ -1578,7 +1587,7 @@ export function ChatThreadMessages({
                                                         {senderLabel}
                                                     </p>
                                                 </div>
-                                                <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+                                                <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                     {!isLocked && isExpiringMedia && (expiresAt > Date.now() || isOnce) && (
                                                         <AlbumExpirationCountdown
                                                             expiresAt={expiresAt}
@@ -1598,6 +1607,18 @@ export function ChatThreadMessages({
                                                             <span>
                                                                 {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                                             </span>
+                                                            {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        setContextMenuState({ messageId: message.messageId, x: event.clientX, y: event.clientY });
+                                                                    }}
+                                                                    className="rounded-md p-1 hover:bg-white/10"
+                                                                >
+                                                                    <MoreVertical className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2074,7 +2095,10 @@ export function ChatThreadMessages({
                         </div>
                         </Fragment>
                     );
-                });
+                        })}
+                        </div>
+                    </div>
+                ));
             })()}
             </div>
             {isPartnerTyping && (

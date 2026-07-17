@@ -38,7 +38,7 @@ export function BottomDrawer({
 				<p className="text-sm font-semibold text-[var(--text)]">{title}</p>
 				<SheetClose
 					disabled={isProcessing}
-					className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40"
+					className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-40"
 				>
 					<X className="h-4 w-4" />
 				</SheetClose>
