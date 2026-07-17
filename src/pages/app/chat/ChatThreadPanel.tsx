@@ -86,7 +86,6 @@ import { isAlbumCachedLocally } from "../../../services/albumStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
-import { FreeGrindBadge } from "../../../components/FreeGrindBadge";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
@@ -1179,14 +1178,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<p className="truncate text-lg font-semibold">
 											{displayName}
 										</p>
-										{profileId != null && presenceResults[profileId] ? (
-											<FreeGrindBadge size="md" title={t("profile_details.uses_free_grind")} />
-										) : null}
 									</div>
 									<p className="text-sm text-[var(--text-muted)]">
-										{distanceLabel
-											? `${onlineMeta.label} · ${distanceLabel}`
-											: onlineMeta.label}
+										{[
+											onlineMeta.label,
+											distanceLabel,
+											profileId != null && presenceResults[profileId] ? "Free Grind" : null,
+										]
+											.filter(Boolean)
+											.join(" · ")}
 									</p>
 								</div>
 							</div>
@@ -2147,7 +2147,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</div>}
 						</div>
 
-                        <div className="mb-2 mx-5 flex items-center justify-between gap-2">
+                        <div className={`${!isDesktop ? "mb-2" : ""} mx-5 flex items-center justify-between gap-2`}>
 							<button
 								type="button"
 								onClick={() => {

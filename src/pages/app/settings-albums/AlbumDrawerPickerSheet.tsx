@@ -75,7 +75,7 @@ export function AlbumDrawerPickerSheet({
 				<h3 className="text-sm font-semibold text-[var(--text)]">
 					{t("settings_albums.drawer_picker_title", { defaultValue: "Select media" })}
 				</h3>
-				<SheetClose className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>

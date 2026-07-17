@@ -506,7 +506,7 @@ function ChatConversationRow({
 									</span>
 								)}
 								{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
-									<FreeGrindBadge size="xs" title={t("profile_details.uses_free_grind")} />
+									<FreeGrindBadge size="sm" variant="bare" title={t("profile_details.uses_free_grind")} />
 								) : null}
 							</div>
 							<span className="shrink-0 text-xs text-[var(--text-muted)]">

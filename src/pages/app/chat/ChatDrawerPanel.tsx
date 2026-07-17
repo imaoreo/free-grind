@@ -339,11 +339,11 @@ export function ChatDrawerPanel({
 							: t("chat_drawer.title", { defaultValue: "Drawer" })}
 					</h3>
 					{pendingAddFile ? (
-						<button type="button" onClick={cancelAddPhoto} className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+						<button type="button" onClick={cancelAddPhoto} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 							<X className="h-4 w-4" />
 						</button>
 					) : (
-						<SheetClose className="rounded-full p-1 text-[var(--text-muted)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+						<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 							<X className="h-4 w-4" />
 						</SheetClose>
 					)}

@@ -17,10 +17,21 @@ export function FreeGrindBadge({
 	className = "",
 }: {
 	size?: keyof typeof SIZE_CLASSES;
-	variant?: "default" | "onDark";
+	variant?: "default" | "onDark" | "bare";
 	title?: string;
 	className?: string;
 }) {
+	if (variant === "bare") {
+		return (
+			<div
+				title={title}
+				className={`flex shrink-0 items-center justify-center ${SIZE_CLASSES[size]} ${className}`}
+			>
+				<img src={freegrindLogo} alt={title ?? "Free Grind"} className="h-full w-full translate-y-[2%] object-contain" />
+			</div>
+		);
+	}
+
 	return (
 		<div
 			title={title}
@@ -30,7 +41,7 @@ export function FreeGrindBadge({
 					: "border border-[var(--border)] bg-[var(--surface)]"
 			} ${className}`}
 		>
-			<img src={freegrindLogo} alt={title ?? "Free Grind"} className="h-[70%] w-[70%] object-contain" />
+			<img src={freegrindLogo} alt={title ?? "Free Grind"} className="h-[70%] w-[70%] translate-y-[2%] object-contain" />
 		</div>
 	);
 }

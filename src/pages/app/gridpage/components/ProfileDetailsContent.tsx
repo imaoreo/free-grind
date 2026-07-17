@@ -44,7 +44,7 @@ import {
 import { reverseGeocodeCityDistrictForGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
-import { FreeGrindBadge } from "../../../../components/FreeGrindBadge";
+import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
 import { formatRelativeTime } from "../../../../utils/relativeTime";
@@ -393,14 +393,20 @@ export function ProfileDetailsContent({
 										<div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-36 bg-gradient-to-b from-black/65 to-transparent" />
 									</div>
 									{activeProfilePhotoHashes.length > 1 && (
-										<div className="pointer-events-none absolute right-3 inset-y-0 z-20 flex flex-col items-center justify-center">
+										<div className="absolute right-3 inset-y-0 z-20 flex flex-col items-center justify-center">
 											<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
 												{activeProfilePhotoHashes.map((hash, index) => (
-													<span
+													<button
 														key={`${hash}-dot`}
-														className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"}`}
-														aria-hidden="true"
-													/>
+														type="button"
+														onClick={() => onPhotoIndexChange?.(index)}
+														className="flex items-center justify-center p-1.5 -m-1.5"
+														aria-label={t("profile_details.open_photo", { index: index + 1 })}
+													>
+														<span
+															className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"}`}
+														/>
+													</button>
 												))}
 											</div>
 										</div>
@@ -524,12 +530,18 @@ export function ProfileDetailsContent({
 									{t("profile_details.recently_joined")}
 								</span>
 							)}
+							{usesFreegrind && (
+								<span className="flex items-center gap-1 font-semibold" style={{ color: "#FF8C00" }}>
+									<img src={freegrindLogo} alt="" className="h-3.5 w-3.5 object-contain" />
+									{t("profile_details.uses_free_grind")}
+								</span>
+							)}
 						</div>
 						{(PositionIcon != null && !shouldHideField(formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels)) || !shouldHideField(formatHeightCm(activeProfile.height, t, unitsPreset)) || !shouldHideField(formatWeightKg(activeProfile.weight, t, unitsPreset)) || !shouldHideField(formatEnumValue(activeProfile.bodyType, bodyTypeLabels, t))) && (
 							<div className="mt-1 flex items-center gap-x-3 text-sm text-[var(--text-muted)]">
 								{PositionIcon != null && !shouldHideField(formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels)) && (
 									<span className="flex items-center gap-1">
-										<PositionIcon className="h-3.5 w-3.5" />
+										<PositionIcon className="h-3.5 w-3.5 -translate-x-px" />
 										{formatEnumValue(activeProfile.sexualPosition, sexualPositionLabels, t)}
 									</span>
 								)}
@@ -554,9 +566,6 @@ export function ProfileDetailsContent({
 							</div>
 						)}
 					</div>
-					{usesFreegrind && (
-						<FreeGrindBadge size="lg" title={t("profile_details.uses_free_grind")} className="mt-1" />
-					)}
 				</div>
 				{hasChatHistory && (
 					<div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--text-muted)]">
@@ -566,9 +575,6 @@ export function ProfileDetailsContent({
 								? t("profile_details.last_message", { time: lastMessageLabel })
 								: t("profile_details.chatted_before")
 							}
-							{(chatContactStatus?.unreadCount ?? 0) > 0
-								? ` · ${chatContactStatus?.unreadCount ?? 0} ${t("chat.unread")}`
-								: ""}
 						</span>
 					</div>
 				)}

@@ -58,7 +58,7 @@ export function SexualHealthPrepSettingsSheet({
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{t("sexualHealth.info.sheet_title", { defaultValue: "PrEP settings" })}
 				</p>
-				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)]">
+				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>
