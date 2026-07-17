@@ -854,7 +854,7 @@ export function ProfileEditorPage() {
 
 	// The crop selection is only used to tell the server which square region
 	// to render the thumbnail from (thumbCoords) — the uploaded file itself is
-	// always the original, unmodified image.
+	// always the original, unmodified image, never client-side cropped.
 	const confirmPendingPhotoUpload = async () => {
 		if (!pendingPhotoFile) return;
 

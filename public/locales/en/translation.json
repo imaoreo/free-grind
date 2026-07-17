@@ -1681,6 +1681,7 @@
     "section_title": "Trips",
     "section_desc": "Let others know where you're headed and when.",
     "add": "Add trip",
+    "max_reached": "You can add up to {{max}} trips.",
     "empty": "No trips yet.",
     "hidden_badge": "Hidden",
     "resolving_location": "Resolving location…",
