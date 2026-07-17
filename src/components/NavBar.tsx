@@ -73,6 +73,10 @@ export function NavBar() {
 		pathRef.current = location.pathname;
 	}, [location.pathname]);
 
+	// Tracks which conversations are muted so the realtime handler can ignore
+	// their messages without waiting for the next poll.
+	const mutedConversationIdsRef = useRef<Set<string>>(new Set());
+
 	const [activeTab, setActiveTab] = useState("browse");
 	const setUnreadCount = useState(0)[1];
 	const [interestUnseen, setInterestUnseen] = useState(false);
@@ -142,8 +146,14 @@ export function NavBar() {
 
 				if (cancelled) return;
 
+				mutedConversationIdsRef.current = new Set(
+					response.entries
+						.filter((entry) => entry.data.muted)
+						.map((entry) => entry.data.conversationId),
+				);
+
 				const totalUnread = response.entries.reduce(
-					(sum, entry) => sum + (entry.data.unreadCount || 0),
+					(sum, entry) => sum + (entry.data.muted ? 0 : entry.data.unreadCount || 0),
 					0,
 				);
 				setUnreadCount(totalUnread);
@@ -176,9 +186,13 @@ export function NavBar() {
 				// falsely lighting it up. The lastSeen check keeps an unread
 				// conversation the user already looked at (but didn't open) from
 				// re-lighting the dot on every later remount/poll — visiting the
-				// inbox list once is enough to acknowledge it.
+				// inbox list once is enough to acknowledge it. Muted conversations
+				// never contribute at all, regardless of unread state.
 				const hasUnseenUnread = response.entries.some(
-					(entry) => (entry.data.unreadCount ?? 0) > 0 && (entry.data.lastActivityTimestamp ?? 0) > lastSeen,
+					(entry) =>
+						!entry.data.muted &&
+						(entry.data.unreadCount ?? 0) > 0 &&
+						(entry.data.lastActivityTimestamp ?? 0) > lastSeen,
 				);
 				setInboxUnseen(!isAtInbox && hasUnseenUnread);
 			} catch {
@@ -207,9 +221,12 @@ export function NavBar() {
 			const messages = extractMessages(envelope);
 			if (messages.length > 0) {
 				const lastSeen = getInboxLastSeen();
-				// Check for messages from other users
+				// Check for messages from other users, excluding muted conversations
 				const fromOthers = messages.filter(
-					(m) => userId != null && Number(m.senderId) !== Number(userId)
+					(m) =>
+						userId != null &&
+						Number(m.senderId) !== Number(userId) &&
+						!mutedConversationIdsRef.current.has(m.conversationId)
 				);
 
 				if (fromOthers.length > 0) {
