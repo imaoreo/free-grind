@@ -232,6 +232,9 @@ export function SharedAlbumsPage() {
 							? profileMeta.profileMediaHash
 							: null,
 					onlineUntil: sharedAlbum.profile.onlineUntil,
+					// The feed doesn't return a last-seen timestamp — filled in below
+					// from the profiles endpoint, which is more current anyway.
+					lastOnline: null,
 					distanceMetres: sharedAlbum.profile.distanceKm != null ? sharedAlbum.profile.distanceKm * 1000 : null,
 					conversationId: profileMeta?.conversationId ?? null,
 					album: {
@@ -322,6 +325,7 @@ export function SharedAlbumsPage() {
 							profileName,
 							profileMediaHash,
 							onlineUntil: null,
+							lastOnline: null,
 							distanceMetres: null,
 							conversationId: stored.conversationId,
 							album: {
@@ -361,7 +365,12 @@ export function SharedAlbumsPage() {
 
 				const detailsById = new Map<
 					number,
-					{ displayName: string | null; profileMediaHash: string | null }
+					{
+						displayName: string | null;
+						profileMediaHash: string | null;
+						distanceMetres: number | null;
+						lastOnline: number | null;
+					}
 				>();
 				await Promise.all(
 					chunks.map(async (chunk) => {
@@ -377,6 +386,8 @@ export function SharedAlbumsPage() {
 								if (idRaw == null) continue;
 								const nameRaw = (p as { displayName?: unknown }).displayName;
 								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+								const distanceRaw = (p as { distance?: unknown }).distance;
+								const seenRaw = (p as { seen?: unknown }).seen;
 								detailsById.set(Number(idRaw), {
 									displayName:
 										typeof nameRaw === "string" && nameRaw.trim().length > 0
@@ -384,6 +395,16 @@ export function SharedAlbumsPage() {
 											: null,
 									profileMediaHash:
 										typeof hashRaw === "string" && validateMediaHash(hashRaw) ? hashRaw : null,
+									// Unlike the feed's distanceKm, /v3/profiles' `distance`
+									// field is already in metres.
+									distanceMetres:
+										typeof distanceRaw === "number" && Number.isFinite(distanceRaw)
+											? distanceRaw
+											: null,
+									lastOnline:
+										typeof seenRaw === "number" && Number.isFinite(seenRaw) && seenRaw > 0
+											? seenRaw
+											: null,
 								});
 							}
 						} catch {
@@ -403,6 +424,15 @@ export function SharedAlbumsPage() {
 								? details.displayName ?? item.profileName
 								: item.profileName,
 						profileMediaHash: item.profileMediaHash ?? details.profileMediaHash,
+						// The shared-albums feed's own distanceKm has been observed to be
+						// unreliable (always null or a tiny placeholder like 0.1), while
+						// the profiles endpoint's `distance` is the real value — prefer it,
+						// only falling back to the feed's value if this profile's detail
+						// fetch didn't come back with one.
+						distanceMetres: details.distanceMetres ?? item.distanceMetres,
+						// The profiles endpoint's `seen` timestamp is fresher than the
+						// feed snapshot — always prefer it over whatever we already have.
+						lastOnline: details.lastOnline ?? item.lastOnline,
 					};
 				};
 				for (let i = 0; i < nextItems.length; i++) nextItems[i] = applyDetails(nextItems[i]);
@@ -508,6 +538,7 @@ export function SharedAlbumsPage() {
 					profileName: item.profileName,
 					profileMediaHash: item.profileMediaHash,
 					onlineUntil: item.onlineUntil,
+					lastOnline: item.lastOnline,
 					distanceMetres: item.distanceMetres,
 					conversationId: item.conversationId,
 					content: local.content,
@@ -546,6 +577,7 @@ export function SharedAlbumsPage() {
 					profileName: item.profileName,
 					profileMediaHash: item.profileMediaHash,
 					onlineUntil: item.onlineUntil,
+					lastOnline: item.lastOnline,
 					distanceMetres: item.distanceMetres,
 					conversationId: item.conversationId,
 					content: details.content,
@@ -742,7 +774,7 @@ export function SharedAlbumsPage() {
 
 	const albumHeader = useMemo(() => {
 		if (!viewer) return undefined;
-		const statusMeta = getOnlineStatusMeta(null, viewer.onlineUntil);
+		const statusMeta = getOnlineStatusMeta(viewer.lastOnline, viewer.onlineUntil);
 		const statusLabel = statusMeta.isOnline
 			? t(statusMeta.labelKey, { count: statusMeta.count })
 			: statusMeta.labelKey === "browse_page.status_offline"
