@@ -5,6 +5,7 @@ import { usePreferences, ACCENT_PRESETS, type ColorScheme } from "../../contexts
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { useTranslation } from "react-i18next";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	SUPPORTED_LOCALE_OPTIONS,
 	resolveSupportedLocale,
@@ -60,6 +61,8 @@ function SelectRow({
 	value,
 	onChange,
 	options,
+	id,
+	highlighted,
 }: {
 	icon: React.ReactNode;
 	iconClass: string;
@@ -67,9 +70,14 @@ function SelectRow({
 	value: string;
 	onChange: (v: string) => void;
 	options: { value: string; label: string }[];
+	id?: string;
+	highlighted?: boolean;
 }) {
 	return (
-		<div className="flex items-center gap-3 px-4 py-3.5">
+		<div
+			id={id}
+			className={`flex items-center gap-3 px-4 py-3.5 ${highlighted ? "animate-settings-highlight" : ""}`}
+		>
 			<div className={`rounded-2xl p-2.5 shrink-0 ${iconClass}`}>{icon}</div>
 			<p className="min-w-0 flex-1 text-sm font-semibold">{label}</p>
 			<select
@@ -97,6 +105,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function CustomizabilityPage() {
 	const { i18n, t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const {
 		colorScheme,
 		accentColor,
@@ -211,7 +220,10 @@ export function CustomizabilityPage() {
 					<div className="grid gap-3">
 
 						{/* Color Scheme */}
-						<div className="surface-card p-4">
+						<div
+							id="cust-color-scheme"
+							className={`surface-card p-4 ${highlightId === "cust-color-scheme" ? "animate-settings-highlight" : ""}`}
+						>
 							<p className="mb-3 text-sm font-semibold">{t("customizability.color_scheme")}</p>
 							<div className="grid grid-cols-3 gap-2">
 								{schemeOptions.map(({ value, label, icon }) => {
@@ -240,7 +252,10 @@ export function CustomizabilityPage() {
 
 						{/* Accent Color + Preview combined */}
 						<div className="surface-card overflow-hidden">
-						<div className="p-4">
+						<div
+							id="cust-accent-color"
+							className={`p-4 ${highlightId === "cust-accent-color" ? "animate-settings-highlight" : ""}`}
+						>
 							<p className="mb-3 text-sm font-semibold">{t("customizability.accent_color")}</p>
 
 							{/* Preset swatches + custom swatch in one row */}
@@ -394,7 +409,10 @@ export function CustomizabilityPage() {
 						<div className="surface-card overflow-hidden">
 
 							{/* Browse Grid */}
-							<div className="p-4">
+							<div
+								id="cust-browse-grid"
+								className={`p-4 ${highlightId === "cust-browse-grid" ? "animate-settings-highlight" : ""}`}
+							>
 								<div className="flex items-start gap-3">
 									<div className="rounded-2xl bg-blue-500/15 p-2.5 text-blue-400 shrink-0">
 										<LayoutGrid className="h-5 w-5" />
@@ -432,6 +450,8 @@ export function CustomizabilityPage() {
 							{/* Reveal Effect */}
 							<div className="border-t border-[var(--border)]">
 								<ToggleRow
+									id="cust-reveal-effect"
+									highlighted={highlightId === "cust-reveal-effect"}
 									icon={<Sparkles className="h-5 w-5" />}
 									iconClass="bg-violet-500/15 text-violet-400"
 									label={t("customizability.reveal_effect.enable")}
@@ -472,6 +492,8 @@ export function CustomizabilityPage() {
 					<SectionLabel>{t("customizability.navigation_tabs")}</SectionLabel>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<ToggleRow
+							id="cust-show-right-now"
+							highlighted={highlightId === "cust-show-right-now"}
 							icon={<Flame className="h-5 w-5" />}
 							iconClass="bg-orange-500/15 text-orange-400"
 							label={t("customizability.show_right_now")}
@@ -484,6 +506,8 @@ export function CustomizabilityPage() {
 							}}
 						/>
 						<ToggleRow
+							id="cust-show-interest"
+							highlighted={highlightId === "cust-show-interest"}
 							icon={<Star className="h-5 w-5" />}
 							iconClass="bg-yellow-500/15 text-yellow-400"
 							label={t("customizability.show_interest")}
@@ -520,6 +544,8 @@ export function CustomizabilityPage() {
 					<SectionLabel>{t("customizability.regional")}</SectionLabel>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<SelectRow
+							id="cust-language"
+							highlighted={highlightId === "cust-language"}
 							icon={<Languages className="h-5 w-5" />}
 							iconClass="bg-teal-500/15 text-teal-400"
 							label={t("settings.language")}
@@ -528,6 +554,8 @@ export function CustomizabilityPage() {
 							options={SUPPORTED_LOCALE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
 						/>
 						<SelectRow
+							id="cust-units"
+							highlighted={highlightId === "cust-units"}
 							icon={<Ruler className="h-5 w-5" />}
 							iconClass="bg-cyan-500/15 text-cyan-400"
 							label={t("customizability.units")}

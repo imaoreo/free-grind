@@ -2,6 +2,10 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Choose what you want to manage.",
+    "search_placeholder": "Search settings…",
+    "search_no_results": "No settings found for \"{{query}}\".",
+    "search_results_count_one": "{{count}} result",
+    "search_results_count_other": "{{count}} results",
     "language": "Language",
     "language_description": "Choose your preferred language.",
     "profile_editor": "Profile Editor",

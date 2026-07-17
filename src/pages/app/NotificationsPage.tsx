@@ -3,6 +3,7 @@ import { Bell, Flame, MessageCircle } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { useTranslation } from "react-i18next";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	CHAT_NOTIFICATIONS_ENABLED_KEY,
 	FOREGROUND_NOTIFICATIONS_ENABLED_KEY,
@@ -15,6 +16,7 @@ import {
 
 export function NotificationsPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const [chatEnabled, setChatEnabled] = useState(() => isChatNotificationsEnabled());
 	const [tapsEnabled, setTapsEnabled] = useState(() => isTapNotificationsEnabled());
 	const [foregroundEnabled, setForegroundEnabled] = useState(() => isForegroundNotificationsEnabled());
@@ -35,6 +37,8 @@ export function NotificationsPage() {
 			<div className="grid gap-6">
 				<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 					<ToggleRow
+						id="notif-chat-enabled"
+						highlighted={highlightId === "notif-chat-enabled"}
 						icon={<MessageCircle className="h-5 w-5" />}
 						iconClass="bg-blue-500/15 text-blue-400"
 						label={t("notifications_page.chat_enabled")}
@@ -46,6 +50,8 @@ export function NotificationsPage() {
 						}}
 					/>
 					<ToggleRow
+						id="notif-taps-enabled"
+						highlighted={highlightId === "notif-taps-enabled"}
 						icon={<Flame className="h-5 w-5" />}
 						iconClass="bg-orange-500/15 text-orange-400"
 						label={t("notifications_page.taps_enabled")}
@@ -57,6 +63,8 @@ export function NotificationsPage() {
 						}}
 					/>
 					<ToggleRow
+						id="notif-foreground"
+						highlighted={highlightId === "notif-foreground"}
 						icon={<Bell className="h-5 w-5" />}
 						iconClass="bg-[var(--surface-2)] text-[var(--text-muted)]"
 						label={t("notifications_page.foreground")}

@@ -19,6 +19,7 @@ import { BaseDirectory, mkdir, writeFile as writeFsFile } from "@tauri-apps/plug
 import * as chatDb from "../../services/chatDb";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid, isIos } from "../../services/saveMedia";
 import { resetAllSettings } from "../../utils/resetSettings";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import { appLog } from "../../utils/logger";
 import type { FullDbExport } from "../../types/chat-db";
 
@@ -36,6 +37,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function SettingsDataPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const { userId } = useAuth();
 
 	const [usage, setUsage] = useState<{ count: number; totalBytes: number } | null>(null);
@@ -244,7 +246,10 @@ export function SettingsDataPage() {
 						{t("data_backup.media_storage", { defaultValue: "Media Storage" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						<div className="flex items-center justify-between gap-4 px-4 py-3.5">
+						<div
+							id="data-storage-used"
+							className={`flex items-center justify-between gap-4 px-4 py-3.5 ${highlightId === "data-storage-used" ? "animate-settings-highlight" : ""}`}
+						>
 							<div className="min-w-0">
 								<p className="text-sm font-medium text-[var(--text)]">
 									{t("data_backup.storage_used", { defaultValue: "Storage used" })}
@@ -279,10 +284,11 @@ export function SettingsDataPage() {
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<button
+							id="data-export"
 							type="button"
 							onClick={() => void handleExport()}
 							disabled={isExporting}
-							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isExporting ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"}`}
+							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isExporting ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-export" ? "animate-settings-highlight" : ""}`}
 						>
 							<div className="shrink-0 rounded-2xl bg-teal-500/15 p-2.5 text-teal-400">
 								<FileDown className="h-5 w-5" />
@@ -305,10 +311,11 @@ export function SettingsDataPage() {
 						</button>
 
 						<button
+							id="data-import"
 							type="button"
 							onClick={() => fileInputRef.current?.click()}
 							disabled={isImporting}
-							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isImporting ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"}`}
+							className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isImporting ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-import" ? "animate-settings-highlight" : ""}`}
 						>
 							<div className="shrink-0 rounded-2xl bg-violet-500/15 p-2.5 text-violet-400">
 								<FileUp className="h-5 w-5" />
@@ -358,7 +365,10 @@ export function SettingsDataPage() {
 						{t("data_backup.danger_zone", { defaultValue: "Danger Zone" })}
 					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						<div className="flex items-center justify-between gap-4 px-4 py-3.5">
+						<div
+							id="data-reset-all"
+							className={`flex items-center justify-between gap-4 px-4 py-3.5 ${highlightId === "data-reset-all" ? "animate-settings-highlight" : ""}`}
+						>
 							<div className="min-w-0">
 								<p className="text-sm font-medium text-[var(--text)]">
 									{t("data_backup.reset_all", { defaultValue: "Reset all settings" })}

@@ -17,6 +17,7 @@ import {
 } from "../../utils/automationRules";
 import { AutomationRuleEditor } from "../../components/settings/AutomationRuleEditor";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import type { Album } from "../../types/albums";
 
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
@@ -113,6 +114,7 @@ function describeRule(rule: AutomationRule, t: TFunc): React.ReactNode[] {
 
 export function SettingsAutomationPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const apiFunctions = useApiFunctions();
 	const { settingsReady } = useAuth();
 
@@ -220,7 +222,10 @@ export function SettingsAutomationPage() {
 
 			<div className="grid min-w-0 gap-6">
 				{/* CUSTOM RULES */}
-				<div className="min-w-0">
+				<div
+					id="automation-custom-rules"
+					className={`min-w-0 ${highlightId === "automation-custom-rules" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
 						<div className="flex min-w-0 items-center gap-2">
 							<p className="truncate text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
@@ -304,7 +309,10 @@ export function SettingsAutomationPage() {
 				</div>
 
 				{/* FORBIDDEN KEYWORDS */}
-				<div className="min-w-0">
+				<div
+					id="automation-forbidden-keywords"
+					className={`min-w-0 ${highlightId === "automation-forbidden-keywords" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						{t("settings_automation.forbidden_keywords_title")}
 					</p>
@@ -361,6 +369,8 @@ export function SettingsAutomationPage() {
 					</p>
 					<div className="surface-card divide-y divide-[var(--border)] overflow-hidden">
 						<ToggleRow
+							id="automation-auto-refresh"
+							highlighted={highlightId === "automation-auto-refresh"}
 							icon={<RefreshCw className="h-5 w-5" />}
 							iconClass="bg-green-500/15 text-green-400"
 							label={t("settings_automation.enable_refresh")}

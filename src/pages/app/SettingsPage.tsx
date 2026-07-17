@@ -23,14 +23,16 @@ import {
 	Palette,
 	Radar,
 	RefreshCcw,
+	Search,
 	Shield,
 	SlidersHorizontal,
 	Terminal,
     Workflow,
 	UserPlus,
 	UserX,
+	X,
 } from "lucide-react";
-import { useState, useCallback, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -63,6 +65,7 @@ import { Avatar } from "../../components/ui/avatar";
 import { getThumbImageUrl } from "../../utils/media";
 import { getSavedAccountProfile, removeSavedAccountProfile } from "../../services/savedAccountProfiles";
 import { isAndroid } from "../../services/saveMedia";
+import { useSettingsSearchIndex } from "../../data/settingsSearchIndex";
 
 const PUSH_TOKEN_STORAGE_KEY = "fg-fcm-token";
 const PUSH_TOKEN_SYNCED_STORAGE_KEY = "fg-fcm-token-synced";
@@ -192,6 +195,17 @@ export function SettingsPage() {
 	const { userId, logout, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
 	const inboxSyncStatus = useInboxSyncStatus(userId);
 	const inboxSyncDisplay = describeInboxSyncStatus(inboxSyncStatus, t);
+	const [searchQuery, setSearchQuery] = useState("");
+	const settingsSearchIndex = useSettingsSearchIndex();
+	const searchResults = useMemo(() => {
+		const query = searchQuery.trim().toLowerCase();
+		if (!query) return [];
+		return settingsSearchIndex.filter((entry) =>
+			entry.label.toLowerCase().includes(query) ||
+			entry.description?.toLowerCase().includes(query) ||
+			entry.section.toLowerCase().includes(query),
+		);
+	}, [searchQuery, settingsSearchIndex]);
 	const [switchingProfileId, setSwitchingProfileId] = useState<string | null>(null);
 	const [removingProfileId, setRemovingProfileId] = useState<string | null>(null);
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -517,6 +531,58 @@ export function SettingsPage() {
 				<p className="app-subtitle mt-1">{t("settings.subtitle")}</p>
 			</header>
 
+			<div className="settings-search-bar mb-6 flex items-center gap-2.5 px-4 py-0.5">
+				<Search className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+				<input
+					type="search"
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+					placeholder={t("settings.search_placeholder")}
+					className="h-11 flex-1 bg-transparent text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none"
+				/>
+				{searchQuery ? (
+					<button
+						type="button"
+						onClick={() => setSearchQuery("")}
+						className="shrink-0 rounded-full p-1 text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+						aria-label={t("common.clear", { defaultValue: "Clear" })}
+					>
+						<X className="h-4 w-4" />
+					</button>
+				) : null}
+			</div>
+
+			{searchQuery.trim() ? (
+				<div className="grid gap-6">
+					{searchResults.length === 0 ? (
+						<p className="px-1 text-sm text-[var(--text-muted)]">
+							{t("settings.search_no_results", { query: searchQuery.trim() })}
+						</p>
+					) : (
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							{searchResults.map((entry) => (
+								<button
+									key={entry.id}
+									type="button"
+									onClick={() => navigate(entry.anchor ? `${entry.route}#${entry.anchor}` : entry.route)}
+									className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"
+								>
+									<div className={`rounded-2xl p-2.5 shrink-0 ${entry.iconClass}`}>
+										<entry.icon className="h-5 w-5" />
+									</div>
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-semibold leading-snug">{entry.label}</p>
+										<p className="text-xs text-[var(--text-muted)] leading-snug mt-0.5 truncate">
+											{entry.section}{entry.description ? ` — ${entry.description}` : ""}
+										</p>
+									</div>
+									<ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+								</button>
+							))}
+						</div>
+					)}
+				</div>
+			) : (
 			<div className="grid gap-6">
 
 				{/* Profile — the active profile is the primary focus (tap it to edit
@@ -1110,6 +1176,7 @@ export function SettingsPage() {
 				</div>
 
 			</div>
+			)}
 
 			<ConfirmDialog
 				isOpen={logoutConfirmTarget != null}

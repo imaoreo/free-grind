@@ -2,6 +2,10 @@
   "settings": {
     "title": "Einstellungen",
     "subtitle": "Wähle aus, was du verwalten möchtest.",
+    "search_placeholder": "",
+    "search_no_results": "",
+    "search_results_count_one": "",
+    "search_results_count_other": "",
     "language": "Sprache",
     "language_description": "Wähle deine bevorzugte Sprache.",
     "profile_editor": "Profil-Editor",

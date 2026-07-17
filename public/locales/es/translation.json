@@ -2,6 +2,10 @@
   "settings": {
     "title": "Ajustes",
     "subtitle": "Elige qué quieres gestionar.",
+    "search_placeholder": "",
+    "search_no_results": "",
+    "search_results_count_one": "",
+    "search_results_count_other": "",
     "language": "Idioma",
     "language_description": "Elige tu idioma preferido.",
     "profile_editor": "Editor de perfil",
