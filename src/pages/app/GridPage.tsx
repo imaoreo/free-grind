@@ -1,5 +1,6 @@
 import { useAuth } from "../../contexts/useAuth";
-import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Droplets, Search, Eye, EyeOff, Check, Loader2, Settings, X } from "lucide-react";
+import { MapPin, Navigation, SlidersHorizontal, ListFilter, Star, Plane, Search, Eye, EyeOff, Check, Loader2, RefreshCw, Settings, X } from "lucide-react";
+import { RightNowIcon } from "../../components/icons/RightNowIcon";
 import { useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
@@ -9,6 +10,7 @@ import { decodeGeohash, encodeGeohash } from "../../utils/geohash";
 import { reverseGeocodeGeohash } from "./gridpage/geocoding";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { usePreferences } from "../../contexts/PreferencesContext";
+import { useExploreMode } from "../../contexts/ExploreModeContext";
 import { type BrowseCard, type ProfileDetail } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
@@ -89,6 +91,7 @@ export function GridPage() {
 	const [cards, setCards] = useState<BrowseCard[]>([]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
+	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 	// Cascade encodes this as a page number, explore (/v7/search) as a
 	// (distance, profileId) cursor — see encodeSearchCursor/decodeSearchCursor.
 	const [nextPage, setNextPage] = useState<string | null>(null);
@@ -126,6 +129,15 @@ export function GridPage() {
 			// ignore — worst case explore resets on next load
 		}
 	}, []);
+	// Mirror explore mode into the app-wide context so RootLayout/NavBar can
+	// swap the whole app's accent to EXPLORE_COLOR while it's active, the same
+	// way isRightNow does for --right-now. Reset on unmount so navigating away
+	// from Grid reverts the accent even though exploreLocation itself persists.
+	const { setIsExploreActive } = useExploreMode();
+	useEffect(() => {
+		setIsExploreActive(exploreLocation !== null);
+		return () => setIsExploreActive(false);
+	}, [exploreLocation, setIsExploreActive]);
 	const [isLocationMissing, setIsLocationMissing] = useState(false);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
@@ -280,6 +292,19 @@ export function GridPage() {
 		nicknameFilter,
 		applyDraft,
 	} = useBrowseFilters(getCachedBrowseFiltersDraft() ?? getDefaultBrowseFiltersDraft());
+
+	// Favorites/Right Now filters and distance/age/popular sorts all rely on
+	// the real location (or real-time presence), neither of which apply to a
+	// browsed-away explore location — hide their pills/options (above) and
+	// clear the underlying state here so they don't keep silently filtering
+	// the grid once the toggle disappears.
+	useEffect(() => {
+		if (!exploreLocation) return;
+		setBrowseFilters((prev: typeof browseFilters) =>
+			prev.favorites || prev.rightNow ? { ...prev, favorites: false, rightNow: false } : prev,
+		);
+		setSortBy((prev) => (prev === "distance" || prev === "age-asc" || prev === "age-desc" || prev === "popular" ? "default" : prev));
+	}, [exploreLocation, setBrowseFilters, setSortBy]);
 
 	// Reload whenever the active account's chatDb is ready (settingsReady),
 	// so switching accounts from GridPage's own account switcher also
@@ -768,6 +793,20 @@ export function GridPage() {
 			overrideGeohash: activeGeohash || undefined,
 		});
 	}, [browseCacheKey, geohash, loadBrowseCards, refreshLocation, useAutoLocation]);
+
+	// Desktop has no pull-to-refresh gesture (PullToRefreshContainer only
+	// listens for touch events), so this button is the desktop equivalent —
+	// same refresh logic as the mobile pull gesture, with its own loading
+	// flag since it runs with showLoadingState: false.
+	const handleManualRefresh = useCallback(async () => {
+		if (isManualRefreshing || isLoadingCards || isLoadingMoreCards) return;
+		setIsManualRefreshing(true);
+		try {
+			await handleAutoRefresh();
+		} finally {
+			setIsManualRefreshing(false);
+		}
+	}, [handleAutoRefresh, isManualRefreshing, isLoadingCards, isLoadingMoreCards]);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -1277,7 +1316,7 @@ export function GridPage() {
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
 				<header ref={headerRef} className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
-					<PageHeaderBackground color="var(--accent)" />
+					<PageHeaderBackground color={exploreLocation ? EXPLORE_COLOR : "var(--accent)"} />
 					<div className="pointer-events-auto px-[var(--app-px)] sm:px-4">
 					<div>
 						<div>
@@ -1292,7 +1331,7 @@ export function GridPage() {
 												setIsAccountSwitcherOpen((v) => !v);
 											}
 										}}
-										className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-all active:scale-95"
+										className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-2 ring-transparent transition-all hover:ring-[var(--border)] hover:brightness-110 active:scale-95"
 										aria-label={t("browse_page.open_settings")}
 										aria-expanded={isAccountSwitcherOpen}
 										title={t("browse_page.settings")}
@@ -1364,13 +1403,13 @@ export function GridPage() {
 								</div>
 
 								<div
-									className="glass-pill inline-flex h-12 w-full items-center overflow-hidden"
+									className="glass-pill inline-flex h-12 w-full items-center overflow-hidden transition-colors duration-150 hover:bg-[color-mix(in_srgb,var(--pill-color,var(--accent))_26%,transparent)] has-[button:active]:bg-[color-mix(in_srgb,var(--pill-color,var(--accent))_38%,transparent)]"
 									style={{ "--pill-color": exploreLocation ? EXPLORE_COLOR : "var(--accent)" } as React.CSSProperties}
 								>
 									<button
 										type="button"
 										onClick={() => setIsLocationOpen(true)}
-										className="flex min-w-0 flex-1 items-center gap-2.5 pl-2 pr-3 text-left active:scale-[0.99]"
+										className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-2 pr-3 text-left"
 									>
 										<div
 											className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
@@ -1417,13 +1456,27 @@ export function GridPage() {
 										onClick={(e) => { e.stopPropagation(); void handleToggleDistance(); }}
 										disabled={isTogglingDistance}
 										title={showDistance ? t("browse_page.distance_visible", { defaultValue: "Distance visible to others" }) : t("browse_page.distance_hidden", { defaultValue: "Distance hidden from others" })}
-										className="flex h-12 shrink-0 flex-col items-center justify-center gap-[3px] pl-3 pr-4 transition active:scale-90 disabled:opacity-50"
+										className="group flex h-12 shrink-0 flex-col items-center justify-center gap-[3px] pl-3 pr-4 transition active:scale-90 disabled:opacity-50"
 									>
 										{showDistance
-											? <Eye className="h-3.5 w-3.5 text-[var(--accent)]" />
-											: <EyeOff className="h-3.5 w-3.5 text-[var(--text-muted)]" />
+											? <Eye className={`h-3.5 w-3.5 transition-colors ${exploreLocation ? "text-[var(--explore)]" : "text-[var(--accent)]"}`} />
+											: <EyeOff
+													className={cn(
+														"h-3.5 w-3.5 transition-colors text-[var(--text-muted)]",
+														exploreLocation ? "group-hover:text-[var(--explore)]" : "group-hover:text-[var(--accent)]",
+													)}
+												/>
 										}
-										<span className={`block text-center text-[7px] font-bold uppercase leading-none ${showDistance ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`}>
+										<span
+											className={cn(
+												"block text-center text-[7px] font-bold uppercase leading-none transition-colors",
+												showDistance
+													? exploreLocation ? "text-[var(--explore)]" : "text-[var(--accent)]"
+													: exploreLocation
+														? "text-[var(--text-muted)] group-hover:text-[var(--explore)]"
+														: "text-[var(--text-muted)] group-hover:text-[var(--accent)]",
+											)}
+										>
 											dist
 										</span>
 									</button>
@@ -1438,22 +1491,41 @@ export function GridPage() {
 										className={cn(
 											"inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
 											hasActiveBrowseFilters
-												? "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-												: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+												? exploreLocation
+													? "rounded-full border border-[var(--explore)] bg-[var(--explore)] text-white shadow-lg shadow-[var(--explore)]/40"
+													: "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
+												: exploreLocation
+													? "glass-pill text-[var(--explore)] hover:border-[var(--explore)]/60 hover:bg-[var(--explore)]/20"
+													: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
 										)}
-										style={!hasActiveBrowseFilters ? { "--pill-color": "var(--accent)" } as React.CSSProperties : undefined}
+										style={
+											!hasActiveBrowseFilters
+												? ({ "--pill-color": exploreLocation ? "var(--explore)" : "var(--accent)" } as React.CSSProperties)
+												: undefined
+										}
 									>
 										<SlidersHorizontal className="h-3.5 w-3.5" />
 										{t("right_now.filters")}
 										{hasActiveBrowseFilters ? (
-											<span className="ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--accent-contrast)] px-1 text-[9px] font-bold text-[var(--accent)]">
+											<span
+												className={cn(
+													"ml-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold",
+													exploreLocation ? "bg-white text-[var(--explore)]" : "bg-[var(--accent-contrast)] text-[var(--accent)]",
+												)}
+											>
 												{activeFilterCount}
 											</span>
 										) : null}
 									</button>
 
-									<div className="glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold text-[var(--accent)]"
-										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									<div
+										className={cn(
+											"glass-pill relative inline-flex items-center justify-center py-2 pl-4 pr-2 text-sm font-bold transition-colors",
+											exploreLocation
+												? "text-[var(--explore)] hover:border-[var(--explore)]/60 hover:bg-[var(--explore)]/20"
+												: "text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
+										)}
+										style={{ "--pill-color": exploreLocation ? "var(--explore)" : "var(--accent)" } as React.CSSProperties}
 									>
 										<ListFilter className="mr-1.5 h-4 w-4 shrink-0" />
 										<select
@@ -1462,25 +1534,28 @@ export function GridPage() {
 											className="appearance-none bg-transparent cursor-pointer outline-none w-full h-full pr-3 pl-2"
 										>
 											<option value="default">{t("browse_filters.sort.default")}</option>
-											<option value="distance">{t("browse_filters.sort.distance")}</option>
-											<option value="age-asc">{t("browse_filters.sort.youngest")}</option>
-											<option value="age-desc">{t("browse_filters.sort.oldest")}</option>
-											<option value="popular">{t("browse_filters.sort.popular")}</option>
+											{!exploreLocation && <option value="distance">{t("browse_filters.sort.distance")}</option>}
+											{!exploreLocation && <option value="age-asc">{t("browse_filters.sort.youngest")}</option>}
+											{!exploreLocation && <option value="age-desc">{t("browse_filters.sort.oldest")}</option>}
+											{!exploreLocation && <option value="popular">{t("browse_filters.sort.popular")}</option>}
 											<option value="name">{t("browse_filters.sort.name_az")}</option>
 										</select>
 									</div>
 
-									<FilterPill
-										icon={<Star className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`} />}
-										label={t("browse_filters.options.favorites")}
-										active={Boolean(browseFilters.favorites)}
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												favorites: !prev.favorites,
-											}))
-										}
-									/>
+									{!exploreLocation && (
+										<FilterPill
+											icon={<Star className={`h-3.5 w-3.5 ${browseFilters.favorites ? "fill-current" : ""}`} />}
+											label={t("browse_filters.options.favorites")}
+											active={Boolean(browseFilters.favorites)}
+											onClick={() =>
+												setBrowseFilters((prev: typeof browseFilters) => ({
+													...prev,
+													favorites: !prev.favorites,
+												}))
+											}
+											color="accent"
+										/>
+									)}
 
 									<FilterPill
 										icon={<span className="h-2.5 w-2.5 shrink-0 rounded-full bg-green-500 shadow-sm" />}
@@ -1492,6 +1567,7 @@ export function GridPage() {
 												onlineOnly: !prev.onlineOnly,
 											}))
 										}
+										color={exploreLocation ? "explore" : "accent"}
 									/>
 
 									<FilterPill
@@ -1504,27 +1580,33 @@ export function GridPage() {
 												isVisiting: !prev.isVisiting,
 											}))
 										}
+										color={exploreLocation ? "explore" : "accent"}
 									/>
 
-									<FilterPill
-										icon={<Droplets className={`h-3.5 w-3.5 ${browseFilters.rightNow ? "fill-current" : ""}`} />}
-										label={t("browse_filters.options.right_now")}
-										active={Boolean(browseFilters.rightNow)}
-										onClick={() =>
-											setBrowseFilters((prev: typeof browseFilters) => ({
-												...prev,
-												rightNow: !prev.rightNow,
-											}))
-										}
-										color="right-now"
-									/>
+									{!exploreLocation && (
+										<FilterPill
+											icon={<RightNowIcon className="h-3.5 w-3.5" />}
+											label={t("browse_filters.options.right_now")}
+											active={Boolean(browseFilters.rightNow)}
+											onClick={() =>
+												setBrowseFilters((prev: typeof browseFilters) => ({
+													...prev,
+													rightNow: !prev.rightNow,
+												}))
+											}
+											color="right-now"
+										/>
+									)}
 
 									{hasActiveBrowseFilters ? (
 										<button
 											type="button"
 											onClick={clearBrowseFilters}
-											className="glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold text-[var(--accent)] transition-all active:scale-95"
-											style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+											className={cn(
+												"glass-pill inline-flex shrink-0 items-center gap-1.5 px-4 py-2 text-sm font-bold transition-all active:scale-95",
+												exploreLocation ? "text-[var(--explore)]" : "text-[var(--accent)]",
+											)}
+											style={{ "--pill-color": exploreLocation ? "var(--explore)" : "var(--accent)" } as React.CSSProperties}
 										>
 											{t("browse_filters.clear_all")}
 										</button>
@@ -1535,7 +1617,23 @@ export function GridPage() {
 										label={t("grid.open_profile_by_id", { defaultValue: "Open Profile by ID" })}
 										active={false}
 										onClick={() => { setProfileSearchInput(""); setIsProfileSearchOpen(true); }}
+										color={exploreLocation ? "explore" : "accent"}
 									/>
+
+									{isDesktop && (
+										<FilterPill
+											variant="icon"
+											icon={
+												<RefreshCw
+													className={cn("h-3.5 w-3.5", isManualRefreshing && "animate-spin")}
+												/>
+											}
+											label={t("grid.refresh", { defaultValue: "Refresh grid" })}
+											active={false}
+											onClick={() => void handleManualRefresh()}
+											color={exploreLocation ? "explore" : "accent"}
+										/>
+									)}
 								</div>
 							</div>
 						</div>
@@ -1630,7 +1728,10 @@ export function GridPage() {
 						<button
 							type="button"
 							onClick={() => setIsSearchOpen(!isSearchOpen)}
-							className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] shadow-xl transition-all duration-200 ease-out active:scale-95 hover:opacity-90"
+							className={cn(
+								"flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full shadow-xl transition-all duration-200 ease-out active:scale-95 hover:opacity-90",
+								exploreLocation ? "bg-[var(--explore)] text-white" : "bg-[var(--accent)] text-[var(--accent-contrast)]",
+							)}
 							aria-label={t("browse_page.search")}
 						>
 							<Search className="h-7 w-7 stroke-[2.5]" />
@@ -1717,6 +1818,7 @@ export function GridPage() {
 						applyDraft(draft);
 						setIsFiltersOpen(false);
 					}}
+					isExploreActive={Boolean(exploreLocation)}
 				/>
 			)}
 

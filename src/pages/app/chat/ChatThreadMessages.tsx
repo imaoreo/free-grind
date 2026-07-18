@@ -2001,7 +2001,7 @@ export function ChatThreadMessages({
                                                 <p className="whitespace-pre-wrap break-words">{displayText}</p>
                                             </div>
                                         ) : (
-                                            <p className="whitespace-pre-wrap break-words">
+                                            <p className="whitespace-pre-wrap break-words select-text">
                                                 {renderTextWithLinks(displayText, mine, (url) =>
                                                 openUrl(url).catch(() => window.open(url, "_blank"))
                                             )}

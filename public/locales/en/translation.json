@@ -1575,7 +1575,8 @@
     "title": "Interest",
     "tabs": {
       "views": "Views",
-      "taps": "Taps"
+      "taps": "Taps",
+      "sent": "Sent"
     },
     "total_viewed_count": "Total",
     "total_taps_count": "Total",
@@ -1606,7 +1607,10 @@
       "hot": "Hot",
       "looking": "Looking",
       "default": "Tap"
-    }
+    },
+    "empty_sent": "No taps sent yet",
+    "empty_sent_desc": "Taps you send will appear here.",
+    "sent_read_tooltip": "Seen by recipient"
   },
   "api": {
     "errors": {
@@ -1721,7 +1725,8 @@
     "unknown_display_name": "Someone"
   },
   "grid": {
-    "open_profile_by_id": "Open Profile by ID"
+    "open_profile_by_id": "Open Profile by ID",
+    "refresh": "Refresh grid"
   },
   "test_reminder": {
     "title": "Time for a check-up?",

@@ -1,4 +1,5 @@
-import { Grid as GridIcon, Droplets, Flame, MessageCircle } from "lucide-react";
+import { Grid as GridIcon, Flame, MessageCircle } from "lucide-react";
+import { RightNowIcon } from "./icons/RightNowIcon";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -6,6 +7,7 @@ import { cn } from "../utils/cn";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/useAuth";
+import { useExploreMode } from "../contexts/ExploreModeContext";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
@@ -67,6 +69,7 @@ export function NavBar() {
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
 	const { data: interestData } = useInterestData();
+	const { isExploreActive } = useExploreMode();
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
@@ -97,7 +100,7 @@ export function NavBar() {
 		{
 			value: "right-now",
 			label: t("nav.right_now"),
-			icon: Droplets,
+			icon: RightNowIcon,
 			path: "/right-now",
 			visible: showRightNow, // Toggleable
 		},
@@ -361,7 +364,9 @@ export function NavBar() {
 										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
 										item.value === "right-now"
 											? "focus-visible:ring-[var(--right-now)] data-[state=active]:bg-[var(--right-now)] data-[state=active]:text-white"
-											: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
+											: item.value === "browse" && isExploreActive
+												? "focus-visible:ring-[var(--explore)] data-[state=active]:bg-[var(--explore)] data-[state=active]:text-white"
+												: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
 									)}
 								>
 									<div className="relative">
@@ -374,7 +379,9 @@ export function NavBar() {
 														"absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
 														activeTab === "right-now"
 															? "bg-[var(--right-now)]"
-															: "bg-[var(--accent)]",
+															: activeTab === "browse" && isExploreActive
+																? "bg-[var(--explore)]"
+																: "bg-[var(--accent)]",
 													)}
 												></span>
 												<span
@@ -382,7 +389,9 @@ export function NavBar() {
 														"relative inline-block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
 														activeTab === "right-now"
 															? "bg-[var(--right-now)]"
-															: "bg-[var(--accent)]",
+															: activeTab === "browse" && isExploreActive
+																? "bg-[var(--explore)]"
+																: "bg-[var(--accent)]",
 													)}
 												></span>
 											</span>

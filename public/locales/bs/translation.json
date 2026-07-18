@@ -1565,7 +1565,8 @@
     "title": "",
     "tabs": {
       "views": "",
-      "taps": ""
+      "taps": "",
+      "sent": ""
     },
     "total_viewed_count": "",
     "total_taps_count": "",
@@ -1596,7 +1597,10 @@
       "hot": "",
       "looking": "",
       "default": ""
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {
@@ -1711,7 +1715,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": "Otvori profil putem ID-a"
+    "open_profile_by_id": "Otvori profil putem ID-a",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "",

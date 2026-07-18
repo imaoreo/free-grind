@@ -5603,11 +5603,16 @@ export function ChatPage() {
 		if (!albumViewer || isSavingAlbumAll) return;
 		setIsSavingAlbumAll(true);
 		try {
+			const ownerProfileId = albumViewer.isOwn
+				? userId
+				: (selectedConversationOtherProfileId != null
+						? Number(selectedConversationOtherProfileId)
+						: null);
 			await saveAllAlbumMedia(
 				{
 					albumId: albumViewer.albumId,
 					albumName: albumViewer.albumName,
-					profileId: 0,
+					profileId: ownerProfileId ?? 0,
 					profileName: "",
 					profileMediaHash: null,
 					onlineUntil: null,
@@ -5620,7 +5625,14 @@ export function ChatPage() {
 		} finally {
 			setIsSavingAlbumAll(false);
 		}
-	}, [albumViewer, isSavingAlbumAll, t, selectedConversation]);
+	}, [
+		albumViewer,
+		isSavingAlbumAll,
+		t,
+		selectedConversation,
+		selectedConversationOtherProfileId,
+		userId,
+	]);
 
 	const albumMenuActions = useMemo<PhotoViewerMenuAction[]>(() => {
 		if (!albumViewer) return [];

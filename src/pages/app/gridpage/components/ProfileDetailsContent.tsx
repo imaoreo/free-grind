@@ -7,7 +7,6 @@ import {
 	ChevronsDown,
 	ChevronsUp,
 	Compass,
-	Droplets,
 	ExternalLink,
 	Flame,
 	Globe,
@@ -44,6 +43,7 @@ import {
 import { reverseGeocodeCityDistrictForGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
 import { ProfileImage } from "../../../../components/ui/profile-image";
+import { RightNowIcon } from "../../../../components/icons/RightNowIcon";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
 import { TapSelector } from "./TapSelector";
 import type { ChatContactIndexRecord } from "../../../../types/chat-contact-index";
@@ -512,7 +512,7 @@ export function ProfileDetailsContent({
 										</>
 									) : (
 										<>
-											<Droplets className="h-3.5 w-3.5" />
+											<RightNowIcon className="h-3.5 w-3.5" />
 											{t("profile_details.right_now")}
 										</>
 									)}
@@ -622,7 +622,7 @@ export function ProfileDetailsContent({
 									border: "1px solid color-mix(in srgb, var(--right-now), transparent 70%)",
 								}}
 							>
-								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">{rightNowTextTrimmed}</p>
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)] select-text">{rightNowTextTrimmed}</p>
 							</div>
 						</div>
 					)}
@@ -664,7 +664,7 @@ export function ProfileDetailsContent({
 								{t("profile_details.about")}
 							</p>
 							<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)] select-text">
 									{activeProfile.aboutMe?.trim()}
 								</p>
 							</div>

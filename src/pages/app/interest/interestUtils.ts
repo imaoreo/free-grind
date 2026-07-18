@@ -1,9 +1,10 @@
 import type { TFunction } from "i18next";
 import { formatRelativeTime } from "../../../utils/relativeTime";
 import type { StoredInterestView } from "../../../services/interestViewsStore";
-import { validateMediaHash } from "../../../utils/media";
+import { validateMediaHash, extractMediaHashFromUrl } from "../../../utils/media";
+import type { BrowseCard } from "../GridPage.types";
 
-export type InterestTab = "views" | "taps";
+export type InterestTab = "views" | "taps" | "sent";
 
 export type InterestItem = {
 	profileId: string;
@@ -15,6 +16,7 @@ export type InterestItem = {
 	canOpenProfile: boolean;
 	isFromCache?: boolean;
 	isMutual?: boolean;
+	isRead?: boolean;
 	onlineUntil?: number | null;
 	rightNow?: string | null;
 };
@@ -343,6 +345,113 @@ export function normalizeTaps(payload: unknown, _t: TFunction): InterestItem[] {
 	}
 
 	return Array.from(mergedMap.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+}
+
+/**
+ * The sent-taps endpoint only returns bare IDs (no name/photo), unlike
+ * received taps/views which come back pre-enriched. Recover a display name
+ * and image the same way locked view-previews are recovered — by matching
+ * against profiles already seen in the browse grid — keyed by profile ID
+ * here since we already have a real ID, not just an image hash.
+ */
+export function normalizeSentTaps(
+	payload: unknown,
+	browseIdIndex?: Map<string, BrowseCard>,
+): InterestItem[] {
+	const rows = Array.isArray(payload) ? payload : [];
+
+	const mergedMap = new Map<string, InterestItem>();
+
+	for (const entry of rows) {
+		const obj = asObject(entry);
+		if (!obj) continue;
+		if (obj.deleted === true) continue;
+
+		const profileId = toStringId(obj.receiverId);
+		if (!profileId) continue;
+
+		const match = browseIdIndex?.get(profileId);
+		const imageHash = match?.primaryImageUrl ? extractMediaHashFromUrl(match.primaryImageUrl) : null;
+
+		const incoming: InterestItem = {
+			profileId,
+			displayName: match?.displayName ?? null,
+			imageHash,
+			timestamp: toNumber(obj.sentOn),
+			tapType: toNumber(obj.tapType),
+			viewCount: null,
+			canOpenProfile: true,
+			isFromCache: !!match,
+			isRead: obj.readOn != null,
+			onlineUntil: match?.onlineUntil ?? null,
+			rightNow: match?.rightNow ?? null,
+		};
+
+		const existing = mergedMap.get(profileId);
+		if (!existing || (incoming.timestamp ?? 0) > (existing.timestamp ?? 0)) {
+			mergedMap.set(profileId, incoming);
+		}
+	}
+
+	return Array.from(mergedMap.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+}
+
+const PROFILE_LOOKUP_CHUNK_SIZE = 50;
+
+/**
+ * Resolves display name/photo for sent-tap entries the browse-grid cache
+ * couldn't identify, via the same bulk cascade endpoint (POST /v3/profiles)
+ * SettingsBlockedPage/SharedAlbumsPage use to enrich id-only lists. Chunked
+ * to 50 ids per request; a failed chunk just leaves its entries id-only
+ * rather than failing the whole list.
+ */
+export async function enrichSentTapsWithProfiles(
+	items: InterestItem[],
+	getProfilesByIds: (profileIds: (string | number)[]) => Promise<unknown>,
+): Promise<InterestItem[]> {
+	const unresolvedIds = items.filter((item) => !item.displayName).map((item) => item.profileId);
+	if (unresolvedIds.length === 0) return items;
+
+	const chunks: string[][] = [];
+	for (let i = 0; i < unresolvedIds.length; i += PROFILE_LOOKUP_CHUNK_SIZE) {
+		chunks.push(unresolvedIds.slice(i, i + PROFILE_LOOKUP_CHUNK_SIZE));
+	}
+
+	const detailsById = new Map<string, { displayName: string | null; imageHash: string | null }>();
+	await Promise.all(
+		chunks.map(async (chunk) => {
+			try {
+				const raw = await getProfilesByIds(chunk);
+				const profiles = asObject(raw)?.profiles;
+				if (!Array.isArray(profiles)) return;
+				for (const entry of profiles) {
+					const obj = asObject(entry);
+					if (!obj) continue;
+					const profileId = toStringId(obj.profileId);
+					if (!profileId) continue;
+					detailsById.set(profileId, {
+						displayName: getItemDisplayName(obj),
+						imageHash: getItemImageHash(obj),
+					});
+				}
+			} catch {
+				// Chunk failed — its entries stay id-only below.
+			}
+		}),
+	);
+
+	if (detailsById.size === 0) return items;
+
+	return items.map((item) => {
+		const details = detailsById.get(item.profileId);
+		if (!details) return item;
+		return {
+			...item,
+			displayName: details.displayName ?? item.displayName,
+			imageHash: details.imageHash ?? item.imageHash,
+			isFromCache: true,
+		};
+	});
 }
 
 export function formatTimestamp(

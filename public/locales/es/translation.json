@@ -1579,7 +1579,8 @@
     "title": "Interés",
     "tabs": {
       "views": "Visitas",
-      "taps": "Taps"
+      "taps": "Taps",
+      "sent": ""
     },
     "total_viewed_count": "Total",
     "total_taps_count": "Total",
@@ -1611,7 +1612,10 @@
       "hot": "Popular",
       "looking": "Buscando",
       "default": "Tap"
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {
@@ -1726,7 +1730,8 @@
     "unknown_display_name": ""
   },
   "grid": {
-    "open_profile_by_id": "Abrir perfil por ID"
+    "open_profile_by_id": "Abrir perfil por ID",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "¿Hora de hacerte una prueba?",

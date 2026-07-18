@@ -3,6 +3,7 @@ import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
+import { ExploreModeProvider } from "./contexts/ExploreModeContext";
 import { RootLayout } from "./layouts/RootLayout";
 import { ProtectedLayout } from "./layouts/ProtectedLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -172,6 +173,7 @@ export default function App() {
 		<AuthProvider>
 			<SplashReadyBridge />
 			<PreferencesProvider>
+			<ExploreModeProvider>
 				<SinModeUnlockOverlay />
 				<SmoothScroll>
 					{showOnboarding ? (
@@ -280,6 +282,7 @@ export default function App() {
 					</Routes>
 					</TestReminderGate></OutdatedVersionGate>)}
 				</SmoothScroll>
+			</ExploreModeProvider>
 			</PreferencesProvider>
 		</AuthProvider>
 	);

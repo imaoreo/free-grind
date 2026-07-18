@@ -312,6 +312,8 @@
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
 		--right-now: #9333ea;
+		/* Keep in sync with EXPLORE_COLOR in LocationOverlay.tsx */
+		--explore: #3b82f6;
 		--content-max: 1200px;
 		--app-px: clamp(12px, 2.6vw, 28px);
 		--radius-sm: 12px;
@@ -432,6 +434,17 @@
 			"calt" 1;
 		-webkit-font-smoothing: antialiased;
 		text-rendering: optimizeLegibility;
+		/* App-wide default: text isn't selectable. Specific content (inputs,
+		   profile bio, right-now text, plain chat message text) opts back in
+		   via select-text. */
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	input,
+	textarea {
+		user-select: text;
+		-webkit-user-select: text;
 	}
 
 	* {
@@ -449,6 +462,15 @@
 	select {
 		font: inherit;
 		color: inherit;
+	}
+
+	/* Tailwind's Preflight resets button cursor to "default" (matching the
+	   native/browser behavior) rather than "pointer" — restore the pointer
+	   affordance app-wide for every clickable button/row, since this codebase
+	   otherwise relies on it, and desktop users expect it. */
+	button:not(:disabled),
+	[role="button"]:not([aria-disabled="true"]) {
+		cursor: pointer;
 	}
 }
 
@@ -963,7 +985,7 @@
 }
 
 @keyframes tap-fly-center {
-  0%   { opacity: 1; transform: translate(calc(-50% + 50vw - 110px), calc(-50% + 50vh - 80px)) scale(0.9); }
+  0%   { opacity: 1; transform: translate(calc(-50% + var(--tap-origin-dx, 50vw - 110px)), calc(-50% + var(--tap-origin-dy, 50vh - 80px))) scale(0.9); }
   55%  { opacity: 1;    transform: translate(-50%, -50%) scale(3.5); }
   70%  { opacity: 0.5; }
   100% { opacity: 0;    transform: translate(-50%, -50%) scale(14); }

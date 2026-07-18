@@ -1565,7 +1565,8 @@
     "title": "Interest",
     "tabs": {
       "views": "Besucher",
-      "taps": "Taps"
+      "taps": "Taps",
+      "sent": ""
     },
     "total_viewed_count": "Gesamt",
     "total_taps_count": "Gesamt",
@@ -1596,7 +1597,10 @@
       "hot": "Heiß",
       "looking": "Suchend",
       "default": "Tap"
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {
@@ -1711,7 +1715,8 @@
     "unknown_display_name": "Jemand"
   },
   "grid": {
-    "open_profile_by_id": "Profil per ID öffnen"
+    "open_profile_by_id": "Profil per ID öffnen",
+    "refresh": ""
   },
   "test_reminder": {
     "title": "Zeit für einen Test?",

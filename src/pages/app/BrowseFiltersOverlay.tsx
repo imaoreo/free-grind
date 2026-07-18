@@ -44,14 +44,23 @@ interface BrowseFiltersOverlayProps {
 	initialDraft: BrowseFiltersDraft;
 	onClose: () => void;
 	onApply: (draft: BrowseFiltersDraft) => void;
+	/** Right Now and Favorites both rely on the real location/presence, which
+	 * doesn't apply to a browsed-away explore location — hide those two quick
+	 * filters while explore mode is active (mirrors GridPage's own filter row). */
+	isExploreActive?: boolean;
 }
 
-export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseFiltersOverlayProps) {
+export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExploreActive = false }: BrowseFiltersOverlayProps) {
 	const { t, i18n } = useTranslation();
 	const { unitsPreset } = usePreferences();
 	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
+
+	// Mirrors GridPage's own filter row: while browsing an explore location,
+	// every accent-tinted element in this sheet switches to EXPLORE_COLOR
+	// (see --explore in index.css) the same way it switches for Right Now.
+	const accentColor = isExploreActive ? "var(--explore)" : "var(--accent)";
 
 	const normalized = useMemo(() => normalizeBrowseFiltersDraft(initialDraft), [initialDraft]);
 
@@ -104,18 +113,21 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		? (isImperialWeight ? Math.round(gramsToPounds(Number(weightGramsMax))) : Math.round(gramsToKg(Number(weightGramsMax))))
 		: weightRange.max;
 
-	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => [
-		{ key: "onlineOnly", label: t("browse_filters.options.online") },
-		{ key: "hasAlbum", label: t("browse_filters.options.has_album") },
-		{ key: "photoOnly", label: t("browse_filters.options.photo") },
-		{ key: "faceOnly", label: t("browse_filters.options.face") },
-		{ key: "notRecentlyChatted", label: t("browse_filters.options.no_recent_chat") },
-		{ key: "fresh", label: t("browse_filters.options.fresh") },
-		{ key: "rightNow", label: t("browse_filters.options.right_now") },
-		{ key: "favorites", label: t("browse_filters.options.favorites") },
-		{ key: "hot", label: t("browse_filters.options.hot") },
-		{ key: "shuffle", label: t("browse_filters.options.shuffle") },
-	], [t]);
+	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => {
+		const options: Array<{ key: keyof BrowseFilters; label: string }> = [
+			{ key: "onlineOnly", label: t("browse_filters.options.online") },
+			{ key: "hasAlbum", label: t("browse_filters.options.has_album") },
+			{ key: "photoOnly", label: t("browse_filters.options.photo") },
+			{ key: "faceOnly", label: t("browse_filters.options.face") },
+			{ key: "notRecentlyChatted", label: t("browse_filters.options.no_recent_chat") },
+			{ key: "fresh", label: t("browse_filters.options.fresh") },
+			{ key: "rightNow", label: t("browse_filters.options.right_now") },
+			{ key: "favorites", label: t("browse_filters.options.favorites") },
+			{ key: "hot", label: t("browse_filters.options.hot") },
+			{ key: "shuffle", label: t("browse_filters.options.shuffle") },
+		];
+		return isExploreActive ? options.filter((option) => option.key !== "rightNow" && option.key !== "favorites") : options;
+	}, [t, isExploreActive]);
 
 	const localFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => [
 		{ key: "isVisiting", label: t("browse_filters.local_filters.is_visiting") },
@@ -203,8 +215,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		<section
 			className="rounded-2xl p-4"
 			style={{
-				backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-				border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+				backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+				border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
 			}}
 		>
 			<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -221,8 +233,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							className={cn(
 								"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
 								isSelected
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+									? isExploreActive
+										? "border-[var(--explore)] bg-[var(--explore)] text-white shadow-sm"
+										: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+									: isExploreActive
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--explore)]/60 hover:text-[var(--text)]"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
 							)}
 						>
 							{option.label}
@@ -240,8 +256,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		<section
 			className="rounded-2xl p-4"
 			style={{
-				backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-				border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+				backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+				border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
 			}}
 		>
 			<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -258,8 +274,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							className={cn(
 								"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
 								active
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+									? isExploreActive
+										? "border-[var(--explore)] bg-[var(--explore)] text-white shadow-sm"
+										: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+									: isExploreActive
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--explore)]/60 hover:text-[var(--text)]"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
 							)}
 						>
 							{filter.label}
@@ -286,7 +306,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 				onClick={(e) => e.stopPropagation()}
 			>
 				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-					<PageHeaderBackground color="var(--accent)" />
+					<PageHeaderBackground color={accentColor} />
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
@@ -316,8 +336,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 						<section
 							className="rounded-2xl p-4"
 							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+								backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+								border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
 							}}
 						>
 							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -330,7 +350,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 									max={99}
 									minDefault={ageMin ? Number(ageMin) : 18}
 									maxDefault={ageMax ? Number(ageMax) : 99}
-									activeColor="var(--accent)"
+									activeColor={accentColor}
 									showSeparator={true}
 									onChange={(min, max) => {
 										setAgeMin(min === 18 ? "" : String(min));
@@ -345,7 +365,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 									max={heightRange.max}
 									minDefault={heightMinDefault}
 									maxDefault={heightMaxDefault}
-									activeColor="var(--accent)"
+									activeColor={accentColor}
 									showSeparator={true}
 									onChange={(min, max) => {
 										const minCm = isImperialHeight ? Math.round(inchesToCm(min)) : min;
@@ -361,7 +381,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 									max={weightRange.max}
 									minDefault={weightMinDefault}
 									maxDefault={weightMaxDefault}
-									activeColor="var(--accent)"
+									activeColor={accentColor}
 									showSeparator={true}
 									onChange={(min, max) => {
 										const minGrams = isImperialWeight ? Math.round(poundsToGrams(min)) : Math.round(kgToGrams(min));
@@ -419,8 +439,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 						<section
 							className="rounded-2xl p-4"
 							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+								backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+								border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
 							}}
 						>
 							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -438,7 +458,10 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 								<button
 									type="button"
 									onClick={() => addTag()}
-									className="h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									className={cn(
+										"h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]",
+										isExploreActive ? "hover:border-[var(--explore)]" : "hover:border-[var(--accent)]",
+									)}
 								>
 									{t("browse_filters.add")}
 								</button>
@@ -450,7 +473,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											key={tag.tagId}
 											type="button"
 											onClick={() => addManagedTag(tag)}
-											className="rounded-full border border-[var(--accent)]/60 bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
+											className={cn(
+												"rounded-full border bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition",
+												isExploreActive
+													? "border-[var(--explore)]/60 hover:bg-[var(--explore)] hover:text-white"
+													: "border-[var(--accent)]/60 hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]",
+											)}
 										>
 											+ {tag.text}
 										</button>
@@ -464,7 +492,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											key={tag}
 											type="button"
 											onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
-											className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											className={cn(
+												"rounded-full border px-3 py-1 text-xs font-semibold shadow-sm transition",
+												isExploreActive
+													? "border-[var(--explore)] bg-[var(--explore)] text-white"
+													: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]",
+											)}
 										>
 											{tagLabel(tag)} <span className="ml-1">×</span>
 										</button>
@@ -476,8 +509,8 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 						<section
 							className="rounded-2xl p-4"
 							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+								backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+								border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
 							}}
 						>
 							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
@@ -494,8 +527,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											className={cn(
 												"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
 												active
-													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-													: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+													? isExploreActive
+														? "border-[var(--explore)] bg-[var(--explore)] text-white shadow-sm"
+														: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+													: isExploreActive
+														? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--explore)]/60 hover:text-[var(--text)]"
+														: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
 											)}
 										>
 											{filter.label}
@@ -510,7 +547,10 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 									value={nicknameFilter}
 									onChange={(e) => setNicknameFilter(e.target.value)}
 									placeholder={t("browse_filters.local_filters.nickname_placeholder")}
-									className="h-9 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] pl-8 pr-8 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+									className={cn(
+										"h-9 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] pl-8 pr-8 text-sm text-[var(--text)] outline-none transition",
+										isExploreActive ? "focus:border-[var(--explore)]" : "focus:border-[var(--accent)]",
+									)}
 								/>
 								{nicknameFilter && (
 									<button
@@ -533,14 +573,20 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 					<button
 						type="button"
 						onClick={clearAll}
-						className="flex-1 rounded-xl border border-[var(--border)] py-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						className={cn(
+							"flex-1 rounded-xl border border-[var(--border)] py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]",
+							isExploreActive ? "hover:border-[var(--explore)]" : "hover:border-[var(--accent)]",
+						)}
 					>
 						{t("browse_filters.clear_all")}
 					</button>
 					<button
 						type="button"
 						onClick={handleApply}
-						className="relative flex-1 overflow-hidden rounded-xl bg-[var(--accent)] py-3 text-sm font-bold text-[var(--accent-contrast)] transition group"
+						className={cn(
+							"relative flex-1 overflow-hidden rounded-xl py-3 text-sm font-bold transition group",
+							isExploreActive ? "bg-[var(--explore)] text-white" : "bg-[var(--accent)] text-[var(--accent-contrast)]",
+						)}
 					>
 						<span className="relative z-10">{t("browse_filters.apply")}</span>
 						<div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />

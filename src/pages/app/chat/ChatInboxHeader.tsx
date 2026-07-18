@@ -1,4 +1,5 @@
-import { Droplets, Images, Loader2, Mail, Pill, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Images, Loader2, Mail, Pill, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { RightNowIcon } from "../../../components/icons/RightNowIcon";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -202,7 +203,7 @@ export function ChatInboxHeader({
 									onClick={onToggleOnlineNowOnly}
 								/>
 								<FilterPill
-									icon={<Droplets className={`h-3.5 w-3.5 ${inboxFilters.rightNowOnly ? "fill-current" : ""}`} />}
+									icon={<RightNowIcon className="h-3.5 w-3.5" />}
 									label={t("browse_filters.options.right_now")}
 									active={Boolean(inboxFilters.rightNowOnly)}
 									onClick={onToggleRightNowOnly}

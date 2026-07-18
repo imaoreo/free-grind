@@ -1,6 +1,8 @@
 import {
+	interestSentTapsResponseSchema,
 	interestTapsResponseSchema,
 	interestViewsResponseSchema,
+	type InterestSentTapsResponse,
 	type InterestTapsResponse,
 	type InterestViewsResponse,
 } from "../../types/interest";
@@ -20,6 +22,12 @@ export function createInterestMethods(fetchRest: RestFetcher, t: (key: string) =
 			const response = await fetchRest("/v2/taps/received");
 			await assertSuccess(response, t("api.errors.load_taps"));
 			return interestTapsResponseSchema.parse(await parseJsonSafe(response));
+		},
+
+		async getSentTaps(): Promise<InterestSentTapsResponse> {
+			const response = await fetchRest("/v1/interactions/taps/sent");
+			await assertSuccess(response, t("api.errors.load_taps"));
+			return interestSentTapsResponseSchema.parse(await parseJsonSafe(response));
 		},
 
 		async tap(profileId: string | number, tapType: number = 0): Promise<TapResult> {

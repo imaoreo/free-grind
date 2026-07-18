@@ -1,5 +1,6 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { MapPin, MessageCircle, Plane, Satellite, Star, Zap, Droplets } from "lucide-react";
+import { MapPin, MessageCircle, Plane, Satellite, Star, Zap } from "lucide-react";
+import { RightNowIcon } from "../../../../components/icons/RightNowIcon";
 import { useTranslation } from "react-i18next";
 import {
 	formatDistance,
@@ -121,10 +122,7 @@ export function BrowseCardTile({
 									)}
 									{isRightNow && (
 										<span className="inline-flex" title="Right Now">
-											<Droplets
-												className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]"
-												strokeWidth={2.5}
-											/>
+											<RightNowIcon className="h-4 w-4 text-[var(--right-now)] drop-shadow-[0_1px_1.5px_rgba(0,0,0,1)] drop-shadow-[0_0_0.8px_rgba(0,0,0,1)]" />
 										</span>
 									)}
 								</div>
