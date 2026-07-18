@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import {
 	AlertCircle,
 	Bell,
-	Bookmark,
 	Bug,
 	CheckCircle2,
 	ChevronLeft,
@@ -21,6 +20,7 @@ import {
 	MessageSquareWarning,
 	History,
 	Palette,
+	Plus,
 	Radar,
 	RefreshCcw,
 	Search,
@@ -50,7 +50,6 @@ import {
 	installHotswapUpdate,
 	isHotswapAvailable,
 	setHotswapChannel,
-	clearContributorChannel,
 	isContributorChannel,
 	getContributorHandle,
 	type HotswapChannel,
@@ -190,6 +189,111 @@ function describeInboxSyncStatus(status: InboxSyncStatus, t: TFunction) {
 	}
 }
 
+function ContributorChannelDialog({
+	isOpen,
+	value,
+	onValueChange,
+	onSubmit,
+	onCancel,
+	isProcessing,
+}: {
+	isOpen: boolean;
+	value: string;
+	onValueChange: (value: string) => void;
+	onSubmit: () => void;
+	onCancel: () => void;
+	isProcessing: boolean;
+}) {
+	const dialogRef = useRef<HTMLDialogElement | null>(null);
+	const inputRef = useRef<HTMLInputElement | null>(null);
+
+	useEffect(() => {
+		const dialog = dialogRef.current;
+		if (!dialog) return;
+		if (isOpen) {
+			if (!dialog.open) {
+				try {
+					dialog.showModal();
+				} catch {
+					dialog.show();
+				}
+				requestAnimationFrame(() => inputRef.current?.focus());
+			}
+		} else if (dialog.open) {
+			dialog.close();
+		}
+	}, [isOpen]);
+
+	useEffect(() => {
+		return () => {
+			const dialog = dialogRef.current;
+			if (dialog?.open) {
+				dialog.close();
+			}
+		};
+	}, []);
+
+	useEffect(() => {
+		const dialog = dialogRef.current;
+		if (!dialog) return;
+		const handleCancel = (event: Event) => {
+			event.preventDefault();
+			if (!isProcessing) onCancel();
+		};
+		dialog.addEventListener("cancel", handleCancel);
+		return () => dialog.removeEventListener("cancel", handleCancel);
+	}, [isProcessing, onCancel]);
+
+	return (
+		<dialog
+			ref={dialogRef}
+			className="fixed inset-0 m-auto h-fit w-[calc(100%-2rem)] max-w-sm rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)] p-0 text-[var(--text)] shadow-2xl backdrop:bg-black/45"
+			onClick={(event) => {
+				if (event.target === dialogRef.current && !isProcessing) onCancel();
+			}}
+		>
+			<div className="p-4">
+				<p className="text-sm font-semibold text-[var(--text)]">Contributor Channel</p>
+				<p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">
+					Receive experimental builds from a community contributor's channel. Use at your own risk.
+				</p>
+				<input
+					ref={inputRef}
+					type="text"
+					value={value}
+					onChange={(event) => onValueChange(event.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+					onKeyDown={(event) => {
+						if (event.key === "Enter") onSubmit();
+					}}
+					placeholder="contributor-handle"
+					maxLength={32}
+					disabled={isProcessing}
+					className="input-field mt-4 w-full font-mono text-sm disabled:opacity-60"
+				/>
+				<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						onClick={onCancel}
+						disabled={isProcessing}
+						className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+					>
+						Cancel
+					</button>
+					<button
+						type="button"
+						onClick={onSubmit}
+						disabled={isProcessing || !value}
+						className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+					>
+						{isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+						<span>Activate</span>
+					</button>
+				</div>
+			</div>
+		</dialog>
+	);
+}
+
 export function SettingsPage() {
 	const { t } = useTranslation();
 	const { userId, logout, savedAccounts, switchAccount, removeSavedAccount } = useAuth();
@@ -253,6 +357,7 @@ export function SettingsPage() {
 	const visibleChannels = getHotswapChannels();
 	const [contributorCodeInput, setContributorCodeInput] = useState("");
 	const [isActivatingContributor, setIsActivatingContributor] = useState(false);
+	const [isContributorDialogOpen, setIsContributorDialogOpen] = useState(false);
 
 	const handleForceSyncFcm = useCallback(async (overrideToken?: string) => {
 		const tokenToSync = overrideToken ?? fcmToken;
@@ -428,28 +533,6 @@ export function SettingsPage() {
 			toast.error("Failed to switch to contributor channel.");
 		} finally {
 			setIsActivatingContributor(false);
-		}
-	};
-
-	const handleLeaveContributorChannel = async () => {
-		if (!isHotswapAvailable()) {
-			toast.error(t("settings.ota_available_only_tauri"));
-			return;
-		}
-
-		setIsSwitchingChannel(true);
-		try {
-			await clearContributorChannel();
-			setUpdateChannel("main");
-			toast.success("Left contributor channel, switched back to main.");
-			window.location.reload();
-		} catch (error) {
-			if (import.meta.env.DEV) {
-				appLog.error("Leave contributor channel failed:", error);
-			}
-			toast.error("Failed to leave contributor channel.");
-		} finally {
-			setIsSwitchingChannel(false);
 		}
 	};
 
@@ -700,34 +783,6 @@ export function SettingsPage() {
 					</div>
 				</div>
 
-				{/* Customizability */}
-				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Customizability</p>
-					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						{navRow(
-							() => navigate("/settings/customizability"),
-							<Palette className="h-5 w-5" />,
-							"bg-violet-500/15 text-violet-400",
-							t("settings.customizability"),
-							t("settings.customizability_desc"),
-						)}
-						{navRow(
-							() => navigate("/settings/behavior"),
-							<SlidersHorizontal className="h-5 w-5" />,
-							"bg-slate-500/15 text-slate-400",
-							t("settings.behavior"),
-							t("settings.behavior_desc"),
-						)}
-						{navRow(
-							() => navigate("/settings/notifications"),
-							<Bell className="h-5 w-5" />,
-							"bg-blue-500/15 text-blue-400",
-							t("settings.notifications"),
-							t("settings.notifications_desc"),
-						)}
-					</div>
-				</div>
-
 				{/* Chat */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Chat</p>
@@ -774,20 +829,6 @@ export function SettingsPage() {
 								)}
 							</div>
 						</div>
-						{navRow(
-							() => navigate("/settings/automation"),
-							<Workflow className="h-5 w-5" />,
-							"bg-amber-500/15 text-amber-400",
-							t("settings.automation"),
-							t("settings.automation_desc"),
-						)}
-						{navRow(
-							() => navigate("/settings/saved-phrases"),
-							<Bookmark className="h-5 w-5" />,
-							"bg-emerald-500/15 text-emerald-400",
-							t("settings.saved_phrases", { defaultValue: "Saved Phrases" }),
-							t("settings.saved_phrases_desc", { defaultValue: "Manage chat quick replies and import/export .txt" }),
-						)}
 						{navRow(
 							() => navigate("/settings/albums"),
 							<Images className="h-5 w-5" />,
@@ -837,6 +878,41 @@ export function SettingsPage() {
 					</div>
 				</div>
 
+				{/* Customizability */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Customizability</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						{navRow(
+							() => navigate("/settings/customizability"),
+							<Palette className="h-5 w-5" />,
+							"bg-violet-500/15 text-violet-400",
+							t("settings.customizability"),
+							t("settings.customizability_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/behavior"),
+							<SlidersHorizontal className="h-5 w-5" />,
+							"bg-slate-500/15 text-slate-400",
+							t("settings.behavior"),
+							t("settings.behavior_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/notifications"),
+							<Bell className="h-5 w-5" />,
+							"bg-blue-500/15 text-blue-400",
+							t("settings.notifications"),
+							t("settings.notifications_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/automation"),
+							<Workflow className="h-5 w-5" />,
+							"bg-amber-500/15 text-amber-400",
+							t("settings.automation"),
+							t("settings.automation_desc"),
+						)}
+					</div>
+				</div>
+
 				{/* Backup & Restore */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
@@ -856,12 +932,17 @@ export function SettingsPage() {
 				{/* Updates */}
 				<div>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Updates</p>
-					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-
-						{/* Check for Updates + Channel switcher */}
+					<div className="surface-card overflow-hidden">
 						<div className="flex items-start gap-3 px-4 py-3.5">
-							<div className="rounded-2xl bg-green-500/15 p-2.5 shrink-0 text-green-400">
-								<RefreshCcw className={`h-5 w-5 ${isCheckingUpdates || isSwitchingChannel ? "animate-spin" : ""}`} />
+							<div className="relative shrink-0">
+								<div className="rounded-2xl bg-green-500/15 p-2.5 text-green-400">
+									<RefreshCcw className={`h-5 w-5 ${isCheckingUpdates || isSwitchingChannel ? "animate-spin" : ""}`} />
+								</div>
+								{isContributorChannel(updateChannel) && (
+									<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)] ring-2 ring-[var(--surface)]">
+										<GitBranch className="h-3 w-3" />
+									</div>
+								)}
 							</div>
 							<div className="min-w-0 flex-1">
 								<div className="grid grid-cols-[1fr_auto] gap-x-3">
@@ -874,7 +955,7 @@ export function SettingsPage() {
 									<p className="mt-0.5 text-xs text-[var(--text-muted)]">{t("settings.check_updates_desc")}</p>
 								</div>
 								{visibleChannels.length > 0 && (
-									<div className="mt-3 flex flex-wrap gap-1">
+									<div className="mt-3 flex flex-wrap items-center gap-1">
 										{visibleChannels.map((channel) => (
 											<button
 												key={channel}
@@ -890,69 +971,26 @@ export function SettingsPage() {
 												{getHotswapChannelLabel(channel)}
 											</button>
 										))}
+										{isContributorChannel(updateChannel) ? (
+											<span className="rounded-full border border-[var(--accent)] bg-[var(--accent)] px-2.5 py-0.5 text-xs font-semibold text-black">
+												{getContributorHandle(updateChannel)}
+											</span>
+										) : developerMode ? (
+											<button
+												type="button"
+												onClick={() => setIsContributorDialogOpen(true)}
+												disabled={isSwitchingChannel || isCheckingUpdates}
+												aria-label="Add contributor channel"
+												title="Add contributor channel"
+												className="flex h-[22px] w-[22px] items-center justify-center rounded-full border border-dashed border-[var(--border)] text-[var(--text-muted)] transition hover:border-[var(--accent)]/50 hover:text-[var(--accent)] disabled:opacity-50"
+											>
+												<Plus className="h-3 w-3" />
+											</button>
+										) : null}
 									</div>
 								)}
 							</div>
 						</div>
-
-						{/* Contributor Channel */}
-						{(developerMode || isContributorChannel(updateChannel)) && (
-							<div className="px-4 py-3.5">
-								<div className="flex items-start gap-3">
-									<div className="relative shrink-0">
-										<div className="rounded-2xl bg-[var(--surface-2)] p-2.5 text-[var(--text-muted)]">
-											<GitBranch className="h-5 w-5" />
-										</div>
-										{isContributorChannel(updateChannel) && (
-											<div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white ring-2 ring-[var(--surface)]">
-												<CheckCircle2 className="h-3 w-3" />
-											</div>
-										)}
-									</div>
-									<div className="grid gap-2 min-w-0 flex-1">
-										<div>
-											<p className="text-sm font-semibold leading-snug">Contributor Channel</p>
-											<p className="text-xs text-[var(--text-muted)] mt-0.5">
-											{isContributorChannel(updateChannel)
-												? "Receiving experimental builds from a community contributor. Use at your own risk."
-												: "Receive experimental builds from a community contributor."}
-										</p>
-										</div>
-										{isContributorChannel(updateChannel) ? (
-											<div className="flex items-center justify-between gap-2 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 px-3 py-2">
-												<div className="min-w-0">
-													<p className="text-xs text-[var(--text-muted)]">Active</p>
-													<p className="text-sm font-semibold text-[var(--accent)] truncate">{getContributorHandle(updateChannel)}</p>
-												</div>
-												<button
-													type="button"
-													disabled={isSwitchingChannel}
-													onClick={() => void handleLeaveContributorChannel()}
-													className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
-												>
-													{isSwitchingChannel ? "Leaving…" : "Leave"}
-												</button>
-											</div>
-										) : developerMode ? (
-											<div className="flex gap-2">
-												<input
-													type="text"
-													value={contributorCodeInput}
-													onChange={(e) => setContributorCodeInput(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-													onKeyDown={(e) => { if (e.key === "Enter") void handleActivateContributorChannel(); }}
-													placeholder="contributor-handle"
-													maxLength={32}
-													className="input-field flex min-w-0 flex-1 items-center font-mono text-xs"
-												/>
-												<Button type="button" disabled={isActivatingContributor || !contributorCodeInput} onClick={() => void handleActivateContributorChannel()}>
-													{isActivatingContributor ? "Activating…" : "Activate"}
-												</Button>
-											</div>
-										) : null}
-									</div>
-								</div>
-							</div>
-						)}
 					</div>
 				</div>
 
@@ -1200,6 +1238,18 @@ export function SettingsPage() {
 					}
 				}}
 				onCancel={() => setLogoutConfirmTarget(null)}
+			/>
+
+			<ContributorChannelDialog
+				isOpen={isContributorDialogOpen}
+				value={contributorCodeInput}
+				onValueChange={setContributorCodeInput}
+				onSubmit={() => void handleActivateContributorChannel()}
+				onCancel={() => {
+					setIsContributorDialogOpen(false);
+					setContributorCodeInput("");
+				}}
+				isProcessing={isActivatingContributor}
 			/>
 		</section>
 	);

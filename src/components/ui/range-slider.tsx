@@ -13,6 +13,8 @@ interface RangeSliderProps {
 	activeColor?: string;
 	onChange: (min: number, max: number) => void;
 	showSeparator?: boolean;
+	/** Skips the built-in label/value row entirely — use when the label and current value are already shown by a surrounding section header. */
+	hideHeader?: boolean;
 }
 
 interface SliderProps {
@@ -146,6 +148,7 @@ export function RangeSlider({
 	activeColor,
 	onChange,
 	showSeparator = false,
+	hideHeader = false,
 }: RangeSliderProps) {
 	const [minValue, setMinValue] = useState(minDefault);
 	const [maxValue, setMaxValue] = useState(maxDefault);
@@ -193,26 +196,28 @@ export function RangeSlider({
 
 	return (
 		<div className="flex flex-col gap-0.5 py-1" style={style}>
-			<div
-				className={cn("flex justify-between items-center mb-1", showSeparator && "border-b pb-2 mb-2")}
-				style={showSeparator && activeColor ? { borderColor: `color-mix(in srgb, ${activeColor}, transparent 80%)` } : {}}
-			>
-				<div className="flex items-center gap-2">
-					<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-						{label}
+			{!hideHeader && (
+				<div
+					className={cn("flex justify-between items-center mb-1", showSeparator && "border-b pb-2 mb-2")}
+					style={showSeparator && activeColor ? { borderColor: `color-mix(in srgb, ${activeColor}, transparent 80%)` } : {}}
+				>
+					<div className="flex items-center gap-2">
+						<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+							{label}
+						</span>
+					</div>
+					<span className={cn(
+						"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
+						!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
+					)}
+					style={activeColor ? {
+						backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
+						color: "var(--text)"
+					} : {}}>
+						{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
 					</span>
 				</div>
-				<span className={cn(
-					"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
-					!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
-				)}
-				style={activeColor ? {
-					backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
-					color: "var(--text)"
-				} : {}}>
-					{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
-				</span>
-			</div>
+			)}
 
 			<div className="relative h-10 flex items-center">
 				<input

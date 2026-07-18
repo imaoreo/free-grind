@@ -2550,7 +2550,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<div className="flex items-center gap-1">
 										<button
 											type="button"
-											onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/saved-phrases"); }}
+											onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/data"); }}
 											className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
 											aria-label={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}
 											title={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}

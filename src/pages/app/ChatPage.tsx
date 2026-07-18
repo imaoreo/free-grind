@@ -81,6 +81,7 @@ import {
 	buildBinaryUpload,
 	buildChatFiltersDraft,
 	buildPreviewFromMessage,
+	conversationNeedsReply,
 	draftToFilters,
 	extractImageHashFromSignedUrl,
 	getMediaCaptureTarget,
@@ -328,6 +329,10 @@ export function ChatPage() {
 	// feature — unlike pinned/archived, which default to a mixed-in view.
 	const [hiddenFilter, setHiddenFilter] = useState<InboxVisibilityFilter>("hide");
 	const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(new Set());
+	// Local-only, like pinned/archived/hidden — re-checked against each cached
+	// conversation's preview.senderId (see conversationNeedsReply), not sent
+	// to the server as part of inboxFilters.
+	const [needsReplyOnly, setNeedsReplyOnly] = useState(false);
 
 	useEffect(() => {
 		void chatDb.listHiddenConversationIds().then((ids) => {
@@ -354,6 +359,7 @@ export function ChatPage() {
 			setPinnedFilter(draft.pinnedFilter);
 			setArchivedFilter(draft.archivedFilter);
 			setHiddenFilter(draft.hiddenFilter);
+			setNeedsReplyOnly(draft.needsReplyOnly);
 		});
 	}, [userId, settingsReady]);
 
@@ -367,9 +373,9 @@ export function ChatPage() {
 			return;
 		}
 		void saveChatFiltersDraft(
-			buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }),
+			buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }, needsReplyOnly),
 		);
-	}, [inboxFilters, pinnedFilter, archivedFilter, hiddenFilter]);
+	}, [inboxFilters, pinnedFilter, archivedFilter, hiddenFilter, needsReplyOnly]);
 
 	useEffect(() => {
 		if (!userId) {
@@ -426,7 +432,8 @@ export function ChatPage() {
 		inboxFilters.distanceMeters != null ||
 		pinnedFilter !== "all" ||
 		archivedFilter !== "all" ||
-		hiddenFilter !== "hide";
+		hiddenFilter !== "hide" ||
+		needsReplyOnly;
 
 	const chatActiveFilterCount = [
 		inboxFilters.unreadOnly,
@@ -439,6 +446,7 @@ export function ChatPage() {
 		pinnedFilter !== "all",
 		archivedFilter !== "all",
 		hiddenFilter !== "hide",
+		needsReplyOnly,
 	].filter(Boolean).length;
 
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
@@ -449,6 +457,7 @@ export function ChatPage() {
 		setPinnedFilter("all");
 		setArchivedFilter("all");
 		setHiddenFilter("hide");
+		setNeedsReplyOnly(false);
 	}, []);
 
 	const toggleInboxFavoritesOnly = useCallback(() => {
@@ -3772,6 +3781,9 @@ export function ChatPage() {
 		} else if (hiddenFilter === "only") {
 			result = result.filter((c) => hiddenConversationIds.has(c.data.conversationId));
 		}
+		if (needsReplyOnly) {
+			result = result.filter((c) => conversationNeedsReply(c, userId));
+		}
 		return result;
 	}, [
 		conversations,
@@ -3787,6 +3799,8 @@ export function ChatPage() {
 		archivedFilter,
 		hiddenFilter,
 		hiddenConversationIds,
+		needsReplyOnly,
+		userId,
 	]);
 
 	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
@@ -6136,6 +6150,7 @@ export function ChatPage() {
 		onClearInboxFilters: clearInboxFilters,
 		archivedFilter,
 		hiddenFilter,
+		needsReplyOnly,
 	} as const;
 
 	const renderInbox = (
@@ -6352,6 +6367,7 @@ export function ChatPage() {
 						setPinnedFilter(draft.pinnedFilter);
 						setArchivedFilter(draft.archivedFilter);
 						setHiddenFilter(draft.hiddenFilter);
+						setNeedsReplyOnly(draft.needsReplyOnly);
 					}}
 				/>
 			)}

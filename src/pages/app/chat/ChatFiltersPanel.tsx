@@ -74,6 +74,7 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, 
 
 	const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
 		{ key: "unreadOnly", label: t("chat_filters.options.unread") },
+		{ key: "needsReplyOnly", label: t("chat_filters.options.needs_reply") },
 		{ key: "favoritesOnly", label: t("browse_filters.options.favorites") },
 		{ key: "chemistryOnly", label: t("chat_filters.options.chemistry") },
 		{ key: "rightNowOnly", label: t("browse_filters.options.right_now") },

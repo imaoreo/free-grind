@@ -376,7 +376,10 @@
       "title": "Lokale Filter",
       "description": "Diese Filter werden sofort auf die bereits geladenen Profile angewendet.",
       "is_visiting": "Auf Besuch",
-      "nickname_placeholder": "Name…"
+      "name_title": "",
+      "nickname_placeholder": "Name…",
+      "badge": "",
+      "visiting_title": ""
     }
   },
   "browse_location": {
@@ -493,7 +496,8 @@
     "max_distance": "Maximale Entfernung",
     "options": {
       "unread": "Ungelesen",
-      "chemistry": "Chemie"
+      "chemistry": "Chemie",
+      "needs_reply": ""
     },
     "visibility": "Sichtbarkeit"
   },

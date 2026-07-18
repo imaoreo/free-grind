@@ -376,7 +376,10 @@
       "title": "",
       "description": "",
       "is_visiting": "",
-      "nickname_placeholder": ""
+      "name_title": "",
+      "nickname_placeholder": "",
+      "badge": "",
+      "visiting_title": ""
     }
   },
   "browse_location": {
@@ -493,7 +496,8 @@
     "max_distance": "",
     "options": {
       "unread": "",
-      "chemistry": ""
+      "chemistry": "",
+      "needs_reply": ""
     },
     "visibility": "Zichtbaarheid"
   },

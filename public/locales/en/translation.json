@@ -377,7 +377,10 @@
     "local_filters": {
       "title": "Local Filters",
       "description": "These filters apply instantly to the profiles already loaded.",
+      "badge": "Local",
+      "visiting_title": "Currently Visiting",
       "is_visiting": "Visiting",
+      "name_title": "Name",
       "nickname_placeholder": "Name…"
     }
   },
@@ -495,7 +498,8 @@
     "max_distance": "Max distance",
     "options": {
       "unread": "Unread",
-      "chemistry": "Chemistry"
+      "chemistry": "Chemistry",
+      "needs_reply": "Needs reply"
     },
     "visibility": "Visibility"
   },
