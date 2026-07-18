@@ -11,6 +11,7 @@ import {
 	Eye,
 	EyeOff,
 	Star,
+	GripVertical,
 	HeartPulse,
 	Hourglass,
 	ImagePlus,
@@ -95,6 +96,22 @@ import { getShowReadReceiptToggle, isReadReceiptsHidden, toggleReadReceiptsHidde
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import {
+	DndContext,
+	MouseSensor,
+	TouchSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	verticalListSortingStrategy,
+	useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis } from "../../../utils/dndModifiers";
 import { GiphyPickerSheet } from "./GiphyPickerSheet";
 import type { ArchivedReason } from "../../../types/chat-db";
 import { useAvatarCache } from "../../../hooks/useAvatarCache";
@@ -272,6 +289,62 @@ function AudioPreviewPlayer({ blob, durationMs, recordedBars, recordedFraction }
 	}, [blob]);
 	if (!url) return null;
 	return <AudioMessagePlayer src={url} messageId="preview" mine={false} className="w-full" durationHint={durationMs / 1000} hideSpeed compact initialBars={recordedBars} recordedFraction={recordedFraction} />;
+}
+
+type SortableSavedPhraseRowProps = {
+	phrase: string;
+	onUse: () => void;
+	onDelete: () => void;
+	isDesktop: boolean;
+};
+
+function SortableSavedPhraseRow({ phrase, onUse, onDelete, isDesktop }: SortableSavedPhraseRowProps) {
+	const { t } = useTranslation();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: phrase });
+
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			{...(isDesktop ? {} : { ...attributes, ...listeners })}
+			className={`group flex items-start gap-3 px-4 py-3 ${isDesktop ? "" : "touch-pan-y no-touch-callout"} ${isDragging ? "z-10 bg-[var(--surface)] opacity-60" : ""}`}
+		>
+			{isDesktop && (
+				<button
+					type="button"
+					{...attributes}
+					{...listeners}
+					className="mt-0.5 flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-xl text-[var(--text-muted)] active:cursor-grabbing"
+					aria-label={t("settings_saved_phrases.reorder", { defaultValue: "Reorder phrase" })}
+				>
+					<GripVertical className="h-4 w-4" />
+				</button>
+			)}
+			<div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
+				<MessageSquareQuote className="h-3.5 w-3.5" />
+			</div>
+			<SheetClose
+				onClick={onUse}
+				className="min-w-0 flex-1 break-words text-left text-sm leading-relaxed text-[var(--text)] transition hover:text-[var(--accent)]"
+			>
+				<span className="block break-words">{phrase}</span>
+			</SheetClose>
+			<button
+				type="button"
+				onClick={onDelete}
+				className="mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+				aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+			>
+				<Trash2 className="h-3.5 w-3.5" />
+			</button>
+		</div>
+	);
 }
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
@@ -703,6 +776,24 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 	const handleDeletePhrase = async (index: number) => {
 		const updated = await saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+		setSavedPhrases(updated);
+	};
+
+	const savedPhrasesSensors = useSensors(
+		useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+	);
+
+	const handlePhrasesDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const from = savedPhrases.indexOf(String(active.id));
+		const to = savedPhrases.indexOf(String(over.id));
+		if (from === -1 || to === -1) return;
+
+		const reordered = arrayMove(savedPhrases, from, to);
+		setSavedPhrases(reordered);
+		const updated = await saveSavedPhrases(reordered);
 		setSavedPhrases(updated);
 	};
 
@@ -2507,29 +2598,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											</p>
 										</div>
 									) : (
-										<div className="divide-y divide-[var(--border)]">
-											{savedPhrases.map((phrase, originalIndex) => (
-												<div key={originalIndex} className="group flex items-start gap-3 px-4 py-3">
-													<div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
-														<MessageSquareQuote className="h-3.5 w-3.5" />
-													</div>
-													<SheetClose
-														onClick={() => handleUsePhrase(phrase)}
-														className="min-w-0 flex-1 break-words text-left text-sm leading-relaxed text-[var(--text)] transition hover:text-[var(--accent)]"
-													>
-														<span className="block break-words">{phrase}</span>
-													</SheetClose>
-													<button
-														type="button"
-														onClick={() => handleDeletePhrase(originalIndex)}
-														className="mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
-														aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
-													>
-														<Trash2 className="h-3.5 w-3.5" />
-													</button>
+										<DndContext sensors={savedPhrasesSensors} modifiers={[restrictToVerticalAxis]} autoScroll={false} onDragEnd={(e) => void handlePhrasesDragEnd(e)}>
+											<SortableContext items={savedPhrases} strategy={verticalListSortingStrategy}>
+												<div className="divide-y divide-[var(--border)]">
+													{savedPhrases.map((phrase, originalIndex) => (
+														<SortableSavedPhraseRow
+															key={phrase}
+															phrase={phrase}
+															onUse={() => handleUsePhrase(phrase)}
+															onDelete={() => handleDeletePhrase(originalIndex)}
+															isDesktop={isDesktop}
+														/>
+													))}
 												</div>
-											))}
-										</div>
+											</SortableContext>
+										</DndContext>
 									)}
 								</div>
 						</BottomSheet>

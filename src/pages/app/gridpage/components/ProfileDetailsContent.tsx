@@ -916,7 +916,7 @@ export function ProfileDetailsContent({
 				<div className="space-y-2.5">
 					<div className="flex items-center gap-2.5">
 						<Hash className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
-						<p className="text-sm text-[var(--text-muted)]">{activeProfile.profileId}</p>
+						<p className="text-sm text-[var(--text-muted)] select-text">{activeProfile.profileId}</p>
 					</div>
 					<div className="flex items-center gap-2.5">
 						<Calendar className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
