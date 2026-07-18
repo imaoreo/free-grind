@@ -1,21 +1,94 @@
-import { BookMarked, Download, Loader2, MessageSquarePlus, MessageSquareQuote, Plus, Trash2, Upload } from "lucide-react";
+import { BookMarked, Download, GripVertical, Loader2, MessageSquarePlus, MessageSquareQuote, Plus, Trash2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { BackToSettings } from "../../components/BackToSettings";
+import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import {
 	loadSavedPhrases,
 	parsePhrasesFromTxt,
 	phrasesToTxt,
 	saveSavedPhrases,
 } from "../../services/savedPhrases";
+import { restrictToVerticalAxis } from "../../utils/dndModifiers";
+import {
+	DndContext,
+	MouseSensor,
+	TouchSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	verticalListSortingStrategy,
+	useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+type SortablePhraseRowProps = {
+	phrase: string;
+	onDelete: () => void;
+	isDesktop: boolean;
+};
+
+function SortablePhraseRow({ phrase, onDelete, isDesktop }: SortablePhraseRowProps) {
+	const { t } = useTranslation();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: phrase });
+
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			{...(isDesktop ? {} : { ...attributes, ...listeners })}
+			className={`flex items-center gap-3 px-4 py-3 ${isDesktop ? "" : "touch-pan-y no-touch-callout"} ${isDragging ? "z-10 bg-[var(--surface)] opacity-60" : ""}`}
+		>
+			{isDesktop && (
+				<button
+					type="button"
+					{...attributes}
+					{...listeners}
+					className="flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-xl text-[var(--text-muted)] active:cursor-grabbing"
+					aria-label={t("settings_saved_phrases.reorder", { defaultValue: "Reorder phrase" })}
+				>
+					<GripVertical className="h-4 w-4" />
+				</button>
+			)}
+			<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
+				<MessageSquareQuote className="h-3.5 w-3.5" />
+			</div>
+			<p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{phrase}</p>
+			<button
+				type="button"
+				onClick={onDelete}
+				className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+				aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+			>
+				<Trash2 className="h-3.5 w-3.5" />
+			</button>
+		</div>
+	);
+}
 
 export function SettingsSavedPhrasesPage() {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
 	const [newPhrase, setNewPhrase] = useState("");
 	const [isImporting, setIsImporting] = useState(false);
 	const importInputRef = useRef<HTMLInputElement | null>(null);
+
+	const sensors = useSensors(
+		useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+	);
 
 	useEffect(() => {
 		void loadSavedPhrases().then(setSavedPhrases);
@@ -30,6 +103,19 @@ export function SettingsSavedPhrasesPage() {
 
 	const handleDeletePhrase = async (index: number) => {
 		const updated = await saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+		setSavedPhrases(updated);
+	};
+
+	const handleDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const from = savedPhrases.indexOf(String(active.id));
+		const to = savedPhrases.indexOf(String(over.id));
+		if (from === -1 || to === -1) return;
+
+		const reordered = arrayMove(savedPhrases, from, to);
+		setSavedPhrases(reordered);
+		const updated = await saveSavedPhrases(reordered);
 		setSavedPhrases(updated);
 	};
 
@@ -154,27 +240,20 @@ export function SettingsSavedPhrasesPage() {
 								</p>
 							</div>
 						) : (
-							<div className="divide-y divide-[var(--border)]">
-								{savedPhrases.map((phrase, index) => (
-									<div
-										key={`${phrase}-${index}`}
-										className="flex items-start gap-3 px-4 py-3"
-									>
-										<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
-											<MessageSquareQuote className="h-3.5 w-3.5" />
-										</div>
-										<p className="min-w-0 flex-1 break-words text-sm leading-relaxed">{phrase}</p>
-										<button
-											type="button"
-											onClick={() => handleDeletePhrase(index)}
-											className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
-											aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
-										>
-											<Trash2 className="h-3.5 w-3.5" />
-										</button>
+							<DndContext sensors={sensors} modifiers={[restrictToVerticalAxis]} autoScroll={false} onDragEnd={(e) => void handleDragEnd(e)}>
+								<SortableContext items={savedPhrases} strategy={verticalListSortingStrategy}>
+									<div className="divide-y divide-[var(--border)]">
+										{savedPhrases.map((phrase, index) => (
+											<SortablePhraseRow
+												key={phrase}
+												phrase={phrase}
+												onDelete={() => handleDeletePhrase(index)}
+												isDesktop={isDesktop}
+											/>
+										))}
 									</div>
-								))}
-							</div>
+								</SortableContext>
+							</DndContext>
 						)}
 					</div>
 				</div>
