@@ -376,7 +376,10 @@
       "title": "Filtres locaux",
       "description": "Ces filtres s'appliquent instantanément aux profils déjà chargés.",
       "is_visiting": "En visite",
-      "nickname_placeholder": "Name…"
+      "name_title": "",
+      "nickname_placeholder": "Name…",
+      "badge": "",
+      "visiting_title": ""
     }
   },
   "browse_location": {

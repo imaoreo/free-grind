@@ -380,7 +380,10 @@
       "title": "Filtros locales",
       "description": "Estos filtros se aplican instantáneamente a los perfiles ya cargados.",
       "is_visiting": "Visitando",
-      "nickname_placeholder": "Name…"
+      "name_title": "",
+      "nickname_placeholder": "Name…",
+      "badge": "",
+      "visiting_title": ""
     }
   },
   "browse_location": {
