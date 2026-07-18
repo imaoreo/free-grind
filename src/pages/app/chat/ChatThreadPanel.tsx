@@ -2133,6 +2133,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										}
 									}}
 									onKeyDown={(event) => {
+										if (isDesktop && event.key === "Escape" && replyTargetMessage) {
+											event.preventDefault();
+											clearReplyTarget();
+											return;
+										}
 										if (slashMatches.length > 0) {
 											if (event.key === "ArrowDown") {
 												event.preventDefault();
