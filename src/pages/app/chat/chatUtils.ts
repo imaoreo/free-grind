@@ -22,6 +22,10 @@ export type ChatFiltersDraft = {
 	pinnedFilter: InboxVisibilityFilter;
 	archivedFilter: InboxVisibilityFilter;
 	hiddenFilter: InboxVisibilityFilter;
+	// Also local-only — there's no server concept of "last message isn't ours
+	// and we haven't replied yet", so this is re-checked against each cached
+	// conversation's preview.senderId, same as pinned/archived/hidden.
+	needsReplyOnly: boolean;
 };
 
 export type ChatFiltersVisibilityState = {
@@ -46,6 +50,7 @@ export function isNumberArray(value: unknown): value is number[] {
 export function buildChatFiltersDraft(
 	filters: InboxFilters,
 	visibility: ChatFiltersVisibilityState = defaultChatFiltersVisibilityState,
+	needsReplyOnly = false,
 ): ChatFiltersDraft {
 	return {
 		unreadOnly: filters.unreadOnly === true,
@@ -61,6 +66,7 @@ export function buildChatFiltersDraft(
 		pinnedFilter: visibility.pinnedFilter,
 		archivedFilter: visibility.archivedFilter,
 		hiddenFilter: visibility.hiddenFilter,
+		needsReplyOnly,
 	};
 }
 
@@ -266,6 +272,20 @@ export function formatDateHeader(
 	});
 
 	return formatter.format(msgDate);
+}
+
+/**
+ * Whether a conversation is awaiting our reply: the last message is from the
+ * other participant and we haven't sent anything since. Distinct from
+ * unreadCount, which only tracks whether we've seen the message, not whether
+ * we've answered it.
+ */
+export function conversationNeedsReply(
+	conversation: ConversationEntry,
+	userId: number | null,
+): boolean {
+	const senderId = conversation.data.preview?.senderId;
+	return senderId != null && userId != null && Number(senderId) !== Number(userId);
 }
 
 export function getPreviewText(conversation: ConversationEntry, t: TranslateFn): string {

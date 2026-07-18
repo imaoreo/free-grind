@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { getSexualPositionOptions } from "./profile-option-builders";
-import type { InboxFilterKey } from "../../types/chat-page";
 import { Slider } from "../../components/ui/range-slider";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { formatDistanceForUnits } from "../../utils/units";
@@ -83,7 +82,7 @@ export function ChatFiltersPage() {
 		[location.state],
 	);
 	const [filters, setFilters] = useState<ChatFiltersDraft>(initialState.draft);
-	const inboxFilterOptions: Array<{ key: InboxFilterKey; label: string }> = [
+	const inboxFilterOptions: Array<{ key: keyof ChatFiltersDraft; label: string }> = [
 		{ key: "unreadOnly", label: t("chat_filters.options.unread") },
 		{ key: "favoritesOnly", label: t("browse_filters.options.favorites") },
 		{ key: "chemistryOnly", label: t("chat_filters.options.chemistry") },
@@ -110,7 +109,7 @@ export function ChatFiltersPage() {
 		[t],
 	);
 
-	const toggleFilter = (key: InboxFilterKey) => {
+	const toggleFilter = (key: keyof ChatFiltersDraft) => {
 		setFilters((previous) => ({
 			...previous,
 			[key]: !previous[key],

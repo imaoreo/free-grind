@@ -496,7 +496,8 @@
     "max_distance": "Distância máxima",
     "options": {
       "unread": "Não lido",
-      "chemistry": "Química"
+      "chemistry": "Química",
+      "needs_reply": ""
     },
     "visibility": "Visibilidade"
   },

@@ -496,7 +496,8 @@
     "max_distance": "Distance maximale",
     "options": {
       "unread": "Non lus",
-      "chemistry": "Alchimie"
+      "chemistry": "Alchimie",
+      "needs_reply": ""
     },
     "visibility": "Visibilité"
   },

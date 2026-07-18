@@ -35,7 +35,8 @@ export type InboxFilterKey =
 	| "favoritesOnly"
 	| "chemistryOnly"
 	| "rightNowOnly"
-	| "onlineNowOnly";
+	| "onlineNowOnly"
+	| "needsReplyOnly";
 
 /** Three-way visibility filter for a conversation category (pinned/archived/hidden):
  * "all" mixes it into the normal list, "hide" excludes it, "only" shows exclusively it. */

@@ -242,6 +242,11 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 		handleClose();
 	};
 
+	const cardStyle: React.CSSProperties = {
+		backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+		border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
+	};
+
 	const LocalBadge = () => (
 		<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
 			<Zap className="h-2.5 w-2.5" />
@@ -276,7 +281,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 		onToggle: (value: number) => void,
 		icon?: LucideIcon,
 	) => (
-		<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+		<section className="rounded-2xl p-4" style={cardStyle}>
 			{renderSectionHeader(title, icon)}
 			<div className="flex flex-wrap gap-2">
 				{options.map((option) => {
@@ -311,7 +316,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 		icon?: LucideIcon,
 		isLocal?: boolean,
 	) => (
-		<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+		<section className="rounded-2xl p-4" style={cardStyle}>
 			{renderSectionHeader(title, icon, isLocal)}
 			<div className="flex flex-wrap gap-2">
 				{options.map((filter) => {
@@ -383,7 +388,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 					<div className="space-y-6 py-6">
 						{renderToggleSection(t("browse_filters.quick_filters"), browseFilterOptions, Zap)}
 
-						<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+						<section className="rounded-2xl p-4" style={cardStyle}>
 							{renderSectionHeader(
 								t("browse_filters.age"),
 								Calendar,
@@ -405,7 +410,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 							/>
 						</section>
 
-						<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+						<section className="rounded-2xl p-4" style={cardStyle}>
 							{renderSectionHeader(
 								t("browse_filters.height"),
 								Ruler,
@@ -431,7 +436,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 							/>
 						</section>
 
-						<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+						<section className="rounded-2xl p-4" style={cardStyle}>
 							{renderSectionHeader(
 								t("browse_filters.weight"),
 								Scale,
@@ -506,7 +511,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 							ShieldAlert,
 						)}
 
-						<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+						<section className="rounded-2xl p-4" style={cardStyle}>
 							{renderSectionHeader(t("browse_filters.tags"), TagIcon)}
 							<div className="flex flex-wrap items-center gap-2">
 								<input
@@ -575,7 +580,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 							true,
 						)}
 
-						<section className="border-b border-[var(--border)] pb-6 last:border-b-0 last:pb-0">
+						<section className="rounded-2xl p-4" style={cardStyle}>
 							{renderSectionHeader(t("browse_filters.local_filters.name_title"), Search, true)}
 							<div className="relative">
 								<Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />

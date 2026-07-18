@@ -496,7 +496,8 @@
     "max_distance": "",
     "options": {
       "unread": "",
-      "chemistry": ""
+      "chemistry": "",
+      "needs_reply": ""
     },
     "visibility": ""
   },

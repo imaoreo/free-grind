@@ -580,6 +580,7 @@ export function ChatInboxPanel({
 	onToggleOnlineNowOnly,
 	archivedFilter,
 	hiddenFilter,
+	needsReplyOnly,
 	typingConversationIds,
 	onTogglePinConversation,
 	hiddenConversationIds,
@@ -709,6 +710,7 @@ export function ChatInboxPanel({
 					onClearInboxFilters={onClearInboxFilters}
 					archivedFilter={archivedFilter}
 					hiddenFilter={hiddenFilter}
+					needsReplyOnly={needsReplyOnly}
 				/>
 			)}
 

@@ -24,6 +24,7 @@ export type ChatInboxHeaderProps = {
 	pinnedFilter: InboxVisibilityFilter;
 	archivedFilter: InboxVisibilityFilter;
 	hiddenFilter: InboxVisibilityFilter;
+	needsReplyOnly: boolean;
 	hasActiveInboxFilters: boolean;
 	activeFilterCount: number;
 	isSearchOpen: boolean;
@@ -79,6 +80,7 @@ export function ChatInboxHeader({
 	pinnedFilter,
 	archivedFilter,
 	hiddenFilter,
+	needsReplyOnly,
 	hasActiveInboxFilters,
 	activeFilterCount,
 	isSearchOpen,
@@ -164,7 +166,7 @@ export function ChatInboxHeader({
 								<button
 									type="button"
 									onClick={() => {
-										onSetFiltersDraft(buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }));
+										onSetFiltersDraft(buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }, needsReplyOnly));
 										onSetIsFiltersOpen(true);
 									}}
 									className={cn(

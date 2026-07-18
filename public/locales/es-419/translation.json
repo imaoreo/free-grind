@@ -500,7 +500,8 @@
     "max_distance": "Distancia máxima",
     "options": {
       "unread": "Sin leer",
-      "chemistry": "Química"
+      "chemistry": "Química",
+      "needs_reply": ""
     },
     "visibility": "Visibilidad"
   },
