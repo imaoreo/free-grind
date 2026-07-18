@@ -963,7 +963,7 @@
 }
 
 @keyframes tap-fly-center {
-  0%   { opacity: 1; transform: translate(calc(-50% + 50vw - 110px), calc(-50% + 50vh - 80px)) scale(0.9); }
+  0%   { opacity: 1; transform: translate(calc(-50% + var(--tap-origin-dx, 50vw - 110px)), calc(-50% + var(--tap-origin-dy, 50vh - 80px))) scale(0.9); }
   55%  { opacity: 1;    transform: translate(-50%, -50%) scale(3.5); }
   70%  { opacity: 0.5; }
   100% { opacity: 0;    transform: translate(-50%, -50%) scale(14); }

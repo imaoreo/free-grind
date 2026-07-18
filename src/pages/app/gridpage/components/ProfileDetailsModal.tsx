@@ -410,12 +410,13 @@ export function ProfileDetailsModal({
 	const [barTapPickerOpen, setBarTapPickerOpen] = useState(false);
 	const [barInputVisible, setBarInputVisible] = useState(true);
 	const [barTapHoverId, setBarTapHoverId] = useState<number | null>(null);
-	const [barTapFlyEmoji, setBarTapFlyEmoji] = useState<{ id: number; key: number; particles: { dx: number; dy: number; size: number; dur: number; delay: number; emoji?: string }[] } | null>(null);
+	const [barTapFlyEmoji, setBarTapFlyEmoji] = useState<{ id: number; key: number; originDx: number; originDy: number; particles: { dx: number; dy: number; size: number; dur: number; delay: number; emoji?: string }[] } | null>(null);
 	const barTapLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const barTapStickyRef = useRef(false);
 	const barTapSkipUpRef = useRef(false);
 	const barInputTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const barTapOptionsRef = useRef<HTMLDivElement>(null);
+	const barTapButtonRef = useRef<HTMLButtonElement>(null);
 	const controlsBarRef = useRef<HTMLDivElement>(null);
 	const actionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -700,7 +701,10 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		const bridge = (window as any).FreeGrindBridge;
 		bridge?.vibrate?.(30) ?? navigator.vibrate?.([15, 10, 25]);
 		onTapProfile(String(messageProfileId), tapId);
-		setBarTapFlyEmoji({ id: tapId, key: Date.now(), particles: makeParticles(tapId) });
+		const btnRect = barTapButtonRef.current?.getBoundingClientRect();
+		const originDx = btnRect ? btnRect.left + btnRect.width / 2 - window.innerWidth / 2 : window.innerWidth / 2 - 110;
+		const originDy = btnRect ? btnRect.top + btnRect.height / 2 - window.innerHeight / 2 : window.innerHeight / 2 - 80;
+		setBarTapFlyEmoji({ id: tapId, key: Date.now(), originDx, originDy, particles: makeParticles(tapId) });
 		setBarTapPickerOpen(false);
 		setBarTapHoverId(null);
 		barTapStickyRef.current = false;
@@ -1692,6 +1696,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</div>
 						</div>
 						<button
+							ref={barTapButtonRef}
 							type="button"
 							onPointerDown={handleBarTapPointerDown}
 							onPointerMove={handleBarTapPointerMove}
@@ -1835,7 +1840,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						<span
 							key={`emoji-${barTapFlyEmoji.key}`}
 							className="animate-tap-fly-center fixed pointer-events-none"
-							style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id) }}
+							style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id), "--tap-origin-dx": `${barTapFlyEmoji.originDx}px`, "--tap-origin-dy": `${barTapFlyEmoji.originDy}px` } as React.CSSProperties}
 						>
 							{barTapEmoji(barTapFlyEmoji.id)}
 						</span>
@@ -2142,7 +2147,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 												))}
 											</div>
 										</div>
-										<button type="button" onPointerDown={handleBarTapPointerDown} onPointerMove={handleBarTapPointerMove} onPointerUp={handleBarTapPointerUp}
+										<button ref={barTapButtonRef} type="button" onPointerDown={handleBarTapPointerDown} onPointerMove={handleBarTapPointerMove} onPointerUp={handleBarTapPointerUp}
 											onPointerCancel={() => { setBarTapPickerOpen(false); setBarTapHoverId(null); barTapStickyRef.current = false; if (barTapLongPressRef.current) clearTimeout(barTapLongPressRef.current); barInputTimerRef.current = setTimeout(() => setBarInputVisible(true), 210); }}
 											disabled={isTapDisabled}
 											className={`tap-btn-base relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-none bg-transparent text-2xl leading-none transition-all touch-none select-none ${isTappingProfile ? "opacity-40" : ""} ${barTapPickerOpen ? "text-[var(--text-muted)]" : isTapActive || barTapHoverId !== null ? "text-white" : "text-[var(--text-muted)]"}`}
@@ -2201,7 +2206,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 					<span
 						key={`emoji-${barTapFlyEmoji.key}`}
 						className="animate-tap-fly-center fixed pointer-events-none"
-						style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id) }}
+						style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id), "--tap-origin-dx": `${barTapFlyEmoji.originDx}px`, "--tap-origin-dy": `${barTapFlyEmoji.originDy}px` } as React.CSSProperties}
 					>
 						{barTapEmoji(barTapFlyEmoji.id)}
 					</span>
