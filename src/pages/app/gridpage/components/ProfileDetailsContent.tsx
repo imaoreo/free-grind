@@ -622,7 +622,7 @@ export function ProfileDetailsContent({
 									border: "1px solid color-mix(in srgb, var(--right-now), transparent 70%)",
 								}}
 							>
-								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">{rightNowTextTrimmed}</p>
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)] select-text">{rightNowTextTrimmed}</p>
 							</div>
 						</div>
 					)}
@@ -664,7 +664,7 @@ export function ProfileDetailsContent({
 								{t("profile_details.about")}
 							</p>
 							<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)]">
+								<p className="whitespace-pre-wrap text-base leading-relaxed text-[var(--text)] select-text">
 									{activeProfile.aboutMe?.trim()}
 								</p>
 							</div>
