@@ -202,7 +202,6 @@ export function GridPage() {
 	const [hasRestoredScroll, setHasRestoredScroll] = useState(false);
 	const [debugLoadSource, setDebugLoadSource] = useState<"cache" | "network" | null>(null);
 	const [initialLocationChecked, setInitialLocationChecked] = useState(false);
-	const [isSearchOpen, setIsSearchOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [favoriteNotes, setFavoriteNotes] = useState<Array<{ notes: string; phoneNumber: string; counterpartyId: string }>>([]);
 	const [isFetchingNotes, setIsFetchingNotes] = useState(false);
@@ -210,38 +209,6 @@ export function GridPage() {
 	const [isTogglingDistance, setIsTogglingDistance] = useState(false);
 
 	const isDesktop = useDesktopBreakpoint();
-	const [mobileKeyboardInset, setMobileKeyboardInset] = useState(0);
-
-	useEffect(() => {
-		if (isDesktop) {
-			setMobileKeyboardInset(0);
-			return;
-		}
-
-		if (typeof window === "undefined" || !window.visualViewport) {
-			setMobileKeyboardInset(0);
-			return;
-		}
-
-		const viewport = window.visualViewport;
-
-		const updateKeyboardInset = () => {
-			const layoutHeight = window.innerHeight;
-			const visibleBottom = viewport.height + viewport.offsetTop;
-			const overlap = Math.max(0, Math.round(layoutHeight - visibleBottom));
-			// Ignore tiny viewport shifts from browser chrome changes.
-			setMobileKeyboardInset(overlap >= 60 ? overlap : 0);
-		};
-
-		updateKeyboardInset();
-		viewport.addEventListener("resize", updateKeyboardInset);
-		viewport.addEventListener("scroll", updateKeyboardInset);
-
-		return () => {
-			viewport.removeEventListener("resize", updateKeyboardInset);
-			viewport.removeEventListener("scroll", updateKeyboardInset);
-		};
-	}, [isDesktop]);
 
 	const handleFetchNotes = useCallback(async () => {
 		if (isFetchingNotes || hasAttemptedFetchNotes) return;
@@ -258,12 +225,6 @@ export function GridPage() {
 			setIsFetchingNotes(false);
 		}
 	}, [apiFunctions, isFetchingNotes, hasAttemptedFetchNotes, t]);
-
-	useEffect(() => {
-		if (isSearchOpen && !hasAttemptedFetchNotes) {
-			void handleFetchNotes();
-		}
-	}, [isSearchOpen, hasAttemptedFetchNotes, handleFetchNotes]);
 
 	const {
 		browseFilters,
@@ -305,6 +266,12 @@ export function GridPage() {
 		);
 		setSortBy((prev) => (prev === "distance" || prev === "age-asc" || prev === "age-desc" || prev === "popular" ? "default" : prev));
 	}, [exploreLocation, setBrowseFilters, setSortBy]);
+
+	useEffect(() => {
+		if (browseFilters.favorites && !hasAttemptedFetchNotes) {
+			void handleFetchNotes();
+		}
+	}, [browseFilters.favorites, hasAttemptedFetchNotes, handleFetchNotes]);
 
 	// Reload whenever the active account's chatDb is ready (settingsReady),
 	// so switching accounts from GridPage's own account switcher also
@@ -1636,6 +1603,44 @@ export function GridPage() {
 									)}
 								</div>
 							</div>
+
+							{!exploreLocation && browseFilters.favorites && (
+								<div className="pt-2">
+									<div
+										className="glass-pill relative flex h-10 items-center"
+										style={{ "--pill-color": "var(--accent)" } as React.CSSProperties}
+									>
+										{isFetchingNotes ? (
+											<div className="pointer-events-none absolute left-3 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center">
+												<div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]" />
+											</div>
+										) : (
+											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+										)}
+										<input
+											type="text"
+											value={searchTerm}
+											onChange={(e) => setSearchTerm(e.target.value)}
+											placeholder={isFetchingNotes ? t("favorites.loading_notes") : t("favorites.search_placeholder")}
+											className="h-full w-full bg-transparent pl-9 pr-8 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
+											onKeyDown={(e) => {
+												if (e.key === "Escape" || e.key === "Enter") {
+													e.currentTarget.blur();
+												}
+											}}
+										/>
+										{searchTerm && (
+											<button
+												type="button"
+												onClick={() => setSearchTerm("")}
+												className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-[var(--text-muted)] hover:text-[var(--text)]"
+											>
+												<X className="h-3.5 w-3.5" />
+											</button>
+										)}
+									</div>
+								</div>
+							)}
 						</div>
 					</div>
 					</div>
@@ -1677,68 +1682,6 @@ export function GridPage() {
 					</div>
 				</FeedScrollContainer>
 			</PullToRefreshContainer>
-
-			<div
-				className={cn(
-					"fixed inset-x-0 z-[60] pointer-events-none transition-all duration-300 ease-out",
-					(browseFilters.favorites && !activeProfileId) ? "opacity-100" : "opacity-0"
-				)}
-				style={{
-					bottom: `calc(${isDesktop ? "9rem" : "7.5rem"} + ${mobileKeyboardInset}px)`
-				}}
-			>
-				<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
-					<div className="absolute bottom-0 right-4 flex items-end gap-3 translate-x-0 lg:right-[16%] lg:translate-x-1/2 pointer-events-auto">
-						{isSearchOpen && (
-							<div className="flex flex-col items-end gap-2">
-								{favoriteNotes.length > 0 && !isFetchingNotes && (
-									<div className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white/60 backdrop-blur-md animate-badge-in">
-										{t("favorites.notes_loaded", { count: favoriteNotes.length })}
-									</div>
-								)}
-								<div className="w-64 sm:w-80 overflow-hidden rounded-full border border-white/10 bg-white/5 p-1 shadow-2xl backdrop-blur-2xl animate-search-in pointer-events-auto max-w-[calc(100vw-5rem)]">
-									<div className="flex items-center gap-3 px-4 py-2.5">
-										{isFetchingNotes ? (
-											<div className="flex h-5 w-5 items-center justify-center">
-												<div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-											</div>
-										) : (
-											<Search className="h-5 w-5 text-white/70" />
-										)}
-										<input
-											type="text"
-											autoFocus
-											placeholder={isFetchingNotes ? t("favorites.loading_notes") : t("favorites.search_placeholder")}
-											className="w-full bg-transparent text-lg font-medium text-white outline-none placeholder:text-white/40"
-											value={searchTerm}
-											onChange={(e) => setSearchTerm(e.target.value)}
-											onKeyDown={(e) => {
-												if (e.key === "Escape") {
-													e.stopPropagation();
-													e.nativeEvent.stopImmediatePropagation();
-													setIsSearchOpen(false);
-												}
-												if (e.key === "Enter") setIsSearchOpen(false);
-											}}
-										/>
-									</div>
-								</div>
-							</div>
-						)}
-						<button
-							type="button"
-							onClick={() => setIsSearchOpen(!isSearchOpen)}
-							className={cn(
-								"flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full shadow-xl transition-all duration-200 ease-out active:scale-95 hover:opacity-90",
-								exploreLocation ? "bg-[var(--explore)] text-white" : "bg-[var(--accent)] text-[var(--accent-contrast)]",
-							)}
-							aria-label={t("browse_page.search")}
-						>
-							<Search className="h-7 w-7 stroke-[2.5]" />
-						</button>
-					</div>
-				</div>
-			</div>
 
 			<ProfileDetailsModal
 				isOpen={Boolean(activeProfileId)}

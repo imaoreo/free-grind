@@ -152,7 +152,7 @@ export function SexualHealthPage() {
 				</div>
 			</FeedScrollContainer>
 
-			<div className="fixed inset-x-0 bottom-32 z-[60] pointer-events-none md:bottom-36">
+			<div className="fixed inset-x-0 bottom-36 z-[60] pointer-events-none md:bottom-40">
 				<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
 					<div ref={setFabSlotEl} className="absolute bottom-0 right-[16%] translate-x-1/2 pointer-events-auto empty:pointer-events-none" />
 				</div>
