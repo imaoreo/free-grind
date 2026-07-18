@@ -598,12 +598,12 @@ export function ProfileDetailsModal({
 			) : profileNote ? (
 				<div className="space-y-1.5">
 					<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-						<p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{profileNote}</p>
+						<p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)] select-text">{profileNote}</p>
 					</div>
 					{profilePhoneNumber && (
 						<div className="flex min-h-10 items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3">
 							<Phone className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-							<span className="text-sm text-[var(--text)]">{profilePhoneNumber}</span>
+							<span className="text-sm text-[var(--text)] select-text">{profilePhoneNumber}</span>
 						</div>
 					)}
 				</div>
