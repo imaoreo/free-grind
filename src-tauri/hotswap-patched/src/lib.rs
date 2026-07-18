@@ -573,7 +573,14 @@ fn resolve_base_dir(app_id: &str) -> PathBuf {
         // On Android the data directory uses the Java package name which
         // cannot contain hyphens — Tauri converts them to underscores.
         let android_pkg = app_id.replace('-', "_");
-        PathBuf::from("/data/data")
+        // `/data/data/<pkg>` only resolves for the primary user (userId 0).
+        // Secondary profiles (Secure Folder, work profile, cloned apps) are
+        // sandboxed under `/data/user/<userId>/<pkg>` and SELinux denies
+        // cross-user access to `/data/data`, causing EACCES there. Derive
+        // userId from the UID the same way Android's framework does.
+        const AID_USER_OFFSET: u32 = 100_000;
+        let user_id = unsafe { libc::getuid() } / AID_USER_OFFSET;
+        PathBuf::from(format!("/data/user/{user_id}"))
             .join(android_pkg)
             .join("files/hotswap")
     }
