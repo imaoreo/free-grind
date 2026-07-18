@@ -329,7 +329,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExplore
 
 				<div className="shrink-0 border-b border-[var(--border)]" />
 
-				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto px-[var(--app-px)]" data-lenis-prevent>
 					<div className="space-y-3 py-4">
 						{renderToggleSection(t("browse_filters.quick_filters"), browseFilterOptions)}
 

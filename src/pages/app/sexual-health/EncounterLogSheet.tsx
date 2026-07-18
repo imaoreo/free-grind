@@ -14,6 +14,7 @@ import { loadPrepDoses } from "../../../services/prepDoses";
 import { computeProtectionStatus } from "../../../services/prepTracking";
 import { usePrepScheme } from "./usePrepScheme";
 import { formatDateTime, toDateTimeLocalValue, fromDateTimeLocalValue } from "./sexualHealthFormat";
+import { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
 
 const PREP_TAG = "PrEP";
 const PROTECTION_TAGS = [PREP_TAG, "Doxy-PEP", "Condom"];
@@ -36,6 +37,7 @@ export function EncounterLogSheet({
 	onDeleted,
 }: EncounterLogSheetProps) {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const [scheme] = usePrepScheme();
 	const isEditing = editingEncounter != null;
 	const [person, setPerson] = useState<PickedPerson | null>(
@@ -127,7 +129,7 @@ export function EncounterLogSheet({
 	// this "fixed inset-0" overlay to that container's box instead of the
 	// real viewport, leaving it stuck behind the app's fixed bottom nav bar.
 	return createPortal(
-		<BottomSheet onClose={onClose} isProcessing={isSaving}>
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} isProcessing={isSaving}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{isEditing
@@ -142,7 +144,7 @@ export function EncounterLogSheet({
 				</SheetClose>
 			</div>
 
-			<div className={`max-h-[65dvh] overflow-y-auto px-4 ${showPicker ? "" : "pb-4"}`}>
+			<div className={`max-h-[65dvh] overflow-y-auto px-4 ${showPicker ? "" : "pb-4"}`} data-lenis-prevent>
 				{showPicker ? (
 					<PersonPicker
 						onPick={(picked) => {

@@ -428,7 +428,7 @@ export function ChatMediaSheet({
 				</div>
 
 				{/* Content */}
-				<div className="flex flex-1 flex-col overflow-y-auto p-4">
+				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-lenis-prevent>
 					{(tab === "received" && albums.length > 0) || activeMedia.length > 0 ? (
 						<div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
 							{tab === "received" && albums.map((album) => {

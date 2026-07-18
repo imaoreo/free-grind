@@ -128,7 +128,7 @@ export function ChatFiltersOverlay({
 				<div className="shrink-0 border-b border-[var(--border)]" />
 
 				{/* Filter content */}
-				<div className="relative z-10 flex-1 overflow-y-auto">
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto" data-lenis-prevent>
 					<ChatFiltersPanel
 						isDesktop={isDesktop}
 						draft={draft}

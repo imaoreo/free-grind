@@ -2,6 +2,7 @@ import { CalendarClock, Check, Info, Repeat, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
 import type { PrepScheme } from "../../../services/prepTracking";
 
 const SCHEME_OPTIONS: {
@@ -50,10 +51,11 @@ export function SexualHealthPrepSettingsSheet({
 	onClose: () => void;
 }) {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const active = SCHEME_OPTIONS.find((option) => option.value === scheme) ?? SCHEME_OPTIONS[0];
 
 	return createPortal(
-		<BottomSheet onClose={onClose}>
+		<BottomSheet onClose={onClose} isDesktop={isDesktop}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{t("sexualHealth.info.sheet_title", { defaultValue: "PrEP settings" })}
@@ -63,7 +65,7 @@ export function SexualHealthPrepSettingsSheet({
 				</SheetClose>
 			</div>
 
-			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4">
+			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4" data-lenis-prevent>
 				<div className="grid grid-cols-2 gap-3">
 					{SCHEME_OPTIONS.map((option) => {
 						const isSelected = scheme === option.value;

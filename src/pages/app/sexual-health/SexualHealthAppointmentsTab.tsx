@@ -8,6 +8,7 @@ import { Chip } from "../../../components/ui/chip";
 import { LoadingState } from "../../../components/ui/states";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
 import { cn } from "../../../utils/cn";
 import {
 	addAppointment,
@@ -39,6 +40,7 @@ function AppointmentFormSheet({
 	onDelete?: () => void;
 }) {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const [title, setTitle] = useState(editingAppointment?.title ?? "");
 	const [scheduledAt, setScheduledAt] = useState(() =>
 		toDateTimeLocalValue(editingAppointment?.scheduledAt ?? Date.now() + 24 * 60 * 60 * 1000),
@@ -94,7 +96,7 @@ function AppointmentFormSheet({
 	// Portalled to document.body — see EncounterLogSheet.tsx for why
 	// (avoids the FeedScrollContainer mask-image containing-block issue).
 	return createPortal(
-		<BottomSheet onClose={onClose} isProcessing={isSaving}>
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} isProcessing={isSaving}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{editingAppointment
