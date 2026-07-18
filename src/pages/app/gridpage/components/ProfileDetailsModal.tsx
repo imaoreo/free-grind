@@ -57,7 +57,7 @@ import { PhotoActionBar } from "../../../../components/PhotoActionBar";
 import { useProfileAlbumStatus } from "../../../../hooks/useProfileAlbumStatus";
 import { captureAlbum, getLocalAlbum } from "../../../../services/albumStore";
 import type { AlbumViewer } from "../../../../types/shared-albums";
-import { saveAllAlbumMedia } from "../../../../utils/albumMedia";
+import { saveAllAlbumMedia, saveAllMedia } from "../../../../utils/albumMedia";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -1030,6 +1030,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		setSelectedPhotoIndex(null);
 	};
 
+	// Own profile pictures aren't worth their own subfolder — there's only
+	// ever one "me" to organize by. Someone else's photos get filed under
+	// their profile id so saved pictures land sorted by person instead of
+	// all dumped in one flat folder.
+	const photoViewerFolderKey = !isOwnProfile && messageProfileId != null ? String(messageProfileId) : null;
+
+	const [isSavingAllPhotos, setIsSavingAllPhotos] = useState(false);
+
+	const handleSaveAllPhotos = useCallback(async () => {
+		if (isSavingAllPhotos || photoUrls.length === 0) return;
+		setIsSavingAllPhotos(true);
+		try {
+			await saveAllMedia(
+				photoUrls.map((url) => ({ url, type: "image" as const })),
+				photoViewerFolderKey,
+				t,
+			);
+		} finally {
+			setIsSavingAllPhotos(false);
+		}
+	}, [isSavingAllPhotos, photoUrls, photoViewerFolderKey, t]);
+
+	const photoMenuActions = useMemo<PhotoViewerMenuAction[]>(() => [
+		{
+			key: "save-all",
+			label: t("profile_details.save_all"),
+			icon: Images,
+			onClick: () => void handleSaveAllPhotos(),
+			disabled: isSavingAllPhotos || photoUrls.length === 0,
+		},
+	], [t, handleSaveAllPhotos, isSavingAllPhotos, photoUrls.length]);
+
 	const photoViewerOverlay = selectedPhotoIndex !== null && (
 		<PhotoViewer
 			isOpen={true}
@@ -1038,11 +1070,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			initialIndex={selectedPhotoIndex}
 			renderExtraInfo={renderPhotoExtraInfo}
 			renderFooter={renderPhotoFooter}
-			// Own profile pictures aren't worth their own subfolder — there's
-			// only ever one "me" to organize by. Someone else's photos get
-			// filed under their profile id so saved pictures land sorted by
-			// person instead of all dumped in one flat folder.
-			conversationId={!isOwnProfile && messageProfileId != null ? String(messageProfileId) : null}
+			conversationId={photoViewerFolderKey}
+			menuActions={photoMenuActions}
 		/>
 	);
 
