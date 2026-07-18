@@ -2367,7 +2367,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						>
 							<div className="flex min-h-0 flex-1 flex-col">
 							{/* Scrollable preview area */}
-							<div className="min-h-0 flex-1 overflow-y-auto">
+							<div className="min-h-0 flex-1 overflow-y-auto" data-lenis-prevent>
 							{attachmentPreviewUrl && (
 								pendingAttachmentFile.type.startsWith("video/") ? (
 									<div className="px-3 pb-3">

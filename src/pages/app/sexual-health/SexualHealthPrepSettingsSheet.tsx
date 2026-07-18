@@ -65,7 +65,7 @@ export function SexualHealthPrepSettingsSheet({
 				</SheetClose>
 			</div>
 
-			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4">
+			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4" data-lenis-prevent>
 				<div className="grid grid-cols-2 gap-3">
 					{SCHEME_OPTIONS.map((option) => {
 						const isSelected = scheme === option.value;

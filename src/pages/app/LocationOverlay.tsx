@@ -516,7 +516,7 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 				</header>
 
 				{/* Scrollable content */}
-				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto px-[var(--app-px)]" data-lenis-prevent>
 					<div className="space-y-4 py-4">
 
 						{/* Set vs. Explore: "set" changes your real, visible location;

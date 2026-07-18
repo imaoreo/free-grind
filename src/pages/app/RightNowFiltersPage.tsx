@@ -131,7 +131,7 @@ export function RightNowFiltersPage({ onClose, onApply, initialDraft }: RightNow
 				<div className="shrink-0 border-b border-[var(--border)]" />
 
 				{/* Scroll content */}
-				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto px-[var(--app-px)]" data-lenis-prevent>
 					<div className="space-y-3 py-4">
 						{/* Position Filter Section */}
 						<section

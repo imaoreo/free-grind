@@ -146,7 +146,7 @@ export function TagsPickerDialog({ tagsText, onChange, onClose }: TagsPickerDial
 					)}
 				</label>
 			</div>
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3" data-lenis-prevent>
 				{isLoading ? (
 					<p className="py-6 text-center text-sm text-[var(--text-muted)]">
 						{t("profile_editor.loading")}

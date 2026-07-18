@@ -144,7 +144,7 @@ export function EncounterLogSheet({
 				</SheetClose>
 			</div>
 
-			<div className={`max-h-[65dvh] overflow-y-auto px-4 ${showPicker ? "" : "pb-4"}`}>
+			<div className={`max-h-[65dvh] overflow-y-auto px-4 ${showPicker ? "" : "pb-4"}`} data-lenis-prevent>
 				{showPicker ? (
 					<PersonPicker
 						onPick={(picked) => {
