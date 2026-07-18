@@ -229,14 +229,17 @@ export function ChatInboxHeader({
 					{/* Row 2: search input */}
 					{isSearchOpen && (
 						<div className="flex flex-col gap-2 pb-4">
-							<div className="relative">
+							<div
+								className="glass-pill relative flex h-10 items-center"
+								style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+							>
 								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
 								<input
 									autoFocus
 									value={searchQuery}
 									onChange={(e) => onSetSearchQuery(e.target.value)}
 									placeholder={t("chat_search.placeholder")}
-									className="h-10 w-full rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-9 pr-8 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+									className="h-full w-full bg-transparent pl-9 pr-8 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
 								/>
 								{searchQuery && (
 									<button

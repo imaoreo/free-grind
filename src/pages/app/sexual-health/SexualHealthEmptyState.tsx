@@ -6,7 +6,7 @@ interface SexualHealthEmptyStateProps {
 	description?: string;
 }
 
-// Matches the Saved Phrases empty state (SettingsSavedPhrasesPage.tsx):
+// Matches the Saved Phrases empty state (ChatThreadPanel.tsx):
 // rounded-2xl icon tile (not a circle), same spacing/type scale — centered
 // in the available scroll area rather than just padded at the top.
 export function SexualHealthEmptyState({ icon, title, description }: SexualHealthEmptyStateProps) {

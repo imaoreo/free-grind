@@ -4,6 +4,7 @@ import {
 	FileDown,
 	FileUp,
 	Loader2,
+	MessageSquareQuote,
 	RotateCcw,
 	ShieldCheck,
 	Trash2,
@@ -18,6 +19,7 @@ import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-
 import { BaseDirectory, mkdir, writeFile as writeFsFile } from "@tauri-apps/plugin-fs";
 import * as chatDb from "../../services/chatDb";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid, isIos } from "../../services/saveMedia";
+import { loadSavedPhrases, parsePhrasesFromTxt, phrasesToTxt, saveSavedPhrases } from "../../services/savedPhrases";
 import { resetAllSettings } from "../../utils/resetSettings";
 import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import { appLog } from "../../utils/logger";
@@ -49,6 +51,14 @@ export function SettingsDataPage() {
 	const [isResetting, setIsResetting] = useState(false);
 	const [showResetConfirm, setShowResetConfirm] = useState(false);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
+	const [isImportingPhrases, setIsImportingPhrases] = useState(false);
+	const phrasesInputRef = useRef<HTMLInputElement>(null);
+
+	useEffect(() => {
+		void loadSavedPhrases().then(setSavedPhrases);
+	}, []);
 
 	const loadUsage = useCallback(async () => {
 		setIsLoadingUsage(true);
@@ -216,6 +226,47 @@ export function SettingsDataPage() {
 		}
 	};
 
+	const handleExportPhrasesTxt = () => {
+		const content = phrasesToTxt(savedPhrases);
+		if (!content) {
+			toast.error(t("data_backup.phrases_export_empty", { defaultValue: "No saved phrases to export." }));
+			return;
+		}
+		const blob = new Blob([`${content}\n`], { type: "text/plain;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download = `free-grind-saved-phrases-${new Date().toISOString().slice(0, 10)}.txt`;
+		document.body.appendChild(anchor);
+		anchor.click();
+		document.body.removeChild(anchor);
+		URL.revokeObjectURL(url);
+		toast.success(t("data_backup.phrases_export_success", { defaultValue: "Saved phrases exported." }));
+	};
+
+	const handleImportPhrasesFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) return;
+
+		setIsImportingPhrases(true);
+		try {
+			const content = await file.text();
+			const imported = parsePhrasesFromTxt(content);
+			if (imported.length === 0) {
+				toast.error(t("data_backup.phrases_import_empty", { defaultValue: "No valid phrases found in that file." }));
+				return;
+			}
+			const updated = await saveSavedPhrases(imported);
+			setSavedPhrases(updated);
+			toast.success(t("data_backup.phrases_import_success", { defaultValue: "Saved phrases imported." }));
+		} catch {
+			toast.error(t("data_backup.phrases_import_error", { defaultValue: "Failed to import saved phrases." }));
+		} finally {
+			setIsImportingPhrases(false);
+		}
+	};
+
 	const handleResetAllSettings = async () => {
 		setIsResetting(true);
 		try {
@@ -239,49 +290,8 @@ export function SettingsDataPage() {
 				</p>
 			</header>
 
-			<div className="grid gap-6">
-				{/* Media Storage */}
+			<div className="grid gap-8">
 				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("data_backup.media_storage", { defaultValue: "Media Storage" })}
-					</p>
-					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
-						<div
-							id="data-storage-used"
-							className={`flex items-center justify-between gap-4 px-4 py-3.5 ${highlightId === "data-storage-used" ? "animate-settings-highlight" : ""}`}
-						>
-							<div className="min-w-0">
-								<p className="text-sm font-medium text-[var(--text)]">
-									{t("data_backup.storage_used", { defaultValue: "Storage used" })}
-								</p>
-								<p className="mt-0.5 text-xs text-[var(--text-muted)]">
-									{isLoadingUsage
-										? t("data_backup.storage_loading", { defaultValue: "Calculating…" })
-										: t("data_backup.storage_summary", {
-												defaultValue: "{{size}} across {{count}} files",
-												size: formatBytes(usage?.totalBytes ?? 0),
-												count: usage?.count ?? 0,
-											})}
-								</p>
-							</div>
-							<button
-								type="button"
-								onClick={() => setShowDeleteConfirm(true)}
-								disabled={isDeleting || isLoadingUsage || (usage?.count ?? 0) === 0}
-								className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
-							>
-								{isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-								{t("data_backup.delete_all", { defaultValue: "Delete all" })}
-							</button>
-						</div>
-					</div>
-				</div>
-
-				{/* Backup */}
-				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("data_backup.backup", { defaultValue: "Backup" })}
-					</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						<button
 							id="data-export"
@@ -356,6 +366,112 @@ export function SettingsDataPage() {
 								})}
 							</p>
 						</div>
+					</div>
+				</div>
+
+				<div className="grid gap-4">
+					{/* Media Storage */}
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+							{t("data_backup.media_storage", { defaultValue: "Media Storage" })}
+						</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<div
+								id="data-storage-used"
+								className={`flex items-center justify-between gap-4 px-4 py-3.5 ${highlightId === "data-storage-used" ? "animate-settings-highlight" : ""}`}
+							>
+								<div className="min-w-0">
+									<p className="text-sm font-medium text-[var(--text)]">
+										{t("data_backup.storage_used", { defaultValue: "Storage used" })}
+									</p>
+									<p className="mt-0.5 text-xs text-[var(--text-muted)]">
+										{isLoadingUsage
+											? t("data_backup.storage_loading", { defaultValue: "Calculating…" })
+											: t("data_backup.storage_summary", {
+													defaultValue: "{{size}} across {{count}} files",
+													size: formatBytes(usage?.totalBytes ?? 0),
+													count: usage?.count ?? 0,
+												})}
+									</p>
+								</div>
+								<button
+									type="button"
+									onClick={() => setShowDeleteConfirm(true)}
+									disabled={isDeleting || isLoadingUsage || (usage?.count ?? 0) === 0}
+									className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+								>
+									{isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+									{t("data_backup.delete_all", { defaultValue: "Delete all" })}
+								</button>
+							</div>
+						</div>
+					</div>
+
+					{/* Saved Phrases */}
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+							{t("data_backup.phrases_section", { defaultValue: "Saved Phrases" })}
+						</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<button
+								id="data-phrases-export"
+								type="button"
+								onClick={handleExportPhrasesTxt}
+								disabled={savedPhrases.length === 0}
+								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${savedPhrases.length === 0 ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-phrases-export" ? "animate-settings-highlight" : ""}`}
+							>
+								<div className="shrink-0 rounded-2xl bg-teal-500/15 p-2.5 text-teal-400">
+									<MessageSquareQuote className="h-5 w-5" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="text-sm font-semibold leading-snug">
+										{t("data_backup.phrases_export", { defaultValue: "Export .txt" })}
+									</p>
+									<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+										{t("data_backup.phrases_export_desc", {
+											defaultValue: "Save your saved phrases as a plain text file, one per line.",
+										})}
+									</p>
+								</div>
+								<Download className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+							</button>
+
+							<button
+								id="data-phrases-import"
+								type="button"
+								onClick={() => phrasesInputRef.current?.click()}
+								disabled={isImportingPhrases}
+								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isImportingPhrases ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-phrases-import" ? "animate-settings-highlight" : ""}`}
+							>
+								<div className="shrink-0 rounded-2xl bg-violet-500/15 p-2.5 text-violet-400">
+									<Upload className="h-5 w-5" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="text-sm font-semibold leading-snug">
+										{isImportingPhrases
+											? t("data_backup.phrases_importing", { defaultValue: "Importing…" })
+											: t("data_backup.phrases_import", { defaultValue: "Import .txt" })}
+									</p>
+									<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+										{t("data_backup.phrases_import_desc", {
+											defaultValue: "One phrase per line — replaces the current list.",
+										})}
+									</p>
+								</div>
+								{isImportingPhrases ? (
+									<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--text-muted)]" />
+								) : (
+									<Upload className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+								)}
+							</button>
+						</div>
+						<input
+							ref={phrasesInputRef}
+							type="file"
+							accept=".txt,text/plain"
+							className="hidden"
+							onChange={(event) => void handleImportPhrasesFile(event)}
+						/>
 					</div>
 				</div>
 
