@@ -9,13 +9,16 @@ type FilterPillProps = {
 	/** Which brand color this pill tints as — defaults to the app's generic
 	 * accent. "right-now" reads in Right Now's own brand color instead (see
 	 * RightNowPage.tsx's --right-now), for filters tied to that feature.
+	 * "explore" reads in Grid's explore-mode brand color instead (see
+	 * LocationOverlay.tsx's EXPLORE_COLOR / --explore), for the Grid filter
+	 * row while browsing a non-home location.
 	 * Kept as a fixed set (not an arbitrary CSS color) rather than computing
 	 * shadow/border colors dynamically — Tailwind's shadow-[...] utilities
 	 * only exist for class strings that appear literally in source, and
-	 * these two already do (GridPage.tsx, RightNowPage.tsx), so reusing them
+	 * these already do (GridPage.tsx, RightNowPage.tsx), so reusing them
 	 * verbatim guarantees this matches the same shadow those already use
 	 * instead of a hand-rolled approximation. */
-	color?: "accent" | "right-now";
+	color?: "accent" | "right-now" | "explore";
 	/** "label" (default): icon + visible text, sized to content.
 	 * "icon": icon-only square button (aria-label/title carry the label). */
 	variant?: "label" | "icon";
@@ -39,6 +42,7 @@ export function FilterPill({
 }: FilterPillProps) {
 	const isIconOnly = variant === "icon";
 	const isRightNow = color === "right-now";
+	const isExplore = color === "explore";
 
 	return (
 		<button
@@ -51,11 +55,23 @@ export function FilterPill({
 				isIconOnly ? "size-9 justify-center" : "px-4 py-2",
 				active
 					? isRightNow
-						? "rounded-full border border-[var(--right-now)] bg-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40"
-						: "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40"
-					: "glass-pill text-[var(--accent)]",
+						? "rounded-full border border-[var(--right-now)] bg-[var(--right-now)] text-white shadow-lg shadow-[var(--right-now)]/40 hover:brightness-110"
+						: isExplore
+							? "rounded-full border border-[var(--explore)] bg-[var(--explore)] text-white shadow-lg shadow-[var(--explore)]/40 hover:brightness-110"
+							: "rounded-full border border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-[var(--accent)]/40 hover:brightness-110"
+					: isRightNow
+						? "glass-pill text-[var(--right-now)] hover:border-[var(--right-now)]/60 hover:bg-[var(--right-now)]/20"
+						: isExplore
+							? "glass-pill text-[var(--explore)] hover:border-[var(--explore)]/60 hover:bg-[var(--explore)]/20"
+							: "glass-pill text-[var(--accent)] hover:border-[var(--accent)]/60 hover:bg-[var(--accent)]/20",
 			)}
-			style={!active ? ({ "--pill-color": "var(--accent)" } as CSSProperties) : undefined}
+			style={
+				!active
+					? ({
+							"--pill-color": isRightNow ? "var(--right-now)" : isExplore ? "var(--explore)" : "var(--accent)",
+						} as CSSProperties)
+					: undefined
+			}
 		>
 			{icon}
 			{!isIconOnly && label}

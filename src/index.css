@@ -312,6 +312,8 @@
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
 		--right-now: #9333ea;
+		/* Keep in sync with EXPLORE_COLOR in LocationOverlay.tsx */
+		--explore: #3b82f6;
 		--content-max: 1200px;
 		--app-px: clamp(12px, 2.6vw, 28px);
 		--radius-sm: 12px;
@@ -449,6 +451,15 @@
 	select {
 		font: inherit;
 		color: inherit;
+	}
+
+	/* Tailwind's Preflight resets button cursor to "default" (matching the
+	   native/browser behavior) rather than "pointer" — restore the pointer
+	   affordance app-wide for every clickable button/row, since this codebase
+	   otherwise relies on it, and desktop users expect it. */
+	button:not(:disabled),
+	[role="button"]:not([aria-disabled="true"]) {
+		cursor: pointer;
 	}
 }
 
