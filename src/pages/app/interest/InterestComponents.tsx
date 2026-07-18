@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, memo, type CSSProperties } from "react";
-import { Eye, Lock, Ban, History, MoveHorizontal, Home, Zap } from "lucide-react";
+import { Eye, Lock, Ban, History, MoveHorizontal, Home, Zap, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getThumbImageUrl } from "../../../utils/media";
 import { ProfileImage } from "../../../components/ui/profile-image";
@@ -7,45 +7,29 @@ import { type InterestItem, type InterestTab, formatTimestamp, getTapEmoji, PREV
 import { cn } from "../../../utils/cn";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
 
+export type InterestTabConfig = {
+	key: InterestTab;
+	label: string;
+	count?: number;
+};
+
 export const InterestTabs = memo(function InterestTabs({
 	activeTab,
-	onViewsClick,
-	onTapsClick,
-	firstTab = "taps",
-	newViewsCount = 0,
-	newTapsCount = 0,
+	tabs,
+	onTabClick,
 }: {
 	activeTab: InterestTab;
-	onViewsClick: () => void;
-	onTapsClick: () => void;
-	firstTab?: InterestTab;
-	newViewsCount?: number;
-	newTapsCount?: number;
+	tabs: InterestTabConfig[];
+	onTabClick: (tab: InterestTab) => void;
 }) {
-	const { t } = useTranslation();
 	const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
 	const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0 });
 	const [isReady, setIsReady] = useState(false);
 
-	const isViewsFirst = firstTab === "views";
-
-	// Determine logical order of labels based on firstTab
-	const labels = isViewsFirst
-		? [t("interest_page.tabs.views"), t("interest_page.tabs.taps")]
-		: [t("interest_page.tabs.taps"), t("interest_page.tabs.views")];
-
-	const handlers = isViewsFirst
-		? [onViewsClick, onTapsClick]
-		: [onTapsClick, onViewsClick];
-
-	const counts = isViewsFirst
-		? [newViewsCount, newTapsCount]
-		: [newTapsCount, newViewsCount];
+	const countsKey = tabs.map((tab) => tab.count ?? 0).join(",");
 
 	// Index of the currently active tab in the visual array
-	const activeIndex = isViewsFirst
-		? (activeTab === "views" ? 0 : 1)
-		: (activeTab === "taps" ? 0 : 1);
+	const activeIndex = Math.max(tabs.findIndex((tab) => tab.key === activeTab), 0);
 
 	// Sync indicator with the active tab's position and size in real-time
 	useLayoutEffect(() => {
@@ -76,7 +60,7 @@ export const InterestTabs = memo(function InterestTabs({
 		}
 
 		return () => resizeObserver.disconnect();
-	}, [activeIndex, isReady, newViewsCount, newTapsCount]);
+	}, [activeIndex, isReady, countsKey]);
 
 	return (
 		<div className="glass-pill relative inline-flex items-center p-1">
@@ -96,12 +80,12 @@ export const InterestTabs = memo(function InterestTabs({
 				}}
 			/>
 
-			{labels.map((label, i) => (
+			{tabs.map((tab, i) => (
 				<button
-					key={label}
+					key={tab.key}
 					ref={(el) => { tabsRef.current[i] = el; }}
 					type="button"
-					onClick={handlers[i]}
+					onClick={() => onTabClick(tab.key)}
 					className={cn(
 						"relative z-10 flex h-8 items-center justify-center rounded-full px-5 transition-all duration-300 ease-out active:scale-95",
 						activeIndex === i
@@ -109,11 +93,11 @@ export const InterestTabs = memo(function InterestTabs({
 							: "text-[var(--accent)] hover:opacity-80 text-sm font-bold"
 					)}
 				>
-					<span>{label}</span>
+					<span>{tab.label}</span>
 					<span
 						className={cn(
 							"flex h-4.5 items-center justify-center rounded-full text-[10px] font-black transition-all duration-300 ease-out overflow-hidden",
-							counts[i] > 0
+							(tab.count ?? 0) > 0
 								? "ml-2 min-w-[1.125rem] px-1 opacity-100 scale-100"
 								: "ml-0 min-w-0 w-0 px-0 opacity-0 scale-50 pointer-events-none",
 							activeIndex === i
@@ -121,7 +105,7 @@ export const InterestTabs = memo(function InterestTabs({
 								: "bg-[var(--accent)] text-[var(--accent-contrast)]"
 						)}
 					>
-						{counts[i] > 0 ? (counts[i] > 99 ? "99+" : counts[i]) : ""}
+						{(tab.count ?? 0) > 0 ? ((tab.count ?? 0) > 99 ? "99+" : tab.count) : ""}
 					</span>
 				</button>
 			))}
@@ -235,10 +219,10 @@ export const InterestRow = memo(function InterestRow({
 				</button>
 			</div>
 
-			{/* Action Area (Views or Taps) */}
+			{/* Action Area (Views, Taps, or Sent Taps) */}
 			{!isPrivate && (
 				<div className="shrink-0 flex items-center justify-end h-12 w-12">
-					{mode === "taps" ? (
+					{mode === "taps" || mode === "sent" ? (
 						<div className="relative flex h-12 w-12 items-center justify-center">
 							<span
 								className="text-2xl leading-none select-none"
@@ -248,13 +232,22 @@ export const InterestRow = memo(function InterestRow({
 							>
 								{getTapEmoji(item.tapType)}
 							</span>
-							{item.isMutual && (
+							{mode === "taps" && item.isMutual && (
 								<span
 									className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-md"
 									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"})` }}
 									title={t("interest_page.mutual_tap_tooltip")}
 								>
 									<MoveHorizontal className="h-2.5 w-2.5" />
+								</span>
+							)}
+							{mode === "sent" && item.isRead && (
+								<span
+									className="absolute -bottom-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full text-white shadow-md"
+									style={{ backgroundColor: `rgb(${emojiColorMap[item.tapType ?? -1] || "255, 200, 0"})` }}
+									title={t("interest_page.sent_read_tooltip")}
+								>
+									<Check className="h-2.5 w-2.5" />
 								</span>
 							)}
 						</div>

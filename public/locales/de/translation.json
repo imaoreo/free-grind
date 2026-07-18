@@ -1565,7 +1565,8 @@
     "title": "Interest",
     "tabs": {
       "views": "Besucher",
-      "taps": "Taps"
+      "taps": "Taps",
+      "sent": ""
     },
     "total_viewed_count": "Gesamt",
     "total_taps_count": "Gesamt",
@@ -1596,7 +1597,10 @@
       "hot": "Heiß",
       "looking": "Suchend",
       "default": "Tap"
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {

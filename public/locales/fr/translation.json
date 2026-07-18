@@ -1565,7 +1565,8 @@
     "title": "Activité",
     "tabs": {
       "views": "Vues",
-      "taps": "Taps"
+      "taps": "Taps",
+      "sent": ""
     },
     "total_viewed_count": "Total des vues",
     "total_taps_count": "",
@@ -1596,7 +1597,10 @@
       "hot": "Sexy",
       "looking": "En recherche",
       "default": "Tap"
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {

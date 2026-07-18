@@ -7,7 +7,7 @@ import type {
 	SharedAlbum,
 	SharedAlbumView,
 } from "./albums";
-import type { InterestTapsResponse, InterestViewsResponse } from "./interest";
+import type { InterestSentTapsResponse, InterestTapsResponse, InterestViewsResponse } from "./interest";
 import type { MultipartUpload } from "./chat-service";
 import type {
 	RightNowCreatePostRequest,
@@ -33,6 +33,7 @@ export type ApiFunctionName =
 	| "removeAlbumShare"
 	| "getViews"
 	| "getTaps"
+	| "getSentTaps"
 	| "tap"
 	| "createRightNowPost";
 
@@ -132,6 +133,7 @@ export interface ApiFunctionResultMap {
 	removeAlbumShare: RemoveAlbumShareResult;
 	getViews: InterestViewsResponse;
 	getTaps: InterestTapsResponse;
+	getSentTaps: InterestSentTapsResponse;
 	tap: TapResult;
 	createRightNowPost: RightNowCreatePostResponse;
 }

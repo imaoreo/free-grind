@@ -13,7 +13,7 @@ import {
 	type InterestItem,
 	PREVIEW_ID_PREFIX,
 } from "./interest/interestUtils";
-import { InterestTabs, InterestRow } from "./interest/InterestComponents";
+import { InterestTabs, InterestRow, type InterestTabConfig } from "./interest/InterestComponents";
 import { InterestOnboardingModal } from "./interest/InterestOnboardingModal";
 import {
 	SCROLL_RESTORATION_TIMEOUT_MS,
@@ -25,6 +25,19 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 
 const ONBOARDING_KEY = "fg-interest-onboarding-seen";
 
+function loadStoredLimit(tab: InterestTab, fallback: number): number {
+	const saved = sessionStorage.getItem(`interest-scroll-${tab}`);
+	if (saved) {
+		try {
+			const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
+			if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
+				return limit;
+			}
+		} catch (e) {}
+	}
+	return fallback;
+}
+
 function InterestSkeleton({ mode }: { mode: InterestTab }) {
 	return (
 		<div className="flex items-center gap-4 border-b border-[var(--surface-2)] py-3 pl-4 pr-4">
@@ -33,7 +46,7 @@ function InterestSkeleton({ mode }: { mode: InterestTab }) {
 				<div className="h-3 w-28 animate-pulse rounded-full bg-[var(--surface-2)]" />
 				<div className="h-2.5 w-16 animate-pulse rounded-full bg-[var(--border)]" />
 			</div>
-			{mode === "taps" ? (
+			{mode === "taps" || mode === "sent" ? (
 				<div className="h-10 w-10 shrink-0 animate-pulse rounded-full bg-[var(--surface-2)]" />
 			) : (
 				<div className="h-8 w-14 shrink-0 animate-pulse rounded-full bg-[var(--surface-2)]" />
@@ -49,12 +62,13 @@ export function InterestPage() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const defaultSetting = window.localStorage.getItem("fg-interest-default-tab") === "views" ? "views" : "taps";
 	const lastActiveTab = window.localStorage.getItem("fg-interest-last-tab");
+	const isValidTab = (value: string | null): value is InterestTab =>
+		value === "taps" || value === "views" || value === "sent";
 	// Falls back to the last tab the user actually looked at (not just their configured default),
 	// since navigating back to /interest (e.g. via the bottom nav) drops the ?tab= param entirely.
-	const fallbackTab: InterestTab = lastActiveTab === "taps" || lastActiveTab === "views" ? lastActiveTab : defaultSetting;
-	const activeTab: InterestTab = searchParams.get("tab") === "taps" || searchParams.get("tab") === "views"
-		? (searchParams.get("tab") as InterestTab)
-		: fallbackTab;
+	const fallbackTab: InterestTab = isValidTab(lastActiveTab) ? lastActiveTab : defaultSetting;
+	const tabParam = searchParams.get("tab");
+	const activeTab: InterestTab = isValidTab(tabParam) ? tabParam : fallbackTab;
 
 	useEffect(() => {
 		window.localStorage.setItem("fg-interest-last-tab", activeTab);
@@ -122,6 +136,13 @@ export function InterestPage() {
 		return demoMode !== 0 ? [...demoAddedTaps, ...base] : base;
 	}, [data?.taps, demoAddedTaps, demoMode]);
 
+	const sentTaps = useMemo(() => data?.sentTaps ?? [], [data?.sentTaps]);
+
+	const itemsByTab = useMemo(
+		() => ({ views, taps, sent: sentTaps }) satisfies Record<InterestTab, InterestItem[]>,
+		[views, taps, sentTaps],
+	);
+
 	const viewedCount = demoMode !== 0 ? demoAddedViews.length : (data?.viewedCount ?? 0);
 
 	// Profiles we've blocked — same list ChatPage/GridPage use to gate their
@@ -139,7 +160,7 @@ export function InterestPage() {
 	// a dedicated "blocked by" check.
 	const [blockedByOtherProfileIds, setBlockedByOtherProfileIds] = useState<Set<string>>(new Set());
 	useEffect(() => {
-		const profileIds = [...new Set([...views, ...taps].map((item) => item.profileId))].filter(
+		const profileIds = [...new Set([...views, ...taps, ...sentTaps].map((item) => item.profileId))].filter(
 			(id) => !id.startsWith(PREVIEW_ID_PREFIX),
 		);
 		if (profileIds.length === 0) {
@@ -161,7 +182,7 @@ export function InterestPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [views, taps]);
+	}, [views, taps, sentTaps]);
 
 	const isProfileBlocked = useCallback(
 		(profileId: string) => blockedByMeProfileIds.has(profileId) || blockedByOtherProfileIds.has(profileId),
@@ -170,6 +191,7 @@ export function InterestPage() {
 
 	const [lastSeenViews, setLastSeenViews] = useState(() => getInterestTabLastSeen("views"));
 	const [lastSeenTaps, setLastSeenTaps] = useState(() => getInterestTabLastSeen("taps"));
+	const [lastSeenSent, setLastSeenSent] = useState(() => getInterestTabLastSeen("sent"));
 
 	// Tabs the user has just switched to: their badge is hidden immediately (in
 	// the same render as the switch) so the pill slide and the badge collapse
@@ -192,7 +214,7 @@ export function InterestPage() {
 	// Mark active tab as seen
 	useEffect(() => {
 		if (data) {
-			const items = activeTab === "views" ? views : taps;
+			const items = itemsByTab[activeTab];
 			const maxInItems = items.length > 0 ? Math.max(...items.map(i => i.timestamp ?? 0)) : 0;
 			const at = Math.max(Date.now(), maxInItems);
 
@@ -202,12 +224,14 @@ export function InterestPage() {
 			const timer = setTimeout(() => {
 				if (demoMode !== 0) {
 					if (activeTab === "views") setDemoViewsCount(0);
-					else setDemoTapsCount(0);
+					else if (activeTab === "taps") setDemoTapsCount(0);
 				}
 
 				markInterestTabSeen(activeTab, at);
 				if (activeTab === "views") {
 					setLastSeenViews(at);
+				} else if (activeTab === "sent") {
+					setLastSeenSent(at);
 				} else {
 					setLastSeenTaps(at);
 				}
@@ -221,7 +245,7 @@ export function InterestPage() {
 
 			return () => clearTimeout(timer);
 		}
-	}, [activeTab, data, views, taps, demoMode]);
+	}, [activeTab, data, itemsByTab, demoMode]);
 
 	const handleSetDemoMode = useCallback((mode: number) => {
 		setDemoMode(mode);
@@ -291,51 +315,25 @@ export function InterestPage() {
 	}, []);
 
 	const ITEMS_PER_PAGE = 30;
-	const [viewsLimit, setViewsLimit] = useState(() => {
-		const saved = sessionStorage.getItem("interest-scroll-views");
-		if (saved) {
-			try {
-				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
-				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
-					return limit;
-				}
-			} catch (e) {}
-		}
-		return ITEMS_PER_PAGE;
-	});
-	const [tapsLimit, setTapsLimit] = useState(() => {
-		const saved = sessionStorage.getItem("interest-scroll-taps");
-		if (saved) {
-			try {
-				const { limit, timestamp } = JSON.parse(saved) as { limit: number; timestamp: number };
-				if (limit && Date.now() - timestamp < SCROLL_RESTORATION_TIMEOUT_MS) {
-					return limit;
-				}
-			} catch (e) {}
-		}
-		return ITEMS_PER_PAGE;
-	});
+	const [limits, setLimits] = useState<Record<InterestTab, number>>(() => ({
+		views: loadStoredLimit("views", ITEMS_PER_PAGE),
+		taps: loadStoredLimit("taps", ITEMS_PER_PAGE),
+		sent: loadStoredLimit("sent", ITEMS_PER_PAGE),
+	}));
 	const [isPending, startTransition] = useTransition();
 
-	const activeItems = useMemo(
-		() => (activeTab === "views" ? views : taps),
-		[activeTab, taps, views],
-	);
+	const activeItems = itemsByTab[activeTab];
 
-	const displayedItems = useMemo(() => {
-		const limit = activeTab === "views" ? viewsLimit : tapsLimit;
-		return activeItems.slice(0, limit);
-	}, [activeTab, activeItems, viewsLimit, tapsLimit]);
+	const displayedItems = useMemo(
+		() => activeItems.slice(0, limits[activeTab]),
+		[activeItems, limits, activeTab],
+	);
 
 	const hasMoreItems = activeItems.length > displayedItems.length;
 
 	const handleLoadMore = useCallback(() => {
 		startTransition(() => {
-			if (activeTab === "views") {
-				setViewsLimit((prev) => prev + ITEMS_PER_PAGE);
-			} else {
-				setTapsLimit((prev) => prev + ITEMS_PER_PAGE);
-			}
+			setLimits((prev) => ({ ...prev, [activeTab]: prev[activeTab] + ITEMS_PER_PAGE }));
 		});
 	}, [activeTab]);
 
@@ -367,36 +365,32 @@ export function InterestPage() {
 	// Reset limits and scroll restoration when changing tabs
 	useEffect(() => {
 		if (prevTabRef.current !== activeTab) {
-			setViewsLimit(ITEMS_PER_PAGE);
-			setTapsLimit(ITEMS_PER_PAGE);
+			setLimits({ views: ITEMS_PER_PAGE, taps: ITEMS_PER_PAGE, sent: ITEMS_PER_PAGE });
 			setHasRestoredScroll(false);
 			prevTabRef.current = activeTab;
 		}
 	}, [activeTab]);
 
 	// Clear scroll memory for a specific tab when NEW activity is detected in that tab
-	const prevMaxViewsTs = useRef(lastSeenViews);
-	const prevMaxTapsTs = useRef(lastSeenTaps);
+	const prevMaxTsByTab = useRef<Record<InterestTab, number>>({
+		views: lastSeenViews,
+		taps: lastSeenTaps,
+		sent: lastSeenSent,
+	});
 
 	useEffect(() => {
-		const maxViews = views.length > 0 ? Math.max(...views.map(v => v.timestamp ?? 0)) : 0;
-		if (maxViews > prevMaxViewsTs.current) {
-			sessionStorage.removeItem("interest-scroll-views");
-			if (activeTab === "views") {
-				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+		for (const tab of Object.keys(itemsByTab) as InterestTab[]) {
+			const items = itemsByTab[tab];
+			const maxTs = items.length > 0 ? Math.max(...items.map(i => i.timestamp ?? 0)) : 0;
+			if (maxTs > prevMaxTsByTab.current[tab]) {
+				sessionStorage.removeItem(`interest-scroll-${tab}`);
+				if (activeTab === tab) {
+					feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+				}
 			}
+			if (maxTs > 0) prevMaxTsByTab.current[tab] = maxTs;
 		}
-		if (maxViews > 0) prevMaxViewsTs.current = maxViews;
-
-		const maxTaps = taps.length > 0 ? Math.max(...taps.map(t => t.timestamp ?? 0)) : 0;
-		if (maxTaps > prevMaxTapsTs.current) {
-			sessionStorage.removeItem("interest-scroll-taps");
-			if (activeTab === "taps") {
-				feedContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-			}
-		}
-		if (maxTaps > 0) prevMaxTapsTs.current = maxTaps;
-	}, [views, taps, activeTab]);
+	}, [itemsByTab, activeTab]);
 
 	useEffect(() => {
 		const container = feedContainerRef.current;
@@ -405,7 +399,7 @@ export function InterestPage() {
 		const handleScroll = () => {
 			const scrollData = {
 				top: container.scrollTop,
-				limit: activeTab === "views" ? viewsLimit : tapsLimit,
+				limit: limits[activeTab],
 				timestamp: Date.now()
 			};
 			sessionStorage.setItem(`interest-scroll-${activeTab}`, JSON.stringify(scrollData));
@@ -413,7 +407,7 @@ export function InterestPage() {
 
 		container.addEventListener("scroll", handleScroll, { passive: true });
 		return () => container.removeEventListener("scroll", handleScroll);
-	}, [activeTab, viewsLimit, tapsLimit]);
+	}, [activeTab, limits]);
 
 	useLayoutEffect(() => {
 		if (displayedItems.length > 0 && !isLoading && !hasRestoredScroll && feedContainerRef.current) {
@@ -421,9 +415,9 @@ export function InterestPage() {
 
 			// If there's new activity since the last time we "saw" this tab,
 			// don't restore the scroll position - stay at the top.
-			const currentItems = activeTab === "views" ? views : taps;
+			const currentItems = itemsByTab[activeTab];
 			const maxTs = currentItems.length > 0 ? Math.max(...currentItems.map(i => i.timestamp ?? 0)) : 0;
-			const lastSeen = activeTab === "views" ? lastSeenViews : lastSeenTaps;
+			const lastSeen = activeTab === "views" ? lastSeenViews : activeTab === "sent" ? lastSeenSent : lastSeenTaps;
 
 			if (maxTs > lastSeen) {
 				sessionStorage.removeItem(storageKey);
@@ -453,7 +447,7 @@ export function InterestPage() {
 			}
 			setHasRestoredScroll(true);
 		}
-	}, [displayedItems.length, isLoading, hasRestoredScroll, activeTab, lastSeenViews, lastSeenTaps, views, taps]);
+	}, [displayedItems.length, isLoading, hasRestoredScroll, activeTab, lastSeenViews, lastSeenTaps, lastSeenSent, itemsByTab]);
 
 	// Keep relative timestamps fresh.
 	useEffect(() => {
@@ -470,17 +464,12 @@ export function InterestPage() {
 	}, [activeTab, maxInterestTimestamp, data]);
 
 	const handleRefresh = useCallback(() => {
-		if (activeTab === "views") {
-			setViewsLimit(ITEMS_PER_PAGE);
-			sessionStorage.removeItem("interest-scroll-views");
-		} else {
-			setTapsLimit(ITEMS_PER_PAGE);
-			sessionStorage.removeItem("interest-scroll-taps");
-		}
+		setLimits((prev) => ({ ...prev, [activeTab]: ITEMS_PER_PAGE }));
+		sessionStorage.removeItem(`interest-scroll-${activeTab}`);
 		setHasRestoredScroll(true);
 		feedContainerRef.current?.scrollTo(0, 0);
 		return refetch();
-	}, [activeTab, refetch, ITEMS_PER_PAGE]);
+	}, [activeTab, refetch]);
 
 	const handleSetActiveTab = useCallback(
 		(nextTab: InterestTab) => {
@@ -509,6 +498,27 @@ export function InterestPage() {
 		touchStartXRef.current = event.touches[0]?.clientX ?? null;
 	}, []);
 
+	const tabOrder: InterestTab[] = useMemo(
+		() => (defaultSetting === "views" ? ["views", "taps", "sent"] : ["taps", "views", "sent"]),
+		[defaultSetting],
+	);
+
+	// Sent taps show no unread badge — it's our own outgoing activity, not
+	// something to catch up on.
+	const tabCounts: Record<InterestTab, number> = useMemo(
+		() => ({ views: newViewsCount, taps: newTapsCount, sent: 0 }),
+		[newViewsCount, newTapsCount],
+	);
+
+	const tabConfigs: InterestTabConfig[] = useMemo(
+		() => tabOrder.map((tab) => ({
+			key: tab,
+			label: t(`interest_page.tabs.${tab}`),
+			count: tabCounts[tab],
+		})),
+		[tabOrder, tabCounts, t],
+	);
+
 	const handleTouchEnd = useCallback(
 		(event: TouchEvent<HTMLDivElement>) => {
 			const startX = touchStartXRef.current;
@@ -518,24 +528,21 @@ export function InterestPage() {
 
 			const endX = event.changedTouches[0]?.clientX ?? startX;
 			const deltaX = startX - endX;
+			const currentIndex = tabOrder.indexOf(activeTab);
 
-			const isViewsFirst = defaultSetting === "views";
-			const leftTab = isViewsFirst ? "views" : "taps";
-			const rightTab = isViewsFirst ? "taps" : "views";
-
-			// Swipe left (positive deltaX) -> move to the right tab
-			if (deltaX > 70 && activeTab === leftTab) {
-				handleSetActiveTab(rightTab);
+			// Swipe left (positive deltaX) -> move to the next tab
+			if (deltaX > 70 && currentIndex < tabOrder.length - 1) {
+				handleSetActiveTab(tabOrder[currentIndex + 1]);
 			}
 
-			// Swipe right (negative deltaX) -> move to the left tab
-			if (deltaX < -70 && activeTab === rightTab) {
-				handleSetActiveTab(leftTab);
+			// Swipe right (negative deltaX) -> move to the previous tab
+			if (deltaX < -70 && currentIndex > 0) {
+				handleSetActiveTab(tabOrder[currentIndex - 1]);
 			}
 
 			touchStartXRef.current = null;
 		},
-		[activeTab, handleSetActiveTab, defaultSetting],
+		[activeTab, handleSetActiveTab, tabOrder],
 	);
 
 	return (
@@ -570,37 +577,36 @@ export function InterestPage() {
 						<div className="flex h-12 items-center justify-between pl-[var(--app-px)] pr-4 -mt-1">
 							<InterestTabs
 								activeTab={activeTab}
-								onViewsClick={() => handleSetActiveTab("views")}
-								onTapsClick={() => handleSetActiveTab("taps")}
-								firstTab={defaultSetting}
-								newViewsCount={newViewsCount}
-								newTapsCount={newTapsCount}
+								tabs={tabConfigs}
+								onTabClick={handleSetActiveTab}
 							/>
 
-							<div
-								className="glass-pill flex h-8 shrink-0 items-center gap-1.5 px-3"
-								style={{ "--pill-color": "var(--text-muted)" } as CSSProperties}
-								title={activeTab === "views" ? t("interest_page.total_viewed_count") : t("interest_page.total_taps_count")}
-							>
-								{activeTab === "views" ? (
-									<Eye className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-								) : (
-									<Flame className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-								)}
-								<div className="relative flex min-w-[1.25rem] items-center justify-center">
-									<p className={cn(
-										"text-xs font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
-										(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
-									)}>
-										{activeTab === "views" ? viewedCount : taps.length}
-									</p>
-									{((isFetching && !isQueryLoading) || isDemoLoading) && (
-										<div className="absolute inset-0 flex items-center justify-center">
-											<RefreshCw className="h-3 w-3 animate-spin text-[var(--text-muted)]" />
-										</div>
+							{activeTab !== "sent" && (
+								<div
+									className="glass-pill flex h-8 shrink-0 items-center gap-1.5 px-3"
+									style={{ "--pill-color": "var(--text-muted)" } as CSSProperties}
+									title={t(activeTab === "views" ? "interest_page.total_viewed_count" : "interest_page.total_taps_count")}
+								>
+									{activeTab === "views" ? (
+										<Eye className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
+									) : (
+										<Flame className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
 									)}
+									<div className="relative flex min-w-[1.25rem] items-center justify-center">
+										<p className={cn(
+											"text-xs font-bold text-[var(--text-muted)] leading-none tabular-nums shrink-0 transition-opacity duration-300",
+											(isFetching && !isQueryLoading) || isDemoLoading ? "opacity-0" : "opacity-100"
+										)}>
+											{activeTab === "views" ? viewedCount : activeItems.length}
+										</p>
+										{((isFetching && !isQueryLoading) || isDemoLoading) && (
+											<div className="absolute inset-0 flex items-center justify-center">
+												<RefreshCw className="h-3 w-3 animate-spin text-[var(--text-muted)]" />
+											</div>
+										)}
+									</div>
 								</div>
-							</div>
+							)}
 						</div>
 					</div>
 				</div>

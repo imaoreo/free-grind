@@ -82,5 +82,19 @@ export const interestTapsResponseSchema = z
 	})
 	.passthrough();
 
+export const interestSentTapEntrySchema = z
+	.object({
+		senderId: stringIdSchema.optional(),
+		receiverId: stringIdSchema.optional(),
+		tapType: z.coerce.number().int().nullable().optional(),
+		sentOn: timestampSchema,
+		readOn: timestampSchema,
+		deleted: z.boolean().optional(),
+	})
+	.passthrough();
+
+export const interestSentTapsResponseSchema = z.array(interestSentTapEntrySchema);
+
 export type InterestViewsResponse = z.infer<typeof interestViewsResponseSchema>;
 export type InterestTapsResponse = z.infer<typeof interestTapsResponseSchema>;
+export type InterestSentTapsResponse = z.infer<typeof interestSentTapsResponseSchema>;

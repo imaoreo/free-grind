@@ -1565,7 +1565,8 @@
     "title": "",
     "tabs": {
       "views": "",
-      "taps": ""
+      "taps": "",
+      "sent": ""
     },
     "total_viewed_count": "",
     "total_taps_count": "",
@@ -1596,7 +1597,10 @@
       "hot": "",
       "looking": "",
       "default": ""
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {

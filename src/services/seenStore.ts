@@ -16,6 +16,7 @@ interface SeenTimestamps {
 	interest: number;
 	interestViews: number;
 	interestTaps: number;
+	interestSent: number;
 	inbox: number;
 	rightNow: number;
 }
@@ -24,6 +25,7 @@ const DEFAULT_SEEN: SeenTimestamps = {
 	interest: 0,
 	interestViews: 0,
 	interestTaps: 0,
+	interestSent: 0,
 	inbox: 0,
 	rightNow: 0,
 };
@@ -59,12 +61,20 @@ export function markInterestSeen(at: number = Date.now()): void {
 	window.dispatchEvent(new CustomEvent(INTEREST_SEEN_EVENT, { detail: at }));
 }
 
-export function getInterestTabLastSeen(tab: "views" | "taps"): number {
-	return tab === "views" ? seenCache.interestViews : seenCache.interestTaps;
+export function getInterestTabLastSeen(tab: "views" | "taps" | "sent"): number {
+	if (tab === "views") return seenCache.interestViews;
+	if (tab === "sent") return seenCache.interestSent;
+	return seenCache.interestTaps;
 }
 
-export function markInterestTabSeen(tab: "views" | "taps", at: number = Date.now()): void {
-	persistSeenCache(tab === "views" ? { interestViews: at } : { interestTaps: at });
+export function markInterestTabSeen(tab: "views" | "taps" | "sent", at: number = Date.now()): void {
+	if (tab === "views") {
+		persistSeenCache({ interestViews: at });
+	} else if (tab === "sent") {
+		persistSeenCache({ interestSent: at });
+	} else {
+		persistSeenCache({ interestTaps: at });
+	}
 }
 
 export function getInboxLastSeen(): number {

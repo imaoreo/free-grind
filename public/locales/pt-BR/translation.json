@@ -1565,7 +1565,8 @@
     "title": "Interesse",
     "tabs": {
       "views": "Visualizações",
-      "taps": "Toques"
+      "taps": "Toques",
+      "sent": ""
     },
     "total_viewed_count": "Número total de visualizações",
     "total_taps_count": "",
@@ -1596,7 +1597,10 @@
       "hot": "Quente",
       "looking": "Olhando",
       "default": "Toque"
-    }
+    },
+    "empty_sent": "",
+    "empty_sent_desc": "",
+    "sent_read_tooltip": ""
   },
   "api": {
     "errors": {
