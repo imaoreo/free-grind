@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Upravljaj potvrdama prije blokiranja profila ili brisanja razgovora."
+    "subtitle": "Upravljaj potvrdama prije blokiranja profila ili brisanja razgovora.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

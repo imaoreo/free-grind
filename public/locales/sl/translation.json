@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Upravljaj potrditvena obvestila pred blokiranjem profilov ali brisanjem klepetov."
+    "subtitle": "Upravljaj potrditvena obvestila pred blokiranjem profilov ali brisanjem klepetov.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

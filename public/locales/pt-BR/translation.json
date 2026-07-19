@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Gerencie os avisos de confirmação antes de bloquear perfis ou excluir conversas."
+    "subtitle": "Gerencie os avisos de confirmação antes de bloquear perfis ou excluir conversas.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

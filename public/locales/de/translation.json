@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Verwalte Bestätigungsabfragen vor dem Blockieren von Profilen oder dem Löschen von Chats."
+    "subtitle": "Verwalte Bestätigungsabfragen vor dem Blockieren von Profilen oder dem Löschen von Chats.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "Wähle, welche Benachrichtigungen du erhältst und ob sie bei geöffneter App angezeigt werden.",

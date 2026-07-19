@@ -168,6 +168,7 @@ const preferencesSchema = z.object({
 	revealEffectEnabled: z.boolean().default(true),
 	revealEffectStrength: z.enum(["subtle", "pronounced"]).default("subtle"),
 	showAlbumSensitiveContentWarning: z.boolean().default(true),
+	sortDrawerMediaByFrequency: z.boolean().default(true),
 	defaultExpiringPhotos: z.boolean().default(false),
 	defaultAlbumExpirationType: z
 		.enum(["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"])
@@ -202,6 +203,7 @@ type PreferencesAction =
 	| { type: "SET_REVEAL_EFFECT_ENABLED"; payload: boolean }
 	| { type: "SET_REVEAL_EFFECT_STRENGTH"; payload: RevealStrength }
 	| { type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING"; payload: boolean }
+	| { type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY"; payload: boolean }
 	| { type: "SET_DEFAULT_EXPIRING_PHOTOS"; payload: boolean }
 	| { type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE"; payload: Preferences["defaultAlbumExpirationType"] }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
@@ -244,6 +246,8 @@ function preferencesReducer(
 			return { ...state, revealEffectStrength: action.payload };
 		case "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING":
 			return { ...state, showAlbumSensitiveContentWarning: action.payload };
+		case "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY":
+			return { ...state, sortDrawerMediaByFrequency: action.payload };
 		case "SET_DEFAULT_EXPIRING_PHOTOS":
 			return { ...state, defaultExpiringPhotos: action.payload };
 		case "SET_DEFAULT_ALBUM_EXPIRATION_TYPE":
@@ -324,6 +328,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: true,
 		revealEffectStrength: "subtle",
 		showAlbumSensitiveContentWarning: true,
+		sortDrawerMediaByFrequency: true,
 		defaultExpiringPhotos: false,
 		defaultAlbumExpirationType: "INDEFINITE",
 		isLoading: true,
@@ -361,6 +366,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
 					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: parsed.revealEffectStrength });
 					dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: parsed.showAlbumSensitiveContentWarning });
+					dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: parsed.sortDrawerMediaByFrequency });
 					dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: parsed.defaultExpiringPhotos });
 					dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: parsed.defaultAlbumExpirationType });
 					dispatch({
@@ -445,6 +451,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				revealEffectEnabled: currentState.revealEffectEnabled,
 				revealEffectStrength: currentState.revealEffectStrength,
 				showAlbumSensitiveContentWarning: currentState.showAlbumSensitiveContentWarning,
+				sortDrawerMediaByFrequency: currentState.sortDrawerMediaByFrequency,
 				defaultExpiringPhotos: currentState.defaultExpiringPhotos,
 				defaultAlbumExpirationType: currentState.defaultAlbumExpirationType,
 				activeRightNowId: currentState.activeRightNowId ?? null,
@@ -505,6 +512,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.showAlbumSensitiveContentWarning !== undefined) {
 				dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: newValues.showAlbumSensitiveContentWarning });
+			}
+			if (newValues.sortDrawerMediaByFrequency !== undefined) {
+				dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: newValues.sortDrawerMediaByFrequency });
 			}
 			if (newValues.defaultExpiringPhotos !== undefined) {
 				dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: newValues.defaultExpiringPhotos });
@@ -580,6 +590,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					revealEffectEnabled: preferences.revealEffectEnabled,
 					revealEffectStrength: preferences.revealEffectStrength,
 					showAlbumSensitiveContentWarning: preferences.showAlbumSensitiveContentWarning,
+					sortDrawerMediaByFrequency: preferences.sortDrawerMediaByFrequency,
 					defaultExpiringPhotos: preferences.defaultExpiringPhotos,
 					defaultAlbumExpirationType: preferences.defaultAlbumExpirationType,
 					activeRightNowId: preferences.activeRightNowId,
@@ -610,6 +621,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: state.revealEffectEnabled,
 		revealEffectStrength: state.revealEffectStrength,
 		showAlbumSensitiveContentWarning: state.showAlbumSensitiveContentWarning,
+		sortDrawerMediaByFrequency: state.sortDrawerMediaByFrequency,
 		defaultExpiringPhotos: state.defaultExpiringPhotos,
 		defaultAlbumExpirationType: state.defaultAlbumExpirationType,
 		setPreferences,

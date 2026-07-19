@@ -1,5 +1,5 @@
 import type { BrowseCard } from "../../GridPage.types";
-import { MapPin, MessageCircle, Plane, Satellite, Star, Zap } from "lucide-react";
+import { MapPin, MapPinOff, MessageCircle, Plane, Satellite, Star, Zap } from "lucide-react";
 import { RightNowIcon } from "../../../../components/icons/RightNowIcon";
 import { useTranslation } from "react-i18next";
 import {
@@ -185,10 +185,14 @@ export function BrowseCardTile({
 					{/* Bottom-left: Distance */}
 					<div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
 					<div className="absolute bottom-2 left-2 z-10 flex h-5 items-center text-white">
-						<span className="inline-flex items-center gap-1 text-xs font-semibold">
-							<MapPin className="h-3.5 w-3.5" />
-							{formatDistance(card.distanceMeters, t, unitsPreset)}
-						</span>
+						{card.distanceMeters == null || !Number.isFinite(card.distanceMeters) ? (
+							<MapPinOff className="h-3.5 w-3.5" />
+						) : (
+							<span className="inline-flex items-center gap-1 text-xs font-semibold">
+								<MapPin className="h-3.5 w-3.5" />
+								{formatDistance(card.distanceMeters, t, unitsPreset)}
+							</span>
+						)}
 					</div>
 					</div>
 				</div>

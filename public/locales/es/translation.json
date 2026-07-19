@@ -867,7 +867,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Gestiona los avisos de confirmación antes de bloquear perfiles o eliminar chats."
+    "subtitle": "Gestiona los avisos de confirmación antes de bloquear perfiles o eliminar chats.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

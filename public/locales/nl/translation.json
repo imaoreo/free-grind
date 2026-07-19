@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Beheer bevestigingsmeldingen voordat je profielen blokkeert of chats verwijdert."
+    "subtitle": "Beheer bevestigingsmeldingen voordat je profielen blokkeert of chats verwijdert.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

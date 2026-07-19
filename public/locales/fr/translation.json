@@ -860,7 +860,10 @@
     }
   },
   "behavior": {
-    "subtitle": "Gérez les invites de confirmation avant de bloquer des profils ou de supprimer des discussions."
+    "subtitle": "Gérez les invites de confirmation avant de bloquer des profils ou de supprimer des discussions.",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",

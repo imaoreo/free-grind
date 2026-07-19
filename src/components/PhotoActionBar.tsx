@@ -54,7 +54,10 @@ export function PhotoActionBar({ onSendText, onReact, placeholder }: PhotoAction
 				background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)",
 			}}
 		>
-			<div className="mx-auto flex w-full max-w-lg items-center gap-2">
+			<div
+				className="mx-auto flex w-full max-w-lg items-center gap-2"
+				onClick={(e) => e.stopPropagation()}
+			>
 				<div className="relative min-w-0 flex-1">
 					<div
 						className="pointer-events-none absolute inset-0 rounded-xl backdrop-blur-md"

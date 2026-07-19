@@ -1761,13 +1761,13 @@ export function ChatThreadMessages({
                                                             </div>
                                                         )
                                                     )}
-                                                    {!shouldBlurIncomingMedia && (
-                                                        <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
-                                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
-                                                                <Play className="h-5 w-5 fill-white text-white" />
-                                                            </div>
+                                                    <div
+                                                        className={`js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 ${shouldBlurIncomingMedia ? "hidden" : ""}`}
+                                                    >
+                                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
+                                                            <Play className="h-5 w-5 fill-white text-white" />
                                                         </div>
-                                                    )}
+                                                    </div>
                                                     {isVideoOnlyBubble && (
                                                         <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                             <div className="flex items-center justify-between gap-2 text-[10px]">

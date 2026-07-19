@@ -1355,7 +1355,7 @@ export function GridPage() {
 												);
 											})}
 										</div>
-										<div className="mt-2 border-t border-[var(--border)] pt-2">
+										<div className="-mx-3 mt-2 border-t border-[var(--border)] px-3 pt-2">
 											<button
 												type="button"
 												onClick={() => { setIsAccountSwitcherOpen(false); navigate("/settings"); }}

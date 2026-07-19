@@ -867,7 +867,10 @@
     "default_expiring_photos": "Default to 10-Second Photos",
     "default_expiring_photos_desc": "New photos you send in chat automatically use the 10-second disappearing timer, without needing to enable it each time.",
     "default_album_expiration": "Default Album Expiration",
-    "default_album_expiration_desc": "Albums you share in chat automatically use this expiration, without needing to choose it each time."
+    "default_album_expiration_desc": "Albums you share in chat automatically use this expiration, without needing to choose it each time.",
+    "media_drawer": "Media Drawer",
+    "sort_drawer_media_by_frequency": "Sort by Send Frequency",
+    "sort_drawer_media_by_frequency_desc": "Show your most-sent photos and videos first in the media drawer. Turn off to keep them in their default order."
   },
   "notifications_page": {
     "subtitle": "Choose which notifications you get, and whether they show up while the app is open.",

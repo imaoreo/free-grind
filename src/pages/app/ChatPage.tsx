@@ -279,7 +279,7 @@ export function ChatPage() {
 	const { data: blockedProfileIdsData, refetch: refetchBlockedProfileIds } = useBlockedProfileIds();
 	const { data: myProfile } = useMyOwnProfile();
 	const profileImageHash = useMemo(() => getProfilePhotoHash(myProfile), [myProfile]);
-	const { unitsPreset, showAlbumSensitiveContentWarning, defaultExpiringPhotos } = usePreferences();
+	const { unitsPreset, showAlbumSensitiveContentWarning, sortDrawerMediaByFrequency, defaultExpiringPhotos } = usePreferences();
 	const { userId, settingsReady } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -5738,10 +5738,9 @@ export function ChatPage() {
 					: service.getGlobalDrawerMedia(),
 				chatDb.getDrawerMediaSendCounts(),
 			]);
+			const withCounts = media.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				media
-					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
-					.sort((a, b) => b.sendCount - a.sendCount),
+				sortDrawerMediaByFrequency ? withCounts.sort((a, b) => b.sendCount - a.sendCount) : withCounts,
 			);
 			// Cache each thumbnail/video locally by its stable media id, so
 			// re-opening the drawer renders instantly instead of re-hitting the
@@ -5767,7 +5766,7 @@ export function ChatPage() {
 		} finally {
 			setIsLoadingDrawer(false);
 		}
-	}, [selectedConversationId, service, t]);
+	}, [selectedConversationId, service, sortDrawerMediaByFrequency, t]);
 
 	useEffect(() => {
 		loadDrawerMediaRef.current = loadDrawerMedia;

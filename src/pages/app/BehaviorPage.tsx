@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, ExternalLink, Images, Timer, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, Ban, ExternalLink, Images, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -20,7 +20,8 @@ const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR
 export function BehaviorPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
-	const { defaultExpiringPhotos, defaultAlbumExpirationType, setPreferences } = usePreferences();
+	const { defaultExpiringPhotos, defaultAlbumExpirationType, sortDrawerMediaByFrequency, setPreferences } =
+		usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
 		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
 		ONCE: t("chat_drawer.expiry.once", { defaultValue: "Once" }),
@@ -123,6 +124,22 @@ export function BehaviorPage() {
 								</div>
 							</div>
 						</div>
+					</div>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.media_drawer")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-sort-drawer-media-by-frequency"
+							highlighted={highlightId === "behavior-sort-drawer-media-by-frequency"}
+							icon={<ArrowDownWideNarrow className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("behavior.sort_drawer_media_by_frequency")}
+							description={t("behavior.sort_drawer_media_by_frequency_desc")}
+							checked={sortDrawerMediaByFrequency}
+							onChange={(checked) => void setPreferences({ sortDrawerMediaByFrequency: checked })}
+						/>
 					</div>
 				</div>
 			</div>
