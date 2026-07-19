@@ -3,6 +3,7 @@ import {
 	Ban,
 	BarChart3,
 	Bell,
+	CalendarDays,
 	CheckCheck,
 	ClipboardList,
 	DatabaseBackup,
@@ -463,6 +464,18 @@ export function useSettingsSearchIndex(): SettingsSearchEntry[] {
 			section: "Backup & Restore",
 			icon: Upload,
 			iconClass: "bg-violet-500/15 text-violet-400",
+		},
+		{
+			id: "data-encounters-export",
+			route: "/settings/data",
+			anchor: "data-encounters-export",
+			label: t("data_backup.encounters_export", { defaultValue: "Export .ics" }),
+			description: t("data_backup.encounters_export_desc", {
+				defaultValue: "Save your logged encounters as a calendar file you can import into any calendar app.",
+			}),
+			section: "Backup & Restore",
+			icon: CalendarDays,
+			iconClass: "bg-teal-500/15 text-teal-400",
 		},
 		{
 			id: "data-reset-all",
