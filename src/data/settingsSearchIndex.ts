@@ -8,6 +8,7 @@ import {
 	ClipboardList,
 	DatabaseBackup,
 	Eye,
+	ExternalLink,
 	FileDown,
 	FileUp,
 	Flame,
@@ -190,6 +191,18 @@ export function useSettingsSearchIndex(): SettingsSearchEntry[] {
 			description: t("customizability.confirm_before_delete_conversation_desc"),
 			section: "Behavior",
 			icon: Trash2,
+			iconClass: "bg-red-500/15 text-red-400",
+		},
+		{
+			id: "behavior-confirm-open-link",
+			route: "/settings/behavior",
+			anchor: "behavior-confirm-open-link",
+			label: t("customizability.confirm_before_open_link", { defaultValue: "Ask before opening links" }),
+			description: t("customizability.confirm_before_open_link_desc", {
+				defaultValue: "Show a confirmation before opening a link tapped inside a chat message.",
+			}),
+			section: "Behavior",
+			icon: ExternalLink,
 			iconClass: "bg-red-500/15 text-red-400",
 		},
 		{

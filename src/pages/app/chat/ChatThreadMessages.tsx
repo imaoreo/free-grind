@@ -1,6 +1,7 @@
 import { Album, Ban, Copy, Download, Eye, History, Hourglass, Loader2, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { PromptDialog } from "../../../components/ui/prompt-dialog";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -30,6 +31,10 @@ import { useAvatarCache } from "../../../hooks/useAvatarCache";
 import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
+import {
+	SKIP_LINK_OPEN_CONFIRM_KEY,
+	isLinkOpenConfirmSkipped,
+} from "../../../utils/blockConfirm";
 import {
 	formatDateHeader,
 	formatDateTime24,
@@ -326,6 +331,33 @@ export function ChatThreadMessages({
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
 	const [contextMenuState, setContextMenuState] = useState<{ messageId: string; x: number; y: number } | null>(null);
 	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
+	const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null);
+	const [dontAskLinkOpenAgain, setDontAskLinkOpenAgain] = useState(false);
+
+	const openLink = useCallback((url: string) => {
+		openUrl(url).catch(() => window.open(url, "_blank"));
+	}, []);
+
+	const requestOpenLink = useCallback(
+		(url: string) => {
+			if (isLinkOpenConfirmSkipped()) {
+				openLink(url);
+				return;
+			}
+			setDontAskLinkOpenAgain(false);
+			setPendingLinkUrl(url);
+		},
+		[openLink],
+	);
+
+	const confirmOpenLink = useCallback(() => {
+		if (!pendingLinkUrl) return;
+		if (dontAskLinkOpenAgain && typeof window !== "undefined") {
+			localStorage.setItem(SKIP_LINK_OPEN_CONFIRM_KEY, "true");
+		}
+		openLink(pendingLinkUrl);
+		setPendingLinkUrl(null);
+	}, [pendingLinkUrl, dontAskLinkOpenAgain, openLink]);
 
 	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
 	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
@@ -2002,9 +2034,7 @@ export function ChatThreadMessages({
                                             </div>
                                         ) : (
                                             <p className="whitespace-pre-wrap break-words select-text">
-                                                {renderTextWithLinks(displayText, mine, (url) =>
-                                                openUrl(url).catch(() => window.open(url, "_blank"))
-                                            )}
+                                                {renderTextWithLinks(displayText, mine, (url) => requestOpenLink(url))}
                                             </p>
                                         )
                                     ) : null}
@@ -2154,6 +2184,21 @@ export function ChatThreadMessages({
 					setBanWordPrompt(null);
 				}}
 				onCancel={() => setBanWordPrompt(null)}
+			/>
+			<ConfirmDialog
+				isOpen={pendingLinkUrl !== null}
+				title={t("chat.open_link_title", { defaultValue: "Open link?" })}
+				message={t("chat.open_link_message", {
+					defaultValue: "You're about to open this link: {{url}}",
+					url: pendingLinkUrl ?? "",
+				})}
+				confirmLabel={t("chat.open_link_confirm", { defaultValue: "Open" })}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={confirmOpenLink}
+				onCancel={() => setPendingLinkUrl(null)}
+				dontAskAgainLabel={t("profile_details.dont_ask_again")}
+				dontAskAgainChecked={dontAskLinkOpenAgain}
+				onDontAskAgainChange={setDontAskLinkOpenAgain}
 			/>
 		</div>
 	);

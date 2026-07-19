@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, Images, Timer, Trash2 } from "lucide-react";
+import { Ban, ExternalLink, Images, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -9,8 +9,10 @@ import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
+	SKIP_LINK_OPEN_CONFIRM_KEY,
 	isBlockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
+	isLinkOpenConfirmSkipped,
 } from "../../utils/blockConfirm";
 
 const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"] as const;
@@ -30,6 +32,7 @@ export function BehaviorPage() {
 	const [confirmBeforeDeleteConversation, setConfirmBeforeDeleteConversation] = useState(
 		() => !isDeleteConversationConfirmSkipped(),
 	);
+	const [confirmBeforeOpenLink, setConfirmBeforeOpenLink] = useState(() => !isLinkOpenConfirmSkipped());
 
 	return (
 		<section className="app-screen">
@@ -65,6 +68,21 @@ export function BehaviorPage() {
 						onChange={(checked) => {
 							setConfirmBeforeDeleteConversation(checked);
 							window.localStorage.setItem(SKIP_DELETE_CONVERSATION_CONFIRM_KEY, String(!checked));
+						}}
+					/>
+					<ToggleRow
+						id="behavior-confirm-open-link"
+						highlighted={highlightId === "behavior-confirm-open-link"}
+						icon={<ExternalLink className="h-5 w-5" />}
+						iconClass="bg-red-500/15 text-red-400"
+						label={t("customizability.confirm_before_open_link", { defaultValue: "Ask before opening links" })}
+						description={t("customizability.confirm_before_open_link_desc", {
+							defaultValue: "Show a confirmation before opening a link tapped inside a chat message.",
+						})}
+						checked={confirmBeforeOpenLink}
+						onChange={(checked) => {
+							setConfirmBeforeOpenLink(checked);
+							window.localStorage.setItem(SKIP_LINK_OPEN_CONFIRM_KEY, String(!checked));
 						}}
 					/>
 				</div>
