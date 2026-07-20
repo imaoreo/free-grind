@@ -27,6 +27,7 @@ import { getAllAlbums, getConversation } from "../../services/chatDb";
 import { toDataUri } from "../../services/mediaStore";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { PhotoViewer, type PhotoViewerMedia, type PhotoViewerMenuAction } from "../../components/PhotoViewer";
+import { AlbumMediaSheet } from "../../components/AlbumMediaSheet";
 import { PhotoActionBar } from "../../components/PhotoActionBar";
 import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 import { saveAllAlbumMedia } from "../../utils/albumMedia";
@@ -157,7 +158,7 @@ export function SharedAlbumsPage() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { userId } = useAuth();
-	const { mobileGridColumns, unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
+	const { mobileGridColumns, unitsPreset, showAlbumSensitiveContentWarning, openAlbumAsBottomSheet } = usePreferences();
 	const apiFunctions = useApiFunctions();
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -168,6 +169,7 @@ export function SharedAlbumsPage() {
 	const [openAlbumError, setOpenAlbumError] = useState<string | null>(null);
 	const [viewer, setViewer] = useState<AlbumViewer | null>(null);
 	const [viewerIndex, setViewerIndex] = useState(0);
+	const [isContentSheetOpen, setIsContentSheetOpen] = useState(false);
 	const [isSavingAll, setIsSavingAll] = useState(false);
 	const feedContainerRef = useRef<HTMLDivElement>(null);
 	const viewerHistoryPushedRef = useRef(false);
@@ -499,6 +501,26 @@ export function SharedAlbumsPage() {
 		}
 	}, [apiFunctions, deletingAlbumId, t]);
 
+	// Presents a loaded album — either straight into the full-screen viewer
+	// (default), or into the browse-first grid sheet first when the user has
+	// opted into it, deferring the viewer's own history push until an item is
+	// actually picked from the sheet.
+	const openLoadedAlbum = useCallback(
+		(data: AlbumViewer) => {
+			setViewer(data);
+			if (openAlbumAsBottomSheet) {
+				setIsContentSheetOpen(true);
+				return;
+			}
+			setViewerIndex(0);
+			if (!viewerHistoryPushedRef.current) {
+				window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+				viewerHistoryPushedRef.current = true;
+			}
+		},
+		[openAlbumAsBottomSheet],
+	);
+
 	const openViewer = useCallback(
 		async (item: SharedAlbumItem) => {
 			if (isOpeningAlbum) {
@@ -531,7 +553,7 @@ export function SharedAlbumsPage() {
 				if (!local || local.content.length === 0) {
 					return false;
 				}
-				setViewer({
+				openLoadedAlbum({
 					albumId: local.albumId,
 					albumName: local.albumName ?? item.album.albumName ?? null,
 					profileId: item.profileId,
@@ -543,11 +565,6 @@ export function SharedAlbumsPage() {
 					conversationId: item.conversationId,
 					content: local.content,
 				});
-				setViewerIndex(0);
-				if (!viewerHistoryPushedRef.current) {
-					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-					viewerHistoryPushedRef.current = true;
-				}
 				return true;
 			};
 
@@ -570,7 +587,7 @@ export function SharedAlbumsPage() {
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
-				setViewer({
+				openLoadedAlbum({
 					albumId: details.albumId,
 					albumName: details.albumName,
 					profileId: item.profileId,
@@ -582,11 +599,6 @@ export function SharedAlbumsPage() {
 					conversationId: item.conversationId,
 					content: details.content,
 				});
-				setViewerIndex(0);
-				if (!viewerHistoryPushedRef.current) {
-					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-					viewerHistoryPushedRef.current = true;
-				}
 
 				// Fully cache every content item's bytes, same as albums shared
 				// in a chat thread — so the album survives the share expiring.
@@ -617,8 +629,20 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum, t],
+		[apiFunctions, isOpeningAlbum, t, openLoadedAlbum],
 	);
+
+	// Tapping an item inside the album's browse-first sheet — the sheet stays
+	// mounted underneath so closing the full-screen viewer returns to it
+	// instead of exiting all the way back to the album grid.
+	const handleSelectAlbumContent = useCallback((index: number) => {
+		setIsContentSheetOpen(false);
+		setViewerIndex(index);
+		if (!viewerHistoryPushedRef.current) {
+			window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+			viewerHistoryPushedRef.current = true;
+		}
+	}, []);
 
 	const handleMessageProfile = useCallback(
 		(profileId: number) => {
@@ -688,6 +712,7 @@ export function SharedAlbumsPage() {
 	const closeViewerState = useCallback(() => {
 		setViewer(null);
 		setViewerIndex(0);
+		setIsContentSheetOpen(false);
 		viewerHistoryPushedRef.current = false;
 	}, []);
 
@@ -706,19 +731,31 @@ export function SharedAlbumsPage() {
 
 	useEffect(() => {
 		const handlePopState = () => {
-			if (viewerHistoryPushedRef.current) {
-				closeViewerState();
+			if (!viewerHistoryPushedRef.current) {
+				return;
 			}
+			viewerHistoryPushedRef.current = false;
+			// Came from the browse-first sheet — the full-screen viewer's own
+			// history entry unwinds back to the still-mounted sheet instead of
+			// exiting the album entirely.
+			if (openAlbumAsBottomSheet) {
+				setIsContentSheetOpen(true);
+				setViewerIndex(0);
+				return;
+			}
+			closeViewerState();
 		};
 
 		window.addEventListener("popstate", handlePopState);
 		return () => {
 			window.removeEventListener("popstate", handlePopState);
 		};
-	}, [closeViewerState]);
+	}, [openAlbumAsBottomSheet, closeViewerState]);
 
 	useEffect(() => {
-		if (!viewer) {
+		// While only the sheet is showing, let BottomSheet's own Escape
+		// handler close it instead of double-handling the key here.
+		if (!viewer || isContentSheetOpen) {
 			return;
 		}
 
@@ -735,7 +772,7 @@ export function SharedAlbumsPage() {
 		return () => {
 			window.removeEventListener("keydown", onKeyDown, { capture: true });
 		};
-	}, [closeViewer, viewer]);
+	}, [closeViewer, viewer, isContentSheetOpen]);
 
 	const handleSaveAll = useCallback(async () => {
 		if (!viewer || isSavingAll) return;
@@ -1002,9 +1039,19 @@ export function SharedAlbumsPage() {
 				</div>
 			) : null}
 
+			{viewer !== null && openAlbumAsBottomSheet ? (
+				<AlbumMediaSheet
+					albumName={viewer.albumName}
+					content={viewer.content}
+					onClose={closeViewerState}
+					onSelect={handleSelectAlbumContent}
+					locked={!isContentSheetOpen}
+				/>
+			) : null}
+
 			{viewer !== null && (
 				<PhotoViewer
-					isOpen={true}
+					isOpen={!isContentSheetOpen}
 					onClose={closeViewer}
 					photos={viewerPhotos}
 					initialIndex={viewerIndex}
@@ -1012,7 +1059,10 @@ export function SharedAlbumsPage() {
 					conversationId={albumViewerFolderKey(viewer)}
 					menuActions={albumMenuActions}
 					albumHeader={albumHeader}
-					contentWarning={showAlbumSensitiveContentWarning}
+					// Only gate directly-opened albums — once the user has already
+					// browsed the album's contents in the browse-first sheet, the
+					// warning would be redundant for every item tapped from it.
+					contentWarning={showAlbumSensitiveContentWarning && !openAlbumAsBottomSheet}
 					renderFooter={(idx) => {
 						const item = viewer.content[idx];
 						if (!item || viewer.profileId === userId) return null;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+	CalendarDays,
 	Download,
 	FileDown,
 	FileUp,
@@ -18,6 +19,8 @@ import { useAuth } from "../../contexts/useAuth";
 import { AndroidFs, AndroidPublicGeneralPurposeDir } from "tauri-plugin-android-fs-api";
 import { BaseDirectory, mkdir, writeFile as writeFsFile } from "@tauri-apps/plugin-fs";
 import * as chatDb from "../../services/chatDb";
+import { loadEncounters } from "../../services/encounters";
+import { encountersToIcs } from "../../services/icsExport";
 import { deleteAllDownloadedMedia, getDownloadedMediaUsage, isAndroid, isIos } from "../../services/saveMedia";
 import { loadSavedPhrases, parsePhrasesFromTxt, phrasesToTxt, saveSavedPhrases } from "../../services/savedPhrases";
 import { resetAllSettings } from "../../utils/resetSettings";
@@ -53,8 +56,11 @@ export function SettingsDataPage() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const [savedPhrases, setSavedPhrases] = useState<string[]>([]);
+	const [isExportingPhrases, setIsExportingPhrases] = useState(false);
 	const [isImportingPhrases, setIsImportingPhrases] = useState(false);
 	const phrasesInputRef = useRef<HTMLInputElement>(null);
+
+	const [isExportingEncounters, setIsExportingEncounters] = useState(false);
 
 	useEffect(() => {
 		void loadSavedPhrases().then(setSavedPhrases);
@@ -121,7 +127,7 @@ export function SettingsDataPage() {
 				// multi-hundred-MB export — holding it all in memory at once was
 				// slow enough to look hung and could crash the WebView on low-memory
 				// devices.
-				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, fileName, "application/json", {
+				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, `FreeGrind/${fileName}`, "application/json", {
 					isPending: true,
 				});
 				try {
@@ -226,22 +232,61 @@ export function SettingsDataPage() {
 		}
 	};
 
-	const handleExportPhrasesTxt = () => {
+	const handleExportPhrasesTxt = async () => {
 		const content = phrasesToTxt(savedPhrases);
 		if (!content) {
 			toast.error(t("data_backup.phrases_export_empty", { defaultValue: "No saved phrases to export." }));
 			return;
 		}
-		const blob = new Blob([`${content}\n`], { type: "text/plain;charset=utf-8" });
-		const url = URL.createObjectURL(blob);
-		const anchor = document.createElement("a");
-		anchor.href = url;
-		anchor.download = `free-grind-saved-phrases-${new Date().toISOString().slice(0, 10)}.txt`;
-		document.body.appendChild(anchor);
-		anchor.click();
-		document.body.removeChild(anchor);
-		URL.revokeObjectURL(url);
-		toast.success(t("data_backup.phrases_export_success", { defaultValue: "Saved phrases exported." }));
+		setIsExportingPhrases(true);
+		try {
+			const bytes = new TextEncoder().encode(`${content}\n`);
+			const fileName = `free-grind-saved-phrases-${new Date().toISOString().slice(0, 10)}.txt`;
+
+			if (isAndroid()) {
+				// Blob-URL + <a download> doesn't trigger a save on Android's WebView
+				// (same reasoning as the other exports on this page), so this writes
+				// via the same open-stream + writer pattern used for the full data
+				// and encounters exports.
+				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, `FreeGrind/${fileName}`, "text/plain", {
+					isPending: true,
+				});
+				try {
+					const writable = await AndroidFs.openWriteFileStream(uri);
+					const writer = writable.getWriter();
+					try {
+						await writer.write(bytes);
+						await writer.close();
+					} catch (error) {
+						await writer.abort(error).catch(() => {});
+						throw error;
+					}
+					await AndroidFs.setPublicFilePending(uri, false);
+					await AndroidFs.scanPublicFile(uri);
+				} catch (error) {
+					await AndroidFs.removeFile(uri).catch(() => {});
+					throw error;
+				}
+			} else {
+				const baseDir = isIos() ? BaseDirectory.Document : BaseDirectory.Download;
+				await mkdir("FreeGrind", { baseDir, recursive: true });
+				await writeFsFile(`FreeGrind/${fileName}`, bytes, { baseDir });
+			}
+
+			toast.success(
+				isAndroid()
+					? t("data_backup.phrases_export_success", { defaultValue: "Saved phrases exported." })
+					: isIos()
+						? t("data_backup.phrases_export_success_ios", {
+								defaultValue: "Saved phrases exported. Find it in the Files app under On My iPhone/iPad → Free Grind.",
+							})
+						: t("data_backup.phrases_export_success_desktop", { defaultValue: "Saved phrases exported to Downloads/FreeGrind." }),
+			);
+		} catch (error) {
+			toast.error(getErrorMessage(error, t("data_backup.phrases_export_failed", { defaultValue: "Failed to export saved phrases." })));
+		} finally {
+			setIsExportingPhrases(false);
+		}
 	};
 
 	const handleImportPhrasesFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -264,6 +309,65 @@ export function SettingsDataPage() {
 			toast.error(t("data_backup.phrases_import_error", { defaultValue: "Failed to import saved phrases." }));
 		} finally {
 			setIsImportingPhrases(false);
+		}
+	};
+
+	const handleExportEncountersIcs = async () => {
+		setIsExportingEncounters(true);
+		try {
+			const encounters = await loadEncounters();
+			if (encounters.length === 0) {
+				toast.error(t("data_backup.encounters_export_empty", { defaultValue: "No logged encounters to export." }));
+				return;
+			}
+			const bytes = new TextEncoder().encode(encountersToIcs(encounters));
+			const fileName = `free-grind-encounters-${new Date().toISOString().slice(0, 10)}.ics`;
+
+			if (isAndroid()) {
+				// Same reasoning as the full data export above: blob-URL + <a download>
+				// doesn't trigger a save on Android's WebView. Writes via the same
+				// open-stream + writer pattern as the full data export below — a
+				// direct AndroidFs.writeFile(uri, bytes) call on a freshly-created
+				// pending MediaStore entry was unreliable on-device even though it
+				// type-checks and works on desktop.
+				const uri = await AndroidFs.createNewPublicFile(AndroidPublicGeneralPurposeDir.Download, `FreeGrind/${fileName}`, "text/calendar", {
+					isPending: true,
+				});
+				try {
+					const writable = await AndroidFs.openWriteFileStream(uri);
+					const writer = writable.getWriter();
+					try {
+						await writer.write(bytes);
+						await writer.close();
+					} catch (error) {
+						await writer.abort(error).catch(() => {});
+						throw error;
+					}
+					await AndroidFs.setPublicFilePending(uri, false);
+					await AndroidFs.scanPublicFile(uri);
+				} catch (error) {
+					await AndroidFs.removeFile(uri).catch(() => {});
+					throw error;
+				}
+			} else {
+				const baseDir = isIos() ? BaseDirectory.Document : BaseDirectory.Download;
+				await mkdir("FreeGrind", { baseDir, recursive: true });
+				await writeFsFile(`FreeGrind/${fileName}`, bytes, { baseDir });
+			}
+
+			toast.success(
+				isAndroid()
+					? t("data_backup.encounters_export_success", { defaultValue: "Encounters exported." })
+					: isIos()
+						? t("data_backup.encounters_export_success_ios", {
+								defaultValue: "Encounters exported. Find it in the Files app under On My iPhone/iPad → Free Grind.",
+							})
+						: t("data_backup.encounters_export_success_desktop", { defaultValue: "Encounters exported to Downloads/FreeGrind." }),
+			);
+		} catch (error) {
+			toast.error(getErrorMessage(error, t("data_backup.encounters_export_failed", { defaultValue: "Failed to export encounters." })));
+		} finally {
+			setIsExportingEncounters(false);
 		}
 	};
 
@@ -416,8 +520,8 @@ export function SettingsDataPage() {
 							<button
 								id="data-phrases-export"
 								type="button"
-								onClick={handleExportPhrasesTxt}
-								disabled={savedPhrases.length === 0}
+								onClick={() => void handleExportPhrasesTxt()}
+								disabled={savedPhrases.length === 0 || isExportingPhrases}
 								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${savedPhrases.length === 0 ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-phrases-export" ? "animate-settings-highlight" : ""}`}
 							>
 								<div className="shrink-0 rounded-2xl bg-teal-500/15 p-2.5 text-teal-400">
@@ -433,7 +537,11 @@ export function SettingsDataPage() {
 										})}
 									</p>
 								</div>
-								<Download className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+								{isExportingPhrases ? (
+									<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--text-muted)]" />
+								) : (
+									<Download className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+								)}
 							</button>
 
 							<button
@@ -472,6 +580,41 @@ export function SettingsDataPage() {
 							className="hidden"
 							onChange={(event) => void handleImportPhrasesFile(event)}
 						/>
+					</div>
+
+					{/* Encounters */}
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+							{t("data_backup.encounters_section", { defaultValue: "Sexual Encounters" })}
+						</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<button
+								id="data-encounters-export"
+								type="button"
+								onClick={() => void handleExportEncountersIcs()}
+								disabled={isExportingEncounters}
+								className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors ${isExportingEncounters ? "opacity-50" : "hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)]"} ${highlightId === "data-encounters-export" ? "animate-settings-highlight" : ""}`}
+							>
+								<div className="shrink-0 rounded-2xl bg-teal-500/15 p-2.5 text-teal-400">
+									<CalendarDays className="h-5 w-5" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<p className="text-sm font-semibold leading-snug">
+										{t("data_backup.encounters_export", { defaultValue: "Export .ics" })}
+									</p>
+									<p className="mt-0.5 text-xs leading-snug text-[var(--text-muted)]">
+										{t("data_backup.encounters_export_desc", {
+											defaultValue: "Save your logged encounters as a calendar file you can import into any calendar app.",
+										})}
+									</p>
+								</div>
+								{isExportingEncounters ? (
+									<Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--text-muted)]" />
+								) : (
+									<Download className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-50" />
+								)}
+							</button>
+						</div>
 					</div>
 				</div>
 

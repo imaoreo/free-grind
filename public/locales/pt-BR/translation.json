@@ -788,7 +788,9 @@
     "record_profile_views_desc": "",
     "read_receipts_grid_unread_note": "Com as confirmações de leitura desativadas, não há como informar ao servidor que você leu uma mensagem — então uma conversa ainda pode aparecer como não lida no Grid, mesmo depois de você tê-la lido ou excluído.",
     "show_sensitive_content_warning": "",
-    "show_sensitive_content_warning_desc": ""
+    "show_sensitive_content_warning_desc": "",
+    "blur_grid_profile_pictures": "",
+    "blur_grid_profile_pictures_desc": ""
   },
   "customizability": {
     "subtitle": "Personalize a aparência e a experiência do usuário do aplicativo.",
@@ -860,7 +862,13 @@
     }
   },
   "behavior": {
-    "subtitle": "Gerencie os avisos de confirmação antes de bloquear perfis ou excluir conversas."
+    "subtitle": "Gerencie os avisos de confirmação antes de bloquear perfis ou excluir conversas.",
+    "album_viewing": "",
+    "open_album_as_bottom_sheet": "",
+    "open_album_as_bottom_sheet_desc": "",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",
@@ -1418,6 +1426,7 @@
     "recently_joined": "",
     "account_info": "",
     "profile_id": "",
+    "profile_id_copied": "",
     "estimated_joined": "",
     "tap_profile": "Toque no perfil",
     "tap_sent_recent": "Toque já enviado nas últimas 24 horas",

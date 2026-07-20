@@ -788,7 +788,9 @@
     "record_profile_views_desc": "Lässt andere sehen, dass du ihr Profil besucht hast. Schalte dies aus, um Profile ohne Spuren zu durchstöbern.",
     "read_receipts_grid_unread_note": "Wenn Lesebestätigungen deaktiviert sind, kann der Server nicht wissen, dass du eine Nachricht gelesen hast — ein Chat kann daher im Grid weiterhin als ungelesen angezeigt werden, selbst nachdem du ihn gelesen oder gelöscht hast.",
     "show_sensitive_content_warning": "Warnung vor sensiblen Inhalten",
-    "show_sensitive_content_warning_desc": "Zeigt vor dem Öffnen eines Albums einen Warnbildschirm an, falls es sensible Inhalte enthalten könnte."
+    "show_sensitive_content_warning_desc": "Zeigt vor dem Öffnen eines Albums einen Warnbildschirm an, falls es sensible Inhalte enthalten könnte.",
+    "blur_grid_profile_pictures": "",
+    "blur_grid_profile_pictures_desc": ""
   },
   "customizability": {
     "subtitle": "Personalisiere das Aussehen der App.",
@@ -860,7 +862,13 @@
     }
   },
   "behavior": {
-    "subtitle": "Verwalte Bestätigungsabfragen vor dem Blockieren von Profilen oder dem Löschen von Chats."
+    "subtitle": "Verwalte Bestätigungsabfragen vor dem Blockieren von Profilen oder dem Löschen von Chats.",
+    "album_viewing": "",
+    "open_album_as_bottom_sheet": "",
+    "open_album_as_bottom_sheet_desc": "",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "Wähle, welche Benachrichtigungen du erhältst und ob sie bei geöffneter App angezeigt werden.",
@@ -1418,6 +1426,7 @@
     "recently_joined": "Kürzlich beigetreten",
     "account_info": "Konto-Info",
     "profile_id": "Profil-ID",
+    "profile_id_copied": "",
     "estimated_joined": "Beigetreten {{date}} (geschätzt)",
     "tap_profile": "Profil antippen",
     "tap_sent_recent": "Tap in den letzten 24 Stunden bereits gesendet",

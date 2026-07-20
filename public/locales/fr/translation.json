@@ -788,7 +788,9 @@
     "record_profile_views_desc": "Permet aux autres de voir que vous avez consulté leur profil. Désactivez ceci pour parcourir les profils sans laisser de trace.",
     "read_receipts_grid_unread_note": "Si les accusés de lecture sont désactivés, le serveur ne peut pas savoir que vous avez lu un message — une conversation peut donc encore apparaître comme non lue sur Grid, même après l'avoir lue ou supprimée.",
     "show_sensitive_content_warning": "",
-    "show_sensitive_content_warning_desc": ""
+    "show_sensitive_content_warning_desc": "",
+    "blur_grid_profile_pictures": "",
+    "blur_grid_profile_pictures_desc": ""
   },
   "customizability": {
     "subtitle": "Personnalisez l'apparence de l'application.",
@@ -860,7 +862,13 @@
     }
   },
   "behavior": {
-    "subtitle": "Gérez les invites de confirmation avant de bloquer des profils ou de supprimer des discussions."
+    "subtitle": "Gérez les invites de confirmation avant de bloquer des profils ou de supprimer des discussions.",
+    "album_viewing": "",
+    "open_album_as_bottom_sheet": "",
+    "open_album_as_bottom_sheet_desc": "",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",
@@ -1418,6 +1426,7 @@
     "recently_joined": "",
     "account_info": "",
     "profile_id": "",
+    "profile_id_copied": "",
     "estimated_joined": "",
     "tap_profile": "Envoyer un Tap",
     "tap_sent_recent": "Un Tap a déjà été envoyé au cours des dernières 24h",

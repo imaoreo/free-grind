@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, Images, Timer, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -9,8 +9,10 @@ import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
+	SKIP_LINK_OPEN_CONFIRM_KEY,
 	isBlockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
+	isLinkOpenConfirmSkipped,
 } from "../../utils/blockConfirm";
 
 const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"] as const;
@@ -18,7 +20,13 @@ const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR
 export function BehaviorPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
-	const { defaultExpiringPhotos, defaultAlbumExpirationType, setPreferences } = usePreferences();
+	const {
+		defaultExpiringPhotos,
+		defaultAlbumExpirationType,
+		openAlbumAsBottomSheet,
+		sortDrawerMediaByFrequency,
+		setPreferences,
+	} = usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
 		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
 		ONCE: t("chat_drawer.expiry.once", { defaultValue: "Once" }),
@@ -30,6 +38,7 @@ export function BehaviorPage() {
 	const [confirmBeforeDeleteConversation, setConfirmBeforeDeleteConversation] = useState(
 		() => !isDeleteConversationConfirmSkipped(),
 	);
+	const [confirmBeforeOpenLink, setConfirmBeforeOpenLink] = useState(() => !isLinkOpenConfirmSkipped());
 
 	return (
 		<section className="app-screen">
@@ -65,6 +74,21 @@ export function BehaviorPage() {
 						onChange={(checked) => {
 							setConfirmBeforeDeleteConversation(checked);
 							window.localStorage.setItem(SKIP_DELETE_CONVERSATION_CONFIRM_KEY, String(!checked));
+						}}
+					/>
+					<ToggleRow
+						id="behavior-confirm-open-link"
+						highlighted={highlightId === "behavior-confirm-open-link"}
+						icon={<ExternalLink className="h-5 w-5" />}
+						iconClass="bg-red-500/15 text-red-400"
+						label={t("customizability.confirm_before_open_link", { defaultValue: "Ask before opening links" })}
+						description={t("customizability.confirm_before_open_link_desc", {
+							defaultValue: "Show a confirmation before opening a link tapped inside a chat message.",
+						})}
+						checked={confirmBeforeOpenLink}
+						onChange={(checked) => {
+							setConfirmBeforeOpenLink(checked);
+							window.localStorage.setItem(SKIP_LINK_OPEN_CONFIRM_KEY, String(!checked));
 						}}
 					/>
 				</div>
@@ -105,6 +129,38 @@ export function BehaviorPage() {
 								</div>
 							</div>
 						</div>
+					</div>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.album_viewing")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-open-album-as-bottom-sheet"
+							highlighted={highlightId === "behavior-open-album-as-bottom-sheet"}
+							icon={<LayoutGrid className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("behavior.open_album_as_bottom_sheet")}
+							description={t("behavior.open_album_as_bottom_sheet_desc")}
+							checked={openAlbumAsBottomSheet}
+							onChange={(checked) => void setPreferences({ openAlbumAsBottomSheet: checked })}
+						/>
+					</div>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.media_drawer")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-sort-drawer-media-by-frequency"
+							highlighted={highlightId === "behavior-sort-drawer-media-by-frequency"}
+							icon={<ArrowDownWideNarrow className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("behavior.sort_drawer_media_by_frequency")}
+							description={t("behavior.sort_drawer_media_by_frequency_desc")}
+							checked={sortDrawerMediaByFrequency}
+							onChange={(checked) => void setPreferences({ sortDrawerMediaByFrequency: checked })}
+						/>
 					</div>
 				</div>
 			</div>

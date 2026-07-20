@@ -270,12 +270,12 @@ function ContributorChannelDialog({
 					disabled={isProcessing}
 					className="input-field mt-4 w-full font-mono text-sm disabled:opacity-60"
 				/>
-				<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<div className="mt-6 flex gap-2">
 					<button
 						type="button"
 						onClick={onCancel}
 						disabled={isProcessing}
-						className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+						className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
 						Cancel
 					</button>
@@ -283,7 +283,7 @@ function ContributorChannelDialog({
 						type="button"
 						onClick={onSubmit}
 						disabled={isProcessing || !value}
-						className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 					>
 						{isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
 						<span>Activate</span>

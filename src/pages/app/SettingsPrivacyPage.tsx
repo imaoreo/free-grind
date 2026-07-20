@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, BarChart3, CheckCheck, Eye, ImageOff, ToggleRight } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCheck, Eye, EyeOff, ImageOff, ToggleRight } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
@@ -22,7 +22,7 @@ import {
 export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
-	const { blurIncomingMedia, showAlbumSensitiveContentWarning, setPreferences } = usePreferences();
+	const { blurIncomingMedia, blurGridProfilePictures, showAlbumSensitiveContentWarning, setPreferences } = usePreferences();
 
 	const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(() => !getHideReadReceiptsGlobal());
 	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => getShowReadReceiptToggle());
@@ -113,6 +113,16 @@ export function SettingsPrivacyPage() {
 							description={t("customizability.blur_incoming_media_description")}
 							checked={blurIncomingMedia}
 							onChange={(checked) => void setPreferences({ blurIncomingMedia: checked })}
+						/>
+						<ToggleRow
+							id="privacy-blur-grid-profile-pictures"
+							highlighted={highlightId === "privacy-blur-grid-profile-pictures"}
+							icon={<EyeOff className="h-5 w-5" />}
+							iconClass="bg-sky-500/15 text-sky-400"
+							label={t("privacy.blur_grid_profile_pictures")}
+							description={t("privacy.blur_grid_profile_pictures_desc")}
+							checked={blurGridProfilePictures}
+							onChange={(checked) => void setPreferences({ blurGridProfilePictures: checked })}
 						/>
 						<ToggleRow
 							id="privacy-sensitive-warning"

@@ -1355,7 +1355,7 @@ export function GridPage() {
 												);
 											})}
 										</div>
-										<div className="mt-2 border-t border-[var(--border)] pt-2">
+										<div className="-mx-3 mt-2 border-t border-[var(--border)] px-3 pt-2">
 											<button
 												type="button"
 												onClick={() => { setIsAccountSwitcherOpen(false); navigate("/settings"); }}
@@ -1794,18 +1794,18 @@ export function GridPage() {
 						placeholder="123456789"
 						className="input-field mt-4"
 					/>
-					<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<div className="mt-4 flex gap-2">
 						<button
 							type="button"
 							onClick={() => setIsProfileSearchOpen(false)}
-							className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+							className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 						>
 							Cancel
 						</button>
 						<button
 							type="submit"
 							disabled={!profileSearchInput.trim()}
-							className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+							className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 						>
 							<Search className="h-4 w-4" />
 							Open Profile

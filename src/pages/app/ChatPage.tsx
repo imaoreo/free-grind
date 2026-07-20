@@ -50,6 +50,7 @@ import {
 	type TypingStatusDetail,
 } from "../../components/ChatRealtimeBridge";
 import { PhotoViewer, type PhotoViewerMedia, type PhotoViewerMenuAction } from "../../components/PhotoViewer";
+import { AlbumMediaSheet } from "../../components/AlbumMediaSheet";
 import { PhotoActionBar } from "../../components/PhotoActionBar";
 import {
 	messageSchema,
@@ -279,7 +280,7 @@ export function ChatPage() {
 	const { data: blockedProfileIdsData, refetch: refetchBlockedProfileIds } = useBlockedProfileIds();
 	const { data: myProfile } = useMyOwnProfile();
 	const profileImageHash = useMemo(() => getProfilePhotoHash(myProfile), [myProfile]);
-	const { unitsPreset, showAlbumSensitiveContentWarning, defaultExpiringPhotos } = usePreferences();
+	const { unitsPreset, showAlbumSensitiveContentWarning, sortDrawerMediaByFrequency, defaultExpiringPhotos, openAlbumAsBottomSheet } = usePreferences();
 	const { userId, settingsReady } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -681,6 +682,7 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
+	const [isAlbumMediaSheetOpen, setIsAlbumMediaSheetOpen] = useState(false);
 	const [isSavingAlbumAll, setIsSavingAlbumAll] = useState(false);
 	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
@@ -5520,6 +5522,11 @@ export function ChatPage() {
 		async (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => {
 			albumViewerCancelledRef.current = false;
 			setAlbumViewerMediaIndex(null);
+			// A specific reacted-to/replied-to photo always jumps straight to
+			// full screen — showing the browse-first sheet for that would bury
+			// the exact item the user tapped through to see.
+			const useSheet = openAlbumAsBottomSheet && targetContentId == null;
+			setIsAlbumMediaSheetOpen(useSheet);
 
 			const resolveIndex = (content: { contentId: number }[]): number => {
 				if (targetContentId == null) return 0;
@@ -5535,7 +5542,7 @@ export function ChatPage() {
 			if (albumViewerCancelledRef.current) return;
 			if (cached) {
 				setAlbumViewer({ ...cached, isOwn: isOwnAlbum });
-				setAlbumViewerMediaIndex(resolveIndex(cached.content));
+				if (!useSheet) setAlbumViewerMediaIndex(resolveIndex(cached.content));
 				setIsAlbumViewerLoading(false);
 			} else {
 				setAlbumViewer(null);
@@ -5574,27 +5581,30 @@ export function ChatPage() {
 							isOwn: isOwnAlbum,
 						},
 				);
-				setAlbumViewerMediaIndex((prev) => {
-					// A specific reacted-to/replied-to photo always gets re-resolved
-					// against the freshly merged content — its position can shift (or
-					// the cached snapshot could've had a different item order/count)
-					// once the live fetch lands.
-					if (targetContentId != null) {
-						const idx = finalContent.findIndex((item) => item.contentId === targetContentId);
-						if (idx >= 0) return idx;
-					}
-					// Otherwise keep wherever the user already navigated to, as long
-					// as it's still a valid index into the (possibly shorter) merged
-					// content — a stale index here would crash the viewer trying to
-					// read a photo that no longer exists.
-					if (prev != null && prev >= 0 && prev < finalContent.length) return prev;
-					return 0;
-				});
+				if (!useSheet) {
+					setAlbumViewerMediaIndex((prev) => {
+						// A specific reacted-to/replied-to photo always gets re-resolved
+						// against the freshly merged content — its position can shift (or
+						// the cached snapshot could've had a different item order/count)
+						// once the live fetch lands.
+						if (targetContentId != null) {
+							const idx = finalContent.findIndex((item) => item.contentId === targetContentId);
+							if (idx >= 0) return idx;
+						}
+						// Otherwise keep wherever the user already navigated to, as long
+						// as it's still a valid index into the (possibly shorter) merged
+						// content — a stale index here would crash the viewer trying to
+						// read a photo that no longer exists.
+						if (prev != null && prev >= 0 && prev < finalContent.length) return prev;
+						return 0;
+					});
+				}
 			} catch (error) {
 				if (albumViewerCancelledRef.current) return;
 				if (!cached) {
 					setAlbumViewer(null);
 					setAlbumViewerMediaIndex(null);
+					setIsAlbumMediaSheetOpen(false);
 					toast.error(
 						error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 					);
@@ -5603,15 +5613,36 @@ export function ChatPage() {
 				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service, t],
+		[service, t, openAlbumAsBottomSheet],
 	);
 
-	const closeAlbumMediaViewer = useCallback(() => {
+	// Tapping an item inside the album's browse-first sheet — the sheet stays
+	// mounted underneath so closing the full-screen viewer returns to it
+	// instead of exiting all the way back to the chat.
+	const openAlbumMediaAtIndex = useCallback((index: number) => {
+		setAlbumViewerMediaIndex(index);
+	}, []);
+
+	const closeAlbumMediaSheet = useCallback(() => {
 		albumViewerCancelledRef.current = true;
+		setIsAlbumMediaSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
 		setIsAlbumViewerLoading(false);
 	}, []);
+
+	const closeAlbumMediaViewer = useCallback(() => {
+		if (isAlbumMediaSheetOpen) {
+			// Came from the browse-first sheet — go back to it rather than
+			// exiting the album entirely.
+			setAlbumViewerMediaIndex(null);
+			return;
+		}
+		albumViewerCancelledRef.current = true;
+		setAlbumViewer(null);
+		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
+	}, [isAlbumMediaSheetOpen]);
 
 	const handleSaveAllAlbumMedia = useCallback(async () => {
 		if (!albumViewer || isSavingAlbumAll) return;
@@ -5738,10 +5769,9 @@ export function ChatPage() {
 					: service.getGlobalDrawerMedia(),
 				chatDb.getDrawerMediaSendCounts(),
 			]);
+			const withCounts = media.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				media
-					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
-					.sort((a, b) => b.sendCount - a.sendCount),
+				sortDrawerMediaByFrequency ? withCounts.sort((a, b) => b.sendCount - a.sendCount) : withCounts,
 			);
 			// Cache each thumbnail/video locally by its stable media id, so
 			// re-opening the drawer renders instantly instead of re-hitting the
@@ -5767,7 +5797,7 @@ export function ChatPage() {
 		} finally {
 			setIsLoadingDrawer(false);
 		}
-	}, [selectedConversationId, service, t]);
+	}, [selectedConversationId, service, sortDrawerMediaByFrequency, t]);
 
 	useEffect(() => {
 		loadDrawerMediaRef.current = loadDrawerMedia;
@@ -6402,6 +6432,16 @@ export function ChatPage() {
 				</div>
 			) : null}
 
+			{isAlbumMediaSheetOpen && albumViewer ? (
+				<AlbumMediaSheet
+					albumName={albumViewer.albumName}
+					content={albumViewer.content}
+					onClose={closeAlbumMediaSheet}
+					onSelect={openAlbumMediaAtIndex}
+					locked={albumViewerMediaIndex !== null}
+				/>
+			) : null}
+
 			<PhotoViewer
 				isOpen={albumViewer !== null && albumViewerMediaIndex !== null}
 				onClose={closeAlbumMediaViewer}
@@ -6411,7 +6451,10 @@ export function ChatPage() {
 				conversationId={selectedConversation?.data.conversationId ?? null}
 				menuActions={albumMenuActions}
 				albumHeader={albumHeader}
-				contentWarning={showAlbumSensitiveContentWarning}
+				// Only gate directly-opened albums — once the user has already
+				// browsed the album's contents in the browse-first sheet, the
+				// warning would be redundant for every item tapped from it.
+				contentWarning={showAlbumSensitiveContentWarning && !isAlbumMediaSheetOpen}
 				renderFooter={(idx) => {
 					const item = albumViewer?.content[idx];
 					if (!albumViewer || !item || albumViewer.isOwn) return null;

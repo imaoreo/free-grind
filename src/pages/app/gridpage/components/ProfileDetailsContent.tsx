@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "react-hot-toast";
 import type { ProfileDetail } from "../../GridPage.types";
 import type { TravelPlan } from "../../../../types/travel";
 import {
@@ -914,10 +915,21 @@ export function ProfileDetailsContent({
 					{t("profile_details.account_info")}
 				</p>
 				<div className="space-y-2.5">
-					<div className="flex items-center gap-2.5">
+					<button
+						type="button"
+						onClick={async () => {
+							try {
+								await navigator.clipboard.writeText(String(activeProfile.profileId));
+								toast.success(t("profile_details.profile_id_copied"));
+							} catch (error) {
+								appLog.error("Failed to copy profile ID to clipboard", error);
+							}
+						}}
+						className="flex cursor-pointer items-center gap-2.5 text-left"
+					>
 						<Hash className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 						<p className="text-sm text-[var(--text-muted)] select-text">{activeProfile.profileId}</p>
-					</div>
+					</button>
 					<div className="flex items-center gap-2.5">
 						<Calendar className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
 						<p className="text-sm text-[var(--text-muted)]">{t("profile_details.estimated_joined", { date: estimatedCreatedAt })}</p>

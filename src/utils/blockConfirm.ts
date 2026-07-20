@@ -7,6 +7,10 @@ export const SKIP_BLOCK_CONFIRM_KEY = "profile_skip_block_confirm";
 // conversation can be deleted from, not just the place it was checked.
 export const SKIP_DELETE_CONVERSATION_CONFIRM_KEY = "chat_skip_delete_conversation_confirm";
 
+// Shared by ChatThreadMessages (link tap in a message) and BehaviorPage (the
+// direct settings toggle).
+export const SKIP_LINK_OPEN_CONFIRM_KEY = "chat_skip_link_open_confirm";
+
 // ChatInboxPanel and ChatThreadPanel are mounted side by side (desktop split
 // view), not sequentially — so a `useState(() => localStorage.getItem(...))`
 // per component goes stale the moment the *other* panel flips the flag,
@@ -21,4 +25,7 @@ export function isDeleteConversationConfirmSkipped(): boolean {
 		typeof window !== "undefined" &&
 		localStorage.getItem(SKIP_DELETE_CONVERSATION_CONFIRM_KEY) === "true"
 	);
+}
+export function isLinkOpenConfirmSkipped(): boolean {
+	return typeof window !== "undefined" && localStorage.getItem(SKIP_LINK_OPEN_CONFIRM_KEY) === "true";
 }

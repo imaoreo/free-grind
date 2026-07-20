@@ -795,7 +795,9 @@
     "record_profile_views_desc": "Permite que otros vean que has visitado su perfil. Desactívalo para explorar perfiles sin dejar rastro.",
     "read_receipts_grid_unread_note": "Si las confirmaciones de lectura están desactivadas, el servidor no puede saber que has leído un mensaje, por lo que un chat puede seguir apareciendo como no leído en Grid incluso después de haberlo leído o eliminado.",
     "show_sensitive_content_warning": "",
-    "show_sensitive_content_warning_desc": ""
+    "show_sensitive_content_warning_desc": "",
+    "blur_grid_profile_pictures": "",
+    "blur_grid_profile_pictures_desc": ""
   },
   "customizability": {
     "subtitle": "Personaliza cómo se ve y se siente la app.",
@@ -867,7 +869,13 @@
     }
   },
   "behavior": {
-    "subtitle": "Gestiona los avisos de confirmación antes de bloquear perfiles o eliminar chats."
+    "subtitle": "Gestiona los avisos de confirmación antes de bloquear perfiles o eliminar chats.",
+    "album_viewing": "",
+    "open_album_as_bottom_sheet": "",
+    "open_album_as_bottom_sheet_desc": "",
+    "media_drawer": "",
+    "sort_drawer_media_by_frequency": "",
+    "sort_drawer_media_by_frequency_desc": ""
   },
   "notifications_page": {
     "subtitle": "",
@@ -1432,6 +1440,7 @@
     "recently_joined": "",
     "account_info": "",
     "profile_id": "",
+    "profile_id_copied": "",
     "estimated_joined": "",
     "tap_profile": "Tap perfil",
     "tap_sent_recent": "Un tap ya se envió en las últimas 24 horas",
