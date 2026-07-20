@@ -141,6 +141,7 @@ function defaultAction(kind: ActionKind, firstAlbum?: Album): AutomationRuleActi
 export function AutomationRuleEditor({
 	isOpen,
 	rule,
+	isNew,
 	albums,
 	onSave,
 	onCancel,
@@ -148,6 +149,7 @@ export function AutomationRuleEditor({
 }: {
 	isOpen: boolean;
 	rule: AutomationRule | null;
+	isNew: boolean;
 	albums: Album[];
 	onSave: (rule: AutomationRule) => void;
 	onCancel: () => void;
@@ -263,7 +265,7 @@ export function AutomationRuleEditor({
 			{draft && <div className="grid max-h-[85dvh] grid-rows-[auto_1fr_auto]">
 			<div className="border-b border-[var(--border)] p-5 pb-4">
 				<div className="flex items-center justify-between gap-2">
-					<p className="text-base font-semibold">{t("settings_automation.edit_rule")}</p>
+					<p className="text-base font-semibold">{t(isNew ? "settings_automation.add_rule" : "settings_automation.edit_rule")}</p>
 					<button
 						type="button"
 						onClick={onCancel}

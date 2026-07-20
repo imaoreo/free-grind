@@ -430,10 +430,15 @@ export function SettingsAutomationPage() {
 			<AutomationRuleEditor
 				isOpen={editingRule !== null}
 				rule={editingRule}
+				isNew={editingRule !== null && !rules.some((r) => r.id === editingRule.id)}
 				albums={albums}
 				onSave={handleSaveRule}
 				onCancel={() => setEditingRule(null)}
-				onDelete={editingRule && !editingRule.locked ? () => setDeletingRuleId(editingRule.id) : undefined}
+				onDelete={
+					editingRule && !editingRule.locked && rules.some((r) => r.id === editingRule.id)
+						? () => setDeletingRuleId(editingRule.id)
+						: undefined
+				}
 			/>
 
 			<ConfirmDialog
