@@ -844,7 +844,7 @@ export function ProfileEditorPage() {
 					</div>
 				) : (
 					<div className="grid gap-6">
-						<div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(270px,0.65fr)] lg:items-start">
+						<div className="grid gap-5">
 							<ProfileEditorFormSections
 								draft={draft}
 								unitsPreset={unitsPreset}
@@ -879,41 +879,49 @@ export function ProfileEditorPage() {
 								sexualHealthOptions={sexualHealthOptions}
 								vaccineOptions={vaccineOptions}
 							/>
+						</div>
+					</div>
+				)}
 
-							<aside className="grid gap-3 lg:sticky lg:top-4">
-								<div className="surface-card p-4">
-									<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-										{t("profile_editor.actions.title")}
-									</p>
-									<div className="grid gap-2">
-										<button
-											type="button"
-											onClick={handleSaveProfile}
-											disabled={!canSave}
-											className="btn-accent inline-flex min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-										>
-											<Save className="h-4 w-4" />
-											{isSaving
-												? t("profile_editor.actions.saving")
-												: t("profile_editor.actions.save")}
-										</button>
-										<button
-											type="button"
-											onClick={handleResetDraft}
-											disabled={!hasChanges || isSaving}
-											className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
-										>
-											<RefreshCw className="h-4 w-4" />
-											{t("profile_editor.actions.reset")}
-										</button>
-									</div>
-									{hasChanges && (
-										<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-											{t("profile_editor.actions.footer")}
-										</p>
-									)}
-								</div>
-							</aside>
+				{hasChanges && !(isLoadingProfile && !profile) && !(profileError && !profile) && (
+					<div
+						className="fixed inset-x-0 z-40 flex justify-center px-4"
+						style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + clamp(92px, 10vw, 114px))" }}
+					>
+						<div
+							className="animate-badge-in flex items-center gap-1.5 rounded-full border border-[var(--border)] p-1.5 shadow-xl"
+							style={{
+								backgroundColor: "rgba(22, 29, 39, 0.9)",
+								background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+								backdropFilter: "blur(16px)",
+							}}
+						>
+							<button
+								type="button"
+								onClick={handleResetDraft}
+								disabled={isSaving}
+								aria-label={t("profile_editor.actions.reset")}
+								title={t("profile_editor.actions.reset")}
+								className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-40"
+							>
+								<RefreshCw className="h-[18px] w-[18px]" />
+							</button>
+							<button
+								type="button"
+								onClick={handleSaveProfile}
+								disabled={!canSave}
+								className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--accent)] px-5 font-semibold text-[var(--accent-contrast)] transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+								style={{
+									boxShadow: canSave
+										? "0 8px 20px -6px color-mix(in srgb, var(--accent), transparent 45%)"
+										: undefined,
+								}}
+							>
+								<Save className="h-4 w-4" />
+								{isSaving
+									? t("profile_editor.actions.saving")
+									: t("profile_editor.actions.save")}
+							</button>
 						</div>
 					</div>
 				)}

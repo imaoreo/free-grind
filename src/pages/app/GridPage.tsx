@@ -13,6 +13,7 @@ import { usePreferences } from "../../contexts/PreferencesContext";
 import { useExploreMode } from "../../contexts/ExploreModeContext";
 import { type BrowseCard, type ProfileDetail } from "./GridPage.types";
 import { BrowseGrid } from "./gridpage/components/BrowseGrid";
+import { mergeBrowseCardImages } from "./gridpage/utils";
 import { FeedScrollContainer } from "../../components/ui/FeedScrollContainer";
 import { ProfileDetailsModal } from "./gridpage/components/ProfileDetailsModal";
 import {
@@ -89,6 +90,13 @@ export function GridPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const [cards, setCards] = useState<BrowseCard[]>([]);
+	// loadBrowseCards intentionally doesn't depend on `cards` (see its useCallback
+	// deps), so it reads the current list through this ref instead of a stale
+	// closure — used to carry last-known photos across a refresh, see mergeBrowseCardImages.
+	const cardsRef = useRef<BrowseCard[]>([]);
+	useEffect(() => {
+		cardsRef.current = cards;
+	}, [cards]);
 	const [isLoadingCards, setIsLoadingCards] = useState(true);
 	const [isLoadingMoreCards, setIsLoadingMoreCards] = useState(false);
 	const [isManualRefreshing, setIsManualRefreshing] = useState(false);
@@ -599,10 +607,11 @@ export function GridPage() {
 					return;
 				}
 
-				setCards(parsed.cards);
+				const mergedCards = mergeBrowseCardImages(cardsRef.current, parsed.cards);
+				setCards(mergedCards);
 				setCachedBrowseCards(
 					activeCacheKey,
-					parsed.cards,
+					mergedCards,
 					parsed.nextPage ?? null,
 				);
 				setNextPage(parsed.nextPage ?? null);

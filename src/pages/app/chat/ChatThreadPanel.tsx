@@ -764,6 +764,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 	const handleUsePhrase = (phrase: string) => {
 		setDraft(phrase);
+		textareaRef.current?.focus();
 	};
 
 	const handleAddPhrase = async () => {
