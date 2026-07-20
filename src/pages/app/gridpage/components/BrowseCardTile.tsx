@@ -62,26 +62,36 @@ export function BrowseCardTile({
 					isDesktop
 						? "rounded-xl shadow-sm"
 						: "rounded-[4px]",
-					isBoosting ? "p-[2.5px] z-20" : "p-0",
+					isBoosting ? "p-[2.5px] z-20" : isRightNow ? "p-[2px]" : "p-0",
 					isDemoCard && "cursor-default"
 				)}
 			>
 				{/* Animated Gradient Border Layer (Enhanced Glow) */}
-				{isBoosting && (
+				{isBoosting ? (
 					<div
 						className="absolute inset-[-100%] animate-[spin_5s_linear_infinite] z-0 blur-[15px] opacity-100"
 						style={{
 							background: 'conic-gradient(from 0deg, transparent 0deg, var(--accent) 180deg, transparent 360deg)'
 						}}
 					/>
-				)}
+				) : isRightNow ? (
+					/* Static pulsing border signalling "available right now" — suppressed
+						while boosting so the two glows don't compete for attention. */
+					<div
+						className="absolute inset-0 z-0 rounded-[inherit] animate-pulse"
+						style={{
+							background: 'var(--right-now)',
+							boxShadow: '0 0 8px 1px var(--right-now)',
+						}}
+					/>
+				) : null}
 
 				{/*
 					Replace "aspect-[5/5]" with "h-0 pb-[100%]", since "aspect-ratio" collapses tile height to ~0 on
                     pre-iOS-15 WebKit. This triggered an endless pagination loop
                     that crashed the WebView renderer. thank you flo
 				*/}
-				<div className="relative w-full h-0 pb-[100%] bg-[var(--surface-2)] z-10 rounded-[inherit] overflow-hidden">
+				<div className="relative w-full h-0 pb-[100%] bg-[var(--surface-2)] z-10 rounded-[inherit] overflow-hidden ring-1 ring-inset ring-white/10">
 					<div className="absolute inset-0">
 					<ProfileImage
 						src={card.primaryImageUrl}
@@ -91,16 +101,14 @@ export function BrowseCardTile({
 						)}
 					/>
 
-					{/* Overlay for inner shadow - sits on top of the image - we might want to use this later
-					{isBoosting && (
-						/* <div className="absolute inset-0 z-10 pointer-events-none shadow-[inset_0_0_10px_var(--accent),inset_0_0_15px_rgba(0,0,0,0.6)] rounded-[inherit]" />
-					)}
-                     */}
+					{/* Top vignette — fixed height so it reads as a soft light source
+						rather than a flat band clipped to the header content's height */}
+					<div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/70 via-black/25 to-transparent pointer-events-none" />
 
 					{/* Top Header: Name, Age & Status Cluster */}
-					<div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 bg-gradient-to-b from-black/60 via-black/20 to-transparent p-2 text-white">
+					<div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-2 text-white">
 						<div className="min-w-0 flex-1">
-							<p className="text-sm sm:text-base font-bold leading-tight truncate">
+							<p className="text-sm sm:text-base font-bold leading-tight truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
 								{name}
 								{age && <span className="font-semibold text-white/90 ml-1"> {age}</span>}
 							</p>
@@ -183,8 +191,8 @@ export function BrowseCardTile({
 					</div>
 
 					{/* Bottom-left: Distance */}
-					<div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/60 via-black/20 to-transparent pointer-events-none" />
-					<div className="absolute bottom-2 left-2 z-10 flex h-5 items-center text-white">
+					<div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/70 via-black/25 to-transparent pointer-events-none" />
+					<div className="absolute bottom-2 left-2 z-10 flex h-5 items-center text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
 						{card.distanceMeters == null || !Number.isFinite(card.distanceMeters) ? (
 							<MapPinOff className="h-3.5 w-3.5" />
 						) : (
