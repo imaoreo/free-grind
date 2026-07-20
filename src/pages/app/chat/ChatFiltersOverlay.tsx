@@ -146,7 +146,7 @@ export function ChatFiltersOverlay({
 					<button
 						type="button"
 						onClick={handleClear}
-						className="flex h-12 items-center gap-1.5 rounded-2xl border border-[var(--border)] px-4 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-2xl border border-[var(--border)] px-4 text-sm font-bold text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
 					>
 						<RotateCcw className="h-4 w-4" />
 						{t("browse_filters.clear_all")}

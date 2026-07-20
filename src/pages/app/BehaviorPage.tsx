@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownWideNarrow, Ban, ExternalLink, Images, Timer, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -20,8 +20,13 @@ const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR
 export function BehaviorPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
-	const { defaultExpiringPhotos, defaultAlbumExpirationType, sortDrawerMediaByFrequency, setPreferences } =
-		usePreferences();
+	const {
+		defaultExpiringPhotos,
+		defaultAlbumExpirationType,
+		openAlbumAsBottomSheet,
+		sortDrawerMediaByFrequency,
+		setPreferences,
+	} = usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
 		INDEFINITE: t("chat_drawer.expiry.unlimited", { defaultValue: "Unlimited" }),
 		ONCE: t("chat_drawer.expiry.once", { defaultValue: "Once" }),
@@ -124,6 +129,22 @@ export function BehaviorPage() {
 								</div>
 							</div>
 						</div>
+					</div>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.album_viewing")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-open-album-as-bottom-sheet"
+							highlighted={highlightId === "behavior-open-album-as-bottom-sheet"}
+							icon={<LayoutGrid className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("behavior.open_album_as_bottom_sheet")}
+							description={t("behavior.open_album_as_bottom_sheet_desc")}
+							checked={openAlbumAsBottomSheet}
+							onChange={(checked) => void setPreferences({ openAlbumAsBottomSheet: checked })}
+						/>
 					</div>
 				</div>
 

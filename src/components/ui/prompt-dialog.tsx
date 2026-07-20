@@ -120,12 +120,12 @@ export function PromptDialog({
 					className="mt-4 w-full resize-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)] disabled:opacity-60"
 				/>
 
-				<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<div className="mt-6 flex gap-2">
 					<button
 						type="button"
 						onClick={onCancel}
 						disabled={isProcessing}
-						className="inline-flex h-11 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
+						className="inline-flex h-11 flex-1 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)] disabled:opacity-60"
 					>
 						{cancelLabel}
 					</button>
@@ -133,7 +133,7 @@ export function PromptDialog({
 						type="button"
 						onClick={handleSubmit}
 						disabled={isProcessing || !trimmed}
-						className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
+						className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110 disabled:opacity-60"
 					>
 						{isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
 						<span>{confirmLabel}</span>

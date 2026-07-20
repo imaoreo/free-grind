@@ -31,7 +31,7 @@ export function BrowseCardTile({
 	isDesktop = false,
 }: BrowseCardTileProps) {
 	const { t } = useTranslation();
-	const { unitsPreset, showDebugInfo } = usePreferences();
+	const { unitsPreset, showDebugInfo, blurGridProfilePictures } = usePreferences();
 	const { ref, revealClass } = useRevealOnScroll();
 	const name = getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
@@ -87,7 +87,7 @@ export function BrowseCardTile({
 						src={card.primaryImageUrl}
 						alt={t("browse_page.profile_photo_alt", { name })}
 						className={cn(
-							isDemoCard && "blur-md scale-110"
+							(isDemoCard || blurGridProfilePictures) && "blur-md scale-110"
 						)}
 					/>
 

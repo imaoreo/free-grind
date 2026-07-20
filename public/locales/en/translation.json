@@ -790,7 +790,9 @@
     "record_profile_views_desc": "Let people see that you've viewed their profile. Turn this off to browse profiles without leaving a trace.",
     "read_receipts_grid_unread_note": "With read receipts off, there's no way to tell the server you've read a message — so a chat can still show up as unread on the Grid even after you've read or deleted it.",
     "show_sensitive_content_warning": "Sensitive Content Warning",
-    "show_sensitive_content_warning_desc": "Show a warning screen before opening an album that could contain sensitive content."
+    "show_sensitive_content_warning_desc": "Show a warning screen before opening an album that could contain sensitive content.",
+    "blur_grid_profile_pictures": "Blur Profile Pictures in Grid",
+    "blur_grid_profile_pictures_desc": "Blur everyone's profile picture on the Grid, useful for browsing discreetly in public."
   },
   "customizability": {
     "subtitle": "Personalize the look and feel of the app.",
@@ -868,6 +870,9 @@
     "default_expiring_photos_desc": "New photos you send in chat automatically use the 10-second disappearing timer, without needing to enable it each time.",
     "default_album_expiration": "Default Album Expiration",
     "default_album_expiration_desc": "Albums you share in chat automatically use this expiration, without needing to choose it each time.",
+    "album_viewing": "Album Viewing",
+    "open_album_as_bottom_sheet": "Preview Albums Before Opening",
+    "open_album_as_bottom_sheet_desc": "Tapping an album first shows a grid of its contents in a sheet — tap a photo or video there to open it full screen. Turn off to jump straight to full screen.",
     "media_drawer": "Media Drawer",
     "sort_drawer_media_by_frequency": "Sort by Send Frequency",
     "sort_drawer_media_by_frequency_desc": "Show your most-sent photos and videos first in the media drawer. Turn off to keep them in their default order."
@@ -1431,6 +1436,7 @@
     "recently_joined": "Recently joined",
     "account_info": "Account Info",
     "profile_id": "Profile ID",
+    "profile_id_copied": "Profile ID copied to clipboard",
     "estimated_joined": "Joined {{date}} (estimated)",
     "tap_profile": "Tap profile",
     "tap_sent_recent": "Tap already sent in the last 24 hours",

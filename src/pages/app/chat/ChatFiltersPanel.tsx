@@ -1,3 +1,4 @@
+import { ArrowUpDown, Eye, MapPin, Zap, type LucideIcon } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Slider } from "../../../components/ui/range-slider";
@@ -6,6 +7,31 @@ import { formatDistanceForUnits } from "../../../utils/units";
 import { getSexualPositionOptions } from "../profile-option-builders";
 import type { InboxFilterKey, InboxVisibilityFilter } from "../../../types/chat-page";
 import type { ChatFiltersDraft } from "../chat/chatUtils";
+
+const cardStyle: React.CSSProperties = {
+	backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
+	border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
+};
+
+/** Mirrors BrowseFiltersOverlay's renderSectionHeader so both filter overlays read as one system. */
+function SectionHeader({ title, icon: Icon, valueBadge }: { title: string; icon?: LucideIcon; valueBadge?: string }) {
+	return (
+		<div className="mb-3 flex items-center justify-between gap-2.5">
+			<div className="flex items-center gap-2.5">
+				{Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: "var(--accent)" }} />}
+				<p className="text-sm font-bold tracking-tight text-[var(--text)]">{title}</p>
+			</div>
+			{valueBadge && (
+				<span
+					className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold shadow-sm text-[var(--text)]"
+					style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 85%)" }}
+				>
+					{valueBadge}
+				</span>
+			)}
+		</div>
+	);
+}
 
 /** One "Pinned"/"Archived"/"Hidden" row: a label plus a 3-way chip group
  * (Show all/Hide/Only) — same chip styling as the other filter sections so
@@ -108,13 +134,8 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, 
 	return (
 		<div className="space-y-3 px-[var(--app-px)] py-4" data-lenis-prevent>
 			{/* Quick filters */}
-			<section
-				className="rounded-2xl p-4"
-				style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)", border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)" }}
-			>
-				<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-					{t("browse_filters.quick_filters")}
-				</p>
+			<section className="rounded-2xl p-4" style={cardStyle}>
+				<SectionHeader title={t("browse_filters.quick_filters")} icon={Zap} />
 				<div className="flex flex-wrap gap-2">
 					{inboxFilterOptions.map((filter) => {
 						const active = draft[filter.key];
@@ -137,13 +158,8 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, 
 			</section>
 
 			{/* Pinned/Archived/Hidden visibility */}
-			<section
-				className="space-y-3 rounded-2xl p-4"
-				style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)", border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)" }}
-			>
-				<p className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-					{t("chat_filters.visibility", { defaultValue: "Visibility" })}
-				</p>
+			<section className="space-y-3 rounded-2xl p-4" style={cardStyle}>
+				<SectionHeader title={t("chat_filters.visibility", { defaultValue: "Visibility" })} icon={Eye} />
 				<VisibilityFilterRow
 					label={t("chat.pinned")}
 					value={draft.pinnedFilter}
@@ -166,16 +182,16 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, 
 			</section>
 
 			{/* Distance slider */}
-			<section
-				className="rounded-2xl p-4"
-				style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)", border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)" }}
-			>
+			<section className="rounded-2xl p-4" style={cardStyle}>
+				<SectionHeader title={t("chat_filters.max_distance")} icon={MapPin} valueBadge={distanceDisplay} />
 				<Slider
 					label={t("chat_filters.max_distance")}
 					min={0}
 					max={distanceSteps.length - 1}
 					defaultValue={displayDistanceIndex}
 					displayValue={distanceDisplay}
+					activeColor="var(--accent)"
+					hideHeader
 					onChange={(index) => {
 						const meters = distanceSteps[index];
 						onChangeDraft({
@@ -187,13 +203,8 @@ export function ChatFiltersPanel({ isDesktop: _isDesktop, draft, onChangeDraft, 
 			</section>
 
 			{/* Position filters */}
-			<section
-				className="rounded-2xl p-4"
-				style={{ backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)", border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)" }}
-			>
-				<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-					{t("profile_editor.sections.states.position")}
-				</p>
+			<section className="rounded-2xl p-4" style={cardStyle}>
+				<SectionHeader title={t("profile_editor.sections.states.position")} icon={ArrowUpDown} />
 				<div className="flex flex-wrap gap-2">
 					{positionFilterOptions.map(({ value: positionId, label }) => {
 						const active = draft.positions.includes(positionId);
