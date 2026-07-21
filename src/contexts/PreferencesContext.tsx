@@ -171,6 +171,7 @@ const preferencesSchema = z.object({
 	showAlbumSensitiveContentWarning: z.boolean().default(true),
 	openAlbumAsBottomSheet: z.boolean().default(false),
 	sortDrawerMediaByFrequency: z.boolean().default(true),
+	keepScreenOn: z.boolean().default(false),
 	defaultExpiringPhotos: z.boolean().default(false),
 	defaultAlbumExpirationType: z
 		.enum(["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"])
@@ -208,6 +209,7 @@ type PreferencesAction =
 	| { type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING"; payload: boolean }
 	| { type: "SET_OPEN_ALBUM_AS_BOTTOM_SHEET"; payload: boolean }
 	| { type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY"; payload: boolean }
+	| { type: "SET_KEEP_SCREEN_ON"; payload: boolean }
 	| { type: "SET_DEFAULT_EXPIRING_PHOTOS"; payload: boolean }
 	| { type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE"; payload: Preferences["defaultAlbumExpirationType"] }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
@@ -256,6 +258,8 @@ function preferencesReducer(
 			return { ...state, openAlbumAsBottomSheet: action.payload };
 		case "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY":
 			return { ...state, sortDrawerMediaByFrequency: action.payload };
+		case "SET_KEEP_SCREEN_ON":
+			return { ...state, keepScreenOn: action.payload };
 		case "SET_DEFAULT_EXPIRING_PHOTOS":
 			return { ...state, defaultExpiringPhotos: action.payload };
 		case "SET_DEFAULT_ALBUM_EXPIRATION_TYPE":
@@ -339,6 +343,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		showAlbumSensitiveContentWarning: true,
 		openAlbumAsBottomSheet: false,
 		sortDrawerMediaByFrequency: true,
+		keepScreenOn: false,
 		defaultExpiringPhotos: false,
 		defaultAlbumExpirationType: "INDEFINITE",
 		isLoading: true,
@@ -379,6 +384,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: parsed.showAlbumSensitiveContentWarning });
 					dispatch({ type: "SET_OPEN_ALBUM_AS_BOTTOM_SHEET", payload: parsed.openAlbumAsBottomSheet });
 					dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: parsed.sortDrawerMediaByFrequency });
+					dispatch({ type: "SET_KEEP_SCREEN_ON", payload: parsed.keepScreenOn });
 					dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: parsed.defaultExpiringPhotos });
 					dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: parsed.defaultAlbumExpirationType });
 					dispatch({
@@ -466,6 +472,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				showAlbumSensitiveContentWarning: currentState.showAlbumSensitiveContentWarning,
 				openAlbumAsBottomSheet: currentState.openAlbumAsBottomSheet,
 				sortDrawerMediaByFrequency: currentState.sortDrawerMediaByFrequency,
+				keepScreenOn: currentState.keepScreenOn,
 				defaultExpiringPhotos: currentState.defaultExpiringPhotos,
 				defaultAlbumExpirationType: currentState.defaultAlbumExpirationType,
 				activeRightNowId: currentState.activeRightNowId ?? null,
@@ -535,6 +542,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.sortDrawerMediaByFrequency !== undefined) {
 				dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: newValues.sortDrawerMediaByFrequency });
+			}
+			if (newValues.keepScreenOn !== undefined) {
+				dispatch({ type: "SET_KEEP_SCREEN_ON", payload: newValues.keepScreenOn });
 			}
 			if (newValues.defaultExpiringPhotos !== undefined) {
 				dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: newValues.defaultExpiringPhotos });
@@ -613,6 +623,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					showAlbumSensitiveContentWarning: preferences.showAlbumSensitiveContentWarning,
 					openAlbumAsBottomSheet: preferences.openAlbumAsBottomSheet,
 					sortDrawerMediaByFrequency: preferences.sortDrawerMediaByFrequency,
+					keepScreenOn: preferences.keepScreenOn,
 					defaultExpiringPhotos: preferences.defaultExpiringPhotos,
 					defaultAlbumExpirationType: preferences.defaultAlbumExpirationType,
 					activeRightNowId: preferences.activeRightNowId,
@@ -646,6 +657,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		showAlbumSensitiveContentWarning: state.showAlbumSensitiveContentWarning,
 		openAlbumAsBottomSheet: state.openAlbumAsBottomSheet,
 		sortDrawerMediaByFrequency: state.sortDrawerMediaByFrequency,
+		keepScreenOn: state.keepScreenOn,
 		defaultExpiringPhotos: state.defaultExpiringPhotos,
 		defaultAlbumExpirationType: state.defaultAlbumExpirationType,
 		setPreferences,

@@ -875,7 +875,10 @@
     "open_album_as_bottom_sheet_desc": "",
     "media_drawer": "",
     "sort_drawer_media_by_frequency": "",
-    "sort_drawer_media_by_frequency_desc": ""
+    "sort_drawer_media_by_frequency_desc": "",
+    "display": "",
+    "keep_screen_on": "",
+    "keep_screen_on_desc": ""
   },
   "notifications_page": {
     "subtitle": "",
