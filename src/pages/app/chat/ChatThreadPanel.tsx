@@ -1530,7 +1530,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 												</button>
 											)}
-											{!isDesktop && (
+											{!isDesktop && !isArchived && (
 												<button
 													type="button"
 													disabled={isUpdatingConversationState || !selectedConversation}
