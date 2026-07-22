@@ -5608,17 +5608,33 @@ export function ChatPage() {
 				});
 				const merged = await getLocalAlbum(albumId);
 				if (albumViewerCancelledRef.current) return;
-				const finalContent = merged ? merged.content : details.content;
-				setAlbumViewer(
-					merged
-						? { ...merged, isOwn: isOwnAlbum }
-						: {
-							albumId: details.albumId,
-							albumName: details.albumName,
-							content: details.content,
-							isOwn: isOwnAlbum,
-						},
+				// The local cache has no notion of order (it's keyed by content
+				// id, not position), so an item's slot there reflects whenever it
+				// was first captured rather than the album's current sort order.
+				// `details.content` is always in the live/current order, so use
+				// that ordering and only borrow each item's locally-cached bytes
+				// (data URIs) from `merged` when available.
+				const mergedByContentId = new Map(
+					(merged?.content ?? []).map((item) => [item.contentId, item] as const),
 				);
+				const liveContentIds = new Set(details.content.map((item) => item.contentId));
+				// Anything only in the local cache (not returned by the live
+				// fetch) has no server-side position to sort by anymore — keep
+				// it visible, but tacked on after everything the server knows
+				// about, rather than dropping it or leaving it in its stale slot.
+				const localOnly = (merged?.content ?? []).filter(
+					(item) => !liveContentIds.has(item.contentId),
+				);
+				const finalContent = [
+					...details.content.map((item) => mergedByContentId.get(item.contentId) ?? item),
+					...localOnly,
+				];
+				setAlbumViewer({
+					albumId: details.albumId,
+					albumName: merged?.albumName ?? details.albumName,
+					content: finalContent,
+					isOwn: isOwnAlbum,
+				});
 				if (!useSheet) {
 					setAlbumViewerMediaIndex((prev) => {
 						// A specific reacted-to/replied-to photo always gets re-resolved
