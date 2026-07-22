@@ -32,9 +32,12 @@ import {
 	claimBlockStateTransition,
 	deriveOtherProfileIdFromConversationId,
 	markConversationDeleteHandled,
+	reconcileReappearedConversation,
 	CHAT_ARCHIVE_STATE_EVENT,
 	type ChatArchiveStateChangeDetail,
 } from "../../services/conversationArchive";
+import { classifyProfileAccess } from "../../utils/profileAccessStatus";
+import type { BlockState } from "../../types/chat-db";
 import {
 	hideConversation,
 	unhideConversation,
@@ -1428,63 +1431,43 @@ export function ChatPage() {
 				}
 
 				// A conversation reappearing in a fresh inbox response usually means
-				// the other party messaged again, or someone unblocked someone. But
-				// for a block-related archive (archivedReason "ws_delete", either
-				// direction), don't trust that signal blindly — an inbox page that
-				// was already in flight when the block happened can still land
-				// afterwards and look exactly like a "reappearance" even though
-				// nothing actually changed (more likely the more pages the inbox
-				// has, since more requests can be in flight at once), and the
-				// *other* party blocking us can have the same server-side
-				// propagation lag on their side of the inbox filtering. block_state
-				// is the one signal that covers both directions: if it's still set,
-				// this "reappearance" is stale and should be ignored; if it's
-				// already null, something else (the matching WS event, most likely)
-				// already resolved this for real and the reappearance is consistent
-				// with that.
+				// the other party messaged again, or someone unblocked someone. For
+				// a non-block archive (e.g. "not_found"), that's proof enough on its
+				// own. For a block-related archive ("ws_delete", either direction),
+				// go through reconcileReappearedConversation — the same source of
+				// truth inboxSync's background walk already uses — rather than
+				// re-deriving "is this really resolved" here; it only clears
+				// block_state when it's actually still set, atomically, so a
+				// redelivered/duplicate signal can't double-fire the system message.
 				const reappearedCandidateIds = response.entries
 					.map((entry) => entry.data.conversationId)
 					.filter((cid) => archivedConversationsRef.current.has(cid));
-				const reappearedArchivedIds = (
-					await Promise.all(
-						reappearedCandidateIds.map(async (cid) => {
-							const info = archivedConversationsRef.current.get(cid);
-							if (info?.reason !== "ws_delete") {
-								return cid;
-							}
-							const stored = await chatDb.getConversation(cid).catch(() => null);
-							return stored?.blockState == null ? cid : null;
-						}),
-					)
-				).filter((cid): cid is string => cid !== null);
+				const nonBlockReappearedIds = reappearedCandidateIds.filter(
+					(cid) => archivedConversationsRef.current.get(cid)?.reason !== "ws_delete",
+				);
+				const blockReconcileResults = await Promise.all(
+					reappearedCandidateIds
+						.filter((cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete")
+						.map(async (cid) => ({
+							cid,
+							message: await reconcileReappearedConversation(cid, "ws_delete").catch(() => null),
+						})),
+				);
+				const blockReappearedIds = blockReconcileResults
+					.filter(({ message }) => message !== null)
+					.map(({ cid }) => cid);
+				const reappearedArchivedIds = [...nonBlockReappearedIds, ...blockReappearedIds];
 				if (reappearedArchivedIds.length > 0) {
-					for (const cid of reappearedArchivedIds) {
+					for (const cid of nonBlockReappearedIds) {
 						void unarchiveConversation(cid);
 					}
-					// Insert "SystemUnblocked" for conversations that were archived
-					// due to a block (ws_delete / offline-403). Conversations that
-					// disappeared due to a 404 ("not_found") are not block-related
-					// and don't get this marker.
-					const blockArchivedIds = reappearedArchivedIds.filter(
-						(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
-					);
-					if (blockArchivedIds.length > 0) {
-						const inserted = await Promise.all(
-							blockArchivedIds.map(async (cid) => {
-								const isSelf = consumeSelfBlockAction(cid, "unblock");
-								const claimed = await claimBlockStateTransition(cid, null).catch(() => false);
-								if (!claimed) return null;
-								return chatDb
-									.insertSystemMessage(cid, isSelf ? "SystemUnblockedBySelf" : "SystemUnblocked")
-									.catch(() => null);
-							}),
+					const valid = blockReconcileResults
+						.map(({ message }) => message)
+						.filter((m): m is Message => m !== null);
+					if (valid.length > 0) {
+						window.dispatchEvent(
+							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
 						);
-						const valid = inserted.filter((m): m is Message => m !== null);
-						if (valid.length > 0) {
-							window.dispatchEvent(
-								new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-							);
-						}
 					}
 					setArchivedConversations((previous) => {
 						const next = new Map(previous);
@@ -2616,16 +2599,16 @@ export function ChatPage() {
 					archiveConversationsLocally([conversationId], "not_found");
 				}
 				if (apiError?.status === 403 && !archivedConversationsRef.current.has(conversationId)) {
-					// 403 means this conversation is now inaccessible — either we
-					// were blocked while the app was offline, or (less commonly)
-					// this is a block we made ourselves from another device/session
-					// that hasn't reached this one yet. Archive it the same way a WS
-					// delete would, persist to chatDb so the next launch starts it as
-					// archived, and disambiguate self vs. other the same way
-					// toggleArchiveOnConversationDelete does before leaving a local
-					// system message marking when it was detected.
-					void archiveConversation(conversationId, "ws_delete");
-					archiveConversationsLocally([conversationId], "ws_delete");
+					// A bare 403 here isn't proof of a block by itself — it can also
+					// be transient (e.g. a stale/mid-reconnect session right after
+					// the app resumes from a backgrounded/suspended state, which is
+					// exactly when mobile is most likely to hit this). Disambiguate
+					// self vs. other, and verify a real block live via
+					// classifyProfileAccess, the same way
+					// toggleArchiveOnConversationDelete does before committing to a
+					// block_state — an inconclusive check leaves target unset below,
+					// so nothing is archived/committed and the next load can just
+					// retry, instead of defaulting to "blocked_by_other".
 					const storedConversation = await chatDb.getConversation(conversationId).catch(() => null);
 					// Falls back to parsing the conversationId itself when
 					// other_profile_id hasn't been backfilled yet (only ever set
@@ -2635,26 +2618,56 @@ export function ChatPage() {
 					const otherProfileId =
 						storedConversation?.otherProfileId ??
 						deriveOtherProfileIdFromConversationId(conversationId, userId);
-					// Fetches fresh rather than relying on blockedProfileIdsData's
-					// query staleTime — a 403 here is rare enough that a live
-					// round trip is cheap, and getting self vs. other right matters
-					// more than saving one request for exactly this decision.
-					const isSelf =
-						consumeSelfBlockAction(conversationId, "block") ||
-						(otherProfileId
-							? await service
-									.getBlockedProfileIds()
-									.then((ids) => ids.includes(otherProfileId))
-									.catch(() => false)
-							: false);
-					const claimed = await claimBlockStateTransition(
-						conversationId,
-						isSelf ? "blocked_by_me" : "blocked_by_other",
-					).catch(() => false);
-					if (claimed) {
-						await chatDb
-							.insertSystemMessage(conversationId, isSelf ? "SystemBlockedBySelf" : "SystemBlocked")
-							.catch(() => {});
+
+					const isSelf = consumeSelfBlockAction(conversationId, "block");
+					let target: BlockState | null = null;
+					let archivedReason: ArchivedReason | null = null;
+					let messageType: "SystemBlockedBySelf" | "SystemBlocked" | null = null;
+
+					if (isSelf) {
+						target = "blocked_by_me";
+						archivedReason = "ws_delete";
+						messageType = "SystemBlockedBySelf";
+					} else if (otherProfileId) {
+						// Fetches fresh rather than relying on blockedProfileIdsData's
+						// query staleTime — a 403 here is rare enough that a live
+						// round trip is cheap, and getting self vs. other right matters
+						// more than saving one request for exactly this decision.
+						const isSelfFromBlockedList = await service
+							.getBlockedProfileIds()
+							.then((ids) => ids.includes(otherProfileId))
+							.catch(() => false);
+						if (isSelfFromBlockedList) {
+							target = "blocked_by_me";
+							archivedReason = "ws_delete";
+							messageType = "SystemBlockedBySelf";
+						} else {
+							const status = await service
+								.getProfileDetail(otherProfileId)
+								.then((profile) => classifyProfileAccess(profile))
+								.catch(() => "accessible" as const);
+							if (status === "blocked") {
+								target = "blocked_by_other";
+								archivedReason = "ws_delete";
+								messageType = "SystemBlocked";
+							} else if (status === "not_found") {
+								archivedReason = "not_found";
+							}
+							// "accessible" (or an inconclusive check) means this 403
+							// was transient — target/archivedReason stay unset so
+							// nothing is committed.
+						}
+					}
+
+					if (archivedReason) {
+						void archiveConversation(conversationId, archivedReason);
+						archiveConversationsLocally([conversationId], archivedReason);
+					}
+					if (target) {
+						const claimed = await claimBlockStateTransition(conversationId, target).catch(() => false);
+						if (claimed && messageType) {
+							await chatDb.insertSystemMessage(conversationId, messageType).catch(() => {});
+						}
 					}
 				}
 				if (apiError?.status === 404 || apiError?.status === 403 || archivedConversationsRef.current.has(conversationId)) {
@@ -2885,58 +2898,46 @@ export function ChatPage() {
 			void loadInbox({ page: 1, replace: true, silent: true });
 		}
 
-		// If a message arrives for an archived conversation, unarchive it immediately
-		// and insert a SystemUnblocked marker if it was archived due to a block.
-		// Same guard as loadInbox: for a block-related archive (either direction),
-		// a message already in flight the instant the block happened (on our side
-		// or the other party's) can still land right after, which would otherwise
-		// look identical to a genuine unblock — cross-check those against the
-		// current block_state first (covers both directions; a blocked-profile-
-		// ids check only covers the "we blocked them" one).
+		// If a message arrives for an archived conversation, unarchive it
+		// immediately. A live incoming message is a stronger signal than an
+		// inbox reappearance, but the same in-flight-at-the-instant-of-block
+		// race still applies, so a block-related archive ("ws_delete") still
+		// goes through reconcileReappearedConversation rather than trusting the
+		// arrival blindly (see the loadInbox reappearance handling above for
+		// why that's the shared source of truth).
 		const incomingConversationIds = [...new Set(messages.map((m) => m.conversationId))];
 		const incomingCandidateIds = incomingConversationIds.filter((cid) =>
 			archivedConversationsRef.current.has(cid),
 		);
 		void (async () => {
-			const reappearedArchivedIds = (
-				await Promise.all(
-					incomingCandidateIds.map(async (cid) => {
-						const info = archivedConversationsRef.current.get(cid);
-						if (info?.reason !== "ws_delete") {
-							return cid;
-						}
-						const stored = await chatDb.getConversation(cid).catch(() => null);
-						return stored?.blockState == null ? cid : null;
-					}),
-				)
-			).filter((cid): cid is string => cid !== null);
+			const nonBlockReappearedIds = incomingCandidateIds.filter(
+				(cid) => archivedConversationsRef.current.get(cid)?.reason !== "ws_delete",
+			);
+			const blockReconcileResults = await Promise.all(
+				incomingCandidateIds
+					.filter((cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete")
+					.map(async (cid) => ({
+						cid,
+						message: await reconcileReappearedConversation(cid, "ws_delete").catch(() => null),
+					})),
+			);
+			const blockReappearedIds = blockReconcileResults
+				.filter(({ message }) => message !== null)
+				.map(({ cid }) => cid);
+			const reappearedArchivedIds = [...nonBlockReappearedIds, ...blockReappearedIds];
 			if (reappearedArchivedIds.length === 0) {
 				return;
 			}
-			for (const cid of reappearedArchivedIds) {
+			for (const cid of nonBlockReappearedIds) {
 				void unarchiveConversation(cid);
 			}
-			const blockArchivedIds = reappearedArchivedIds.filter(
-				(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
-			);
-			if (blockArchivedIds.length > 0) {
-				void Promise.all(
-					blockArchivedIds.map(async (cid) => {
-						const isSelf = consumeSelfBlockAction(cid, "unblock");
-						const claimed = await claimBlockStateTransition(cid, null).catch(() => false);
-						if (!claimed) return null;
-						return chatDb
-							.insertSystemMessage(cid, isSelf ? "SystemUnblockedBySelf" : "SystemUnblocked")
-							.catch(() => null);
-					}),
-				).then((inserted) => {
-					const valid = inserted.filter((m): m is Message => m !== null);
-					if (valid.length > 0) {
-						window.dispatchEvent(
-							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-						);
-					}
-				});
+			const valid = blockReconcileResults
+				.map(({ message }) => message)
+				.filter((m): m is Message => m !== null);
+			if (valid.length > 0) {
+				window.dispatchEvent(
+					new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
+				);
 			}
 			setArchivedConversations((previous) => {
 				const next = new Map(previous);
@@ -3423,6 +3424,29 @@ export function ChatPage() {
 			window.clearInterval(intervalId);
 		};
 	}, [loadInbox, realtimeStatus]);
+
+	// The interval above stops entirely once realtimeStatus is "connected",
+	// relying on live WS events from then on — fine while the app stays
+	// foregrounded, but mobile suspends rather than kills the app in the
+	// background, so nothing re-checks the inbox purely from closing and
+	// reopening it (ChatRealtimeBridge's visibilitychange handler only
+	// reconnects the socket). A stuck block_state can otherwise only clear
+	// via a live WS event landing from that exact profile while the app
+	// happens to be connected, or a fresh process start (AuthContext's
+	// inboxSync). Fetch the inbox once on resume so a block/unblock that
+	// happened while backgrounded gets picked up promptly, through the same
+	// reconcileReappearedConversation path as the interval above.
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				void loadInbox({ page: 1, replace: true, silent: true });
+			}
+		};
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		return () => {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [loadInbox]);
 
 	// The realtime socket can report "connected" while still silently dropping
 	// individual events (e.g. chat.v1.conversation_read), so read-receipt status
