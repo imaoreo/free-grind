@@ -158,9 +158,20 @@ jobs:
             rust_targets: ""
             artifact_suffix: windows-x64
             bundle_dir: src-tauri/target/release/bundle
+          - platform: ubuntu-latest
+            args: --bundles deb,rpm,appimage
+            rust_targets: ""
+            artifact_suffix: linux-x64
+            bundle_dir: src-tauri/target/release/bundle
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -220,18 +231,25 @@ jobs:
               '.exe.sig':     'text/plain',
               '.msi':         'application/x-msi',
               '.msi.sig':     'text/plain',
+              '.deb':         'application/vnd.debian.binary-package',
+              '.deb.sig':     'text/plain',
+              '.rpm':         'application/x-rpm',
+              '.rpm.sig':     'text/plain',
+              '.AppImage':     'application/vnd.appimage',
+              '.AppImage.sig': 'text/plain',
             };
 
             // Collect installable bundles
             const searchDirs = {
               'macos-universal': ['dmg', 'macos'],
               'windows-x64':     ['nsis', 'msi'],
+              'linux-x64':       ['deb', 'rpm', 'appimage'],
             };
 
             const subDirs = searchDirs[suffix] ?? [];
             const uploads = [];
             // Ordered longest-first so multi-part extensions are matched before shorter ones
-            const allowedExts = ['.tar.gz.sig', '.tar.gz', '.exe.sig', '.msi.sig', '.dmg', '.exe', '.msi'];
+            const allowedExts = ['.tar.gz.sig', '.tar.gz', '.exe.sig', '.msi.sig', '.AppImage.sig', '.deb.sig', '.rpm.sig', '.dmg', '.exe', '.msi', '.deb', '.rpm', '.AppImage'];
 
             function addUpload(src, assetName, mime) {
               uploads.push({ src, name: assetName, mime });
