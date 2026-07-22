@@ -1023,6 +1023,7 @@
     "you": "You",
     "typing": "typing…",
     "read": "read",
+    "read_at": "Read at {{time}}",
     "unread": "unread",
     "today": "Today",
     "yesterday": "Yesterday",

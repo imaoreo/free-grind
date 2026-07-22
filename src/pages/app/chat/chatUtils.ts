@@ -197,6 +197,13 @@ export function formatMessageTime(
 	});
 }
 
+export function formatFullDateTime(timestamp: number): string {
+	return new Date(timestamp).toLocaleString([], {
+		dateStyle: "medium",
+		timeStyle: "short",
+	});
+}
+
 export function formatTakenOnGrindrTime(
 	timestamp: number,
 	now: number,
