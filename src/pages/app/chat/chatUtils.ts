@@ -47,6 +47,28 @@ export function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
 }
 
+// How long a drawer item counts as "new" for sorting purposes. Within this
+// window it's kept above everything else regardless of send count — otherwise
+// a just-added photo (sendCount 0) would sit below every item ever sent even
+// once, however long ago. After the window it falls back to pure frequency.
+const NEW_DRAWER_MEDIA_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Sorts drawer media most-used first, but keeps recently added items pinned
+ * above the frequency-ranked ones for a grace period so they're actually
+ * visible right after being added instead of buried under old, low-use media. */
+export function sortDrawerMediaByUsage<T extends { sendCount: number; createdTs: number }>(
+	items: T[],
+	now = Date.now(),
+): T[] {
+	return [...items].sort((a, b) => {
+		const aIsNew = now - a.createdTs < NEW_DRAWER_MEDIA_WINDOW_MS;
+		const bIsNew = now - b.createdTs < NEW_DRAWER_MEDIA_WINDOW_MS;
+		if (aIsNew !== bIsNew) return aIsNew ? -1 : 1;
+		if (aIsNew) return b.createdTs - a.createdTs;
+		return b.sendCount - a.sendCount || b.createdTs - a.createdTs;
+	});
+}
+
 export function buildChatFiltersDraft(
 	filters: InboxFilters,
 	visibility: ChatFiltersVisibilityState = defaultChatFiltersVisibilityState,

@@ -119,7 +119,7 @@ function SavedLocationRow({
 
 export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation }: LocationOverlayProps) {
 	const { t } = useTranslation();
-	const { setPreferences, geohash, locationName, useAutoLocation } = usePreferences();
+	const { setPreferences, geohash, locationName, useAutoLocation, autoFocusLocationSearch } = usePreferences();
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
 	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,8 +263,9 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 	}, [geohash]);
 
 	useEffect(() => {
+		if (!autoFocusLocationSearch) return;
 		setTimeout(() => searchInputRef.current?.focus(), 120);
-	}, []);
+	}, [autoFocusLocationSearch]);
 
 	const handleClose = useCallback(() => {
 		if (isClosingRef.current) return;

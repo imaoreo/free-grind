@@ -876,6 +876,9 @@
     "media_drawer": "",
     "sort_drawer_media_by_frequency": "",
     "sort_drawer_media_by_frequency_desc": "",
+    "location": "",
+    "auto_focus_location_search": "",
+    "auto_focus_location_search_desc": "",
     "display": "",
     "keep_screen_on": "",
     "keep_screen_on_desc": ""

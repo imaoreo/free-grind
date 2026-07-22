@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, Sun, Timer, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, MapPin, Sun, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -31,6 +31,7 @@ export function BehaviorPage() {
 		openAlbumAsBottomSheet,
 		sortDrawerMediaByFrequency,
 		keepScreenOn,
+		autoFocusLocationSearch,
 		setPreferences,
 	} = usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
@@ -166,6 +167,22 @@ export function BehaviorPage() {
 							description={t("behavior.sort_drawer_media_by_frequency_desc")}
 							checked={sortDrawerMediaByFrequency}
 							onChange={(checked) => void setPreferences({ sortDrawerMediaByFrequency: checked })}
+						/>
+					</div>
+				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.location")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-auto-focus-location-search"
+							highlighted={highlightId === "behavior-auto-focus-location-search"}
+							icon={<MapPin className="h-5 w-5" />}
+							iconClass="bg-rose-500/15 text-rose-400"
+							label={t("behavior.auto_focus_location_search")}
+							description={t("behavior.auto_focus_location_search_desc")}
+							checked={autoFocusLocationSearch}
+							onChange={(checked) => void setPreferences({ autoFocusLocationSearch: checked })}
 						/>
 					</div>
 				</div>

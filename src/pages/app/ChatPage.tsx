@@ -99,6 +99,7 @@ import {
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
     formatDateTime24,
+	sortDrawerMediaByUsage,
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
@@ -5808,7 +5809,7 @@ export function ChatPage() {
 			]);
 			const withCounts = media.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				sortDrawerMediaByFrequency ? withCounts.sort((a, b) => b.sendCount - a.sendCount) : withCounts,
+				sortDrawerMediaByFrequency ? sortDrawerMediaByUsage(withCounts) : withCounts,
 			);
 			// Cache each thumbnail/video locally by its stable media id, so
 			// re-opening the drawer renders instantly instead of re-hitting the

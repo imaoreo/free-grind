@@ -53,6 +53,7 @@ import {
 } from "./settings-albums/settingsAlbumsUtils";
 import { AlbumDrawerPickerSheet } from "./settings-albums/AlbumDrawerPickerSheet";
 import type { DrawerMedia } from "./chat/ChatDrawerPanel";
+import { sortDrawerMediaByUsage } from "./chat/chatUtils";
 import * as chatDb from "../../services/chatDb";
 import {
 	DndContext,
@@ -416,7 +417,7 @@ export function SettingsAlbumsPage() {
 			]);
 			const withCounts = items.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				sortDrawerMediaByFrequency ? withCounts.sort((a, b) => b.sendCount - a.sendCount) : withCounts,
+				sortDrawerMediaByFrequency ? sortDrawerMediaByUsage(withCounts) : withCounts,
 			);
 		} catch (loadError) {
 			setDrawerMediaError(
@@ -437,7 +438,10 @@ export function SettingsAlbumsPage() {
 			return;
 		}
 		setDrawerPickerAlbumId(albumId);
-		void loadDrawerMedia();
+		// Force-refresh — otherwise the guard in loadDrawerMedia reuses the
+		// cached list from a previous picker session and drawer media added
+		// since then (e.g. from the chat screen) never shows up here.
+		void loadDrawerMedia(true);
 	}, [albumDetails, limits, loadDrawerMedia, t]);
 
 	const handleAddFromDrawer = useCallback(async (mediaIds: number[]) => {
