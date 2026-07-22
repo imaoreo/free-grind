@@ -227,6 +227,12 @@ async function getDb(): Promise<Database> {
 				} catch {
 					// already migrated
 				}
+				// One-time data fix: earlier builds didn't clear `pinned` when a
+				// conversation got archived (e.g. by a block), leaving pinned+archived
+				// rows stuck showing pinned with no toggle able to reach them (the
+				// pinned duplicate lived outside the list the pin toggle updates).
+				// Idempotent — a no-op once every row is clean.
+				await db.execute("UPDATE conversations SET pinned = 0 WHERE archived = 1 AND pinned = 1");
 
 				await db.execute(`
 					CREATE TABLE IF NOT EXISTS conversation_meta (
@@ -783,10 +789,15 @@ export async function setConversationArchived(
 	const now = Date.now();
 
 	await executeWithLockRetry(db, "set-conversation-archived", async () => {
+		// Archiving always clears `pinned` too — a pinned+archived conversation
+		// (e.g. one that got archived out from under the user by a block) has
+		// no way to surface itself as pinned again, so it must not linger in
+		// that state waiting for an explicit unpin.
 		await db.execute(
 			`
 			UPDATE conversations
-			SET archived = $2, archived_reason = $3, archived_at = $4, updated_at = $5
+			SET archived = $2, archived_reason = $3, archived_at = $4, updated_at = $5,
+				pinned = CASE WHEN $2 = 1 THEN 0 ELSE pinned END
 			WHERE conversation_id = $1
 			`,
 			[conversationId, archived ? 1 : 0, archived ? reason : null, archived ? now : null, now],

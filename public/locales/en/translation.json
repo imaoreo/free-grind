@@ -875,7 +875,13 @@
     "open_album_as_bottom_sheet_desc": "Tapping an album first shows a grid of its contents in a sheet — tap a photo or video there to open it full screen. Turn off to jump straight to full screen.",
     "media_drawer": "Media Drawer",
     "sort_drawer_media_by_frequency": "Sort by Send Frequency",
-    "sort_drawer_media_by_frequency_desc": "Show your most-sent photos and videos first in the media drawer. Turn off to keep them in their default order."
+    "sort_drawer_media_by_frequency_desc": "Show your most-sent photos and videos first in the media drawer. Turn off to keep them in their default order.",
+    "location": "Location",
+    "auto_focus_location_search": "Auto-Focus Search Field",
+    "auto_focus_location_search_desc": "Automatically focus the search text field when opening the location overlay. Turn off if the keyboard popping up right away bothers you.",
+    "display": "Display",
+    "keep_screen_on": "Keep Screen On",
+    "keep_screen_on_desc": "Prevent the screen from dimming or locking while the app is open. Turns off automatically once you leave the app."
   },
   "notifications_page": {
     "subtitle": "Choose which notifications you get, and whether they show up while the app is open.",

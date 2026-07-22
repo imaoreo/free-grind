@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, Timer, Trash2 } from "lucide-react";
+import { ArrowDownWideNarrow, Ban, ExternalLink, Images, LayoutGrid, MapPin, Sun, Timer, Trash2 } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { Chip } from "../../components/ui/chip";
@@ -17,6 +17,11 @@ import {
 
 const ALBUM_EXPIRATION_OPTIONS = ["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"] as const;
 
+// Wake Lock support varies by webview, not by platform: WebView2 (Windows)
+// and the Android/iOS system webviews support it, WebKitGTK (Linux desktop)
+// doesn't — so gate on the actual API instead of assuming desktop vs. mobile.
+const isKeepScreenOnSupported = typeof navigator !== "undefined" && "wakeLock" in navigator;
+
 export function BehaviorPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
@@ -25,6 +30,8 @@ export function BehaviorPage() {
 		defaultAlbumExpirationType,
 		openAlbumAsBottomSheet,
 		sortDrawerMediaByFrequency,
+		keepScreenOn,
+		autoFocusLocationSearch,
 		setPreferences,
 	} = usePreferences();
 	const albumExpirationLabels: Record<(typeof ALBUM_EXPIRATION_OPTIONS)[number], string> = {
@@ -163,6 +170,40 @@ export function BehaviorPage() {
 						/>
 					</div>
 				</div>
+
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.location")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="behavior-auto-focus-location-search"
+							highlighted={highlightId === "behavior-auto-focus-location-search"}
+							icon={<MapPin className="h-5 w-5" />}
+							iconClass="bg-rose-500/15 text-rose-400"
+							label={t("behavior.auto_focus_location_search")}
+							description={t("behavior.auto_focus_location_search_desc")}
+							checked={autoFocusLocationSearch}
+							onChange={(checked) => void setPreferences({ autoFocusLocationSearch: checked })}
+						/>
+					</div>
+				</div>
+
+				{isKeepScreenOnSupported && (
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("behavior.display")}</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<ToggleRow
+								id="behavior-keep-screen-on"
+								highlighted={highlightId === "behavior-keep-screen-on"}
+								icon={<Sun className="h-5 w-5" />}
+								iconClass="bg-amber-500/15 text-amber-400"
+								label={t("behavior.keep_screen_on")}
+								description={t("behavior.keep_screen_on_desc")}
+								checked={keepScreenOn}
+								onChange={(checked) => void setPreferences({ keepScreenOn: checked })}
+							/>
+						</div>
+					</div>
+				)}
 			</div>
 		</section>
 	);

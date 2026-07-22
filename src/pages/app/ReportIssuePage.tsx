@@ -389,41 +389,25 @@ export function ReportIssuePage() {
           <p className="text-sm font-semibold text-[var(--text-muted)]">
             {t("issues_form.include_data_label")}
           </p>
-          <label className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
-            <input
-              type="checkbox"
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+            <ToggleRow
               checked={includeAppInfo}
-              onChange={(event) => setIncludeAppInfo(event.target.checked)}
-              className="mt-0.5"
+              onChange={setIncludeAppInfo}
+              label={t("issues_form.include_app_info")}
+              description={t("issues_form.include_app_info_hint")}
             />
-            <span>
-              <span className="block text-sm font-medium text-[var(--text)]">
-                {t("issues_form.include_app_info")}
-              </span>
-              <span className="block text-xs text-[var(--text-muted)]">
-                {t("issues_form.include_app_info_hint")}
-              </span>
-            </span>
-          </label>
-
-          {kind === "BUG" ? (
-            <label className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2.5">
-              <input
-                type="checkbox"
-                checked={includeLogs}
-                onChange={(event) => setIncludeLogs(event.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="block text-sm font-medium text-[var(--text)]">
-                  {t("issues_form.include_logs")}
-                </span>
-                <span className="block text-xs text-[var(--text-muted)]">
-                  {t("issues_form.include_logs_hint")}
-                </span>
-              </span>
-            </label>
-          ) : null}
+            {kind === "BUG" ? (
+              <>
+                <div className="mx-4 h-px bg-[var(--border)]" />
+                <ToggleRow
+                  checked={includeLogs}
+                  onChange={setIncludeLogs}
+                  label={t("issues_form.include_logs")}
+                  description={t("issues_form.include_logs_hint")}
+                />
+              </>
+            ) : null}
+          </div>
         </div>
 
         <p className="text-xs text-[var(--text-muted)]">

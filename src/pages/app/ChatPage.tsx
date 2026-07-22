@@ -99,6 +99,7 @@ import {
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
     formatDateTime24,
+	sortDrawerMediaByUsage,
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
@@ -1029,6 +1030,20 @@ export function ChatPage() {
 		[userId],
 	);
 
+	// Archiving always clears `pinned` (chatDb.setConversationArchived does the
+	// same in the DB) — an archived conversation has no way to re-surface
+	// itself as pinned, so the in-memory copy must match or the row would show
+	// pinned forever with no toggle able to fix it (togglePinConversation only
+	// patches `conversations`, and an archived entry lives in
+	// `archivedConversations` instead — see togglePinConversation below).
+	const clearPinnedForArchivedEntry = useCallback((entry: ConversationEntry): ConversationEntry => {
+		if (!entry.data.pinned) {
+			return entry;
+		}
+		void chatDb.setConversationPinned(entry.data.conversationId, false).catch(() => {});
+		return { ...entry, data: { ...entry.data, pinned: false } };
+	}, []);
+
 	const archiveConversationsLocally = useCallback(
 		(ids: string[], reason: ArchivedReason) => {
 			const unresolved: string[] = [];
@@ -1048,14 +1063,17 @@ export function ChatPage() {
 				setArchivedConversations((previous) => {
 					const next = new Map(previous);
 					for (const [id, entry] of resolved) {
-						next.set(
-							id,
-							{ reason, entry: reason === "ws_delete" ? clearUnreadForArchivedEntry(entry) : entry },
-						);
+						const withoutUnread =
+							reason === "ws_delete" ? clearUnreadForArchivedEntry(entry) : entry;
+						next.set(id, { reason, entry: clearPinnedForArchivedEntry(withoutUnread) });
 					}
 					return next;
 				});
 			}
+			// The archived entry may still linger in `conversations` (e.g. it was
+			// on-screen when the archive happened) — drop it there too so a stale,
+			// still-pinned duplicate doesn't keep getting resurrected by loadInbox.
+			setConversations((previous) => previous.filter((c) => !resolved.has(c.data.conversationId)));
 
 			if (unresolved.length > 0) {
 				void Promise.all(unresolved.map((id) => chatDb.getConversation(id))).then(
@@ -1064,12 +1082,13 @@ export function ChatPage() {
 							const next = new Map(previous);
 							for (const result of results) {
 								if (result) {
+									const withoutUnread =
+										reason === "ws_delete"
+											? clearUnreadForArchivedEntry(result.entry)
+											: result.entry;
 									next.set(result.conversationId, {
 										reason,
-										entry:
-											reason === "ws_delete"
-												? clearUnreadForArchivedEntry(result.entry)
-												: result.entry,
+										entry: clearPinnedForArchivedEntry(withoutUnread),
 									});
 								}
 							}
@@ -1079,7 +1098,7 @@ export function ChatPage() {
 				);
 			}
 		},
-		[clearUnreadForArchivedEntry],
+		[clearUnreadForArchivedEntry, clearPinnedForArchivedEntry],
 	);
 
 	useEffect(() => {
@@ -4028,6 +4047,25 @@ export function ChatPage() {
 						return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
 					});
 				});
+				// Archived conversations are rendered from `archivedConversations`,
+				// not `conversations` — an archived entry never appears in the list
+				// above, so without this the pin toggle would write to chatDb and
+				// silently do nothing on screen until the next full reload.
+				setArchivedConversations((previous) => {
+					const existing = previous.get(conversationId);
+					if (!existing) {
+						return previous;
+					}
+					const next = new Map(previous);
+					next.set(conversationId, {
+						...existing,
+						entry: {
+							...existing.entry,
+							data: { ...existing.entry.data, pinned: !isPinned },
+						},
+					});
+					return next;
+				});
 			} catch (error) {
 				toast.error(
 					error instanceof Error ? error.message : t("chat.errors.update_pin_state"),
@@ -5570,17 +5608,33 @@ export function ChatPage() {
 				});
 				const merged = await getLocalAlbum(albumId);
 				if (albumViewerCancelledRef.current) return;
-				const finalContent = merged ? merged.content : details.content;
-				setAlbumViewer(
-					merged
-						? { ...merged, isOwn: isOwnAlbum }
-						: {
-							albumId: details.albumId,
-							albumName: details.albumName,
-							content: details.content,
-							isOwn: isOwnAlbum,
-						},
+				// The local cache has no notion of order (it's keyed by content
+				// id, not position), so an item's slot there reflects whenever it
+				// was first captured rather than the album's current sort order.
+				// `details.content` is always in the live/current order, so use
+				// that ordering and only borrow each item's locally-cached bytes
+				// (data URIs) from `merged` when available.
+				const mergedByContentId = new Map(
+					(merged?.content ?? []).map((item) => [item.contentId, item] as const),
 				);
+				const liveContentIds = new Set(details.content.map((item) => item.contentId));
+				// Anything only in the local cache (not returned by the live
+				// fetch) has no server-side position to sort by anymore — keep
+				// it visible, but tacked on after everything the server knows
+				// about, rather than dropping it or leaving it in its stale slot.
+				const localOnly = (merged?.content ?? []).filter(
+					(item) => !liveContentIds.has(item.contentId),
+				);
+				const finalContent = [
+					...details.content.map((item) => mergedByContentId.get(item.contentId) ?? item),
+					...localOnly,
+				];
+				setAlbumViewer({
+					albumId: details.albumId,
+					albumName: merged?.albumName ?? details.albumName,
+					content: finalContent,
+					isOwn: isOwnAlbum,
+				});
 				if (!useSheet) {
 					setAlbumViewerMediaIndex((prev) => {
 						// A specific reacted-to/replied-to photo always gets re-resolved
@@ -5771,7 +5825,7 @@ export function ChatPage() {
 			]);
 			const withCounts = media.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				sortDrawerMediaByFrequency ? withCounts.sort((a, b) => b.sendCount - a.sendCount) : withCounts,
+				sortDrawerMediaByFrequency ? sortDrawerMediaByUsage(withCounts) : withCounts,
 			);
 			// Cache each thumbnail/video locally by its stable media id, so
 			// re-opening the drawer renders instantly instead of re-hitting the
