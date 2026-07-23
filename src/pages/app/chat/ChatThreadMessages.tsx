@@ -258,7 +258,7 @@ function MessageContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
 		>
 			{actions.map((action) => (
 				<button

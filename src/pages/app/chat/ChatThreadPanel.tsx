@@ -1382,7 +1382,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<EllipsisVertical className="h-4 w-4" />
 									</button>
 									{isHeaderActionsMenuOpen ? (
-										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
 											<div className="flex shrink-0 flex-col gap-1 px-2">
 											{!isArchived && (
 											<button
