@@ -5204,8 +5204,14 @@ export function ChatPage() {
 		setIsSendingAudio(true);
 		try {
 			const audioBytes = new Uint8Array(await blob.arrayBuffer());
+			let contentType = blob.type || "audio/aac";
+			// Normalize for Grindr API compatibility: if it's AAC in an MP4 container,
+			// label it as audio/aac which is what the official iOS app expects.
+			if (contentType.includes("mp4") || contentType.includes("m4a") || contentType.includes("aac")) {
+				contentType = "audio/aac";
+			}
 			const uploaded = await service.uploadChatMedia({
-				multipart: { body: audioBytes, contentType: blob.type || "audio/webm" },
+				multipart: { body: audioBytes, contentType },
 				options: { looping: false, takenOnGrindr: false, durationSeconds: durationMs },
 			});
 			await service.sendMessage({
@@ -5215,7 +5221,7 @@ export function ChatPage() {
 					mediaId: uploaded.mediaId,
 					mediaHash: uploaded.mediaHash,
 					url: uploaded.url,
-					contentType: blob.type || "audio/webm",
+					contentType,
 					length: durationMs,
 					expiresAt: uploaded.expiresAt,
 				},

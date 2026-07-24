@@ -416,11 +416,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const startRecording = useCallback(async () => {
 		if (isRecording) return;
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4", "audio/aac"].find(
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					channelCount: 1,
+					sampleRate: 22050,
+					echoCancellation: true,
+					noiseSuppression: true,
+				},
+			});
+			const mimeType = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find(
 				(t) => MediaRecorder.isTypeSupported(t),
 			) ?? "";
-			const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+			const recorder = new MediaRecorder(stream, mimeType ? {
+				mimeType,
+				audioBitsPerSecond: 32000,
+			} : undefined);
 			chunksRef.current = [];
 			recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 			recorder.start(100);
