@@ -404,6 +404,7 @@ export type CaptureAlbumParams = {
 async function captureAlbumContent(
 	albumId: number,
 	item: AlbumContentItem,
+	position: number,
 	existing: StoredAlbumMedia | undefined,
 	remainingViews: number | null,
 	isViewable: boolean | null,
@@ -420,6 +421,7 @@ async function captureAlbumContent(
 				thumbDataBase64: existing.thumbDataBase64,
 				remainingViews,
 				isViewable,
+				position,
 			});
 			return;
 		}
@@ -440,6 +442,7 @@ async function captureAlbumContent(
 			thumbDataBase64: thumb?.base64 ?? main?.base64 ?? null,
 			remainingViews,
 			isViewable,
+			position,
 		});
 	} catch (error) {
 		appLog.warn(`[album-store] failed to capture album content ${compositeId}`, error);
@@ -472,10 +475,11 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 	const existingById = new Map(existing.map((m) => [m.contentId, m] as const));
 
 	await Promise.all(
-		content.map((item) =>
+		content.map((item, position) =>
 			captureAlbumContent(
 				albumId,
 				item,
+				position,
 				existingById.get(`${albumId}:${item.contentId}`),
 				remainingViews,
 				isViewable,

@@ -126,6 +126,7 @@ type AlbumMediaRow = {
 	remaining_views: number | null;
 	is_viewable: number | null;
 	fetched_at: number | null;
+	position: number | null;
 };
 
 type AvatarRow = {
@@ -320,12 +321,24 @@ async function getDb(): Promise<Database> {
 						thumb_data_base64 TEXT,
 						remaining_views INTEGER,
 						is_viewable INTEGER,
-						fetched_at INTEGER
+						fetched_at INTEGER,
+						position INTEGER
 					)
 				`);
 				await db.execute(
 					"CREATE INDEX IF NOT EXISTS idx_album_media_album ON album_media(album_id)",
 				);
+				// Added later: the item's slot in the album's actual (server-side)
+				// order, so a cache-only render (before the live album details
+				// round-trip resolves) shows the same order as the live one instead
+				// of capture order, which otherwise visibly re-sorts moments after
+				// the album sheet opens. Best-effort migration — ignore "duplicate
+				// column" once it already exists.
+				try {
+					await db.execute("ALTER TABLE album_media ADD COLUMN position INTEGER");
+				} catch {
+					// already migrated
+				}
 
 				await db.execute(`
 					CREATE TABLE IF NOT EXISTS avatars (
@@ -1682,6 +1695,7 @@ function rowToStoredAlbumMedia(row: AlbumMediaRow): StoredAlbumMedia {
 		remainingViews: row.remaining_views,
 		isViewable: row.is_viewable == null ? null : Boolean(row.is_viewable),
 		fetchedAt: row.fetched_at,
+		position: row.position,
 	};
 }
 
@@ -1694,8 +1708,8 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 			`
 			INSERT INTO album_media (
 				content_id, album_id, content_type, data_base64, thumb_data_base64,
-				remaining_views, is_viewable, fetched_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				remaining_views, is_viewable, fetched_at, position
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT(content_id) DO UPDATE SET
 				album_id = excluded.album_id,
 				content_type = excluded.content_type,
@@ -1703,7 +1717,8 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 				thumb_data_base64 = excluded.thumb_data_base64,
 				remaining_views = excluded.remaining_views,
 				is_viewable = excluded.is_viewable,
-				fetched_at = excluded.fetched_at
+				fetched_at = excluded.fetched_at,
+				position = COALESCE(excluded.position, album_media.position)
 			`,
 			[
 				input.contentId,
@@ -1714,6 +1729,7 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 				input.remainingViews,
 				input.isViewable == null ? null : input.isViewable ? 1 : 0,
 				now,
+				input.position ?? null,
 			],
 		);
 	});
@@ -1722,7 +1738,10 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 export async function getAlbumMedia(albumId: string): Promise<StoredAlbumMedia[]> {
 	const db = await getDb();
 	const rows = await db.select<AlbumMediaRow[]>(
-		"SELECT * FROM album_media WHERE album_id = $1",
+		// Items without a known position (e.g. only captured as a chat-bubble
+		// thumbnail so far) sort after positioned ones rather than scattering
+		// among them.
+		"SELECT * FROM album_media WHERE album_id = $1 ORDER BY position IS NULL, position ASC",
 		[albumId],
 	);
 	return rows.map(rowToStoredAlbumMedia);

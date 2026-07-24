@@ -122,6 +122,8 @@ export type AlbumMediaUpsertInput = {
 	thumbDataBase64: string | null;
 	remainingViews: number | null;
 	isViewable: boolean | null;
+	/** Item's slot in the album's actual order; omit/null to leave any existing value untouched. */
+	position?: number | null;
 };
 
 export type StoredAlbumMedia = {
@@ -133,6 +135,7 @@ export type StoredAlbumMedia = {
 	remainingViews: number | null;
 	isViewable: boolean | null;
 	fetchedAt: number | null;
+	position: number | null;
 };
 
 export type StoredAvatar = {
