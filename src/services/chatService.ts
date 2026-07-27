@@ -486,7 +486,10 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 		},
 
 		async getAlbum(albumId: number | string): Promise<AlbumDetailsResponse> {
-			const response = await fetchRest(`/v2/albums/${albumId}`);
+			let response = await fetchRest(`/v1/albums/${albumId}`);
+			if (response.status === 405) {
+				response = await fetchRest(`/v2/albums/${albumId}`);
+			}
 			await assertSuccess(response, t("chat.errors.load_album_details"));
 			return z
 				.object({
