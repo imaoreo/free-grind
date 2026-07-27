@@ -587,9 +587,38 @@ export function SharedAlbumsPage() {
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
+
+				// A successful response with an empty/partial content array (the
+				// server momentarily out of sync, a share edge case, etc.) isn't
+				// caught by the try/catch fallback below since nothing actually
+				// threw — so fold in anything we already hold locally here too,
+				// the same way the error-path fallback does.
+				const local = await getLocalAlbum(albumId).catch(() => null);
+				const localByContentId = new Map(
+					(local?.content ?? []).map((entry) => [entry.contentId, entry] as const),
+				);
+				const liveContentIds = new Set(details.content.map((entry) => entry.contentId));
+				const localOnly = (local?.content ?? []).filter(
+					(entry) => !liveContentIds.has(entry.contentId),
+				);
+				const mergedContent = [
+					...details.content.map((entry) => {
+						const cached = localByContentId.get(entry.contentId);
+						return cached
+							? {
+									...entry,
+									thumbUrl: entry.thumbUrl ?? cached.thumbUrl,
+									url: entry.url ?? cached.url,
+									coverUrl: entry.coverUrl ?? cached.coverUrl,
+								}
+							: entry;
+					}),
+					...localOnly,
+				];
+
 				openLoadedAlbum({
 					albumId: details.albumId,
-					albumName: details.albumName,
+					albumName: details.albumName ?? local?.albumName ?? null,
 					profileId: item.profileId,
 					profileName: item.profileName,
 					profileMediaHash: item.profileMediaHash,
@@ -597,7 +626,7 @@ export function SharedAlbumsPage() {
 					lastOnline: item.lastOnline,
 					distanceMetres: item.distanceMetres,
 					conversationId: item.conversationId,
-					content: details.content,
+					content: mergedContent,
 				});
 
 				// Fully cache every content item's bytes, same as albums shared
