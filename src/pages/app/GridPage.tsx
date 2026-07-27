@@ -1319,7 +1319,7 @@ export function GridPage() {
 										/>
 									</button>
 									{isAccountSwitcherOpen && (
-									<div className="absolute left-0 top-full z-50 mt-2 w-max min-w-[14rem] max-w-[calc(100vw-2*var(--app-px))] overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
+									<div className="absolute left-0 top-full z-50 mt-2 w-max min-w-[14rem] max-w-[calc(100vw-2*var(--app-px))] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3 shadow-xl animate-in fade-in zoom-in-95 slide-in-from-top-2 duration-150">
 										<div className="flex flex-col gap-1">
 											{savedAccounts.map((account) => {
 												const isActive = userId != null && String(userId) === account.profileId;
@@ -1331,7 +1331,7 @@ export function GridPage() {
 														type="button"
 														onClick={() => void handleSwitchAccount(account.profileId)}
 														disabled={isActive || isSwitching}
-														className="flex min-w-0 items-center gap-2.5 rounded-xl px-1.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-default"
+														className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-default"
 													>
 														<div className="relative h-10 w-10 shrink-0">
 															<Avatar

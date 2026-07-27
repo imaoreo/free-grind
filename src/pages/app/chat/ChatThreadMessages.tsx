@@ -38,6 +38,7 @@ import {
 import {
 	formatDateHeader,
 	formatDateTime24,
+	formatFullDateTime,
 	formatMessageTime,
 	formatTakenOnGrindrTime,
 	getMessageAlbumCoverUrl,
@@ -257,7 +258,7 @@ function MessageContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
 		>
 			{actions.map((action) => (
 				<button
@@ -2114,7 +2115,14 @@ export function ChatThreadMessages({
 
                                 {mine && !pending && !failed && lastMyMessageId === message.messageId && (
                                     <div className="-mt-1 px-1">
-                                        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)] opacity-80">
+                                        <span
+                                            className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)] opacity-80"
+                                            title={
+                                                threadLastReadTimestamp != null && message.timestamp <= threadLastReadTimestamp
+                                                    ? t("chat.read_at", { time: formatFullDateTime(threadLastReadTimestamp) })
+                                                    : undefined
+                                            }
+                                        >
                                             {threadLastReadTimestamp != null && message.timestamp <= threadLastReadTimestamp
                                                 ? t("chat.read")
                                                 : t("chat.unread")}

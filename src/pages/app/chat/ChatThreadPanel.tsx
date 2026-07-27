@@ -416,11 +416,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const startRecording = useCallback(async () => {
 		if (isRecording) return;
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4", "audio/aac"].find(
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					channelCount: 1,
+					sampleRate: 22050,
+					echoCancellation: true,
+					noiseSuppression: true,
+				},
+			});
+			const mimeType = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find(
 				(t) => MediaRecorder.isTypeSupported(t),
 			) ?? "";
-			const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+			const recorder = new MediaRecorder(stream, mimeType ? {
+				mimeType,
+				audioBitsPerSecond: 32000,
+			} : undefined);
 			chunksRef.current = [];
 			recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 			recorder.start(100);
@@ -1382,7 +1392,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<EllipsisVertical className="h-4 w-4" />
 									</button>
 									{isHeaderActionsMenuOpen ? (
-										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
 											<div className="flex shrink-0 flex-col gap-1 px-2">
 											{!isArchived && (
 											<button

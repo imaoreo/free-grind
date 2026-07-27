@@ -10,8 +10,6 @@ const SCHEME_OPTIONS: {
 	icon: typeof Repeat;
 	labelKey: string;
 	labelDefault: string;
-	taglineKey: string;
-	taglineDefault: string;
 	descKey: string;
 	descDefault: string;
 }[] = [
@@ -20,8 +18,6 @@ const SCHEME_OPTIONS: {
 		icon: Repeat,
 		labelKey: "sexualHealth.info.scheme_daily_label",
 		labelDefault: "Daily",
-		taglineKey: "sexualHealth.info.scheme_daily_tagline",
-		taglineDefault: "One pill, every day",
 		descKey: "sexualHealth.info.daily_desc",
 		descDefault:
 			"One pill every day at roughly the same time. Protection builds up over your first doses and is maintained by staying consistent.",
@@ -31,8 +27,6 @@ const SCHEME_OPTIONS: {
 		icon: CalendarClock,
 		labelKey: "sexualHealth.info.scheme_on_demand_label",
 		labelDefault: "On-demand (2-1-1)",
-		taglineKey: "sexualHealth.info.scheme_on_demand_tagline",
-		taglineDefault: "2 pills before, 2 after",
 		descKey: "sexualHealth.info.on_demand_desc",
 		descDefault:
 			"2 pills 2-24h before sex, then 1 pill 24h after the first dose, then 1 pill 48h after the first dose. Log each step as you take it and the PrEP tab will track your coverage.",
@@ -52,7 +46,6 @@ export function SexualHealthPrepSettingsSheet({
 }) {
 	const { t } = useTranslation();
 	const isDesktop = useDesktopBreakpoint();
-	const active = SCHEME_OPTIONS.find((option) => option.value === scheme) ?? SCHEME_OPTIONS[0];
 
 	return createPortal(
 		<BottomSheet onClose={onClose} isDesktop={isDesktop}>
@@ -91,20 +84,13 @@ export function SexualHealthPrepSettingsSheet({
 								</div>
 								<div>
 									<p className="text-sm font-semibold">{t(option.labelKey, { defaultValue: option.labelDefault })}</p>
-									<p className="mt-0.5 text-xs text-[var(--text-muted)]">
-										{t(option.taglineKey, { defaultValue: option.taglineDefault })}
+									<p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+										{t(option.descKey, { defaultValue: option.descDefault })}
 									</p>
 								</div>
 							</button>
 						);
 					})}
-				</div>
-
-				<div className="flex gap-2.5 rounded-2xl bg-[var(--surface-2)] p-3.5">
-					<active.icon className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-					<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-						{t(active.descKey, { defaultValue: active.descDefault })}
-					</p>
 				</div>
 
 				<div className="flex gap-2.5">
