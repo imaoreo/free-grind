@@ -2,9 +2,10 @@
   "settings": {
     "title": "Configurações",
     "subtitle": "Escolha o que você deseja gerenciar.",
-    "search_placeholder": "",
-    "search_no_results": "",
+    "search_placeholder": "Configurações de pesquisa…",
+    "search_no_results": "Nenhuma configuração encontrada para \"{{query}}\".",
     "search_results_count_one": "",
+    "search_results_count_many": "",
     "search_results_count_other": "",
     "language": "Linguagem",
     "language_description": "Escolha o seu idioma preferido.",
@@ -63,6 +64,7 @@
     "refreshing": "Atualizando...",
     "profile_id": "ID do perfil: {{id}}",
     "count_one": "{{count}} conta bloqueada",
+    "count_many": "",
     "count_other": "{{count}} contas bloqueadas"
   },
   "settings_block_history": {
@@ -234,8 +236,10 @@
     "subtitle": "Veja todos os álbuns compartilhados pelas pessoas nos seus chats.",
     "name_fallback": "Alguém",
     "albums_count_one": "{{count}} álbum",
+    "albums_count_many": "",
     "albums_count_other": "{{count}} álbum",
     "people_count_one": "{{count}} pessoa",
+    "people_count_many": "",
     "people_count_other": "{{count}} pessoas",
     "refresh": "Atualizar",
     "loading_title": "Carregando álbuns compartilhados",
@@ -250,6 +254,7 @@
     "opening": "Abrindo o álbum…",
     "album_label": "Álbum",
     "items_count_one": "{{count}} ítem",
+    "items_count_many": "",
     "items_count_other": "{{count}} ítens",
     "all_media": "Todas as mídias",
     "empty_album_title": "Não há mídia neste álbum",
@@ -587,9 +592,11 @@
     "toast_renamed": "Álbum renomeado",
     "toast_deleted": "Álbum excluído",
     "toast_picture_added_one": "Imagem adicionada",
+    "toast_picture_added_many": "",
     "toast_picture_added_other": "Images adicionadas",
     "toast_picture_removed": "Imagem removida",
     "toast_added_from_drawer_one": "",
+    "toast_added_from_drawer_many": "",
     "toast_added_from_drawer_other": "",
     "error_load_fallback": "Falha ao carregar os álbuns",
     "error_create_fallback": "Falha ao criar o álbum",
@@ -609,6 +616,7 @@
     "error_load": "Não foi possível carregar os detalhes do perfil.",
     "summary": "RESUMO",
     "tags_count_one": "{{count}} etiqueta",
+    "tags_count_many": "",
     "tags_count_other": "{{count}} etiquetas",
     "no_tags": "Sem etiquetas",
     "completion_title": "Conclusão do perfil",
@@ -1016,7 +1024,6 @@
     "you": "Você",
     "typing": "digitando…",
     "read": "ler",
-    "read_at": "",
     "unread": "não lido",
     "today": "Hoje",
     "yesterday": "Ontem",
@@ -1036,8 +1043,10 @@
     "video_call_limit_reached": "",
     "video_call_platform_unsupported": "",
     "video_call_minutes_left_one": "",
+    "video_call_minutes_left_many": "",
     "video_call_minutes_left_other": "",
     "video_call_seconds_left_one": "",
+    "video_call_seconds_left_many": "",
     "video_call_seconds_left_other": "",
     "read_receipts_label": "",
     "read_receipts_on": "",
@@ -1191,7 +1200,11 @@
       "unblocked": ""
     },
     "block_toast": {
+      "blocked_by_one": "",
+      "blocked_by_many": "",
       "blocked_by_other": "",
+      "unblocked_by_one": "",
+      "unblocked_by_many": "",
       "unblocked_by_other": ""
     },
     "realtime": {
@@ -1305,7 +1318,8 @@
     },
     "archived": {
       "filter_label": "Arquivadas"
-    }
+    },
+    "read_at": ""
   },
   "chat_drawer": {
     "title": "Pasta",
@@ -1340,6 +1354,7 @@
     "get_notes_failed": "Falha ao carregar anotações",
     "loading_notes": "Carregando anotações...",
     "notes_loaded_one": "Português (Brasil), Muitos (1000000, 2000000)",
+    "notes_loaded_many": "",
     "notes_loaded_other": "{{count}} anotações de favorito carregadas",
     "search_placeholder": "Buscar anotações...",
     "note_section_title": "Nota privada",
@@ -1598,6 +1613,7 @@
     "empty_taps": "Ainda não há toques",
     "empty_taps_desc": "As pessoas que clicaram no seu perfil aparecerão aqui.",
     "view_count_one": "{{count}} visualização",
+    "view_count_many": "",
     "view_count_other": "{{count}} visualizações",
     "viewed": "Visualizado",
     "recovered_tooltip": "Identificado a partir da história local",
