@@ -42,6 +42,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getProfilePhotoHash } from "./profile-editor/profileEditorUtils";
 import {
 	getChatContactIndexForProfiles,
+	getLocalNicknamesForProfiles,
 	indexChatContactRecordsByProfileId,
 	upsertChatContactIndexFromGrid,
 } from "../../services/chatContactIndex";
@@ -201,6 +202,9 @@ export function GridPage() {
 
 	const [chatContactIndexByProfileId, setChatContactIndexByProfileId] = useState<
 		Record<string, ChatContactIndexRecord>
+	>({});
+	const [localNicknamesByProfileId, setLocalNicknamesByProfileId] = useState<
+		Record<string, string>
 	>({});
 
 	const blockedProfileIds = useMemo(() => new Set(blockedProfileIdsData ?? []), [blockedProfileIdsData]);
@@ -752,6 +756,30 @@ export function GridPage() {
 	}, [cards]);
 
 	useEffect(() => {
+		const profileIds = cards.map((card) => card.profileId);
+		if (profileIds.length === 0) {
+			setLocalNicknamesByProfileId({});
+			return;
+		}
+
+		let cancelled = false;
+		void getLocalNicknamesForProfiles(profileIds)
+			.then((nicknames) => {
+				if (cancelled || !isMountedRef.current) {
+					return;
+				}
+				setLocalNicknamesByProfileId(nicknames);
+			})
+			.catch((error) => {
+				appLog.warn("[chat-index] failed to hydrate grid local nicknames", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [cards]);
+
+	useEffect(() => {
 		if (!isLoadingCards || cardsError || isLoadingPreferences) {
 			return;
 		}
@@ -1027,6 +1055,14 @@ export function GridPage() {
 
 		return chatContactIndexByProfileId[activeProfileId] ?? null;
 	}, [activeProfileId, chatContactIndexByProfileId]);
+
+	const selectedProfileLocalNickname = useMemo(() => {
+		if (!activeProfileId) {
+			return null;
+		}
+
+		return localNicknamesByProfileId[activeProfileId] ?? null;
+	}, [activeProfileId, localNicknamesByProfileId]);
 
 	const activeProfilePhotoHashes = useMemo(() => {
 		if (!activeProfile) {
@@ -1349,7 +1385,7 @@ export function GridPage() {
 														type="button"
 														onClick={() => void handleSwitchAccount(account.profileId)}
 														disabled={isActive || isSwitching}
-														className="flex min-w-0 items-center gap-2.5 rounded-lg px-1.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-default"
+														className="flex min-w-0 items-center gap-2.5 rounded-sm px-1.5 py-1.5 text-left transition-colors hover:bg-[var(--surface-2)] active:bg-[var(--surface-2)] disabled:cursor-default"
 													>
 														<div className="relative h-10 w-10 shrink-0">
 															<Avatar
@@ -1386,7 +1422,7 @@ export function GridPage() {
 											<button
 												type="button"
 												onClick={() => { setIsAccountSwitcherOpen(false); navigate("/settings"); }}
-												className="flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
+												className="flex w-full items-center justify-center gap-1.5 rounded-sm py-1.5 text-xs font-semibold text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
 											>
 												<Settings className="h-3.5 w-3.5" />
 												{t("browse_page.settings")}
@@ -1695,6 +1731,7 @@ export function GridPage() {
 									? { ...DEMO_CHAT_STATUS, ...chatContactIndexByProfileId }
 									: chatContactIndexByProfileId
 							}
+							localNicknamesByProfileId={localNicknamesByProfileId}
 							onSelectProfile={handleSelectProfile}
 							onMessageProfile={handleMessageProfile}
 							hasMore={nextPage !== null && !(nicknameFilter && loadedPageCount >= NICKNAME_FILTER_MAX_PAGES)}
@@ -1737,6 +1774,7 @@ export function GridPage() {
 				activeProfileError={activeProfileError}
 				activeProfilePhotoHashes={activeProfilePhotoHashes}
 				chatContactStatus={selectedProfileChatContact}
+				localNickname={selectedProfileLocalNickname}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
 			/>

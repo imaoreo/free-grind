@@ -998,6 +998,71 @@ export async function deleteConversationCascade(
 	});
 }
 
+/**
+ * Moves every message, media file, and album from `sourceConversationId`
+ * into `targetConversationId`, then drops the now-empty source conversation
+ * row — used to fold an old, archived conversation (e.g. left over from a
+ * profile the user no longer uses) into the still-active conversation with
+ * that same person's current profile, so the history reads as one
+ * continuous thread instead of two disjoint ones. `message_id` is a global
+ * primary key, never reused across conversations, so reassigning
+ * `conversation_id` can never collide with an existing row in the target —
+ * content is relocated, not deleted, consistent with the rest of this file.
+ */
+export async function mergeConversationInto(
+	sourceConversationId: string,
+	targetConversationId: string,
+): Promise<{ movedMessages: number }> {
+	const db = await getDb();
+	let movedMessages = 0;
+
+	await executeWithLockRetry(db, "merge-conversation-into", async () => {
+		const now = Date.now();
+		const countRows = await db.select<{ count: number }[]>(
+			"SELECT COUNT(*) as count FROM messages WHERE conversation_id = $1",
+			[sourceConversationId],
+		);
+		movedMessages = countRows[0]?.count ?? 0;
+
+		await db.execute(
+			"UPDATE messages SET conversation_id = $2, updated_at = $3 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId, now],
+		);
+		await db.execute(
+			"UPDATE media_files SET conversation_id = $2 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId],
+		);
+		await db.execute(
+			"UPDATE albums SET conversation_id = $2, updated_at = $3 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId, now],
+		);
+		// Keeps the target's sort position honest if the merged-in history
+		// happens to be more recent than anything already there — a no-op MAX
+		// in the far more common case where the old conversation is entirely
+		// older than the current one.
+		await db.execute(
+			`
+			UPDATE conversations
+			SET last_activity_timestamp = MAX(
+					COALESCE(last_activity_timestamp, 0),
+					(SELECT COALESCE(MAX(timestamp), 0) FROM messages WHERE conversation_id = $1)
+				),
+				updated_at = $2
+			WHERE conversation_id = $1
+			`,
+			[targetConversationId, now],
+		);
+		await db.execute("DELETE FROM conversation_meta WHERE conversation_id = $1", [
+			sourceConversationId,
+		]);
+		await db.execute("DELETE FROM conversations WHERE conversation_id = $1", [
+			sourceConversationId,
+		]);
+	});
+
+	return { movedMessages };
+}
+
 // ---------------------------------------------------------------------------
 // conversation_meta (last-read tracking)
 // ---------------------------------------------------------------------------
