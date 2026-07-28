@@ -1166,6 +1166,8 @@
       "profile_photo": "Profile Photo",
       "replied_to_myself": "Replied to myself",
       "replied_to_name": "Replied to \"{{name}}\"",
+      "replying_to_myself": "Replying to myself",
+      "replying_to_name": "Replying to \"{{name}}\"",
       "reacted_to_image": "Reacted to your album image",
       "audio_label": "Audio",
       "unsupported_message": "Unsupported message",

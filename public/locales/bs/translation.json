@@ -1158,6 +1158,8 @@
       "profile_photo": "",
       "replied_to_myself": "",
       "replied_to_name": "",
+      "replying_to_myself": "",
+      "replying_to_name": "",
       "reacted_to_image": "",
       "audio_label": "",
       "unsupported_message": "",

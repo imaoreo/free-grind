@@ -1802,6 +1802,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
 						ownProfilePhotoUrl={ownProfilePhotoUrl}
+						localNickname={localNickname}
 				/>
 				)
 			) : (
@@ -1936,8 +1937,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<div className="min-w-0 flex-1">
 											<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
 												{userId != null && Number(rtm.senderId) === Number(userId)
-													? "Replying to myself"
-													: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
+													? t("chat.thread.replying_to_myself")
+													: t("chat.thread.replying_to_name", {
+														name: localNickname || selectedConversation?.data.name?.trim() || t("common.unknown_display_name"),
+													})
 												}
 											</p>
 											<p className="truncate text-xs text-[var(--text-muted)]">

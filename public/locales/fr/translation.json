@@ -1174,6 +1174,8 @@
       "profile_photo": "Photo de profil",
       "replied_to_myself": "Répondu à moi-même",
       "replied_to_name": "Réponse à \"{{name}}\"",
+      "replying_to_myself": "",
+      "replying_to_name": "",
       "reacted_to_image": "A réagi à votre image d'album",
       "audio_label": "Audio",
       "unsupported_message": "Message non pris en charge",

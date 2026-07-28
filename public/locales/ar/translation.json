@@ -1205,6 +1205,8 @@
             "profile_photo": "صوره البروفايل",
             "replied_to_myself": "أجبت نفسي",
             "replied_to_name": "اجب لاسمى",
+            "replying_to_myself": "",
+            "replying_to_name": "",
             "reacted_to_image": "لقد تفاعلت مع صورة ألبومك",
             "audio_label": "الصوت",
             "unsupported_message": "رسالة غير مدعومة",

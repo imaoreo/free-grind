@@ -1158,6 +1158,8 @@
       "profile_photo": "Profilbild",
       "replied_to_myself": "Antwort an mich selbst",
       "replied_to_name": "Antwort an „{{name}}“",
+      "replying_to_myself": "",
+      "replying_to_name": "",
       "reacted_to_image": "Auf dein Album-Bild reagiert",
       "audio_label": "Audio",
       "unsupported_message": "Nicht unterstützte Nachricht",

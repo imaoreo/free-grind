@@ -1167,6 +1167,8 @@
       "profile_photo": "",
       "replied_to_myself": "",
       "replied_to_name": "",
+      "replying_to_myself": "",
+      "replying_to_name": "",
       "reacted_to_image": "Reaccionó a tu imagen de álbum",
       "audio_label": "Audio",
       "unsupported_message": "",
