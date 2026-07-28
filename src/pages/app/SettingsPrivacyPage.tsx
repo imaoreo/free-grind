@@ -97,7 +97,7 @@ export function SettingsPrivacyPage() {
 								void persistShowReadReceiptToggle(checked);
 							}}
 						/>
-						<div className="border-t border-[var(--border)] px-4 py-3">
+						<div className="px-4 py-3">
 							<p className="text-xs text-[var(--text-muted)] leading-relaxed">
 								{t("privacy.read_receipts_grid_unread_note", {
 									defaultValue:
