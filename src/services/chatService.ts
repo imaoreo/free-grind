@@ -36,7 +36,7 @@ import type {
 } from "../types/chat-service";
 
 import { runAutomationRulesForSender } from "../utils/automationRules";
-import { isReadReceiptsHidden } from "../utils/privacy";
+import { getIncognitoMode, isReadReceiptsHidden } from "../utils/privacy";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "./apiHelpers";
 import { sendViaRealtime } from "./chatRealtime";
 
@@ -390,7 +390,7 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 
 		async markRead(conversationId: string, messageId: string): Promise<void> {
  		// --- READ RECEIPTS CHECK ---
- 		if (isReadReceiptsHidden(conversationId)) {
+ 		if (isReadReceiptsHidden(conversationId) || getIncognitoMode()) {
  			return; // Silently do nothing. They will never know you read it!
  		}
  		// ---------------------------

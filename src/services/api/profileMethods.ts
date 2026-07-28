@@ -17,7 +17,7 @@ import { isVisitingMode } from "../../types/visiting";
 import { travelPlansResponseSchema, type TravelPlan, type TravelPlanPayload } from "../../types/travel";
 import { homeLocationSchema, type HomeLocation } from "../../types/home-location";
 import { ApiFunctionError, assertSuccess, parseJsonSafe } from "../apiHelpers";
-import { isRecordProfileViewsEnabled } from "../../utils/privacy";
+import { getIncognitoMode, isRecordProfileViewsEnabled } from "../../utils/privacy";
 import { appLog } from "../../utils/logger";
 
 export function createProfileMethods(fetchRest: RestFetcher, t: (key: string, options?: { defaultValue?: string }) => string) {
@@ -286,7 +286,7 @@ export function createProfileMethods(fetchRest: RestFetcher, t: (key: string, op
 		},
 
 		async recordProfileView(profileId: number | string): Promise<void> {
-			if (!isRecordProfileViewsEnabled()) {
+			if (!isRecordProfileViewsEnabled() || getIncognitoMode()) {
 				return;
 			}
 

@@ -36,14 +36,10 @@ export async function notifyAutoBlock(profileName: string, reason: string) {
 
 export interface AutomationSettings {
     forbiddenWords: string;
-    refreshEnabled: boolean;
-    refreshInterval: string;
 }
 
 const DEFAULT_AUTOMATION_SETTINGS: AutomationSettings = {
     forbiddenWords: "",
-    refreshEnabled: false,
-    refreshInterval: "5",
 };
 
 const AUTOMATION_SETTINGS_KEY = "automation";
@@ -84,8 +80,4 @@ export function getForbiddenWords(): string {
 
 export async function setForbiddenWords(value: string): Promise<void> {
     await setAutomationSettings({ forbiddenWords: value });
-}
-
-export function getAutoRefreshSettings(): { enabled: boolean; intervalMinutes: string } {
-    return { enabled: automationCache.refreshEnabled, intervalMinutes: automationCache.refreshInterval };
 }

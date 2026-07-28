@@ -12,6 +12,7 @@ interface PrivacySettings {
     showReadReceiptToggle: boolean;
     recordProfileViews: boolean;
     readReceiptsExceptions: Record<string, boolean>;
+    incognitoMode: boolean;
 }
 
 const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
@@ -19,6 +20,7 @@ const DEFAULT_PRIVACY_SETTINGS: PrivacySettings = {
     showReadReceiptToggle: true,
     recordProfileViews: true,
     readReceiptsExceptions: {},
+    incognitoMode: false,
 };
 
 const PRIVACY_SETTINGS_KEY = "privacy";
@@ -102,5 +104,22 @@ export function isRecordProfileViewsEnabled(): boolean {
 
 export async function setRecordProfileViewsEnabled(value: boolean): Promise<void> {
     privacyCache = { ...privacyCache, recordProfileViews: value };
+    await setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
+}
+
+// --- INCOGNITO MODE ---
+// While on, the Grid never fetches nearby profiles (foreground or the
+// background keep-online refresh in GridAutoRefreshBridge), so the account
+// stops pinging the server for browse data and no longer shows as online to
+// others. Read fresh on every GridPage mount, so no change-event plumbing is
+// needed here — the toggle only lives on the Privacy settings page, a
+// different route, so GridPage is always freshly (re)mounted after it changes.
+
+export function getIncognitoMode(): boolean {
+    return privacyCache.incognitoMode;
+}
+
+export async function setIncognitoMode(value: boolean): Promise<void> {
+    privacyCache = { ...privacyCache, incognitoMode: value };
     await setSetting(PRIVACY_SETTINGS_KEY, privacyCache);
 }
