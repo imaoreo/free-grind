@@ -18,6 +18,7 @@ import { useRevealOnScroll } from "../../../../hooks/useRevealOnScroll";
 type BrowseCardTileProps = {
 	card: BrowseCard;
 	chatContactStatus?: ChatContactIndexRecord | null;
+	localNickname?: string;
 	onSelectProfile: (profileId: string) => void;
 	onMessageProfile: (profileId: string) => void;
 	isDesktop?: boolean;
@@ -26,6 +27,7 @@ type BrowseCardTileProps = {
 export function BrowseCardTile({
 	card,
 	chatContactStatus,
+	localNickname,
 	onSelectProfile,
 	onMessageProfile: _onMessageProfile,
 	isDesktop = false,
@@ -33,7 +35,7 @@ export function BrowseCardTile({
 	const { t } = useTranslation();
 	const { unitsPreset, showDebugInfo, blurGridProfilePictures } = usePreferences();
 	const { ref, revealClass } = useRevealOnScroll();
-	const name = getDisplayName(card);
+	const name = localNickname?.trim() || getDisplayName(card);
 	const onlineStatus = getOnlineStatusMeta(card.lastOnline, card.onlineUntil);
 	const age = typeof card.age === "number" && card.age > 0 ? card.age : null;
 	const usesFreegrind = usePresenceCheck(card.profileId);

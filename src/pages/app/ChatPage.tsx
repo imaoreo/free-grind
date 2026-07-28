@@ -36,6 +36,7 @@ import {
 	CHAT_ARCHIVE_STATE_EVENT,
 	type ChatArchiveStateChangeDetail,
 } from "../../services/conversationArchive";
+import { mergeArchivedConversationIntoActive } from "../../services/conversationMerge";
 import { classifyProfileAccess } from "../../utils/profileAccessStatus";
 import type { BlockState } from "../../types/chat-db";
 import {
@@ -518,6 +519,9 @@ export function ChatPage() {
 		null,
 	);
 	const [isDeletingConversationId, setIsDeletingConversationId] = useState<string | null>(
+		null,
+	);
+	const [isMergingConversationId, setIsMergingConversationId] = useState<string | null>(
 		null,
 	);
 	const [isTogglingFavoriteProfileId, setIsTogglingFavoriteProfileId] = useState<string | null>(null);
@@ -1800,6 +1804,7 @@ export function ChatPage() {
 								: null;
 						setMessagePageKey(nextPageKey);
 						messagePageKeyRef.current = nextPageKey;
+						captureMediaForMessages(olderMessages, conversationId);
 						if (selectedConversationIdRef.current === conversationId) {
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -1830,6 +1835,7 @@ export function ChatPage() {
 						: null;
 				setMessagePageKey(nextPageKey);
 				messagePageKeyRef.current = nextPageKey;
+				captureMediaForMessages(initialMessages, conversationId);
 				if (selectedConversationIdRef.current === conversationId) {
 					setThreadMessages(initialMessages);
 					setThreadLastReadTimestamp(lastRead ?? null);
@@ -1908,6 +1914,7 @@ export function ChatPage() {
 								: null;
 						setMessagePageKey(nextPageKey);
 						messagePageKeyRef.current = nextPageKey;
+						captureMediaForMessages(olderMessages, conversationId);
 						if (selectedConversationIdRef.current === conversationId) {
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -2436,6 +2443,7 @@ export function ChatPage() {
 						);
 
 				if (localOnly.length > 0) {
+					captureMediaForMessages(localOnly, conversationId);
 					if (selectedConversationIdRef.current !== conversationId) return;
 
 					setThreadMessages((previous) => {
@@ -2491,6 +2499,9 @@ export function ChatPage() {
 							: null;
 					setMessagePageKey(nextPageKey);
 					messagePageKeyRef.current = nextPageKey;
+					if (localOlder.length > 0) {
+						captureMediaForMessages(localOlder, conversationId);
+					}
 					if (localOlder.length > 0 && selectedConversationIdRef.current === conversationId) {
 						setThreadMessages((previous) => {
 							const map = new Map<string, UiMessage>();
@@ -4318,6 +4329,84 @@ export function ChatPage() {
 	const deleteConversationLocalOnly = useCallback(
 		(conversationId: string) => deleteConversationFromChat(conversationId, true),
 		[deleteConversationFromChat],
+	);
+
+	const mergeConversationFromChat = useCallback(
+		async (sourceConversationId: string, targetConversationId: string) => {
+			if (isMergingConversationId) {
+				return;
+			}
+
+			setIsMergingConversationId(sourceConversationId);
+			try {
+				const sourceEntry =
+					archivedConversationsRef.current.get(sourceConversationId)?.entry ?? null;
+				const oldProfileId =
+					sourceEntry && userId != null
+						? getOtherParticipant(sourceEntry, userId)?.profileId ?? null
+						: null;
+
+				const { movedMessages } = await mergeArchivedConversationIntoActive(
+					sourceConversationId,
+					targetConversationId,
+				);
+
+				// The unread badge on the grid/profile tile lives in a separate
+				// local index keyed by profile id (chat_contact_index) — the merge
+				// itself only touches the conversations/messages tables, so clear
+				// it the same way deleteConversationFromChat does, otherwise a
+				// stale unread count from the old profile lingers after its chat
+				// is folded away.
+				if (oldProfileId != null) {
+					const oldProfileIdStr = String(oldProfileId);
+					await clearUnreadCountForProfile(oldProfileIdStr).catch(() => {});
+					setChatContactIndexByProfileId((previous) => {
+						const existing = previous[oldProfileIdStr];
+						if (!existing || existing.unreadCount === 0) {
+							return previous;
+						}
+						return {
+							...previous,
+							[oldProfileIdStr]: { ...existing, unreadCount: 0 },
+						};
+					});
+				}
+
+				setArchivedConversations((previous) => {
+					if (!previous.has(sourceConversationId)) {
+						return previous;
+					}
+					const next = new Map(previous);
+					next.delete(sourceConversationId);
+					return next;
+				});
+
+				// Jump into the target conversation — its own selectedConversationId
+				// effect re-runs loadThread, which (via chatDb.getMessagesPage's
+				// LOCAL_PAGE_KEY_PREFIX fallback once the server's own history is
+				// exhausted) surfaces the just-merged older messages the same way
+				// any other local-only history already does.
+				openConversationById(targetConversationId);
+
+				toast.success(
+					t("chat.toasts.conversation_merged", {
+						defaultValue: "Merged {{count}} message(s) into the chat.",
+						count: movedMessages,
+					}),
+				);
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("chat.errors.merge_conversation", {
+								defaultValue: "Failed to merge conversation",
+							}),
+				);
+			} finally {
+				setIsMergingConversationId(null);
+			}
+		},
+		[isMergingConversationId, userId, openConversationById, t],
 	);
 
 	const blockProfileFromChat = useCallback(
@@ -6343,6 +6432,9 @@ export function ChatPage() {
 					? archivedConversations.get(selectedConversationId)?.reason ?? null
 					: null
 			}
+			mergeableConversations={conversations}
+			onMergeConversation={mergeConversationFromChat}
+			isMergingConversation={isMergingConversationId !== null}
 			localNickname={
 				selectedConversationOtherProfileId
 					? localNicknamesByProfileId[selectedConversationOtherProfileId] ?? null

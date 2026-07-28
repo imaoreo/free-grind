@@ -104,6 +104,7 @@ type ProfileDetailsModalProps = {
 	activeProfileError: string | null;
 	activeProfilePhotoHashes: string[];
 	chatContactStatus?: ChatContactIndexRecord | null;
+	localNickname?: string | null;
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
 	variant?: "modal" | "page";
@@ -192,6 +193,7 @@ export function ProfileDetailsModal({
 	activeProfileError,
 	activeProfilePhotoHashes,
 	chatContactStatus,
+	localNickname,
 	genderOptions,
 	pronounOptions,
 	variant = "modal",
@@ -225,13 +227,18 @@ export function ProfileDetailsModal({
 			return t("profile_details.title");
 		}
 
+		const nickname = localNickname?.trim();
+		if (nickname) {
+			return nickname;
+		}
+
 		const value = activeProfile.displayName?.trim();
 		if (value) {
 			return value;
 		}
 
 		return t("profile_details.anonymous", "Someone");
-	}, [activeProfile, t]);
+	}, [activeProfile, localNickname, t]);
 
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);

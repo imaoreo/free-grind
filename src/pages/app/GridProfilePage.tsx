@@ -24,7 +24,7 @@ import {
 import {
 	type ProfileDetail,
 } from "./GridPage.types";
-import { getChatContactIndexForProfiles } from "../../services/chatContactIndex";
+import { getChatContactIndexForProfiles, getLocalNicknamesForProfiles } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { findConversationByProfileId, insertSystemMessage } from "../../services/chatDb";
 import { unarchiveConversation, claimBlockStateTransition } from "../../services/conversationArchive";
@@ -109,6 +109,7 @@ export function GridProfilePage() {
 	);
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
+	const [localNickname, setLocalNickname] = useState<string | null>(null);
 
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
@@ -152,6 +153,33 @@ export function GridProfilePage() {
 					setChatContactStatus(null);
 				}
 				appLog.warn("[chat-index] failed to hydrate profile chat metadata", error);
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [profileId]);
+
+	useEffect(() => {
+		if (!profileId) {
+			setLocalNickname(null);
+			return;
+		}
+
+		setLocalNickname(null);
+		let cancelled = false;
+		void getLocalNicknamesForProfiles([profileId])
+			.then((nicknames) => {
+				if (cancelled) {
+					return;
+				}
+				setLocalNickname(nicknames[profileId] ?? null);
+			})
+			.catch((error) => {
+				if (!cancelled) {
+					setLocalNickname(null);
+				}
+				appLog.warn("[chat-index] failed to hydrate profile local nickname", error);
 			});
 
 		return () => {
@@ -654,6 +682,7 @@ export function GridProfilePage() {
 				activeProfileError={activeProfileError}
 				activeProfilePhotoHashes={activeProfilePhotoHashes}
 				chatContactStatus={chatContactStatus}
+				localNickname={localNickname}
 				genderOptions={genderOptions}
 				pronounOptions={pronounOptions}
 			/>

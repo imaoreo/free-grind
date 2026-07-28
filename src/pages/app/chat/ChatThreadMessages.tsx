@@ -96,6 +96,7 @@ type ChatThreadMessagesProps = {
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
 	ownProfilePhotoUrl?: string | null;
+	localNickname?: string | null;
 };
 
 const KNOWN_REPLY_TYPES = new Set([
@@ -258,7 +259,7 @@ function MessageContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] flex min-w-[200px] flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
 		>
 			{actions.map((action) => (
 				<button
@@ -269,7 +270,7 @@ function MessageContextMenu({
 						onClose();
 						action.onClick();
 					}}
-					className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
+					className={`flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
 						action.danger
 							? "text-red-500 hover:bg-red-500/10"
 							: "text-[var(--text)] hover:bg-[var(--surface-2)]"
@@ -320,6 +321,7 @@ export function ChatThreadMessages({
 	isPartnerTyping = false,
 	isArchived = false,
 	ownProfilePhotoUrl = null,
+	localNickname = null,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	useLocalMediaCache();
@@ -549,6 +551,7 @@ export function ChatThreadMessages({
 			startMessageLongPress(message.messageId);
 			if (
 				isDesktop ||
+				isArchived ||
 				event.touches.length !== 1 ||
 				isLocalClientMessageId(message.messageId) ||
 				isLocalHistoryMessage(message)
@@ -564,7 +567,7 @@ export function ChatThreadMessages({
 				triggered: false,
 			};
 		},
-		[isDesktop, startMessageLongPress],
+		[isArchived, isDesktop, startMessageLongPress],
 	);
 
 	const handleMobileTouchMove = useCallback(
@@ -690,7 +693,7 @@ export function ChatThreadMessages({
 
 		const actions: MessageContextMenuAction[] = [];
 
-		if (!isLocalHistoryMessage(message)) {
+		if (!isArchived && !isLocalHistoryMessage(message)) {
 			actions.push({
 				key: "reply",
 				label: t("chat.actions.reply"),
@@ -772,7 +775,7 @@ export function ChatThreadMessages({
 			});
 		}
 
-		if (mine && !message.unsent) {
+		if (!isArchived && mine && !message.unsent) {
 			actions.push({
 				key: "unsend",
 				label: t("chat.actions.unsend"),
@@ -816,6 +819,7 @@ export function ChatThreadMessages({
 		contextMenuTarget,
 		userId,
 		isMutatingMessageId,
+		isArchived,
 		t,
 		handleReply,
 		handleCopy,
@@ -1162,7 +1166,7 @@ export function ChatThreadMessages({
                             : replySenderId != null && Number(replySenderId) === Number(message.senderId)
                                 ? t("chat.thread.replied_to_myself")
                                 : t("chat.thread.replied_to_name", {
-                                        name: selectedConversation?.data.name || t("common.unknown_display_name"),
+                                        name: localNickname || selectedConversation?.data.name || t("common.unknown_display_name"),
                                     })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
@@ -1991,7 +1995,7 @@ export function ChatThreadMessages({
                                                 <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
                                                     <p className="mb-0.5 font-semibold opacity-60 truncate">{mine
                                                         ? t("chat.thread.replied_to_name", {
-                                                                name: selectedConversation.data.name || t("common.unknown_display_name"),
+                                                                name: localNickname || selectedConversation.data.name || t("common.unknown_display_name"),
                                                             })
                                                         : t("chat.thread.replied_to_myself")}</p>
                                                     <p className="opacity-60">{t("chat.thread.profile_photo")}</p>
