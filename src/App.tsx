@@ -41,6 +41,7 @@ import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
 import { TestReminderGate } from "./components/TestReminderPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
+import { GridAutoRefreshBridge } from "./components/GridAutoRefreshBridge";
 import { VideoCallManager } from "./components/VideoCallManager";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
 import { KeepScreenOnBridge } from "./components/KeepScreenOnBridge";
@@ -191,6 +192,7 @@ export default function App() {
 					{renderPhase >= 2 && <ManagedOptionsCacheBridge />}
 					{renderPhase >= 3 && <ChatRealtimeBridge />}
 					{renderPhase >= 3 && <VideoCallManager />}
+					{renderPhase >= 3 && <GridAutoRefreshBridge />}
 					{renderPhase >= 4 && <ActiveRouteBridge />}
 					{renderPhase >= 5 && (
 						<>

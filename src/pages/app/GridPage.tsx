@@ -47,7 +47,9 @@ import {
 } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import { appLog } from "../../utils/logger";
-import { getAutoRefreshSettings } from "../../utils/autoblock";
+import { getIncognitoMode } from "../../utils/privacy";
+import { setGridPageActive } from "./gridpage/activeState";
+import { GRID_REFRESH_INTERVAL_MS } from "../../components/gridRefreshInterval";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { cn } from "../../utils/cn";
 import { DEMO_CARDS, DEMO_CHAT_STATUS, SHOW_DEMO_DATA } from "./gridpage/demoData";
@@ -146,6 +148,13 @@ export function GridPage() {
 		setIsExploreActive(exploreLocation !== null);
 		return () => setIsExploreActive(false);
 	}, [exploreLocation, setIsExploreActive]);
+	// Lets GridAutoRefreshBridge (mounted for the whole app session) know it
+	// should stay out of the way while GridPage itself is visible and running
+	// its own auto-refresh — see gridpage/activeState.ts.
+	useEffect(() => {
+		setGridPageActive(true);
+		return () => setGridPageActive(false);
+	}, []);
 	const [isLocationMissing, setIsLocationMissing] = useState(false);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
@@ -542,6 +551,17 @@ export function GridPage() {
 				return;
 			}
 
+			if (getIncognitoMode()) {
+				if (!isMountedRef.current) {
+					return;
+				}
+				setCards([]);
+				setCardsError(null);
+				setIsLocationMissing(false);
+				setIsLoadingCards(false);
+				return;
+			}
+
 			const activeGeohash = overrideGeohash || geohash;
 
 			if (!activeGeohash) {
@@ -752,6 +772,9 @@ export function GridPage() {
 	}, [isLoadingCards, cardsError, isLoadingPreferences, BROWSE_LOAD_TIMEOUT_MS]);
 
 	const handleAutoRefresh = useCallback(async () => {
+		if (getIncognitoMode()) {
+			return;
+		}
 		appLog.info("[grid] auto-refresh triggered");
 		let activeGeohash = geohash;
 		if (browseCacheKey) {
@@ -787,19 +810,9 @@ export function GridPage() {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const { enabled, intervalMinutes: rawIntervalMinutes } = getAutoRefreshSettings();
-		const intervalMinutes = parseInt(rawIntervalMinutes, 10);
-
-		if (!enabled || isNaN(intervalMinutes) || intervalMinutes <= 0) {
-			return;
-		}
-
-		const intervalMs = intervalMinutes * 60 * 1000;
-		appLog.info(`[grid] auto-refresh scheduled every ${intervalMinutes} minutes`);
-
 		const timer = setInterval(() => {
 			void handleAutoRefresh();
-		}, intervalMs);
+		}, GRID_REFRESH_INTERVAL_MS);
 
 		return () => clearInterval(timer);
 	}, [handleAutoRefresh]);
@@ -1252,6 +1265,8 @@ export function GridPage() {
 		isUnblockingProfile,
 	]);
 
+	const isIncognitoActive = getIncognitoMode();
+
 	return (
 		<>
 			{showDebugInfo && debugLoadSource && !SHOW_DEMO_DATA && (
@@ -1272,6 +1287,9 @@ export function GridPage() {
 				style={{ overflow: "visible", overflowX: "hidden" }}
 				isAtTop={() => (feedContainerRef.current?.scrollTop ?? 0) <= 5}
 				onRefresh={async () => {
+					if (isIncognitoActive) {
+						return;
+					}
 					let activeGeohash = geohash;
 					if (browseCacheKey) {
 						sessionStorage.removeItem(`grid-scroll-${browseCacheKey}`);
@@ -1288,7 +1306,7 @@ export function GridPage() {
 						overrideGeohash: activeGeohash || undefined
 					});
 				}}
-				isDisabled={isLoadingCards || isLoadingMoreCards}
+				isDisabled={isLoadingCards || isLoadingMoreCards || isIncognitoActive}
 				refreshingLabel={t("browse_page.refreshing_feed")}
 			>
 				<header ref={headerRef} className="relative z-20 flex shrink-0 flex-col pb-2 pointer-events-none">
@@ -1668,7 +1686,9 @@ export function GridPage() {
 							isLoadingCards={isLoadingCards}
 							cardsError={cardsError}
 							isLocationMissing={isLocationMissing}
+							isIncognitoActive={isIncognitoActive}
 							onOpenLocation={() => setIsLocationOpen(true)}
+							onManagePrivacy={() => navigate("/settings/privacy")}
 							cards={sortedCards}
 							chatContactIndexByProfileId={
 								(SHOW_DEMO_DATA && showDebugInfo)

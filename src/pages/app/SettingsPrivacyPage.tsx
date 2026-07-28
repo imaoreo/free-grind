@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, BarChart3, CheckCheck, Eye, EyeOff, ImageOff, ToggleRight } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCheck, Eye, EyeOff, Ghost, ImageOff, ToggleRight } from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import {
 	getHideReadReceiptsGlobal,
+	getIncognitoMode,
 	getShowReadReceiptToggle,
 	isRecordProfileViewsEnabled,
 	setHideReadReceiptsGlobal,
+	setIncognitoMode,
 	setRecordProfileViewsEnabled,
 	setShowReadReceiptToggle as persistShowReadReceiptToggle,
 } from "../../utils/privacy";
@@ -28,6 +30,7 @@ export function SettingsPrivacyPage() {
 	const [showReadReceiptToggle, setShowReadReceiptToggle] = useState(() => getShowReadReceiptToggle());
 	const [recordProfileViews, setRecordProfileViews] = useState(() => isRecordProfileViewsEnabled());
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(() => readAnalyticsConsentChoice());
+	const [incognitoMode, setIncognitoModeState] = useState(() => getIncognitoMode());
 
 	return (
 		<section className="app-screen">
@@ -38,6 +41,31 @@ export function SettingsPrivacyPage() {
 			</header>
 
 			<div className="grid gap-6">
+
+				{/* Incognito Mode */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.grid_visibility")}</p>
+					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+						<ToggleRow
+							id="privacy-incognito-mode"
+							highlighted={highlightId === "privacy-incognito-mode"}
+							icon={<Ghost className="h-5 w-5" />}
+							iconClass="bg-fuchsia-500/15 text-fuchsia-400"
+							label={t("privacy.incognito_mode")}
+							description={t("privacy.incognito_mode_desc")}
+							checked={incognitoMode}
+							onChange={(checked) => {
+								setIncognitoModeState(checked);
+								void setIncognitoMode(checked);
+							}}
+						/>
+						<div className="px-4 py-3">
+							<p className="text-xs text-[var(--text-muted)] leading-relaxed">
+								{t("privacy.incognito_mode_note")}
+							</p>
+						</div>
+					</div>
+				</div>
 
 				{/* Read Receipts */}
 				<div>

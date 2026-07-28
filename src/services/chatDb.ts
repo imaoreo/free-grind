@@ -2701,8 +2701,6 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 			forbiddenWords: window.localStorage.getItem("fg-forbidden-words") ?? "",
 			minAge: window.localStorage.getItem("fg-block-min-age") ?? "18",
 			maxAge: window.localStorage.getItem("fg-block-max-age") ?? "99",
-			refreshEnabled: window.localStorage.getItem("fg-auto-refresh-enabled") === "true",
-			refreshInterval: window.localStorage.getItem("fg-auto-refresh-interval") ?? "5",
 		};
 		const hadLegacyAutomation = [
 			"fg-block-chat",
@@ -2710,8 +2708,6 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 			"fg-forbidden-words",
 			"fg-block-min-age",
 			"fg-block-max-age",
-			"fg-auto-refresh-enabled",
-			"fg-auto-refresh-interval",
 		].some((key) => window.localStorage.getItem(key) != null);
 		if (hadLegacyAutomation) {
 			await setSetting("automation", legacyAutomation);

@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Check, Download, LockKeyhole, Plus, RefreshCw, Save, Tag, Upload, Workflow } from "lucide-react";
+import { Download, LockKeyhole, Plus, Save, Tag, Upload, Workflow } from "lucide-react";
 import toast from "react-hot-toast";
 import { BackToSettings } from "../../components/BackToSettings";
-import { ToggleRow } from "../../components/ui/toggle-row";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useTranslation } from "react-i18next";
-import { Slider } from "../../components/ui/range-slider";
 import { useAuth } from "../../contexts/useAuth";
 import { getAutomationSettings, setAutomationSettings } from "../../utils/autoblock";
 import {
@@ -127,7 +125,7 @@ export function SettingsAutomationPage() {
 		apiFunctions.listAlbums().then(setAlbums).catch(() => {});
 	}, [apiFunctions]);
 
-	// The automation caches (rules + legacy auto-block/refresh settings) load
+	// The automation caches (rules + legacy auto-block settings) load
 	// asynchronously right after login (see AuthContext) and only afterwards
 	// does settingsReady flip true. Landing on this page before that finishes
 	// would otherwise permanently freeze this page's state on an empty/stale
@@ -135,10 +133,7 @@ export function SettingsAutomationPage() {
 	useEffect(() => {
 		if (!settingsReady) return;
 		setRules(getAutomationRules());
-		const settings = getAutomationSettings();
-		setForbiddenWords(settings.forbiddenWords);
-		setRefreshEnabled(settings.refreshEnabled);
-		setRefreshInterval(settings.refreshInterval);
+		setForbiddenWords(getAutomationSettings().forbiddenWords);
 	}, [settingsReady]);
 
 	const persistRules = (next: AutomationRule[]) => {
@@ -170,29 +165,6 @@ export function SettingsAutomationPage() {
 	};
 
 	const [forbiddenWords, setForbiddenWords] = useState(() => getAutomationSettings().forbiddenWords);
-	const [refreshEnabled, setRefreshEnabled] = useState(() => getAutomationSettings().refreshEnabled);
-	const [refreshInterval, setRefreshInterval] = useState(() => getAutomationSettings().refreshInterval);
-	const [refreshIntervalJustSaved, setRefreshIntervalJustSaved] = useState(false);
-
-	const handleToggleRefresh = (val: boolean) => {
-		setRefreshEnabled(val);
-		void setAutomationSettings({ refreshEnabled: val });
-		toast.success(val ? t("settings_automation.auto_refresh_enabled") : t("settings_automation.auto_refresh_disabled"), { id: "refresh-toggle" });
-	};
-
-	// Only persisted once the user releases the thumb (see Slider's onCommit)
-	// — handleRefreshIntervalChange just updates the live UI while dragging.
-	const handleRefreshIntervalChange = (val: number) => {
-		setRefreshInterval(String(val));
-	};
-
-	const handleRefreshIntervalCommit = (val: number) => {
-		const nextInterval = String(val);
-		void setAutomationSettings({ refreshInterval: nextInterval }).then(() => {
-			setRefreshIntervalJustSaved(true);
-			window.setTimeout(() => setRefreshIntervalJustSaved(false), 1500);
-		});
-	};
 
 	const handleSaveAutoBlock = () => {
 		void setAutomationSettings({ forbiddenWords });
@@ -369,60 +341,6 @@ export function SettingsAutomationPage() {
 								{t("settings_automation.update_block_rules")}
 							</button>
 						</div>
-					</div>
-				</div>
-
-				{/* AUTO REFRESH */}
-				<div className="min-w-0">
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("settings_automation.auto_refresh_title")}
-					</p>
-					<div
-						id="automation-auto-refresh"
-						className={`surface-card overflow-hidden ${highlightId === "automation-auto-refresh" ? "animate-settings-highlight" : ""}`}
-					>
-						<ToggleRow
-							icon={<RefreshCw className="h-5 w-5" />}
-							iconClass="bg-green-500/15 text-green-400"
-							label={t("settings_automation.enable_refresh")}
-							description={t("settings_automation.enable_refresh_desc")}
-							checked={refreshEnabled}
-							onChange={handleToggleRefresh}
-						/>
-
-						{refreshEnabled && (
-							<div className="pt-1.5 pb-4 pl-[68px] pr-4">
-								<div className="px-1">
-									<Slider
-										label=""
-										hideHeader
-										showValueBubble
-										min={5}
-										max={60}
-										step={5}
-										defaultValue={Number(refreshInterval)}
-										displayValue={t("settings_automation.refresh_interval_unit", { count: refreshInterval })}
-										onChange={handleRefreshIntervalChange}
-										onCommit={handleRefreshIntervalCommit}
-									/>
-									<div className="flex items-center justify-between mt-1">
-										<span className="text-[10px] text-[var(--text-muted)]">5 min</span>
-										<span
-											className={`inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 transition-opacity duration-300 ${
-												refreshIntervalJustSaved ? "opacity-100" : "opacity-0"
-											}`}
-										>
-											<Check className="h-3 w-3" />
-											{t("settings_automation.refresh_saved", { defaultValue: "Saved" })}
-										</span>
-										<span className="text-[10px] text-[var(--text-muted)]">60 min</span>
-									</div>
-								</div>
-								<p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)]">
-									{t("settings_automation.refresh_technical_note")}
-								</p>
-							</div>
-						)}
 					</div>
 				</div>
 			</div>
