@@ -457,6 +457,22 @@ async function getDb(): Promise<Database> {
 				await db.execute(
 					"CREATE INDEX IF NOT EXISTS idx_block_events_timestamp ON block_events(timestamp DESC)",
 				);
+
+				// Manual, local-only "hide this profile from the grid" flag — unlike
+				// blocking (server-side, mutual), hiding is purely a client-side
+				// preference: the profile still comes back from /v4/cascade like any
+				// other card, this only gates the client-side sortedCards view in
+				// GridPage. display_name/avatar_media_hash are a snapshot at hide time
+				// so the Settings "Hidden" page can still show something if the
+				// profile later becomes unresolvable (deleted/banned).
+				await db.execute(`
+					CREATE TABLE IF NOT EXISTS hidden_profiles (
+						profile_id TEXT PRIMARY KEY,
+						display_name TEXT,
+						avatar_media_hash TEXT,
+						hidden_at INTEGER NOT NULL
+					)
+				`);
 			});
 
 			return db;
@@ -912,6 +928,82 @@ export async function listHiddenConversationIds(): Promise<string[]> {
 		"SELECT conversation_id FROM conversations WHERE hidden = 1",
 	);
 	return rows.map((row) => row.conversation_id);
+}
+
+// ---------------------------------------------------------------------------
+// Hidden profiles (grid)
+// ---------------------------------------------------------------------------
+
+/** Hides a profile from the grid, snapshotting name/avatar for the Settings
+ * "Hidden" page in case the profile becomes unresolvable later on. */
+export async function hideProfile(
+	profileId: string,
+	displayName: string | null,
+	avatarMediaHash: string | null,
+): Promise<void> {
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "hide-profile", async () => {
+		await db.execute(
+			`
+			INSERT INTO hidden_profiles (profile_id, display_name, avatar_media_hash, hidden_at)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT(profile_id) DO UPDATE SET
+				display_name = excluded.display_name,
+				avatar_media_hash = excluded.avatar_media_hash,
+				hidden_at = excluded.hidden_at
+			`,
+			[profileId, displayName, avatarMediaHash, now],
+		);
+	});
+}
+
+export async function unhideProfile(profileId: string): Promise<void> {
+	const db = await getDb();
+
+	await executeWithLockRetry(db, "unhide-profile", async () => {
+		await db.execute("DELETE FROM hidden_profiles WHERE profile_id = $1", [profileId]);
+	});
+}
+
+type HiddenProfileRow = {
+	profile_id: string;
+	display_name: string | null;
+	avatar_media_hash: string | null;
+	hidden_at: number;
+};
+
+/** All profile ids currently hidden from the grid — used to hydrate GridPage's
+ * in-memory set once on mount. */
+export async function listHiddenProfileIds(): Promise<string[]> {
+	const db = await getDb();
+	const rows = await db.select<{ profile_id: string }[]>(
+		"SELECT profile_id FROM hidden_profiles",
+	);
+	return rows.map((row) => row.profile_id);
+}
+
+export type StoredHiddenProfile = {
+	profileId: string;
+	displayName: string | null;
+	avatarMediaHash: string | null;
+	hiddenAt: number;
+};
+
+/** All hidden profiles with their snapshot details, most recently hidden
+ * first — backs the Settings "Hidden" page. */
+export async function listHiddenProfiles(): Promise<StoredHiddenProfile[]> {
+	const db = await getDb();
+	const rows = await db.select<HiddenProfileRow[]>(
+		"SELECT * FROM hidden_profiles ORDER BY hidden_at DESC",
+	);
+	return rows.map((row) => ({
+		profileId: row.profile_id,
+		displayName: row.display_name,
+		avatarMediaHash: row.avatar_media_hash,
+		hiddenAt: row.hidden_at,
+	}));
 }
 
 /**

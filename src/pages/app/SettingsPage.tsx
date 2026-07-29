@@ -9,6 +9,7 @@ import {
 	ClipboardList,
 	DatabaseBackup,
 	Download,
+	EyeOff,
 	GitBranch,
 	HeartPulse,
 	HelpCircle,
@@ -849,6 +850,15 @@ export function SettingsPage() {
 							"bg-red-500/15 text-red-400",
 							t("settings.blocked_accounts"),
 							t("settings.blocked_accounts_desc"),
+						)}
+						{navRow(
+							() => navigate("/settings/hidden"),
+							<EyeOff className="h-5 w-5" />,
+							"bg-slate-500/15 text-slate-400",
+							t("settings.hidden_profiles", { defaultValue: "Hidden Profiles" }),
+							t("settings.hidden_profiles_desc", {
+								defaultValue: "See who you hid from the grid and unhide them anytime.",
+							}),
 						)}
 						{navRow(
 							() => navigate("/settings/block-history"),

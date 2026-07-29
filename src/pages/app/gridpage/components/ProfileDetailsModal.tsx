@@ -1,4 +1,4 @@
-import { Album, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Eye, EyeOff, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -84,6 +84,9 @@ type ProfileDetailsModalProps = {
 	onTriangleProfile?: (profileId: string) => void;
 	onBlockProfile?: (profileId: string) => void;
 	onUnblockProfile?: (profileId: string) => void;
+	onHideProfile?: (profileId: string) => void;
+	onUnhideProfile?: (profileId: string) => void;
+	isHidden?: boolean;
 	onToggleFavoriteProfile?: (
 		profileId: string,
 		currentlyFavorite: boolean,
@@ -176,6 +179,9 @@ export function ProfileDetailsModal({
 	onTriangleProfile,
 	onBlockProfile,
 	onUnblockProfile,
+	onHideProfile,
+	onUnhideProfile,
+	isHidden = false,
 	onToggleFavoriteProfile,
 	isFavorite = false,
 	isTogglingFavorite = false,
@@ -1478,6 +1484,16 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											<Triangle className="mr-2 h-4 w-4 opacity-70" />
 											{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 										</button>
+										{(onHideProfile || onUnhideProfile) && (
+										<button
+											type="button"
+											onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
+											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+										>
+											{isHidden ? <Eye className="mr-2 h-4 w-4 opacity-70" /> : <EyeOff className="mr-2 h-4 w-4 opacity-70" />}
+											{isHidden ? t("profile_details.unhide") : t("profile_details.hide")}
+										</button>
+										)}
 										</div>
 										{(hasBio || actualProfileName) && <div className="h-px shrink-0 bg-[var(--border)]" />}
 										{(hasBio || actualProfileName) && (
@@ -2062,6 +2078,16 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 															<Triangle className="mr-2 h-4 w-4 opacity-70" />
 															{isLocatingProfile ? t("profile_details.locating") : t("profile_details.locate")}
 														</button>
+														{(onHideProfile || onUnhideProfile) && (
+														<button
+															type="button"
+															onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
+															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+														>
+															{isHidden ? <Eye className="mr-2 h-4 w-4 opacity-70" /> : <EyeOff className="mr-2 h-4 w-4 opacity-70" />}
+															{isHidden ? t("profile_details.unhide") : t("profile_details.hide")}
+														</button>
+														)}
 														</div>
 														{(hasBio || actualProfileName) && <div className="h-px shrink-0 bg-[var(--border)]" />}
 														{(hasBio || actualProfileName) && (

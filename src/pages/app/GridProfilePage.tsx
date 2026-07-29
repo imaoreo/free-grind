@@ -26,7 +26,8 @@ import {
 } from "./GridPage.types";
 import { getChatContactIndexForProfiles, getLocalNicknamesForProfiles } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
-import { findConversationByProfileId, insertSystemMessage } from "../../services/chatDb";
+import { findConversationByProfileId, insertSystemMessage, listHiddenProfileIds } from "../../services/chatDb";
+import { hideProfile as hideProfileLocally, unhideProfile as unhideProfileLocally } from "../../services/profileHide";
 import { unarchiveConversation, claimBlockStateTransition } from "../../services/conversationArchive";
 import { appLog } from "../../utils/logger";
 import { consumeSelfBlockAction } from "../../utils/selfBlockActions";
@@ -119,6 +120,7 @@ export function GridProfilePage() {
 		profileId: string;
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
+	const [isHidden, setIsHidden] = useState(false);
 
 	const [isDesktopLike, setIsDesktopLike] = useState(() =>
 		window.matchMedia("(hover: hover) and (pointer: fine)").matches
@@ -132,6 +134,20 @@ export function GridProfilePage() {
 
 	const parsedParams = profileRouteParamsSchema.safeParse(params);
 	const profileId = parsedParams.success ? parsedParams.data.profileId : null;
+
+	useEffect(() => {
+		if (!profileId) {
+			setIsHidden(false);
+			return;
+		}
+		let cancelled = false;
+		void listHiddenProfileIds().then((ids) => {
+			if (!cancelled) setIsHidden(ids.includes(profileId));
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [profileId]);
 
 	useEffect(() => {
 		if (!profileId) {
@@ -385,6 +401,18 @@ export function GridProfilePage() {
 		}
 		// Unblocking isn't destructive, so it never needs a confirmation prompt.
 		await performUnblockProfile(targetProfileId);
+	};
+
+	const handleHideProfile = (targetProfileId: string) => {
+		void hideProfileLocally(targetProfileId, activeProfile?.displayName ?? null, activeProfile?.profileImageMediaHash ?? null);
+		setIsHidden(true);
+		toast.success(t("profile_details.hide_success"));
+	};
+
+	const handleUnhideProfile = (targetProfileId: string) => {
+		void unhideProfileLocally(targetProfileId);
+		setIsHidden(false);
+		toast.success(t("profile_details.unhide_success"));
 	};
 
 	const handleToggleFavoriteProfile = async (
@@ -664,6 +692,9 @@ export function GridProfilePage() {
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}
+				onHideProfile={handleHideProfile}
+				onUnhideProfile={handleUnhideProfile}
+				isHidden={isHidden}
 				onToggleFavoriteProfile={handleToggleFavoriteProfile}
 				isFavorite={Boolean(activeProfile?.isFavorite)}
 				isTogglingFavorite={Boolean(

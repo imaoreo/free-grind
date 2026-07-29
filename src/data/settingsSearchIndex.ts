@@ -8,6 +8,7 @@ import {
 	ClipboardList,
 	DatabaseBackup,
 	Eye,
+	EyeOff,
 	ExternalLink,
 	FileDown,
 	FileUp,
@@ -311,6 +312,15 @@ export function useSettingsSearchIndex(): SettingsSearchEntry[] {
 			section: "Safety",
 			icon: UserX,
 			iconClass: "bg-red-500/15 text-red-400",
+		},
+		{
+			id: "nav-hidden",
+			route: "/settings/hidden",
+			label: t("settings.hidden_profiles", { defaultValue: "Hidden Profiles" }),
+			description: t("settings.hidden_profiles_desc", { defaultValue: "See who you hid from the grid and unhide them anytime." }),
+			section: "Safety",
+			icon: EyeOff,
+			iconClass: "bg-slate-500/15 text-slate-400",
 		},
 		{
 			id: "nav-block-history",
