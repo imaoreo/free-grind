@@ -253,6 +253,41 @@ export function getDisplayName(card: BrowseCard): string {
 	return ``;
 }
 
+/**
+ * Grindr's cascade endpoint intermittently omits `primaryImageUrl` on an
+ * otherwise-valid card (seen on both full_profile_v1 and partial_profile_v1
+ * items). Since browse loads fully replace `cards`, that flakiness on a
+ * refresh/auto-refresh flashes a previously-good photo to the no-photo
+ * placeholder. Carry the last-known image forward per profileId until the
+ * API sends one again, rather than blanking it out.
+ */
+export function mergeBrowseCardImages(
+	previous: BrowseCard[],
+	next: BrowseCard[],
+): BrowseCard[] {
+	if (previous.length === 0) {
+		return next;
+	}
+
+	const previousImageByProfileId = new Map(
+		previous
+			.filter((card) => card.primaryImageUrl)
+			.map((card) => [card.profileId, card.primaryImageUrl]),
+	);
+
+	if (previousImageByProfileId.size === 0) {
+		return next;
+	}
+
+	return next.map((card) => {
+		if (card.primaryImageUrl) {
+			return card;
+		}
+		const previousImageUrl = previousImageByProfileId.get(card.profileId);
+		return previousImageUrl ? { ...card, primaryImageUrl: previousImageUrl } : card;
+	});
+}
+
 export function getCardInitials(name: string): string {
 	const parts = name.split(/\s+/).filter(Boolean).slice(0, 2);
 

@@ -6,6 +6,7 @@ import { TravelPlanEditorSheet } from "./TravelPlanEditorSheet";
 import { useTravelPlans } from "../../../hooks/queries/useProfileQueries";
 import { reverseGeocodeCityDistrictForGeohash } from "../gridpage/geocoding";
 import { formatTravelDateRange } from "../gridpage/utils";
+import { MAX_TRAVEL_PLANS } from "./profileEditorUtils";
 import type { TravelPlan } from "../../../types/travel";
 
 function TravelPlanSummary({ plan }: { plan: TravelPlan }) {
@@ -53,6 +54,7 @@ export function TravelPlansSection({ profileId }: TravelPlansSectionProps) {
 	const { data: travelPlans, isLoading } = useTravelPlans(numericProfileId);
 	// undefined = sheet closed; null = creating a new plan; TravelPlan = editing that plan
 	const [editingPlan, setEditingPlan] = useState<TravelPlan | null | undefined>(undefined);
+	const hasReachedMax = (travelPlans?.length ?? 0) >= MAX_TRAVEL_PLANS;
 
 	return (
 		<div className="surface-card p-4 sm:p-5">
@@ -64,7 +66,8 @@ export function TravelPlansSection({ profileId }: TravelPlansSectionProps) {
 					<button
 						type="button"
 						onClick={() => setEditingPlan(null)}
-						disabled={numericProfileId == null}
+						disabled={numericProfileId == null || hasReachedMax}
+						title={hasReachedMax ? t("travel_plans.max_reached", { max: MAX_TRAVEL_PLANS }) : undefined}
 						className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm font-medium transition-colors hover:border-[var(--text-muted)] disabled:cursor-not-allowed disabled:opacity-40"
 					>
 						<Plus className="h-4 w-4" />

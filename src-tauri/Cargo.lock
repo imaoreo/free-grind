@@ -5694,6 +5694,7 @@ dependencies = [
  "base64 0.22.1",
  "dirs",
  "flate2",
+ "libc",
  "log",
  "minisign-verify",
  "reqwest 0.12.28",
@@ -5768,6 +5769,7 @@ dependencies = [
  "thiserror 2.0.18",
  "time",
  "url",
+ "windows",
 ]
 
 [[package]]

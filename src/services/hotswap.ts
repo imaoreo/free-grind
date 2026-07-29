@@ -29,8 +29,7 @@ if (typeof window !== "undefined") {
 let startupReadyNotified = false;
 const HOTSWAP_CHANNEL_STORAGE_KEY = "hotswap-channel";
 const AUTH_USER_ID_STORAGE_KEY = "fg-user-id";
-const HOTSWAP_CHANNELS = ["main", "development", "testingwjay"] as const;
-const DEV_ONLY_CHANNEL = "testingwjay" as const;
+const HOTSWAP_CHANNELS = ["main", "development"] as const;
 
 /** A contributor channel is always prefixed with "contrib-" */
 type ContributorChannel = `contrib-${string}`;
@@ -105,14 +104,15 @@ function parseBinaryRequiredNotes(notes: string | null): {
 	};
 }
 
-export function getHotswapChannels(options?: {
-	includeDevChannels?: boolean;
-}): readonly HotswapChannel[] {
-	if (options?.includeDevChannels) {
-		return HOTSWAP_CHANNELS;
-	}
+export function getHotswapChannels(): readonly HotswapChannel[] {
+	return HOTSWAP_CHANNELS;
+}
 
-	return HOTSWAP_CHANNELS.filter((channel) => channel !== DEV_ONLY_CHANNEL);
+export function getHotswapChannelLabel(channel: HotswapChannel): string {
+	if (isContributorChannel(channel)) return channel;
+	if (channel === "main") return "Stable";
+	if (channel === "development") return "Development";
+	return channel;
 }
 
 export function getCurrentHotswapChannel(): HotswapChannel {

@@ -1,6 +1,7 @@
 import { Album, Ban, Copy, Download, Eye, History, Hourglass, Loader2, Lock, MessageCircleQuestion, MessageSquarePlus, Mic, MoreVertical, PhoneOff, Play, Repeat2, Reply, ShieldCheck, Trash2, Undo2, Video, VideoOff, ImageOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { MapLocationPreview } from "../gridpage/components/MapLocationPreview";
+import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { PromptDialog } from "../../../components/ui/prompt-dialog";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -31,8 +32,13 @@ import { resolveAvatarSrc } from "../../../services/avatarStore";
 import { getThumbImageUrl, validateMediaHash } from "../../../utils/media";
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
 import {
+	SKIP_LINK_OPEN_CONFIRM_KEY,
+	isLinkOpenConfirmSkipped,
+} from "../../../utils/blockConfirm";
+import {
 	formatDateHeader,
 	formatDateTime24,
+	formatFullDateTime,
 	formatMessageTime,
 	formatTakenOnGrindrTime,
 	getMessageAlbumCoverUrl,
@@ -85,10 +91,12 @@ type ChatThreadMessagesProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	handleRemoveLocalAlbum: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
 	ownProfilePhotoUrl?: string | null;
+	localNickname?: string | null;
 };
 
 const KNOWN_REPLY_TYPES = new Set([
@@ -251,7 +259,7 @@ function MessageContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[200px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] flex min-w-[200px] flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
 		>
 			{actions.map((action) => (
 				<button
@@ -262,7 +270,7 @@ function MessageContextMenu({
 						onClose();
 						action.onClick();
 					}}
-					className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
+					className={`flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
 						action.danger
 							? "text-red-500 hover:bg-red-500/10"
 							: "text-[var(--text)] hover:bg-[var(--surface-2)]"
@@ -308,10 +316,12 @@ export function ChatThreadMessages({
 	handleRetry,
 	handleReply,
 	handleStopAlbumShare,
+	handleRemoveLocalAlbum,
 	threadBottomRef,
 	isPartnerTyping = false,
 	isArchived = false,
 	ownProfilePhotoUrl = null,
+	localNickname = null,
 }: ChatThreadMessagesProps) {
 	const { t } = useTranslation();
 	useLocalMediaCache();
@@ -324,6 +334,33 @@ export function ChatThreadMessages({
 	const [hoveredMediaMessageId, setHoveredMediaMessageId] = useState<string | null>(null);
 	const [contextMenuState, setContextMenuState] = useState<{ messageId: string; x: number; y: number } | null>(null);
 	const [banWordPrompt, setBanWordPrompt] = useState<{ text: string } | null>(null);
+	const [pendingLinkUrl, setPendingLinkUrl] = useState<string | null>(null);
+	const [dontAskLinkOpenAgain, setDontAskLinkOpenAgain] = useState(false);
+
+	const openLink = useCallback((url: string) => {
+		openUrl(url).catch(() => window.open(url, "_blank"));
+	}, []);
+
+	const requestOpenLink = useCallback(
+		(url: string) => {
+			if (isLinkOpenConfirmSkipped()) {
+				openLink(url);
+				return;
+			}
+			setDontAskLinkOpenAgain(false);
+			setPendingLinkUrl(url);
+		},
+		[openLink],
+	);
+
+	const confirmOpenLink = useCallback(() => {
+		if (!pendingLinkUrl) return;
+		if (dontAskLinkOpenAgain && typeof window !== "undefined") {
+			localStorage.setItem(SKIP_LINK_OPEN_CONFIRM_KEY, "true");
+		}
+		openLink(pendingLinkUrl);
+		setPendingLinkUrl(null);
+	}, [pendingLinkUrl, dontAskLinkOpenAgain, openLink]);
 
 	const reactionButtonRefs = useRef<Map<string, HTMLElement>>(new Map());
 	const prevReactionCountsRef = useRef<Map<string, number>>(new Map());
@@ -514,6 +551,7 @@ export function ChatThreadMessages({
 			startMessageLongPress(message.messageId);
 			if (
 				isDesktop ||
+				isArchived ||
 				event.touches.length !== 1 ||
 				isLocalClientMessageId(message.messageId) ||
 				isLocalHistoryMessage(message)
@@ -529,7 +567,7 @@ export function ChatThreadMessages({
 				triggered: false,
 			};
 		},
-		[isDesktop, startMessageLongPress],
+		[isArchived, isDesktop, startMessageLongPress],
 	);
 
 	const handleMobileTouchMove = useCallback(
@@ -655,7 +693,7 @@ export function ChatThreadMessages({
 
 		const actions: MessageContextMenuAction[] = [];
 
-		if (!isLocalHistoryMessage(message)) {
+		if (!isArchived && !isLocalHistoryMessage(message)) {
 			actions.push({
 				key: "reply",
 				label: t("chat.actions.reply"),
@@ -737,7 +775,7 @@ export function ChatThreadMessages({
 			});
 		}
 
-		if (mine && !message.unsent) {
+		if (!isArchived && mine && !message.unsent) {
 			actions.push({
 				key: "unsend",
 				label: t("chat.actions.unsend"),
@@ -757,6 +795,16 @@ export function ChatThreadMessages({
 			});
 		}
 
+		if (!mine && isAlbumMessage && albumId && isAlbumCachedLocally(albumId)) {
+			actions.push({
+				key: "remove-share",
+				label: t("chat.actions.remove_share", { defaultValue: "Remove Share" }),
+				icon: <Album className="h-4 w-4" />,
+				onClick: () => void handleRemoveLocalAlbum(albumId),
+				disabled: isMutating,
+			});
+		}
+
 		actions.push({
 			key: "delete",
 			label: t("chat.actions.delete"),
@@ -771,14 +819,33 @@ export function ChatThreadMessages({
 		contextMenuTarget,
 		userId,
 		isMutatingMessageId,
+		isArchived,
 		t,
 		handleReply,
 		handleCopy,
 		handleAddToSavedPhrases,
 		handleUnsend,
 		handleStopAlbumShare,
+		handleRemoveLocalAlbum,
 		handleDelete,
 	]);
+
+	// Grouped by day so each day's sticky date pill is bounded to its own
+	// group container and gets pushed off by the next group instead of
+	// staying stuck forever alongside every other day's pill.
+	const dayGroups = useMemo(() => {
+		const groups: { header: string; messages: UiMessage[] }[] = [];
+		for (const message of threadMessages) {
+			const header = formatDateHeader(message.timestamp, nowTimestamp, t);
+			const lastGroup = groups[groups.length - 1];
+			if (lastGroup && lastGroup.header === header) {
+				lastGroup.messages.push(message);
+			} else {
+				groups.push({ header, messages: [message] });
+			}
+		}
+		return groups;
+	}, [threadMessages, nowTimestamp, t]);
 
 	return (
 		<div
@@ -805,16 +872,27 @@ export function ChatThreadMessages({
 
             <div className={`flex flex-col gap-2 ${!isDesktop ? "px-[var(--app-px)] pt-4" : ""}`}>
             {(() => {
-                // Track the last header label to detect day transitions during rendering
-                let lastHeader = "";
-                return threadMessages.map((message) => {
-                    const currentHeader = formatDateHeader(
-                        message.timestamp,
-                        nowTimestamp,
-                        t,
-                    );
-                    const isNewDay = currentHeader !== lastHeader;
-                    lastHeader = currentHeader;
+                const renderDateSeparator = (label: string) => (
+                    <div className="sticky top-2 z-10 my-3 flex justify-center">
+                        <span className="rounded-full bg-[color-mix(in_srgb,var(--surface-2)_88%,transparent)] px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] shadow-sm backdrop-blur-sm">
+                            {label}
+                        </span>
+                    </div>
+                );
+                const renderEventPill = (icon: React.ReactNode, label: string, timestamp: number) => (
+                    <div className="my-1.5 flex justify-center">
+                        <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--surface-2)] px-3 py-1.5 text-[11px] font-medium text-[var(--text-muted)] shadow-sm">
+                            {icon}
+                            <span>{label}</span>
+                            <span className="text-[var(--text-muted)]/70">{formatDateTime24(timestamp)}</span>
+                        </div>
+                    </div>
+                );
+                return dayGroups.map((group, groupIndex) => (
+                    <div key={`${group.header}-${groupIndex}`} className="relative">
+                        {renderDateSeparator(group.header)}
+                        <div className="flex flex-col gap-2">
+                        {group.messages.map((message) => {
 
                     if (
                         message.type === "SystemBlocked" ||
@@ -838,26 +916,15 @@ export function ChatThreadMessages({
                         }
                         return (
                             <Fragment key={message.messageId}>
-                                {isNewDay && (
-                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                            {currentHeader}
-                                        </span>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                    </div>
-                                )}
-                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
-                                    {isBlocked ? (
+                                {renderEventPill(
+                                    isBlocked ? (
                                         <Ban className="h-3.5 w-3.5 shrink-0" />
                                     ) : (
                                         <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                                    )}
-                                    <span>{label}</span>
-                                    <span className="text-[var(--text-muted)]/70">
-                                        {formatDateTime24(message.timestamp)}
-                                    </span>
-                                </div>
+                                    ),
+                                    label,
+                                    message.timestamp,
+                                )}
                             </Fragment>
                         );
                     }
@@ -869,26 +936,15 @@ export function ChatThreadMessages({
                         const label = getVideoCallStatusLabel(message, t);
                         return (
                             <Fragment key={message.messageId}>
-                                {isNewDay && (
-                                    <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                            {currentHeader}
-                                        </span>
-                                        <div className="h-px flex-1 bg-[var(--border)]" />
-                                    </div>
-                                )}
-                                <div className="my-2 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[var(--text-muted)]">
-                                    {isSuccessful ? (
+                                {renderEventPill(
+                                    isSuccessful ? (
                                         <Video className="h-3.5 w-3.5 shrink-0" />
                                     ) : (
                                         <PhoneOff className="h-3.5 w-3.5 shrink-0" />
-                                    )}
-                                    <span>{label}</span>
-                                    <span className="text-[var(--text-muted)]/70">
-                                        {formatDateTime24(message.timestamp)}
-                                    </span>
-                                </div>
+                                    ),
+                                    label,
+                                    message.timestamp,
+                                )}
                             </Fragment>
                         );
                     }
@@ -1110,7 +1166,7 @@ export function ChatThreadMessages({
                             : replySenderId != null && Number(replySenderId) === Number(message.senderId)
                                 ? t("chat.thread.replied_to_myself")
                                 : t("chat.thread.replied_to_name", {
-                                        name: selectedConversation?.data.name || t("common.unknown_display_name"),
+                                        name: localNickname || selectedConversation?.data.name || t("common.unknown_display_name"),
                                     })
                         : null;
                     // Strip the "> quoted\n" prefix that gets embedded in body.text on send
@@ -1264,17 +1320,7 @@ export function ChatThreadMessages({
                         (!isLatestShare || !msgBody?.isViewable);
 
                     return (
-                    /* Use Fragment to allow rendering the separator and the message as a single map item */
                     <Fragment key={message.messageId}>
-                        {isNewDay && (
-                            <div className={`my-6 flex items-center gap-4 ${!isDesktop ? "" : "px-4"} opacity-80`}>
-                                <div className="h-px flex-1 bg-[var(--border)]" />
-                                <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                                    {currentHeader}
-                                </span>
-                                <div className="h-px flex-1 bg-[var(--border)]" />
-                            </div>
-                        )}
                         <div
                             data-message-id={message.messageId}
                             ref={(element) => {
@@ -1543,7 +1589,7 @@ export function ChatThreadMessages({
                                             onMouseEnter={() => handleMediaMouseEnter(message.messageId)}
                                             onMouseLeave={() => handleMediaMouseLeave(message.messageId)}
                                         >
-                                            <div className="relative h-56 w-64 max-w-full overflow-hidden bg-[var(--surface-2)] sm:w-72">
+                                            <div className={`relative h-56 w-64 max-w-full overflow-hidden rounded-2xl ${tailCorner} bg-[var(--surface-2)] sm:w-72`}>
                                                 <div className="absolute inset-0 flex items-center justify-center text-[var(--text-muted)]">
                                                     <Album className="h-8 w-8" />
                                                 </div>
@@ -1560,7 +1606,7 @@ export function ChatThreadMessages({
                                                 ) : null}
 
                                                 {isLocked && (
-                                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/50 backdrop-blur-[15px]">
+                                                    <div className={`absolute inset-0 z-10 flex flex-col items-center justify-center rounded-2xl ${tailCorner} bg-black/50 backdrop-blur-[15px]`}>
                                                         <Lock className="h-10 w-10 text-white/90 drop-shadow-lg" />
                                                         <span className="mt-2 text-[10px] font-bold uppercase tracking-widest text-white/90 drop-shadow">
                                                             {t("chat.expiration.expired")}
@@ -1578,7 +1624,7 @@ export function ChatThreadMessages({
                                                         {senderLabel}
                                                     </p>
                                                 </div>
-                                                <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
+                                                <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                     {!isLocked && isExpiringMedia && (expiresAt > Date.now() || isOnce) && (
                                                         <AlbumExpirationCountdown
                                                             expiresAt={expiresAt}
@@ -1598,6 +1644,18 @@ export function ChatThreadMessages({
                                                             <span>
                                                                 {formatMessageTime(message.timestamp, nowTimestamp, t)}
                                                             </span>
+                                                            {isDesktop && !pending && !isLocalClientMessageId(message.messageId) ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation();
+                                                                        setContextMenuState({ messageId: message.messageId, x: event.clientX, y: event.clientY });
+                                                                    }}
+                                                                    className="rounded-md p-1 hover:bg-white/10"
+                                                                >
+                                                                    <MoreVertical className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1708,13 +1766,13 @@ export function ChatThreadMessages({
                                                             </div>
                                                         )
                                                     )}
-                                                    {!shouldBlurIncomingMedia && (
-                                                        <div className="js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200">
-                                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
-                                                                <Play className="h-5 w-5 fill-white text-white" />
-                                                            </div>
+                                                    <div
+                                                        className={`js-video-play-badge pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 ${shouldBlurIncomingMedia ? "hidden" : ""}`}
+                                                    >
+                                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm transition group-hover/media:bg-black/80">
+                                                            <Play className="h-5 w-5 fill-white text-white" />
                                                         </div>
-                                                    )}
+                                                    </div>
                                                     {isVideoOnlyBubble && (
                                                         <div className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 text-white">
                                                             <div className="flex items-center justify-between gap-2 text-[10px]">
@@ -1937,7 +1995,7 @@ export function ChatThreadMessages({
                                                 <div className="min-w-0 flex-1 py-[13px] pl-[13px] pr-2.5">
                                                     <p className="mb-0.5 font-semibold opacity-60 truncate">{mine
                                                         ? t("chat.thread.replied_to_name", {
-                                                                name: selectedConversation.data.name || t("common.unknown_display_name"),
+                                                                name: localNickname || selectedConversation.data.name || t("common.unknown_display_name"),
                                                             })
                                                         : t("chat.thread.replied_to_myself")}</p>
                                                     <p className="opacity-60">{t("chat.thread.profile_photo")}</p>
@@ -1980,10 +2038,8 @@ export function ChatThreadMessages({
                                                 <p className="whitespace-pre-wrap break-words">{displayText}</p>
                                             </div>
                                         ) : (
-                                            <p className="whitespace-pre-wrap break-words">
-                                                {renderTextWithLinks(displayText, mine, (url) =>
-                                                openUrl(url).catch(() => window.open(url, "_blank"))
-                                            )}
+                                            <p className="whitespace-pre-wrap break-words select-text">
+                                                {renderTextWithLinks(displayText, mine, (url) => requestOpenLink(url))}
                                             </p>
                                         )
                                     ) : null}
@@ -2063,7 +2119,14 @@ export function ChatThreadMessages({
 
                                 {mine && !pending && !failed && lastMyMessageId === message.messageId && (
                                     <div className="-mt-1 px-1">
-                                        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)] opacity-80">
+                                        <span
+                                            className="text-[10px] font-medium uppercase tracking-wider text-[var(--text-muted)] opacity-80"
+                                            title={
+                                                threadLastReadTimestamp != null && message.timestamp <= threadLastReadTimestamp
+                                                    ? t("chat.read_at", { time: formatFullDateTime(threadLastReadTimestamp) })
+                                                    : undefined
+                                            }
+                                        >
                                             {threadLastReadTimestamp != null && message.timestamp <= threadLastReadTimestamp
                                                 ? t("chat.read")
                                                 : t("chat.unread")}
@@ -2074,7 +2137,10 @@ export function ChatThreadMessages({
                         </div>
                         </Fragment>
                     );
-                });
+                        })}
+                        </div>
+                    </div>
+                ));
             })()}
             </div>
             {isPartnerTyping && (
@@ -2130,6 +2196,21 @@ export function ChatThreadMessages({
 					setBanWordPrompt(null);
 				}}
 				onCancel={() => setBanWordPrompt(null)}
+			/>
+			<ConfirmDialog
+				isOpen={pendingLinkUrl !== null}
+				title={t("chat.open_link_title", { defaultValue: "Open link?" })}
+				message={t("chat.open_link_message", {
+					defaultValue: "You're about to open this link: {{url}}",
+					url: pendingLinkUrl ?? "",
+				})}
+				confirmLabel={t("chat.open_link_confirm", { defaultValue: "Open" })}
+				cancelLabel={t("chat.actions.cancel")}
+				onConfirm={confirmOpenLink}
+				onCancel={() => setPendingLinkUrl(null)}
+				dontAskAgainLabel={t("profile_details.dont_ask_again")}
+				dontAskAgainChecked={dontAskLinkOpenAgain}
+				onDontAskAgainChange={setDontAskLinkOpenAgain}
 			/>
 		</div>
 	);

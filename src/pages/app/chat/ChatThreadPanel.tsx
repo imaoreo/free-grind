@@ -11,6 +11,8 @@ import {
 	Eye,
 	EyeOff,
 	Star,
+	GitMerge,
+	GripVertical,
 	HeartPulse,
 	Hourglass,
 	ImagePlus,
@@ -82,10 +84,10 @@ import {
 	getMediaCaptureTarget,
 } from "./chatUtils";
 import { getCachedMediaUri } from "../../../services/mediaStore";
+import { isAlbumCachedLocally } from "../../../services/albumStore";
 import { getThumbImageUrl } from "../../../utils/media";
 import { formatDistance } from "../gridpage/utils";
 import { ProfileImage } from "../../../components/ui/profile-image";
-import { FreeGrindBadge } from "../../../components/FreeGrindBadge";
 import { ChatThreadMessages } from "./ChatThreadMessages";
 import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
@@ -95,6 +97,22 @@ import { getShowReadReceiptToggle, isReadReceiptsHidden, toggleReadReceiptsHidde
 import { ToggleRow } from "../../../components/ui/toggle-row";
 import { BottomDrawer } from "../../../components/ui/bottom-drawer";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import {
+	DndContext,
+	MouseSensor,
+	TouchSensor,
+	useSensor,
+	useSensors,
+	type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+	SortableContext,
+	arrayMove,
+	verticalListSortingStrategy,
+	useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { restrictToVerticalAxis } from "../../../utils/dndModifiers";
 import { GiphyPickerSheet } from "./GiphyPickerSheet";
 import type { ArchivedReason } from "../../../types/chat-db";
 import { useAvatarCache } from "../../../hooks/useAvatarCache";
@@ -103,10 +121,8 @@ import { matchSlashCommandsByPrefix, type SlashCommandDef } from "./slashCommand
 import { getForbiddenWords, setForbiddenWords } from "../../../utils/autoblock";
 import {
 	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
 	isBlockConfirmSkipped,
-	isUnblockConfirmSkipped,
 	isDeleteConversationConfirmSkipped,
 } from "../../../utils/blockConfirm";
 
@@ -191,6 +207,7 @@ type ChatThreadPanelProps = {
 	handleRetry: (message: Message) => void;
 	handleReply: (message: Message) => void | Promise<void>;
 	handleStopAlbumShare: (albumId: number) => void | Promise<void>;
+	handleRemoveLocalAlbum: (albumId: number) => void | Promise<void>;
 	threadBottomRef: { current: HTMLDivElement | null };
 	handleSend: (event: React.FormEvent<HTMLFormElement>) => void;
 	toggleAlbumPicker: () => void;
@@ -202,9 +219,11 @@ type ChatThreadPanelProps = {
 	pendingAttachmentFile: File | null;
 	attachmentLooping: boolean;
 	attachmentTakenOnGrindr: boolean;
+	attachmentAddToDrawer: boolean;
 	attachmentMaxViews: number;
 	setAttachmentLooping: (value: boolean) => void;
 	setAttachmentTakenOnGrindr: (value: boolean) => void;
+	setAttachmentAddToDrawer: (value: boolean) => void;
 	setAttachmentMaxViews: (value: number) => void;
 	confirmPendingAttachment: () => void;
 	confirmAttachmentFile: (file: File) => void | Promise<void>;
@@ -259,6 +278,12 @@ type ChatThreadPanelProps = {
 	isPartnerTyping?: boolean;
 	isArchived?: boolean;
 	archivedReason?: ArchivedReason | null;
+	mergeableConversations?: ConversationEntry[];
+	onMergeConversation?: (
+		sourceConversationId: string,
+		targetConversationId: string,
+	) => void | Promise<void>;
+	isMergingConversation?: boolean;
 };
 
 
@@ -271,6 +296,62 @@ function AudioPreviewPlayer({ blob, durationMs, recordedBars, recordedFraction }
 	}, [blob]);
 	if (!url) return null;
 	return <AudioMessagePlayer src={url} messageId="preview" mine={false} className="w-full" durationHint={durationMs / 1000} hideSpeed compact initialBars={recordedBars} recordedFraction={recordedFraction} />;
+}
+
+type SortableSavedPhraseRowProps = {
+	phrase: string;
+	onUse: () => void;
+	onDelete: () => void;
+	isDesktop: boolean;
+};
+
+function SortableSavedPhraseRow({ phrase, onUse, onDelete, isDesktop }: SortableSavedPhraseRowProps) {
+	const { t } = useTranslation();
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+		useSortable({ id: phrase });
+
+	const style: React.CSSProperties = {
+		transform: CSS.Transform.toString(transform),
+		transition,
+	};
+
+	return (
+		<div
+			ref={setNodeRef}
+			style={style}
+			{...(isDesktop ? {} : { ...attributes, ...listeners })}
+			className={`group flex items-start gap-3 px-4 py-3 ${isDesktop ? "" : "touch-pan-y no-touch-callout"} ${isDragging ? "z-10 bg-[var(--surface)] opacity-60" : ""}`}
+		>
+			{isDesktop && (
+				<button
+					type="button"
+					{...attributes}
+					{...listeners}
+					className="mt-0.5 flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-xl text-[var(--text-muted)] active:cursor-grabbing"
+					aria-label={t("settings_saved_phrases.reorder", { defaultValue: "Reorder phrase" })}
+				>
+					<GripVertical className="h-4 w-4" />
+				</button>
+			)}
+			<div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
+				<MessageSquareQuote className="h-3.5 w-3.5" />
+			</div>
+			<SheetClose
+				onClick={onUse}
+				className="min-w-0 flex-1 break-words text-left text-sm leading-relaxed text-[var(--text)] transition hover:text-[var(--accent)]"
+			>
+				<span className="block break-words">{phrase}</span>
+			</SheetClose>
+			<button
+				type="button"
+				onClick={onDelete}
+				className="mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
+				aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
+			>
+				<Trash2 className="h-3.5 w-3.5" />
+			</button>
+		</div>
+	);
 }
 
 export function ChatThreadPanel(props: ChatThreadPanelProps) {
@@ -342,11 +423,21 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	const startRecording = useCallback(async () => {
 		if (isRecording) return;
 		try {
-			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-			const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4", "audio/aac"].find(
+			const stream = await navigator.mediaDevices.getUserMedia({
+				audio: {
+					channelCount: 1,
+					sampleRate: 22050,
+					echoCancellation: true,
+					noiseSuppression: true,
+				},
+			});
+			const mimeType = ["audio/mp4", "audio/aac", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find(
 				(t) => MediaRecorder.isTypeSupported(t),
 			) ?? "";
-			const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+			const recorder = new MediaRecorder(stream, mimeType ? {
+				mimeType,
+				audioBitsPerSecond: 32000,
+			} : undefined);
 			chunksRef.current = [];
 			recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
 			recorder.start(100);
@@ -458,8 +549,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		useState(false);
 	const [dontAskDeleteConversationAgain, setDontAskDeleteConversationAgain] = useState(false);
 	const [dontAskBlockAgain, setDontAskBlockAgain] = useState(false);
-	const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
-	const [dontAskUnblockAgain, setDontAskUnblockAgain] = useState(false);
+	const [isMergeSheetOpen, setIsMergeSheetOpen] = useState(false);
+	const [mergeSearchQuery, setMergeSearchQuery] = useState("");
+	const [mergeConfirmTarget, setMergeConfirmTarget] = useState<ConversationEntry | null>(null);
 
 	const {
 		navigate,
@@ -489,6 +581,9 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		isFavorite = false,
 		isArchived = false,
 		archivedReason = null,
+		mergeableConversations = [],
+		onMergeConversation,
+		isMergingConversation = false,
 		isTogglingFavorite = false,
 		localNickname = null,
 		onEditLocalNickname,
@@ -524,6 +619,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		handleRetry,
 		handleReply,
 		handleStopAlbumShare,
+		handleRemoveLocalAlbum,
 		threadBottomRef,
 		handleSend,
 		toggleAlbumPicker: _toggleAlbumPicker,
@@ -534,9 +630,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		pendingAttachmentFile,
 		attachmentLooping,
 		attachmentTakenOnGrindr,
+		attachmentAddToDrawer,
 		attachmentMaxViews,
 		setAttachmentLooping,
 		setAttachmentTakenOnGrindr,
+		setAttachmentAddToDrawer,
 		setAttachmentMaxViews,
 		confirmPendingAttachment: _confirmPendingAttachment,
 		confirmAttachmentFile,
@@ -689,6 +787,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 	const handleUsePhrase = (phrase: string) => {
 		setDraft(phrase);
+		textareaRef.current?.focus();
 	};
 
 	const handleAddPhrase = async () => {
@@ -701,6 +800,24 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 
 	const handleDeletePhrase = async (index: number) => {
 		const updated = await saveSavedPhrases(savedPhrases.filter((_, i) => i !== index));
+		setSavedPhrases(updated);
+	};
+
+	const savedPhrasesSensors = useSensors(
+		useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+	);
+
+	const handlePhrasesDragEnd = async (event: DragEndEvent) => {
+		const { active, over } = event;
+		if (!over || active.id === over.id) return;
+		const from = savedPhrases.indexOf(String(active.id));
+		const to = savedPhrases.indexOf(String(over.id));
+		if (from === -1 || to === -1) return;
+
+		const reordered = arrayMove(savedPhrases, from, to);
+		setSavedPhrases(reordered);
+		const updated = await saveSavedPhrases(reordered);
 		setSavedPhrases(updated);
 	};
 
@@ -791,19 +908,41 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 	};
 
-	const closeUnblockConfirm = () => {
-		if (isUnblockingProfile) {
-			return;
-		}
-		setIsUnblockConfirmOpen(false);
-	};
-
 	const closeDeleteConversationConfirm = () => {
 		if (isDeletingConversation) {
 			return;
 		}
 		setIsDeleteConversationConfirmOpen(false);
 	};
+
+	const closeMergeConfirm = () => {
+		if (isMergingConversation) {
+			return;
+		}
+		setMergeConfirmTarget(null);
+	};
+
+	const confirmMergeConversation = () => {
+		if (!selectedConversation || !mergeConfirmTarget || !onMergeConversation || isMergingConversation) {
+			return;
+		}
+		void onMergeConversation(
+			selectedConversation.data.conversationId,
+			mergeConfirmTarget.data.conversationId,
+		);
+		setMergeConfirmTarget(null);
+	};
+
+	const filteredMergeableConversations = useMemo(() => {
+		const query = mergeSearchQuery.trim().toLowerCase();
+		if (!query) return mergeableConversations;
+		return mergeableConversations.filter((conversation) => {
+			const other = getOtherParticipant(conversation, userId);
+			const name = (conversation.data.name || "").toLowerCase();
+			const profileId = other?.profileId != null ? String(other.profileId) : "";
+			return name.includes(query) || profileId.includes(query);
+		});
+	}, [mergeableConversations, mergeSearchQuery, userId]);
 
 	const handleLocationShareRequest = () => {
 		if (pendingLocationShare) {
@@ -878,12 +1017,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 	});
 
 	useModalClose({
-		isOpen: isUnblockConfirmOpen,
-		onClose: closeUnblockConfirm,
-		escapeKey: !isUnblockingProfile,
-	});
-
-	useModalClose({
 		isOpen: isDeleteConversationConfirmOpen,
 		onClose: closeDeleteConversationConfirm,
 		escapeKey: !isDeletingConversation,
@@ -899,8 +1032,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 		setIsBlockConfirmOpen(false);
 		setIsDeleteConversationConfirmOpen(false);
 		setDontAskBlockAgain(false);
-		setIsUnblockConfirmOpen(false);
-		setDontAskUnblockAgain(false);
 	}, [selectedConversation?.data.conversationId]);
 
 	useEffect(() => {
@@ -1103,26 +1234,8 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						return;
 					}
 
+					// Unblocking isn't destructive, so it never needs a confirmation prompt.
 					setIsHeaderActionsMenuOpen(false);
-					if (isUnblockConfirmSkipped()) {
-						void onUnblockProfile(profileId);
-						return;
-					}
-
-					setDontAskUnblockAgain(false);
-					setIsUnblockConfirmOpen(true);
-				};
-
-				const confirmUnblockProfile = () => {
-					if (profileId == null || isUnblockingProfile || !onUnblockProfile) {
-						return;
-					}
-
-					if (dontAskUnblockAgain && typeof window !== "undefined") {
-						localStorage.setItem(SKIP_UNBLOCK_CONFIRM_KEY, "true");
-					}
-
-					setIsUnblockConfirmOpen(false);
 					void onUnblockProfile(profileId);
 				};
 
@@ -1213,14 +1326,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<p className="truncate text-lg font-semibold">
 											{displayName}
 										</p>
-										{profileId != null && presenceResults[profileId] ? (
-											<FreeGrindBadge size="md" title={t("profile_details.uses_free_grind")} />
-										) : null}
 									</div>
 									<p className="text-sm text-[var(--text-muted)]">
-										{distanceLabel
-											? `${onlineMeta.label} · ${distanceLabel}`
-											: onlineMeta.label}
+										{[
+											onlineMeta.label,
+											distanceLabel,
+											profileId != null && presenceResults[profileId] ? "Free Grind" : null,
+										]
+											.filter(Boolean)
+											.join(" · ")}
 									</p>
 								</div>
 							</div>
@@ -1320,7 +1434,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<EllipsisVertical className="h-4 w-4" />
 									</button>
 									{isHeaderActionsMenuOpen ? (
-										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-1 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
+										<div className="absolute right-0 top-full z-30 mt-2 flex max-h-[70dvh] min-w-[210px] flex-col gap-2 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--surface)] py-2 shadow-lg">
 											<div className="flex shrink-0 flex-col gap-1 px-2">
 											{!isArchived && (
 											<button
@@ -1334,7 +1448,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													navigate(`/profile/${profileId}?${nextParams.toString()}`, { state: { returnTo } });
 												}}
 												disabled={profileId == null}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+												className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 											>
 												<User className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.view_profile")}
@@ -1347,7 +1461,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													setIsHeaderActionsMenuOpen(false);
 													setIsEncounterSheetOpen(true);
 												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+												className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
 											>
 												<HeartPulse className="mr-2 h-4 w-4 opacity-70" />
 												{t("chat.log_encounter", { defaultValue: "I met this person now" })}
@@ -1367,7 +1481,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														startOutgoingCall(String(profileId), displayName, avatarHash ?? null);
 													}}
 													disabled={videoCallDisabled}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
 												>
 													{videoCallDisabled ? (
 														<VideoOff className="mr-2 h-4 w-4 opacity-70" />
@@ -1399,7 +1513,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														onOpenMediaSheet();
 													}}
 													disabled={!selectedConversation}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
 												>
 													<Images className="mr-2 h-4 w-4 opacity-70" />
 													{t("chat.received_media")}
@@ -1423,7 +1537,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														toast.success(newState ? "Read receipts turned off for this chat." : "Read receipts turned on for this chat.");
 													}}
 													disabled={!selectedConversation}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
 												>
 													{readReceiptsHidden ? <Check className="mr-2 h-4 w-4 opacity-70" /> : <CheckCheck className="mr-2 h-4 w-4 opacity-70" />}
 													<span className="flex flex-col">
@@ -1442,11 +1556,28 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													void onEditLocalNickname(profileId, displayName);
 												}}
 												disabled={profileId == null || !onEditLocalNickname}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
+												className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-60"
 											>
 												<PencilLine className="mr-2 h-4 w-4 opacity-70" />
 												{localNickname ? t("chat.nicknames.edit") : t("chat.nicknames.set")}
 											</button>
+											{isArchived && onMergeConversation && (
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														setMergeSearchQuery("");
+														setIsMergeSheetOpen(true);
+													}}
+													disabled={isMergingConversation || mergeableConversations.length === 0}
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:cursor-not-allowed disabled:opacity-40"
+												>
+													<GitMerge className="mr-2 h-4 w-4 opacity-70" />
+													{isMergingConversation
+														? t("chat.merge_conversation_in_progress", { defaultValue: "Merging…" })
+														: t("chat.merge_conversation", { defaultValue: "Merge into current chat" })}
+												</button>
+											)}
 											{!isDesktop && showBlockGroup && (
 												<button
 													type="button"
@@ -1456,7 +1587,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														void onToggleFavorite(profileId, isFavorite);
 													}}
 													disabled={isTogglingFavorite || profileId == null || !onToggleFavorite}
-													className={`flex items-center rounded-lg px-2 py-2 text-left text-sm transition disabled:opacity-60 ${
+													className={`flex items-center rounded-sm px-2 py-2 text-left text-sm transition disabled:opacity-60 ${
 														isFavorite ? "text-[var(--accent)] hover:bg-[var(--accent)]/10" : "text-[var(--text)] hover:bg-[var(--surface-2)]"
 													}`}
 												>
@@ -1468,7 +1599,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													{isFavorite ? t("chat.unfavorite") : t("chat.favorite")}
 												</button>
 											)}
-											{!isDesktop && (
+											{!isDesktop && !isArchived && (
 												<button
 													type="button"
 													disabled={isUpdatingConversationState || !selectedConversation}
@@ -1476,7 +1607,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														setIsHeaderActionsMenuOpen(false);
 														void togglePin();
 													}}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
 												>
 													<Pin className="mr-2 h-4 w-4 opacity-70" />
 													{selectedConversation?.data.pinned ? t("chat.unpin") : t("chat.pin")}
@@ -1489,7 +1620,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													setIsHeaderActionsMenuOpen(false);
 													toggleHide();
 												}}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+												className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
 											>
 												{isHidden ? <Eye className="mr-2 h-4 w-4 opacity-70" /> : <EyeOff className="mr-2 h-4 w-4 opacity-70" />}
 												{isHidden
@@ -1504,7 +1635,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 														setIsHeaderActionsMenuOpen(false);
 														void toggleMute();
 													}}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-40 disabled:cursor-not-allowed"
 												>
 													{selectedConversation?.data.muted ? (
 														<Volume2 className="mr-2 h-4 w-4 opacity-70" />
@@ -1517,35 +1648,31 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											</div>
 											{/* — Keyword banning — */}
 											{!isArchived && actualProfileName && (
-												<>
-													<div className="h-px shrink-0 bg-[var(--border)]" />
-													<div className="flex shrink-0 flex-col gap-1 px-2">
-													<button
-														type="button"
-														onClick={() => {
-															setIsHeaderActionsMenuOpen(false);
-															setBanNamePrompt({ text: actualProfileName });
-														}}
-														className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
-													>
-														<Ban className="mr-2 h-4 w-4 opacity-70" />
-														<span className="flex flex-col">
-															<span>Add forbidden Keyword</span>
-															<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
-														</span>
-													</button>
-													</div>
-												</>
+												<div className="flex shrink-0 flex-col gap-1 border-t border-[var(--border)] px-2 pt-2">
+												<button
+													type="button"
+													onClick={() => {
+														setIsHeaderActionsMenuOpen(false);
+														setBanNamePrompt({ text: actualProfileName });
+													}}
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+												>
+													<Ban className="mr-2 h-4 w-4 opacity-70" />
+													<span className="flex flex-col">
+														<span>Add forbidden Keyword</span>
+														<span className="text-xs text-[var(--text-muted)]">Profile Name</span>
+													</span>
+												</button>
+												</div>
 											)}
 											{/* — Destructive — */}
-											<div className="h-px shrink-0 bg-[var(--border)]" />
-											<div className="flex shrink-0 flex-col gap-1 px-2">
+											<div className="flex shrink-0 flex-col gap-1 border-t border-[var(--border)] px-2 pt-2">
 											{!isDesktop && showBlockGroup && (
 												<button
 													type="button"
 													onClick={requestBlockProfile}
 													disabled={isBlockingProfile || profileId == null || !onBlockProfile}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
 												>
 													<Ban className="mr-2 h-4 w-4 opacity-70" />
 													{isBlockingProfile ? t("profile_details.block_in_progress") : t("profile_details.block")}
@@ -1556,7 +1683,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													type="button"
 													onClick={requestUnblockProfile}
 													disabled={isUnblockingProfile || profileId == null || !onUnblockProfile}
-													className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-emerald-400 transition hover:bg-emerald-500/10 disabled:opacity-60"
+													className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-emerald-400 transition hover:bg-emerald-500/10 disabled:opacity-60"
 												>
 													<ShieldCheck className="mr-2 h-4 w-4 opacity-70" />
 													{isUnblockingProfile ? t("profile_details.unblock_in_progress") : t("profile_details.unblock")}
@@ -1566,7 +1693,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 												type="button"
 												onClick={requestDeleteConversation}
 												disabled={!selectedConversation || !onDeleteConversation || isDeletingConversation}
-												className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+												className="flex items-center rounded-sm px-2 py-2 text-left text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
 											>
 												<MessageCircleX className="mr-2 h-4 w-4 opacity-70" />
 												{isDeletingConversation ? t("chat.delete_conversation_in_progress") : t("chat.delete_conversation")}
@@ -1593,20 +1720,6 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							onDontAskAgainChange={setDontAskBlockAgain}
 						/>
 						<ConfirmDialog
-							isOpen={isUnblockConfirmOpen}
-							title={t("profile_details.unblock")}
-							message={t("profile_details.unblock_confirm")}
-							confirmLabel={t("profile_details.unblock")}
-							cancelLabel={t("chat.actions.cancel")}
-							onConfirm={confirmUnblockProfile}
-							onCancel={closeUnblockConfirm}
-							isProcessing={isUnblockingProfile}
-							confirmTone="default"
-							dontAskAgainLabel={t("profile_details.dont_ask_again")}
-							dontAskAgainChecked={dontAskUnblockAgain}
-							onDontAskAgainChange={setDontAskUnblockAgain}
-						/>
-						<ConfirmDialog
 							isOpen={isDeleteConversationConfirmOpen}
 							title={t("chat.delete_conversation")}
 							message={t("chat.delete_conversation_confirm")}
@@ -1619,6 +1732,20 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							dontAskAgainLabel={t("profile_details.dont_ask_again")}
 							dontAskAgainChecked={dontAskDeleteConversationAgain}
 							onDontAskAgainChange={setDontAskDeleteConversationAgain}
+						/>
+						<ConfirmDialog
+							isOpen={mergeConfirmTarget !== null}
+							title={t("chat.merge_conversation_confirm_title", { defaultValue: "Merge conversation" })}
+							message={t("chat.merge_conversation_confirm_message", {
+								defaultValue:
+									'Move this conversation\'s full message history into "{{name}}"? The archived chat will be closed and its messages will show up as older history in that chat. This cannot be undone.',
+								name: mergeConfirmTarget?.data.name || t("common.unknown_display_name"),
+							})}
+							confirmLabel={t("chat.merge_conversation", { defaultValue: "Merge into current chat" })}
+							cancelLabel={t("chat.actions.cancel")}
+							onConfirm={confirmMergeConversation}
+							onCancel={closeMergeConfirm}
+							isProcessing={isMergingConversation}
 						/>
 						<PromptDialog
 							isOpen={banWordPrompt !== null}
@@ -1739,10 +1866,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						handleRetry={handleRetry}
 						handleReply={handleReply}
 						handleStopAlbumShare={handleStopAlbumShare}
+						handleRemoveLocalAlbum={handleRemoveLocalAlbum}
 						threadBottomRef={threadBottomRef}
 						isPartnerTyping={isPartnerTyping}
 						isArchived={isArchived}
 						ownProfilePhotoUrl={ownProfilePhotoUrl}
+						localNickname={localNickname}
 				/>
 				)
 			) : (
@@ -1877,8 +2006,10 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										<div className="min-w-0 flex-1">
 											<p className="mb-0.5 truncate text-[11px] font-semibold text-[var(--accent)]">
 												{userId != null && Number(rtm.senderId) === Number(userId)
-													? "Replying to myself"
-													: `Replying to "${selectedConversation?.data.name?.trim() || ""}"`
+													? t("chat.thread.replying_to_myself")
+													: t("chat.thread.replying_to_name", {
+														name: localNickname || selectedConversation?.data.name?.trim() || t("common.unknown_display_name"),
+													})
 												}
 											</p>
 											<p className="truncate text-xs text-[var(--text-muted)]">
@@ -2085,6 +2216,11 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										}
 									}}
 									onKeyDown={(event) => {
+										if (isDesktop && event.key === "Escape" && replyTargetMessage) {
+											event.preventDefault();
+											clearReplyTarget();
+											return;
+										}
 										if (slashMatches.length > 0) {
 											if (event.key === "ArrowDown") {
 												event.preventDefault();
@@ -2194,7 +2330,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						</div>}
 						</div>
 
-                        <div className="mb-2 mx-5 flex items-center justify-between gap-2">
+                        <div className={`${!isDesktop ? "mb-2" : ""} mx-5 flex items-center justify-between gap-2`}>
 							<button
 								type="button"
 								onClick={() => {
@@ -2314,7 +2450,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 						>
 							<div className="flex min-h-0 flex-1 flex-col">
 							{/* Scrollable preview area */}
-							<div className="min-h-0 flex-1 overflow-y-auto">
+							<div className="min-h-0 flex-1 overflow-y-auto" data-lenis-prevent>
 							{attachmentPreviewUrl && (
 								pendingAttachmentFile.type.startsWith("video/") ? (
 									<div className="px-3 pb-3">
@@ -2380,7 +2516,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 							</div>
 							{/* Sticky toggle row — always pinned to bottom of sheet */}
 							<div className="shrink-0 px-3 pb-3 pt-2">
-								<div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+								<div className="divide-y divide-[var(--border)] rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
 									{pendingAttachmentFile?.type.startsWith("video/") ? (
 										<ToggleRow
 											checked={attachmentLooping}
@@ -2396,6 +2532,12 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											description={t("chat.attachments.taken_on_grindr_description")}
 										/>
 									)}
+									<ToggleRow
+										checked={attachmentAddToDrawer}
+										onChange={setAttachmentAddToDrawer}
+										label={t("chat.attachments.add_to_drawer", { defaultValue: "Add to drawer" })}
+										description={t("chat.attachments.add_to_drawer_description", { defaultValue: "Also save this to your drawer so you can send it again later" })}
+									/>
 								</div>
 							</div>
 						</div>
@@ -2491,7 +2633,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									<div className="flex items-center gap-1">
 										<button
 											type="button"
-											onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/saved-phrases"); }}
+											onClick={() => { setIsSavedPhrasesOpen(false); navigate("/settings/data"); }}
 											className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
 											aria-label={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}
 											title={t("chat.saved_phrases_manage", { defaultValue: "Manage" })}
@@ -2544,31 +2686,101 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											</p>
 										</div>
 									) : (
-										<div className="divide-y divide-[var(--border)]">
-											{savedPhrases.map((phrase, originalIndex) => (
-												<div key={originalIndex} className="group flex items-start gap-3 px-4 py-3">
-													<div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-2)] text-[var(--accent)]">
-														<MessageSquareQuote className="h-3.5 w-3.5" />
-													</div>
-													<SheetClose
-														onClick={() => handleUsePhrase(phrase)}
-														className="min-w-0 flex-1 break-words text-left text-sm leading-relaxed text-[var(--text)] transition hover:text-[var(--accent)]"
-													>
-														<span className="block break-words">{phrase}</span>
-													</SheetClose>
-													<button
-														type="button"
-														onClick={() => handleDeletePhrase(originalIndex)}
-														className="mt-0.5 shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-red-500/10 hover:text-red-400"
-														aria-label={t("settings_saved_phrases.delete", { defaultValue: "Delete phrase" })}
-													>
-														<Trash2 className="h-3.5 w-3.5" />
-													</button>
+										<DndContext sensors={savedPhrasesSensors} modifiers={[restrictToVerticalAxis]} autoScroll={false} onDragEnd={(e) => void handlePhrasesDragEnd(e)}>
+											<SortableContext items={savedPhrases} strategy={verticalListSortingStrategy}>
+												<div className="divide-y divide-[var(--border)]">
+													{savedPhrases.map((phrase, originalIndex) => (
+														<SortableSavedPhraseRow
+															key={phrase}
+															phrase={phrase}
+															onUse={() => handleUsePhrase(phrase)}
+															onDelete={() => handleDeletePhrase(originalIndex)}
+															isDesktop={isDesktop}
+														/>
+													))}
 												</div>
-											))}
-										</div>
+											</SortableContext>
+										</DndContext>
 									)}
 								</div>
+						</BottomSheet>
+					) : null}
+
+					{isMergeSheetOpen ? (
+						<BottomSheet
+							onClose={() => setIsMergeSheetOpen(false)}
+							isDesktop={isDesktop}
+							bg="bg-[color-mix(in_srgb,var(--surface)_92%,black_8%)]"
+						>
+							<div className="flex items-center justify-between px-4 pb-3">
+								<p className="text-sm font-semibold text-[var(--text)]">
+									{t("chat.merge_conversation_dialog_title", { defaultValue: "Merge into…" })}
+								</p>
+								<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
+									<X className="h-4 w-4" />
+								</SheetClose>
+							</div>
+
+							<div className="px-3 pb-3">
+								<input
+									type="text"
+									value={mergeSearchQuery}
+									onChange={(e) => setMergeSearchQuery(e.target.value)}
+									placeholder={t("chat.merge_conversation_search_placeholder", { defaultValue: "Search chats or profile ID…" })}
+									className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2 text-sm text-[var(--text)] placeholder-[var(--text-muted)] outline-none"
+								/>
+							</div>
+
+							<div className="border-t border-[var(--border)]" />
+
+							<div data-lenis-prevent className="overflow-y-auto overflow-x-hidden" style={{ maxHeight: "50dvh" }}>
+								{filteredMergeableConversations.length === 0 ? (
+									<div className="flex flex-col items-center justify-center gap-2 p-8 text-center text-[var(--text-muted)]">
+										<GitMerge className="h-6 w-6 opacity-50" />
+										<p className="text-sm font-medium">
+											{t("chat.merge_conversation_empty", { defaultValue: "No current chats to merge into." })}
+										</p>
+									</div>
+								) : (
+									<div className="divide-y divide-[var(--border)]">
+										{filteredMergeableConversations.map((conversation) => {
+											const other = getOtherParticipant(conversation, userId);
+											const name = conversation.data.name || t("common.unknown_display_name");
+											return (
+												<button
+													key={conversation.data.conversationId}
+													type="button"
+													onClick={() => {
+														setIsMergeSheetOpen(false);
+														setMergeConfirmTarget(conversation);
+													}}
+													className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-[var(--surface-2)]"
+												>
+													<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--surface-2)]">
+														<ProfileImage
+															src={resolveAvatarSrc(
+																other?.primaryMediaHash,
+																getParticipantAvatarUrl(other?.primaryMediaHash),
+															)}
+															alt={name}
+														/>
+													</div>
+													<div className="min-w-0 flex-1">
+														<p className="truncate text-sm font-medium text-[var(--text)]">
+															{name}
+														</p>
+														{other?.profileId != null && (
+															<p className="truncate text-xs text-[var(--text-muted)]">
+																ID: {other.profileId}
+															</p>
+														)}
+													</div>
+												</button>
+											);
+										})}
+									</div>
+								)}
+							</div>
 						</BottomSheet>
 					) : null}
 
@@ -2611,13 +2823,15 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 									};
 									const rows: ActionRow[] = [];
 
-									rows.push({
-										key: "reply",
-										icon: <Reply className="h-3.5 w-3.5" />,
-										label: t("chat.actions.reply", { defaultValue: "Reply" }),
-										onClick: () => void handleReply(message),
-										disabled: isMutating,
-									});
+									if (!isArchived) {
+										rows.push({
+											key: "reply",
+											icon: <Reply className="h-3.5 w-3.5" />,
+											label: t("chat.actions.reply", { defaultValue: "Reply" }),
+											onClick: () => void handleReply(message),
+											disabled: isMutating,
+										});
+									}
 
 									if (hasText || loc) {
 										rows.push({
@@ -2691,7 +2905,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 										});
 									}
 
-									if (mine && !message.unsent) {
+									if (!isArchived && mine && !message.unsent) {
 										rows.push({
 											key: "unsend",
 											icon: <Undo2 className="h-3.5 w-3.5" />,
@@ -2707,6 +2921,16 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											icon: <Album className="h-3.5 w-3.5" />,
 											label: t("chat.actions.stop_sharing", { defaultValue: "Stop Sharing" }),
 											onClick: () => void handleStopAlbumShare(albumId),
+											disabled: isMutating,
+										});
+									}
+
+									if (!mine && albumId && isAlbumCachedLocally(albumId)) {
+										rows.push({
+											key: "remove-share",
+											icon: <Album className="h-3.5 w-3.5" />,
+											label: t("chat.actions.remove_share", { defaultValue: "Remove Share" }),
+											onClick: () => void handleRemoveLocalAlbum(albumId),
 											disabled: isMutating,
 										});
 									}

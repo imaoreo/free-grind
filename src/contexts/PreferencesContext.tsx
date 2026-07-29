@@ -157,6 +157,7 @@ const preferencesSchema = z.object({
 	mobileGridColumns: z.enum(["2", "3"]).default("3"),
 	unitsPreset: z.enum(UNIT_PRESETS).default("world"),
 	blurIncomingMedia: z.boolean().default(false),
+	blurGridProfilePictures: z.boolean().default(false),
 	developerMode: z.boolean().default(false),
 	showDebugInfo: z.boolean().default(false),
 	testReminderDisabled: z.boolean().default(false),
@@ -168,6 +169,14 @@ const preferencesSchema = z.object({
 	revealEffectEnabled: z.boolean().default(true),
 	revealEffectStrength: z.enum(["subtle", "pronounced"]).default("subtle"),
 	showAlbumSensitiveContentWarning: z.boolean().default(true),
+	openAlbumAsBottomSheet: z.boolean().default(false),
+	sortDrawerMediaByFrequency: z.boolean().default(true),
+	keepScreenOn: z.boolean().default(false),
+	autoFocusLocationSearch: z.boolean().default(true),
+	defaultExpiringPhotos: z.boolean().default(false),
+	defaultAlbumExpirationType: z
+		.enum(["INDEFINITE", "ONCE", "TEN_MINUTES", "ONE_HOUR", "ONE_DAY"])
+		.default("INDEFINITE"),
 });
 
 type Preferences = z.infer<typeof preferencesSchema>;
@@ -189,6 +198,7 @@ type PreferencesAction =
 	| { type: "SET_MOBILE_GRID_COLUMNS"; payload: "2" | "3" }
 	| { type: "SET_UNITS_PRESET"; payload: UnitsPreset }
 	| { type: "SET_BLUR_INCOMING_MEDIA"; payload: boolean }
+	| { type: "SET_BLUR_GRID_PROFILE_PICTURES"; payload: boolean }
 	| { type: "SET_DEVELOPER_MODE"; payload: boolean }
 	| { type: "SET_SHOW_DEBUG_INFO"; payload: boolean }
 	| { type: "SET_TEST_REMINDER_DISABLED"; payload: boolean }
@@ -198,6 +208,12 @@ type PreferencesAction =
 	| { type: "SET_REVEAL_EFFECT_ENABLED"; payload: boolean }
 	| { type: "SET_REVEAL_EFFECT_STRENGTH"; payload: RevealStrength }
 	| { type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING"; payload: boolean }
+	| { type: "SET_OPEN_ALBUM_AS_BOTTOM_SHEET"; payload: boolean }
+	| { type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY"; payload: boolean }
+	| { type: "SET_KEEP_SCREEN_ON"; payload: boolean }
+	| { type: "SET_AUTO_FOCUS_LOCATION_SEARCH"; payload: boolean }
+	| { type: "SET_DEFAULT_EXPIRING_PHOTOS"; payload: boolean }
+	| { type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE"; payload: Preferences["defaultAlbumExpirationType"] }
 	| { type: "SET_RIGHT_NOW_STATUS"; payload: { id: number | null; expiresAt: number | null } }
 	| { type: "SET_ACCENT"; payload: { color: string; contrast: string } };
 
@@ -220,6 +236,8 @@ function preferencesReducer(
 			return { ...state, unitsPreset: action.payload };
 		case "SET_BLUR_INCOMING_MEDIA":
 			return { ...state, blurIncomingMedia: action.payload };
+		case "SET_BLUR_GRID_PROFILE_PICTURES":
+			return { ...state, blurGridProfilePictures: action.payload };
 		case "SET_DEVELOPER_MODE":
 			return { ...state, developerMode: action.payload };
 		case "SET_SHOW_DEBUG_INFO":
@@ -238,6 +256,18 @@ function preferencesReducer(
 			return { ...state, revealEffectStrength: action.payload };
 		case "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING":
 			return { ...state, showAlbumSensitiveContentWarning: action.payload };
+		case "SET_OPEN_ALBUM_AS_BOTTOM_SHEET":
+			return { ...state, openAlbumAsBottomSheet: action.payload };
+		case "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY":
+			return { ...state, sortDrawerMediaByFrequency: action.payload };
+		case "SET_KEEP_SCREEN_ON":
+			return { ...state, keepScreenOn: action.payload };
+		case "SET_AUTO_FOCUS_LOCATION_SEARCH":
+			return { ...state, autoFocusLocationSearch: action.payload };
+		case "SET_DEFAULT_EXPIRING_PHOTOS":
+			return { ...state, defaultExpiringPhotos: action.payload };
+		case "SET_DEFAULT_ALBUM_EXPIRATION_TYPE":
+			return { ...state, defaultAlbumExpirationType: action.payload };
 		case "SET_RIGHT_NOW_STATUS":
 			return {
 				...state,
@@ -303,6 +333,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		mobileGridColumns: "3",
 		unitsPreset: "world",
 		blurIncomingMedia: false,
+		blurGridProfilePictures: false,
 		developerMode: false,
 		showDebugInfo: false,
 		testReminderDisabled: false,
@@ -314,6 +345,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: true,
 		revealEffectStrength: "subtle",
 		showAlbumSensitiveContentWarning: true,
+		openAlbumAsBottomSheet: false,
+		sortDrawerMediaByFrequency: true,
+		keepScreenOn: false,
+		autoFocusLocationSearch: true,
+		defaultExpiringPhotos: false,
+		defaultAlbumExpirationType: "INDEFINITE",
 		isLoading: true,
 	});
 
@@ -341,6 +378,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_MOBILE_GRID_COLUMNS", payload: parsed.mobileGridColumns });
 					dispatch({ type: "SET_UNITS_PRESET", payload: parsed.unitsPreset });
 					dispatch({ type: "SET_BLUR_INCOMING_MEDIA", payload: parsed.blurIncomingMedia });
+					dispatch({ type: "SET_BLUR_GRID_PROFILE_PICTURES", payload: parsed.blurGridProfilePictures });
 					dispatch({ type: "SET_DEVELOPER_MODE", payload: parsed.developerMode });
 					dispatch({ type: "SET_SHOW_DEBUG_INFO", payload: parsed.showDebugInfo });
 					dispatch({ type: "SET_TEST_REMINDER_DISABLED", payload: parsed.testReminderDisabled });
@@ -349,6 +387,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					dispatch({ type: "SET_REVEAL_EFFECT_ENABLED", payload: parsed.revealEffectEnabled });
 					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: parsed.revealEffectStrength });
 					dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: parsed.showAlbumSensitiveContentWarning });
+					dispatch({ type: "SET_OPEN_ALBUM_AS_BOTTOM_SHEET", payload: parsed.openAlbumAsBottomSheet });
+					dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: parsed.sortDrawerMediaByFrequency });
+					dispatch({ type: "SET_KEEP_SCREEN_ON", payload: parsed.keepScreenOn });
+					dispatch({ type: "SET_AUTO_FOCUS_LOCATION_SEARCH", payload: parsed.autoFocusLocationSearch });
+					dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: parsed.defaultExpiringPhotos });
+					dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: parsed.defaultAlbumExpirationType });
 					dispatch({
 						type: "SET_RIGHT_NOW_STATUS",
 						payload: {
@@ -422,6 +466,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				mobileGridColumns: currentState.mobileGridColumns,
 				unitsPreset: currentState.unitsPreset,
 				blurIncomingMedia: currentState.blurIncomingMedia,
+				blurGridProfilePictures: currentState.blurGridProfilePictures,
 				developerMode: currentState.developerMode,
 				showDebugInfo: currentState.showDebugInfo,
 				testReminderDisabled: currentState.testReminderDisabled,
@@ -431,6 +476,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 				revealEffectEnabled: currentState.revealEffectEnabled,
 				revealEffectStrength: currentState.revealEffectStrength,
 				showAlbumSensitiveContentWarning: currentState.showAlbumSensitiveContentWarning,
+				openAlbumAsBottomSheet: currentState.openAlbumAsBottomSheet,
+				sortDrawerMediaByFrequency: currentState.sortDrawerMediaByFrequency,
+				keepScreenOn: currentState.keepScreenOn,
+				autoFocusLocationSearch: currentState.autoFocusLocationSearch,
+				defaultExpiringPhotos: currentState.defaultExpiringPhotos,
+				defaultAlbumExpirationType: currentState.defaultAlbumExpirationType,
 				activeRightNowId: currentState.activeRightNowId ?? null,
 				activeRightNowExpiresAt: currentState.activeRightNowExpiresAt ?? null,
 				...newValues,
@@ -463,6 +514,9 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			if (newValues.blurIncomingMedia !== undefined) {
 				dispatch({ type: "SET_BLUR_INCOMING_MEDIA", payload: newValues.blurIncomingMedia });
 			}
+			if (newValues.blurGridProfilePictures !== undefined) {
+				dispatch({ type: "SET_BLUR_GRID_PROFILE_PICTURES", payload: newValues.blurGridProfilePictures });
+			}
 			if (newValues.developerMode !== undefined) {
 				dispatch({ type: "SET_DEVELOPER_MODE", payload: newValues.developerMode });
 			}
@@ -489,6 +543,24 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 			}
 			if (newValues.showAlbumSensitiveContentWarning !== undefined) {
 				dispatch({ type: "SET_SHOW_ALBUM_SENSITIVE_CONTENT_WARNING", payload: newValues.showAlbumSensitiveContentWarning });
+			}
+			if (newValues.openAlbumAsBottomSheet !== undefined) {
+				dispatch({ type: "SET_OPEN_ALBUM_AS_BOTTOM_SHEET", payload: newValues.openAlbumAsBottomSheet });
+			}
+			if (newValues.sortDrawerMediaByFrequency !== undefined) {
+				dispatch({ type: "SET_SORT_DRAWER_MEDIA_BY_FREQUENCY", payload: newValues.sortDrawerMediaByFrequency });
+			}
+			if (newValues.keepScreenOn !== undefined) {
+				dispatch({ type: "SET_KEEP_SCREEN_ON", payload: newValues.keepScreenOn });
+			}
+			if (newValues.autoFocusLocationSearch !== undefined) {
+				dispatch({ type: "SET_AUTO_FOCUS_LOCATION_SEARCH", payload: newValues.autoFocusLocationSearch });
+			}
+			if (newValues.defaultExpiringPhotos !== undefined) {
+				dispatch({ type: "SET_DEFAULT_EXPIRING_PHOTOS", payload: newValues.defaultExpiringPhotos });
+			}
+			if (newValues.defaultAlbumExpirationType !== undefined) {
+				dispatch({ type: "SET_DEFAULT_ALBUM_EXPIRATION_TYPE", payload: newValues.defaultAlbumExpirationType });
 			}
 			if (
 				newValues.activeRightNowId !== undefined ||
@@ -550,6 +622,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					mobileGridColumns: preferences.mobileGridColumns,
 					unitsPreset: preferences.unitsPreset,
 					blurIncomingMedia: preferences.blurIncomingMedia,
+					blurGridProfilePictures: preferences.blurGridProfilePictures,
 					developerMode: preferences.developerMode,
 					showDebugInfo: preferences.showDebugInfo,
 					testReminderDisabled: preferences.testReminderDisabled,
@@ -558,6 +631,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					revealEffectEnabled: preferences.revealEffectEnabled,
 					revealEffectStrength: preferences.revealEffectStrength,
 					showAlbumSensitiveContentWarning: preferences.showAlbumSensitiveContentWarning,
+					openAlbumAsBottomSheet: preferences.openAlbumAsBottomSheet,
+					sortDrawerMediaByFrequency: preferences.sortDrawerMediaByFrequency,
+					keepScreenOn: preferences.keepScreenOn,
+					autoFocusLocationSearch: preferences.autoFocusLocationSearch,
+					defaultExpiringPhotos: preferences.defaultExpiringPhotos,
+					defaultAlbumExpirationType: preferences.defaultAlbumExpirationType,
 					activeRightNowId: preferences.activeRightNowId,
 					activeRightNowExpiresAt: preferences.activeRightNowExpiresAt,
 				}),
@@ -575,6 +654,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		mobileGridColumns: state.mobileGridColumns,
 		unitsPreset: state.unitsPreset,
 		blurIncomingMedia: state.blurIncomingMedia,
+		blurGridProfilePictures: state.blurGridProfilePictures,
 		developerMode: state.developerMode,
 		showDebugInfo: state.showDebugInfo,
 		testReminderDisabled: state.testReminderDisabled,
@@ -586,6 +666,12 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 		revealEffectEnabled: state.revealEffectEnabled,
 		revealEffectStrength: state.revealEffectStrength,
 		showAlbumSensitiveContentWarning: state.showAlbumSensitiveContentWarning,
+		openAlbumAsBottomSheet: state.openAlbumAsBottomSheet,
+		sortDrawerMediaByFrequency: state.sortDrawerMediaByFrequency,
+		keepScreenOn: state.keepScreenOn,
+		autoFocusLocationSearch: state.autoFocusLocationSearch,
+		defaultExpiringPhotos: state.defaultExpiringPhotos,
+		defaultAlbumExpirationType: state.defaultAlbumExpirationType,
 		setPreferences,
 		isLoading: state.isLoading || !isLocationLoaded,
 	};

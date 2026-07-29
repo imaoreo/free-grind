@@ -123,7 +123,11 @@ export function PhotoViewer({
 
 	const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 	const [isVideoMuted, setIsVideoMuted] = useState(true);
-	const [showCenterPlayButton, setShowCenterPlayButton] = useState(true);
+	// Drives the fade of every chrome element (header, buttons, page-count
+	// pill, video controls, footer) on mobile — a tap on the media toggles
+	// this. Always treated as visible on desktop (see `chromeVisible` below),
+	// since this is a mobile-only gesture.
+	const [showChrome, setShowChrome] = useState(true);
 	const [videoCurrentTime, setVideoCurrentTime] = useState(0);
 	const [videoDuration, setVideoDuration] = useState(0);
 	const [isScrubbing, setIsScrubbing] = useState(false);
@@ -167,6 +171,16 @@ export function PhotoViewer({
 	const prevIdx = N > 1 ? (centerIdx - 1 + N) % N : centerIdx;
 	const nextIdx = N > 1 ? (centerIdx + 1) % N : centerIdx;
 
+	// centerIdx can briefly point past the end of `photos` if a caller
+	// mutates the array (e.g. album content reloading with fewer items)
+	// without also re-clamping the index it's driving — fall back to the
+	// last valid photo instead of crashing on `.url` of undefined. Computed
+	// early (not just before the JSX return) since the chrome auto-hide
+	// effect below needs to know the current media type too.
+	const safeCenterIdx = N > 0 && centerIdx >= 0 && centerIdx < N ? centerIdx : N - 1;
+	const currentMedia = N > 0 ? getMediaInfo(photos[safeCenterIdx]) : null;
+	const isCurrentVideo = currentMedia?.type === "video";
+
 	useLayoutEffect(() => {
 		if (!isOpen) return;
 		setCenterIdx(initialIndex);
@@ -177,6 +191,7 @@ export function PhotoViewer({
 		setZoomOffset({ x: 0, y: 0 });
 		setIsMenuOpen(false);
 		setHasAcknowledgedWarning(false);
+		setShowChrome(true);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isOpen]);
 
@@ -184,23 +199,37 @@ export function PhotoViewer({
 		setIsMenuOpen(false);
 		setIsVideoPlaying(false);
 		setIsVideoMuted(true);
-		setShowCenterPlayButton(true);
+		// showChrome is deliberately left alone here — swiping to another
+		// slide must not re-reveal chrome that a tap had hidden. Pausing a
+		// video (including reaching its end) forces it back on explicitly via
+		// the onPause/onEnded handlers below instead.
 		setVideoCurrentTime(0);
 		setVideoDuration(0);
+		// preload="metadata" starts loading every carousel slot immediately, so
+		// a slide swiped into view has often already fired its loadedmetadata/
+		// durationchange events while it was still an off-screen prev/next
+		// preview — back when its onLoadedMetadata/onDurationChange handlers
+		// were unwired (isCurrent was false). Those native events don't fire
+		// again just because a re-render attaches handlers now, so the seek
+		// bar was stuck reading a duration of 0 forever. React has already
+		// re-pointed mediaRef at this slide by the time this effect runs, so
+		// read whatever the element already knows directly instead.
+		const el = mediaRef.current;
+		if (el instanceof HTMLVideoElement && Number.isFinite(el.duration)) {
+			setVideoDuration(el.duration);
+			setVideoCurrentTime(el.currentTime);
+		}
 	}, [centerIdx]);
 
-	// Auto-hide the big center play/pause button shortly after playback
-	// starts — reappears immediately on pause (or on tap, since tapping the
-	// video toggles play/pause and re-runs this effect).
+	// Native-player-style chrome auto-hide for videos: once playback starts,
+	// fade everything out shortly after — a tap while hidden brings it back
+	// (see the media click handler below) without pausing, which re-arms this
+	// same timer.
 	useEffect(() => {
-		if (!isVideoPlaying) {
-			setShowCenterPlayButton(true);
-			return;
-		}
-		setShowCenterPlayButton(true);
-		const timer = setTimeout(() => setShowCenterPlayButton(false), 1200);
+		if (!isCurrentVideo || !isVideoPlaying || !showChrome) return;
+		const timer = setTimeout(() => setShowChrome(false), 2500);
 		return () => clearTimeout(timer);
-	}, [isVideoPlaying]);
+	}, [isCurrentVideo, isVideoPlaying, showChrome]);
 
 	useEffect(() => {
 		if (!isMenuOpen) return;
@@ -429,7 +458,14 @@ export function PhotoViewer({
 
 			const dx = touch.clientX - touchStartRef.current.x;
 			const dy = touch.clientY - touchStartRef.current.y;
-			if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+			// A real tap's finger position drifts a few px even when the user
+			// means to hold still — 4px was tight enough that an ordinary tap
+			// routinely got misread as a gesture, which (via the chrome-toggle
+			// tap handler below) silently swallowed the tap instead of either
+			// toggling chrome or closing the viewer. 10px matches standard
+			// touch-slop conventions and still fires well before the 6px axis
+			// lock or the swipe/pan thresholds elsewhere in this file.
+			if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
 				gestureMovedRef.current = true;
 			}
 
@@ -623,13 +659,11 @@ export function PhotoViewer({
 	const activeSlot = N <= 1 ? 0 : trackPos;
 	const canAnimate = dragOffset === 0 && !noTransition;
 	const footerContent = renderFooter ? renderFooter(centerIdx) : null;
-	// centerIdx can briefly point past the end of `photos` if a caller
-	// mutates the array (e.g. album content reloading with fewer items)
-	// without also re-clamping the index it's driving — fall back to the
-	// last valid photo instead of crashing on `.url` of undefined.
-	const safeCenterIdx = centerIdx >= 0 && centerIdx < N ? centerIdx : N - 1;
-	const currentMedia = getMediaInfo(photos[safeCenterIdx]);
-	const isCurrentVideo = currentMedia.type === "video";
+	// The tap-to-hide-chrome gesture is mobile-only — desktop keeps chrome on
+	// permanently (showChrome still exists in state there, it's just never
+	// toggled since the click handler below only flips it off-desktop).
+	const chromeVisible = isDesktop || showChrome;
+	const chromeFadeClass = `transition-opacity duration-300 ${chromeVisible ? "opacity-100" : "pointer-events-none opacity-0"}`;
 
 	return createPortal(
 		<div className="fixed inset-0 z-[80] bg-black" onClick={onClose}>
@@ -638,7 +672,7 @@ export function PhotoViewer({
 				// the seek bar/mute button dropped their own chip backgrounds, so
 				// this is what keeps them legible over bright video content instead.
 				<div
-					className="pointer-events-none absolute inset-x-0 bottom-0 z-[82]"
+					className={`pointer-events-none absolute inset-x-0 bottom-0 z-[82] ${chromeFadeClass}`}
 					style={{ height: "16rem", background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)" }}
 					aria-hidden="true"
 				/>
@@ -646,21 +680,21 @@ export function PhotoViewer({
 			{menuActions && menuActions.length > 0 ? (
 				<>
 					<div
-						className="pointer-events-none absolute inset-x-0 top-0 z-[82]"
+						className={`pointer-events-none absolute inset-x-0 top-0 z-[82] ${chromeFadeClass}`}
 						style={{ height: "14rem", background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)" }}
 						aria-hidden="true"
 					/>
 					<div
-						className="pointer-events-none absolute inset-x-0 bottom-0 z-[82]"
+						className={`pointer-events-none absolute inset-x-0 bottom-0 z-[82] ${chromeFadeClass}`}
 						style={{ height: "16rem", background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)" }}
 						aria-hidden="true"
 					/>
 					<div
-						className="pointer-events-none absolute inset-x-0 top-0 z-[83] px-3 sm:px-5"
+						className={`pointer-events-none absolute inset-x-0 top-0 z-[83] px-3 sm:px-5 ${chromeFadeClass}`}
 						style={{ paddingTop: chromeTopOffset }}
 					>
 						<div
-							className="pointer-events-auto flex w-full items-center justify-between gap-3"
+							className={`flex w-full items-center justify-between gap-3 ${chromeVisible ? "pointer-events-auto" : "pointer-events-none"}`}
 							onClick={(e) => e.stopPropagation()}
 						>
 							<div className="flex min-w-0 items-center gap-3">
@@ -747,7 +781,7 @@ export function PhotoViewer({
 						onClick={(e) => { e.stopPropagation(); onClose(); }}
 						onTouchStart={(e) => { e.stopPropagation(); gestureMovedRef.current = false; }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, onClose)}
-						className="absolute left-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 sm:left-5"
+						className={`absolute left-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 sm:left-5 ${chromeFadeClass}`}
 						style={{ top: chromeButtonTop }}
 						aria-label={t("profile_details.close_photo_viewer")}
 					>
@@ -759,7 +793,7 @@ export function PhotoViewer({
 						onClick={(e) => { e.stopPropagation(); void handleSave(); }}
 						onTouchEnd={(e) => handleButtonTouchEnd(e, () => void handleSave())}
 						disabled={isSaving}
-						className="absolute right-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5"
+						className={`absolute right-3 z-[83] inline-flex items-center justify-center rounded-xl border border-white/45 bg-black/40 p-2 text-white backdrop-blur-md transition active:scale-90 disabled:opacity-50 sm:right-5 ${chromeFadeClass}`}
 						style={{ top: chromeButtonTop }}
 						aria-label={t("profile_details.save")}
 					>
@@ -799,7 +833,7 @@ export function PhotoViewer({
 				// right where it does) would sit right underneath/against it instead
 				// of clearing it.
 				<p
-					className={`absolute left-1/2 z-[83] -translate-x-1/2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md ${
+					className={`absolute left-1/2 z-[83] -translate-x-1/2 rounded-full border border-white/15 bg-black/40 px-3 py-1 text-xs font-medium text-white shadow-lg backdrop-blur-md ${chromeFadeClass} ${
 						isCurrentVideo
 							? footerContent
 								? "bottom-[calc(env(safe-area-inset-bottom,0px)+9.25rem)]"
@@ -818,9 +852,7 @@ export function PhotoViewer({
 					type="button"
 					onClick={(e) => { e.stopPropagation(); toggleVideoPlay(); }}
 					aria-label={isVideoPlaying ? t("profile_details.pause_video", { defaultValue: "Pause" }) : t("profile_details.play_video", { defaultValue: "Play" })}
-					className={`absolute left-1/2 top-1/2 z-[84] flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md transition-opacity duration-300 active:scale-90 ${
-						showCenterPlayButton ? "opacity-100" : "pointer-events-none opacity-0"
-					}`}
+					className={`absolute left-1/2 top-1/2 z-[84] flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white shadow-lg backdrop-blur-md active:scale-90 ${chromeFadeClass}`}
 				>
 					{isVideoPlaying ? <Pause className="h-7 w-7 fill-current" /> : <Play className="h-7 w-7 fill-current pl-0.5" />}
 				</button>
@@ -832,7 +864,7 @@ export function PhotoViewer({
 				// pill (1.25rem/5.5rem above the safe area), clearing both it and the
 				// footer/reply bar underneath instead of overlapping.
 				<div
-					className={`absolute inset-x-0 z-[84] flex items-center gap-3 px-6 sm:px-8 ${
+					className={`absolute inset-x-0 z-[84] flex items-center gap-3 px-6 sm:px-8 ${chromeFadeClass} ${
 						footerContent
 							? "bottom-[calc(env(safe-area-inset-bottom,0px)+6.75rem)]"
 							: "bottom-[calc(env(safe-area-inset-bottom,0px)+2.25rem)]"
@@ -969,7 +1001,21 @@ export function PhotoViewer({
 											e.clientY >= rect.top && e.clientY <= rect.bottom;
 										if (clickedMedia) {
 											e.stopPropagation();
-											if (isCurrent && type === "video") toggleVideoPlay();
+											if (isDesktop) {
+												// Desktop has no tap-to-hide chrome — a click on the
+												// video keeps its old direct play/pause behavior.
+												if (isCurrent && type === "video") toggleVideoPlay();
+											} else if (!gestureMovedRef.current) {
+												// A pinch/pan already sets gestureMovedRef — this
+												// only fires for a clean tap, so zooming never toggles
+												// chrome. Videos toggle chrome here too (not
+												// play/pause) — playback is only ever driven by the
+												// explicit center button now. Always toggles (even
+												// paused/freshly-swiped-to video) — nothing else forces
+												// chrome back on except an actual pause/end event, so a
+												// hidden-then-swiped-to video must stay tap-revealable.
+												setShowChrome((prev) => !prev);
+											}
 										}
 									}}
 								>
@@ -1000,8 +1046,8 @@ export function PhotoViewer({
 													style={{ ...zoomStyle, cursor: desktopCursor }}
 													onMouseDown={isCurrent ? handleMediaMouseDown : undefined}
 													onPlay={isCurrent ? () => setIsVideoPlaying(true) : undefined}
-													onPause={isCurrent ? () => setIsVideoPlaying(false) : undefined}
-													onEnded={isCurrent ? () => setIsVideoPlaying(false) : undefined}
+													onPause={isCurrent ? () => { setIsVideoPlaying(false); setShowChrome(true); } : undefined}
+													onEnded={isCurrent ? () => { setIsVideoPlaying(false); setShowChrome(true); } : undefined}
 													onTimeUpdate={isCurrent ? (e) => {
 														if (!isScrubbingRef.current) setVideoCurrentTime(e.currentTarget.currentTime);
 													} : undefined}
@@ -1059,7 +1105,7 @@ export function PhotoViewer({
 				// which for narrow/portrait images is often narrower than this pill's natural
 				// width and was forcing the text to wrap.
 				<div
-					className="absolute left-1/2 z-[83] flex -translate-x-1/2 -translate-y-1/2 items-center gap-2"
+					className={`absolute left-1/2 z-[83] flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 ${chromeFadeClass}`}
 					style={{ top: `calc(${chromeButtonTop} + 1rem)` }}
 					onClick={(e) => e.stopPropagation()}
 				>
@@ -1068,10 +1114,14 @@ export function PhotoViewer({
 			)}
 
 			{footerContent && (
-				<div
-					className="absolute inset-x-0 bottom-0 z-[83]"
-					onClick={(e) => e.stopPropagation()}
-				>
+				// No stopPropagation here — this wrapper spans the footer's full
+				// (often padded/gradient) bounding box, not just its visible
+				// controls, so blanket-swallowing clicks on it made tapping the
+				// "black" gap above the reply bar silently do nothing instead of
+				// closing the viewer. Callers of renderFooter (PhotoActionBar) are
+				// responsible for stopping propagation on their own actual
+				// interactive row instead.
+				<div className={`absolute inset-x-0 bottom-0 z-[83] ${chromeFadeClass}`}>
 					{footerContent}
 				</div>
 			)}

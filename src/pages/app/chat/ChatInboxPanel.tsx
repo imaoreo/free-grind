@@ -199,7 +199,7 @@ function ConversationContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[190px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] min-w-[190px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
 		>
 			{!isArchived && (
 				<button
@@ -506,7 +506,7 @@ function ChatConversationRow({
 									</span>
 								)}
 								{otherParticipant?.profileId && presenceResults[otherParticipant.profileId] ? (
-									<FreeGrindBadge size="xs" title={t("profile_details.uses_free_grind")} />
+									<FreeGrindBadge size="sm" variant="bare" title={t("profile_details.uses_free_grind")} />
 								) : null}
 							</div>
 							<span className="shrink-0 text-xs text-[var(--text-muted)]">
@@ -580,6 +580,7 @@ export function ChatInboxPanel({
 	onToggleOnlineNowOnly,
 	archivedFilter,
 	hiddenFilter,
+	needsReplyOnly,
 	typingConversationIds,
 	onTogglePinConversation,
 	hiddenConversationIds,
@@ -709,6 +710,7 @@ export function ChatInboxPanel({
 					onClearInboxFilters={onClearInboxFilters}
 					archivedFilter={archivedFilter}
 					hiddenFilter={hiddenFilter}
+					needsReplyOnly={needsReplyOnly}
 				/>
 			)}
 

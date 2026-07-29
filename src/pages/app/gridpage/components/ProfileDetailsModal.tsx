@@ -57,7 +57,7 @@ import { PhotoActionBar } from "../../../../components/PhotoActionBar";
 import { useProfileAlbumStatus } from "../../../../hooks/useProfileAlbumStatus";
 import { captureAlbum, getLocalAlbum } from "../../../../services/albumStore";
 import type { AlbumViewer } from "../../../../types/shared-albums";
-import { saveAllAlbumMedia } from "../../../../utils/albumMedia";
+import { saveAllAlbumMedia, saveAllMedia } from "../../../../utils/albumMedia";
 
 type OwnProfileData = { tags: string[] };
 const ownProfileDataCache = new Map<string, OwnProfileData>();
@@ -104,6 +104,7 @@ type ProfileDetailsModalProps = {
 	activeProfileError: string | null;
 	activeProfilePhotoHashes: string[];
 	chatContactStatus?: ChatContactIndexRecord | null;
+	localNickname?: string | null;
 	genderOptions: ManagedOption[];
 	pronounOptions: ManagedOption[];
 	variant?: "modal" | "page";
@@ -192,6 +193,7 @@ export function ProfileDetailsModal({
 	activeProfileError,
 	activeProfilePhotoHashes,
 	chatContactStatus,
+	localNickname,
 	genderOptions,
 	pronounOptions,
 	variant = "modal",
@@ -225,13 +227,18 @@ export function ProfileDetailsModal({
 			return t("profile_details.title");
 		}
 
+		const nickname = localNickname?.trim();
+		if (nickname) {
+			return nickname;
+		}
+
 		const value = activeProfile.displayName?.trim();
 		if (value) {
 			return value;
 		}
 
 		return t("profile_details.anonymous", "Someone");
-	}, [activeProfile, t]);
+	}, [activeProfile, localNickname, t]);
 
 	const messageProfileId = activeProfile?.profileId ?? selectedBrowseCard?.profileId ?? null;
 	const isOwnProfile = userId != null && messageProfileId != null && String(userId) === String(messageProfileId);
@@ -410,12 +417,13 @@ export function ProfileDetailsModal({
 	const [barTapPickerOpen, setBarTapPickerOpen] = useState(false);
 	const [barInputVisible, setBarInputVisible] = useState(true);
 	const [barTapHoverId, setBarTapHoverId] = useState<number | null>(null);
-	const [barTapFlyEmoji, setBarTapFlyEmoji] = useState<{ id: number; key: number; particles: { dx: number; dy: number; size: number; dur: number; delay: number; emoji?: string }[] } | null>(null);
+	const [barTapFlyEmoji, setBarTapFlyEmoji] = useState<{ id: number; key: number; originDx: number; originDy: number; particles: { dx: number; dy: number; size: number; dur: number; delay: number; emoji?: string }[] } | null>(null);
 	const barTapLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const barTapStickyRef = useRef(false);
 	const barTapSkipUpRef = useRef(false);
 	const barInputTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const barTapOptionsRef = useRef<HTMLDivElement>(null);
+	const barTapButtonRef = useRef<HTMLButtonElement>(null);
 	const controlsBarRef = useRef<HTMLDivElement>(null);
 	const actionsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -597,12 +605,12 @@ export function ProfileDetailsModal({
 			) : profileNote ? (
 				<div className="space-y-1.5">
 					<div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
-						<p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)]">{profileNote}</p>
+						<p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text)] select-text">{profileNote}</p>
 					</div>
 					{profilePhoneNumber && (
 						<div className="flex min-h-10 items-center gap-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] px-3">
 							<Phone className="h-3.5 w-3.5 shrink-0 text-[var(--text-muted)]" />
-							<span className="text-sm text-[var(--text)]">{profilePhoneNumber}</span>
+							<span className="text-sm text-[var(--text)] select-text">{profilePhoneNumber}</span>
 						</div>
 					)}
 				</div>
@@ -700,7 +708,10 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		const bridge = (window as any).FreeGrindBridge;
 		bridge?.vibrate?.(30) ?? navigator.vibrate?.([15, 10, 25]);
 		onTapProfile(String(messageProfileId), tapId);
-		setBarTapFlyEmoji({ id: tapId, key: Date.now(), particles: makeParticles(tapId) });
+		const btnRect = barTapButtonRef.current?.getBoundingClientRect();
+		const originDx = btnRect ? btnRect.left + btnRect.width / 2 - window.innerWidth / 2 : window.innerWidth / 2 - 110;
+		const originDy = btnRect ? btnRect.top + btnRect.height / 2 - window.innerHeight / 2 : window.innerHeight / 2 - 80;
+		setBarTapFlyEmoji({ id: tapId, key: Date.now(), originDx, originDy, particles: makeParticles(tapId) });
 		setBarTapPickerOpen(false);
 		setBarTapHoverId(null);
 		barTapStickyRef.current = false;
@@ -1026,6 +1037,38 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		setSelectedPhotoIndex(null);
 	};
 
+	// Own profile pictures aren't worth their own subfolder — there's only
+	// ever one "me" to organize by. Someone else's photos get filed under
+	// their profile id so saved pictures land sorted by person instead of
+	// all dumped in one flat folder.
+	const photoViewerFolderKey = !isOwnProfile && messageProfileId != null ? String(messageProfileId) : null;
+
+	const [isSavingAllPhotos, setIsSavingAllPhotos] = useState(false);
+
+	const handleSaveAllPhotos = useCallback(async () => {
+		if (isSavingAllPhotos || photoUrls.length === 0) return;
+		setIsSavingAllPhotos(true);
+		try {
+			await saveAllMedia(
+				photoUrls.map((url) => ({ url, type: "image" as const })),
+				photoViewerFolderKey,
+				t,
+			);
+		} finally {
+			setIsSavingAllPhotos(false);
+		}
+	}, [isSavingAllPhotos, photoUrls, photoViewerFolderKey, t]);
+
+	const photoMenuActions = useMemo<PhotoViewerMenuAction[]>(() => [
+		{
+			key: "save-all",
+			label: t("profile_details.save_all"),
+			icon: Images,
+			onClick: () => void handleSaveAllPhotos(),
+			disabled: isSavingAllPhotos || photoUrls.length === 0,
+		},
+	], [t, handleSaveAllPhotos, isSavingAllPhotos, photoUrls.length]);
+
 	const photoViewerOverlay = selectedPhotoIndex !== null && (
 		<PhotoViewer
 			isOpen={true}
@@ -1034,11 +1077,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 			initialIndex={selectedPhotoIndex}
 			renderExtraInfo={renderPhotoExtraInfo}
 			renderFooter={renderPhotoFooter}
-			// Own profile pictures aren't worth their own subfolder — there's
-			// only ever one "me" to organize by. Someone else's photos get
-			// filed under their profile id so saved pictures land sorted by
-			// person instead of all dumped in one flat folder.
-			conversationId={!isOwnProfile && messageProfileId != null ? String(messageProfileId) : null}
+			conversationId={photoViewerFolderKey}
+			menuActions={photoMenuActions}
 		/>
 	);
 
@@ -1526,44 +1566,46 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</div>
 						)}
 						{carouselHashes.length > 1 && (
-							<div className="pointer-events-none absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
+							<div className="absolute inset-y-0 right-3 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-1.5 rounded-full bg-black/30 px-[5px] py-[10px] backdrop-blur-sm">
-									{carouselHashes.map((hash, index) =>
-										hash === RIGHT_NOW_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
-												aria-hidden="true"
-											>
-												<Zap
-													className="h-3 w-3 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
-													fill="currentColor"
+									{carouselHashes.map((hash, index) => (
+										<button
+											key={`${hash}-dot`}
+											type="button"
+											onClick={() => setMobileCarouselPhotoIndex(index)}
+											className="flex items-center justify-center p-1.5 -m-1.5"
+											aria-label={t("profile_details.open_photo", { index: index + 1 })}
+										>
+											{hash === RIGHT_NOW_SLIDE_HASH ? (
+												<span
+													className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
+												>
+													<Zap
+														className="h-3 w-3 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
+														fill="currentColor"
+													/>
+												</span>
+											) : hash === ALBUM_SLIDE_HASH ? (
+												<span
+													className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
+												>
+													<Album
+														className="h-3 w-3 shrink-0 scale-[0.6] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
+													/>
+												</span>
+											) : (
+												<span
+													className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${
+														index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"
+													}`}
 												/>
-											</span>
-										) : hash === ALBUM_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-1.5 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "12px" : "6px" }}
-												aria-hidden="true"
-											>
-												<Album
-													className="h-3 w-3 shrink-0 scale-[0.6] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
-												/>
-											</span>
-										) : (
-											<span
-												key={`${hash}-dot`}
-												className={`w-1.5 rounded-full transition-[height,background-color] duration-300 ease-out ${
-													index === mobileCarouselPhotoIndex ? "h-3 bg-white" : "h-1.5 bg-white/40"
-												}`}
-												aria-hidden="true"
-											/>
-										)
-									)}
+											)}
+										</button>
+									))}
 								</div>
 							</div>
 						)}
@@ -1690,6 +1732,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</div>
 						</div>
 						<button
+							ref={barTapButtonRef}
 							type="button"
 							onPointerDown={handleBarTapPointerDown}
 							onPointerMove={handleBarTapPointerMove}
@@ -1833,7 +1876,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						<span
 							key={`emoji-${barTapFlyEmoji.key}`}
 							className="animate-tap-fly-center fixed pointer-events-none"
-							style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id) }}
+							style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id), "--tap-origin-dx": `${barTapFlyEmoji.originDx}px`, "--tap-origin-dy": `${barTapFlyEmoji.originDy}px` } as React.CSSProperties}
 						>
 							{barTapEmoji(barTapFlyEmoji.id)}
 						</span>
@@ -1924,44 +1967,46 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</>
 						)}
 						{carouselHashes.length > 1 && (
-							<div className="pointer-events-none absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
+							<div className="absolute inset-y-0 right-4 z-20 flex flex-col items-center justify-center">
 								<div className="flex flex-col items-center gap-2 rounded-full bg-black/30 px-[7px] py-[14px] backdrop-blur-sm">
-									{carouselHashes.map((hash, index) =>
-										hash === RIGHT_NOW_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
-												aria-hidden="true"
-											>
-												<Zap
-													className="h-4 w-4 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
-													fill="currentColor"
+									{carouselHashes.map((hash, index) => (
+										<button
+											key={`${hash}-dot`}
+											type="button"
+											onClick={() => setMobileCarouselPhotoIndex(index)}
+											className="flex items-center justify-center p-1.5 -m-1.5"
+											aria-label={t("profile_details.open_photo", { index: index + 1 })}
+										>
+											{hash === RIGHT_NOW_SLIDE_HASH ? (
+												<span
+													className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
+												>
+													<Zap
+														className="h-4 w-4 shrink-0 scale-[0.55] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "var(--right-now)" : "rgba(255,255,255,0.4)" }}
+														fill="currentColor"
+													/>
+												</span>
+											) : hash === ALBUM_SLIDE_HASH ? (
+												<span
+													className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
+													style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
+												>
+													<Album
+														className="h-4 w-4 shrink-0 scale-[0.65] transition-colors duration-150 ease-out"
+														style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
+													/>
+												</span>
+											) : (
+												<span
+													className={`w-2 rounded-full transition-[height,background-color] duration-300 ease-out ${
+														index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40"
+													}`}
 												/>
-											</span>
-										) : hash === ALBUM_SLIDE_HASH ? (
-											<span
-												key={`${hash}-dot`}
-												className="flex w-2 shrink-0 items-center justify-center overflow-visible transition-[height] duration-300 ease-out"
-												style={{ height: index === mobileCarouselPhotoIndex ? "16px" : "8px" }}
-												aria-hidden="true"
-											>
-												<Album
-													className="h-4 w-4 shrink-0 scale-[0.65] transition-colors duration-150 ease-out"
-													style={{ color: index === mobileCarouselPhotoIndex ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.4)" }}
-												/>
-											</span>
-										) : (
-											<span
-												key={`${hash}-dot`}
-												className={`w-2 rounded-full transition-[height,background-color] duration-300 ease-out ${
-													index === mobileCarouselPhotoIndex ? "h-4 bg-white" : "h-2 bg-white/40"
-												}`}
-												aria-hidden="true"
-											/>
-										)
-									)}
+											)}
+										</button>
+									))}
 								</div>
 							</div>
 						)}
@@ -2138,7 +2183,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 												))}
 											</div>
 										</div>
-										<button type="button" onPointerDown={handleBarTapPointerDown} onPointerMove={handleBarTapPointerMove} onPointerUp={handleBarTapPointerUp}
+										<button ref={barTapButtonRef} type="button" onPointerDown={handleBarTapPointerDown} onPointerMove={handleBarTapPointerMove} onPointerUp={handleBarTapPointerUp}
 											onPointerCancel={() => { setBarTapPickerOpen(false); setBarTapHoverId(null); barTapStickyRef.current = false; if (barTapLongPressRef.current) clearTimeout(barTapLongPressRef.current); barInputTimerRef.current = setTimeout(() => setBarInputVisible(true), 210); }}
 											disabled={isTapDisabled}
 											className={`tap-btn-base relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-none bg-transparent text-2xl leading-none transition-all touch-none select-none ${isTappingProfile ? "opacity-40" : ""} ${barTapPickerOpen ? "text-[var(--text-muted)]" : isTapActive || barTapHoverId !== null ? "text-white" : "text-[var(--text-muted)]"}`}
@@ -2197,7 +2242,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 					<span
 						key={`emoji-${barTapFlyEmoji.key}`}
 						className="animate-tap-fly-center fixed pointer-events-none"
-						style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id) }}
+						style={{ left: "50%", top: "50%", zIndex: 201, filter: barTapGlow(barTapFlyEmoji.id), "--tap-origin-dx": `${barTapFlyEmoji.originDx}px`, "--tap-origin-dy": `${barTapFlyEmoji.originDy}px` } as React.CSSProperties}
 					>
 						{barTapEmoji(barTapFlyEmoji.id)}
 					</span>

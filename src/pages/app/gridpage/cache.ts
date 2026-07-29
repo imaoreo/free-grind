@@ -90,6 +90,23 @@ export function getAllCachedBrowseCardsByImageHash(): Map<string, BrowseCard> {
 	return map;
 }
 
+/**
+ * Same as getAllCachedBrowseCardsByImageHash but keyed by profileId — used to
+ * enrich lists that only carry a profile ID (e.g. sent taps) with a
+ * display name/photo already seen in the browse grid.
+ */
+export function getAllCachedBrowseCardsById(): Map<string, BrowseCard> {
+	const map = new Map<string, BrowseCard>();
+	for (const entry of browseCache.values()) {
+		for (const card of entry.value.cards) {
+			if (!map.has(card.profileId)) {
+				map.set(card.profileId, card);
+			}
+		}
+	}
+	return map;
+}
+
 export function removeProfileFromBrowseCache(profileId: string) {
 	for (const [cacheKey, entry] of browseCache) {
 		browseCache.set(cacheKey, {

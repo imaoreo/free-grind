@@ -14,5 +14,9 @@
 	<string>Free Grind needs access to your camera to let you take photos to share or upload to your profile.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Free Grind needs access to your microphone to record voice messages.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

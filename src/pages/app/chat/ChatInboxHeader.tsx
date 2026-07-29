@@ -1,4 +1,5 @@
-import { Droplets, Images, Loader2, Mail, Pill, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { Images, Loader2, Mail, Pill, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { RightNowIcon } from "../../../components/icons/RightNowIcon";
 import { type CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -23,6 +24,7 @@ export type ChatInboxHeaderProps = {
 	pinnedFilter: InboxVisibilityFilter;
 	archivedFilter: InboxVisibilityFilter;
 	hiddenFilter: InboxVisibilityFilter;
+	needsReplyOnly: boolean;
 	hasActiveInboxFilters: boolean;
 	activeFilterCount: number;
 	isSearchOpen: boolean;
@@ -78,6 +80,7 @@ export function ChatInboxHeader({
 	pinnedFilter,
 	archivedFilter,
 	hiddenFilter,
+	needsReplyOnly,
 	hasActiveInboxFilters,
 	activeFilterCount,
 	isSearchOpen,
@@ -163,7 +166,7 @@ export function ChatInboxHeader({
 								<button
 									type="button"
 									onClick={() => {
-										onSetFiltersDraft(buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }));
+										onSetFiltersDraft(buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }, needsReplyOnly));
 										onSetIsFiltersOpen(true);
 									}}
 									className={cn(
@@ -202,7 +205,7 @@ export function ChatInboxHeader({
 									onClick={onToggleOnlineNowOnly}
 								/>
 								<FilterPill
-									icon={<Droplets className={`h-3.5 w-3.5 ${inboxFilters.rightNowOnly ? "fill-current" : ""}`} />}
+									icon={<RightNowIcon className="h-3.5 w-3.5" />}
 									label={t("browse_filters.options.right_now")}
 									active={Boolean(inboxFilters.rightNowOnly)}
 									onClick={onToggleRightNowOnly}
@@ -226,14 +229,17 @@ export function ChatInboxHeader({
 					{/* Row 2: search input */}
 					{isSearchOpen && (
 						<div className="flex flex-col gap-2 pb-4">
-							<div className="relative">
+							<div
+								className="glass-pill relative flex h-10 items-center"
+								style={{ "--pill-color": "var(--accent)" } as CSSProperties}
+							>
 								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
 								<input
 									autoFocus
 									value={searchQuery}
 									onChange={(e) => onSetSearchQuery(e.target.value)}
 									placeholder={t("chat_search.placeholder")}
-									className="h-10 w-full rounded-full border border-[var(--border)] bg-[var(--surface-2)] pl-9 pr-8 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+									className="h-full w-full bg-transparent pl-9 pr-8 text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
 								/>
 								{searchQuery && (
 									<button

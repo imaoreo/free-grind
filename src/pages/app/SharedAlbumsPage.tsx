@@ -27,6 +27,7 @@ import { getAllAlbums, getConversation } from "../../services/chatDb";
 import { toDataUri } from "../../services/mediaStore";
 import { PullToRefreshContainer } from "./components/PullToRefreshContainer";
 import { PhotoViewer, type PhotoViewerMedia, type PhotoViewerMenuAction } from "../../components/PhotoViewer";
+import { AlbumMediaSheet } from "../../components/AlbumMediaSheet";
 import { PhotoActionBar } from "../../components/PhotoActionBar";
 import { useRevealOnScroll } from "../../hooks/useRevealOnScroll";
 import { saveAllAlbumMedia } from "../../utils/albumMedia";
@@ -157,7 +158,7 @@ export function SharedAlbumsPage() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const { userId } = useAuth();
-	const { mobileGridColumns, unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
+	const { mobileGridColumns, unitsPreset, showAlbumSensitiveContentWarning, openAlbumAsBottomSheet } = usePreferences();
 	const apiFunctions = useApiFunctions();
 
 	const [isLoading, setIsLoading] = useState(true);
@@ -168,6 +169,7 @@ export function SharedAlbumsPage() {
 	const [openAlbumError, setOpenAlbumError] = useState<string | null>(null);
 	const [viewer, setViewer] = useState<AlbumViewer | null>(null);
 	const [viewerIndex, setViewerIndex] = useState(0);
+	const [isContentSheetOpen, setIsContentSheetOpen] = useState(false);
 	const [isSavingAll, setIsSavingAll] = useState(false);
 	const feedContainerRef = useRef<HTMLDivElement>(null);
 	const viewerHistoryPushedRef = useRef(false);
@@ -232,6 +234,9 @@ export function SharedAlbumsPage() {
 							? profileMeta.profileMediaHash
 							: null,
 					onlineUntil: sharedAlbum.profile.onlineUntil,
+					// The feed doesn't return a last-seen timestamp — filled in below
+					// from the profiles endpoint, which is more current anyway.
+					lastOnline: null,
 					distanceMetres: sharedAlbum.profile.distanceKm != null ? sharedAlbum.profile.distanceKm * 1000 : null,
 					conversationId: profileMeta?.conversationId ?? null,
 					album: {
@@ -322,6 +327,7 @@ export function SharedAlbumsPage() {
 							profileName,
 							profileMediaHash,
 							onlineUntil: null,
+							lastOnline: null,
 							distanceMetres: null,
 							conversationId: stored.conversationId,
 							album: {
@@ -361,7 +367,12 @@ export function SharedAlbumsPage() {
 
 				const detailsById = new Map<
 					number,
-					{ displayName: string | null; profileMediaHash: string | null }
+					{
+						displayName: string | null;
+						profileMediaHash: string | null;
+						distanceMetres: number | null;
+						lastOnline: number | null;
+					}
 				>();
 				await Promise.all(
 					chunks.map(async (chunk) => {
@@ -377,6 +388,8 @@ export function SharedAlbumsPage() {
 								if (idRaw == null) continue;
 								const nameRaw = (p as { displayName?: unknown }).displayName;
 								const hashRaw = (p as { profileImageMediaHash?: unknown }).profileImageMediaHash;
+								const distanceRaw = (p as { distance?: unknown }).distance;
+								const seenRaw = (p as { seen?: unknown }).seen;
 								detailsById.set(Number(idRaw), {
 									displayName:
 										typeof nameRaw === "string" && nameRaw.trim().length > 0
@@ -384,6 +397,16 @@ export function SharedAlbumsPage() {
 											: null,
 									profileMediaHash:
 										typeof hashRaw === "string" && validateMediaHash(hashRaw) ? hashRaw : null,
+									// Unlike the feed's distanceKm, /v3/profiles' `distance`
+									// field is already in metres.
+									distanceMetres:
+										typeof distanceRaw === "number" && Number.isFinite(distanceRaw)
+											? distanceRaw
+											: null,
+									lastOnline:
+										typeof seenRaw === "number" && Number.isFinite(seenRaw) && seenRaw > 0
+											? seenRaw
+											: null,
 								});
 							}
 						} catch {
@@ -403,6 +426,15 @@ export function SharedAlbumsPage() {
 								? details.displayName ?? item.profileName
 								: item.profileName,
 						profileMediaHash: item.profileMediaHash ?? details.profileMediaHash,
+						// The shared-albums feed's own distanceKm has been observed to be
+						// unreliable (always null or a tiny placeholder like 0.1), while
+						// the profiles endpoint's `distance` is the real value — prefer it,
+						// only falling back to the feed's value if this profile's detail
+						// fetch didn't come back with one.
+						distanceMetres: details.distanceMetres ?? item.distanceMetres,
+						// The profiles endpoint's `seen` timestamp is fresher than the
+						// feed snapshot — always prefer it over whatever we already have.
+						lastOnline: details.lastOnline ?? item.lastOnline,
 					};
 				};
 				for (let i = 0; i < nextItems.length; i++) nextItems[i] = applyDetails(nextItems[i]);
@@ -469,6 +501,26 @@ export function SharedAlbumsPage() {
 		}
 	}, [apiFunctions, deletingAlbumId, t]);
 
+	// Presents a loaded album — either straight into the full-screen viewer
+	// (default), or into the browse-first grid sheet first when the user has
+	// opted into it, deferring the viewer's own history push until an item is
+	// actually picked from the sheet.
+	const openLoadedAlbum = useCallback(
+		(data: AlbumViewer) => {
+			setViewer(data);
+			if (openAlbumAsBottomSheet) {
+				setIsContentSheetOpen(true);
+				return;
+			}
+			setViewerIndex(0);
+			if (!viewerHistoryPushedRef.current) {
+				window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+				viewerHistoryPushedRef.current = true;
+			}
+		},
+		[openAlbumAsBottomSheet],
+	);
+
 	const openViewer = useCallback(
 		async (item: SharedAlbumItem) => {
 			if (isOpeningAlbum) {
@@ -501,22 +553,18 @@ export function SharedAlbumsPage() {
 				if (!local || local.content.length === 0) {
 					return false;
 				}
-				setViewer({
+				openLoadedAlbum({
 					albumId: local.albumId,
 					albumName: local.albumName ?? item.album.albumName ?? null,
 					profileId: item.profileId,
 					profileName: item.profileName,
 					profileMediaHash: item.profileMediaHash,
 					onlineUntil: item.onlineUntil,
+					lastOnline: item.lastOnline,
 					distanceMetres: item.distanceMetres,
 					conversationId: item.conversationId,
 					content: local.content,
 				});
-				setViewerIndex(0);
-				if (!viewerHistoryPushedRef.current) {
-					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-					viewerHistoryPushedRef.current = true;
-				}
 				return true;
 			};
 
@@ -539,22 +587,47 @@ export function SharedAlbumsPage() {
 				await apiFunctions.openSharedAlbum({ albumId });
 
 				const details = await apiFunctions.getAlbum(albumId);
-				setViewer({
+
+				// A successful response with an empty/partial content array (the
+				// server momentarily out of sync, a share edge case, etc.) isn't
+				// caught by the try/catch fallback below since nothing actually
+				// threw — so fold in anything we already hold locally here too,
+				// the same way the error-path fallback does.
+				const local = await getLocalAlbum(albumId).catch(() => null);
+				const localByContentId = new Map(
+					(local?.content ?? []).map((entry) => [entry.contentId, entry] as const),
+				);
+				const liveContentIds = new Set(details.content.map((entry) => entry.contentId));
+				const localOnly = (local?.content ?? []).filter(
+					(entry) => !liveContentIds.has(entry.contentId),
+				);
+				const mergedContent = [
+					...details.content.map((entry) => {
+						const cached = localByContentId.get(entry.contentId);
+						return cached
+							? {
+									...entry,
+									thumbUrl: entry.thumbUrl ?? cached.thumbUrl,
+									url: entry.url ?? cached.url,
+									coverUrl: entry.coverUrl ?? cached.coverUrl,
+								}
+							: entry;
+					}),
+					...localOnly,
+				];
+
+				openLoadedAlbum({
 					albumId: details.albumId,
-					albumName: details.albumName,
+					albumName: details.albumName ?? local?.albumName ?? null,
 					profileId: item.profileId,
 					profileName: item.profileName,
 					profileMediaHash: item.profileMediaHash,
 					onlineUntil: item.onlineUntil,
+					lastOnline: item.lastOnline,
 					distanceMetres: item.distanceMetres,
 					conversationId: item.conversationId,
-					content: details.content,
+					content: mergedContent,
 				});
-				setViewerIndex(0);
-				if (!viewerHistoryPushedRef.current) {
-					window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
-					viewerHistoryPushedRef.current = true;
-				}
 
 				// Fully cache every content item's bytes, same as albums shared
 				// in a chat thread — so the album survives the share expiring.
@@ -585,8 +658,20 @@ export function SharedAlbumsPage() {
 				setIsOpeningAlbum(false);
 			}
 		},
-		[apiFunctions, isOpeningAlbum, t],
+		[apiFunctions, isOpeningAlbum, t, openLoadedAlbum],
 	);
+
+	// Tapping an item inside the album's browse-first sheet — the sheet stays
+	// mounted underneath so closing the full-screen viewer returns to it
+	// instead of exiting all the way back to the album grid.
+	const handleSelectAlbumContent = useCallback((index: number) => {
+		setIsContentSheetOpen(false);
+		setViewerIndex(index);
+		if (!viewerHistoryPushedRef.current) {
+			window.history.pushState({ sharedAlbumsOverlay: "viewer" }, "");
+			viewerHistoryPushedRef.current = true;
+		}
+	}, []);
 
 	const handleMessageProfile = useCallback(
 		(profileId: number) => {
@@ -656,6 +741,7 @@ export function SharedAlbumsPage() {
 	const closeViewerState = useCallback(() => {
 		setViewer(null);
 		setViewerIndex(0);
+		setIsContentSheetOpen(false);
 		viewerHistoryPushedRef.current = false;
 	}, []);
 
@@ -674,19 +760,31 @@ export function SharedAlbumsPage() {
 
 	useEffect(() => {
 		const handlePopState = () => {
-			if (viewerHistoryPushedRef.current) {
-				closeViewerState();
+			if (!viewerHistoryPushedRef.current) {
+				return;
 			}
+			viewerHistoryPushedRef.current = false;
+			// Came from the browse-first sheet — the full-screen viewer's own
+			// history entry unwinds back to the still-mounted sheet instead of
+			// exiting the album entirely.
+			if (openAlbumAsBottomSheet) {
+				setIsContentSheetOpen(true);
+				setViewerIndex(0);
+				return;
+			}
+			closeViewerState();
 		};
 
 		window.addEventListener("popstate", handlePopState);
 		return () => {
 			window.removeEventListener("popstate", handlePopState);
 		};
-	}, [closeViewerState]);
+	}, [openAlbumAsBottomSheet, closeViewerState]);
 
 	useEffect(() => {
-		if (!viewer) {
+		// While only the sheet is showing, let BottomSheet's own Escape
+		// handler close it instead of double-handling the key here.
+		if (!viewer || isContentSheetOpen) {
 			return;
 		}
 
@@ -703,7 +801,7 @@ export function SharedAlbumsPage() {
 		return () => {
 			window.removeEventListener("keydown", onKeyDown, { capture: true });
 		};
-	}, [closeViewer, viewer]);
+	}, [closeViewer, viewer, isContentSheetOpen]);
 
 	const handleSaveAll = useCallback(async () => {
 		if (!viewer || isSavingAll) return;
@@ -742,7 +840,7 @@ export function SharedAlbumsPage() {
 
 	const albumHeader = useMemo(() => {
 		if (!viewer) return undefined;
-		const statusMeta = getOnlineStatusMeta(null, viewer.onlineUntil);
+		const statusMeta = getOnlineStatusMeta(viewer.lastOnline, viewer.onlineUntil);
 		const statusLabel = statusMeta.isOnline
 			? t(statusMeta.labelKey, { count: statusMeta.count })
 			: statusMeta.labelKey === "browse_page.status_offline"
@@ -970,9 +1068,19 @@ export function SharedAlbumsPage() {
 				</div>
 			) : null}
 
+			{viewer !== null && openAlbumAsBottomSheet ? (
+				<AlbumMediaSheet
+					albumName={viewer.albumName}
+					content={viewer.content}
+					onClose={closeViewerState}
+					onSelect={handleSelectAlbumContent}
+					locked={!isContentSheetOpen}
+				/>
+			) : null}
+
 			{viewer !== null && (
 				<PhotoViewer
-					isOpen={true}
+					isOpen={!isContentSheetOpen}
 					onClose={closeViewer}
 					photos={viewerPhotos}
 					initialIndex={viewerIndex}
@@ -980,7 +1088,10 @@ export function SharedAlbumsPage() {
 					conversationId={albumViewerFolderKey(viewer)}
 					menuActions={albumMenuActions}
 					albumHeader={albumHeader}
-					contentWarning={showAlbumSensitiveContentWarning}
+					// Only gate directly-opened albums — once the user has already
+					// browsed the album's contents in the browse-first sheet, the
+					// warning would be redundant for every item tapped from it.
+					contentWarning={showAlbumSensitiveContentWarning && !openAlbumAsBottomSheet}
 					renderFooter={(idx) => {
 						const item = viewer.content[idx];
 						if (!item || viewer.profileId === userId) return null;

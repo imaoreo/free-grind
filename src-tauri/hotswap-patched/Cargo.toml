@@ -160,3 +160,6 @@ features = [
     "rustls-tls",
 ]
 default-features = false
+
+[target.'cfg(target_os = "android")'.dependencies.libc]
+version = "0.2"

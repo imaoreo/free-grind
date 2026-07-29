@@ -22,6 +22,10 @@ export type ChatFiltersDraft = {
 	pinnedFilter: InboxVisibilityFilter;
 	archivedFilter: InboxVisibilityFilter;
 	hiddenFilter: InboxVisibilityFilter;
+	// Also local-only — there's no server concept of "last message isn't ours
+	// and we haven't replied yet", so this is re-checked against each cached
+	// conversation's preview.senderId, same as pinned/archived/hidden.
+	needsReplyOnly: boolean;
 };
 
 export type ChatFiltersVisibilityState = {
@@ -43,9 +47,32 @@ export function isNumberArray(value: unknown): value is number[] {
 	return Array.isArray(value) && value.every((item) => typeof item === "number");
 }
 
+// How long a drawer item counts as "new" for sorting purposes. Within this
+// window it's kept above everything else regardless of send count — otherwise
+// a just-added photo (sendCount 0) would sit below every item ever sent even
+// once, however long ago. After the window it falls back to pure frequency.
+const NEW_DRAWER_MEDIA_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Sorts drawer media most-used first, but keeps recently added items pinned
+ * above the frequency-ranked ones for a grace period so they're actually
+ * visible right after being added instead of buried under old, low-use media. */
+export function sortDrawerMediaByUsage<T extends { sendCount: number; createdTs: number }>(
+	items: T[],
+	now = Date.now(),
+): T[] {
+	return [...items].sort((a, b) => {
+		const aIsNew = now - a.createdTs < NEW_DRAWER_MEDIA_WINDOW_MS;
+		const bIsNew = now - b.createdTs < NEW_DRAWER_MEDIA_WINDOW_MS;
+		if (aIsNew !== bIsNew) return aIsNew ? -1 : 1;
+		if (aIsNew) return b.createdTs - a.createdTs;
+		return b.sendCount - a.sendCount || b.createdTs - a.createdTs;
+	});
+}
+
 export function buildChatFiltersDraft(
 	filters: InboxFilters,
 	visibility: ChatFiltersVisibilityState = defaultChatFiltersVisibilityState,
+	needsReplyOnly = false,
 ): ChatFiltersDraft {
 	return {
 		unreadOnly: filters.unreadOnly === true,
@@ -61,6 +88,7 @@ export function buildChatFiltersDraft(
 		pinnedFilter: visibility.pinnedFilter,
 		archivedFilter: visibility.archivedFilter,
 		hiddenFilter: visibility.hiddenFilter,
+		needsReplyOnly,
 	};
 }
 
@@ -169,6 +197,13 @@ export function formatMessageTime(
 	});
 }
 
+export function formatFullDateTime(timestamp: number): string {
+	return new Date(timestamp).toLocaleString([], {
+		dateStyle: "medium",
+		timeStyle: "short",
+	});
+}
+
 export function formatTakenOnGrindrTime(
 	timestamp: number,
 	now: number,
@@ -266,6 +301,20 @@ export function formatDateHeader(
 	});
 
 	return formatter.format(msgDate);
+}
+
+/**
+ * Whether a conversation is awaiting our reply: the last message is from the
+ * other participant and we haven't sent anything since. Distinct from
+ * unreadCount, which only tracks whether we've seen the message, not whether
+ * we've answered it.
+ */
+export function conversationNeedsReply(
+	conversation: ConversationEntry,
+	userId: number | null,
+): boolean {
+	const senderId = conversation.data.preview?.senderId;
+	return senderId != null && userId != null && Number(senderId) !== Number(userId);
 }
 
 export function getPreviewText(conversation: ConversationEntry, t: TranslateFn): string {

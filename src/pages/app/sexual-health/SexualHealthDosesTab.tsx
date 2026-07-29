@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pill, Plus, Settings, Trash2 } from "lucide-react";
+import { Pill, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
@@ -18,7 +18,6 @@ import {
 import { formatDateTime } from "./sexualHealthFormat";
 import { SexualHealthFab } from "./SexualHealthFab";
 import { SexualHealthEmptyState } from "./SexualHealthEmptyState";
-import { SexualHealthPrepSettingsSheet } from "./SexualHealthPrepSettingsSheet";
 
 const STATUS_TEXT_CLASS: Record<PrepStatusVariant, string> = {
 	positive: "text-emerald-400",
@@ -76,13 +75,11 @@ export function SexualHealthDosesTab({
 	headerSlotEl,
 	fabSlotEl,
 	scheme,
-	onSchemeChange,
 	onDosesChanged,
 }: {
 	headerSlotEl: HTMLDivElement | null;
 	fabSlotEl: HTMLDivElement | null;
 	scheme: PrepScheme;
-	onSchemeChange: (scheme: PrepScheme) => void;
 	onDosesChanged?: () => void;
 }) {
 	const { t } = useTranslation();
@@ -90,7 +87,6 @@ export function SexualHealthDosesTab({
 	const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isLogging, setIsLogging] = useState(false);
-	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
 	const reload = () => {
 		void loadPrepDoses().then(setDoses);
@@ -124,42 +120,32 @@ export function SexualHealthDosesTab({
 		<>
 			{headerSlotEl &&
 				createPortal(
-					<div className="flex min-h-8 items-center justify-between gap-2.5">
-						<p className="min-w-0 truncate text-sm">
-							<span className={`font-semibold ${STATUS_TEXT_CLASS[variant]}`}>{label}</span>
-							<span className="text-[var(--text-muted)]">
-								{" · "}
-								{scheme === "daily"
-									? t("sexualHealth.doses.scheme_daily", { defaultValue: "Daily dosing" })
-									: t("sexualHealth.doses.scheme_on_demand", { defaultValue: "On-demand dosing (2-1-1)" })}
-								{nextAction?.scheme === "on_demand" && nextAction.nextRole !== "loading" && (
-									<>
-										{" · "}
-										{t("sexualHealth.doses.next_due", {
-											defaultValue: "{{dose}} still needed",
-											dose: t(ON_DEMAND_LOG_LABEL[nextAction.nextRole].key, {
-												defaultValue: ON_DEMAND_LOG_LABEL[nextAction.nextRole].defaultValue,
-											}),
-										})}
-									</>
-								)}
-								{nextAction?.alreadyLoggedToday && (
-									<>
-										{" · "}
-										{t("sexualHealth.doses.already_logged_today", { defaultValue: "Today's dose is already logged" })}
-									</>
-								)}
-							</span>
-						</p>
-						<button
-							type="button"
-							onClick={() => setIsSettingsOpen(true)}
-							className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
-							aria-label={t("sexualHealth.info.settings_button", { defaultValue: "PrEP settings" })}
-						>
-							<Settings className="h-4 w-4" />
-						</button>
-					</div>,
+					<p className="min-h-8 flex items-center truncate text-sm">
+						<span className={`font-semibold ${STATUS_TEXT_CLASS[variant]}`}>{label}</span>
+						<span className="text-[var(--text-muted)]">
+							{" · "}
+							{scheme === "daily"
+								? t("sexualHealth.doses.scheme_daily", { defaultValue: "Daily" })
+								: t("sexualHealth.doses.scheme_on_demand", { defaultValue: "On-demand" })}
+							{nextAction?.scheme === "on_demand" && nextAction.nextRole !== "loading" && !nextAction.alreadyLoggedToday && (
+								<>
+									{" · "}
+									{t("sexualHealth.doses.next_due", {
+										defaultValue: "{{dose}} still needed",
+										dose: t(ON_DEMAND_LOG_LABEL[nextAction.nextRole].key, {
+											defaultValue: ON_DEMAND_LOG_LABEL[nextAction.nextRole].defaultValue,
+										}),
+									})}
+								</>
+							)}
+							{nextAction?.alreadyLoggedToday && (
+								<>
+									{" · "}
+									{t("sexualHealth.doses.already_logged_today", { defaultValue: "Already logged" })}
+								</>
+							)}
+						</span>
+					</p>,
 					headerSlotEl,
 				)}
 
@@ -221,14 +207,6 @@ export function SexualHealthDosesTab({
 					}
 				}}
 			/>
-
-			{isSettingsOpen && (
-				<SexualHealthPrepSettingsSheet
-					scheme={scheme}
-					onSchemeChange={onSchemeChange}
-					onClose={() => setIsSettingsOpen(false)}
-				/>
-			)}
 		</>
 	);
 }

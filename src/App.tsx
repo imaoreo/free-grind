@@ -3,6 +3,7 @@ import { Routes, Route, Link, Navigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PreferencesProvider } from "./contexts/PreferencesContext";
+import { ExploreModeProvider } from "./contexts/ExploreModeContext";
 import { RootLayout } from "./layouts/RootLayout";
 import { ProtectedLayout } from "./layouts/ProtectedLayout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -33,7 +34,6 @@ import { IssueSearchPage } from "./pages/app/IssueSearchPage.tsx";
 import { SettingsAutomationPage } from "./pages/app/SettingsAutomationPage.tsx";
 import { SettingsDataPage } from "./pages/app/SettingsDataPage.tsx";
 import { SettingsPrivacyPage } from "./pages/app/SettingsPrivacyPage.tsx";
-import { SettingsSavedPhrasesPage } from "./pages/app/SettingsSavedPhrasesPage.tsx";
 import { SexualHealthPage } from "./pages/app/sexual-health/SexualHealthPage.tsx";
 import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
 import { VersionAnnouncement } from "./components/VersionAnnouncement";
@@ -41,8 +41,10 @@ import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
 import { TestReminderGate } from "./components/TestReminderPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
+import { GridAutoRefreshBridge } from "./components/GridAutoRefreshBridge";
 import { VideoCallManager } from "./components/VideoCallManager";
 import { ActiveRouteBridge } from "./components/ActiveRouteBridge";
+import { KeepScreenOnBridge } from "./components/KeepScreenOnBridge";
 import { EntitlementsBridge } from "./components/EntitlementsBridge";
 import { ManagedOptionsCacheBridge } from "./components/ManagedOptionsCacheBridge";
 import { SplashReadyBridge } from "./components/SplashReadyBridge";
@@ -172,6 +174,7 @@ export default function App() {
 		<AuthProvider>
 			<SplashReadyBridge />
 			<PreferencesProvider>
+			<ExploreModeProvider>
 				<SinModeUnlockOverlay />
 				<SmoothScroll>
 					{showOnboarding ? (
@@ -184,10 +187,12 @@ export default function App() {
 						</div>
 					) : (<OutdatedVersionGate><TestReminderGate>
 					{renderPhase >= 1 && <ManagerModeRedirect />}
+					{renderPhase >= 1 && <KeepScreenOnBridge />}
 					{renderPhase >= 2 && <PushNotificationBridge />}
 					{renderPhase >= 2 && <ManagedOptionsCacheBridge />}
 					{renderPhase >= 3 && <ChatRealtimeBridge />}
 					{renderPhase >= 3 && <VideoCallManager />}
+					{renderPhase >= 3 && <GridAutoRefreshBridge />}
 					{renderPhase >= 4 && <ActiveRouteBridge />}
 					{renderPhase >= 5 && (
 						<>
@@ -230,7 +235,6 @@ export default function App() {
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
 								<Route path="/settings/block-history" element={<SettingsBlockHistoryPage />} />
-								<Route path="/settings/saved-phrases" element={<SettingsSavedPhrasesPage />} />
 								<Route path="/settings/sexual-health" element={<SexualHealthPage />} />
 								<Route
 									path="/settings/api-inspector"
@@ -280,6 +284,7 @@ export default function App() {
 					</Routes>
 					</TestReminderGate></OutdatedVersionGate>)}
 				</SmoothScroll>
+			</ExploreModeProvider>
 			</PreferencesProvider>
 		</AuthProvider>
 	);

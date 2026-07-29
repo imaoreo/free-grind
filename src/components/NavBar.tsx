@@ -1,4 +1,5 @@
-import { Grid as GridIcon, Droplets, Flame, MessageCircle } from "lucide-react";
+import { Grid as GridIcon, Flame, MessageCircle } from "lucide-react";
+import { RightNowIcon } from "./icons/RightNowIcon";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
@@ -6,6 +7,7 @@ import { cn } from "../utils/cn";
 import { useApiFunctions } from "../hooks/useApiFunctions";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/useAuth";
+import { useExploreMode } from "../contexts/ExploreModeContext";
 import {
 	getInterestLastSeen,
 	INTEREST_SEEN_EVENT,
@@ -67,11 +69,16 @@ export function NavBar() {
 	const apiFunctions = useApiFunctions();
 	const { userId } = useAuth();
 	const { data: interestData } = useInterestData();
+	const { isExploreActive } = useExploreMode();
 
 	const pathRef = useRef(location.pathname);
 	useEffect(() => {
 		pathRef.current = location.pathname;
 	}, [location.pathname]);
+
+	// Tracks which conversations are muted so the realtime handler can ignore
+	// their messages without waiting for the next poll.
+	const mutedConversationIdsRef = useRef<Set<string>>(new Set());
 
 	const [activeTab, setActiveTab] = useState("browse");
 	const setUnreadCount = useState(0)[1];
@@ -93,7 +100,7 @@ export function NavBar() {
 		{
 			value: "right-now",
 			label: t("nav.right_now"),
-			icon: Droplets,
+			icon: RightNowIcon,
 			path: "/right-now",
 			visible: showRightNow, // Toggleable
 		},
@@ -142,8 +149,14 @@ export function NavBar() {
 
 				if (cancelled) return;
 
+				mutedConversationIdsRef.current = new Set(
+					response.entries
+						.filter((entry) => entry.data.muted)
+						.map((entry) => entry.data.conversationId),
+				);
+
 				const totalUnread = response.entries.reduce(
-					(sum, entry) => sum + (entry.data.unreadCount || 0),
+					(sum, entry) => sum + (entry.data.muted ? 0 : entry.data.unreadCount || 0),
 					0,
 				);
 				setUnreadCount(totalUnread);
@@ -176,9 +189,13 @@ export function NavBar() {
 				// falsely lighting it up. The lastSeen check keeps an unread
 				// conversation the user already looked at (but didn't open) from
 				// re-lighting the dot on every later remount/poll — visiting the
-				// inbox list once is enough to acknowledge it.
+				// inbox list once is enough to acknowledge it. Muted conversations
+				// never contribute at all, regardless of unread state.
 				const hasUnseenUnread = response.entries.some(
-					(entry) => (entry.data.unreadCount ?? 0) > 0 && (entry.data.lastActivityTimestamp ?? 0) > lastSeen,
+					(entry) =>
+						!entry.data.muted &&
+						(entry.data.unreadCount ?? 0) > 0 &&
+						(entry.data.lastActivityTimestamp ?? 0) > lastSeen,
 				);
 				setInboxUnseen(!isAtInbox && hasUnseenUnread);
 			} catch {
@@ -207,9 +224,12 @@ export function NavBar() {
 			const messages = extractMessages(envelope);
 			if (messages.length > 0) {
 				const lastSeen = getInboxLastSeen();
-				// Check for messages from other users
+				// Check for messages from other users, excluding muted conversations
 				const fromOthers = messages.filter(
-					(m) => userId != null && Number(m.senderId) !== Number(userId)
+					(m) =>
+						userId != null &&
+						Number(m.senderId) !== Number(userId) &&
+						!mutedConversationIdsRef.current.has(m.conversationId)
 				);
 
 				if (fromOthers.length > 0) {
@@ -344,7 +364,9 @@ export function NavBar() {
 										"flex h-full flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-muted)] transition-colors duration-150 hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] md:gap-1.5",
 										item.value === "right-now"
 											? "focus-visible:ring-[var(--right-now)] data-[state=active]:bg-[var(--right-now)] data-[state=active]:text-white"
-											: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
+											: item.value === "browse" && isExploreActive
+												? "focus-visible:ring-[var(--explore)] data-[state=active]:bg-[var(--explore)] data-[state=active]:text-white"
+												: "focus-visible:ring-[var(--accent)] data-[state=active]:bg-[var(--accent)] data-[state=active]:text-[var(--accent-contrast)]"
 									)}
 								>
 									<div className="relative">
@@ -357,7 +379,9 @@ export function NavBar() {
 														"absolute inline-flex h-full w-full animate-ping rounded-full opacity-75",
 														activeTab === "right-now"
 															? "bg-[var(--right-now)]"
-															: "bg-[var(--accent)]",
+															: activeTab === "browse" && isExploreActive
+																? "bg-[var(--explore)]"
+																: "bg-[var(--accent)]",
 													)}
 												></span>
 												<span
@@ -365,7 +389,9 @@ export function NavBar() {
 														"relative inline-block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
 														activeTab === "right-now"
 															? "bg-[var(--right-now)]"
-															: "bg-[var(--accent)]",
+															: activeTab === "browse" && isExploreActive
+																? "bg-[var(--explore)]"
+																: "bg-[var(--accent)]",
 													)}
 												></span>
 											</span>

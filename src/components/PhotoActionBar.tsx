@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Flame, Loader2 } from "lucide-react";
+import { Flame, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 type PhotoActionBarProps = {
@@ -54,7 +54,10 @@ export function PhotoActionBar({ onSendText, onReact, placeholder }: PhotoAction
 				background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)",
 			}}
 		>
-			<div className="mx-auto flex w-full max-w-lg items-center gap-2">
+			<div
+				className="mx-auto flex w-full max-w-lg items-center gap-2"
+				onClick={(e) => e.stopPropagation()}
+			>
 				<div className="relative min-w-0 flex-1">
 					<div
 						className="pointer-events-none absolute inset-0 rounded-xl backdrop-blur-md"
@@ -78,6 +81,19 @@ export function PhotoActionBar({ onSendText, onReact, placeholder }: PhotoAction
 						className="relative h-11 w-full rounded-xl bg-transparent px-4 text-sm text-white placeholder:text-white/55 outline-none disabled:opacity-50"
 					/>
 				</div>
+				<button
+					type="button"
+					onClick={() => void handleSend()}
+					disabled={isSending || text.trim().length === 0}
+					aria-label={t("photo_viewer.send", { defaultValue: "Send" })}
+					className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-none bg-transparent text-white transition active:scale-90 disabled:opacity-40"
+				>
+					{isSending ? (
+						<Loader2 className="h-5 w-5 animate-spin" />
+					) : (
+						<SendHorizontal className="h-5 w-5 text-[var(--accent)]" />
+					)}
+				</button>
 				{onReact && (
 					<button
 						type="button"

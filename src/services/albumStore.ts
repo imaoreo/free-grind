@@ -404,6 +404,7 @@ export type CaptureAlbumParams = {
 async function captureAlbumContent(
 	albumId: number,
 	item: AlbumContentItem,
+	position: number,
 	existing: StoredAlbumMedia | undefined,
 	remainingViews: number | null,
 	isViewable: boolean | null,
@@ -420,6 +421,7 @@ async function captureAlbumContent(
 				thumbDataBase64: existing.thumbDataBase64,
 				remainingViews,
 				isViewable,
+				position,
 			});
 			return;
 		}
@@ -440,6 +442,7 @@ async function captureAlbumContent(
 			thumbDataBase64: thumb?.base64 ?? main?.base64 ?? null,
 			remainingViews,
 			isViewable,
+			position,
 		});
 	} catch (error) {
 		appLog.warn(`[album-store] failed to capture album content ${compositeId}`, error);
@@ -472,10 +475,11 @@ export async function captureAlbum(params: CaptureAlbumParams): Promise<void> {
 	const existingById = new Map(existing.map((m) => [m.contentId, m] as const));
 
 	await Promise.all(
-		content.map((item) =>
+		content.map((item, position) =>
 			captureAlbumContent(
 				albumId,
 				item,
+				position,
 				existingById.get(`${albumId}:${item.contentId}`),
 				remainingViews,
 				isViewable,
@@ -622,6 +626,13 @@ export function captureAlbumsForMessages(
 	userId: number | null,
 ): void {
 	const entries: { info: AlbumMessageInfo; message: UiMessage }[] = [];
+	// Own-album shares skip the full received-content capture below (see
+	// captureAlbumFromMessageIfNeeded's doc comment), but the chat bubble
+	// still needs *some* blurred teaser cached for them — otherwise nothing
+	// ever writes albumCoverCache for that album id, and the first time the
+	// viewer is opened (openAlbumViewerById → captureAlbum → updateAlbumCacheState)
+	// permanently seeds the cache with the clear content[0] thumbnail instead.
+	const ownEntries: { info: AlbumMessageInfo; message: UiMessage }[] = [];
 	for (const message of messages) {
 		if (userId != null && Number(message.senderId) === Number(userId)) {
 			// Retroactive cleanup for albums a prior version of this function
@@ -630,6 +641,7 @@ export function captureAlbumsForMessages(
 			const info = getAlbumMessageInfo(message);
 			if (info) {
 				void purgeIfOwnAlbum(info.albumId, userId);
+				ownEntries.push({ info, message });
 			}
 			continue;
 		}
@@ -644,12 +656,16 @@ export function captureAlbumsForMessages(
 	// same album id shows consistent, already-cached state right away —
 	// independent of (and well ahead of) the slower live-refresh capture
 	// below, which still runs to pick up newly-added content/confirm gone.
-	for (const albumId of new Set(entries.map((e) => e.info.albumId))) {
+	for (const albumId of new Set([...entries, ...ownEntries].map((e) => e.info.albumId))) {
 		ensureAlbumCacheChecked(albumId);
 	}
 
 	for (const { info, message } of entries) {
 		void captureAlbumFromMessageIfNeeded(info, message, conversationId, getAlbum);
+	}
+
+	for (const { info, message } of ownEntries) {
+		void captureAlbumPreviewFromMessage(message, info.albumId);
 	}
 }
 

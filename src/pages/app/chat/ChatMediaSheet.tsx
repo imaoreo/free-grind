@@ -31,7 +31,7 @@ async function hashBase64(base64: string): Promise<string> {
 		.join("");
 }
 
-type Tab = "albums" | "received" | "sent";
+type Tab = "received" | "sent";
 
 type SharedAlbum = {
 	albumId: number;
@@ -373,13 +373,6 @@ export function ChatMediaSheet({
 			count: sentMedia.length,
 			loading: mediaLoading,
 		},
-		{
-			id: "albums",
-			label: t("chat.media_sheet.tab_albums"),
-			icon: <LayoutGrid className="h-4 w-4" />,
-			count: albums.length,
-			loading: albumsLoading,
-		},
 	];
 
 	const viewerPhotos: PhotoViewerMedia[] = activeMedia.map((m) => ({ url: m.dataUri, type: m.kind }));
@@ -392,15 +385,16 @@ export function ChatMediaSheet({
 				<div className="flex items-center justify-between px-4 pb-3">
 					<p className="text-sm font-semibold text-[var(--text)]">{t("chat.media_sheet.title")}</p>
 					<div className="flex items-center gap-2">
-						{tab !== "albums" && activeMedia.length > 0 && (
+						{activeMedia.length > 0 && (
 							<button
 								type="button"
 								onClick={() => void handleSaveAll()}
 								disabled={isSavingAll}
-								className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-medium text-[var(--text)] transition hover:border-[var(--accent)] disabled:opacity-50"
+								className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-50"
+								aria-label={t("profile_details.save_all")}
+								title={t("profile_details.save_all")}
 							>
-								<Download className="h-3.5 w-3.5" />
-								{t("profile_details.save_all")}
+								<Download className="h-4 w-4" />
 							</button>
 						)}
 						<SheetClose className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
@@ -434,76 +428,47 @@ export function ChatMediaSheet({
 				</div>
 
 				{/* Content */}
-				<div className="flex flex-1 flex-col overflow-y-auto p-4">
-					{tab === "albums" ? (
-						albumsLoading ? (
-							<div className="flex items-center justify-center py-16">
-								<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
-							</div>
-						) : albums.length === 0 ? (
-							<div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
-								<LayoutGrid className="h-10 w-10 opacity-30" />
-								<p className="text-sm font-medium">{t("chat.media_sheet.albums_empty_title")}</p>
-								<p className="text-xs opacity-60">{t("chat.media_sheet.albums_empty_desc")}</p>
-							</div>
-						) : (
-							<div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-								{albums.map((album) => {
-									const coverFailed = failedCovers.has(album.albumId);
-									const showCover = !!album.coverUrl && !coverFailed;
-									return (
-										<button
-											key={album.albumId}
-											type="button"
-											onClick={() => void openAlbumViewerById(album.albumId)}
-											className="group relative aspect-square overflow-hidden rounded-xl bg-[var(--surface-2)]"
-										>
-											{showCover ? (
-												<img
-													src={album.coverUrl!}
-													alt=""
-													className="absolute inset-0 h-full w-full object-cover scale-110"
-													style={{ filter: "blur(3px)" }}
-													onError={() => setFailedCovers((p) => new Set([...p, album.albumId]))}
-												/>
-											) : (
-												<div className="absolute inset-0 flex items-center justify-center">
-													<LayoutGrid className="h-8 w-8 text-[var(--text-muted)] opacity-40" />
-												</div>
-											)}
-											<div className="absolute inset-0 bg-black/20" />
-											<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-2">
-												<div
-													className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-white/60"
-													style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
-												>
-													<ProfileImage src={senderPhotoUrl} />
-												</div>
-												<p className="line-clamp-2 max-w-full text-center text-[11px] font-medium leading-tight text-white drop-shadow">
-													{album.albumName ?? `#${album.albumId}`}
-												</p>
-											</div>
-										</button>
-									);
-								})}
-							</div>
-						)
-					) : mediaLoading ? (
-						<div className="flex items-center justify-center py-16">
-							<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
-						</div>
-					) : activeMedia.length === 0 ? (
-						<div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
-							<Images className="h-10 w-10 opacity-30" />
-							<p className="text-sm font-medium">
-								{t(tab === "sent" ? "chat.media_sheet.sent_empty_title" : "chat.media_sheet.received_empty_title")}
-							</p>
-							<p className="text-xs opacity-60">
-								{t(tab === "sent" ? "chat.media_sheet.sent_empty_desc" : "chat.media_sheet.received_empty_desc")}
-							</p>
-						</div>
-					) : (
+				<div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4" data-lenis-prevent>
+					{(tab === "received" && albums.length > 0) || activeMedia.length > 0 ? (
 						<div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+							{tab === "received" && albums.map((album) => {
+								const coverFailed = failedCovers.has(album.albumId);
+								const showCover = !!album.coverUrl && !coverFailed;
+								return (
+									<button
+										key={album.albumId}
+										type="button"
+										onClick={() => void openAlbumViewerById(album.albumId)}
+										className="group relative aspect-square overflow-hidden rounded-lg bg-[var(--surface-2)]"
+									>
+										{showCover ? (
+											<img
+												src={album.coverUrl!}
+												alt=""
+												className="absolute inset-0 h-full w-full object-cover scale-110"
+												style={{ filter: "blur(3px)" }}
+												onError={() => setFailedCovers((p) => new Set([...p, album.albumId]))}
+											/>
+										) : (
+											<div className="absolute inset-0 flex items-center justify-center">
+												<LayoutGrid className="h-8 w-8 text-[var(--text-muted)] opacity-40" />
+											</div>
+										)}
+										<div className="absolute inset-0 bg-black/20" />
+										<div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none">
+											<div
+												className="h-7 w-7 overflow-hidden rounded-full ring-2 ring-white/60 sm:h-9 sm:w-9"
+												style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+											>
+												<ProfileImage src={senderPhotoUrl} />
+											</div>
+											<p className="truncate max-w-full px-1 text-center text-[11px] font-medium leading-tight text-white drop-shadow">
+												{album.albumName ?? `#${album.albumId}`}
+											</p>
+										</div>
+									</button>
+								);
+							})}
 							{activeMedia.map((item, idx) => (
 								<button
 									key={item.mediaKey}
@@ -533,6 +498,20 @@ export function ChatMediaSheet({
 									)}
 								</button>
 							))}
+						</div>
+					) : mediaLoading || (tab === "received" && albumsLoading) ? (
+						<div className="flex items-center justify-center py-16">
+							<Loader2 className="h-6 w-6 animate-spin text-[var(--text-muted)]" />
+						</div>
+					) : (
+						<div className="flex flex-1 flex-col items-center justify-center gap-3 text-[var(--text-muted)]">
+							<Images className="h-10 w-10 opacity-30" />
+							<p className="text-sm font-medium">
+								{t(tab === "sent" ? "chat.media_sheet.sent_empty_title" : "chat.media_sheet.received_empty_title")}
+							</p>
+							<p className="text-xs opacity-60">
+								{t(tab === "sent" ? "chat.media_sheet.sent_empty_desc" : "chat.media_sheet.received_empty_desc")}
+							</p>
 						</div>
 					)}
 				</div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ban, Calendar, FileText, Flame, ImageOff, Image as ImageIcon, MessageCirclePlus, MessageSquare, Plus, Search, Trash2, User, X } from "lucide-react";
+import { AtSign, Ban, Calendar, FileText, Flame, ImageOff, Image as ImageIcon, MessageCirclePlus, MessageSquare, Plus, Search, Trash2, User, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { AppToaster } from "../AppToaster";
 import { Slider } from "../ui/range-slider";
@@ -17,7 +17,13 @@ import type {
 // the editor's add-condition dropdown they're offered as separate picks (like
 // age_above/age_below already are), fixed at creation time rather than an
 // after-the-fact toggle, so a condition's title never has to change under you.
-type KeywordNotConditionKind = "bio_not_contains_keyword" | "message_not_contains_keyword" | "display_name_not_contains_keyword";
+type KeywordNotConditionKind =
+	| "bio_not_contains_keyword"
+	| "message_not_contains_keyword"
+	| "display_name_not_contains_keyword"
+	| "x_handle_not_contains_keyword"
+	| "instagram_handle_not_contains_keyword"
+	| "facebook_handle_not_contains_keyword";
 type ConditionKind = AutomationRuleCondition["type"] | KeywordNotConditionKind;
 type ActionKind = AutomationRuleAction["type"];
 
@@ -33,26 +39,66 @@ const CONDITION_KINDS: ConditionKind[] = [
 	"bio_not_contains_keyword",
 	"message_contains_keyword",
 	"message_not_contains_keyword",
+	"has_x_handle",
+	"x_handle_contains_keyword",
+	"x_handle_not_contains_keyword",
+	"has_instagram_handle",
+	"instagram_handle_contains_keyword",
+	"instagram_handle_not_contains_keyword",
+	"has_facebook_handle",
+	"facebook_handle_contains_keyword",
+	"facebook_handle_not_contains_keyword",
 ];
 
 const ACTION_KINDS: ActionKind[] = ["block", "send_message", "share_album"];
 
+// Condition types that render as a keyword textarea (with the custom /
+// forbidden-list toggle), same UI for all of them.
+const KEYWORD_CONDITION_TYPES = [
+	"bio_contains_keyword",
+	"message_contains_keyword",
+	"display_name_contains_keyword",
+	"x_handle_contains_keyword",
+	"instagram_handle_contains_keyword",
+	"facebook_handle_contains_keyword",
+] as const satisfies AutomationRuleCondition["type"][];
+type KeywordConditionType = (typeof KEYWORD_CONDITION_TYPES)[number];
+
+// Condition types that render as a simple "has X" / "no X" select, same UI
+// for all of them (see the profile_picture pattern this generalizes from).
+const HAS_CONDITION_TYPES = ["has_x_handle", "has_instagram_handle", "has_facebook_handle"] as const satisfies AutomationRuleCondition["type"][];
+type HasConditionType = (typeof HAS_CONDITION_TYPES)[number];
+
+type KeywordCondition = Extract<AutomationRuleCondition, { type: KeywordConditionType }>;
+
+function isKeywordCondition(condition: AutomationRuleCondition): condition is KeywordCondition {
+	return (KEYWORD_CONDITION_TYPES as readonly string[]).includes(condition.type);
+}
+
+const KEYWORD_NOT_KIND_BY_TYPE: Record<KeywordConditionType, KeywordNotConditionKind> = {
+	bio_contains_keyword: "bio_not_contains_keyword",
+	message_contains_keyword: "message_not_contains_keyword",
+	display_name_contains_keyword: "display_name_not_contains_keyword",
+	x_handle_contains_keyword: "x_handle_not_contains_keyword",
+	instagram_handle_contains_keyword: "instagram_handle_not_contains_keyword",
+	facebook_handle_contains_keyword: "facebook_handle_not_contains_keyword",
+};
+
 // Maps an add-dropdown `kind` to the actual stored condition type + negate
 // flag (several kinds share the same underlying type).
 function resolveConditionKind(kind: ConditionKind): { type: AutomationRuleCondition["type"]; negate: boolean } {
-	if (kind === "bio_not_contains_keyword") return { type: "bio_contains_keyword", negate: true };
-	if (kind === "message_not_contains_keyword") return { type: "message_contains_keyword", negate: true };
-	if (kind === "display_name_not_contains_keyword") return { type: "display_name_contains_keyword", negate: true };
-	return { type: kind, negate: false };
+	const entry = (Object.entries(KEYWORD_NOT_KIND_BY_TYPE) as [KeywordConditionType, KeywordNotConditionKind][]).find(
+		([, notKind]) => notKind === kind,
+	);
+	if (entry) return { type: entry[0], negate: true };
+	return { type: kind as AutomationRuleCondition["type"], negate: false };
 }
 
 // Reverse of resolveConditionKind — used to look up the right label for an
 // existing condition's title based on its stored type + negate flag.
 function conditionKindOf(condition: AutomationRuleCondition): ConditionKind {
-	if (condition.type === "bio_contains_keyword") return condition.negate ? "bio_not_contains_keyword" : condition.type;
-	if (condition.type === "message_contains_keyword") return condition.negate ? "message_not_contains_keyword" : condition.type;
-	if (condition.type === "display_name_contains_keyword") {
-		return condition.negate ? "display_name_not_contains_keyword" : condition.type;
+	if ((KEYWORD_CONDITION_TYPES as readonly string[]).includes(condition.type) && "negate" in condition && condition.negate) {
+		return KEYWORD_NOT_KIND_BY_TYPE[condition.type as KeywordConditionType];
 	}
 	return condition.type;
 }
@@ -60,11 +106,16 @@ function conditionKindOf(condition: AutomationRuleCondition): ConditionKind {
 function defaultCondition(kind: ConditionKind): AutomationRuleCondition {
 	if (kind === "age_above" || kind === "age_below") return { type: kind, value: 25 };
 	const { type, negate } = resolveConditionKind(kind);
-	if (type === "bio_contains_keyword" || type === "message_contains_keyword" || type === "display_name_contains_keyword") {
-		return { type, keywords: "", negate };
+	if ((KEYWORD_CONDITION_TYPES as readonly string[]).includes(type)) {
+		return { type: type as KeywordConditionType, keywords: "", negate };
+	}
+	if ((HAS_CONDITION_TYPES as readonly string[]).includes(type)) {
+		return { type: type as HasConditionType, has: false };
 	}
 	return { type: "profile_picture", has: false };
 }
+
+
 
 // "message_contains_keyword" needs message text, which only "new_chat" and
 // "message_received" ever provide (tap events have none) — dead weight on a
@@ -90,6 +141,7 @@ function defaultAction(kind: ActionKind, firstAlbum?: Album): AutomationRuleActi
 export function AutomationRuleEditor({
 	isOpen,
 	rule,
+	isNew,
 	albums,
 	onSave,
 	onCancel,
@@ -97,6 +149,7 @@ export function AutomationRuleEditor({
 }: {
 	isOpen: boolean;
 	rule: AutomationRule | null;
+	isNew: boolean;
 	albums: Album[];
 	onSave: (rule: AutomationRule) => void;
 	onCancel: () => void;
@@ -212,7 +265,7 @@ export function AutomationRuleEditor({
 			{draft && <div className="grid max-h-[85dvh] grid-rows-[auto_1fr_auto]">
 			<div className="border-b border-[var(--border)] p-5 pb-4">
 				<div className="flex items-center justify-between gap-2">
-					<p className="text-base font-semibold">{t("settings_automation.edit_rule")}</p>
+					<p className="text-base font-semibold">{t(isNew ? "settings_automation.add_rule" : "settings_automation.edit_rule")}</p>
 					<button
 						type="button"
 						onClick={onCancel}
@@ -341,11 +394,7 @@ export function AutomationRuleEditor({
 							);
 						}
 
-						if (
-							condition.type === "bio_contains_keyword" ||
-							condition.type === "message_contains_keyword" ||
-							condition.type === "display_name_contains_keyword"
-						) {
+						if (isKeywordCondition(condition)) {
 							return (
 								<div
 									key={condition.type}
@@ -356,8 +405,10 @@ export function AutomationRuleEditor({
 											<FileText className="h-5 w-5" />
 										) : condition.type === "display_name_contains_keyword" ? (
 											<User className="h-5 w-5" />
-										) : (
+										) : condition.type === "message_contains_keyword" ? (
 											<Search className="h-5 w-5" />
+										) : (
+											<AtSign className="h-5 w-5" />
 										)}
 									</div>
 									<div className="min-w-0 flex-1">
@@ -401,23 +452,37 @@ export function AutomationRuleEditor({
 							);
 						}
 
+						// Remaining condition types all share the `has: boolean` shape:
+						// profile_picture plus the has_*_handle conditions. profile_picture
+						// keeps its original translation keys; the handle conditions use a
+						// `condition_<type>[_none|_has]` naming scheme instead.
+						const titleKey =
+							condition.type === "profile_picture" ? "condition_profile_picture" : `condition_${condition.type}`;
+						const noneKey =
+							condition.type === "profile_picture" ? "condition_no_profile_picture" : `condition_${condition.type}_none`;
+						const hasKey =
+							condition.type === "profile_picture" ? "condition_has_profile_picture" : `condition_${condition.type}_has`;
 						return (
 							<div
 								key={condition.type}
 								className="flex items-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3"
 							>
 								<div className="mt-0.5 shrink-0 rounded-2xl bg-purple-500/15 p-2.5 text-purple-400">
-									{condition.has ? <ImageIcon className="h-5 w-5" /> : <ImageOff className="h-5 w-5" />}
+									{condition.type === "profile_picture" ? (
+										condition.has ? <ImageIcon className="h-5 w-5" /> : <ImageOff className="h-5 w-5" />
+									) : (
+										<AtSign className="h-5 w-5" />
+									)}
 								</div>
 								<div className="min-w-0 flex-1">
-									<p className="text-sm font-medium">{t("settings_automation.condition_profile_picture")}</p>
+									<p className="text-sm font-medium">{t(`settings_automation.${titleKey}`)}</p>
 									<select
 										value={condition.has ? "has" : "none"}
 										onChange={(e) => updateCondition(index, { has: e.target.value === "has" })}
 										className="input-field mt-2"
 									>
-										<option value="none">{t("settings_automation.condition_no_profile_picture")}</option>
-										<option value="has">{t("settings_automation.condition_has_profile_picture")}</option>
+										<option value="none">{t(`settings_automation.${noneKey}`)}</option>
+										<option value="has">{t(`settings_automation.${hasKey}`)}</option>
 									</select>
 								</div>
 								{removeButton}

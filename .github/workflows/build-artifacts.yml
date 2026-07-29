@@ -1,0 +1,334 @@
+name: Build Artifacts (Manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-artifacts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin --bundles app,dmg
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            artifact_suffix: macos-universal
+            bundle_dir: src-tauri/target/universal-apple-darwin/release/bundle
+          - platform: windows-latest
+            args: --bundles nsis,msi
+            rust_targets: ""
+            artifact_suffix: windows-x64
+            bundle_dir: src-tauri/target/release/bundle
+          - platform: ubuntu-latest
+            args: --bundles deb,rpm,appimage
+            rust_targets: ""
+            artifact_suffix: linux-x64
+            bundle_dir: src-tauri/target/release/bundle
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build desktop artifacts
+        uses: tauri-apps/tauri-action@v0
+        with:
+          tauriScript: bunx tauri
+          args: ${{ matrix.args }}
+
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-grind-${{ matrix.artifact_suffix }}
+          path: |
+            ${{ matrix.bundle_dir }}
+          retention-days: 14
+          if-no-files-found: error
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platform-tools" \
+            "ndk;29.0.14206865"
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Initialize Android project
+        run: bunx tauri android init --ci --skip-targets-install
+
+      - name: Ensure Android network security config
+        run: |
+          mkdir -p src-tauri/gen/android/app/src/main/res/xml
+          cat > src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <base-config cleartextTrafficPermitted="true">
+                  <trust-anchors>
+                      <certificates src="system" />
+                      <certificates src="user" />
+                  </trust-anchors>
+              </base-config>
+          </network-security-config>
+          EOF
+
+      - name: Add custom Android notification sound
+        run: |
+          mkdir -p src-tauri/gen/android/app/src/main/res/raw
+          install -m 0644 src-tauri/sounds/free_grind_message.mp3 src-tauri/gen/android/app/src/main/res/raw/free_grind_message.mp3
+
+      - name: Restore Android keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p src-tauri/certs
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > src-tauri/certs/free-grind-dev.jks
+
+      - name: Build Android APK
+        run: bunx tauri android build --apk -v
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-grind-android
+          path: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          retention-days: 14
+          if-no-files-found: error
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build frontend assets
+        run: bun run build
+
+      - name: Initialize iOS project
+        run: |
+          rm -rf src-tauri/gen/apple
+          bunx tauri ios init --ci
+
+      - name: Build iOS Rust static library
+        run: |
+          cargo build --manifest-path src-tauri/Cargo.toml --target aarch64-apple-ios --release
+
+          LIB_PATH="src-tauri/target/aarch64-apple-ios/release/libopen_grind_lib.a"
+          if [ ! -f "$LIB_PATH" ]; then
+            echo "iOS static library not found at $LIB_PATH"
+            exit 1
+          fi
+
+          mkdir -p src-tauri/gen/apple/Externals/arm64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/arm64/release/libapp.a
+
+          # Keep xcodebuild happy if the generated project still references both arch outputs.
+          mkdir -p src-tauri/gen/apple/Externals/x86_64/release
+          cp "$LIB_PATH" src-tauri/gen/apple/Externals/x86_64/release/libapp.a
+
+      - name: Disable Xcode Rust bridge script
+        run: |
+          PBXPROJ_PATH=$(find src-tauri/gen/apple -maxdepth 3 -name project.pbxproj | head -n 1)
+          if [ -z "$PBXPROJ_PATH" ]; then
+            echo "project.pbxproj not found under src-tauri/gen/apple"
+            exit 1
+          fi
+
+          tmp_file="$(mktemp)"
+          if ! awk '
+            BEGIN { replaced = 0 }
+            /tauri ios xcode-script/ {
+              print "\t\t\tshellScript = \"set -e\\nLIB_PATH=\\\"$SRCROOT/Externals/arm64/release/libapp.a\\\"\\nif [ ! -f \\\"$LIB_PATH\\\" ]; then\\n  echo \\\"Missing prebuilt Rust library at $LIB_PATH\\\"\\n  exit 1\\nfi\";"
+              replaced = 1
+              next
+            }
+            { print }
+            END {
+              if (replaced == 0) {
+                exit 2
+              }
+            }
+          ' "$PBXPROJ_PATH" > "$tmp_file"; then
+            rm -f "$tmp_file"
+            echo "Failed to replace Build Rust Code script"
+            exit 1
+          fi
+
+          mv "$tmp_file" "$PBXPROJ_PATH"
+
+          if ! grep -q -- 'Missing prebuilt Rust library' "$PBXPROJ_PATH"; then
+            echo "Failed to replace Build Rust Code script"
+            exit 1
+          fi
+
+          if ! plutil -lint "$PBXPROJ_PATH" >/dev/null; then
+            echo "Patched project.pbxproj is invalid"
+            exit 1
+          fi
+
+          echo "Patched Build Rust Code script to use prebuilt libapp.a"
+
+      - name: Build iOS app without code signing
+        id: ios_app
+        env:
+          # Xcode 26's bundled MetalToolchain shadows the Swift back-deployment
+          # compatibility libs (swiftCompatibility51/56/Concurrency), causing
+          # "undefined symbol __swift_FORCE_LOAD_$_swiftCompatibility*" link
+          # errors against the Rust-built libapp.a. Forcing the default
+          # toolchain restores those libs. See actions/runner-images#13135.
+          TOOLCHAINS: com.apple.dt.toolchain.XcodeDefault
+        run: |
+          IOS_PROJECT_DIR="src-tauri/gen/apple"
+          WORKSPACE_PATH=$(find "$IOS_PROJECT_DIR" -maxdepth 2 -name '*.xcworkspace' | head -n 1)
+          XCODEPROJ_PATH=$(find "$IOS_PROJECT_DIR" -maxdepth 2 -name '*.xcodeproj' | head -n 1)
+
+          if [ -n "$WORKSPACE_PATH" ]; then
+            PROJECT_ARGS=(-workspace "$WORKSPACE_PATH")
+          elif [ -n "$XCODEPROJ_PATH" ]; then
+            PROJECT_ARGS=(-project "$XCODEPROJ_PATH")
+          else
+            echo "No Xcode workspace/project found under $IOS_PROJECT_DIR"
+            exit 1
+          fi
+
+          SCHEME=$(xcodebuild "${PROJECT_ARGS[@]}" -list \
+            | awk '/Schemes:/ {flag=1; next} flag && NF {gsub(/^[[:space:]]+|[[:space:]]+$/, ""); print}')
+
+          IOS_SCHEME=$(printf '%s\n' "$SCHEME" | grep -Ei '(^|_|-)ios$|_iOS$|iOS' | head -n 1 || true)
+          if [ -n "$IOS_SCHEME" ]; then
+            SCHEME="$IOS_SCHEME"
+          else
+            SCHEME=$(printf '%s\n' "$SCHEME" | head -n 1)
+          fi
+
+          if [ -z "$SCHEME" ]; then
+            echo "Failed to resolve iOS scheme"
+            exit 1
+          fi
+
+          echo "Using iOS scheme: $SCHEME"
+
+          DERIVED_DATA_PATH="$RUNNER_TEMP/ios-derived"
+          xcodebuild "${PROJECT_ARGS[@]}" \
+            -scheme "$SCHEME" \
+            -configuration release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            build
+
+          APP_PATH=$(find "$DERIVED_DATA_PATH/Build/Products" -maxdepth 2 -type d -name '*.app' | grep -E '/(release|Release)-iphoneos/' | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No release .app artifact found in $DERIVED_DATA_PATH/Build/Products"
+            exit 1
+          fi
+
+          echo "app_path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Package unsigned IPA
+        id: ios_ipa
+        run: |
+          APP_PATH='${{ steps.ios_app.outputs.app_path }}'
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "Cannot package IPA; app bundle missing at $APP_PATH"
+            exit 1
+          fi
+
+          PAYLOAD_DIR="$RUNNER_TEMP/Payload"
+          IPA_PATH="$RUNNER_TEMP/free-grind-unsigned.ipa"
+
+          rm -rf "$PAYLOAD_DIR"
+          mkdir -p "$PAYLOAD_DIR"
+          cp -R "$APP_PATH" "$PAYLOAD_DIR/"
+
+          (
+            cd "$RUNNER_TEMP"
+            /usr/bin/zip -qry "$IPA_PATH" Payload
+          )
+
+          echo "ipa_path=$IPA_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-grind-ios
+          path: ${{ steps.ios_ipa.outputs.ipa_path }}
+          retention-days: 14
+          if-no-files-found: error

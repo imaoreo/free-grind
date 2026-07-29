@@ -119,7 +119,7 @@ function SavedLocationRow({
 
 export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation }: LocationOverlayProps) {
 	const { t } = useTranslation();
-	const { setPreferences, geohash, locationName, useAutoLocation } = usePreferences();
+	const { setPreferences, geohash, locationName, useAutoLocation, autoFocusLocationSearch } = usePreferences();
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
 	const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -263,8 +263,9 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 	}, [geohash]);
 
 	useEffect(() => {
+		if (!autoFocusLocationSearch) return;
 		setTimeout(() => searchInputRef.current?.focus(), 120);
-	}, []);
+	}, [autoFocusLocationSearch]);
 
 	const handleClose = useCallback(() => {
 		if (isClosingRef.current) return;
@@ -516,7 +517,7 @@ export function LocationOverlay({ onClose, exploreLocation, onSetExploreLocation
 				</header>
 
 				{/* Scrollable content */}
-				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto px-[var(--app-px)]" data-lenis-prevent>
 					<div className="space-y-4 py-4">
 
 						{/* Set vs. Explore: "set" changes your real, visible location;

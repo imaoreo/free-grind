@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
-import { Clock, Download, LockKeyhole, Plus, RefreshCw, Save, Tag, Upload, Workflow } from "lucide-react";
+import { Download, LockKeyhole, Plus, Save, Tag, Upload, Workflow } from "lucide-react";
 import toast from "react-hot-toast";
 import { BackToSettings } from "../../components/BackToSettings";
-import { ToggleRow } from "../../components/ui/toggle-row";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { useTranslation } from "react-i18next";
-import { Slider } from "../../components/ui/range-slider";
 import { useAuth } from "../../contexts/useAuth";
 import { getAutomationSettings, setAutomationSettings } from "../../utils/autoblock";
 import {
@@ -17,6 +15,7 @@ import {
 } from "../../utils/automationRules";
 import { AutomationRuleEditor } from "../../components/settings/AutomationRuleEditor";
 import { useApiFunctions } from "../../hooks/useApiFunctions";
+import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
 import type { Album } from "../../types/albums";
 
 type TFunc = (key: string, opts?: Record<string, unknown>) => string;
@@ -61,12 +60,24 @@ function describeCondition(c: AutomationRuleCondition, t: TFunc): string {
 			return renderKeywordCondition(t, "message", c);
 		case "display_name_contains_keyword":
 			return renderKeywordCondition(t, "display_name", c);
+		case "has_x_handle":
+			return t(c.has ? "settings_automation.phrase_has_x_handle" : "settings_automation.phrase_no_x_handle");
+		case "has_instagram_handle":
+			return t(c.has ? "settings_automation.phrase_has_instagram_handle" : "settings_automation.phrase_no_instagram_handle");
+		case "has_facebook_handle":
+			return t(c.has ? "settings_automation.phrase_has_facebook_handle" : "settings_automation.phrase_no_facebook_handle");
+		case "x_handle_contains_keyword":
+			return renderKeywordCondition(t, "x_handle", c);
+		case "instagram_handle_contains_keyword":
+			return renderKeywordCondition(t, "instagram_handle", c);
+		case "facebook_handle_contains_keyword":
+			return renderKeywordCondition(t, "facebook_handle", c);
 	}
 }
 
 function renderKeywordCondition(
 	t: TFunc,
-	kind: "bio" | "message" | "display_name",
+	kind: "bio" | "message" | "display_name" | "x_handle" | "instagram_handle" | "facebook_handle",
 	c: { useForbiddenList?: boolean; keywords: string; negate?: boolean },
 ): string {
 	const variant = c.negate ? "prefix_not" : "prefix";
@@ -101,6 +112,7 @@ function describeRule(rule: AutomationRule, t: TFunc): React.ReactNode[] {
 
 export function SettingsAutomationPage() {
 	const { t } = useTranslation();
+	const highlightId = useSettingsHighlight();
 	const apiFunctions = useApiFunctions();
 	const { settingsReady } = useAuth();
 
@@ -113,7 +125,7 @@ export function SettingsAutomationPage() {
 		apiFunctions.listAlbums().then(setAlbums).catch(() => {});
 	}, [apiFunctions]);
 
-	// The automation caches (rules + legacy auto-block/refresh settings) load
+	// The automation caches (rules + legacy auto-block settings) load
 	// asynchronously right after login (see AuthContext) and only afterwards
 	// does settingsReady flip true. Landing on this page before that finishes
 	// would otherwise permanently freeze this page's state on an empty/stale
@@ -121,10 +133,7 @@ export function SettingsAutomationPage() {
 	useEffect(() => {
 		if (!settingsReady) return;
 		setRules(getAutomationRules());
-		const settings = getAutomationSettings();
-		setForbiddenWords(settings.forbiddenWords);
-		setRefreshEnabled(settings.refreshEnabled);
-		setRefreshInterval(settings.refreshInterval);
+		setForbiddenWords(getAutomationSettings().forbiddenWords);
 	}, [settingsReady]);
 
 	const persistRules = (next: AutomationRule[]) => {
@@ -156,23 +165,10 @@ export function SettingsAutomationPage() {
 	};
 
 	const [forbiddenWords, setForbiddenWords] = useState(() => getAutomationSettings().forbiddenWords);
-	const [refreshEnabled, setRefreshEnabled] = useState(() => getAutomationSettings().refreshEnabled);
-	const [refreshInterval, setRefreshInterval] = useState(() => getAutomationSettings().refreshInterval);
-
-	const handleToggleRefresh = (val: boolean) => {
-		setRefreshEnabled(val);
-		void setAutomationSettings({ refreshEnabled: val });
-		toast.success(val ? t("settings_automation.auto_refresh_enabled") : t("settings_automation.auto_refresh_disabled"), { id: "refresh-toggle" });
-	};
 
 	const handleSaveAutoBlock = () => {
 		void setAutomationSettings({ forbiddenWords });
 		toast.success(t("settings_automation.block_rules_updated"));
-	};
-
-	const handleSaveRefresh = () => {
-		void setAutomationSettings({ refreshInterval });
-		toast.success(t("settings_automation.refresh_settings_updated"));
 	};
 
 	const handleExport = () => {
@@ -208,7 +204,10 @@ export function SettingsAutomationPage() {
 
 			<div className="grid min-w-0 gap-6">
 				{/* CUSTOM RULES */}
-				<div className="min-w-0">
+				<div
+					id="automation-custom-rules"
+					className={`min-w-0 ${highlightId === "automation-custom-rules" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
 						<div className="flex min-w-0 items-center gap-2">
 							<p className="truncate text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
@@ -292,7 +291,10 @@ export function SettingsAutomationPage() {
 				</div>
 
 				{/* FORBIDDEN KEYWORDS */}
-				<div className="min-w-0">
+				<div
+					id="automation-forbidden-keywords"
+					className={`min-w-0 ${highlightId === "automation-forbidden-keywords" ? "animate-settings-highlight rounded-2xl" : ""}`}
+				>
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
 						{t("settings_automation.forbidden_keywords_title")}
 					</p>
@@ -341,78 +343,20 @@ export function SettingsAutomationPage() {
 						</div>
 					</div>
 				</div>
-
-				{/* AUTO REFRESH */}
-				<div className="min-w-0">
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("settings_automation.auto_refresh_title")}
-					</p>
-					<div className="surface-card divide-y divide-[var(--border)] overflow-hidden">
-						<ToggleRow
-							icon={<RefreshCw className="h-5 w-5" />}
-							iconClass="bg-green-500/15 text-green-400"
-							label={t("settings_automation.enable_refresh")}
-							description={t("settings_automation.enable_refresh_desc")}
-							checked={refreshEnabled}
-							onChange={handleToggleRefresh}
-						/>
-
-						{refreshEnabled && <div className="flex items-start gap-3 p-4">
-							<div className="shrink-0 rounded-2xl bg-blue-500/15 p-2.5 text-blue-400">
-								<Clock className="h-5 w-5" />
-							</div>
-							<div className="min-w-0 flex-1">
-								<div className="flex items-center gap-2">
-									<p className="min-w-0 flex-1 text-sm font-semibold leading-snug">
-										{t("settings_automation.refresh_interval")}
-									</p>
-									<span className="shrink-0 rounded-lg bg-[var(--surface-2)] px-2.5 py-1 text-xs font-bold">
-										{t("settings_automation.refresh_interval_unit", { count: refreshInterval })}
-									</span>
-								</div>
-								<p className="mt-0.5 text-xs leading-relaxed text-[var(--text-muted)]">
-									{t("settings_automation.refresh_technical_note")}
-								</p>
-								<div className="mt-3 px-2">
-									<Slider
-										label=""
-										hideHeader
-										min={5}
-										max={60}
-										step={5}
-										defaultValue={Number(refreshInterval)}
-										displayValue={t("settings_automation.refresh_interval_unit", { count: refreshInterval })}
-										onChange={(val) => setRefreshInterval(String(val))}
-									/>
-									<div className="flex justify-between mt-1">
-										<span className="text-[10px] text-[var(--text-muted)]">5 min</span>
-										<span className="text-[10px] text-[var(--text-muted)]">60 min</span>
-									</div>
-								</div>
-							</div>
-						</div>}
-
-						{refreshEnabled && <div className="p-4">
-							<button
-								type="button"
-								onClick={handleSaveRefresh}
-								className="btn-accent inline-flex w-full min-h-11 items-center justify-center gap-2 px-4 py-2.5 font-semibold"
-							>
-								<Save className="h-4 w-4" />
-								{t("settings_automation.update_refresh_settings")}
-							</button>
-						</div>}
-					</div>
-				</div>
 			</div>
 
 			<AutomationRuleEditor
 				isOpen={editingRule !== null}
 				rule={editingRule}
+				isNew={editingRule !== null && !rules.some((r) => r.id === editingRule.id)}
 				albums={albums}
 				onSave={handleSaveRule}
 				onCancel={() => setEditingRule(null)}
-				onDelete={editingRule && !editingRule.locked ? () => setDeletingRuleId(editingRule.id) : undefined}
+				onDelete={
+					editingRule && !editingRule.locked && rules.some((r) => r.id === editingRule.id)
+						? () => setDeletingRuleId(editingRule.id)
+						: undefined
+				}
 			/>
 
 			<ConfirmDialog

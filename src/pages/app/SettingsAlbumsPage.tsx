@@ -53,6 +53,7 @@ import {
 } from "./settings-albums/settingsAlbumsUtils";
 import { AlbumDrawerPickerSheet } from "./settings-albums/AlbumDrawerPickerSheet";
 import type { DrawerMedia } from "./chat/ChatDrawerPanel";
+import { sortDrawerMediaByUsage } from "./chat/chatUtils";
 import * as chatDb from "../../services/chatDb";
 import {
 	DndContext,
@@ -72,6 +73,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ProfileImage } from "../../components/ui/profile-image";
 import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
 import { useNavigate, useLocation } from "react-router-dom";
+import { usePreferences } from "../../contexts/PreferencesContext";
 
 function LimitRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
 	return (
@@ -197,6 +199,7 @@ type ShareProfileListItem = {
 
 export function SettingsAlbumsPage() {
 	const { t } = useTranslation();
+	const { sortDrawerMediaByFrequency } = usePreferences();
 	const isDesktop = useDesktopBreakpoint();
 	const apiFunctions = useApiFunctions();
 	const navigate = useNavigate();
@@ -412,10 +415,9 @@ export function SettingsAlbumsPage() {
 				apiFunctions.getGlobalDrawerMedia(),
 				chatDb.getDrawerMediaSendCounts(),
 			]);
+			const withCounts = items.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				items
-					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
-					.sort((a, b) => b.sendCount - a.sendCount),
+				sortDrawerMediaByFrequency ? sortDrawerMediaByUsage(withCounts) : withCounts,
 			);
 		} catch (loadError) {
 			setDrawerMediaError(
@@ -424,7 +426,7 @@ export function SettingsAlbumsPage() {
 		} finally {
 			setIsLoadingDrawerMedia(false);
 		}
-	}, [apiFunctions, drawerMedia.length, t]);
+	}, [apiFunctions, drawerMedia.length, sortDrawerMediaByFrequency, t]);
 
 	const openDrawerPicker = useCallback((albumId: string) => {
 		const mediaCounts = countAlbumMedia(albumDetails[albumId]);
@@ -436,7 +438,10 @@ export function SettingsAlbumsPage() {
 			return;
 		}
 		setDrawerPickerAlbumId(albumId);
-		void loadDrawerMedia();
+		// Force-refresh — otherwise the guard in loadDrawerMedia reuses the
+		// cached list from a previous picker session and drawer media added
+		// since then (e.g. from the chat screen) never shows up here.
+		void loadDrawerMedia(true);
 	}, [albumDetails, limits, loadDrawerMedia, t]);
 
 	const handleAddFromDrawer = useCallback(async (mediaIds: number[]) => {

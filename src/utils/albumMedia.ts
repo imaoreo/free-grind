@@ -4,14 +4,11 @@ import { isIos, saveMediaBatch } from "../services/saveMedia";
 import { albumViewerFolderKey, type AlbumViewer } from "../types/shared-albums";
 import { appLog } from "./logger";
 
-export async function saveAllAlbumMedia(viewer: AlbumViewer, t: TFunction): Promise<void> {
-	const items = viewer.content
-		.map((item) => ({
-			url: item.url || item.coverUrl,
-			type: (item.contentType?.startsWith("video/") ? "video" : "image") as "image" | "video",
-		}))
-		.filter((item): item is { url: string; type: "image" | "video" } => !!item.url);
-
+export async function saveAllMedia(
+	items: { url: string; type: "image" | "video" }[],
+	folderKey: string | null,
+	t: TFunction,
+): Promise<void> {
 	if (items.length === 0) {
 		toast.error(t("profile_details.save_all_empty"));
 		return;
@@ -23,7 +20,7 @@ export async function saveAllAlbumMedia(viewer: AlbumViewer, t: TFunction): Prom
 	try {
 		const result = await saveMediaBatch(items, (done, total) => {
 			toast.loading(t("profile_details.save_all_progress", { done, total }), { id: toastId });
-		}, albumViewerFolderKey(viewer));
+		}, folderKey);
 
 		if (result.failed === 0) {
 			toast.success(
@@ -44,10 +41,21 @@ export async function saveAllAlbumMedia(viewer: AlbumViewer, t: TFunction): Prom
 			);
 		}
 	} catch (error) {
-		appLog.error("[saveAllAlbumMedia] Save all failed", error);
+		appLog.error("[saveAllMedia] Save all failed", error);
 		toast.error(
 			t(isIos() ? "profile_details.save_all_error" : "profile_details.save_all_error_downloads"),
 			{ id: toastId },
 		);
 	}
+}
+
+export async function saveAllAlbumMedia(viewer: AlbumViewer, t: TFunction): Promise<void> {
+	const items = viewer.content
+		.map((item) => ({
+			url: item.url || item.coverUrl,
+			type: (item.contentType?.startsWith("video/") ? "video" : "image") as "image" | "video",
+		}))
+		.filter((item): item is { url: string; type: "image" | "video" } => !!item.url);
+
+	await saveAllMedia(items, albumViewerFolderKey(viewer), t);
 }

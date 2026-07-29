@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Check, ChevronLeft, Clock, FlaskConical, Pill, TriangleAlert } from "lucide-react";
+import { Calendar, Check, ChevronLeft, Clock, FlaskConical, Pill, Settings, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FilterPill } from "../../../components/ui/FilterPill";
@@ -9,6 +9,7 @@ import { SexualHealthHistoryTab } from "./SexualHealthHistoryTab";
 import { SexualHealthDosesTab } from "./SexualHealthDosesTab";
 import { SexualHealthAppointmentsTab } from "./SexualHealthAppointmentsTab";
 import { SexualHealthTestsTab } from "./SexualHealthTestsTab";
+import { SexualHealthPrepSettingsSheet } from "./SexualHealthPrepSettingsSheet";
 import { loadPrepDoses } from "../../../services/prepDoses";
 import { computeProtectionStatus } from "../../../services/prepTracking";
 import { usePrepScheme } from "./usePrepScheme";
@@ -40,6 +41,7 @@ export function SexualHealthPage() {
 	// every tab, not only while Doses is active.
 	const [prepScheme, setPrepScheme] = usePrepScheme();
 	const [prepBadge, setPrepBadge] = useState<"protected" | "attention" | null>(null);
+	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 	// Bumped by SexualHealthDosesTab right after a dose is logged/deleted so
 	// the pill badge updates immediately instead of waiting for a tab switch
 	// (which is the only other thing that re-triggers the effect below).
@@ -87,7 +89,17 @@ export function SexualHealthPage() {
 						<ChevronLeft className="h-4 w-4" />
 						{cameFromInbox ? t("nav.inbox") : t("settings.title")}
 					</button>
-					<h1 className="app-title">{t("sexualHealth.title", { defaultValue: "Sexual Health" })}</h1>
+					<div className="flex items-center justify-between gap-2">
+						<h1 className="app-title">{t("sexualHealth.title", { defaultValue: "Sexual Health" })}</h1>
+						<button
+							type="button"
+							onClick={() => setIsSettingsOpen(true)}
+							className="shrink-0 rounded-xl p-2 text-[var(--text-muted)] transition hover:text-[var(--text)]"
+							aria-label={t("sexualHealth.info.settings_button", { defaultValue: "PrEP settings" })}
+						>
+							<Settings className="h-5 w-5" />
+						</button>
+					</div>
 
 					<div ref={setHeaderSlotEl} className="min-w-0 -mt-2.5 empty:hidden" />
 
@@ -129,7 +141,6 @@ export function SexualHealthPage() {
 							headerSlotEl={headerSlotEl}
 							fabSlotEl={fabSlotEl}
 							scheme={prepScheme}
-							onSchemeChange={setPrepScheme}
 							onDosesChanged={() => setPrepRefreshKey((key) => key + 1)}
 						/>
 					)}
@@ -141,11 +152,19 @@ export function SexualHealthPage() {
 				</div>
 			</FeedScrollContainer>
 
-			<div className="fixed inset-x-0 bottom-32 z-[60] pointer-events-none md:bottom-36">
+			<div className="fixed inset-x-0 bottom-36 z-[60] pointer-events-none md:bottom-40">
 				<div className="relative mx-auto h-full w-full max-w-4xl px-4 md:px-10">
 					<div ref={setFabSlotEl} className="absolute bottom-0 right-[16%] translate-x-1/2 pointer-events-auto empty:pointer-events-none" />
 				</div>
 			</div>
+
+			{isSettingsOpen && (
+				<SexualHealthPrepSettingsSheet
+					scheme={prepScheme}
+					onSchemeChange={setPrepScheme}
+					onClose={() => setIsSettingsOpen(false)}
+				/>
+			)}
 		</section>
 	);
 }

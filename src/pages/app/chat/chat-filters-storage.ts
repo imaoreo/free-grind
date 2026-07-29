@@ -31,6 +31,7 @@ export function normalizeChatFiltersDraft(
 		pinnedFilter: isVisibilityFilter(draft.pinnedFilter) ? draft.pinnedFilter : defaults.pinnedFilter,
 		archivedFilter: isVisibilityFilter(draft.archivedFilter) ? draft.archivedFilter : defaults.archivedFilter,
 		hiddenFilter: isVisibilityFilter(draft.hiddenFilter) ? draft.hiddenFilter : defaults.hiddenFilter,
+		needsReplyOnly: draft.needsReplyOnly === true,
 	};
 }
 

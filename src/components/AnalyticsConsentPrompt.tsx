@@ -34,14 +34,14 @@ export function AnalyticsConsentPrompt() {
 				<p className="mt-2 text-xs text-[var(--text-muted)]">
 					No data is saved or tied to your device.
 				</p>
-				<div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<div className="mt-4 flex gap-2">
 					<button
 						type="button"
 						onClick={() => {
 							writeAnalyticsConsentChoice("denied");
 							setConsentChoice("denied");
 						}}
-						className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
+						className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-semibold text-[var(--text)] transition hover:border-[var(--accent)]"
 					>
 						No Thanks
 					</button>
@@ -51,7 +51,7 @@ export function AnalyticsConsentPrompt() {
 							writeAnalyticsConsentChoice("granted");
 							setConsentChoice("granted");
 						}}
-						className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
+						className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-[var(--accent)] bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)] transition hover:brightness-110"
 					>
 						Allow Analytics
 					</button>

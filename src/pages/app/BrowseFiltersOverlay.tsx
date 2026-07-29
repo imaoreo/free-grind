@@ -1,4 +1,22 @@
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import {
+	ArrowUpDown,
+	Calendar,
+	Compass,
+	Dumbbell,
+	Heart,
+	HeartHandshake,
+	MapPin,
+	Ruler,
+	Scale,
+	Search,
+	ShieldAlert,
+	SlidersHorizontal,
+	Tag as TagIcon,
+	Users,
+	X,
+	Zap,
+	type LucideIcon,
+} from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RangeSlider } from "../../components/ui/range-slider";
@@ -44,14 +62,23 @@ interface BrowseFiltersOverlayProps {
 	initialDraft: BrowseFiltersDraft;
 	onClose: () => void;
 	onApply: (draft: BrowseFiltersDraft) => void;
+	/** Right Now and Favorites both rely on the real location/presence, which
+	 * doesn't apply to a browsed-away explore location — hide those two quick
+	 * filters while explore mode is active (mirrors GridPage's own filter row). */
+	isExploreActive?: boolean;
 }
 
-export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseFiltersOverlayProps) {
+export function BrowseFiltersOverlay({ initialDraft, onClose, onApply, isExploreActive = false }: BrowseFiltersOverlayProps) {
 	const { t, i18n } = useTranslation();
 	const { unitsPreset } = usePreferences();
 	const { data: managedTagCategories } = useManagedTagCategories(i18n.language);
 	const [isClosing, setIsClosing] = useState(false);
 	const isClosingRef = useRef(false);
+
+	// Mirrors GridPage's own filter row: while browsing an explore location,
+	// every accent-tinted element in this sheet switches to EXPLORE_COLOR
+	// (see --explore in index.css) the same way it switches for Right Now.
+	const accentColor = isExploreActive ? "var(--explore)" : "var(--accent)";
 
 	const normalized = useMemo(() => normalizeBrowseFiltersDraft(initialDraft), [initialDraft]);
 
@@ -104,33 +131,54 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		? (isImperialWeight ? Math.round(gramsToPounds(Number(weightGramsMax))) : Math.round(gramsToKg(Number(weightGramsMax))))
 		: weightRange.max;
 
-	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => [
-		{ key: "onlineOnly", label: t("browse_filters.options.online") },
-		{ key: "hasAlbum", label: t("browse_filters.options.has_album") },
-		{ key: "photoOnly", label: t("browse_filters.options.photo") },
-		{ key: "faceOnly", label: t("browse_filters.options.face") },
-		{ key: "notRecentlyChatted", label: t("browse_filters.options.no_recent_chat") },
-		{ key: "fresh", label: t("browse_filters.options.fresh") },
-		{ key: "rightNow", label: t("browse_filters.options.right_now") },
-		{ key: "favorites", label: t("browse_filters.options.favorites") },
-		{ key: "hot", label: t("browse_filters.options.hot") },
-		{ key: "shuffle", label: t("browse_filters.options.shuffle") },
-	], [t]);
+	const browseFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => {
+		const options: Array<{ key: keyof BrowseFilters; label: string }> = [
+			{ key: "onlineOnly", label: t("browse_filters.options.online") },
+			{ key: "hasAlbum", label: t("browse_filters.options.has_album") },
+			{ key: "photoOnly", label: t("browse_filters.options.photo") },
+			{ key: "faceOnly", label: t("browse_filters.options.face") },
+			{ key: "notRecentlyChatted", label: t("browse_filters.options.no_recent_chat") },
+			{ key: "fresh", label: t("browse_filters.options.fresh") },
+			{ key: "rightNow", label: t("browse_filters.options.right_now") },
+			{ key: "favorites", label: t("browse_filters.options.favorites") },
+			{ key: "hot", label: t("browse_filters.options.hot") },
+			{ key: "shuffle", label: t("browse_filters.options.shuffle") },
+		];
+		return isExploreActive ? options.filter((option) => option.key !== "rightNow" && option.key !== "favorites") : options;
+	}, [t, isExploreActive]);
 
 	const localFilterOptions: Array<{ key: keyof BrowseFilters; label: string }> = useMemo(() => [
 		{ key: "isVisiting", label: t("browse_filters.local_filters.is_visiting") },
 	], [t]);
 
-	const tribeFilterOptions = useMemo<ManagedOption[]>(() => getTribeOptions(t), [t]);
-	const lookingForFilterOptions = useMemo<ManagedOption[]>(() => getLookingForOptions(t), [t]);
-	const relationshipFilterOptions = useMemo<ManagedOption[]>(() => getRelationshipStatusOptions(t), [t]);
-	const bodyTypeFilterOptions = useMemo<ManagedOption[]>(() => getBodyTypeOptions(t), [t]);
+	const tribeFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getTribeOptions(t)],
+		[t],
+	);
+	const lookingForFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getLookingForOptions(t)],
+		[t],
+	);
+	const relationshipFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getRelationshipStatusOptions(t)],
+		[t],
+	);
+	const bodyTypeFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getBodyTypeOptions(t)],
+		[t],
+	);
 	const sexualPositionFilterOptions = useMemo<ManagedOption[]>(
 		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getSexualPositionOptions(t)],
 		[t],
 	);
-	const meetAtFilterOptions = useMemo<ManagedOption[]>(() => getMeetAtOptions(t), [t]);
-	const nsfwFilterOptions = useMemo<ManagedOption[]>(() => getNsfwOptions(t), [t]);
+	const meetAtFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getMeetAtOptions(t)],
+		[t],
+	);
+	const nsfwFilterOptions = useMemo<ManagedOption[]>(
+		() => [{ value: -1, label: t("browse_filters.not_specified") }, ...getNsfwOptions(t)],
+		[t],
+	);
 
 	// Flat list of every managed tag across all categories — the filter only
 	// ever needs to search/add individual tags, never browse by category.
@@ -194,22 +242,47 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 		handleClose();
 	};
 
+	const cardStyle: React.CSSProperties = {
+		backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 96%)`,
+		border: `1px solid color-mix(in srgb, ${accentColor}, transparent 88%)`,
+	};
+
+	const LocalBadge = () => (
+		<span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+			<Zap className="h-2.5 w-2.5" />
+			{t("browse_filters.local_filters.badge")}
+		</span>
+	);
+
+	const renderSectionHeader = (title: string, Icon?: LucideIcon, isLocal?: boolean, valueBadge?: string) => (
+		<div className="mb-4 flex items-center justify-between gap-2.5">
+			<div className="flex items-center gap-2.5">
+				{Icon && <Icon className="h-4 w-4 shrink-0" style={{ color: accentColor }} />}
+				<p className="text-sm font-bold tracking-tight text-[var(--text)]">
+					{title}
+				</p>
+				{isLocal && <LocalBadge />}
+			</div>
+			{valueBadge && (
+				<span
+					className="shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-bold shadow-sm text-[var(--text)]"
+					style={{ backgroundColor: `color-mix(in srgb, ${accentColor}, transparent 85%)` }}
+				>
+					{valueBadge}
+				</span>
+			)}
+		</div>
+	);
+
 	const renderSection = (
 		title: string,
 		options: ManagedOption[],
 		selectedValues: number[],
 		onToggle: (value: number) => void,
+		icon?: LucideIcon,
 	) => (
-		<section
-			className="rounded-2xl p-4"
-			style={{
-				backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-				border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-			}}
-		>
-			<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-				{title}
-			</p>
+		<section className="rounded-2xl p-4" style={cardStyle}>
+			{renderSectionHeader(title, icon)}
 			<div className="flex flex-wrap gap-2">
 				{options.map((option) => {
 					const isSelected = selectedValues.includes(option.value);
@@ -221,8 +294,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							className={cn(
 								"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
 								isSelected
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+									? isExploreActive
+										? "border-[var(--explore)] bg-[var(--explore)] text-white shadow-sm"
+										: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+									: isExploreActive
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--explore)]/60 hover:text-[var(--text)]"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
 							)}
 						>
 							{option.label}
@@ -236,17 +313,11 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 	const renderToggleSection = (
 		title: string,
 		options: Array<{ key: keyof BrowseFilters; label: string }>,
+		icon?: LucideIcon,
+		isLocal?: boolean,
 	) => (
-		<section
-			className="rounded-2xl p-4"
-			style={{
-				backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-				border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-			}}
-		>
-			<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-				{title}
-			</p>
+		<section className="rounded-2xl p-4" style={cardStyle}>
+			{renderSectionHeader(title, icon, isLocal)}
 			<div className="flex flex-wrap gap-2">
 				{options.map((filter) => {
 					const active = browseFilters[filter.key];
@@ -258,8 +329,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							className={cn(
 								"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
 								active
-									? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-									: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
+									? isExploreActive
+										? "border-[var(--explore)] bg-[var(--explore)] text-white shadow-sm"
+										: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
+									: isExploreActive
+										? "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--explore)]/60 hover:text-[var(--text)]"
+										: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
 							)}
 						>
 							{filter.label}
@@ -286,7 +361,7 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 				onClick={(e) => e.stopPropagation()}
 			>
 				<header className="relative shrink-0 overflow-hidden px-[var(--app-px)] pb-5 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-					<PageHeaderBackground color="var(--accent)" />
+					<PageHeaderBackground color={accentColor} />
 					<div className="flex items-center justify-between gap-3">
 						<div className="flex items-center gap-3">
 							<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-2)] text-[var(--text)]">
@@ -309,68 +384,81 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 
 				<div className="shrink-0 border-b border-[var(--border)]" />
 
-				<div className="relative z-10 flex-1 overflow-y-auto px-[var(--app-px)]">
-					<div className="space-y-3 py-4">
-						{renderToggleSection(t("browse_filters.quick_filters"), browseFilterOptions)}
+				<div className="relative z-10 min-h-0 flex-1 overflow-y-auto px-[var(--app-px)]" data-lenis-prevent>
+					<div className="space-y-6 py-6">
+						{renderToggleSection(t("browse_filters.quick_filters"), browseFilterOptions, Zap)}
 
-						<section
-							className="rounded-2xl p-4"
-							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-							}}
-						>
-							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-								{t("browse_filters.age")} / {t("browse_filters.height")} / {t("browse_filters.weight")}
-							</p>
-							<div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-								<RangeSlider
-									label={t("browse_filters.age")}
-									min={18}
-									max={99}
-									minDefault={ageMin ? Number(ageMin) : 18}
-									maxDefault={ageMax ? Number(ageMax) : 99}
-									activeColor="var(--accent)"
-									showSeparator={true}
-									onChange={(min, max) => {
-										setAgeMin(min === 18 ? "" : String(min));
-										setAgeMax(max === 99 ? "" : String(max));
-									}}
-								/>
-								<RangeSlider
-									label={t("browse_filters.height")}
-									unit={heightRange.unit}
-									formatValue={isImperialHeight ? formatInchesAsFeetInches : undefined}
-									min={heightRange.min}
-									max={heightRange.max}
-									minDefault={heightMinDefault}
-									maxDefault={heightMaxDefault}
-									activeColor="var(--accent)"
-									showSeparator={true}
-									onChange={(min, max) => {
-										const minCm = isImperialHeight ? Math.round(inchesToCm(min)) : min;
-										const maxCm = isImperialHeight ? Math.round(inchesToCm(max)) : max;
-										setHeightCmMin(min === heightRange.min ? "" : String(minCm));
-										setHeightCmMax(max === heightRange.max ? "" : String(maxCm));
-									}}
-								/>
-								<RangeSlider
-									label={t("browse_filters.weight")}
-									unit={weightRange.unit}
-									min={weightRange.min}
-									max={weightRange.max}
-									minDefault={weightMinDefault}
-									maxDefault={weightMaxDefault}
-									activeColor="var(--accent)"
-									showSeparator={true}
-									onChange={(min, max) => {
-										const minGrams = isImperialWeight ? Math.round(poundsToGrams(min)) : Math.round(kgToGrams(min));
-										const maxGrams = isImperialWeight ? Math.round(poundsToGrams(max)) : Math.round(kgToGrams(max));
-										setWeightGramsMin(min === weightRange.min ? "" : String(minGrams));
-										setWeightGramsMax(max === weightRange.max ? "" : String(maxGrams));
-									}}
-								/>
-							</div>
+						<section className="rounded-2xl p-4" style={cardStyle}>
+							{renderSectionHeader(
+								t("browse_filters.age"),
+								Calendar,
+								false,
+								`${ageMin || 18}-${ageMax || 99}${(ageMax ? Number(ageMax) : 99) >= 99 ? "+" : ""}`,
+							)}
+							<RangeSlider
+								label={t("browse_filters.age")}
+								min={18}
+								max={99}
+								minDefault={ageMin ? Number(ageMin) : 18}
+								maxDefault={ageMax ? Number(ageMax) : 99}
+								activeColor={accentColor}
+								hideHeader
+								onChange={(min, max) => {
+									setAgeMin(min === 18 ? "" : String(min));
+									setAgeMax(max === 99 ? "" : String(max));
+								}}
+							/>
+						</section>
+
+						<section className="rounded-2xl p-4" style={cardStyle}>
+							{renderSectionHeader(
+								t("browse_filters.height"),
+								Ruler,
+								false,
+								`${isImperialHeight ? formatInchesAsFeetInches(heightMinDefault) : `${heightMinDefault}${heightRange.unit}`} - ${isImperialHeight ? formatInchesAsFeetInches(heightMaxDefault) : `${heightMaxDefault}${heightRange.unit}`}${heightMaxDefault >= heightRange.max ? "+" : ""}`,
+							)}
+							<RangeSlider
+								label={t("browse_filters.height")}
+								unit={heightRange.unit}
+								formatValue={isImperialHeight ? formatInchesAsFeetInches : undefined}
+								min={heightRange.min}
+								max={heightRange.max}
+								minDefault={heightMinDefault}
+								maxDefault={heightMaxDefault}
+								activeColor={accentColor}
+								hideHeader
+								onChange={(min, max) => {
+									const minCm = isImperialHeight ? Math.round(inchesToCm(min)) : min;
+									const maxCm = isImperialHeight ? Math.round(inchesToCm(max)) : max;
+									setHeightCmMin(min === heightRange.min ? "" : String(minCm));
+									setHeightCmMax(max === heightRange.max ? "" : String(maxCm));
+								}}
+							/>
+						</section>
+
+						<section className="rounded-2xl p-4" style={cardStyle}>
+							{renderSectionHeader(
+								t("browse_filters.weight"),
+								Scale,
+								false,
+								`${weightMinDefault}${weightRange.unit} - ${weightMaxDefault}${weightRange.unit}${weightMaxDefault >= weightRange.max ? "+" : ""}`,
+							)}
+							<RangeSlider
+								label={t("browse_filters.weight")}
+								unit={weightRange.unit}
+								min={weightRange.min}
+								max={weightRange.max}
+								minDefault={weightMinDefault}
+								maxDefault={weightMaxDefault}
+								activeColor={accentColor}
+								hideHeader
+								onChange={(min, max) => {
+									const minGrams = isImperialWeight ? Math.round(poundsToGrams(min)) : Math.round(kgToGrams(min));
+									const maxGrams = isImperialWeight ? Math.round(poundsToGrams(max)) : Math.round(kgToGrams(max));
+									setWeightGramsMin(min === weightRange.min ? "" : String(minGrams));
+									setWeightGramsMax(max === weightRange.max ? "" : String(maxGrams));
+								}}
+							/>
 						</section>
 
 						{renderSection(
@@ -378,54 +466,53 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							sexualPositionFilterOptions,
 							sexualPositions,
 							(value) => toggleMultiSelect(value, setSexualPositions),
+							ArrowUpDown,
 						)}
 						{renderSection(
 							t("profile_editor.sections.states.tribes"),
 							tribeFilterOptions,
 							tribes,
 							(value) => toggleMultiSelect(value, setTribes),
+							Users,
 						)}
 						{renderSection(
 							t("profile_editor.sections.expectations.looking_for"),
 							lookingForFilterOptions,
 							lookingFor,
 							(value) => toggleMultiSelect(value, setLookingFor),
+							Heart,
 						)}
 						{renderSection(
 							t("profile_editor.sections.states.relationship_status"),
 							relationshipFilterOptions,
 							relationshipStatuses,
 							(value) => toggleMultiSelect(value, setRelationshipStatuses),
+							HeartHandshake,
 						)}
 						{renderSection(
 							t("profile_editor.sections.states.body_type"),
 							bodyTypeFilterOptions,
 							bodyTypes,
 							(value) => toggleMultiSelect(value, setBodyTypes),
+							Dumbbell,
 						)}
 						{renderSection(
 							t("profile_editor.sections.expectations.meet_at"),
 							meetAtFilterOptions,
 							meetAt,
 							(value) => toggleMultiSelect(value, setMeetAt),
+							MapPin,
 						)}
 						{renderSection(
 							t("profile_editor.sections.expectations.accept_nsfw"),
 							nsfwFilterOptions,
 							nsfwPics,
 							(value) => toggleMultiSelect(value, setNsfwPics),
+							ShieldAlert,
 						)}
 
-						<section
-							className="rounded-2xl p-4"
-							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-							}}
-						>
-							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-								{t("browse_filters.tags")}
-							</p>
+						<section className="rounded-2xl p-4" style={cardStyle}>
+							{renderSectionHeader(t("browse_filters.tags"), TagIcon)}
 							<div className="flex flex-wrap items-center gap-2">
 								<input
 									type="text"
@@ -438,7 +525,10 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 								<button
 									type="button"
 									onClick={() => addTag()}
-									className="h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+									className={cn(
+										"h-9 rounded-lg border border-[var(--border)] px-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]",
+										isExploreActive ? "hover:border-[var(--explore)]" : "hover:border-[var(--accent)]",
+									)}
 								>
 									{t("browse_filters.add")}
 								</button>
@@ -450,7 +540,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											key={tag.tagId}
 											type="button"
 											onClick={() => addManagedTag(tag)}
-											className="rounded-full border border-[var(--accent)]/60 bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]"
+											className={cn(
+												"rounded-full border bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text)] transition",
+												isExploreActive
+													? "border-[var(--explore)]/60 hover:bg-[var(--explore)] hover:text-white"
+													: "border-[var(--accent)]/60 hover:bg-[var(--accent)] hover:text-[var(--accent-contrast)]",
+											)}
 										>
 											+ {tag.text}
 										</button>
@@ -464,7 +559,12 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 											key={tag}
 											type="button"
 											onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
-											className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+											className={cn(
+												"rounded-full border px-3 py-1 text-xs font-semibold shadow-sm transition",
+												isExploreActive
+													? "border-[var(--explore)] bg-[var(--explore)] text-white"
+													: "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]",
+											)}
 										>
 											{tagLabel(tag)} <span className="ml-1">×</span>
 										</button>
@@ -473,44 +573,26 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 							)}
 						</section>
 
-						<section
-							className="rounded-2xl p-4"
-							style={{
-								backgroundColor: "color-mix(in srgb, var(--accent), transparent 96%)",
-								border: "1px solid color-mix(in srgb, var(--accent), transparent 88%)",
-							}}
-						>
-							<p className="mb-3 text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-								{t("browse_filters.local_filters.title")}
-							</p>
-							<div className="flex flex-wrap gap-2">
-								{localFilterOptions.map((filter) => {
-									const active = browseFilters[filter.key];
-									return (
-										<button
-											key={filter.key}
-											type="button"
-											onClick={() => toggleBrowseFilter(filter.key)}
-											className={cn(
-												"rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-all active:scale-95",
-												active
-													? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-sm"
-													: "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:border-[var(--accent)]/60 hover:text-[var(--text)]",
-											)}
-										>
-											{filter.label}
-										</button>
-									);
-								})}
-							</div>
-							<div className="relative mt-2">
+						{renderToggleSection(
+							t("browse_filters.local_filters.visiting_title"),
+							localFilterOptions,
+							Compass,
+							true,
+						)}
+
+						<section className="rounded-2xl p-4" style={cardStyle}>
+							{renderSectionHeader(t("browse_filters.local_filters.name_title"), Search, true)}
+							<div className="relative">
 								<Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
 								<input
 									type="text"
 									value={nicknameFilter}
 									onChange={(e) => setNicknameFilter(e.target.value)}
 									placeholder={t("browse_filters.local_filters.nickname_placeholder")}
-									className="h-9 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] pl-8 pr-8 text-sm text-[var(--text)] outline-none transition focus:border-[var(--accent)]"
+									className={cn(
+										"h-9 w-full rounded-full border border-[var(--border)] bg-[var(--surface)] pl-8 pr-8 text-sm text-[var(--text)] outline-none transition",
+										isExploreActive ? "focus:border-[var(--explore)]" : "focus:border-[var(--accent)]",
+									)}
 								/>
 								{nicknameFilter && (
 									<button
@@ -533,14 +615,20 @@ export function BrowseFiltersOverlay({ initialDraft, onClose, onApply }: BrowseF
 					<button
 						type="button"
 						onClick={clearAll}
-						className="flex-1 rounded-xl border border-[var(--border)] py-3 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--text)]"
+						className={cn(
+							"flex-1 rounded-xl border border-[var(--border)] py-3 text-sm font-medium text-[var(--text-muted)] transition hover:text-[var(--text)]",
+							isExploreActive ? "hover:border-[var(--explore)]" : "hover:border-[var(--accent)]",
+						)}
 					>
 						{t("browse_filters.clear_all")}
 					</button>
 					<button
 						type="button"
 						onClick={handleApply}
-						className="relative flex-1 overflow-hidden rounded-xl bg-[var(--accent)] py-3 text-sm font-bold text-[var(--accent-contrast)] transition group"
+						className={cn(
+							"relative flex-1 overflow-hidden rounded-xl py-3 text-sm font-bold transition group",
+							isExploreActive ? "bg-[var(--explore)] text-white" : "bg-[var(--accent)] text-[var(--accent-contrast)]",
+						)}
 					>
 						<span className="relative z-10">{t("browse_filters.apply")}</span>
 						<div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />

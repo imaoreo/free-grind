@@ -10,6 +10,7 @@ import { Chip } from "../../../components/ui/chip";
 import { LoadingState } from "../../../components/ui/states";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useRevealOnScroll } from "../../../hooks/useRevealOnScroll";
+import { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
 import { cn } from "../../../utils/cn";
 import { useApiFunctions } from "../../../hooks/useApiFunctions";
 import { useMyOwnProfile } from "../../../hooks/queries/useProfileQueries";
@@ -95,6 +96,7 @@ function TestFormSheet({
 	onDeleted?: () => void;
 }) {
 	const { t } = useTranslation();
+	const isDesktop = useDesktopBreakpoint();
 	const [testedAt, setTestedAt] = useState(() => toDateInputValue(editingTest?.testedAt ?? Date.now()));
 	const [testType, setTestType] = useState<StiTest["testType"]>(editingTest?.testType ?? "full_panel");
 	const [result, setResult] = useState<StiTest["result"]>(editingTest?.result ?? "pending");
@@ -144,14 +146,14 @@ function TestFormSheet({
 	// Portalled to document.body — see EncounterLogSheet.tsx for why
 	// (avoids the FeedScrollContainer mask-image containing-block issue).
 	return createPortal(
-		<BottomSheet onClose={onClose} isProcessing={isSaving}>
+		<BottomSheet onClose={onClose} isDesktop={isDesktop} isProcessing={isSaving}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{editingTest
 						? t("sexualHealth.tests.edit_title", { defaultValue: "Edit test" })
 						: t("sexualHealth.tests.add_title", { defaultValue: "Add test" })}
 				</p>
-				<SheetClose disabled={isSaving} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] disabled:opacity-40">
+				<SheetClose disabled={isSaving} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)] disabled:opacity-40">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>

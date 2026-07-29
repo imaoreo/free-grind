@@ -13,6 +13,8 @@ interface RangeSliderProps {
 	activeColor?: string;
 	onChange: (min: number, max: number) => void;
 	showSeparator?: boolean;
+	/** Skips the built-in label/value row entirely — use when the label and current value are already shown by a surrounding section header. */
+	hideHeader?: boolean;
 }
 
 interface SliderProps {
@@ -25,7 +27,20 @@ interface SliderProps {
 	activeColor?: string;
 	trackColor?: string;
 	hideHeader?: boolean;
+	/** Floats displayValue in a bubble above the thumb, following it as it's dragged, instead of (or in addition to) the header badge. */
+	showValueBubble?: boolean;
 	onChange: (value: number) => void;
+	/** Fires once when the user releases the thumb (mouse/touch/keyboard), separately from the continuous `onChange` — use this to persist the value instead of writing on every intermediate tick while dragging. */
+	onCommit?: (value: number) => void;
+}
+
+// Matches the 20px thumb defined in sliderStyles below. The native thumb's
+// travel range is inset by half its own width at each end (so it never
+// overflows the track), which a naive `left: {percent}%` doesn't account
+// for — this offset keeps the value bubble centered exactly over it.
+const THUMB_SIZE_PX = 20;
+function thumbCenterOffset(percent: number): string {
+	return `calc(${percent}% + ${THUMB_SIZE_PX / 2 - (percent / 100) * THUMB_SIZE_PX}px)`;
 }
 
 /**
@@ -133,6 +148,7 @@ export function RangeSlider({
 	activeColor,
 	onChange,
 	showSeparator = false,
+	hideHeader = false,
 }: RangeSliderProps) {
 	const [minValue, setMinValue] = useState(minDefault);
 	const [maxValue, setMaxValue] = useState(maxDefault);
@@ -180,26 +196,28 @@ export function RangeSlider({
 
 	return (
 		<div className="flex flex-col gap-0.5 py-1" style={style}>
-			<div
-				className={cn("flex justify-between items-center mb-1", showSeparator && "border-b pb-2 mb-2")}
-				style={showSeparator && activeColor ? { borderColor: `color-mix(in srgb, ${activeColor}, transparent 80%)` } : {}}
-			>
-				<div className="flex items-center gap-2">
-					<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
-						{label}
+			{!hideHeader && (
+				<div
+					className={cn("flex justify-between items-center mb-1", showSeparator && "border-b pb-2 mb-2")}
+					style={showSeparator && activeColor ? { borderColor: `color-mix(in srgb, ${activeColor}, transparent 80%)` } : {}}
+				>
+					<div className="flex items-center gap-2">
+						<span className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
+							{label}
+						</span>
+					</div>
+					<span className={cn(
+						"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
+						!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
+					)}
+					style={activeColor ? {
+						backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
+						color: "var(--text)"
+					} : {}}>
+						{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
 					</span>
 				</div>
-				<span className={cn(
-					"text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-sm",
-					!activeColor && "bg-[var(--surface-2)] text-[var(--text)]"
-				)}
-				style={activeColor ? {
-					backgroundColor: `color-mix(in srgb, ${activeColor}, transparent 85%)`,
-					color: "var(--text)"
-				} : {}}>
-					{formatValue ? formatValue(minValue) : `${minValue}${unit}`} - {formatValue ? formatValue(maxValue) : `${maxValue}${unit}`}{maxValue >= max ? "+" : ""}
-				</span>
-			</div>
+			)}
 
 			<div className="relative h-10 flex items-center">
 				<input
@@ -257,7 +275,9 @@ export function Slider({
 	activeColor,
 	trackColor,
 	hideHeader = false,
+	showValueBubble = false,
 	onChange,
+	onCommit,
 }: SliderProps) {
 	const [value, setValue] = useState(defaultValue);
 
@@ -297,7 +317,15 @@ export function Slider({
 				</div>
 			)}
 
-			<div className="relative h-10 flex items-center">
+			<div className={`relative flex items-center h-10 ${showValueBubble ? "mt-4" : ""}`}>
+				{showValueBubble && (
+					<div
+						className="pointer-events-none absolute -top-4 -translate-x-1/2 whitespace-nowrap rounded-md bg-[var(--accent)]/85 px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-contrast)]"
+						style={{ left: thumbCenterOffset(getPercent(value)) }}
+					>
+						{displayValue}
+					</div>
+				)}
 				<input
 					type="range"
 					min={min}
@@ -309,6 +337,9 @@ export function Slider({
 						setValue(val);
 						onChange(val);
 					}}
+					onMouseUp={(event) => onCommit?.(Number((event.target as HTMLInputElement).value))}
+					onTouchEnd={(event) => onCommit?.(Number((event.target as HTMLInputElement).value))}
+					onKeyUp={(event) => onCommit?.(Number((event.target as HTMLInputElement).value))}
 					className="thumb thumb--single"
 				/>
 

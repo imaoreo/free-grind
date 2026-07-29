@@ -10,6 +10,8 @@ export function ToggleRow({
 	dense,
 	labelClassName,
 	padding: paddingProp,
+	id,
+	highlighted,
 }: {
 	checked: boolean;
 	onChange: (checked: boolean) => void;
@@ -24,16 +26,22 @@ export function ToggleRow({
 	labelClassName?: string;
 	/** Overrides the row's default padding — pass "" for a borderless row that shouldn't add its own inset. */
 	padding?: string;
+	/** Anchor id, targeted when a settings search result links directly to this row. */
+	id?: string;
+	/** Plays the settings-search jump highlight animation once. */
+	highlighted?: boolean;
 }) {
 	const hasIcon = icon !== undefined;
 	const padding = paddingProp ?? (dense ? "p-3" : "px-4 py-3.5");
 
 	return (
 		<label
+			id={id}
 			className={
-				hasIcon
+				(hasIcon
 					? `flex cursor-pointer items-start gap-3 ${padding} transition-colors hover:bg-[var(--surface-2)]`
-					: `flex min-h-14 cursor-pointer justify-between gap-4 ${padding} ${description ? "items-start" : "items-center"}`
+					: `flex min-h-14 cursor-pointer justify-between gap-4 ${padding} ${description ? "items-start" : "items-center"}`) +
+				(highlighted ? " animate-settings-highlight" : "")
 			}
 		>
 			{hasIcon && (

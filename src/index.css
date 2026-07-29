@@ -33,6 +33,9 @@
 	--animate-jump-highlight-mine: jump-highlight-mine 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 	--animate-jump-highlight-other: jump-highlight-other 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
+	/* Jump-to-setting highlight (settings search result tap) */
+	--animate-settings-highlight: settings-highlight 1.6s ease-out both;
+
 	/* Sin Mode easter egg */
 	--animate-sin-mode-in: sin-mode-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 	--animate-sin-mode-title-in: sin-mode-title-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
@@ -115,6 +118,10 @@
 		30% { transform: translateX(13px); opacity: 0.6; }
 		60% { transform: translateX(-2px); opacity: 1; }
 		100% { transform: translateX(0); opacity: 1; }
+	}
+	@keyframes settings-highlight {
+		0% { background-color: color-mix(in srgb, var(--accent) 24%, transparent); }
+		100% { background-color: transparent; }
 	}
 	@keyframes reveal-row {
 		from {
@@ -305,6 +312,8 @@
 		--accent: #ffcc01;
 		--accent-contrast: #1a1a1a;
 		--right-now: #9333ea;
+		/* Keep in sync with EXPLORE_COLOR in LocationOverlay.tsx */
+		--explore: #3b82f6;
 		--content-max: 1200px;
 		--app-px: clamp(12px, 2.6vw, 28px);
 		--radius-sm: 12px;
@@ -425,6 +434,17 @@
 			"calt" 1;
 		-webkit-font-smoothing: antialiased;
 		text-rendering: optimizeLegibility;
+		/* App-wide default: text isn't selectable. Specific content (inputs,
+		   profile bio, right-now text, plain chat message text) opts back in
+		   via select-text. */
+		user-select: none;
+		-webkit-user-select: none;
+	}
+
+	input,
+	textarea {
+		user-select: text;
+		-webkit-user-select: text;
 	}
 
 	* {
@@ -442,6 +462,15 @@
 	select {
 		font: inherit;
 		color: inherit;
+	}
+
+	/* Tailwind's Preflight resets button cursor to "default" (matching the
+	   native/browser behavior) rather than "pointer" — restore the pointer
+	   affordance app-wide for every clickable button/row, since this codebase
+	   otherwise relies on it, and desktop users expect it. */
+	button:not(:disabled),
+	[role="button"]:not([aria-disabled="true"]) {
+		cursor: pointer;
 	}
 }
 
@@ -712,6 +741,22 @@
 			0 1px 0 color-mix(in srgb, var(--surface) 74%, transparent) inset;
 	}
 
+	/* Search bar sitting directly above the settings list — shares surface-card's
+	   elevation so it reads as part of the same card system instead of a flat,
+	   unrelated strip, with an accent border on focus like other search inputs. */
+	.settings-search-bar {
+		background: var(--surface);
+		border: 1px solid var(--border);
+		border-radius: 16px;
+		box-shadow:
+			0 10px 24px color-mix(in srgb, #000 12%, transparent),
+			0 1px 0 color-mix(in srgb, var(--surface) 74%, transparent) inset;
+		transition: border-color 140ms ease;
+	}
+	.settings-search-bar:focus-within {
+		border-color: var(--accent);
+	}
+
 	/* Specialized card for the browse grid. We only inherit the surface color
 	   to keep the grid layout clean without the bulky shadows or borders of standard cards. */
     .surface-card-grid {
@@ -940,7 +985,7 @@
 }
 
 @keyframes tap-fly-center {
-  0%   { opacity: 1; transform: translate(calc(-50% + 50vw - 110px), calc(-50% + 50vh - 80px)) scale(0.9); }
+  0%   { opacity: 1; transform: translate(calc(-50% + var(--tap-origin-dx, 50vw - 110px)), calc(-50% + var(--tap-origin-dy, 50vh - 80px))) scale(0.9); }
   55%  { opacity: 1;    transform: translate(-50%, -50%) scale(3.5); }
   70%  { opacity: 0.5; }
   100% { opacity: 0;    transform: translate(-50%, -50%) scale(14); }

@@ -1,6 +1,6 @@
 import * as chatDb from "../services/chatDb";
 import { PREFERENCES_STORAGE_KEY } from "../contexts/PreferencesContext";
-import { SKIP_BLOCK_CONFIRM_KEY, SKIP_UNBLOCK_CONFIRM_KEY, SKIP_DELETE_CONVERSATION_CONFIRM_KEY } from "./blockConfirm";
+import { SKIP_BLOCK_CONFIRM_KEY, SKIP_DELETE_CONVERSATION_CONFIRM_KEY } from "./blockConfirm";
 import { CHAT_NOTIFICATIONS_ENABLED_KEY, TAP_NOTIFICATIONS_ENABLED_KEY, FOREGROUND_NOTIFICATIONS_ENABLED_KEY } from "./notificationSettings";
 
 // localStorage keys owned by individual feature files that don't export a
@@ -16,7 +16,6 @@ const RESETTABLE_LOCAL_STORAGE_KEYS = [
 	"fg-interest-default-tab",
 	"fg-interest-last-tab",
 	SKIP_BLOCK_CONFIRM_KEY,
-	SKIP_UNBLOCK_CONFIRM_KEY,
 	SKIP_DELETE_CONVERSATION_CONFIRM_KEY,
 	CHAT_NOTIFICATIONS_ENABLED_KEY,
 	TAP_NOTIFICATIONS_ENABLED_KEY,

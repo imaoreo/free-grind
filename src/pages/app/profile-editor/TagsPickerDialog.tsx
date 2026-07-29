@@ -119,7 +119,7 @@ export function TagsPickerDialog({ tagsText, onChange, onClose }: TagsPickerDial
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{t("profile_editor.tags_dialog.title")}
 				</p>
-				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)]">
+				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>
@@ -146,7 +146,7 @@ export function TagsPickerDialog({ tagsText, onChange, onClose }: TagsPickerDial
 					)}
 				</label>
 			</div>
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
+			<div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3" data-lenis-prevent>
 				{isLoading ? (
 					<p className="py-6 text-center text-sm text-[var(--text-muted)]">
 						{t("profile_editor.loading")}

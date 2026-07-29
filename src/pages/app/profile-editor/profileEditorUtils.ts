@@ -17,6 +17,7 @@ function isImperialHeight(unitsPreset: UnitsPreset): boolean {
 export const MAX_PROFILE_PHOTOS = 5;
 export const MAX_PROFILE_TAGS = 10;
 export const MAX_GENDERS = 3;
+export const MAX_TRAVEL_PLANS = 3;
 
 /** Media moderation review state, as returned per-item in a profile's `medias` array. */
 export const MEDIA_MODERATION_STATE = {
@@ -90,7 +91,8 @@ export const profileResponseSchema = z.object({
  * Picks the profile's primary photo hash the same way everywhere it's
  * needed (grid header avatar, chat header avatar, account switcher) — prefer
  * the first valid hash in `medias`, falling back to `profileImageMediaHash`
- * (which can lag behind `medias` after deleting every photo).
+ * only when `medias` isn't empty (it can lag behind `medias` and still point
+ * at a deleted photo once every photo has been removed).
  */
 export function getProfilePhotoHash(
 	profile: Pick<z.infer<typeof profileSchema>, "medias" | "profileImageMediaHash"> | null | undefined,
@@ -99,14 +101,20 @@ export function getProfilePhotoHash(
 		return null;
 	}
 
-	const fromMedias = (profile.medias ?? [])
+	const medias = profile.medias ?? [];
+
+	const fromMedias = medias
 		.map((item) => item.mediaHash ?? "")
 		.find((hash) => validateMediaHash(hash));
 	if (fromMedias) {
 		return fromMedias;
 	}
 
-	if (profile.profileImageMediaHash && validateMediaHash(profile.profileImageMediaHash)) {
+	if (
+		medias.length > 0 &&
+		profile.profileImageMediaHash &&
+		validateMediaHash(profile.profileImageMediaHash)
+	) {
 		return profile.profileImageMediaHash;
 	}
 

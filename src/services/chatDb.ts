@@ -126,6 +126,7 @@ type AlbumMediaRow = {
 	remaining_views: number | null;
 	is_viewable: number | null;
 	fetched_at: number | null;
+	position: number | null;
 };
 
 type AvatarRow = {
@@ -227,6 +228,12 @@ async function getDb(): Promise<Database> {
 				} catch {
 					// already migrated
 				}
+				// One-time data fix: earlier builds didn't clear `pinned` when a
+				// conversation got archived (e.g. by a block), leaving pinned+archived
+				// rows stuck showing pinned with no toggle able to reach them (the
+				// pinned duplicate lived outside the list the pin toggle updates).
+				// Idempotent — a no-op once every row is clean.
+				await db.execute("UPDATE conversations SET pinned = 0 WHERE archived = 1 AND pinned = 1");
 
 				await db.execute(`
 					CREATE TABLE IF NOT EXISTS conversation_meta (
@@ -314,12 +321,24 @@ async function getDb(): Promise<Database> {
 						thumb_data_base64 TEXT,
 						remaining_views INTEGER,
 						is_viewable INTEGER,
-						fetched_at INTEGER
+						fetched_at INTEGER,
+						position INTEGER
 					)
 				`);
 				await db.execute(
 					"CREATE INDEX IF NOT EXISTS idx_album_media_album ON album_media(album_id)",
 				);
+				// Added later: the item's slot in the album's actual (server-side)
+				// order, so a cache-only render (before the live album details
+				// round-trip resolves) shows the same order as the live one instead
+				// of capture order, which otherwise visibly re-sorts moments after
+				// the album sheet opens. Best-effort migration — ignore "duplicate
+				// column" once it already exists.
+				try {
+					await db.execute("ALTER TABLE album_media ADD COLUMN position INTEGER");
+				} catch {
+					// already migrated
+				}
 
 				await db.execute(`
 					CREATE TABLE IF NOT EXISTS avatars (
@@ -783,10 +802,15 @@ export async function setConversationArchived(
 	const now = Date.now();
 
 	await executeWithLockRetry(db, "set-conversation-archived", async () => {
+		// Archiving always clears `pinned` too — a pinned+archived conversation
+		// (e.g. one that got archived out from under the user by a block) has
+		// no way to surface itself as pinned again, so it must not linger in
+		// that state waiting for an explicit unpin.
 		await db.execute(
 			`
 			UPDATE conversations
-			SET archived = $2, archived_reason = $3, archived_at = $4, updated_at = $5
+			SET archived = $2, archived_reason = $3, archived_at = $4, updated_at = $5,
+				pinned = CASE WHEN $2 = 1 THEN 0 ELSE pinned END
 			WHERE conversation_id = $1
 			`,
 			[conversationId, archived ? 1 : 0, archived ? reason : null, archived ? now : null, now],
@@ -972,6 +996,71 @@ export async function deleteConversationCascade(
 			conversationId,
 		]);
 	});
+}
+
+/**
+ * Moves every message, media file, and album from `sourceConversationId`
+ * into `targetConversationId`, then drops the now-empty source conversation
+ * row — used to fold an old, archived conversation (e.g. left over from a
+ * profile the user no longer uses) into the still-active conversation with
+ * that same person's current profile, so the history reads as one
+ * continuous thread instead of two disjoint ones. `message_id` is a global
+ * primary key, never reused across conversations, so reassigning
+ * `conversation_id` can never collide with an existing row in the target —
+ * content is relocated, not deleted, consistent with the rest of this file.
+ */
+export async function mergeConversationInto(
+	sourceConversationId: string,
+	targetConversationId: string,
+): Promise<{ movedMessages: number }> {
+	const db = await getDb();
+	let movedMessages = 0;
+
+	await executeWithLockRetry(db, "merge-conversation-into", async () => {
+		const now = Date.now();
+		const countRows = await db.select<{ count: number }[]>(
+			"SELECT COUNT(*) as count FROM messages WHERE conversation_id = $1",
+			[sourceConversationId],
+		);
+		movedMessages = countRows[0]?.count ?? 0;
+
+		await db.execute(
+			"UPDATE messages SET conversation_id = $2, updated_at = $3 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId, now],
+		);
+		await db.execute(
+			"UPDATE media_files SET conversation_id = $2 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId],
+		);
+		await db.execute(
+			"UPDATE albums SET conversation_id = $2, updated_at = $3 WHERE conversation_id = $1",
+			[sourceConversationId, targetConversationId, now],
+		);
+		// Keeps the target's sort position honest if the merged-in history
+		// happens to be more recent than anything already there — a no-op MAX
+		// in the far more common case where the old conversation is entirely
+		// older than the current one.
+		await db.execute(
+			`
+			UPDATE conversations
+			SET last_activity_timestamp = MAX(
+					COALESCE(last_activity_timestamp, 0),
+					(SELECT COALESCE(MAX(timestamp), 0) FROM messages WHERE conversation_id = $1)
+				),
+				updated_at = $2
+			WHERE conversation_id = $1
+			`,
+			[targetConversationId, now],
+		);
+		await db.execute("DELETE FROM conversation_meta WHERE conversation_id = $1", [
+			sourceConversationId,
+		]);
+		await db.execute("DELETE FROM conversations WHERE conversation_id = $1", [
+			sourceConversationId,
+		]);
+	});
+
+	return { movedMessages };
 }
 
 // ---------------------------------------------------------------------------
@@ -1671,6 +1760,7 @@ function rowToStoredAlbumMedia(row: AlbumMediaRow): StoredAlbumMedia {
 		remainingViews: row.remaining_views,
 		isViewable: row.is_viewable == null ? null : Boolean(row.is_viewable),
 		fetchedAt: row.fetched_at,
+		position: row.position,
 	};
 }
 
@@ -1683,8 +1773,8 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 			`
 			INSERT INTO album_media (
 				content_id, album_id, content_type, data_base64, thumb_data_base64,
-				remaining_views, is_viewable, fetched_at
-			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+				remaining_views, is_viewable, fetched_at, position
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT(content_id) DO UPDATE SET
 				album_id = excluded.album_id,
 				content_type = excluded.content_type,
@@ -1692,7 +1782,8 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 				thumb_data_base64 = excluded.thumb_data_base64,
 				remaining_views = excluded.remaining_views,
 				is_viewable = excluded.is_viewable,
-				fetched_at = excluded.fetched_at
+				fetched_at = excluded.fetched_at,
+				position = COALESCE(excluded.position, album_media.position)
 			`,
 			[
 				input.contentId,
@@ -1703,6 +1794,7 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 				input.remainingViews,
 				input.isViewable == null ? null : input.isViewable ? 1 : 0,
 				now,
+				input.position ?? null,
 			],
 		);
 	});
@@ -1711,7 +1803,10 @@ export async function upsertAlbumMedia(input: AlbumMediaUpsertInput): Promise<vo
 export async function getAlbumMedia(albumId: string): Promise<StoredAlbumMedia[]> {
 	const db = await getDb();
 	const rows = await db.select<AlbumMediaRow[]>(
-		"SELECT * FROM album_media WHERE album_id = $1",
+		// Items without a known position (e.g. only captured as a chat-bubble
+		// thumbnail so far) sort after positioned ones rather than scattering
+		// among them.
+		"SELECT * FROM album_media WHERE album_id = $1 ORDER BY position IS NULL, position ASC",
 		[albumId],
 	);
 	return rows.map(rowToStoredAlbumMedia);
@@ -1954,26 +2049,70 @@ const FULL_EXPORT_TABLES: {
 	},
 ];
 
-/**
- * Dumps every portable table in this profile's db as raw rows, plus the
- * exporting user's id so a later import can refuse to load another
- * account's data.
- */
-export async function exportFullDatabase(ownerUserId: number): Promise<FullDbExport> {
-	const db = await getDb();
-	const tables = {} as FullDbExport["tables"];
+const EXPORT_PAGE_SIZE = 200;
 
-	for (const table of FULL_EXPORT_TABLES) {
-		const rows = await db.select<Record<string, unknown>[]>(`SELECT * FROM ${table.name}`);
-		tables[table.name] = rows;
+/**
+ * Yields the same JSON an exported {@link FullDbExport} would contain, as
+ * text fragments, reading each table a page at a time instead of one
+ * `SELECT *`. Rows can carry large base64-encoded photo/video blobs
+ * (media_files, album_media, avatars), so an account with a lot of cached
+ * media could previously mean loading every row of every table into memory
+ * at once before ever starting to serialize — this keeps memory bounded to
+ * one page of rows at a time.
+ */
+async function* generateFullDatabaseExportJson(ownerUserId: number): AsyncGenerator<string> {
+	const db = await getDb();
+
+	yield `{"version":1,"exportedAt":${Date.now()},"ownerUserId":${ownerUserId},"tables":{`;
+
+	for (let t = 0; t < FULL_EXPORT_TABLES.length; t++) {
+		const table = FULL_EXPORT_TABLES[t];
+		yield `${t > 0 ? "," : ""}${JSON.stringify(table.name)}:[`;
+
+		let offset = 0;
+		let isFirstRow = true;
+		while (true) {
+			const rows = await db.select<Record<string, unknown>[]>(
+				`SELECT * FROM ${table.name} LIMIT $1 OFFSET $2`,
+				[EXPORT_PAGE_SIZE, offset],
+			);
+			if (rows.length === 0) break;
+			for (const row of rows) {
+				yield `${isFirstRow ? "" : ","}${JSON.stringify(row)}`;
+				isFirstRow = false;
+			}
+			offset += rows.length;
+			if (rows.length < EXPORT_PAGE_SIZE) break;
+		}
+
+		yield "]";
 	}
 
-	return {
-		version: 1,
-		exportedAt: Date.now(),
-		ownerUserId,
-		tables,
-	};
+	yield "}}";
+}
+
+/**
+ * Dumps every portable table in this profile's db, as UTF-8 byte chunks
+ * (~512KB each) meant to be written to a file incrementally rather than
+ * built up as one in-memory object + one giant `JSON.stringify` string —
+ * exports with a lot of cached media were slow enough to hang, and on
+ * mobile could exhaust the WebView's memory and crash the app.
+ */
+export async function* streamFullDatabaseExportBytes(ownerUserId: number): AsyncGenerator<Uint8Array> {
+	const encoder = new TextEncoder();
+	const CHUNK_CHARS = 512 * 1024;
+	let buffer = "";
+
+	for await (const part of generateFullDatabaseExportJson(ownerUserId)) {
+		buffer += part;
+		if (buffer.length >= CHUNK_CHARS) {
+			yield encoder.encode(buffer);
+			buffer = "";
+		}
+	}
+	if (buffer.length > 0) {
+		yield encoder.encode(buffer);
+	}
 }
 
 export type ImportFullDatabaseResult =
@@ -2627,8 +2766,6 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 			forbiddenWords: window.localStorage.getItem("fg-forbidden-words") ?? "",
 			minAge: window.localStorage.getItem("fg-block-min-age") ?? "18",
 			maxAge: window.localStorage.getItem("fg-block-max-age") ?? "99",
-			refreshEnabled: window.localStorage.getItem("fg-auto-refresh-enabled") === "true",
-			refreshInterval: window.localStorage.getItem("fg-auto-refresh-interval") ?? "5",
 		};
 		const hadLegacyAutomation = [
 			"fg-block-chat",
@@ -2636,8 +2773,6 @@ export async function migrateLegacySettingsIfNeeded(userId: number): Promise<voi
 			"fg-forbidden-words",
 			"fg-block-min-age",
 			"fg-block-max-age",
-			"fg-auto-refresh-enabled",
-			"fg-auto-refresh-interval",
 		].some((key) => window.localStorage.getItem(key) != null);
 		if (hadLegacyAutomation) {
 			await setSetting("automation", legacyAutomation);

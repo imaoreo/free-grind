@@ -32,9 +32,13 @@ import {
 	claimBlockStateTransition,
 	deriveOtherProfileIdFromConversationId,
 	markConversationDeleteHandled,
+	reconcileReappearedConversation,
 	CHAT_ARCHIVE_STATE_EVENT,
 	type ChatArchiveStateChangeDetail,
 } from "../../services/conversationArchive";
+import { mergeArchivedConversationIntoActive } from "../../services/conversationMerge";
+import { classifyProfileAccess } from "../../utils/profileAccessStatus";
+import type { BlockState } from "../../types/chat-db";
 import {
 	hideConversation,
 	unhideConversation,
@@ -50,6 +54,7 @@ import {
 	type TypingStatusDetail,
 } from "../../components/ChatRealtimeBridge";
 import { PhotoViewer, type PhotoViewerMedia, type PhotoViewerMenuAction } from "../../components/PhotoViewer";
+import { AlbumMediaSheet } from "../../components/AlbumMediaSheet";
 import { PhotoActionBar } from "../../components/PhotoActionBar";
 import {
 	messageSchema,
@@ -81,6 +86,7 @@ import {
 	buildBinaryUpload,
 	buildChatFiltersDraft,
 	buildPreviewFromMessage,
+	conversationNeedsReply,
 	draftToFilters,
 	extractImageHashFromSignedUrl,
 	getMediaCaptureTarget,
@@ -97,11 +103,12 @@ import {
 	isLocalClientMessageId,
 	parseChatFiltersFromLocationState,
     formatDateTime24,
+	sortDrawerMediaByUsage,
 	type ChatFiltersDraft,
 } from "./chat/chatUtils";
 import { loadChatFiltersDraft, saveChatFiltersDraft } from "./chat/chat-filters-storage";
 import { fetchAndStoreMedia, getDrawerMediaKey, hydrateMediaByMessageId, isSignedUrlExpired, toDataUri } from "../../services/mediaStore";
-import { captureAlbum, captureAlbumsForMessages, getLocalAlbum } from "../../services/albumStore";
+import { captureAlbum, captureAlbumsForMessages, deleteLocalAlbum, getLocalAlbum } from "../../services/albumStore";
 import { saveAllAlbumMedia } from "../../utils/albumMedia";
 import { formatDistance } from "./gridpage/utils";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
@@ -278,7 +285,7 @@ export function ChatPage() {
 	const { data: blockedProfileIdsData, refetch: refetchBlockedProfileIds } = useBlockedProfileIds();
 	const { data: myProfile } = useMyOwnProfile();
 	const profileImageHash = useMemo(() => getProfilePhotoHash(myProfile), [myProfile]);
-	const { unitsPreset, showAlbumSensitiveContentWarning } = usePreferences();
+	const { unitsPreset, showAlbumSensitiveContentWarning, sortDrawerMediaByFrequency, defaultExpiringPhotos, openAlbumAsBottomSheet } = usePreferences();
 	const { userId, settingsReady } = useAuth();
 	const isDesktop = useDesktopBreakpoint();
 	const threadBottomRef = useRef<HTMLDivElement | null>(null);
@@ -328,6 +335,10 @@ export function ChatPage() {
 	// feature — unlike pinned/archived, which default to a mixed-in view.
 	const [hiddenFilter, setHiddenFilter] = useState<InboxVisibilityFilter>("hide");
 	const [hiddenConversationIds, setHiddenConversationIds] = useState<Set<string>>(new Set());
+	// Local-only, like pinned/archived/hidden — re-checked against each cached
+	// conversation's preview.senderId (see conversationNeedsReply), not sent
+	// to the server as part of inboxFilters.
+	const [needsReplyOnly, setNeedsReplyOnly] = useState(false);
 
 	useEffect(() => {
 		void chatDb.listHiddenConversationIds().then((ids) => {
@@ -354,6 +365,7 @@ export function ChatPage() {
 			setPinnedFilter(draft.pinnedFilter);
 			setArchivedFilter(draft.archivedFilter);
 			setHiddenFilter(draft.hiddenFilter);
+			setNeedsReplyOnly(draft.needsReplyOnly);
 		});
 	}, [userId, settingsReady]);
 
@@ -367,9 +379,9 @@ export function ChatPage() {
 			return;
 		}
 		void saveChatFiltersDraft(
-			buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }),
+			buildChatFiltersDraft(inboxFilters, { pinnedFilter, archivedFilter, hiddenFilter }, needsReplyOnly),
 		);
-	}, [inboxFilters, pinnedFilter, archivedFilter, hiddenFilter]);
+	}, [inboxFilters, pinnedFilter, archivedFilter, hiddenFilter, needsReplyOnly]);
 
 	useEffect(() => {
 		if (!userId) {
@@ -426,7 +438,8 @@ export function ChatPage() {
 		inboxFilters.distanceMeters != null ||
 		pinnedFilter !== "all" ||
 		archivedFilter !== "all" ||
-		hiddenFilter !== "hide";
+		hiddenFilter !== "hide" ||
+		needsReplyOnly;
 
 	const chatActiveFilterCount = [
 		inboxFilters.unreadOnly,
@@ -439,6 +452,7 @@ export function ChatPage() {
 		pinnedFilter !== "all",
 		archivedFilter !== "all",
 		hiddenFilter !== "hide",
+		needsReplyOnly,
 	].filter(Boolean).length;
 
 	const activeInboxFiltersRef = useRef(activeInboxFilters);
@@ -449,6 +463,7 @@ export function ChatPage() {
 		setPinnedFilter("all");
 		setArchivedFilter("all");
 		setHiddenFilter("hide");
+		setNeedsReplyOnly(false);
 	}, []);
 
 	const toggleInboxFavoritesOnly = useCallback(() => {
@@ -504,6 +519,9 @@ export function ChatPage() {
 		null,
 	);
 	const [isDeletingConversationId, setIsDeletingConversationId] = useState<string | null>(
+		null,
+	);
+	const [isMergingConversationId, setIsMergingConversationId] = useState<string | null>(
 		null,
 	);
 	const [isTogglingFavoriteProfileId, setIsTogglingFavoriteProfileId] = useState<string | null>(null);
@@ -672,6 +690,7 @@ export function ChatPage() {
 		number | null
 	>(null);
 	const [isAlbumViewerLoading, setIsAlbumViewerLoading] = useState(false);
+	const [isAlbumMediaSheetOpen, setIsAlbumMediaSheetOpen] = useState(false);
 	const [isSavingAlbumAll, setIsSavingAlbumAll] = useState(false);
 	const [isChatMediaSheetOpen, setIsChatMediaSheetOpen] = useState(false);
 	const albumViewerCancelledRef = useRef(false);
@@ -691,6 +710,7 @@ export function ChatPage() {
 		useState<File | null>(null);
 	const [attachmentLooping, setAttachmentLooping] = useState(false);
 	const [attachmentTakenOnGrindr, setAttachmentTakenOnGrindr] = useState(false);
+	const [attachmentAddToDrawer, setAttachmentAddToDrawer] = useState(false);
 	const [attachmentMaxViews, setAttachmentMaxViews] = useState(2147483647);
 	const [pendingAudioBlob, setPendingAudioBlob] = useState<Blob | null>(null);
 	const [pendingAudioDuration, setPendingAudioDuration] = useState(0);
@@ -1017,6 +1037,20 @@ export function ChatPage() {
 		[userId],
 	);
 
+	// Archiving always clears `pinned` (chatDb.setConversationArchived does the
+	// same in the DB) — an archived conversation has no way to re-surface
+	// itself as pinned, so the in-memory copy must match or the row would show
+	// pinned forever with no toggle able to fix it (togglePinConversation only
+	// patches `conversations`, and an archived entry lives in
+	// `archivedConversations` instead — see togglePinConversation below).
+	const clearPinnedForArchivedEntry = useCallback((entry: ConversationEntry): ConversationEntry => {
+		if (!entry.data.pinned) {
+			return entry;
+		}
+		void chatDb.setConversationPinned(entry.data.conversationId, false).catch(() => {});
+		return { ...entry, data: { ...entry.data, pinned: false } };
+	}, []);
+
 	const archiveConversationsLocally = useCallback(
 		(ids: string[], reason: ArchivedReason) => {
 			const unresolved: string[] = [];
@@ -1036,14 +1070,17 @@ export function ChatPage() {
 				setArchivedConversations((previous) => {
 					const next = new Map(previous);
 					for (const [id, entry] of resolved) {
-						next.set(
-							id,
-							{ reason, entry: reason === "ws_delete" ? clearUnreadForArchivedEntry(entry) : entry },
-						);
+						const withoutUnread =
+							reason === "ws_delete" ? clearUnreadForArchivedEntry(entry) : entry;
+						next.set(id, { reason, entry: clearPinnedForArchivedEntry(withoutUnread) });
 					}
 					return next;
 				});
 			}
+			// The archived entry may still linger in `conversations` (e.g. it was
+			// on-screen when the archive happened) — drop it there too so a stale,
+			// still-pinned duplicate doesn't keep getting resurrected by loadInbox.
+			setConversations((previous) => previous.filter((c) => !resolved.has(c.data.conversationId)));
 
 			if (unresolved.length > 0) {
 				void Promise.all(unresolved.map((id) => chatDb.getConversation(id))).then(
@@ -1052,12 +1089,13 @@ export function ChatPage() {
 							const next = new Map(previous);
 							for (const result of results) {
 								if (result) {
+									const withoutUnread =
+										reason === "ws_delete"
+											? clearUnreadForArchivedEntry(result.entry)
+											: result.entry;
 									next.set(result.conversationId, {
 										reason,
-										entry:
-											reason === "ws_delete"
-												? clearUnreadForArchivedEntry(result.entry)
-												: result.entry,
+										entry: clearPinnedForArchivedEntry(withoutUnread),
 									});
 								}
 							}
@@ -1067,7 +1105,7 @@ export function ChatPage() {
 				);
 			}
 		},
-		[clearUnreadForArchivedEntry],
+		[clearUnreadForArchivedEntry, clearPinnedForArchivedEntry],
 	);
 
 	useEffect(() => {
@@ -1397,63 +1435,43 @@ export function ChatPage() {
 				}
 
 				// A conversation reappearing in a fresh inbox response usually means
-				// the other party messaged again, or someone unblocked someone. But
-				// for a block-related archive (archivedReason "ws_delete", either
-				// direction), don't trust that signal blindly — an inbox page that
-				// was already in flight when the block happened can still land
-				// afterwards and look exactly like a "reappearance" even though
-				// nothing actually changed (more likely the more pages the inbox
-				// has, since more requests can be in flight at once), and the
-				// *other* party blocking us can have the same server-side
-				// propagation lag on their side of the inbox filtering. block_state
-				// is the one signal that covers both directions: if it's still set,
-				// this "reappearance" is stale and should be ignored; if it's
-				// already null, something else (the matching WS event, most likely)
-				// already resolved this for real and the reappearance is consistent
-				// with that.
+				// the other party messaged again, or someone unblocked someone. For
+				// a non-block archive (e.g. "not_found"), that's proof enough on its
+				// own. For a block-related archive ("ws_delete", either direction),
+				// go through reconcileReappearedConversation — the same source of
+				// truth inboxSync's background walk already uses — rather than
+				// re-deriving "is this really resolved" here; it only clears
+				// block_state when it's actually still set, atomically, so a
+				// redelivered/duplicate signal can't double-fire the system message.
 				const reappearedCandidateIds = response.entries
 					.map((entry) => entry.data.conversationId)
 					.filter((cid) => archivedConversationsRef.current.has(cid));
-				const reappearedArchivedIds = (
-					await Promise.all(
-						reappearedCandidateIds.map(async (cid) => {
-							const info = archivedConversationsRef.current.get(cid);
-							if (info?.reason !== "ws_delete") {
-								return cid;
-							}
-							const stored = await chatDb.getConversation(cid).catch(() => null);
-							return stored?.blockState == null ? cid : null;
-						}),
-					)
-				).filter((cid): cid is string => cid !== null);
+				const nonBlockReappearedIds = reappearedCandidateIds.filter(
+					(cid) => archivedConversationsRef.current.get(cid)?.reason !== "ws_delete",
+				);
+				const blockReconcileResults = await Promise.all(
+					reappearedCandidateIds
+						.filter((cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete")
+						.map(async (cid) => ({
+							cid,
+							message: await reconcileReappearedConversation(cid, "ws_delete").catch(() => null),
+						})),
+				);
+				const blockReappearedIds = blockReconcileResults
+					.filter(({ message }) => message !== null)
+					.map(({ cid }) => cid);
+				const reappearedArchivedIds = [...nonBlockReappearedIds, ...blockReappearedIds];
 				if (reappearedArchivedIds.length > 0) {
-					for (const cid of reappearedArchivedIds) {
+					for (const cid of nonBlockReappearedIds) {
 						void unarchiveConversation(cid);
 					}
-					// Insert "SystemUnblocked" for conversations that were archived
-					// due to a block (ws_delete / offline-403). Conversations that
-					// disappeared due to a 404 ("not_found") are not block-related
-					// and don't get this marker.
-					const blockArchivedIds = reappearedArchivedIds.filter(
-						(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
-					);
-					if (blockArchivedIds.length > 0) {
-						const inserted = await Promise.all(
-							blockArchivedIds.map(async (cid) => {
-								const isSelf = consumeSelfBlockAction(cid, "unblock");
-								const claimed = await claimBlockStateTransition(cid, null).catch(() => false);
-								if (!claimed) return null;
-								return chatDb
-									.insertSystemMessage(cid, isSelf ? "SystemUnblockedBySelf" : "SystemUnblocked")
-									.catch(() => null);
-							}),
+					const valid = blockReconcileResults
+						.map(({ message }) => message)
+						.filter((m): m is Message => m !== null);
+					if (valid.length > 0) {
+						window.dispatchEvent(
+							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
 						);
-						const valid = inserted.filter((m): m is Message => m !== null);
-						if (valid.length > 0) {
-							window.dispatchEvent(
-								new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-							);
-						}
 					}
 					setArchivedConversations((previous) => {
 						const next = new Map(previous);
@@ -1786,6 +1804,7 @@ export function ChatPage() {
 								: null;
 						setMessagePageKey(nextPageKey);
 						messagePageKeyRef.current = nextPageKey;
+						captureMediaForMessages(olderMessages, conversationId);
 						if (selectedConversationIdRef.current === conversationId) {
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -1816,6 +1835,7 @@ export function ChatPage() {
 						: null;
 				setMessagePageKey(nextPageKey);
 				messagePageKeyRef.current = nextPageKey;
+				captureMediaForMessages(initialMessages, conversationId);
 				if (selectedConversationIdRef.current === conversationId) {
 					setThreadMessages(initialMessages);
 					setThreadLastReadTimestamp(lastRead ?? null);
@@ -1894,6 +1914,7 @@ export function ChatPage() {
 								: null;
 						setMessagePageKey(nextPageKey);
 						messagePageKeyRef.current = nextPageKey;
+						captureMediaForMessages(olderMessages, conversationId);
 						if (selectedConversationIdRef.current === conversationId) {
 							setThreadMessages((previous) => {
 								const map = new Map<string, UiMessage>();
@@ -2422,6 +2443,7 @@ export function ChatPage() {
 						);
 
 				if (localOnly.length > 0) {
+					captureMediaForMessages(localOnly, conversationId);
 					if (selectedConversationIdRef.current !== conversationId) return;
 
 					setThreadMessages((previous) => {
@@ -2477,6 +2499,9 @@ export function ChatPage() {
 							: null;
 					setMessagePageKey(nextPageKey);
 					messagePageKeyRef.current = nextPageKey;
+					if (localOlder.length > 0) {
+						captureMediaForMessages(localOlder, conversationId);
+					}
 					if (localOlder.length > 0 && selectedConversationIdRef.current === conversationId) {
 						setThreadMessages((previous) => {
 							const map = new Map<string, UiMessage>();
@@ -2585,16 +2610,16 @@ export function ChatPage() {
 					archiveConversationsLocally([conversationId], "not_found");
 				}
 				if (apiError?.status === 403 && !archivedConversationsRef.current.has(conversationId)) {
-					// 403 means this conversation is now inaccessible — either we
-					// were blocked while the app was offline, or (less commonly)
-					// this is a block we made ourselves from another device/session
-					// that hasn't reached this one yet. Archive it the same way a WS
-					// delete would, persist to chatDb so the next launch starts it as
-					// archived, and disambiguate self vs. other the same way
-					// toggleArchiveOnConversationDelete does before leaving a local
-					// system message marking when it was detected.
-					void archiveConversation(conversationId, "ws_delete");
-					archiveConversationsLocally([conversationId], "ws_delete");
+					// A bare 403 here isn't proof of a block by itself — it can also
+					// be transient (e.g. a stale/mid-reconnect session right after
+					// the app resumes from a backgrounded/suspended state, which is
+					// exactly when mobile is most likely to hit this). Disambiguate
+					// self vs. other, and verify a real block live via
+					// classifyProfileAccess, the same way
+					// toggleArchiveOnConversationDelete does before committing to a
+					// block_state — an inconclusive check leaves target unset below,
+					// so nothing is archived/committed and the next load can just
+					// retry, instead of defaulting to "blocked_by_other".
 					const storedConversation = await chatDb.getConversation(conversationId).catch(() => null);
 					// Falls back to parsing the conversationId itself when
 					// other_profile_id hasn't been backfilled yet (only ever set
@@ -2604,26 +2629,56 @@ export function ChatPage() {
 					const otherProfileId =
 						storedConversation?.otherProfileId ??
 						deriveOtherProfileIdFromConversationId(conversationId, userId);
-					// Fetches fresh rather than relying on blockedProfileIdsData's
-					// query staleTime — a 403 here is rare enough that a live
-					// round trip is cheap, and getting self vs. other right matters
-					// more than saving one request for exactly this decision.
-					const isSelf =
-						consumeSelfBlockAction(conversationId, "block") ||
-						(otherProfileId
-							? await service
-									.getBlockedProfileIds()
-									.then((ids) => ids.includes(otherProfileId))
-									.catch(() => false)
-							: false);
-					const claimed = await claimBlockStateTransition(
-						conversationId,
-						isSelf ? "blocked_by_me" : "blocked_by_other",
-					).catch(() => false);
-					if (claimed) {
-						await chatDb
-							.insertSystemMessage(conversationId, isSelf ? "SystemBlockedBySelf" : "SystemBlocked")
-							.catch(() => {});
+
+					const isSelf = consumeSelfBlockAction(conversationId, "block");
+					let target: BlockState | null = null;
+					let archivedReason: ArchivedReason | null = null;
+					let messageType: "SystemBlockedBySelf" | "SystemBlocked" | null = null;
+
+					if (isSelf) {
+						target = "blocked_by_me";
+						archivedReason = "ws_delete";
+						messageType = "SystemBlockedBySelf";
+					} else if (otherProfileId) {
+						// Fetches fresh rather than relying on blockedProfileIdsData's
+						// query staleTime — a 403 here is rare enough that a live
+						// round trip is cheap, and getting self vs. other right matters
+						// more than saving one request for exactly this decision.
+						const isSelfFromBlockedList = await service
+							.getBlockedProfileIds()
+							.then((ids) => ids.includes(otherProfileId))
+							.catch(() => false);
+						if (isSelfFromBlockedList) {
+							target = "blocked_by_me";
+							archivedReason = "ws_delete";
+							messageType = "SystemBlockedBySelf";
+						} else {
+							const status = await service
+								.getProfileDetail(otherProfileId)
+								.then((profile) => classifyProfileAccess(profile))
+								.catch(() => "accessible" as const);
+							if (status === "blocked") {
+								target = "blocked_by_other";
+								archivedReason = "ws_delete";
+								messageType = "SystemBlocked";
+							} else if (status === "not_found") {
+								archivedReason = "not_found";
+							}
+							// "accessible" (or an inconclusive check) means this 403
+							// was transient — target/archivedReason stay unset so
+							// nothing is committed.
+						}
+					}
+
+					if (archivedReason) {
+						void archiveConversation(conversationId, archivedReason);
+						archiveConversationsLocally([conversationId], archivedReason);
+					}
+					if (target) {
+						const claimed = await claimBlockStateTransition(conversationId, target).catch(() => false);
+						if (claimed && messageType) {
+							await chatDb.insertSystemMessage(conversationId, messageType).catch(() => {});
+						}
 					}
 				}
 				if (apiError?.status === 404 || apiError?.status === 403 || archivedConversationsRef.current.has(conversationId)) {
@@ -2854,58 +2909,46 @@ export function ChatPage() {
 			void loadInbox({ page: 1, replace: true, silent: true });
 		}
 
-		// If a message arrives for an archived conversation, unarchive it immediately
-		// and insert a SystemUnblocked marker if it was archived due to a block.
-		// Same guard as loadInbox: for a block-related archive (either direction),
-		// a message already in flight the instant the block happened (on our side
-		// or the other party's) can still land right after, which would otherwise
-		// look identical to a genuine unblock — cross-check those against the
-		// current block_state first (covers both directions; a blocked-profile-
-		// ids check only covers the "we blocked them" one).
+		// If a message arrives for an archived conversation, unarchive it
+		// immediately. A live incoming message is a stronger signal than an
+		// inbox reappearance, but the same in-flight-at-the-instant-of-block
+		// race still applies, so a block-related archive ("ws_delete") still
+		// goes through reconcileReappearedConversation rather than trusting the
+		// arrival blindly (see the loadInbox reappearance handling above for
+		// why that's the shared source of truth).
 		const incomingConversationIds = [...new Set(messages.map((m) => m.conversationId))];
 		const incomingCandidateIds = incomingConversationIds.filter((cid) =>
 			archivedConversationsRef.current.has(cid),
 		);
 		void (async () => {
-			const reappearedArchivedIds = (
-				await Promise.all(
-					incomingCandidateIds.map(async (cid) => {
-						const info = archivedConversationsRef.current.get(cid);
-						if (info?.reason !== "ws_delete") {
-							return cid;
-						}
-						const stored = await chatDb.getConversation(cid).catch(() => null);
-						return stored?.blockState == null ? cid : null;
-					}),
-				)
-			).filter((cid): cid is string => cid !== null);
+			const nonBlockReappearedIds = incomingCandidateIds.filter(
+				(cid) => archivedConversationsRef.current.get(cid)?.reason !== "ws_delete",
+			);
+			const blockReconcileResults = await Promise.all(
+				incomingCandidateIds
+					.filter((cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete")
+					.map(async (cid) => ({
+						cid,
+						message: await reconcileReappearedConversation(cid, "ws_delete").catch(() => null),
+					})),
+			);
+			const blockReappearedIds = blockReconcileResults
+				.filter(({ message }) => message !== null)
+				.map(({ cid }) => cid);
+			const reappearedArchivedIds = [...nonBlockReappearedIds, ...blockReappearedIds];
 			if (reappearedArchivedIds.length === 0) {
 				return;
 			}
-			for (const cid of reappearedArchivedIds) {
+			for (const cid of nonBlockReappearedIds) {
 				void unarchiveConversation(cid);
 			}
-			const blockArchivedIds = reappearedArchivedIds.filter(
-				(cid) => archivedConversationsRef.current.get(cid)?.reason === "ws_delete",
-			);
-			if (blockArchivedIds.length > 0) {
-				void Promise.all(
-					blockArchivedIds.map(async (cid) => {
-						const isSelf = consumeSelfBlockAction(cid, "unblock");
-						const claimed = await claimBlockStateTransition(cid, null).catch(() => false);
-						if (!claimed) return null;
-						return chatDb
-							.insertSystemMessage(cid, isSelf ? "SystemUnblockedBySelf" : "SystemUnblocked")
-							.catch(() => null);
-					}),
-				).then((inserted) => {
-					const valid = inserted.filter((m): m is Message => m !== null);
-					if (valid.length > 0) {
-						window.dispatchEvent(
-							new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
-						);
-					}
-				});
+			const valid = blockReconcileResults
+				.map(({ message }) => message)
+				.filter((m): m is Message => m !== null);
+			if (valid.length > 0) {
+				window.dispatchEvent(
+					new CustomEvent<Message[]>(CHAT_SYSTEM_MESSAGE_EVENT, { detail: valid }),
+				);
 			}
 			setArchivedConversations((previous) => {
 				const next = new Map(previous);
@@ -3393,6 +3436,29 @@ export function ChatPage() {
 		};
 	}, [loadInbox, realtimeStatus]);
 
+	// The interval above stops entirely once realtimeStatus is "connected",
+	// relying on live WS events from then on — fine while the app stays
+	// foregrounded, but mobile suspends rather than kills the app in the
+	// background, so nothing re-checks the inbox purely from closing and
+	// reopening it (ChatRealtimeBridge's visibilitychange handler only
+	// reconnects the socket). A stuck block_state can otherwise only clear
+	// via a live WS event landing from that exact profile while the app
+	// happens to be connected, or a fresh process start (AuthContext's
+	// inboxSync). Fetch the inbox once on resume so a block/unblock that
+	// happened while backgrounded gets picked up promptly, through the same
+	// reconcileReappearedConversation path as the interval above.
+	useEffect(() => {
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "visible") {
+				void loadInbox({ page: 1, replace: true, silent: true });
+			}
+		};
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+		return () => {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		};
+	}, [loadInbox]);
+
 	// The realtime socket can report "connected" while still silently dropping
 	// individual events (e.g. chat.v1.conversation_read), so read-receipt status
 	// for the open chat can go stale even when realtimeStatus looks healthy.
@@ -3771,6 +3837,9 @@ export function ChatPage() {
 		} else if (hiddenFilter === "only") {
 			result = result.filter((c) => hiddenConversationIds.has(c.data.conversationId));
 		}
+		if (needsReplyOnly) {
+			result = result.filter((c) => conversationNeedsReply(c, userId));
+		}
 		return result;
 	}, [
 		conversations,
@@ -3786,6 +3855,8 @@ export function ChatPage() {
 		archivedFilter,
 		hiddenFilter,
 		hiddenConversationIds,
+		needsReplyOnly,
+		userId,
 	]);
 
 	// Scroll memory: save position on scroll (re-attaches when list mounts/unmounts)
@@ -4010,6 +4081,25 @@ export function ChatPage() {
 						if (b.data.pinned && !a.data.pinned) return 1;
 						return (b.data.lastActivityTimestamp ?? 0) - (a.data.lastActivityTimestamp ?? 0);
 					});
+				});
+				// Archived conversations are rendered from `archivedConversations`,
+				// not `conversations` — an archived entry never appears in the list
+				// above, so without this the pin toggle would write to chatDb and
+				// silently do nothing on screen until the next full reload.
+				setArchivedConversations((previous) => {
+					const existing = previous.get(conversationId);
+					if (!existing) {
+						return previous;
+					}
+					const next = new Map(previous);
+					next.set(conversationId, {
+						...existing,
+						entry: {
+							...existing.entry,
+							data: { ...existing.entry.data, pinned: !isPinned },
+						},
+					});
+					return next;
 				});
 			} catch (error) {
 				toast.error(
@@ -4239,6 +4329,84 @@ export function ChatPage() {
 	const deleteConversationLocalOnly = useCallback(
 		(conversationId: string) => deleteConversationFromChat(conversationId, true),
 		[deleteConversationFromChat],
+	);
+
+	const mergeConversationFromChat = useCallback(
+		async (sourceConversationId: string, targetConversationId: string) => {
+			if (isMergingConversationId) {
+				return;
+			}
+
+			setIsMergingConversationId(sourceConversationId);
+			try {
+				const sourceEntry =
+					archivedConversationsRef.current.get(sourceConversationId)?.entry ?? null;
+				const oldProfileId =
+					sourceEntry && userId != null
+						? getOtherParticipant(sourceEntry, userId)?.profileId ?? null
+						: null;
+
+				const { movedMessages } = await mergeArchivedConversationIntoActive(
+					sourceConversationId,
+					targetConversationId,
+				);
+
+				// The unread badge on the grid/profile tile lives in a separate
+				// local index keyed by profile id (chat_contact_index) — the merge
+				// itself only touches the conversations/messages tables, so clear
+				// it the same way deleteConversationFromChat does, otherwise a
+				// stale unread count from the old profile lingers after its chat
+				// is folded away.
+				if (oldProfileId != null) {
+					const oldProfileIdStr = String(oldProfileId);
+					await clearUnreadCountForProfile(oldProfileIdStr).catch(() => {});
+					setChatContactIndexByProfileId((previous) => {
+						const existing = previous[oldProfileIdStr];
+						if (!existing || existing.unreadCount === 0) {
+							return previous;
+						}
+						return {
+							...previous,
+							[oldProfileIdStr]: { ...existing, unreadCount: 0 },
+						};
+					});
+				}
+
+				setArchivedConversations((previous) => {
+					if (!previous.has(sourceConversationId)) {
+						return previous;
+					}
+					const next = new Map(previous);
+					next.delete(sourceConversationId);
+					return next;
+				});
+
+				// Jump into the target conversation — its own selectedConversationId
+				// effect re-runs loadThread, which (via chatDb.getMessagesPage's
+				// LOCAL_PAGE_KEY_PREFIX fallback once the server's own history is
+				// exhausted) surfaces the just-merged older messages the same way
+				// any other local-only history already does.
+				openConversationById(targetConversationId);
+
+				toast.success(
+					t("chat.toasts.conversation_merged", {
+						defaultValue: "Merged {{count}} message(s) into the chat.",
+						count: movedMessages,
+					}),
+				);
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: t("chat.errors.merge_conversation", {
+								defaultValue: "Failed to merge conversation",
+							}),
+				);
+			} finally {
+				setIsMergingConversationId(null);
+			}
+		},
+		[isMergingConversationId, userId, openConversationById, t],
 	);
 
 	const blockProfileFromChat = useCallback(
@@ -4840,6 +5008,11 @@ export function ChatPage() {
 		[selectedConversation, service, t, targetProfileId, userId],
 	);
 
+	// loadDrawerMedia is declared further below but sendMediaAttachment needs
+	// to trigger a refresh after adding to the drawer — routed through a ref
+	// to avoid a forward reference to a not-yet-initialized const.
+	const loadDrawerMediaRef = useRef<() => Promise<void>>(() => Promise.resolve());
+
 	const sendMediaAttachment = useCallback(
 		async (
 			file: File,
@@ -4847,6 +5020,7 @@ export function ChatPage() {
 				looping: boolean;
 				takenOnGrindr: boolean;
 				maxViews: number;
+				addToDrawer: boolean;
 			},
 		) => {
 			if (!userId) {
@@ -4924,6 +5098,17 @@ export function ChatPage() {
 					},
 				});
 				setUploadProgress(96);
+
+				if (options.addToDrawer) {
+					try {
+						await service.addMediaToDrawer(uploaded.mediaId);
+						void loadDrawerMediaRef.current();
+					} catch (error) {
+						toast.error(
+							error instanceof Error ? error.message : t("chat.errors.upload_media_failed"),
+						);
+					}
+				}
 
 				const imageUrl = uploaded.url;
 				const imageHash = imageUrl
@@ -5053,6 +5238,7 @@ export function ChatPage() {
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentAddToDrawer(false);
 		setAttachmentMaxViews(2147483647);
 	}, []);
 
@@ -5065,15 +5251,18 @@ export function ChatPage() {
 			looping: attachmentLooping,
 			takenOnGrindr: attachmentTakenOnGrindr,
 			maxViews: attachmentMaxViews,
+			addToDrawer: attachmentAddToDrawer,
 		});
 		setPendingAttachmentFile(null);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
+		setAttachmentAddToDrawer(false);
 		setAttachmentMaxViews(2147483647);
 	}, [
 		attachmentLooping,
 		attachmentMaxViews,
 		attachmentTakenOnGrindr,
+		attachmentAddToDrawer,
 		pendingAttachmentFile,
 		sendMediaAttachment,
 	]);
@@ -5084,13 +5273,15 @@ export function ChatPage() {
 				looping: attachmentLooping,
 				takenOnGrindr: attachmentTakenOnGrindr,
 				maxViews: attachmentMaxViews,
+				addToDrawer: attachmentAddToDrawer,
 			});
 			setPendingAttachmentFile(null);
 			setAttachmentLooping(false);
 			setAttachmentTakenOnGrindr(false);
+			setAttachmentAddToDrawer(false);
 			setAttachmentMaxViews(2147483647);
 		},
-		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, sendMediaAttachment],
+		[attachmentLooping, attachmentMaxViews, attachmentTakenOnGrindr, attachmentAddToDrawer, sendMediaAttachment],
 	);
 
 	const sendAudioBlob = useCallback(async (blob: Blob, durationMs: number) => {
@@ -5102,8 +5293,14 @@ export function ChatPage() {
 		setIsSendingAudio(true);
 		try {
 			const audioBytes = new Uint8Array(await blob.arrayBuffer());
+			let contentType = blob.type || "audio/aac";
+			// Normalize for Grindr API compatibility: if it's AAC in an MP4 container,
+			// label it as audio/aac which is what the official iOS app expects.
+			if (contentType.includes("mp4") || contentType.includes("m4a") || contentType.includes("aac")) {
+				contentType = "audio/aac";
+			}
 			const uploaded = await service.uploadChatMedia({
-				multipart: { body: audioBytes, contentType: blob.type || "audio/webm" },
+				multipart: { body: audioBytes, contentType },
 				options: { looping: false, takenOnGrindr: false, durationSeconds: durationMs },
 			});
 			await service.sendMessage({
@@ -5113,7 +5310,7 @@ export function ChatPage() {
 					mediaId: uploaded.mediaId,
 					mediaHash: uploaded.mediaHash,
 					url: uploaded.url,
-					contentType: blob.type || "audio/webm",
+					contentType,
 					length: durationMs,
 					expiresAt: uploaded.expiresAt,
 				},
@@ -5379,6 +5576,20 @@ export function ChatPage() {
 		}
 	}, [selectedConversation, userId, isMutatingMessageId, t]);
 
+	const handleRemoveLocalAlbum = useCallback(async (albumId: number) => {
+		if (isMutatingMessageId) return;
+		setIsMutatingMessageId(String(albumId));
+		try {
+			await deleteLocalAlbum(albumId);
+			toast.success(t("chat.toasts.album_removed_locally", { defaultValue: "Album removed from your device" }));
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : t("chat.errors.album_remove_failed"));
+		} finally {
+			setIsMutatingMessageId(null);
+			setOpenMessageActionId(null);
+		}
+	}, [isMutatingMessageId, t]);
+
 	const shareAlbumToCurrentConversation = useCallback(
 		async (albumId: number, albumName?: string | null) => {
         const targetProfile = selectedConversation
@@ -5468,6 +5679,11 @@ export function ChatPage() {
 		async (albumId: number, isOwnAlbum?: boolean, targetContentId?: number) => {
 			albumViewerCancelledRef.current = false;
 			setAlbumViewerMediaIndex(null);
+			// A specific reacted-to/replied-to photo always jumps straight to
+			// full screen — showing the browse-first sheet for that would bury
+			// the exact item the user tapped through to see.
+			const useSheet = openAlbumAsBottomSheet && targetContentId == null;
+			setIsAlbumMediaSheetOpen(useSheet);
 
 			const resolveIndex = (content: { contentId: number }[]): number => {
 				if (targetContentId == null) return 0;
@@ -5483,7 +5699,7 @@ export function ChatPage() {
 			if (albumViewerCancelledRef.current) return;
 			if (cached) {
 				setAlbumViewer({ ...cached, isOwn: isOwnAlbum });
-				setAlbumViewerMediaIndex(resolveIndex(cached.content));
+				if (!useSheet) setAlbumViewerMediaIndex(resolveIndex(cached.content));
 				setIsAlbumViewerLoading(false);
 			} else {
 				setAlbumViewer(null);
@@ -5511,38 +5727,57 @@ export function ChatPage() {
 				});
 				const merged = await getLocalAlbum(albumId);
 				if (albumViewerCancelledRef.current) return;
-				const finalContent = merged ? merged.content : details.content;
-				setAlbumViewer(
-					merged
-						? { ...merged, isOwn: isOwnAlbum }
-						: {
-							albumId: details.albumId,
-							albumName: details.albumName,
-							content: details.content,
-							isOwn: isOwnAlbum,
-						},
+				// The local cache has no notion of order (it's keyed by content
+				// id, not position), so an item's slot there reflects whenever it
+				// was first captured rather than the album's current sort order.
+				// `details.content` is always in the live/current order, so use
+				// that ordering and only borrow each item's locally-cached bytes
+				// (data URIs) from `merged` when available.
+				const mergedByContentId = new Map(
+					(merged?.content ?? []).map((item) => [item.contentId, item] as const),
 				);
-				setAlbumViewerMediaIndex((prev) => {
-					// A specific reacted-to/replied-to photo always gets re-resolved
-					// against the freshly merged content — its position can shift (or
-					// the cached snapshot could've had a different item order/count)
-					// once the live fetch lands.
-					if (targetContentId != null) {
-						const idx = finalContent.findIndex((item) => item.contentId === targetContentId);
-						if (idx >= 0) return idx;
-					}
-					// Otherwise keep wherever the user already navigated to, as long
-					// as it's still a valid index into the (possibly shorter) merged
-					// content — a stale index here would crash the viewer trying to
-					// read a photo that no longer exists.
-					if (prev != null && prev >= 0 && prev < finalContent.length) return prev;
-					return 0;
+				const liveContentIds = new Set(details.content.map((item) => item.contentId));
+				// Anything only in the local cache (not returned by the live
+				// fetch) has no server-side position to sort by anymore — keep
+				// it visible, but tacked on after everything the server knows
+				// about, rather than dropping it or leaving it in its stale slot.
+				const localOnly = (merged?.content ?? []).filter(
+					(item) => !liveContentIds.has(item.contentId),
+				);
+				const finalContent = [
+					...details.content.map((item) => mergedByContentId.get(item.contentId) ?? item),
+					...localOnly,
+				];
+				setAlbumViewer({
+					albumId: details.albumId,
+					albumName: merged?.albumName ?? details.albumName,
+					content: finalContent,
+					isOwn: isOwnAlbum,
 				});
+				if (!useSheet) {
+					setAlbumViewerMediaIndex((prev) => {
+						// A specific reacted-to/replied-to photo always gets re-resolved
+						// against the freshly merged content — its position can shift (or
+						// the cached snapshot could've had a different item order/count)
+						// once the live fetch lands.
+						if (targetContentId != null) {
+							const idx = finalContent.findIndex((item) => item.contentId === targetContentId);
+							if (idx >= 0) return idx;
+						}
+						// Otherwise keep wherever the user already navigated to, as long
+						// as it's still a valid index into the (possibly shorter) merged
+						// content — a stale index here would crash the viewer trying to
+						// read a photo that no longer exists.
+						if (prev != null && prev >= 0 && prev < finalContent.length) return prev;
+						return 0;
+					});
+				}
 			} catch (error) {
 				if (albumViewerCancelledRef.current) return;
 				if (!cached) {
 					setAlbumViewer(null);
 					setAlbumViewerMediaIndex(null);
+					setIsAlbumMediaSheetOpen(false);
 					toast.error(
 						error instanceof Error ? error.message : t("chat.errors.album_open_failed"),
 					);
@@ -5551,25 +5786,51 @@ export function ChatPage() {
 				if (!albumViewerCancelledRef.current) setIsAlbumViewerLoading(false);
 			}
 		},
-		[service, t],
+		[service, t, openAlbumAsBottomSheet],
 	);
 
-	const closeAlbumMediaViewer = useCallback(() => {
+	// Tapping an item inside the album's browse-first sheet — the sheet stays
+	// mounted underneath so closing the full-screen viewer returns to it
+	// instead of exiting all the way back to the chat.
+	const openAlbumMediaAtIndex = useCallback((index: number) => {
+		setAlbumViewerMediaIndex(index);
+	}, []);
+
+	const closeAlbumMediaSheet = useCallback(() => {
 		albumViewerCancelledRef.current = true;
+		setIsAlbumMediaSheetOpen(false);
 		setAlbumViewer(null);
 		setAlbumViewerMediaIndex(null);
 		setIsAlbumViewerLoading(false);
 	}, []);
 
+	const closeAlbumMediaViewer = useCallback(() => {
+		if (isAlbumMediaSheetOpen) {
+			// Came from the browse-first sheet — go back to it rather than
+			// exiting the album entirely.
+			setAlbumViewerMediaIndex(null);
+			return;
+		}
+		albumViewerCancelledRef.current = true;
+		setAlbumViewer(null);
+		setAlbumViewerMediaIndex(null);
+		setIsAlbumViewerLoading(false);
+	}, [isAlbumMediaSheetOpen]);
+
 	const handleSaveAllAlbumMedia = useCallback(async () => {
 		if (!albumViewer || isSavingAlbumAll) return;
 		setIsSavingAlbumAll(true);
 		try {
+			const ownerProfileId = albumViewer.isOwn
+				? userId
+				: (selectedConversationOtherProfileId != null
+						? Number(selectedConversationOtherProfileId)
+						: null);
 			await saveAllAlbumMedia(
 				{
 					albumId: albumViewer.albumId,
 					albumName: albumViewer.albumName,
-					profileId: 0,
+					profileId: ownerProfileId ?? 0,
 					profileName: "",
 					profileMediaHash: null,
 					onlineUntil: null,
@@ -5582,7 +5843,14 @@ export function ChatPage() {
 		} finally {
 			setIsSavingAlbumAll(false);
 		}
-	}, [albumViewer, isSavingAlbumAll, t, selectedConversation]);
+	}, [
+		albumViewer,
+		isSavingAlbumAll,
+		t,
+		selectedConversation,
+		selectedConversationOtherProfileId,
+		userId,
+	]);
 
 	const albumMenuActions = useMemo<PhotoViewerMenuAction[]>(() => {
 		if (!albumViewer) return [];
@@ -5674,10 +5942,9 @@ export function ChatPage() {
 					: service.getGlobalDrawerMedia(),
 				chatDb.getDrawerMediaSendCounts(),
 			]);
+			const withCounts = media.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }));
 			setDrawerMedia(
-				media
-					.map((item) => ({ ...item, sendCount: sendCounts.get(item.id) ?? 0 }))
-					.sort((a, b) => b.sendCount - a.sendCount),
+				sortDrawerMediaByFrequency ? sortDrawerMediaByUsage(withCounts) : withCounts,
 			);
 			// Cache each thumbnail/video locally by its stable media id, so
 			// re-opening the drawer renders instantly instead of re-hitting the
@@ -5703,7 +5970,11 @@ export function ChatPage() {
 		} finally {
 			setIsLoadingDrawer(false);
 		}
-	}, [selectedConversationId, service, t]);
+	}, [selectedConversationId, service, sortDrawerMediaByFrequency, t]);
+
+	useEffect(() => {
+		loadDrawerMediaRef.current = loadDrawerMedia;
+	}, [loadDrawerMedia]);
 
 	const toggleDrawer = useCallback(async () => {
 		if (isDrawerOpen) {
@@ -5908,7 +6179,11 @@ export function ChatPage() {
 		setPendingAttachmentFile(file);
 		setAttachmentLooping(false);
 		setAttachmentTakenOnGrindr(false);
-		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : 2147483647);
+		setAttachmentAddToDrawer(false);
+		// The 10-second disappearing timer default only applies to photos —
+		// videos keep their own existing default (a normal single-play video),
+		// unaffected by this preference.
+		setAttachmentMaxViews(file.type.startsWith("video/") ? 1 : defaultExpiringPhotos ? 1 : 2147483647);
 	};
 
 	const onAttachmentInput = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -6078,6 +6353,7 @@ export function ChatPage() {
 		onClearInboxFilters: clearInboxFilters,
 		archivedFilter,
 		hiddenFilter,
+		needsReplyOnly,
 	} as const;
 
 	const renderInbox = (
@@ -6156,6 +6432,9 @@ export function ChatPage() {
 					? archivedConversations.get(selectedConversationId)?.reason ?? null
 					: null
 			}
+			mergeableConversations={conversations}
+			onMergeConversation={mergeConversationFromChat}
+			isMergingConversation={isMergingConversationId !== null}
 			localNickname={
 				selectedConversationOtherProfileId
 					? localNicknamesByProfileId[selectedConversationOtherProfileId] ?? null
@@ -6194,6 +6473,7 @@ export function ChatPage() {
 			handleRetry={handleRetry}
 			handleReply={handleReplyToMessage}
 			handleStopAlbumShare={handleStopAlbumShare}
+			handleRemoveLocalAlbum={handleRemoveLocalAlbum}
 			threadBottomRef={threadBottomRef}
 			handleSend={handleSend}
 			toggleAlbumPicker={toggleAlbumPicker}
@@ -6205,9 +6485,11 @@ export function ChatPage() {
 			pendingAttachmentFile={pendingAttachmentFile}
 			attachmentLooping={attachmentLooping}
 			attachmentTakenOnGrindr={attachmentTakenOnGrindr}
+			attachmentAddToDrawer={attachmentAddToDrawer}
 			attachmentMaxViews={attachmentMaxViews}
 			setAttachmentLooping={setAttachmentLooping}
 			setAttachmentTakenOnGrindr={setAttachmentTakenOnGrindr}
+			setAttachmentAddToDrawer={setAttachmentAddToDrawer}
 			setAttachmentMaxViews={setAttachmentMaxViews}
 			confirmPendingAttachment={confirmPendingAttachment}
 			confirmAttachmentFile={confirmAttachmentFile}
@@ -6291,6 +6573,7 @@ export function ChatPage() {
 						setPinnedFilter(draft.pinnedFilter);
 						setArchivedFilter(draft.archivedFilter);
 						setHiddenFilter(draft.hiddenFilter);
+						setNeedsReplyOnly(draft.needsReplyOnly);
 					}}
 				/>
 			)}
@@ -6325,6 +6608,16 @@ export function ChatPage() {
 				</div>
 			) : null}
 
+			{isAlbumMediaSheetOpen && albumViewer ? (
+				<AlbumMediaSheet
+					albumName={albumViewer.albumName}
+					content={albumViewer.content}
+					onClose={closeAlbumMediaSheet}
+					onSelect={openAlbumMediaAtIndex}
+					locked={albumViewerMediaIndex !== null}
+				/>
+			) : null}
+
 			<PhotoViewer
 				isOpen={albumViewer !== null && albumViewerMediaIndex !== null}
 				onClose={closeAlbumMediaViewer}
@@ -6334,7 +6627,10 @@ export function ChatPage() {
 				conversationId={selectedConversation?.data.conversationId ?? null}
 				menuActions={albumMenuActions}
 				albumHeader={albumHeader}
-				contentWarning={showAlbumSensitiveContentWarning}
+				// Only gate directly-opened albums — once the user has already
+				// browsed the album's contents in the browse-first sheet, the
+				// warning would be redundant for every item tapped from it.
+				contentWarning={showAlbumSensitiveContentWarning && !isAlbumMediaSheetOpen}
 				renderFooter={(idx) => {
 					const item = albumViewer?.content[idx];
 					if (!albumViewer || !item || albumViewer.isOwn) return null;

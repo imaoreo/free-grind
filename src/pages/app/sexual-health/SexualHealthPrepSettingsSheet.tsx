@@ -2,6 +2,7 @@ import { CalendarClock, Check, Info, Repeat, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { BottomSheet, SheetClose } from "../../../components/ui/bottom-sheet";
+import { useDesktopBreakpoint } from "../../../hooks/useDesktopBreakpoint";
 import type { PrepScheme } from "../../../services/prepTracking";
 
 const SCHEME_OPTIONS: {
@@ -9,8 +10,6 @@ const SCHEME_OPTIONS: {
 	icon: typeof Repeat;
 	labelKey: string;
 	labelDefault: string;
-	taglineKey: string;
-	taglineDefault: string;
 	descKey: string;
 	descDefault: string;
 }[] = [
@@ -19,8 +18,6 @@ const SCHEME_OPTIONS: {
 		icon: Repeat,
 		labelKey: "sexualHealth.info.scheme_daily_label",
 		labelDefault: "Daily",
-		taglineKey: "sexualHealth.info.scheme_daily_tagline",
-		taglineDefault: "One pill, every day",
 		descKey: "sexualHealth.info.daily_desc",
 		descDefault:
 			"One pill every day at roughly the same time. Protection builds up over your first doses and is maintained by staying consistent.",
@@ -30,8 +27,6 @@ const SCHEME_OPTIONS: {
 		icon: CalendarClock,
 		labelKey: "sexualHealth.info.scheme_on_demand_label",
 		labelDefault: "On-demand (2-1-1)",
-		taglineKey: "sexualHealth.info.scheme_on_demand_tagline",
-		taglineDefault: "2 pills before, 2 after",
 		descKey: "sexualHealth.info.on_demand_desc",
 		descDefault:
 			"2 pills 2-24h before sex, then 1 pill 24h after the first dose, then 1 pill 48h after the first dose. Log each step as you take it and the PrEP tab will track your coverage.",
@@ -50,20 +45,20 @@ export function SexualHealthPrepSettingsSheet({
 	onClose: () => void;
 }) {
 	const { t } = useTranslation();
-	const active = SCHEME_OPTIONS.find((option) => option.value === scheme) ?? SCHEME_OPTIONS[0];
+	const isDesktop = useDesktopBreakpoint();
 
 	return createPortal(
-		<BottomSheet onClose={onClose}>
+		<BottomSheet onClose={onClose} isDesktop={isDesktop}>
 			<div className="flex items-center justify-between px-4 pb-3">
 				<p className="text-sm font-semibold text-[var(--text)]">
 					{t("sexualHealth.info.sheet_title", { defaultValue: "PrEP settings" })}
 				</p>
-				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)]">
+				<SheetClose className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-2)] hover:text-[var(--text)]">
 					<X className="h-4 w-4" />
 				</SheetClose>
 			</div>
 
-			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4">
+			<div className="grid max-h-[75dvh] gap-4 overflow-y-auto px-4 pb-4" data-lenis-prevent>
 				<div className="grid grid-cols-2 gap-3">
 					{SCHEME_OPTIONS.map((option) => {
 						const isSelected = scheme === option.value;
@@ -89,20 +84,13 @@ export function SexualHealthPrepSettingsSheet({
 								</div>
 								<div>
 									<p className="text-sm font-semibold">{t(option.labelKey, { defaultValue: option.labelDefault })}</p>
-									<p className="mt-0.5 text-xs text-[var(--text-muted)]">
-										{t(option.taglineKey, { defaultValue: option.taglineDefault })}
+									<p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
+										{t(option.descKey, { defaultValue: option.descDefault })}
 									</p>
 								</div>
 							</button>
 						);
 					})}
-				</div>
-
-				<div className="flex gap-2.5 rounded-2xl bg-[var(--surface-2)] p-3.5">
-					<active.icon className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-					<p className="text-xs leading-relaxed text-[var(--text-muted)]">
-						{t(active.descKey, { defaultValue: active.descDefault })}
-					</p>
 				</div>
 
 				<div className="flex gap-2.5">
