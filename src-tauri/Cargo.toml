@@ -77,6 +77,7 @@ tauri-plugin-android-fs = { version = "=28.2.2", features = ["legacy_storage_per
 [target.'cfg(target_os = "ios")'.dependencies]
 tauri-plugin-ios-photos = "0.3"
 tauri-plugin-ios-keyboard-fix = { path = "ios-keyboard-fix" }
+tauri-plugin-ios-app-disguise = { path = "ios-app-disguise" }
 apple-native-keyring-store = { version = "0.2.3", features = ["protected"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

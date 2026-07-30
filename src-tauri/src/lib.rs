@@ -227,7 +227,8 @@ pub fn run() {
         #[cfg(target_os = "ios")]
         let builder = builder
             .plugin(tauri_plugin_ios_photos::init())
-            .plugin(tauri_plugin_ios_keyboard_fix::init());
+            .plugin(tauri_plugin_ios_keyboard_fix::init())
+            .plugin(tauri_plugin_ios_app_disguise::init());
 
         #[cfg(target_os = "android")]
         let builder = builder.plugin(tauri_plugin_android_fs::init());

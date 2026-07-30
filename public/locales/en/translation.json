@@ -808,7 +808,7 @@
     "app_disguise_calculator": "Calculator",
     "app_disguise_notes": "Notes",
     "app_disguise_weather": "Weather",
-    "app_disguise_note": "The launcher icon and name update right away, but some home screens only refresh once you go back to them. This doesn't affect notifications, which still show \"Free Grind\" and message previews unless you also adjust that under Notifications.",
+    "app_disguise_note": "On Android, the launcher icon and name both update (some home screens only refresh once you go back to them). On iOS, only the icon can change — the name under it always stays \"Free Grind\", that's an OS limitation. Either way this doesn't affect notifications, which still show message previews unless you also adjust that under Notifications.",
     "read_receipts": "Read Receipts",
     "send_read_receipts": "Send Read Receipts",
     "send_read_receipts_desc": "Let others see when you've read their messages. Turn this off to read messages without them knowing until you reply.",

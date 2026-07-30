@@ -1,0 +1,20 @@
+[package]
+name = "tauri-plugin-ios-app-disguise"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+links = "tauri-plugin-ios-app-disguise"
+
+[lib]
+name = "tauri_plugin_ios_app_disguise"
+path = "src/lib.rs"
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+tauri = { version = "2", features = ["wry"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
