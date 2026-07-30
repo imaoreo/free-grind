@@ -385,9 +385,16 @@ export function SettingsPage() {
 
 	const handleLogout = async () => {
 		setIsLoggingOut(true);
+		const loggedOutProfileId = userId != null ? String(userId) : null;
 		try {
 			await logout();
-			navigate("/auth/sign-in");
+			const nextAccount = savedAccounts.find((account) => account.profileId !== loggedOutProfileId);
+			if (nextAccount) {
+				await switchAccount(nextAccount.profileId);
+				navigate("/");
+			} else {
+				navigate("/auth/sign-in");
+			}
 		} catch (error) {
 			const message = getErrorMessage(error, "Failed to log out.");
 			toast.error(message);
