@@ -352,6 +352,22 @@ class MainActivity : TauriActivity() {
         android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 
+    /**
+     * Switches the launcher icon/name to the given disguise id ("default",
+     * "calculator", "notes", "weather" — see AppDisguise.kt). Returns false
+     * for an unrecognized id instead of throwing.
+     */
+    @JavascriptInterface
+    fun setAppDisguise(id: String): Boolean {
+      val identity = AppDisguise.Identity.fromId(id) ?: return false
+      return AppDisguise.applyDisguise(this@MainActivity, identity)
+    }
+
+    @JavascriptInterface
+    fun getAppDisguise(): String {
+      return AppDisguise.currentDisguise(this@MainActivity).id
+    }
+
     @JavascriptInterface
     fun vibrate(durationMs: Long) {
       try {
@@ -422,9 +438,13 @@ class MainActivity : TauriActivity() {
 
     // Note: We use the "_v2" suffix to ensure custom sound and high importance
     // settings are applied correctly even on devices that already had previous versions.
+    // Channel names come from the active AppDisguise identity — "Chat
+    // Messages"/"Taps" normally, something generic while a decoy is active
+    // (see AppDisguise.kt) so Android's own notification settings screen
+    // doesn't give the disguise away.
     val chatChannel = NotificationChannel(
-      "free_grind_chat_notifications_v2",
-      "Chat Messages",
+      AppDisguise.CHAT_CHANNEL_ID,
+      AppDisguise.channelName(this, isTap = false),
       NotificationManager.IMPORTANCE_HIGH
     ).apply {
       description = "Notifications for new chat messages"
@@ -434,8 +454,8 @@ class MainActivity : TauriActivity() {
     }
 
     val tapsChannel = NotificationChannel(
-      "free_grind_taps_notifications_v2",
-      "Taps",
+      AppDisguise.TAPS_CHANNEL_ID,
+      AppDisguise.channelName(this, isTap = true),
       NotificationManager.IMPORTANCE_HIGH
     ).apply {
       description = "Notifications for incoming taps"

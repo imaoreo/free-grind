@@ -151,7 +151,7 @@ export const ACCENT_PRESETS: AccentPreset[] = [
 const preferencesSchema = z.object({
 	geohash: geohashSchema.nullable().default(null),
 	locationName: z.string().nullable().optional(),
-	colorScheme: z.enum(["system", "light", "dark"]).default("system"),
+	colorScheme: z.enum(["system", "light", "dark"]).default("dark"),
 	accentColor: z.string().default("#ffcc01"),
 	accentContrast: z.string().default("#1a1a1a"),
 	mobileGridColumns: z.enum(["2", "3"]).default("3"),
@@ -327,7 +327,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(preferencesReducer, {
 		geohash: null,
 		locationName: null,
-		colorScheme: "system",
+		colorScheme: "dark",
 		accentColor: "#ffcc01",
 		accentContrast: "#1a1a1a",
 		mobileGridColumns: "3",
@@ -409,7 +409,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 					// No stored preferences at all, apply device defaults immediately
 					dispatch({ type: "SET_REVEAL_EFFECT_STRENGTH", payload: deviceDefaultStrength });
 					// We also need to apply the theme with these defaults
-					applyTheme("system", "#ffcc01", "#1a1a1a", deviceDefaultStrength);
+					applyTheme("dark", "#ffcc01", "#1a1a1a", deviceDefaultStrength);
 				}
 			} catch (error) {
 				appLog.error("Failed to load preferences:", error);

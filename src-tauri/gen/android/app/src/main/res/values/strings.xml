@@ -1,6 +1,10 @@
 <resources>
     <string name="app_name">Free Grind</string>
     <string name="main_activity_title">Free Grind</string>
+    <!-- App disguise: alternate launcher names shown when a decoy identity is active (see AppDisguise.kt) -->
+    <string name="disguise_name_calculator">Calculator</string>
+    <string name="disguise_name_notes">Notes</string>
+    <string name="disguise_name_weather">Weather</string>
     <!-- Grindr FCM credentials (spoofed Firebase) -->
     <string name="fcm_google_app_id">1:1036042917246:android:93d3725a6ad2a74d</string>
     <string name="fcm_google_api_key">AIzaSyDD5Ceh8j-a6Xw2R_seA7d5FZ5W09PcGkI</string>

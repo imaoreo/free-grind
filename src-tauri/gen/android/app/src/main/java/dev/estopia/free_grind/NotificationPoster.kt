@@ -106,8 +106,8 @@ object NotificationPoster {
         }
 
         // _v2 suffix forces re-creation so the custom sound takes effect on existing installs.
-        val channelId = if (isTap) "free_grind_taps_notifications_v2" else "free_grind_chat_notifications_v2"
-        val channelName = if (isTap) "Taps" else "Chat Messages"
+        val channelId = if (isTap) AppDisguise.TAPS_CHANNEL_ID else AppDisguise.CHAT_CHANNEL_ID
+        val channelName = AppDisguise.channelName(context, isTap)
         val notificationId = notificationKey.hashCode()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
