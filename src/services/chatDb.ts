@@ -29,7 +29,6 @@ import type {
 	BlockEventType,
 	BlockState,
 	DownloadedMediaEntry,
-	FullDbExport,
 	MediaFileUpsertInput,
 	StoredAlbum,
 	StoredAlbumMedia,
@@ -54,6 +53,27 @@ const SQLITE_BUSY_TIMEOUT_MS = 5_000;
 const SQLITE_LOCK_RETRY_DELAYS_MS = [30, 80, 180, 350] as const;
 
 let activeChatDbName = LEGACY_CHAT_DB;
+
+// Bare filename (no "sqlite:" URI prefix) for callers that need to resolve
+// the db file directly on disk, e.g. the native Rust backup/restore commands.
+export function getActiveChatDbFileName(): string {
+	return activeChatDbName.replace(/^sqlite:/, "");
+}
+
+/**
+ * True as soon as this profile has ever had a conversation synced or
+ * restored locally on this device. Used to gate the post-login "restore
+ * from backup?" offer to genuinely fresh profiles only — an existing user
+ * who simply doesn't have the "already offered" flag set yet (e.g. right
+ * after this feature shipped) should never see it.
+ */
+export async function hasAnyLocalChatData(): Promise<boolean> {
+	const db = await getDb();
+	const rows = await db.select<{ present: number }[]>(
+		"SELECT EXISTS(SELECT 1 FROM conversations) AS present",
+	);
+	return (rows[0]?.present ?? 0) > 0;
+}
 
 type ConversationRow = {
 	conversation_id: string;
@@ -2030,239 +2050,6 @@ export async function deleteDownloadedMediaEntries(identifiers: string[]): Promi
 			identifiers,
 		);
 	});
-}
-
-// ---------------------------------------------------------------------------
-// Full database export/import — every table in this profile's db that's
-// portable to another install: chat history and media, albums, avatars,
-// saved phrases/locations, and the generic settings key/value store
-// (automation rules, privacy toggles, browse filters, location, etc).
-// Excludes downloaded_media, which is local device bookkeeping (references
-// files on this device's filesystem) with no meaning on another install.
-// ---------------------------------------------------------------------------
-
-const FULL_EXPORT_TABLES: {
-	name: keyof FullDbExport["tables"];
-	primaryKey: string;
-	columns: string[];
-}[] = [
-	{
-		name: "conversations",
-		primaryKey: "conversation_id",
-		columns: [
-			"conversation_id", "other_profile_id", "name", "participants_json",
-			"last_activity_timestamp", "unread_count", "pinned", "muted", "favorite",
-			"preview_json", "archived", "archived_reason", "archived_at", "hidden",
-			"last_seen_in_inbox_at", "created_at", "updated_at",
-		],
-	},
-	{
-		name: "conversation_meta",
-		primaryKey: "conversation_id",
-		columns: ["conversation_id", "last_read_timestamp"],
-	},
-	{
-		name: "messages",
-		primaryKey: "message_id",
-		columns: [
-			"message_id", "conversation_id", "sender_id", "timestamp", "type",
-			"chat1_type", "body_json", "unsent", "local_history",
-			"reply_to_message_id", "reply_preview_json", "reactions_json",
-			"created_at", "updated_at",
-		],
-	},
-	{
-		name: "media_files",
-		primaryKey: "media_key",
-		columns: [
-			"media_key", "conversation_id", "message_id", "kind", "mime_type",
-			"data_base64", "view_once", "size_bytes", "fetch_status", "fetched_at",
-		],
-	},
-	{
-		name: "albums",
-		primaryKey: "album_id",
-		columns: [
-			"album_id", "owner_profile_id", "album_name", "conversation_id",
-			"shared_via_message_id", "preview_cover_base64", "preview_cover_mime_type",
-			"created_at", "updated_at",
-		],
-	},
-	{
-		name: "album_media",
-		primaryKey: "content_id",
-		columns: [
-			"content_id", "album_id", "content_type", "data_base64",
-			"thumb_data_base64", "remaining_views", "is_viewable", "fetched_at",
-		],
-	},
-	{
-		name: "avatars",
-		primaryKey: "media_hash",
-		columns: ["media_hash", "data_base64", "mime_type", "fetched_at"],
-	},
-	{
-		name: "settings",
-		primaryKey: "key",
-		columns: ["key", "value"],
-	},
-	{
-		name: "saved_phrases",
-		primaryKey: "phrase",
-		columns: ["phrase", "created_at"],
-	},
-	{
-		name: "saved_locations",
-		primaryKey: "id",
-		columns: ["id", "name", "geohash", "lat", "lon", "created_at"],
-	},
-	{
-		name: "sexual_health_prep_doses",
-		primaryKey: "id",
-		columns: ["id", "taken_at", "scheme", "dose_role", "note", "created_at"],
-	},
-	{
-		name: "sexual_health_encounters",
-		primaryKey: "id",
-		columns: [
-			"id", "occurred_at", "profile_id", "display_name",
-			"tags_json", "note", "conversation_id", "created_at",
-		],
-	},
-	{
-		name: "sexual_health_appointments",
-		primaryKey: "id",
-		columns: ["id", "title", "scheduled_at", "kind", "location", "note", "completed_at", "created_at"],
-	},
-	{
-		name: "sexual_health_sti_tests",
-		primaryKey: "id",
-		columns: ["id", "tested_at", "test_type", "result", "note", "created_at"],
-	},
-];
-
-const EXPORT_PAGE_SIZE = 200;
-
-/**
- * Yields the same JSON an exported {@link FullDbExport} would contain, as
- * text fragments, reading each table a page at a time instead of one
- * `SELECT *`. Rows can carry large base64-encoded photo/video blobs
- * (media_files, album_media, avatars), so an account with a lot of cached
- * media could previously mean loading every row of every table into memory
- * at once before ever starting to serialize — this keeps memory bounded to
- * one page of rows at a time.
- */
-async function* generateFullDatabaseExportJson(ownerUserId: number): AsyncGenerator<string> {
-	const db = await getDb();
-
-	yield `{"version":1,"exportedAt":${Date.now()},"ownerUserId":${ownerUserId},"tables":{`;
-
-	for (let t = 0; t < FULL_EXPORT_TABLES.length; t++) {
-		const table = FULL_EXPORT_TABLES[t];
-		yield `${t > 0 ? "," : ""}${JSON.stringify(table.name)}:[`;
-
-		let offset = 0;
-		let isFirstRow = true;
-		while (true) {
-			const rows = await db.select<Record<string, unknown>[]>(
-				`SELECT * FROM ${table.name} LIMIT $1 OFFSET $2`,
-				[EXPORT_PAGE_SIZE, offset],
-			);
-			if (rows.length === 0) break;
-			for (const row of rows) {
-				yield `${isFirstRow ? "" : ","}${JSON.stringify(row)}`;
-				isFirstRow = false;
-			}
-			offset += rows.length;
-			if (rows.length < EXPORT_PAGE_SIZE) break;
-		}
-
-		yield "]";
-	}
-
-	yield "}}";
-}
-
-/**
- * Dumps every portable table in this profile's db, as UTF-8 byte chunks
- * (~512KB each) meant to be written to a file incrementally rather than
- * built up as one in-memory object + one giant `JSON.stringify` string —
- * exports with a lot of cached media were slow enough to hang, and on
- * mobile could exhaust the WebView's memory and crash the app.
- */
-export async function* streamFullDatabaseExportBytes(ownerUserId: number): AsyncGenerator<Uint8Array> {
-	const encoder = new TextEncoder();
-	const CHUNK_CHARS = 512 * 1024;
-	let buffer = "";
-
-	for await (const part of generateFullDatabaseExportJson(ownerUserId)) {
-		buffer += part;
-		if (buffer.length >= CHUNK_CHARS) {
-			yield encoder.encode(buffer);
-			buffer = "";
-		}
-	}
-	if (buffer.length > 0) {
-		yield encoder.encode(buffer);
-	}
-}
-
-export type ImportFullDatabaseResult =
-	| { ok: true; rowsImported: number }
-	| { ok: false; error: "wrong_owner" | "invalid_format" };
-
-/**
- * Merge-imports a previously exported database: every row is upserted
- * (existing local rows are overwritten by the imported version on conflict,
- * nothing not present in the import is touched or removed). Only column
- * names from our own known schema are ever interpolated into SQL — unknown
- * keys on an imported row are ignored rather than trusted, since the import
- * file is arbitrary user-supplied JSON.
- */
-export async function importFullDatabase(
-	data: FullDbExport,
-	currentUserId: number,
-): Promise<ImportFullDatabaseResult> {
-	if (!data || data.version !== 1 || typeof data.ownerUserId !== "number" || !data.tables) {
-		return { ok: false, error: "invalid_format" };
-	}
-	if (data.ownerUserId !== currentUserId) {
-		return { ok: false, error: "wrong_owner" };
-	}
-
-	const db = await getDb();
-	let rowsImported = 0;
-
-	await executeWithLockRetry(db, "import-full-database", async () => {
-		for (const table of FULL_EXPORT_TABLES) {
-			const rows = data.tables[table.name];
-			if (!Array.isArray(rows)) {
-				continue;
-			}
-
-			const placeholders = table.columns.map((_, i) => `$${i + 1}`).join(", ");
-			const updates = table.columns
-				.filter((c) => c !== table.primaryKey)
-				.map((c) => `${c} = excluded.${c}`)
-				.join(", ");
-			const sql = `
-				INSERT INTO ${table.name} (${table.columns.join(", ")})
-				VALUES (${placeholders})
-				ON CONFLICT(${table.primaryKey}) DO UPDATE SET ${updates}
-			`;
-
-			for (const row of rows) {
-				if (!row || typeof row !== "object" || (row as Record<string, unknown>)[table.primaryKey] == null) {
-					continue;
-				}
-				const values = table.columns.map((c) => (row as Record<string, unknown>)[c] ?? null);
-				await db.execute(sql, values);
-				rowsImported += 1;
-			}
-		}
-	});
-
-	return { ok: true, rowsImported };
 }
 
 // ---------------------------------------------------------------------------

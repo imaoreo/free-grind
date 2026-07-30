@@ -1950,5 +1950,33 @@
     "add_selected": "Add ({{count}})",
     "adding": "Adding…",
     "nudity_notice": "No full nudity allowed. Photos that violate this may be rejected or lead to account restrictions."
+  },
+  "data_backup": {
+    "category_chat_messages": "Chat messages",
+    "category_media_albums": "Media & albums",
+    "category_saved_phrases": "Saved phrases",
+    "category_saved_locations": "Saved locations",
+    "category_settings": "Settings",
+    "category_sexual_health": "Sexual health",
+    "export_no_categories": "Choose at least one category to export.",
+    "export_categories_title": "What do you want to export?",
+    "export_confirm": "Export",
+    "import_categories_title": "What do you want to restore?",
+    "import_categories_desc": "Only categories present in this file can be restored.",
+    "import_confirm": "Restore"
+  },
+  "restore_offer": {
+    "title": "Restore your data?",
+    "item_title": "Have a backup file?",
+    "description": "If you have a backup file from this account, you can restore your conversations, media, and settings now.",
+    "choose_file": "Choose backup file",
+    "skip": "Skip for now",
+    "categories_title": "What do you want to restore?",
+    "categories_desc": "Only categories present in this file can be restored.",
+    "confirm": "Restore",
+    "import_wrong_owner": "This export belongs to a different profile and can't be imported here.",
+    "import_invalid": "This file isn't a valid data export.",
+    "import_success": "Imported {{count}} rows. Reloading…",
+    "import_failed": "Failed to read backup file."
   }
 }

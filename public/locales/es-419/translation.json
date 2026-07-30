@@ -1968,5 +1968,33 @@
       "on_demand_desc": "Toma 2 pastillas entre 2 y 24 horas antes de tener relaciones sexuales, luego 1 pastilla 24 horas después de la primera dosis y, finalmente, 1 pastilla 48 horas después de la primera dosis. Registra cada paso a medida que lo sigas y la pestaña de PrEP hará un seguimiento de tu cobertura.",
       "footer": "Esta es una herramienta de seguimiento personal. No sustituye el consejo médico; consulte con un profesional de la salud para determinar qué es lo más adecuado para usted."
     }
+  },
+  "data_backup": {
+    "category_chat_messages": "",
+    "category_media_albums": "",
+    "category_saved_phrases": "",
+    "category_saved_locations": "",
+    "category_settings": "",
+    "category_sexual_health": "",
+    "export_no_categories": "",
+    "export_categories_title": "",
+    "export_confirm": "",
+    "import_categories_title": "",
+    "import_categories_desc": "",
+    "import_confirm": ""
+  },
+  "restore_offer": {
+    "title": "",
+    "item_title": "",
+    "description": "",
+    "choose_file": "",
+    "skip": "",
+    "categories_title": "",
+    "categories_desc": "",
+    "confirm": "",
+    "import_wrong_owner": "",
+    "import_invalid": "",
+    "import_success": "",
+    "import_failed": ""
   }
 }

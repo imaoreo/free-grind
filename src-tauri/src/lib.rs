@@ -176,6 +176,9 @@ pub fn run() {
                 api::websocket::ws_status,
                 api::websocket::ws_log_event,
                 commands::fingerprint::check_fingerprint,
+                commands::backup::export_backup_to_file,
+                commands::backup::import_backup_from_file,
+                commands::backup::inspect_backup_file,
             ])
             .build(context)
             .expect("error while running tauri application");
@@ -256,6 +259,9 @@ pub fn run() {
                 api::websocket::ws_status,
                 api::websocket::ws_log_event,
                 commands::fingerprint::check_fingerprint,
+                commands::backup::export_backup_to_file,
+                commands::backup::import_backup_from_file,
+                commands::backup::inspect_backup_file,
             ])
             .run(context)
             .expect("error while running tauri application");

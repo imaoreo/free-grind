@@ -2010,5 +2010,33 @@
         "add_selected": "عدد الاضافة",
         "adding": "إضافة…",
         "nudity_notice": ""
+    },
+    "data_backup": {
+        "category_chat_messages": "",
+        "category_media_albums": "",
+        "category_saved_phrases": "",
+        "category_saved_locations": "",
+        "category_settings": "",
+        "category_sexual_health": "",
+        "export_no_categories": "",
+        "export_categories_title": "",
+        "export_confirm": "",
+        "import_categories_title": "",
+        "import_categories_desc": "",
+        "import_confirm": ""
+    },
+    "restore_offer": {
+        "title": "",
+        "item_title": "",
+        "description": "",
+        "choose_file": "",
+        "skip": "",
+        "categories_title": "",
+        "categories_desc": "",
+        "confirm": "",
+        "import_wrong_owner": "",
+        "import_invalid": "",
+        "import_success": "",
+        "import_failed": ""
     }
 }

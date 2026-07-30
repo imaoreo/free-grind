@@ -1967,5 +1967,33 @@
       "on_demand_desc": "2 comprimés 2-24h avant le rapport sexuel, puis 1 comprimé 24h après la première dose, puis 1 comprimé 48h après la première dose. Enregistrez chaque étape au fur et à mesure que vous la effectuez et l'onglet PrEP suivra votre couverture.",
       "footer": "Il s'agit d'un outil de suivi personnel. Cela ne remplace pas un avis médical : parlez à un professionnel de la santé de ce qui vous convient."
     }
+  },
+  "data_backup": {
+    "category_chat_messages": "",
+    "category_media_albums": "",
+    "category_saved_phrases": "",
+    "category_saved_locations": "",
+    "category_settings": "",
+    "category_sexual_health": "",
+    "export_no_categories": "",
+    "export_categories_title": "",
+    "export_confirm": "",
+    "import_categories_title": "",
+    "import_categories_desc": "",
+    "import_confirm": ""
+  },
+  "restore_offer": {
+    "title": "",
+    "item_title": "",
+    "description": "",
+    "choose_file": "",
+    "skip": "",
+    "categories_title": "",
+    "categories_desc": "",
+    "confirm": "",
+    "import_wrong_owner": "",
+    "import_invalid": "",
+    "import_success": "",
+    "import_failed": ""
   }
 }
