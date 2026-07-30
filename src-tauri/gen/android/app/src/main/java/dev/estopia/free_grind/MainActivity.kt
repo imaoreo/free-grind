@@ -22,6 +22,7 @@ import android.view.WindowManager
 import android.view.animation.LinearInterpolator
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import android.widget.ImageView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
@@ -161,8 +162,15 @@ class MainActivity : TauriActivity() {
     installSplashScreen()
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
+    // Resolved once up front: both the splash icon below and the Recents
+    // (task switcher) card need to match whichever disguise is currently
+    // active, since neither otherwise picks that up on their own (see
+    // AppDisguise.kt).
+    val activeDisguise = AppDisguise.currentDisguise(this)
+    AppDisguise.applyTaskDescription(this, activeDisguise)
     splashDialog = Dialog(this, R.style.SplashDialogTheme).apply {
       setContentView(R.layout.splash_overlay)
+      findViewById<ImageView>(R.id.splash_icon)?.setImageResource(activeDisguise.iconRes)
       setCancelable(false)
       window?.let { win ->
         win.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)
@@ -360,7 +368,14 @@ class MainActivity : TauriActivity() {
     @JavascriptInterface
     fun setAppDisguise(id: String): Boolean {
       val identity = AppDisguise.Identity.fromId(id) ?: return false
-      return AppDisguise.applyDisguise(this@MainActivity, identity)
+      val success = AppDisguise.applyDisguise(this@MainActivity, identity)
+      if (success) {
+        // Updates the currently open Recents card immediately — the splash
+        // icon only needs to change on the *next* cold start, so that's
+        // read fresh in onCreate instead.
+        AppDisguise.applyTaskDescription(this@MainActivity, identity)
+      }
+      return success
     }
 
     @JavascriptInterface
