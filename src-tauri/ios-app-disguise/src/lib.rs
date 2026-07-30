@@ -3,7 +3,7 @@
 // FreeGrindBridge.setAppDisguise), but iOS has no way to change the
 // app's *name* at runtime (CFBundleDisplayName is fixed), only its icon —
 // see AppDisguisePlugin.swift for the actual UIApplication call.
-use serde::Deserialize;
+use serde::Serialize;
 use tauri::{
     plugin::{Builder, TauriPlugin},
     Manager, Runtime,
@@ -15,7 +15,10 @@ pub use error::{Error, Result};
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_ios_app_disguise);
 
-#[derive(Debug, Clone, Deserialize)]
+// Serialized here (Rust -> Swift, via run_mobile_plugin's payload) — the
+// mirror-image `SetAlternateIconArgs: Decodable` in AppDisguisePlugin.swift
+// is what the Swift side actually decodes.
+#[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SetAlternateIconArgs {
     /// Icon set name declared under CFBundleIcons.CFBundleAlternateIcons in
