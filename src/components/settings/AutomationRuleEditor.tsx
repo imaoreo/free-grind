@@ -11,6 +11,7 @@ import type {
 	AutomationRuleCondition,
 	AutomationTrigger,
 } from "../../utils/automationRules";
+import { getTapEmoji, tapLabel } from "../../pages/app/interest/interestUtils";
 
 // The "doesn't contain" keyword conditions aren't a distinct entry in
 // AutomationRuleCondition — they're the same type with `negate: true`. But in
@@ -50,7 +51,9 @@ const CONDITION_KINDS: ConditionKind[] = [
 	"facebook_handle_not_contains_keyword",
 ];
 
-const ACTION_KINDS: ActionKind[] = ["block", "send_message", "share_album"];
+const ACTION_KINDS: ActionKind[] = ["block", "send_message", "share_album", "send_tap"];
+
+const TAP_TYPES = [0, 1, 2];
 
 // Condition types that render as a keyword textarea (with the custom /
 // forbidden-list toggle), same UI for all of them.
@@ -135,6 +138,7 @@ function defaultAction(kind: ActionKind, firstAlbum?: Album): AutomationRuleActi
 	if (kind === "share_album") {
 		return { type: "share_album", albumId: firstAlbum ? Number(firstAlbum.albumId) : 0 };
 	}
+	if (kind === "send_tap") return { type: "send_tap", tapType: 1 };
 	return { type: "block" };
 }
 
@@ -543,9 +547,35 @@ export function AutomationRuleEditor({
 								<div className="mt-0.5 shrink-0 rounded-2xl bg-orange-500/15 p-2.5 text-orange-400">
 									{action.type === "send_message" && <MessageSquare className="h-5 w-5" />}
 									{action.type === "share_album" && <ImageIcon className="h-5 w-5" />}
+									{action.type === "send_tap" && <Flame className="h-5 w-5" />}
 								</div>
 								<div className="min-w-0 flex-1">
 									<p className="text-sm font-medium">{actionLabel(action.type)}</p>
+									{action.type === "send_tap" && (
+										<div className="mt-2 flex gap-1.5">
+											{TAP_TYPES.map((tapType) => (
+												<button
+													key={tapType}
+													type="button"
+													disabled={draft.locked}
+													onClick={() => updateAction(index, { tapType })}
+													className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+														action.tapType === tapType
+															? "bg-[var(--accent)] text-[var(--accent-contrast)]"
+															: "bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"
+													}`}
+												>
+													<span>{getTapEmoji(tapType)}</span>
+													<span>{tapLabel(tapType, t)}</span>
+												</button>
+											))}
+										</div>
+									)}
+									{action.type === "send_tap" && (
+										<p className="mt-1.5 text-xs text-[var(--text-muted)]">
+											{t("settings_automation.action_send_tap_hint")}
+										</p>
+									)}
 									{action.type === "send_message" && (
 										<textarea
 											value={action.text}

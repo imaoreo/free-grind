@@ -200,34 +200,6 @@ export function SettingsPrivacyPage() {
 					</div>
 				</div>
 
-				{/* Analytics & Discovery */}
-				<div>
-					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
-						{t("customizability.analytics.title")}
-					</p>
-					<div className="surface-card overflow-hidden">
-						<ToggleRow
-							id="privacy-analytics"
-							highlighted={highlightId === "privacy-analytics"}
-							icon={<BarChart3 className="h-5 w-5" />}
-							iconClass="bg-violet-500/15 text-violet-400"
-							label={t("customizability.analytics.title")}
-							description={t("customizability.analytics.description")}
-							checked={analyticsConsent === "granted"}
-							onChange={(checked) => {
-								const choice: AnalyticsConsentChoice = checked ? "granted" : "denied";
-								writeAnalyticsConsentChoice(choice);
-								setAnalyticsConsent(choice);
-							}}
-						/>
-						<div className="border-t border-[var(--border)] px-4 py-3">
-							<p className="text-xs text-[var(--text-muted)] leading-relaxed">
-								{t("customizability.analytics.note")}
-							</p>
-						</div>
-					</div>
-				</div>
-
 				{/* App Disguise (Android only) */}
 				{disguiseSupported && (
 					<div>
@@ -262,6 +234,34 @@ export function SettingsPrivacyPage() {
 						</div>
 					</div>
 				)}
+
+				{/* Analytics & Discovery */}
+				<div>
+					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">
+						{t("customizability.analytics.title")}
+					</p>
+					<div className="surface-card overflow-hidden">
+						<ToggleRow
+							id="privacy-analytics"
+							highlighted={highlightId === "privacy-analytics"}
+							icon={<BarChart3 className="h-5 w-5" />}
+							iconClass="bg-violet-500/15 text-violet-400"
+							label={t("customizability.analytics.title")}
+							description={t("customizability.analytics.description")}
+							checked={analyticsConsent === "granted"}
+							onChange={(checked) => {
+								const choice: AnalyticsConsentChoice = checked ? "granted" : "denied";
+								writeAnalyticsConsentChoice(choice);
+								setAnalyticsConsent(choice);
+							}}
+						/>
+						<div className="border-t border-[var(--border)] px-4 py-3">
+							<p className="text-xs text-[var(--text-muted)] leading-relaxed">
+								{t("customizability.analytics.note")}
+							</p>
+						</div>
+					</div>
+				</div>
 
 			</div>
 		</section>

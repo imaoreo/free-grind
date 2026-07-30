@@ -21,6 +21,7 @@ import {
 	type ShareAlbumPayload,
 } from "../types/chat";
 import { albumsResponseSchema, type Album } from "../types/albums";
+import { createProfileMethods } from "./api/profileMethods";
 import type {
 	AlbumDetailsResponse,
 	CreateAlbumResponse,
@@ -222,6 +223,17 @@ export function createChatService(fetchRest: RestFetcher, t: (key: string) => st
 							fetchRest(`/v3/me/blocks/${encodeURIComponent(profileId)}`, { method: "POST" }),
 						sendText: (payload: SendTextPayload) => this.sendText(payload),
 						shareAlbum: (payload: ShareAlbumPayload) => this.shareAlbum(payload),
+						tap: (profileId: string | number, tapType: number) =>
+							fetchRest("/v2/taps/add", {
+								method: "POST",
+								body: { recipientId: typeof profileId === "number" ? profileId : Number(profileId), tapType },
+							}),
+						// The inbox-preview snapshot below doesn't carry `tapped` (server
+						// truth for "already tapped, manually or otherwise") — the
+						// "send_tap" action needs a fresh fetch to check that before firing,
+						// to avoid a duplicate tap (the API rejects/ignores those and
+						// repeated attempts risk a ban).
+						getProfileDetail: (profileId: string) => createProfileMethods(fetchRest, t).getProfileDetail(profileId),
 					};
 					const profileSnapshot = {
 						age: profileAge,
