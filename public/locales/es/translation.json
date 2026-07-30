@@ -2,11 +2,11 @@
     "settings": {
         "title": "Ajustes",
         "subtitle": "Elige qué quieres gestionar.",
-        "search_placeholder": "",
-        "search_no_results": "",
-        "search_results_count_one": "",
-        "search_results_count_many": "",
-        "search_results_count_other": "",
+        "search_placeholder": "Buscando ajustes…",
+        "search_no_results": "No se encontraron configuraciones para \" {{query}} \".",
+        "search_results_count_one": "{{count}} resultado",
+        "search_results_count_many": "{{count}} resultados",
+        "search_results_count_other": "{{count}} resultados",
         "language": "Idioma",
         "language_description": "Elige tu idioma preferido.",
         "profile_editor": "Editor de perfil",
@@ -55,7 +55,8 @@
         "switched_and_updated": "Cambiado a {{channel}} y actualización aplicada. Recargando…",
         "switched_channel": "Cambiado a {{channel}}. Recargando…",
         "failed_switch_env": "Error al cambiar el entorno de actualización.",
-        "sexual_health_desc": ""
+        "sexual_health_desc": "",
+        "sexual_health": "Salud sexual."
     },
     "settings_blocked": {
         "title": "Cuentas bloqueadas",
