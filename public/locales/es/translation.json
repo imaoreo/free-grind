@@ -55,7 +55,7 @@
         "switched_and_updated": "Cambiado a {{channel}} y actualización aplicada. Recargando…",
         "switched_channel": "Cambiado a {{channel}}. Recargando…",
         "failed_switch_env": "Error al cambiar el entorno de actualización.",
-        "sexual_health_desc": "",
+        "sexual_health_desc": "Registra dosis PrEP, encuentros, pruebas y citas.",
         "sexual_health": "Salud sexual."
     },
     "settings_blocked": {
