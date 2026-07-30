@@ -50,6 +50,37 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
         CFBundleShortVersionString: 0.5.2
         CFBundleVersion: "0.5.2"
+        # App disguise (stealth mode, mirrors the Android activity-alias
+        # feature): alternate icon sets the JS side can switch to at runtime
+        # via UIApplication.setAlternateIconName (see ios-app-disguise
+        # plugin). Names here must match the App Icon asset-catalog set
+        # names (AppIcon-Calculator.appiconset etc.) — with
+        # ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS enabled below,
+        # CFBundleIconFiles only needs that one set name, not individual
+        # image filenames. There's no equivalent for the app's *name* —
+        # iOS has no supported API to change CFBundleDisplayName at runtime.
+        CFBundleIcons:
+          CFBundleAlternateIcons:
+            Calculator:
+              CFBundleIconFiles: [AppIcon-Calculator]
+              UIPrerenderedIcon: false
+            Notes:
+              CFBundleIconFiles: [AppIcon-Notes]
+              UIPrerenderedIcon: false
+            Weather:
+              CFBundleIconFiles: [AppIcon-Weather]
+              UIPrerenderedIcon: false
+        CFBundleIcons~ipad:
+          CFBundleAlternateIcons:
+            Calculator:
+              CFBundleIconFiles: [AppIcon-Calculator]
+              UIPrerenderedIcon: false
+            Notes:
+              CFBundleIconFiles: [AppIcon-Notes]
+              UIPrerenderedIcon: false
+            Weather:
+              CFBundleIconFiles: [AppIcon-Weather]
+              UIPrerenderedIcon: false
     entitlements:
       path: free-grind_iOS/free-grind_iOS.entitlements
     scheme:
@@ -65,6 +96,11 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+        # Bundles the AppIcon-Calculator/-Notes/-Weather asset-catalog icon
+        # sets too, not just the primary AppIcon — required for
+        # CFBundleAlternateIcons (see info.properties above) to resolve them
+        # by set name at runtime.
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
       groups: [app]
     dependencies:
       - framework: libapp.a
