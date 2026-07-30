@@ -1,4 +1,4 @@
-import { Album, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Eye, EyeOff, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Archive, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Eye, EyeOff, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -31,6 +31,7 @@ import {
 	getVaccineLabelMap,
 } from "../../profile-option-builders";
 import { getProfileImageUrl } from "../../../../utils/media";
+import { resolveAvatarSrc } from "../../../../services/avatarStore";
 import { getForbiddenWords, setForbiddenWords } from "../../../../utils/autoblock";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import { PromptDialog } from "../../../../components/ui/prompt-dialog";
@@ -94,6 +95,8 @@ type ProfileDetailsModalProps = {
 	isFavorite?: boolean;
 	isTogglingFavorite?: boolean;
 	isBlocked?: boolean;
+	isSnapshotProfile?: boolean;
+	isChatLinkedProfile?: boolean;
 	isBlockingProfile?: boolean;
 	isLocatingProfile?: boolean;
 	onTapProfile?: (profileId: string, tapId?: number) => void;
@@ -186,6 +189,8 @@ export function ProfileDetailsModal({
 	isFavorite = false,
 	isTogglingFavorite = false,
 	isBlocked = false,
+	isSnapshotProfile = false,
+	isChatLinkedProfile = false,
 	isBlockingProfile = false,
 	isLocatingProfile = false,
 	onTapProfile,
@@ -521,6 +526,24 @@ export function ProfileDetailsModal({
 		if (!actualProfileName) { return; }
 		setBanNamePrompt({ text: actualProfileName });
 	};
+
+	const snapshotBannerJsx = isSnapshotProfile ? (
+		<div className="px-3">
+			<div className="flex items-start gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
+				<div className="shrink-0 rounded-xl bg-[var(--surface)] p-2.5">
+					<Archive className="h-4 w-4 text-[var(--text-muted)]" />
+				</div>
+				<div className="grid gap-0.5 pt-0.5">
+					<p className="text-sm font-semibold text-[var(--text)]">
+						{t("profile_details.snapshot_banner.title")}
+					</p>
+					<p className="text-xs text-[var(--text-muted)]">
+						{t("profile_details.snapshot_banner.subtitle")}
+					</p>
+				</div>
+			</div>
+		</div>
+	) : null;
 
 	const notesSectionJsx = isFavorite && !isOwnProfile ? (
 		<div className="px-3">
@@ -963,7 +986,15 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 		if (hash === RIGHT_NOW_SLIDE_HASH) return rightNowSlideUrl ?? "";
 		if (hash === ALBUM_SLIDE_HASH) return albumStatus.coverUrl ?? "";
 		if (hash === DEFAULT_PROFILE_SLIDE_HASH) return "";
-		return getProfileImageUrl(hash, "1024x1024");
+		const url = getProfileImageUrl(hash, "1024x1024");
+		return resolveAvatarSrc(hash, url, { cache: isChatLinkedProfile, sourceUrl: url }) ?? url;
+	};
+	// Same as getSlideImageUrl but for the smaller sizes used in the shared
+	// album locked-state backdrop — kept separate since a real hash is
+	// guaranteed here (no sentinel slide hashes to special-case).
+	const getPhotoUrlAtSize = (hash: string, size: "1024x1024" | "320x320") => {
+		const url = getProfileImageUrl(hash, size);
+		return resolveAvatarSrc(hash, url, { cache: isChatLinkedProfile, sourceUrl: url }) ?? url;
 	};
 	const isRightNowSlideActive = carouselHashes[mobileCarouselPhotoIndex] === RIGHT_NOW_SLIDE_HASH;
 	carouselTotalRef.current = carouselHashes.length;
@@ -1336,7 +1367,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							the profile's own picture (or the default avatar) instead of a
 							flat black background. */}
 							<ProfileImage
-								src={primaryPhotoHash ? getProfileImageUrl(primaryPhotoHash, "1024x1024") : null}
+								src={primaryPhotoHash ? getPhotoUrlAtSize(primaryPhotoHash, "1024x1024") : null}
 								alt=""
 								className="h-full w-full scale-110 object-cover blur-2xl brightness-[0.55]"
 							/>
@@ -1354,7 +1385,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						) : (
 							<div className="h-20 w-20 overflow-hidden rounded-full ring-2 ring-white/80 shadow-xl">
 								<ProfileImage
-									src={primaryPhotoHash ? getProfileImageUrl(primaryPhotoHash, "320x320") : null}
+									src={primaryPhotoHash ? getPhotoUrlAtSize(primaryPhotoHash, "320x320") : null}
 									alt=""
 									className="h-full w-full object-cover"
 								/>
@@ -1680,7 +1711,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							bodyTypeLabels={bodyTypeLabels}
 							ethnicityLabels={ethnicityLabels}
 							relationshipStatusLabels={relationshipStatusLabels}
-							extraTopSection={notesSectionJsx}
+							extraTopSection={<>{snapshotBannerJsx}{notesSectionJsx}</>}
+							isChatLinkedProfile={isChatLinkedProfile}
 							hidePicturesSection={true}
 						/>
 					) : null}
@@ -2180,7 +2212,8 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											bodyTypeLabels={bodyTypeLabels}
 											ethnicityLabels={ethnicityLabels}
 											relationshipStatusLabels={relationshipStatusLabels}
-											extraTopSection={notesSectionJsx}
+											extraTopSection={<>{snapshotBannerJsx}{notesSectionJsx}</>}
+											isChatLinkedProfile={isChatLinkedProfile}
 											hidePicturesSection={true}
 										/>
 									) : null}

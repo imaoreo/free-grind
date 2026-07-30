@@ -40,6 +40,7 @@ import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
 import { VersionAnnouncement } from "./components/VersionAnnouncement";
 import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
 import { TestReminderGate } from "./components/TestReminderPrompt";
+import { TokenExpiredGate } from "./components/TokenExpiredPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { GridAutoRefreshBridge } from "./components/GridAutoRefreshBridge";
@@ -186,7 +187,7 @@ export default function App() {
 						<div className="app-shell">
 							<VersionAnnouncement announcement={PENDING_ANNOUNCEMENT} onClose={handleAnnouncementClose} />
 						</div>
-					) : (<OutdatedVersionGate><TestReminderGate>
+					) : (<TokenExpiredGate><OutdatedVersionGate><TestReminderGate>
 					{renderPhase >= 1 && <ManagerModeRedirect />}
 					{renderPhase >= 1 && <KeepScreenOnBridge />}
 					{renderPhase >= 2 && <PushNotificationBridge />}
@@ -284,7 +285,7 @@ export default function App() {
 							<Route path="*" element={<ErrorPage />} />
 						</Route>
 					</Routes>
-					</TestReminderGate></OutdatedVersionGate>)}
+					</TestReminderGate></OutdatedVersionGate></TokenExpiredGate>)}
 				</SmoothScroll>
 			</ExploreModeProvider>
 			</PreferencesProvider>

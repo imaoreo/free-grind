@@ -11,6 +11,7 @@ pub enum AppError {
     Api { code: i32, message: String },
     NotInitialized,
     Backup(String),
+    TokenExpired,
 }
 
 impl fmt::Display for AppError {
@@ -21,6 +22,7 @@ impl fmt::Display for AppError {
             AppError::Api { code, message } => write!(f, "API error {code}: {message}"),
             AppError::NotInitialized => write!(f, "GrindrClient not initialized"),
             AppError::Backup(msg) => write!(f, "Backup error: {msg}"),
+            AppError::TokenExpired => write!(f, "Session token expired"),
         }
     }
 }

@@ -1303,7 +1303,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 											{ state: { returnTo } },
 										);
 									}}
-									disabled={profileId == null || isArchived}
+									disabled={profileId == null}
 									aria-label="Open profile"
 									title={onlineMeta.label}
 									className={`h-10 w-10 shrink-0 overflow-hidden rounded-full border-2 bg-[var(--surface-2)] transition disabled:cursor-default disabled:opacity-80 ${
@@ -1909,7 +1909,7 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 													defaultValue: "This conversation is no longer available. You can still read the history.",
 												})
 											: t("chat.archived.blocked_or_deleted", {
-													defaultValue: "This conversation is archived. You can still read the history, but can no longer send messages or view this person's profile.",
+													defaultValue: "This conversation is archived. You can still read the history and view this person's saved profile, but can no longer send messages.",
 												})}
 									</p>
 								</div>

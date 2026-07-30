@@ -74,7 +74,9 @@ impl GrindrClient {
 
         // Proactive refresh
         if !is_auth_path {
-            let _ = self.ensure_valid_session().await;
+            if let Err(e @ AppError::TokenExpired) = self.ensure_valid_session().await {
+                return Err(e);
+            }
         }
 
         let device = self.device.read().await;
@@ -104,7 +106,9 @@ impl GrindrClient {
             // Check if the token has already been refreshed by someone else since our failed request
             let current_token = self.authorization_header().await;
             if current_token == auth_token {
-                let _ = Box::pin(self.refresh_token()).await;
+                if let Err(e @ AppError::TokenExpired) = Box::pin(self.refresh_token()).await {
+                    return Err(e);
+                }
             }
 
             let new_auth_token = self.authorization_header().await;
@@ -174,7 +178,9 @@ impl GrindrClient {
 
         // Proactive refresh
         if !is_auth_path {
-            let _ = self.ensure_valid_session().await;
+            if let Err(e @ AppError::TokenExpired) = self.ensure_valid_session().await {
+                return Err(e);
+            }
         }
 
         let is_external = path.starts_with("http");
@@ -222,7 +228,9 @@ impl GrindrClient {
 
             let current_token = self.authorization_header().await;
             if current_token == auth_token {
-                let _ = Box::pin(self.refresh_token()).await;
+                if let Err(e @ AppError::TokenExpired) = Box::pin(self.refresh_token()).await {
+                    return Err(e);
+                }
             }
 
             let new_auth_token = self.authorization_header().await;

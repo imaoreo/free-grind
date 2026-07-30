@@ -26,7 +26,14 @@ import {
 } from "./GridPage.types";
 import { getChatContactIndexForProfiles, getLocalNicknamesForProfiles } from "../../services/chatContactIndex";
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
-import { findConversationByProfileId, insertSystemMessage, listHiddenProfileIds } from "../../services/chatDb";
+import {
+	findConversationByProfileId,
+	getProfileSnapshot,
+	insertSystemMessage,
+	listHiddenProfileIds,
+	saveProfileSnapshot,
+} from "../../services/chatDb";
+import { profileDetailItemSchema } from "../../types/grid";
 import { hideProfile as hideProfileLocally, unhideProfile as unhideProfileLocally } from "../../services/profileHide";
 import { unarchiveConversation, claimBlockStateTransition } from "../../services/conversationArchive";
 import { appLog } from "../../utils/logger";
@@ -111,6 +118,7 @@ export function GridProfilePage() {
 	const [isLocatingProfile, setIsLocatingProfile] = useState(false);
 	const [chatContactStatus, setChatContactStatus] = useState<ChatContactIndexRecord | null>(null);
 	const [localNickname, setLocalNickname] = useState<string | null>(null);
+	const [isSnapshotProfile, setIsSnapshotProfile] = useState(false);
 
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
@@ -249,18 +257,30 @@ export function GridProfilePage() {
 			setActiveProfile(null);
 			setActiveProfileError(t("api.errors.invalid_profile_id"));
 			setIsLoadingActiveProfile(false);
+			setIsSnapshotProfile(false);
 			return;
 		}
 
 		let cancelled = false;
+		setIsSnapshotProfile(false);
 
 		void apiFunctions.recordProfileView(profileId);
+
+		const loadLocalSnapshot = async (): Promise<ProfileDetail | null> => {
+			const stored = await getProfileSnapshot(profileId).catch(() => null);
+			if (!stored) {
+				return null;
+			}
+			const parsed = profileDetailItemSchema.safeParse(JSON.parse(stored.data));
+			return parsed.success ? parsed.data : null;
+		};
 
 		const loadProfileDetails = async () => {
 			const cachedProfile = getCachedProfileDetail(profileId);
 
 			if (cachedProfile) {
 				setActiveProfile(cachedProfile);
+				setIsSnapshotProfile(false);
 				setIsLoadingActiveProfile(false);
 			} else {
 				setIsLoadingActiveProfile(true);
@@ -272,19 +292,43 @@ export function GridProfilePage() {
 				const parsed = await apiFunctions.getProfileDetail(profileId);
 
 				if (!cancelled) {
-					setActiveProfile(parsed);
-					setCachedProfileDetail(profileId, parsed);
 					// GET /v7/profiles/:id always returns 200, even for a blocked or
 					// deleted profile — it comes back as a stub (see
 					// classifyProfileAccess). A successful fetch alone is therefore
 					// NOT evidence of being unblocked — only a real profile is.
 					if (classifyProfileAccess(parsed) === "accessible") {
+						setActiveProfile(parsed);
+						setIsSnapshotProfile(false);
+						setCachedProfileDetail(profileId, parsed);
+						void saveProfileSnapshot(profileId, JSON.stringify(parsed)).catch((error) => {
+							appLog.warn("[grid-profile] failed to persist profile snapshot", error);
+						});
 						unarchiveConversationIfArchived(profileId);
+					} else {
+						// Live data is just the blocked/gone stub — prefer the last
+						// known-good local snapshot over showing a blank profile, if
+						// one exists.
+						const snapshot = await loadLocalSnapshot();
+						if (!cancelled) {
+							if (snapshot) {
+								setActiveProfile(snapshot);
+								setIsSnapshotProfile(true);
+							} else {
+								setActiveProfile(parsed);
+								setIsSnapshotProfile(false);
+							}
+						}
 					}
 				}
 			} catch (error) {
-				if (!cancelled) {
-					if (!cachedProfile) {
+				if (!cancelled && !cachedProfile) {
+					// No fresh in-memory data already on screen — try the durable
+					// snapshot before giving up and showing an error.
+					const snapshot = await loadLocalSnapshot();
+					if (!cancelled && snapshot) {
+						setActiveProfile(snapshot);
+						setIsSnapshotProfile(true);
+					} else if (!cancelled) {
 						setActiveProfile(null);
 						setActiveProfileError(
 							error instanceof Error
@@ -701,6 +745,8 @@ export function GridProfilePage() {
 					profileId && mutatingFavoriteProfileId === profileId,
 				)}
 				isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
+				isSnapshotProfile={isSnapshotProfile}
+				isChatLinkedProfile={Boolean(chatContactStatus?.hasChatted)}
 				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
 				isLocatingProfile={isLocatingProfile}
 				onTapProfile={handleTapProfile}

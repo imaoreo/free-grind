@@ -1481,6 +1481,10 @@
     "profile_id": "Profile ID",
     "profile_id_copied": "Profile ID copied to clipboard",
     "estimated_joined": "Joined {{date}} (estimated)",
+    "snapshot_banner": {
+      "title": "Showing saved profile",
+      "subtitle": "This person's live profile isn't available right now, so you're seeing the last info saved from your device."
+    },
     "tap_profile": "Tap profile",
     "tap_sent_recent": "Tap already sent in the last 24 hours",
     "tap_active": "Tap active",
@@ -1792,6 +1796,11 @@
     "skip": "Skip for now",
     "saved": "Test date updated",
     "save_failed": "Could not update your test date."
+  },
+  "token_expired": {
+    "title": "Session Expired",
+    "description": "Your login token has expired. Please sign in again to continue.",
+    "sign_out": "Sign In Again"
   },
   "sexualHealth": {
     "title": "Sexual Health",

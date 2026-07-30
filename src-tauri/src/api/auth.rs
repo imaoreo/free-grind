@@ -949,6 +949,17 @@ impl GrindrClient {
             .as_ref()
             .ok_or_else(|| AppError::Auth("Not logged in".to_owned()))?;
 
+        // JWT-only fallback sessions (see login_with_jwt) have no real authToken to
+        // refresh with — they just resend their own session_id (the original
+        // third-party JWT) as the authToken. Once that JWT's own expiry has passed
+        // there is nothing left to try, so short-circuit with a distinguishable
+        // error instead of round-tripping a request that Grindr will reject anyway.
+        if session.auth_token.is_empty()
+            && session.expires_at <= chrono::Utc::now().timestamp() as u64
+        {
+            return Err(AppError::TokenExpired);
+        }
+
         // For JWT-only sessions (no authToken), use the current session_id as the authToken.
         // Grindr validates via the Authorization header; this mirrors how the initial
         // JWT exchange is attempted in login_with_jwt.
@@ -1143,7 +1154,9 @@ pub async fn websocket_token(
     };
 
     if needs_refresh {
-        let _ = client.refresh_token().await;
+        if let Err(e @ AppError::TokenExpired) = client.refresh_token().await {
+            return Err(e);
+        }
     }
 
     let session = client.session.read().await;

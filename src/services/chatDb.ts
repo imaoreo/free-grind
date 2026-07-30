@@ -493,6 +493,20 @@ async function getDb(): Promise<Database> {
 						hidden_at INTEGER NOT NULL
 					)
 				`);
+
+				// Durable last-known-good snapshot of a full profile detail response,
+				// refreshed every time a live fetch resolves to an actual profile
+				// (not the blocked/gone stub — see classifyProfileAccess). Lets the
+				// profile page still show real info for a conversation whose profile
+				// can no longer be fetched live (archived via block/delete), instead
+				// of only being reachable while the profile is still live.
+				await db.execute(`
+					CREATE TABLE IF NOT EXISTS profile_snapshots (
+						profile_id TEXT PRIMARY KEY,
+						data TEXT NOT NULL,
+						updated_at INTEGER NOT NULL
+					)
+				`);
 			});
 
 			return db;
@@ -1024,6 +1038,51 @@ export async function listHiddenProfiles(): Promise<StoredHiddenProfile[]> {
 		avatarMediaHash: row.avatar_media_hash,
 		hiddenAt: row.hidden_at,
 	}));
+}
+
+/**
+ * Persists the last known-good full profile detail payload (as raw JSON —
+ * this layer doesn't know the ProfileDetail shape, the caller validates it on
+ * read) so it can still be shown once the profile is no longer reachable
+ * live, e.g. after the other person blocks you or deletes their account.
+ * Callers should only save here for an actually-accessible profile, never
+ * the blocked/gone stub, so a stub response never overwrites a good snapshot.
+ */
+export async function saveProfileSnapshot(profileId: string, json: string): Promise<void> {
+	const db = await getDb();
+	const now = Date.now();
+
+	await executeWithLockRetry(db, "save-profile-snapshot", async () => {
+		await db.execute(
+			`
+			INSERT INTO profile_snapshots (profile_id, data, updated_at)
+			VALUES ($1, $2, $3)
+			ON CONFLICT(profile_id) DO UPDATE SET
+				data = excluded.data,
+				updated_at = excluded.updated_at
+			`,
+			[profileId, json, now],
+		);
+	});
+}
+
+export type StoredProfileSnapshot = {
+	profileId: string;
+	data: string;
+	updatedAt: number;
+};
+
+export async function getProfileSnapshot(profileId: string): Promise<StoredProfileSnapshot | null> {
+	const db = await getDb();
+	const rows = await db.select<{ profile_id: string; data: string; updated_at: number }[]>(
+		"SELECT profile_id, data, updated_at FROM profile_snapshots WHERE profile_id = $1",
+		[profileId],
+	);
+	const row = rows[0];
+	if (!row) {
+		return null;
+	}
+	return { profileId: row.profile_id, data: row.data, updatedAt: row.updated_at };
 }
 
 /**

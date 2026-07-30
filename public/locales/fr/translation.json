@@ -1494,6 +1494,10 @@
     "profile_id": "ID de profil",
     "profile_id_copied": "ID de profil copié dans le presse-papiers",
     "estimated_joined": "A rejoint le {{date}} (estimation)",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "Envoyer un Tap",
     "tap_sent_recent": "Un Tap a déjà été envoyé au cours des dernières 24h",
     "tap_active": "Tap actif",
@@ -1806,6 +1810,11 @@
     "skip": "Ignorer pour l'instant",
     "saved": "Date du test mise à jour",
     "save_failed": "Impossible de mettre à jour la date du test."
+  },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
   },
   "profile_photo_drawer": {
     "title": "Vos photos",

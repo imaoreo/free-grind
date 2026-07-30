@@ -43,6 +43,7 @@ import {
 } from "../utils";
 import { reverseGeocodeCityDistrictForGeohash } from "../geocoding";
 import { getProfileImageUrl, getThumbImageUrl } from "../../../../utils/media";
+import { resolveAvatarSrc } from "../../../../services/avatarStore";
 import { ProfileImage } from "../../../../components/ui/profile-image";
 import { RightNowIcon } from "../../../../components/icons/RightNowIcon";
 import freegrindLogo from "../../../../images/freegrind-logo.webp";
@@ -167,6 +168,7 @@ type ProfileDetailsContentProps = {
 	extraTopSection?: ReactNode;
 	hidePicturesSection?: boolean;
 	onDragDeltaChange?: (delta: number) => void;
+	isChatLinkedProfile?: boolean;
 };
 
 export function ProfileDetailsContent({
@@ -218,8 +220,16 @@ export function ProfileDetailsContent({
 	extraTopSection,
 	hidePicturesSection = false,
 	onDragDeltaChange,
+	isChatLinkedProfile = false,
 }: ProfileDetailsContentProps) {
 	const { t } = useTranslation();
+	// Only chat partners get their photos locally cached (see avatarStore.ts) —
+	// ordinary Grid/Browse viewing stays uncached to avoid storing every photo
+	// of every profile a user swipes past.
+	const photoSrc = (hash: string, size: "1024x1024" | "320x320") => {
+		const url = size === "1024x1024" ? getProfileImageUrl(hash, size) : getThumbImageUrl(hash, size);
+		return resolveAvatarSrc(hash, url, { cache: isChatLinkedProfile, sourceUrl: url }) ?? url;
+	};
 	const { unitsPreset } = usePreferences();
 	const hasChatHistory = Boolean(chatContactStatus?.hasChatted) || (chatContactStatus?.unreadCount ?? 0) > 0;
 	const lastMessageLabel = formatRelativeTime(chatContactStatus?.lastMessageTimestamp ?? null);
@@ -384,7 +394,7 @@ export function ProfileDetailsContent({
 													aria-label={t("profile_details.open_photo", { index: index + 1 })}
 												/>
 												<img
-													src={getProfileImageUrl(hash, "1024x1024")}
+													src={photoSrc(hash, "1024x1024")}
 													alt={t("profile_details.photo_alt", { name: activeProfileName })}
 													className="h-full w-full object-cover"
 												/>
@@ -425,7 +435,7 @@ export function ProfileDetailsContent({
 										>
 											<div className="relative">
 												<img
-													src={getThumbImageUrl(hash, "320x320")}
+													src={photoSrc(hash, "320x320")}
 													alt={t("profile_details.photo_alt", { name: activeProfileName })}
 													className="aspect-square w-full object-cover"
 												/>
@@ -447,7 +457,7 @@ export function ProfileDetailsContent({
 									>
 										<div className="relative">
 											<img
-												src={getThumbImageUrl(hash, "320x320")}
+												src={photoSrc(hash, "320x320")}
 												alt={t("profile_details.photo_alt", { name: activeProfileName })}
 												className="aspect-square w-full object-cover"
 											/>

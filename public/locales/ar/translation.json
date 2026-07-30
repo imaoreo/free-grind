@@ -1532,6 +1532,10 @@
         "profile_id": "الملف الشخصي",
         "profile_id_copied": "تم نسخ معرّف الملف الشخصي إلى الحافظة",
         "estimated_joined": "تاريخ الانضمام (تقديري)",
+        "snapshot_banner": {
+          "title": "",
+          "subtitle": ""
+        },
         "tap_profile": "ملف تعريف النقر",
         "tap_sent_recent": "تم إرسال النقرة بالفعل خلال الـ 24 ساعة الماضية",
         "tap_active": "تاب نشط",
@@ -1842,6 +1846,11 @@
         "skip": "",
         "saved": "",
         "save_failed": ""
+    },
+    "token_expired": {
+      "title": "",
+      "description": "",
+      "sign_out": ""
     },
     "sexualHealth": {
         "title": "",

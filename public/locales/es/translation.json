@@ -1485,6 +1485,10 @@
     "profile_id": "",
     "profile_id_copied": "",
     "estimated_joined": "",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "Tap perfil",
     "tap_sent_recent": "Un tap ya se envió en las últimas 24 horas",
     "tap_active": "Tap activo",
@@ -1797,6 +1801,11 @@
     "skip": "Omitir por ahora",
     "saved": "Fecha de prueba actualizada",
     "save_failed": "No se pudo actualizar la fecha de la prueba."
+  },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
   },
   "profile_photo_drawer": {
     "title": "",

@@ -1471,6 +1471,10 @@
     "profile_id": "",
     "profile_id_copied": "",
     "estimated_joined": "",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "",
     "tap_sent_recent": "",
     "tap_active": "",
@@ -1782,6 +1786,11 @@
     "skip": "",
     "saved": "",
     "save_failed": ""
+  },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
   },
   "profile_photo_drawer": {
     "title": "",
