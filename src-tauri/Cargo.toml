@@ -1,6 +1,6 @@
 [package]
 name = "free-grind"
-version = "0.5.3"
+version = "0.5.4"
 description = "Free Grind is a Grindr Client"
 authors = ["Jay Brammeld <jay@imaoreo.dev>"]
 edition = "2021"
@@ -53,6 +53,9 @@ wreq = { version = "5.3", features = ["gzip", "json"] }
 reqwest = { version = "0.12", features = ["json", "blocking"], default-features = false }
 tauri-plugin-hotswap = { path = "hotswap-patched" }
 rustls = { version = "0.23", features = ["ring"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+base64 = "0.22"
 
 # Platform-specific dependencies
 [target.'cfg(target_os = "windows")'.dependencies]

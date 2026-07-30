@@ -164,24 +164,3 @@ export type DownloadedMediaEntry = {
 	savedAt: number;
 };
 
-export type FullDbExport = {
-	version: 1;
-	exportedAt: number;
-	ownerUserId: number;
-	tables: {
-		conversations: Record<string, unknown>[];
-		conversation_meta: Record<string, unknown>[];
-		messages: Record<string, unknown>[];
-		media_files: Record<string, unknown>[];
-		albums: Record<string, unknown>[];
-		album_media: Record<string, unknown>[];
-		avatars: Record<string, unknown>[];
-		settings: Record<string, unknown>[];
-		saved_phrases: Record<string, unknown>[];
-		saved_locations: Record<string, unknown>[];
-		sexual_health_prep_doses: Record<string, unknown>[];
-		sexual_health_encounters: Record<string, unknown>[];
-		sexual_health_appointments: Record<string, unknown>[];
-		sexual_health_sti_tests: Record<string, unknown>[];
-	};
-};

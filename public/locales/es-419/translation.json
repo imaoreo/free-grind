@@ -33,6 +33,8 @@
     "my_albums_desc": "Crea, renombra y elimina álbumes privados.",
     "blocked_accounts": "Cuentas bloqueadas",
     "blocked_accounts_desc": "Mira a quién has bloqueado y desbloquéalos en cualquier momento.",
+    "hidden_profiles": "",
+    "hidden_profiles_desc": "",
     "block_history": "Actividad de Bloqueo",
     "block_history_desc": "Historial de bloqueos y desbloqueos.",
     "export_chat": "Exportar datos de chat",
@@ -68,6 +70,27 @@
     "count_one": "{{count}} cuenta bloqueada",
     "count_many": "{{count}} Cuentas bloquedas",
     "count_other": "{{count}} cuentas bloqueadas"
+  },
+  "settings_hidden": {
+    "title": "",
+    "subtitle": "",
+    "loading": "",
+    "error_load": "",
+    "empty": "",
+    "empty_desc": "",
+    "refresh": "",
+    "refreshing": "",
+    "profile_id": "",
+    "section_label": "",
+    "name_fallback": "",
+    "unhide": "",
+    "unhide_all_title": "",
+    "unhide_all_desc": "",
+    "unhide_all_confirm": "",
+    "unhiding_all": "",
+    "unhide_all_success": "",
+    "unhide_all_failed": "",
+    "cancel": ""
   },
   "settings_block_history": {
     "title": "Actividad de Bloqueo",
@@ -1447,6 +1470,8 @@
     "message": "Mensaje",
     "block": "Bloquear",
     "unblock": "Desbloquear",
+    "hide": "",
+    "unhide": "",
     "unfavorite": "Quitar de favoritos",
     "block_in_progress": "Bloqueando...",
     "unblock_in_progress": "Desbloqueando...",
@@ -1457,6 +1482,8 @@
     "unblock_success": "Perfil desbloqueado",
     "block_failed": "Error al bloquear perfil",
     "unblock_failed": "Error al desbloquear perfil",
+    "hide_success": "",
+    "unhide_success": "",
     "visiting": "Visitando",
     "roaming": "Roaming",
     "chat_history": "Chat history",
@@ -1467,6 +1494,10 @@
     "profile_id": "ID de Perfil",
     "profile_id_copied": "ID del perfil copiado en portapapeles",
     "estimated_joined": "Se unió el {{date}} (estimado)",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "Tap perfil",
     "tap_sent_recent": "Un tap ya se envió en las últimas 24 horas",
     "tap_active": "Tap activo",
@@ -1780,6 +1811,11 @@
     "saved": "Fecha de prueba actualizada",
     "save_failed": "No se pudo actualizar la fecha de la prueba."
   },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
+  },
   "profile_photo_drawer": {
     "title": "Tus fotos",
     "description": "Selecciona las fotos que quieras añadir a tu perfil o sube otras nuevas.",
@@ -1941,5 +1977,33 @@
       "on_demand_desc": "Toma 2 pastillas entre 2 y 24 horas antes de tener relaciones sexuales, luego 1 pastilla 24 horas después de la primera dosis y, finalmente, 1 pastilla 48 horas después de la primera dosis. Registra cada paso a medida que lo sigas y la pestaña de PrEP hará un seguimiento de tu cobertura.",
       "footer": "Esta es una herramienta de seguimiento personal. No sustituye el consejo médico; consulte con un profesional de la salud para determinar qué es lo más adecuado para usted."
     }
+  },
+  "data_backup": {
+    "category_chat_messages": "",
+    "category_media_albums": "",
+    "category_saved_phrases": "",
+    "category_saved_locations": "",
+    "category_settings": "",
+    "category_sexual_health": "",
+    "export_no_categories": "",
+    "export_categories_title": "",
+    "export_confirm": "",
+    "import_categories_title": "",
+    "import_categories_desc": "",
+    "import_confirm": ""
+  },
+  "restore_offer": {
+    "title": "",
+    "item_title": "",
+    "description": "",
+    "choose_file": "",
+    "skip": "",
+    "categories_title": "",
+    "categories_desc": "",
+    "confirm": "",
+    "import_wrong_owner": "",
+    "import_invalid": "",
+    "import_success": "",
+    "import_failed": ""
   }
 }

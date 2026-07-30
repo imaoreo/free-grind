@@ -41,6 +41,7 @@
 			]
 		},
 		"fs:allow-appcache-write-recursive",
+		"fs:allow-appcache-read-recursive",
 		"geolocation:allow-check-permissions",
 		"geolocation:allow-request-permissions",
 		"geolocation:allow-get-current-position",

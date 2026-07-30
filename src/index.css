@@ -472,6 +472,45 @@
 	[role="button"]:not([aria-disabled="true"]) {
 		cursor: pointer;
 	}
+
+	/* Every WebView engine this app targets ships its own default scrollbar
+	   (thick + high-contrast on Windows' WebView2, GTK's own on Linux) that
+	   doesn't match the app's surfaces — style it globally instead of per
+	   container. `scrollbar-color`/`-width` cover Firefox-derived engines,
+	   the `::-webkit-scrollbar-*` pseudo-elements cover Chromium (WebView2,
+	   Android) and WebKit (macOS/iOS); both are harmless no-ops wherever
+	   unsupported. Containers that intentionally hide their scrollbar
+	   (horizontal chip rows etc.) already opt out via
+	   `[scrollbar-width:none]` + `[&::-webkit-scrollbar]:hidden` and win
+	   over this since they're more specific. */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--border) transparent;
+	}
+
+	*::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	*::-webkit-scrollbar-thumb {
+		background-color: var(--border);
+		border: 2px solid transparent;
+		border-radius: 999px;
+		background-clip: padding-box;
+	}
+
+	*::-webkit-scrollbar-thumb:hover {
+		background-color: var(--text-muted);
+	}
+
+	*::-webkit-scrollbar-corner {
+		background: transparent;
+	}
 }
 
 @layer utilities {

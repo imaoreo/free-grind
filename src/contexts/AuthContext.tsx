@@ -57,20 +57,23 @@ type AuthAction =
 	| { type: "CLEAR_USER" }
 	| { type: "SET_LOADING"; payload: boolean }
 	| { type: "SET_ERROR"; payload: string | null }
-	| { type: "SET_SETTINGS_READY"; payload: boolean };
+	| { type: "SET_SETTINGS_READY"; payload: boolean }
+	| { type: "SET_TOKEN_EXPIRED"; payload: boolean };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
 	switch (action.type) {
 		case "SET_USER":
-			return { ...state, userId: action.payload, error: null };
+			return { ...state, userId: action.payload, error: null, tokenExpired: false };
 		case "CLEAR_USER":
-			return { ...state, userId: null };
+			return { ...state, userId: null, tokenExpired: false };
 		case "SET_LOADING":
 			return { ...state, isLoading: action.payload };
 		case "SET_ERROR":
 			return { ...state, error: action.payload };
 		case "SET_SETTINGS_READY":
 			return { ...state, settingsReady: action.payload };
+		case "SET_TOKEN_EXPIRED":
+			return { ...state, tokenExpired: action.payload };
 		default:
 			return state;
 	}
@@ -82,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		isLoading: true,
 		error: null,
 		settingsReady: false,
+		tokenExpired: false,
 	});
 
 	const { callMethod, asAppError } = useApi();
@@ -343,6 +347,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		void apiFunctions.registerPresence(state.userId);
 	}, [state.userId, state.isLoading, apiFunctions]);
+
+	// A third-party (JWT) login's token has no real refresh mechanism, so once it
+	// expires any authenticated API call anywhere in the app can be the one that
+	// first surfaces it (see useApi.ts's asAppError). Listen globally rather than
+	// only reacting to calls made from within this context.
+	useEffect(() => {
+		const onTokenExpired = () => {
+			dispatch({ type: "SET_TOKEN_EXPIRED", payload: true });
+		};
+
+		window.addEventListener("fg:token-expired", onTokenExpired);
+		return () => {
+			window.removeEventListener("fg:token-expired", onTokenExpired);
+		};
+	}, []);
 
 	// Receive Android native FCM token and sync it to Grindr once authenticated.
 	useEffect(() => {

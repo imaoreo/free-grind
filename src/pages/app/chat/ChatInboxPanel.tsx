@@ -199,13 +199,13 @@ function ConversationContextMenu({
 		<div
 			ref={menuRef}
 			style={{ top: position.top, left: position.left }}
-			className="fixed z-[70] min-w-[190px] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface)] py-1 shadow-2xl"
+			className="fixed z-[70] flex min-w-[190px] flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
 		>
 			{!isArchived && (
 				<button
 					type="button"
 					onClick={onTogglePin}
-					className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+					className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
 				>
 					{isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
 					{isPinned ? t("chat.unpin") : t("chat.pin")}
@@ -214,17 +214,18 @@ function ConversationContextMenu({
 			<button
 				type="button"
 				onClick={onToggleHide}
-				className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+				className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
 			>
 				{isHidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
 				{isHidden
 					? t("chat.unhide_conversation", { defaultValue: "Unhide" })
 					: t("chat.hide_conversation", { defaultValue: "Hide" })}
 			</button>
+			<div className="-mx-2 mt-1 border-t border-[var(--border)] pt-1" />
 			<button
 				type="button"
 				onClick={onDelete}
-				className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-500 transition hover:bg-[var(--surface-2)]"
+				className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm text-red-500 transition hover:bg-red-500/10"
 			>
 				<Trash2 className="h-4 w-4" />
 				{t("chat.delete_conversation")}
@@ -439,10 +440,8 @@ function ChatConversationRow({
 						aria-label={displayName}
 						onClick={(e) => {
 							e.stopPropagation();
-							if (isArchived) return;
 							if (otherParticipant?.profileId) onViewProfile(otherParticipant.profileId);
 						}}
-						disabled={isArchived}
 						className="relative shrink-0 disabled:cursor-default disabled:opacity-80"
 					>
 						<div className="h-14 w-14 squircle bg-[var(--surface-2)] drop-shadow-sm">

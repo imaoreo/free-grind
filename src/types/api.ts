@@ -74,7 +74,7 @@ export const methodSchemas = {
 export type MethodName = keyof typeof methodSchemas;
 
 export interface AppError {
-	kind: "Http" | "Auth" | "Api" | "NotInitialized";
+	kind: "Http" | "Auth" | "Api" | "NotInitialized" | "TokenExpired";
 	message?: string | { code: number; message: string };
 	prettyMessage: string;
 }

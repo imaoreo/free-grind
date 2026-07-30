@@ -205,6 +205,7 @@ type MessageContextMenuAction = {
 	onClick: () => void;
 	danger?: boolean;
 	disabled?: boolean;
+	separatorBefore?: boolean;
 };
 
 // Same fixed+portal+viewport-clamp+outside-click pattern as
@@ -262,23 +263,25 @@ function MessageContextMenu({
 			className="fixed z-[70] flex min-w-[200px] flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2 shadow-2xl"
 		>
 			{actions.map((action) => (
-				<button
-					key={action.key}
-					type="button"
-					disabled={action.disabled}
-					onClick={() => {
-						onClose();
-						action.onClick();
-					}}
-					className={`flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
-						action.danger
-							? "text-red-500 hover:bg-red-500/10"
-							: "text-[var(--text)] hover:bg-[var(--surface-2)]"
-					}`}
-				>
-					{action.icon}
-					{action.label}
-				</button>
+				<Fragment key={action.key}>
+					{action.separatorBefore && <div className="-mx-2 mt-1 border-t border-[var(--border)] pt-1" />}
+					<button
+						type="button"
+						disabled={action.disabled}
+						onClick={() => {
+							onClose();
+							action.onClick();
+						}}
+						className={`flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm transition disabled:cursor-default disabled:opacity-50 ${
+							action.danger
+								? "text-red-500 hover:bg-red-500/10"
+								: "text-[var(--text)] hover:bg-[var(--surface-2)]"
+						}`}
+					>
+						{action.icon}
+						{action.label}
+					</button>
+				</Fragment>
 			))}
 		</div>,
 		document.body,
@@ -812,6 +815,7 @@ export function ChatThreadMessages({
 			onClick: () => void handleDelete(message),
 			disabled: isMutating,
 			danger: true,
+			separatorBefore: true,
 		});
 
 		return actions;

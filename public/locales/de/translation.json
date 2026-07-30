@@ -32,6 +32,8 @@
     "my_albums_desc": "Private Alben erstellen, umbenennen und löschen.",
     "blocked_accounts": "Blockierte Konten",
     "blocked_accounts_desc": "Sieh, wen du blockiert hast, und entsperre sie jederzeit wieder.",
+    "hidden_profiles": "",
+    "hidden_profiles_desc": "",
     "block_history": "Block-Verlauf",
     "block_history_desc": "Sieh, wer dich blockiert oder entsperrt hat, und wann.",
     "export_chat": "Chat-Daten exportieren",
@@ -64,6 +66,27 @@
     "profile_id": "Profil-ID: {{id}}",
     "count_one": "{{count}} blockiertes Konto",
     "count_other": "{{count}} blockierte Konten"
+  },
+  "settings_hidden": {
+    "title": "",
+    "subtitle": "",
+    "loading": "",
+    "error_load": "",
+    "empty": "",
+    "empty_desc": "",
+    "refresh": "",
+    "refreshing": "",
+    "profile_id": "",
+    "section_label": "",
+    "name_fallback": "",
+    "unhide": "",
+    "unhide_all_title": "",
+    "unhide_all_desc": "",
+    "unhide_all_confirm": "",
+    "unhiding_all": "",
+    "unhide_all_success": "",
+    "unhide_all_failed": "",
+    "cancel": ""
   },
   "settings_block_history": {
     "title": "Block-Verlauf",
@@ -1424,6 +1447,8 @@
     "message": "Nachricht",
     "block": "Blockieren",
     "unblock": "Entsperren",
+    "hide": "",
+    "unhide": "",
     "unfavorite": "Entfavorisieren",
     "block_in_progress": "Wird blockiert...",
     "unblock_in_progress": "Wird entsperrt...",
@@ -1434,6 +1459,8 @@
     "unblock_success": "Profil entsperrt",
     "block_failed": "Profil konnte nicht blockiert werden",
     "unblock_failed": "Profil konnte nicht entsperrt werden",
+    "hide_success": "",
+    "unhide_success": "",
     "visiting": "Auf Besuch",
     "roaming": "Unterwegs",
     "chat_history": "Chat-Verlauf",
@@ -1444,6 +1471,10 @@
     "profile_id": "Profil-ID",
     "profile_id_copied": "",
     "estimated_joined": "Beigetreten {{date}} (geschätzt)",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "Profil antippen",
     "tap_sent_recent": "Tap in den letzten 24 Stunden bereits gesendet",
     "tap_active": "Tap aktiv",
@@ -1756,6 +1787,11 @@
     "saved": "Testdatum aktualisiert",
     "save_failed": "Testdatum konnte nicht aktualisiert werden."
   },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
+  },
   "profile_photo_drawer": {
     "title": "",
     "description": "",
@@ -1771,5 +1807,33 @@
     "add_selected": "",
     "adding": "",
     "nudity_notice": ""
+  },
+  "data_backup": {
+    "category_chat_messages": "",
+    "category_media_albums": "",
+    "category_saved_phrases": "",
+    "category_saved_locations": "",
+    "category_settings": "",
+    "category_sexual_health": "",
+    "export_no_categories": "",
+    "export_categories_title": "",
+    "export_confirm": "",
+    "import_categories_title": "",
+    "import_categories_desc": "",
+    "import_confirm": ""
+  },
+  "restore_offer": {
+    "title": "",
+    "item_title": "",
+    "description": "",
+    "choose_file": "",
+    "skip": "",
+    "categories_title": "",
+    "categories_desc": "",
+    "confirm": "",
+    "import_wrong_owner": "",
+    "import_invalid": "",
+    "import_success": "",
+    "import_failed": ""
   }
 }

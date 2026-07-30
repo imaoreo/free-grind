@@ -34,6 +34,8 @@
     "my_albums_desc": "Create, rename, and delete private albums.",
     "blocked_accounts": "Blocked Accounts",
     "blocked_accounts_desc": "See who you blocked and unblock them anytime.",
+    "hidden_profiles": "Hidden Profiles",
+    "hidden_profiles_desc": "See who you hid from the grid and unhide them anytime.",
     "block_history": "Block Activity",
     "block_history_desc": "See who has blocked or unblocked you, and when.",
     "export_chat": "Export Chat Data",
@@ -66,6 +68,27 @@
     "profile_id": "Profile ID: {{id}}",
     "count_one": "{{count}} blocked account",
     "count_other": "{{count}} blocked accounts"
+  },
+  "settings_hidden": {
+    "title": "Hidden Profiles",
+    "subtitle": "Profiles you hide are filtered out of the grid, but can still message and see you.",
+    "loading": "Loading hidden profiles...",
+    "error_load": "Failed to load hidden profiles",
+    "empty": "You have not hidden anyone.",
+    "empty_desc": "Profiles you hide from the grid will show up here.",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "profile_id": "Profile ID: {{id}}",
+    "section_label": "Hidden",
+    "name_fallback": "Someone",
+    "unhide": "Unhide",
+    "unhide_all_title": "Unhide All",
+    "unhide_all_desc": "Show all hidden profiles on the grid again.",
+    "unhide_all_confirm": "This will unhide all hidden profiles. Are you sure?",
+    "unhiding_all": "Unhiding...",
+    "unhide_all_success": "All profiles unhidden.",
+    "unhide_all_failed": "Failed to unhide all profiles.",
+    "cancel": "Cancel"
   },
   "settings_block_history": {
     "title": "Block Activity",
@@ -1434,6 +1457,8 @@
     "message": "Message",
     "block": "Block",
     "unblock": "Unblock",
+    "hide": "Hide from grid",
+    "unhide": "Unhide from grid",
     "unfavorite": "Unfavorite",
     "block_in_progress": "Blocking...",
     "unblock_in_progress": "Unblocking...",
@@ -1444,6 +1469,8 @@
     "unblock_success": "Profile unblocked",
     "block_failed": "Failed to block profile",
     "unblock_failed": "Failed to unblock profile",
+    "hide_success": "Profile hidden from grid",
+    "unhide_success": "Profile unhidden",
     "visiting": "Visiting",
     "roaming": "Roaming",
     "chat_history": "Chat history",
@@ -1454,6 +1481,10 @@
     "profile_id": "Profile ID",
     "profile_id_copied": "Profile ID copied to clipboard",
     "estimated_joined": "Joined {{date}} (estimated)",
+    "snapshot_banner": {
+      "title": "Showing saved profile",
+      "subtitle": "This person's live profile isn't available right now, so you're seeing the last info saved from your device."
+    },
     "tap_profile": "Tap profile",
     "tap_sent_recent": "Tap already sent in the last 24 hours",
     "tap_active": "Tap active",
@@ -1766,6 +1797,11 @@
     "saved": "Test date updated",
     "save_failed": "Could not update your test date."
   },
+  "token_expired": {
+    "title": "Session Expired",
+    "description": "Your login token has expired. Please sign in again to continue.",
+    "sign_out": "Sign In Again"
+  },
   "sexualHealth": {
     "title": "Sexual Health",
     "subtitle": "Tracking · reminders · history",
@@ -1923,5 +1959,33 @@
     "add_selected": "Add ({{count}})",
     "adding": "Adding…",
     "nudity_notice": "No full nudity allowed. Photos that violate this may be rejected or lead to account restrictions."
+  },
+  "data_backup": {
+    "category_chat_messages": "Chat messages",
+    "category_media_albums": "Media & albums",
+    "category_saved_phrases": "Saved phrases",
+    "category_saved_locations": "Saved locations",
+    "category_settings": "Settings",
+    "category_sexual_health": "Sexual health",
+    "export_no_categories": "Choose at least one category to export.",
+    "export_categories_title": "What do you want to export?",
+    "export_confirm": "Export",
+    "import_categories_title": "What do you want to restore?",
+    "import_categories_desc": "Only categories present in this file can be restored.",
+    "import_confirm": "Restore"
+  },
+  "restore_offer": {
+    "title": "Restore your data?",
+    "item_title": "Have a backup file?",
+    "description": "If you have a backup file from this account, you can restore your conversations, media, and settings now.",
+    "choose_file": "Choose backup file",
+    "skip": "Skip for now",
+    "categories_title": "What do you want to restore?",
+    "categories_desc": "Only categories present in this file can be restored.",
+    "confirm": "Restore",
+    "import_wrong_owner": "This export belongs to a different profile and can't be imported here.",
+    "import_invalid": "This file isn't a valid data export.",
+    "import_success": "Imported {{count}} rows. Reloading…",
+    "import_failed": "Failed to read backup file."
   }
 }

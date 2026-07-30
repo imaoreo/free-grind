@@ -12,6 +12,13 @@ export interface AuthState {
 	 * it risks reading the previous profile's connection during the switch.
 	 */
 	settingsReady: boolean;
+	/**
+	 * Set when an authenticated API call fails because a third-party (JWT)
+	 * login's token has expired — that login method has no real refresh
+	 * mechanism, unlike email/password sessions. Drives a full-screen
+	 * re-login prompt; see TokenExpiredGate.
+	 */
+	tokenExpired: boolean;
 }
 
 export interface SavedAccountMeta {

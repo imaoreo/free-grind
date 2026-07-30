@@ -58,6 +58,8 @@ import { BrowseFiltersOverlay } from "./BrowseFiltersOverlay";
 import { LocationOverlay, type ExploreLocation, EXPLORE_COLOR } from "./LocationOverlay";
 import type { BrowseFiltersDraft } from "./browse-filters-storage";
 import { SKIP_BLOCK_CONFIRM_KEY, isBlockConfirmSkipped } from "../../utils/blockConfirm";
+import * as chatDb from "../../services/chatDb";
+import { hideProfile as hideProfileLocally, unhideProfile as unhideProfileLocally, GRID_HIDE_STATE_EVENT, type GridHideStateChangeDetail } from "../../services/profileHide";
 
 const EXPLORE_LOCATION_STORAGE_KEY = "grid_explore_location_v1";
 // The local displayname filter ("Lokale Filter" > nicknameFilter) matches
@@ -208,6 +210,39 @@ export function GridPage() {
 	>({});
 
 	const blockedProfileIds = useMemo(() => new Set(blockedProfileIdsData ?? []), [blockedProfileIdsData]);
+
+	// Local-only, like the chat inbox's hidden-conversation flag — reloaded
+	// whenever the active account's chatDb becomes ready (settingsReady), so
+	// switching accounts also switches which profiles are hidden instead of
+	// leaking the previous account's hidden set into the newly active one.
+	const [hiddenProfileIds, setHiddenProfileIds] = useState<Set<string>>(new Set());
+
+	useEffect(() => {
+		if (!settingsReady) return;
+		void chatDb.listHiddenProfileIds().then((ids) => {
+			setHiddenProfileIds(new Set(ids));
+		});
+	}, [userId, settingsReady]);
+
+	useEffect(() => {
+		const onHideStateChange = (event: Event) => {
+			const detail = (event as CustomEvent<GridHideStateChangeDetail>).detail;
+			if (!detail) return;
+			setHiddenProfileIds((previous) => {
+				const alreadyMatches = previous.has(detail.profileId) === detail.hidden;
+				if (alreadyMatches) return previous;
+				const next = new Set(previous);
+				if (detail.hidden) {
+					next.add(detail.profileId);
+				} else {
+					next.delete(detail.profileId);
+				}
+				return next;
+			});
+		};
+		window.addEventListener(GRID_HIDE_STATE_EVENT, onHideStateChange as EventListener);
+		return () => window.removeEventListener(GRID_HIDE_STATE_EVENT, onHideStateChange as EventListener);
+	}, []);
 
 	const [mutatingFavoriteProfileId, setMutatingFavoriteProfileId] = useState<string | null>(
 		null,
@@ -1001,6 +1036,10 @@ export function GridPage() {
 			});
 		}
 
+		if (hiddenProfileIds.size > 0) {
+			results = results.filter((card) => !hiddenProfileIds.has(card.profileId));
+		}
+
 		if (browseFilters.isVisiting) {
 			results = results.filter((card) => card.isVisiting === true);
 		}
@@ -1036,7 +1075,7 @@ export function GridPage() {
 		}
 
 		return results;
-	}, [cards, sortBy, showDebugInfo, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes, selfCard]);
+	}, [cards, sortBy, showDebugInfo, hiddenProfileIds, browseFilters.isVisiting, nicknameFilter, searchTerm, favoriteNotes, selfCard]);
 
 	const selectedBrowseCard = useMemo(() => {
 		if (!activeProfileId) {
@@ -1218,6 +1257,26 @@ export function GridPage() {
 			await performUnblockProfile(targetProfileId);
 		},
 		[isBlockingProfile, isUnblockingProfile, performUnblockProfile],
+	);
+
+	const handleHideProfile = useCallback(
+		(targetProfileId: string) => {
+			const card = cards.find((c) => c.profileId === targetProfileId);
+			const isActive = String(activeProfile?.profileId) === targetProfileId;
+			const displayName = (isActive ? activeProfile?.displayName : null) ?? card?.displayName ?? null;
+			const avatarMediaHash = (isActive ? activeProfile?.profileImageMediaHash : null) ?? null;
+			void hideProfileLocally(targetProfileId, displayName, avatarMediaHash);
+			toast.success(t("profile_details.hide_success"));
+		},
+		[activeProfile, cards, t],
+	);
+
+	const handleUnhideProfile = useCallback(
+		(targetProfileId: string) => {
+			void unhideProfileLocally(targetProfileId);
+			toast.success(t("profile_details.unhide_success"));
+		},
+		[t],
 	);
 
 	const handleToggleFavoriteProfile = useCallback(
@@ -1757,6 +1816,9 @@ export function GridPage() {
 				onTriangleProfile={handleTriangleProfile}
 				onBlockProfile={handleBlockProfile}
 				onUnblockProfile={handleUnblockProfile}
+				onHideProfile={handleHideProfile}
+				onUnhideProfile={handleUnhideProfile}
+				isHidden={activeProfileId ? hiddenProfileIds.has(activeProfileId) : false}
 				onToggleFavoriteProfile={handleToggleFavoriteProfile}
 				isFavorite={Boolean(activeProfile?.isFavorite)}
 				isTogglingFavorite={Boolean(

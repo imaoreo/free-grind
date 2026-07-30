@@ -33,6 +33,8 @@
     "my_albums_desc": "Créez, renommez et supprimez vos albums privés.",
     "blocked_accounts": "Comptes bloqués",
     "blocked_accounts_desc": "Voir qui vous avez bloqué et les débloquer à tout moment.",
+    "hidden_profiles": "",
+    "hidden_profiles_desc": "",
     "block_history": "Activité des blocages",
     "block_history_desc": "Découvrez qui vous a bloqué ou débloqué, et quand.",
     "export_chat": "Exporter les données de chat",
@@ -68,6 +70,27 @@
     "count_one": "{{count}} compte bloqué",
     "count_many": "{{count}} comptes bloqués",
     "count_other": "{{count}} comptes bloqués"
+  },
+  "settings_hidden": {
+    "title": "",
+    "subtitle": "",
+    "loading": "",
+    "error_load": "",
+    "empty": "",
+    "empty_desc": "",
+    "refresh": "",
+    "refreshing": "",
+    "profile_id": "",
+    "section_label": "",
+    "name_fallback": "",
+    "unhide": "",
+    "unhide_all_title": "",
+    "unhide_all_desc": "",
+    "unhide_all_confirm": "",
+    "unhiding_all": "",
+    "unhide_all_success": "",
+    "unhide_all_failed": "",
+    "cancel": ""
   },
   "settings_block_history": {
     "title": "Activité des blocages",
@@ -1447,6 +1470,8 @@
     "message": "Message",
     "block": "Bloquer",
     "unblock": "Débloquer",
+    "hide": "",
+    "unhide": "",
     "unfavorite": "Retirer des favoris",
     "block_in_progress": "Blocage en cours...",
     "unblock_in_progress": "Déblocage en cours...",
@@ -1457,6 +1482,8 @@
     "unblock_success": "Profil débloqué",
     "block_failed": "Erreur lors du blocage du profil",
     "unblock_failed": "Erreur lors du déblocage du profil",
+    "hide_success": "",
+    "unhide_success": "",
     "visiting": "Visite",
     "roaming": "Itinérance",
     "chat_history": "Historique des discussions",
@@ -1467,6 +1494,10 @@
     "profile_id": "ID de profil",
     "profile_id_copied": "ID de profil copié dans le presse-papiers",
     "estimated_joined": "A rejoint le {{date}} (estimation)",
+    "snapshot_banner": {
+      "title": "",
+      "subtitle": ""
+    },
     "tap_profile": "Envoyer un Tap",
     "tap_sent_recent": "Un Tap a déjà été envoyé au cours des dernières 24h",
     "tap_active": "Tap actif",
@@ -1780,6 +1811,11 @@
     "saved": "Date du test mise à jour",
     "save_failed": "Impossible de mettre à jour la date du test."
   },
+  "token_expired": {
+    "title": "",
+    "description": "",
+    "sign_out": ""
+  },
   "profile_photo_drawer": {
     "title": "Vos photos",
     "description": "Sélectionnez des photos à ajouter à votre profil ou importez-en de nouvelles.",
@@ -1940,5 +1976,33 @@
       "on_demand_desc": "2 comprimés 2-24h avant le rapport sexuel, puis 1 comprimé 24h après la première dose, puis 1 comprimé 48h après la première dose. Enregistrez chaque étape au fur et à mesure que vous la effectuez et l'onglet PrEP suivra votre couverture.",
       "footer": "Il s'agit d'un outil de suivi personnel. Cela ne remplace pas un avis médical : parlez à un professionnel de la santé de ce qui vous convient."
     }
+  },
+  "data_backup": {
+    "category_chat_messages": "",
+    "category_media_albums": "",
+    "category_saved_phrases": "",
+    "category_saved_locations": "",
+    "category_settings": "",
+    "category_sexual_health": "",
+    "export_no_categories": "",
+    "export_categories_title": "",
+    "export_confirm": "",
+    "import_categories_title": "",
+    "import_categories_desc": "",
+    "import_confirm": ""
+  },
+  "restore_offer": {
+    "title": "",
+    "item_title": "",
+    "description": "",
+    "choose_file": "",
+    "skip": "",
+    "categories_title": "",
+    "categories_desc": "",
+    "confirm": "",
+    "import_wrong_owner": "",
+    "import_invalid": "",
+    "import_success": "",
+    "import_failed": ""
   }
 }

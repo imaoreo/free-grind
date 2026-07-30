@@ -57,7 +57,7 @@ export function useApi() {
 	const asAppError = useCallback((error: unknown): AppError | null => {
 		const { data, success } = z
 			.object({
-				kind: z.enum(["Http", "Auth", "Api", "NotInitialized"]),
+				kind: z.enum(["Http", "Auth", "Api", "NotInitialized", "TokenExpired"]),
 				message: z
 					.string()
 					.or(
@@ -78,9 +78,22 @@ export function useApi() {
 				prettyMessage = `Error ${data.message.code}: ${data.message.message}`;
 			} else if (data.kind === "NotInitialized") {
 				prettyMessage = "The app failed to start correctly. Please restart the app and try again.";
+			} else if (data.kind === "TokenExpired") {
+				prettyMessage = "Your login token has expired. Please sign in again.";
 			} else {
 				prettyMessage = "An unknown error occurred";
 			}
+
+			// Third-party (JWT) login sessions have no real refresh mechanism, so
+			// once the token itself expires every subsequent authenticated call
+			// fails this way. Broadcast it globally rather than at this one call
+			// site, since any page's API call can be the one that first notices —
+			// AuthContext listens for this to show a full-screen re-login prompt
+			// (mirrors the existing fg:fcm-token window-event pattern).
+			if (data.kind === "TokenExpired") {
+				window.dispatchEvent(new Event("fg:token-expired"));
+			}
+
 			return { ...data, prettyMessage };
 		}
 		return null;

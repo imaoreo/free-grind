@@ -22,6 +22,7 @@ import { GridProfilePage } from "./pages/app/GridProfilePage.tsx";
 import { AboutPage } from "./pages/app/AboutPage.tsx";
 import { SettingsAlbumsPage } from "./pages/app/SettingsAlbumsPage.tsx";
 import { SettingsBlockedPage } from "./pages/app/SettingsBlockedPage.tsx";
+import { SettingsHiddenPage } from "./pages/app/SettingsHiddenPage.tsx";
 import { SettingsBlockHistoryPage } from "./pages/app/SettingsBlockHistoryPage.tsx";
 import { AgeVerificationPage } from "./pages/app/AgeVerificationPage.tsx";
 import { SharedAlbumsPage } from "./pages/app/SharedAlbumsPage.tsx";
@@ -39,6 +40,7 @@ import { PermissionsOnboarding } from "./components/PermissionsOnboarding";
 import { VersionAnnouncement } from "./components/VersionAnnouncement";
 import { OutdatedVersionGate } from "./components/OutdatedVersionPrompt";
 import { TestReminderGate } from "./components/TestReminderPrompt";
+import { TokenExpiredGate } from "./components/TokenExpiredPrompt";
 import { PushNotificationBridge } from "./components/PushNotificationBridge";
 import { ChatRealtimeBridge } from "./components/ChatRealtimeBridge";
 import { GridAutoRefreshBridge } from "./components/GridAutoRefreshBridge";
@@ -185,7 +187,7 @@ export default function App() {
 						<div className="app-shell">
 							<VersionAnnouncement announcement={PENDING_ANNOUNCEMENT} onClose={handleAnnouncementClose} />
 						</div>
-					) : (<OutdatedVersionGate><TestReminderGate>
+					) : (<TokenExpiredGate><OutdatedVersionGate><TestReminderGate>
 					{renderPhase >= 1 && <ManagerModeRedirect />}
 					{renderPhase >= 1 && <KeepScreenOnBridge />}
 					{renderPhase >= 2 && <PushNotificationBridge />}
@@ -234,6 +236,7 @@ export default function App() {
 								<Route path="/settings/about" element={<AboutPage />} />
 								<Route path="/settings/albums" element={<SettingsAlbumsPage />} />
 								<Route path="/settings/blocked" element={<SettingsBlockedPage />} />
+								<Route path="/settings/hidden" element={<SettingsHiddenPage />} />
 								<Route path="/settings/block-history" element={<SettingsBlockHistoryPage />} />
 								<Route path="/settings/sexual-health" element={<SexualHealthPage />} />
 								<Route
@@ -282,7 +285,7 @@ export default function App() {
 							<Route path="*" element={<ErrorPage />} />
 						</Route>
 					</Routes>
-					</TestReminderGate></OutdatedVersionGate>)}
+					</TestReminderGate></OutdatedVersionGate></TokenExpiredGate>)}
 				</SmoothScroll>
 			</ExploreModeProvider>
 			</PreferencesProvider>
