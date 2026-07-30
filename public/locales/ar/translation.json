@@ -1708,7 +1708,12 @@
         "empty_views_desc": "",
         "empty_taps": "لا توجد صنابير حتى الآن",
         "empty_taps_desc": "سيظهر هنا الأشخاص الذين قاموا بالنقر عليك.",
-        "view_count": "",
+        "view_count_zero": "",
+        "view_count_one": "",
+        "view_count_two": "",
+        "view_count_few": "",
+        "view_count_many": "",
+        "view_count_other": "",
         "viewed": "تمت المشاهدة",
         "recovered_tooltip": "",
         "onboarding": {
