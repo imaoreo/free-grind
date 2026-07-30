@@ -1,10 +1,28 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, BarChart3, CheckCheck, Eye, EyeOff, Ghost, ImageOff, ToggleRight } from "lucide-react";
+import {
+	AlertTriangle,
+	BarChart3,
+	Calculator,
+	CheckCheck,
+	CloudSun,
+	Eye,
+	EyeOff,
+	Ghost,
+	ImageOff,
+	StickyNote,
+	ToggleRight,
+} from "lucide-react";
 import { BackToSettings } from "../../components/BackToSettings";
 import { ToggleRow } from "../../components/ui/toggle-row";
 import { usePreferences } from "../../contexts/PreferencesContext";
 import { useSettingsHighlight } from "../../hooks/useSettingsHighlight";
+import {
+	type AppDisguiseId,
+	getCurrentAppDisguise,
+	isAppDisguiseSupported,
+	setAppDisguise,
+} from "../../utils/appDisguise";
 import {
 	getHideReadReceiptsGlobal,
 	getIncognitoMode,
@@ -21,6 +39,13 @@ import {
 	type AnalyticsConsentChoice,
 } from "../../utils/analyticsConsent";
 
+const DISGUISE_OPTIONS: { id: AppDisguiseId; icon: typeof Ghost; labelKey: string }[] = [
+	{ id: "default", icon: Ghost, labelKey: "privacy.app_disguise_off" },
+	{ id: "calculator", icon: Calculator, labelKey: "privacy.app_disguise_calculator" },
+	{ id: "notes", icon: StickyNote, labelKey: "privacy.app_disguise_notes" },
+	{ id: "weather", icon: CloudSun, labelKey: "privacy.app_disguise_weather" },
+];
+
 export function SettingsPrivacyPage() {
 	const { t } = useTranslation();
 	const highlightId = useSettingsHighlight();
@@ -31,6 +56,16 @@ export function SettingsPrivacyPage() {
 	const [recordProfileViews, setRecordProfileViews] = useState(() => isRecordProfileViewsEnabled());
 	const [analyticsConsent, setAnalyticsConsent] = useState<AnalyticsConsentChoice | null>(() => readAnalyticsConsentChoice());
 	const [incognitoMode, setIncognitoModeState] = useState(() => getIncognitoMode());
+	const [disguiseSupported] = useState(() => isAppDisguiseSupported());
+	const [disguise, setDisguiseState] = useState<AppDisguiseId>(() => getCurrentAppDisguise());
+
+	function handleSelectDisguise(id: AppDisguiseId) {
+		const previous = disguise;
+		setDisguiseState(id);
+		if (!setAppDisguise(id)) {
+			setDisguiseState(previous);
+		}
+	}
 
 	return (
 		<section className="app-screen">
@@ -192,6 +227,41 @@ export function SettingsPrivacyPage() {
 						</div>
 					</div>
 				</div>
+
+				{/* App Disguise (Android only) */}
+				{disguiseSupported && (
+					<div>
+						<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">{t("privacy.app_disguise")}</p>
+						<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
+							<div className="p-4">
+								<p className="text-sm font-semibold leading-snug">{t("privacy.app_disguise")}</p>
+								<p className="mt-0.5 text-xs text-[var(--text-muted)] leading-relaxed">{t("privacy.app_disguise_desc")}</p>
+								<div className="mt-3 flex flex-wrap gap-2">
+									{DISGUISE_OPTIONS.map(({ id, icon: Icon, labelKey }) => (
+										<button
+											key={id}
+											type="button"
+											onClick={() => handleSelectDisguise(id)}
+											className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+												disguise === id
+													? "border-transparent bg-[var(--accent)] text-[var(--accent-contrast)]"
+													: "border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-2)]"
+											}`}
+										>
+											<Icon className="h-3.5 w-3.5" />
+											{t(labelKey)}
+										</button>
+									))}
+								</div>
+							</div>
+							<div className="px-4 py-3">
+								<p className="text-xs text-[var(--text-muted)] leading-relaxed">
+									{t("privacy.app_disguise_note")}
+								</p>
+							</div>
+						</div>
+					</div>
+				)}
 
 			</div>
 		</section>

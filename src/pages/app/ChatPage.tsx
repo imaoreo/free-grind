@@ -113,7 +113,7 @@ import { saveAllAlbumMedia } from "../../utils/albumMedia";
 import { formatDistance } from "./gridpage/utils";
 import { captureReplyPreviewsForMessages } from "../../services/replyMediaStore";
 import { useAvatarCache } from "../../hooks/useAvatarCache";
-import { resolveAvatarSrc } from "../../services/avatarStore";
+import { fetchAndStoreAvatar, resolveAvatarSrc } from "../../services/avatarStore";
 import { useDesktopBreakpoint } from "../../hooks/useDesktopBreakpoint";
 import { appLog } from "../../utils/logger";
 import {
@@ -134,7 +134,7 @@ import { clearChatNotifications } from "../../services/localNotify";
 import freegrindLogo from "../../images/freegrind-logo.webp";
 import { removeProfileFromBrowseCache, getCachedProfileDetail, setCachedProfileDetail } from "./gridpage/cache";
 import type { ProfileDetail } from "../../types/grid";
-import { getThumbImageUrl, validateMediaHash } from "../../utils/media";
+import { getProfileImageUrl, getThumbImageUrl, validateMediaHash } from "../../utils/media";
 
 // Local pagination for archived threads (chatDb has no server to ask, so we
 // page through it ourselves) — a "pageKey" here is this prefix + a cursor
@@ -4419,6 +4419,35 @@ export function ChatPage() {
 			setIsBlockingProfileId(targetProfileId);
 
 			try {
+				// Blocking here never goes through GridProfilePage — the only
+				// other place that persists a local profile snapshot (see
+				// chatDb.saveProfileSnapshot) — so without this, a profile
+				// blocked straight from the chat thread has no fallback once
+				// its conversation archives and the live profile becomes just
+				// the blocked stub. Snapshot it now, while it's still
+				// reachable, before the block call takes effect.
+				await service
+					.getProfileDetail(targetProfileId)
+					.then(async (profile) => {
+						if (classifyProfileAccess(profile) !== "accessible") {
+							return;
+						}
+						await chatDb.saveProfileSnapshot(targetProfileId, JSON.stringify(profile));
+						// Best-effort: also warm the local photo cache now, while
+						// still reachable, rather than relying on a later profile
+						// page visit (see avatarStore.ts's isChatLinkedProfile gate).
+						const photoHashes = [
+							profile.profileImageMediaHash,
+							...profile.medias.map((media) => media.mediaHash),
+						].filter((hash): hash is string => typeof hash === "string" && validateMediaHash(hash));
+						for (const hash of photoHashes) {
+							void fetchAndStoreAvatar(hash, getProfileImageUrl(hash, "1024x1024"));
+						}
+					})
+					.catch((error) => {
+						appLog.warn("[chat] failed to snapshot profile before blocking", error);
+					});
+
 				// blockProfileMutation's onSuccess (useBlockProfile) already
 				// archives the conversation, leaves the "You blocked this
 				// person" marker, and suppresses the matching WS echo — this
@@ -4439,7 +4468,7 @@ export function ChatPage() {
 				setIsBlockingProfileId(null);
 			}
 		},
-		[isBlockingProfileId, blockProfileMutation, t],
+		[isBlockingProfileId, blockProfileMutation, service, t],
 	);
 
 	const unblockProfileFromChat = useCallback(

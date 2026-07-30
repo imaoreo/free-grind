@@ -14,11 +14,8 @@ src-tauri/certs/*.jks
 secrets
 frontend.tar.gz
 frontend.tar.gz.sig
-src-tauri/gen/
-!src-tauri/gen/android/app/src/main/AndroidManifest.xml
-!src-tauri/gen/android/app/src/main/java/dev/estopia/free_grind/NotificationPoster.kt
-!src-tauri/gen/android/app/src/main/res/layout/splash_overlay.xml
-!src-tauri/gen/android/app/src/main/res/drawable/splash_glow.xml
+src-tauri/gen/apple/
+src-tauri/gen/schemas/
 /.build
 
 # exe-manager build output and runtime data (manager.exe/child.exe + instance state)
