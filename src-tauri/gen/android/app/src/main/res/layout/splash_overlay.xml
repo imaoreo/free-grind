@@ -36,6 +36,7 @@
             app:trackColor="@android:color/transparent" />
 
         <ImageView
+            android:id="@+id/splash_icon"
             android:layout_width="100dp"
             android:layout_height="100dp"
             android:layout_gravity="center"

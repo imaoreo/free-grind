@@ -1,10 +1,13 @@
 package dev.estopia.free_grind
 
+import android.app.Activity
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.BitmapFactory
 import android.util.Log
 
 /**
@@ -36,11 +39,26 @@ object AppDisguise {
     // identities so that surface doesn't give the disguise away either.
     val chatChannelName: String,
     val tapsChannelName: String,
+    // Same label/icon shown on the launcher alias — reused for the Recents
+    // (task switcher) card and the custom splash dialog, the two other
+    // places that otherwise keep showing the real "Free Grind" identity
+    // regardless of which alias is enabled.
+    val labelRes: Int,
+    val iconRes: Int,
   ) {
-    DEFAULT("default", "DisguiseDefaultAlias", "Chat Messages", "Taps"),
-    CALCULATOR("calculator", "DisguiseCalculatorAlias", "Reminders", "Alerts"),
-    NOTES("notes", "DisguiseNotesAlias", "Reminders", "Alerts"),
-    WEATHER("weather", "DisguiseWeatherAlias", "Reminders", "Alerts");
+    DEFAULT("default", "DisguiseDefaultAlias", "Chat Messages", "Taps", R.string.app_name, R.mipmap.ic_launcher),
+    CALCULATOR(
+      "calculator", "DisguiseCalculatorAlias", "Reminders", "Alerts",
+      R.string.disguise_name_calculator, R.mipmap.ic_launcher_calculator,
+    ),
+    NOTES(
+      "notes", "DisguiseNotesAlias", "Reminders", "Alerts",
+      R.string.disguise_name_notes, R.mipmap.ic_launcher_notes,
+    ),
+    WEATHER(
+      "weather", "DisguiseWeatherAlias", "Reminders", "Alerts",
+      R.string.disguise_name_weather, R.mipmap.ic_launcher_weather,
+    );
 
     companion object {
       fun fromId(id: String): Identity? = entries.find { it.id == id }
@@ -89,6 +107,25 @@ object AppDisguise {
   fun channelName(context: Context, isTap: Boolean): String {
     val identity = currentDisguise(context)
     return if (isTap) identity.tapsChannelName else identity.chatChannelName
+  }
+
+  /**
+   * Updates this task's Recents/multitasking-switcher card (icon + label) to
+   * match [identity]. Without this, Recents falls back to the app's real
+   * <application> icon/label ("Free Grind") regardless of which launcher
+   * alias is enabled — arguably the most visible remaining leak, since
+   * Recents is commonly glanced at by anyone else holding the phone. Safe
+   * to call repeatedly (on every cold start and right after switching).
+   */
+  fun applyTaskDescription(activity: Activity, identity: Identity) {
+    try {
+      val label = activity.getString(identity.labelRes)
+      val icon = BitmapFactory.decodeResource(activity.resources, identity.iconRes)
+      @Suppress("DEPRECATION")
+      activity.setTaskDescription(ActivityManager.TaskDescription(label, icon))
+    } catch (t: Throwable) {
+      Log.e("AppDisguise", "Failed to update task description for ${identity.id}", t)
+    }
   }
 
   // Renaming an *existing* channel just means calling createNotificationChannel

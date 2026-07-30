@@ -88,9 +88,28 @@ function renderKeywordCondition(
 	return suffix ? `${prefix} ${value} ${suffix}` : `${prefix} ${value}`;
 }
 
+// Local copy of interestUtils.tapLabel's switch, kept in the simplified TFunc
+// shape this file's describe* helpers use instead of the full i18next TFunction.
+function tapTypeLabel(tapType: number, t: TFunc): string {
+	switch (tapType) {
+		case 0:
+			return t("interest_page.tap_labels.friendly");
+		case 1:
+			return t("interest_page.tap_labels.hot");
+		case 2:
+			return t("interest_page.tap_labels.looking");
+		default:
+			return t("interest_page.tap_labels.default");
+	}
+}
+
 function describeRule(rule: AutomationRule, t: TFunc): React.ReactNode[] {
 	const triggerPhrases = rule.triggers.map((trig) => t(`settings_automation.trigger_phrase_${trig}`));
-	const actionPhrases = rule.actions.map((a) => t(`settings_automation.action_phrase_${a.type}`));
+	const actionPhrases = rule.actions.map((a) =>
+		a.type === "send_tap"
+			? t("settings_automation.action_phrase_send_tap", { tapType: tapTypeLabel(a.tapType, t) })
+			: t(`settings_automation.action_phrase_${a.type}`),
+	);
 
 	const or = t("settings_automation.rule_or_label");
 	const and = t("settings_automation.rule_and_label");

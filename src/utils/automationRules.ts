@@ -49,7 +49,8 @@ export type AutomationRuleCondition =
 export type AutomationRuleAction =
 	| { type: "block" }
 	| { type: "send_message"; text: string }
-	| { type: "share_album"; albumId: number; albumName?: string };
+	| { type: "share_album"; albumId: number; albumName?: string }
+	| { type: "send_tap"; tapType: number };
 
 export interface AutomationRule {
 	id: string;
@@ -97,6 +98,15 @@ export interface AutomationProfileSnapshot {
 
 const AUTOMATION_RULES_KEY = "automation_rules";
 const AUTOMATION_SEEN_SENDERS_KEY = "automation_seen_senders";
+const AUTOMATION_LAST_TAP_KEY = "automation_last_tap_sent";
+// "send_tap" is a tap-back: skip it if we already sent this sender a tap
+// (via this action, any rule) within the cooldown window, so re-triggering
+// the rule (e.g. re-opening a thread) doesn't spam repeat taps. Delay is
+// randomized within this range so the tap doesn't fire the instant the rule
+// matches — a fixed/zero delay would be an obvious tell that it's automated.
+const TAP_BACK_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const TAP_BACK_DELAY_MIN_MS = 5_000;
+const TAP_BACK_DELAY_MAX_MS = 45_000;
 // Bumped to v2 when the default age rule changed shape (two deletable,
 // unlocked rules -> one locked rule with matchMode "any") — profiles that
 // already ran the v1 seed (and so have the flag set, whether or not they
@@ -156,6 +166,7 @@ function createDefaultForbiddenKeywordsRule(): AutomationRule {
 
 let rulesCache: AutomationRule[] = [];
 let seenSendersCache: Set<string> = new Set();
+let lastTapSentCache: Map<string, number> = new Map();
 // Guards runAutomationRulesForSender against evaluating (and permanently
 // marking senders "seen" for) a profile whose rules/seen-history haven't
 // loaded yet — some sync jobs (inbox sync, taps sync) are deliberately
@@ -225,6 +236,13 @@ export async function loadAutomationRulesCache(): Promise<void> {
 		appLog.error("[AutomationRules] failed to load seen-senders history", error);
 		seenSendersCache = new Set();
 	}
+	try {
+		const stored = await getSetting<Record<string, number>>(AUTOMATION_LAST_TAP_KEY);
+		lastTapSentCache = new Map(Object.entries(stored && typeof stored === "object" ? stored : {}));
+	} catch (error) {
+		appLog.error("[AutomationRules] failed to load last-tap history", error);
+		lastTapSentCache = new Map();
+	}
 	rulesCacheReady = true;
 }
 
@@ -270,8 +288,12 @@ export async function clearAutomationSeenHistoryForSender(senderId: string): Pro
 	for (const trigger of ["new_chat", "tap_received"] as const) {
 		changed = seenSendersCache.delete(seenKey(trigger, senderId)) || changed;
 	}
-	if (!changed) return;
-	await setSetting(AUTOMATION_SEEN_SENDERS_KEY, Array.from(seenSendersCache));
+	if (changed) {
+		await setSetting(AUTOMATION_SEEN_SENDERS_KEY, Array.from(seenSendersCache));
+	}
+	if (lastTapSentCache.delete(senderId)) {
+		await setSetting(AUTOMATION_LAST_TAP_KEY, Object.fromEntries(lastTapSentCache));
+	}
 }
 
 // Same word-boundary, longest-keyword-first approach as autoblock.ts's
@@ -360,6 +382,10 @@ export interface AutomationActionRunner {
 		albumId: number;
 		profiles: { profileId: number; expirationType: "INDEFINITE" }[];
 	}) => Promise<unknown>;
+	// Matches apiFunctions.tap's positional signature exactly, so the full
+	// apiFunctions object (which already has .tap from interestMethods.ts)
+	// satisfies this without needing a wrapper at most call sites.
+	tap: (profileId: string | number, tapType: number) => Promise<unknown>;
 	// Only needed when no prefetchedProfile is passed to runAutomationRulesForSender.
 	getProfileDetail?: (profileId: string) => Promise<ProfileDetail>;
 }
@@ -449,6 +475,45 @@ export async function runAutomationRulesForSender(
 						albumId: action.albumId,
 						profiles: [{ profileId: Number(senderId), expirationType: "INDEFINITE" }],
 					});
+				} else if (action.type === "send_tap") {
+					const lastSent = lastTapSentCache.get(senderId);
+					const recentlyAutoTapped = lastSent != null && Date.now() - lastSent < TAP_BACK_COOLDOWN_MS;
+					if (!recentlyAutoTapped) {
+						// The local cache only catches taps this action itself sent —
+						// it doesn't see a tap sent manually (or from another device).
+						// Re-fetch the profile right before firing and trust its
+						// `tapped` flag as the server-side source of truth: the API
+						// doesn't allow tapping the same profile twice, and retrying
+						// it risks a ban, so if that check can't be done, don't tap.
+						let alreadyTapped = true;
+						if (runner.getProfileDetail) {
+							try {
+								const detail = await runner.getProfileDetail(senderId);
+								alreadyTapped = detail.tapped === true;
+							} catch (error) {
+								appLog.warn(
+									`[AutomationRules] failed to verify tap status for rule "${rule.name}", skipping tap-back`,
+									error,
+								);
+							}
+						} else {
+							appLog.warn(
+								`[AutomationRules] no getProfileDetail available to verify tap status for rule "${rule.name}", skipping tap-back`,
+							);
+						}
+
+						if (!alreadyTapped) {
+							lastTapSentCache.set(senderId, Date.now());
+							await setSetting(AUTOMATION_LAST_TAP_KEY, Object.fromEntries(lastTapSentCache)).catch(() => {});
+							const delayMs =
+								TAP_BACK_DELAY_MIN_MS + Math.random() * (TAP_BACK_DELAY_MAX_MS - TAP_BACK_DELAY_MIN_MS);
+							setTimeout(() => {
+								runner.tap(senderId, action.tapType).catch((error) => {
+									appLog.error(`[AutomationRules] delayed tap-back failed for rule "${rule.name}"`, error);
+								});
+							}, delayMs);
+						}
+					}
 				}
 			} catch (error) {
 				appLog.error(`[AutomationRules] action "${action.type}" failed for rule "${rule.name}"`, error);
