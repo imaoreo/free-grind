@@ -1178,9 +1178,14 @@ export function ChatThreadPanel(props: ChatThreadPanelProps) {
 				const distanceMetres = selectedConversation
 					? otherParticipant?.distanceMetres
 					: targetProfileDetail?.distance;
+				// targetProfileDetail is a live profile fetch that's kept up to date
+				// regardless of whether a conversation already exists; the participant
+				// snapshot on selectedConversation is only as fresh as the last
+				// throttled inbox sync, so prefer the live value once it's loaded and
+				// only fall back to the snapshot while it's still in flight.
 				const onlineMeta = getParticipantOnlineMeta(
-					selectedConversation ? otherParticipant?.lastOnline : targetProfileDetail?.seen,
-					selectedConversation ? otherParticipant?.onlineUntil : targetProfileDetail?.onlineUntil,
+					targetProfileDetail?.seen ?? otherParticipant?.lastOnline,
+					targetProfileDetail?.onlineUntil ?? otherParticipant?.onlineUntil,
 					nowTimestamp,
 					t,
 				);

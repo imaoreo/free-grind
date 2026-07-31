@@ -867,16 +867,50 @@ export function ChatPage() {
 		[conversations, archivedConversations, selectedConversationId],
 	);
 
-	// Header info (favorite, distance, online status, ...) for a chat started
-	// from a profile before any conversation exists — there's no participant
-	// record to read this from yet, so fetch the profile directly.
+	const selectedConversationOtherProfileId = useMemo(() => {
+		if (selectedConversation && userId != null) {
+			const otherParticipant = getOtherParticipant(selectedConversation, userId);
+			if (otherParticipant?.profileId != null) {
+				return String(otherParticipant.profileId);
+			}
+		}
+		// No conversation yet (chat started from a profile) — the profile id is
+		// still known, so favorite/nickname/etc. can key off it directly.
+		return targetProfileId ? String(targetProfileId) : null;
+	}, [selectedConversation, userId, targetProfileId]);
+
+	const isSelectedConversationArchived = Boolean(
+		selectedConversationId && archivedConversations.has(selectedConversationId),
+	);
+
+	const isSelectedConversationBlockedBySelf = useMemo(() => {
+		if (!selectedConversationOtherProfileId || !blockedProfileIdsData) {
+			return false;
+		}
+		return blockedProfileIdsData.includes(selectedConversationOtherProfileId);
+	}, [selectedConversationOtherProfileId, blockedProfileIdsData]);
+
+	// Header info (favorite, distance, online status, ...). The participant
+	// snapshot embedded in selectedConversation is only as fresh as the last
+	// throttled /v4/inbox sync, which can lag well behind reality (e.g. "last
+	// online" showing 11 days ago right after the profile screen showed 33
+	// minutes ago) — so always fetch the live profile too and prefer it once
+	// it lands, regardless of whether a conversation already exists. Skipped
+	// when archived or blocked-by-self though: those conversations are
+	// blocked (in one direction or the other, see the 403 handling above) or
+	// otherwise dead, so a live fetch would just be a wasted/erroring round
+	// trip against a profile we can no longer read.
 	const [targetProfileDetail, setTargetProfileDetail] = useState<ProfileDetail | null>(null);
 	useEffect(() => {
-		if (!targetProfileId || selectedConversation) {
+		if (
+			!selectedConversationOtherProfileId ||
+			isSelectedConversationArchived ||
+			isSelectedConversationBlockedBySelf
+		) {
 			setTargetProfileDetail(null);
 			return;
 		}
-		const idStr = String(targetProfileId);
+		const idStr = selectedConversationOtherProfileId;
 		setTargetProfileDetail(getCachedProfileDetail(idStr));
 		let cancelled = false;
 		void service.getProfileDetail(idStr).then((profile) => {
@@ -887,7 +921,12 @@ export function ChatPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [targetProfileId, selectedConversation, service]);
+	}, [
+		selectedConversationOtherProfileId,
+		isSelectedConversationArchived,
+		isSelectedConversationBlockedBySelf,
+		service,
+	]);
 
 	// Landing directly on a conversationId that isn't in the currently loaded
 	// live inbox page(s) or the archived map (e.g. opening a message search
@@ -928,25 +967,6 @@ export function ChatPage() {
 			cancelled = true;
 		};
 	}, [selectedConversationId, selectedConversation]);
-
-	const selectedConversationOtherProfileId = useMemo(() => {
-		if (selectedConversation && userId != null) {
-			const otherParticipant = getOtherParticipant(selectedConversation, userId);
-			if (otherParticipant?.profileId != null) {
-				return String(otherParticipant.profileId);
-			}
-		}
-		// No conversation yet (chat started from a profile) — the profile id is
-		// still known, so favorite/nickname/etc. can key off it directly.
-		return targetProfileId ? String(targetProfileId) : null;
-	}, [selectedConversation, userId, targetProfileId]);
-
-	const isSelectedConversationBlockedBySelf = useMemo(() => {
-		if (!selectedConversationOtherProfileId || !blockedProfileIdsData) {
-			return false;
-		}
-		return blockedProfileIdsData.includes(selectedConversationOtherProfileId);
-	}, [selectedConversationOtherProfileId, blockedProfileIdsData]);
 
 	useEffect(() => {
 		const profileIds = conversations
@@ -6451,11 +6471,7 @@ export function ChatPage() {
 			onToggleFavorite={toggleFavoriteFromChat}
 			isFavorite={selectedConversation?.data.favorite ?? targetProfileDetail?.isFavorite ?? false}
 			isTogglingFavorite={isTogglingFavoriteProfileId !== null}
-			isArchived={
-				selectedConversationId
-					? archivedConversations.has(selectedConversationId)
-					: false
-			}
+			isArchived={isSelectedConversationArchived}
 			archivedReason={
 				selectedConversationId
 					? archivedConversations.get(selectedConversationId)?.reason ?? null
