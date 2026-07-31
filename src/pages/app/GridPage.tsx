@@ -161,6 +161,7 @@ export function GridPage() {
 	const [isLocationMissing, setIsLocationMissing] = useState(false);
 	const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
 	const [activeProfile, setActiveProfile] = useState<ProfileDetail | null>(null);
+	const [isActiveProfileBlockedByOther, setIsActiveProfileBlockedByOther] = useState(false);
 	const [isLoadingActiveProfile, setIsLoadingActiveProfile] = useState(false);
 	const [activeProfileError, setActiveProfileError] = useState<string | null>(null);
 	const [isProfileSearchOpen, setIsProfileSearchOpen] = useState(false);
@@ -971,6 +972,20 @@ export function GridPage() {
 			cancelled = true;
 		};
 	}, [activeProfileId, apiFunctions]);
+
+	useEffect(() => {
+		if (!activeProfileId) {
+			setIsActiveProfileBlockedByOther(false);
+			return;
+		}
+		let cancelled = false;
+		void chatDb.getBlockStatesByProfileIds([activeProfileId]).then((blockStates) => {
+			if (!cancelled) setIsActiveProfileBlockedByOther(blockStates.get(activeProfileId) === "blocked_by_other");
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [activeProfileId]);
 
 	const profilePhotoUrl = useMemo(() => {
 		if (!profileImageHash) {
@@ -1825,6 +1840,7 @@ export function GridPage() {
 					activeProfileId && mutatingFavoriteProfileId === activeProfileId,
 				)}
 				isBlocked={activeProfileId ? blockedProfileIds.has(activeProfileId) : false}
+				isBlockedByOther={isActiveProfileBlockedByOther}
 				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
 				onTapProfile={handleTapProfile}
 				isTappingProfile={Boolean(tappingProfileId && tappingProfileId === activeProfileId)}

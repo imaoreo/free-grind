@@ -1,4 +1,4 @@
-import { Album, Archive, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Eye, EyeOff, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, ShieldCheck, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
+import { Album, Ban, Check, ChevronDown, ChevronLeft, ChevronUp, EllipsisVertical, Eye, EyeOff, Flame, Images, LockKeyhole, MessageCircle, Pencil, Phone, ShieldCheck, StickyNote, Star, Trash2, Triangle, X, Zap } from "lucide-react";
 import toast from "react-hot-toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -95,6 +95,7 @@ type ProfileDetailsModalProps = {
 	isFavorite?: boolean;
 	isTogglingFavorite?: boolean;
 	isBlocked?: boolean;
+	isBlockedByOther?: boolean;
 	isSnapshotProfile?: boolean;
 	isChatLinkedProfile?: boolean;
 	isBlockingProfile?: boolean;
@@ -189,6 +190,7 @@ export function ProfileDetailsModal({
 	isFavorite = false,
 	isTogglingFavorite = false,
 	isBlocked = false,
+	isBlockedByOther = false,
 	isSnapshotProfile = false,
 	isChatLinkedProfile = false,
 	isBlockingProfile = false,
@@ -282,9 +284,10 @@ export function ProfileDetailsModal({
 	const visualStateValue = typeof tapVisualState === "string" ? tapVisualState : tapVisualState.state;
 	const effectiveTapVisualState = isTappingProfile ? "single" : visualStateValue;
 	const isTapActive = effectiveTapVisualState !== "none";
-	const isTapDisabled = isOwnProfile || !onTapProfile || isTappingProfile || isTapBlocked;
+	const isProfileUnavailable = isBlocked || isSnapshotProfile;
+	const isTapDisabled = isOwnProfile || !onTapProfile || isTappingProfile || isTapBlocked || isProfileUnavailable;
 	const isTriangleDisabled =
-		!onTriangleProfile || !messageProfileId || isLocatingProfile;
+		!onTriangleProfile || !messageProfileId || isLocatingProfile || isProfileUnavailable;
 	const tapButtonClassName =
 		isTapActive
 			? "inline-flex h-16 w-16 items-center justify-center rounded-full border-2 border-[var(--accent)] bg-[var(--surface)] text-4xl leading-none text-[var(--text)] hover:brightness-110 overflow-hidden relative"
@@ -526,24 +529,6 @@ export function ProfileDetailsModal({
 		if (!actualProfileName) { return; }
 		setBanNamePrompt({ text: actualProfileName });
 	};
-
-	const snapshotBannerJsx = isSnapshotProfile ? (
-		<div className="px-3">
-			<div className="flex items-start gap-3 rounded-2xl bg-[var(--surface-2)] p-3">
-				<div className="shrink-0 rounded-xl bg-[var(--surface)] p-2.5">
-					<Archive className="h-4 w-4 text-[var(--text-muted)]" />
-				</div>
-				<div className="grid gap-0.5 pt-0.5">
-					<p className="text-sm font-semibold text-[var(--text)]">
-						{t("profile_details.snapshot_banner.title")}
-					</p>
-					<p className="text-xs text-[var(--text-muted)]">
-						{t("profile_details.snapshot_banner.subtitle")}
-					</p>
-				</div>
-			</div>
-		</div>
-	) : null;
 
 	const notesSectionJsx = isFavorite && !isOwnProfile ? (
 		<div className="px-3">
@@ -1463,7 +1448,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 					)}
 					{messageProfileId && !isOwnProfile && (
 						<div className="flex shrink-0 items-center gap-1.5">
-							{onToggleFavoriteProfile && (
+							{onToggleFavoriteProfile && !isProfileUnavailable && (
 								<button
 									type="button"
 									onClick={() => onToggleFavoriteProfile(String(messageProfileId), isFavorite)}
@@ -1478,14 +1463,14 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									<Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
 								</button>
 							)}
-							{(onBlockProfile || onUnblockProfile) && (
+							{(onBlockProfile || onUnblockProfile) && !isBlockedByOther && (
 								<button
 									type="button"
 									onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : (messageProfileId && onBlockProfile?.(String(messageProfileId)))}
 									disabled={isBlockingProfile}
 									className={`inline-flex shrink-0 items-center justify-center rounded-xl border p-2 transition-colors disabled:opacity-60 ${
 										isBlocked
-											? inlineScrolled ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-red-400/60 bg-red-500/20 text-red-300 backdrop-blur-md"
+											? inlineScrolled ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-emerald-400/60 bg-emerald-500/20 text-emerald-300 backdrop-blur-md"
 											: inlineScrolled ? "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15" : "border-red-400/50 bg-red-500/15 text-red-300 backdrop-blur-md hover:border-red-400/80"
 									}`}
 									aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}
@@ -1518,8 +1503,9 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 										{(onHideProfile || onUnhideProfile) && (
 										<button
 											type="button"
-											onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
-											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+											disabled={isProfileUnavailable}
+											onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId || isProfileUnavailable) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
+											className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-50"
 										>
 											{isHidden ? <Eye className="mr-2 h-4 w-4 opacity-70" /> : <EyeOff className="mr-2 h-4 w-4 opacity-70" />}
 											{isHidden ? t("profile_details.unhide") : t("profile_details.hide")}
@@ -1711,7 +1697,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							bodyTypeLabels={bodyTypeLabels}
 							ethnicityLabels={ethnicityLabels}
 							relationshipStatusLabels={relationshipStatusLabels}
-							extraTopSection={<>{snapshotBannerJsx}{notesSectionJsx}</>}
+							extraTopSection={notesSectionJsx}
 							isChatLinkedProfile={isChatLinkedProfile}
 							hidePicturesSection={true}
 						/>
@@ -1729,6 +1715,12 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 						background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)",
 					}}
 				>
+					{isProfileUnavailable ? (
+						<div className="flex items-center justify-center gap-2 px-3 pb-1">
+							<ShieldCheck className="h-4 w-4 text-white/60" />
+							<p className="text-sm font-medium text-white/70">{t("profile_details.snapshot_banner.title")}</p>
+						</div>
+					) : (
 					<div
 						ref={controlsBarRef}
 						className="pointer-events-auto flex items-center gap-1 px-3"
@@ -1823,6 +1815,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							</button>
 						)}
 					</div>
+					)}
 				</div>
 			)}
 		</>
@@ -2081,16 +2074,16 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 									)}
 									{messageProfileId && !isOwnProfile && (
 										<div className="flex shrink-0 items-center gap-1.5">
-											{onToggleFavoriteProfile && (
+											{onToggleFavoriteProfile && !isProfileUnavailable && (
 												<button type="button" onClick={() => onToggleFavoriteProfile(String(messageProfileId), isFavorite)} disabled={isTogglingFavorite}
 													className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isFavorite ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text)]"}`}
 													aria-label={isFavorite ? t("chat.unfavorite") : t("chat.favorite")}>
 													<Star className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />
 												</button>
 											)}
-											{(onBlockProfile || onUnblockProfile) && (
+											{(onBlockProfile || onUnblockProfile) && !isBlockedByOther && (
 												<button type="button" onClick={() => isBlocked ? onUnblockProfile?.(String(messageProfileId)) : (messageProfileId && onBlockProfile?.(String(messageProfileId)))} disabled={isBlockingProfile}
-													className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isBlocked ? "border-red-500/50 bg-red-500/10 text-red-400" : "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15"}`}
+													className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:opacity-60 ${isBlocked ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-red-500/40 bg-red-500/8 text-red-400 hover:border-red-500/70 hover:bg-red-500/15"}`}
 													aria-label={isBlocked ? t("profile_details.unblock") : t("profile_details.block")}>
 													{isBlocked ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
 												</button>
@@ -2113,8 +2106,9 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 														{(onHideProfile || onUnhideProfile) && (
 														<button
 															type="button"
-															onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
-															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)]"
+															disabled={isProfileUnavailable}
+															onClick={() => { setIsActionsMenuOpen(false); if (!messageProfileId || isProfileUnavailable) return; isHidden ? onUnhideProfile?.(String(messageProfileId)) : onHideProfile?.(String(messageProfileId)); }}
+															className="flex items-center rounded-lg px-2 py-2 text-left text-sm text-[var(--text)] transition hover:bg-[var(--surface-2)] disabled:opacity-50"
 														>
 															{isHidden ? <Eye className="mr-2 h-4 w-4 opacity-70" /> : <EyeOff className="mr-2 h-4 w-4 opacity-70" />}
 															{isHidden ? t("profile_details.unhide") : t("profile_details.hide")}
@@ -2212,7 +2206,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											bodyTypeLabels={bodyTypeLabels}
 											ethnicityLabels={ethnicityLabels}
 											relationshipStatusLabels={relationshipStatusLabels}
-											extraTopSection={<>{snapshotBannerJsx}{notesSectionJsx}</>}
+											extraTopSection={notesSectionJsx}
 											isChatLinkedProfile={isChatLinkedProfile}
 											hidePicturesSection={true}
 										/>
@@ -2222,6 +2216,12 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 							{/* Split-mode footer */}
 							{messageProfileId && !isOwnProfile && (
 								<div className="pointer-events-none absolute inset-x-0 bottom-0 z-30" style={{ paddingTop: "5rem", paddingBottom: "0.75rem", background: "linear-gradient(to top, rgba(0,0,0,0.80) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)" }}>
+									{isProfileUnavailable ? (
+									<div className="flex items-center justify-center gap-2 px-3 pb-1">
+										<ShieldCheck className="h-4 w-4 text-white/60" />
+										<p className="text-sm font-medium text-white/70">{t("profile_details.snapshot_banner.title")}</p>
+									</div>
+									) : (
 									<div ref={controlsBarRef} className="pointer-events-auto flex items-center gap-1 px-3" onPointerDown={(e) => e.stopPropagation()}>
 										<div className="relative min-w-0 flex-1" style={{ pointerEvents: barInputVisible ? "auto" : "none" }}>
 											<div className="pointer-events-none absolute inset-0 rounded-xl backdrop-blur-md" style={{ background: "color-mix(in srgb, var(--surface-2) 50%, transparent)", border: "1px solid color-mix(in srgb, var(--border) 60%, transparent)", opacity: barInputVisible ? 1 : 0, transition: barInputVisible ? "opacity 0.25s" : "opacity 0.12s" }} />
@@ -2263,6 +2263,7 @@ const barTapGlow = (id: number) => id === 0 ? "drop-shadow(0 0 10px rgba(234,179
 											</button>
 										)}
 									</div>
+									)}
 								</div>
 							)}
 						</>
