@@ -28,6 +28,7 @@ import { getChatContactIndexForProfiles, getLocalNicknamesForProfiles } from "..
 import type { ChatContactIndexRecord } from "../../types/chat-contact-index";
 import {
 	findConversationByProfileId,
+	getBlockStatesByProfileIds,
 	getProfileSnapshot,
 	insertSystemMessage,
 	listHiddenProfileIds,
@@ -129,6 +130,7 @@ export function GridProfilePage() {
 	} | null>(null);
 	const [dontAskAgainChecked, setDontAskAgainChecked] = useState(false);
 	const [isHidden, setIsHidden] = useState(false);
+	const [isBlockedByOther, setIsBlockedByOther] = useState(false);
 
 	const [isDesktopLike, setIsDesktopLike] = useState(() =>
 		window.matchMedia("(hover: hover) and (pointer: fine)").matches
@@ -151,6 +153,20 @@ export function GridProfilePage() {
 		let cancelled = false;
 		void listHiddenProfileIds().then((ids) => {
 			if (!cancelled) setIsHidden(ids.includes(profileId));
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [profileId]);
+
+	useEffect(() => {
+		if (!profileId) {
+			setIsBlockedByOther(false);
+			return;
+		}
+		let cancelled = false;
+		void getBlockStatesByProfileIds([profileId]).then((blockStates) => {
+			if (!cancelled) setIsBlockedByOther(blockStates.get(profileId) === "blocked_by_other");
 		});
 		return () => {
 			cancelled = true;
@@ -745,6 +761,7 @@ export function GridProfilePage() {
 					profileId && mutatingFavoriteProfileId === profileId,
 				)}
 				isBlocked={profileId ? blockedProfileIds.has(profileId) : false}
+				isBlockedByOther={isBlockedByOther}
 				isSnapshotProfile={isSnapshotProfile}
 				isChatLinkedProfile={Boolean(chatContactStatus?.hasChatted)}
 				isBlockingProfile={isBlockingProfile || isUnblockingProfile}
