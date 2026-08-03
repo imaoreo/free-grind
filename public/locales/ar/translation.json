@@ -1,6 +1,6 @@
 {
     "settings": {
-        "title": "الإعدادات",
+        "title": "Settings",
         "subtitle": "اختار اللي عايز تديره.",
         "search_placeholder": "دور في الإعدادات…",
         "search_no_results": "مفيش إعدادات لـ \"{{query}}\".",
