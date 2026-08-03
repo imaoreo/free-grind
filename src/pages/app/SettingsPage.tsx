@@ -682,7 +682,7 @@ export function SettingsPage() {
 				    re-entering a password. Each saved account keeps its own chat
 				    history and caches fully separate (see chatDb.ts/cache.ts), so
 				    switching never shows a leftover account's data. */}
-				<div>
+				<div className="min-w-0">
 					<p className="mb-2 px-1 text-xs font-semibold uppercase tracking-widest text-[var(--text-muted)]">Profile</p>
 					<div className="surface-card overflow-hidden divide-y divide-[var(--border)]">
 						{(() => {
