@@ -1,8 +1,8 @@
 {
     "settings": {
-        "title": "ضبط الحساب",
-        "subtitle": "اختر ما تريد تعديله",
-        "search_placeholder": "البحث فى الاعدادات",
+        "title": "الضبط",
+        "subtitle": "",
+        "search_placeholder": "كبير",
         "search_no_results": "لم يتم العثور على إعدادات",
         "search_results_count_zero": "الناتج",
         "search_results_count_one": "النتيجة",
@@ -12,7 +12,7 @@
         "search_results_count_other": "",
         "language": "اللغات",
         "language_description": "اختر لغتك المفضلة",
-        "profile_editor": "تعديل الملف الشخصي",
+        "profile_editor": "",
         "profile_editor_desc": "قم بتعديل تفاصيل الملف الشخصي ـ الهوية ـ والتفضيلات",
         "customizability": "الشكل",
         "customizability_desc": "قم بتغيير نظام الألوان ولون التمييز",
