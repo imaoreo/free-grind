@@ -1284,12 +1284,12 @@
             "blocked_by_few": "",
             "blocked_by_many": "",
             "blocked_by_other": "",
-            "unblocked_by_zero": "",
-            "unblocked_by_one": "",
-            "unblocked_by_two": "",
-            "unblocked_by_few": "",
-            "unblocked_by_many": "",
-            "unblocked_by_other": ""
+            "unblocked_by_zero": "{{name}} قام بإلغاء حظرك",
+            "unblocked_by_one": "{{name}} قام بإلغاء حظرك",
+            "unblocked_by_two": "{{name}} قامو بإلغاء حظرك",
+            "unblocked_by_few": "{{name}} قامو بإلغاء حظرك",
+            "unblocked_by_many": "{{name}} قامو بإلغاء حظرك",
+            "unblocked_by_other": "{{name}} قام بإلغاء حظرك"
         },
         "realtime": {
             "connected": "اتصال",
