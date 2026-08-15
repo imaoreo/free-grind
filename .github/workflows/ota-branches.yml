@@ -1,84 +1,99 @@
-name: Publish OTA Branches
+name: Build latest Free Grind APK
 
 on:
-  push:
-    branches:
-      - development
   workflow_dispatch:
-    inputs:
-      channel:
-        description: "OTA channel to publish"
-        required: true
-        default: "testingwjay"
 
 permissions:
   contents: read
 
-concurrency:
-  group: ota-${{ github.ref_name }}
-  cancel-in-progress: false
-
 jobs:
-  publish-ota:
+  android:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout latest Free Grind development source
+        uses: actions/checkout@v4
+        with:
+          repository: imaoreo/free-grind
+          ref: development
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install frontend dependencies
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platform-tools" \
+            "ndk;29.0.14206865"
+          yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+
+      - name: Cache Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Resolve OTA metadata
-        id: ota-meta
+      - name: Initialize Android project
+        run: bunx tauri android init --ci --skip-targets-install
+
+      - name: Add Android network security config
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            channel="${{ github.event.inputs.channel }}"
-          else
-            case "${GITHUB_REF_NAME}" in
-              development)
-                channel="development"
-                ;;
-              *)
-                echo "Unsupported branch for OTA: ${GITHUB_REF_NAME}" >&2
-                exit 1
-                ;;
-            esac
-          fi
+          mkdir -p src-tauri/gen/android/app/src/main/res/xml
+          cat > src-tauri/gen/android/app/src/main/res/xml/network_security_config.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+            <base-config cleartextTrafficPermitted="true">
+              <trust-anchors>
+                <certificates src="system" />
+                <certificates src="user" />
+              </trust-anchors>
+            </base-config>
+          </network-security-config>
+          EOF
 
-          echo "channel=${channel}" >> "$GITHUB_OUTPUT"
-          echo "ota_version=$(jq -r '.version' package.json)-ota.${channel}.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          echo "notes=Automated OTA upload for ${GITHUB_SHA} on ${channel}" >> "$GITHUB_OUTPUT"
-
-      - name: Build frontend bundle
+      - name: Add custom notification sound
         run: |
-          bun run build
-          tar -czf frontend.tar.gz -C dist .
+          mkdir -p src-tauri/gen/android/app/src/main/res/raw
+          install -m 0644 \
+            src-tauri/sounds/free_grind_message.mp3 \
+            src-tauri/gen/android/app/src/main/res/raw/free_grind_message.mp3
 
-      - name: Sign OTA bundle
-        env:
-          HOTSWAP_PRIVATE_KEY: ${{ secrets.HOTSWAP_PRIVATE_KEY }}
-          HOTSWAP_PRIVATE_KEY_PASSWORD: ${{ secrets.HOTSWAP_PRIVATE_KEY_PASSWORD }}
+      # Debug mode uses Android's debug signing, so no private release keystore is required.
+      - name: Build installable APK
+        run: bunx tauri android build --apk --debug -v
+
+      - name: Find APK
+        id: apk
+        shell: bash
         run: |
-          bunx tauri signer sign frontend.tar.gz -k "$HOTSWAP_PRIVATE_KEY" -p "${HOTSWAP_PRIVATE_KEY_PASSWORD:-}"
+          APK="$(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          echo "path=$APK" >> "$GITHUB_OUTPUT"
+          echo "Built: $APK"
 
-      - name: Upload OTA bundle to backend
-        env:
-          OTA_BACKEND_URL: ${{ secrets.OTA_BACKEND_URL }}
-          OTA_BACKEND_TOKEN: ${{ secrets.OTA_BACKEND_TOKEN }}
-        run: |
-          BACKEND_URL="${OTA_BACKEND_URL%/}"
-          RESPONSE=$(curl --fail-with-body -sS -X POST "$BACKEND_URL/api/releases" \
-            -H "Authorization: Bearer $OTA_BACKEND_TOKEN" \
-            -F "channel=${{ steps.ota-meta.outputs.channel }}" \
-            -F "platform=all" \
-            -F "arch=all" \
-            -F "version=${{ steps.ota-meta.outputs.ota_version }}" \
-            -F "minBinaryVersion=$(jq -r '.version' package.json)" \
-            -F "signature=$(cat frontend.tar.gz.sig)" \
-            -F "notes=${{ steps.ota-meta.outputs.notes }}" \
-            -F "mandatory=false" \
-            -F "bundleFile=@frontend.tar.gz;type=application/gzip")
-
-          echo "$RESPONSE"
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-grind-latest-android
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
