@@ -2,4 +2,4 @@
   uses: actions/download-artifact@v3
   with:
     name: free-grind-android
-    path: ./dist
+    path: .
