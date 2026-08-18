@@ -1,5 +1,1 @@
-- name: Download a Build Artifact
-  uses: actions/download-artifact@v3
-  with:
-    name: free-grind-android
-    path: .
+concurrency:
