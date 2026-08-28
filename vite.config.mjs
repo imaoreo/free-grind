@@ -4,6 +4,28 @@ import tailwindcss from "@tailwindcss/vite";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+// Tauri v2's unlisten() is async and reads listeners[eventId].handlerId with
+// no null check. A close/reload race becomes an unhandled rejection overlay
+// on iOS WebKit. Wrap the lookup so a missing listener is a no-op.
+function safeTauriUnlisten() {
+	const needle =
+		"window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener(event, eventId);";
+	const replacement =
+		"try { window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener(event, eventId); } catch {}";
+	return {
+		name: "safe-tauri-unlisten",
+		transform(code, id) {
+			if (!id.includes("@tauri-apps/api") || !code.includes(needle)) {
+				return null;
+			}
+			return {
+				code: code.replaceAll(needle, replacement),
+				map: null,
+			};
+		},
+	};
+}
+
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 const packageJsonPath = fileURLToPath(new URL("./package.json", import.meta.url));
@@ -12,7 +34,7 @@ const appVersion = packageJson.version ?? "0.0.0";
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-	plugins: [react(), tailwindcss()],
+	plugins: [safeTauriUnlisten(), react(), tailwindcss()],
 	define: {
 		"import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
 	},
