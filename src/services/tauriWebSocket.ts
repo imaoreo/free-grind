@@ -86,7 +86,7 @@ export class TauriWebSocket {
 				// unregister immediately instead of leaking it for the rest of
 				// the app's lifetime. dispatchClose already ran once and won't
 				// run again, so cleanupListener() would never call this.
-				unlisten();
+				this.safeUnlisten(unlisten);
 				return;
 			}
 			this.unlisten = unlisten;
@@ -168,13 +168,25 @@ export class TauriWebSocket {
 	}
 
 	private cleanupListener() {
-		if (this.unlisten) {
-			try {
-				this.unlisten();
-			} catch (error) {
+		const unlisten = this.unlisten;
+		this.unlisten = null;
+		this.safeUnlisten(unlisten);
+	}
+
+	// Tauri v2's unlisten() is async and reads listeners[eventId].handlerId
+	// without a null check. If the webview already dropped that entry
+	// (reload/close race), it rejects as an unhandled promise instead of
+	// throwing synchronously — try/catch around the call is not enough.
+	private safeUnlisten(unlisten: UnlistenFn | null) {
+		if (!unlisten) {
+			return;
+		}
+		try {
+			void Promise.resolve(unlisten()).catch((error) => {
 				appLog.warn("[chat-ws:tauri] unlisten failed", error);
-			}
-			this.unlisten = null;
+			});
+		} catch (error) {
+			appLog.warn("[chat-ws:tauri] unlisten failed", error);
 		}
 	}
 
